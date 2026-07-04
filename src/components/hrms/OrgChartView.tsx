@@ -121,7 +121,7 @@ function OrgChartNode({
       <div
         className={`relative rounded-lg px-4 py-3 min-w-[170px] max-w-[220px] text-center transition-all select-none border
           ${isHighlighted
-            ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-lg"
+            ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md"
             : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
           }`}
       >

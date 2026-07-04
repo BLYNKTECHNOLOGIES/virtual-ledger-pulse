@@ -161,7 +161,7 @@ export default function HorillaDashboard() {
     { label: "Active Employees", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
     { label: "Open Positions", value: activeRecruitments, sub: `${totalVacancies} vacancies`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Candidates", value: totalCandidates, sub: `${hiredCandidates} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
-    { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-teal-100", iconColor: "text-teal-600" },
+    { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Pending Leaves", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Onboarding", value: onboardingCount, sub: "candidates in pipeline", icon: Rocket, iconBg: "bg-[#E8604C]/10", iconColor: "text-[#E8604C]" },
     { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },

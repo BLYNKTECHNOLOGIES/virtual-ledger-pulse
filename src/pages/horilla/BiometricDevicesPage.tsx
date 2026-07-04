@@ -197,13 +197,13 @@ export default function BiometricDevicesPage() {
                   </div>
 
                   <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-teal-500 text-teal-600 hover:bg-teal-50">
+                    <Button size="sm" variant="outline" className="text-xs h-7 border-info text-info hover:bg-info/10">
                       Test
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className={`text-xs h-7 ${d.is_scheduled ? "border-warning text-warning hover:bg-warning/10" : "border-teal-500 text-teal-600 hover:bg-teal-50"}`}
+                      className={`text-xs h-7 ${d.is_scheduled ? "border-warning text-warning hover:bg-warning/10" : "border-info text-info hover:bg-info/10"}`}
                       onClick={async () => {
                         await (supabase as any).from("hr_biometric_devices").update({ is_scheduled: !d.is_scheduled }).eq("id", d.id);
                         qc.invalidateQueries({ queryKey: ["hr_biometric_devices"] });

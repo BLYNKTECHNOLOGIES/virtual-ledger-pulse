@@ -140,7 +140,7 @@ export function UnderReKYCTab() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-blue-500" />
+          <Users className="h-5 w-5 text-info" />
           Under ReKYC
         </CardTitle>
         <CardDescription>

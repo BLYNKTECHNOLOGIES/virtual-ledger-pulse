@@ -385,10 +385,10 @@ export function AccountSummary() {
 
   const getCaseTypeColor = (type: string) => {
     switch (type) {
-      case 'ACCOUNT_NOT_WORKING': return 'bg-red-100 text-red-700';
-      case 'BALANCE_DISCREPANCY': return 'bg-purple-100 text-purple-700';
-      case 'WRONG_PAYMENT_INITIATED': return 'bg-orange-100 text-orange-700';
-      case 'SETTLEMENT_NOT_RECEIVED': return 'bg-blue-100 text-blue-700';
+      case 'ACCOUNT_NOT_WORKING': return 'bg-destructive/10 text-destructive';
+      case 'BALANCE_DISCREPANCY': return 'bg-primary/10 text-primary';
+      case 'WRONG_PAYMENT_INITIATED': return 'bg-warning/10 text-warning';
+      case 'SETTLEMENT_NOT_RECEIVED': return 'bg-info/10 text-info';
       default: return 'bg-muted text-foreground';
     }
   };
@@ -431,7 +431,7 @@ export function AccountSummary() {
           <p className="text-muted-foreground mt-1 text-sm">Comprehensive banking system analysis and reporting</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <Button onClick={handleExportPDF} variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleExportPDF} variant="default" size="sm" className="bg-info hover:bg-info">
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </Button>
@@ -457,8 +457,8 @@ export function AccountSummary() {
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Accounts</p>
                     <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{systemTotals?.total_accounts || 0}</p>
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <Building2 className="h-6 w-6 text-blue-600" />
+                  <div className="bg-info/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <Building2 className="h-6 w-6 text-info" />
                   </div>
                 </div>
               </CardContent>
@@ -471,8 +471,8 @@ export function AccountSummary() {
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Balance</p>
                     <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{formatCurrency(totalComputedBalance)}</p>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <DollarSign className="h-6 w-6 text-green-600" />
+                  <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <DollarSign className="h-6 w-6 text-success" />
                   </div>
                 </div>
               </CardContent>
@@ -485,8 +485,8 @@ export function AccountSummary() {
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Active Accounts</p>
                     <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{systemTotals?.active_accounts || 0}</p>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <CheckCircle className="h-6 w-6 text-success" />
                   </div>
                 </div>
               </CardContent>
@@ -499,8 +499,8 @@ export function AccountSummary() {
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Inactive Accounts</p>
                     <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{systemTotals?.inactive_accounts || 0}</p>
                   </div>
-                  <div className="bg-orange-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <AlertTriangle className="h-6 w-6 text-orange-600" />
+                  <div className="bg-warning/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <AlertTriangle className="h-6 w-6 text-warning" />
                   </div>
                 </div>
               </CardContent>
@@ -519,22 +519,22 @@ export function AccountSummary() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <TrendingUp className="h-4 w-4 text-success" />
                     <span className="text-sm font-medium">Total Income</span>
                   </div>
-                  <span className="font-bold text-green-600">{formatCurrency(totalIncome)}</span>
+                  <span className="font-bold text-success">{formatCurrency(totalIncome)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4 text-red-600" />
+                    <TrendingDown className="h-4 w-4 text-destructive" />
                     <span className="text-sm font-medium">Total Expense</span>
                   </div>
-                  <span className="font-bold text-red-600">{formatCurrency(totalExpense)}</span>
+                  <span className="font-bold text-destructive">{formatCurrency(totalExpense)}</span>
                 </div>
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Net Position</span>
-                    <span className={`font-bold ${totalIncome - totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`font-bold ${totalIncome - totalExpense >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {formatCurrency(totalIncome - totalExpense)}
                     </span>
                   </div>
@@ -553,14 +553,14 @@ export function AccountSummary() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <div className="w-3 h-3 bg-success rounded-full"></div>
                       <span className="text-sm">Active Accounts</span>
                     </div>
                     <span className="font-semibold">{systemTotals?.active_accounts || 0}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                      <div className="w-3 h-3 bg-muted rounded-full"></div>
                       <span className="text-sm">Inactive Accounts</span>
                     </div>
                     <span className="font-semibold">{systemTotals?.inactive_accounts || 0}</span>
@@ -754,8 +754,8 @@ export function AccountSummary() {
                                   variant={['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type) ? 'default' : 'secondary'}
                                   className={
                                     ['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type)
-                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                      ? 'bg-success/10 text-success dark:bg-success/30 dark:text-success' 
+                                      : 'bg-destructive/10 text-destructive dark:bg-destructive/30 dark:text-destructive'
                                   }
                                 >
                                   {transaction.transaction_type}
@@ -766,8 +766,8 @@ export function AccountSummary() {
                               <td className="p-3 text-right font-mono font-semibold">
                                 <span className={
                                   ['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type)
-                                    ? 'text-green-600 dark:text-green-400' 
-                                    : 'text-red-600 dark:text-red-400'
+                                    ? 'text-success dark:text-success' 
+                                    : 'text-destructive dark:text-destructive'
                                 }>
                                   {['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type) ? '+' : '-'}
                                   {formatCurrency(transaction.amount)}

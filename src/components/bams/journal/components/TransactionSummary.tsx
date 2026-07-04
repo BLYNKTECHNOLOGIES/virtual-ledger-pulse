@@ -24,14 +24,14 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
     <>
       {/* Net Balance - moved to top */}
       <Card className={cn(
-        "border-2 shadow-sm",
-        totalIncomes - totalExpenses >= 0 ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+        "border shadow-sm",
+        totalIncomes - totalExpenses >= 0 ? "border-success/20 bg-success/10" : "border-destructive/20 bg-destructive/10"
       )}>
         <CardContent className="pt-6">
           <div className="text-center">
             <div className={cn(
               "text-3xl font-bold",
-              totalIncomes - totalExpenses >= 0 ? "text-green-700" : "text-red-700"
+              totalIncomes - totalExpenses >= 0 ? "text-success" : "text-destructive"
             )}>
               ₹{(totalIncomes - totalExpenses).toLocaleString('en-IN')}
             </div>
@@ -42,27 +42,27 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-green-200 bg-green-50 shadow-sm">
+        <Card className="border-success/20 bg-success/10 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total Incomes</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium text-success">Total Incomes</CardTitle>
+            <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">₹{totalIncomes.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-green-600">
+            <div className="text-2xl font-bold text-success">₹{totalIncomes.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-success">
               {transactions?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t)).length || 0} transactions
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-red-50 shadow-sm">
+        <Card className="border-destructive/20 bg-destructive/10 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-red-700">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-sm font-medium text-destructive">Total Expenses</CardTitle>
+            <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-700">₹{totalExpenses.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-red-600">
+            <div className="text-2xl font-bold text-destructive">₹{totalExpenses.toLocaleString('en-IN')}</div>
+            <p className="text-xs text-destructive">
               {transactions?.filter(t => t.transaction_type === "EXPENSE").length || 0} transactions
             </p>
           </CardContent>

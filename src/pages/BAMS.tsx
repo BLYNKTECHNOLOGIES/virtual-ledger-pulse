@@ -26,19 +26,19 @@ export default function BAMS() {
       permissions={["bams_view", "bams_manage"]} 
       fallback={
         <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
-          <Card className="max-w-md border-red-200 bg-red-50">
+          <Card className="max-w-md border-destructive/20 bg-destructive/10">
             <CardContent className="p-8 text-center">
               <div className="space-y-4">
-                <div className="text-red-500">
+                <div className="text-destructive">
                   <Shield className="h-12 w-12 mx-auto mb-3" />
                   <h3 className="text-xl font-semibold">Access Denied</h3>
-                  <p className="text-sm text-red-600 mt-2">
+                  <p className="text-sm text-destructive mt-2">
                     You don't have permission to access the Banking & Payment Management module.
                   </p>
                 </div>
                 <button
                   onClick={() => navigate('/dashboard')}
-                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+                  className="mt-4 px-4 py-2 bg-destructive text-primary-foreground rounded-md hover:bg-destructive transition"
                 >
                   Return to Dashboard
                 </button>
@@ -48,18 +48,18 @@ export default function BAMS() {
         </div>
       }
     >
-      <div className="min-h-screen bg-muted/50 p-6">
+      <div className="min-h-screen bg-muted/50 p-6 page-mount">
         {/* Header */}
         <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
           <div className="px-6 py-8">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 bg-rose-50 rounded-xl shadow-sm">
-                    <CreditCard className="h-8 w-8 text-rose-600" />
+                  <div className="p-3 bg-destructive/10 rounded-xl shadow-sm">
+                    <CreditCard className="h-8 w-8 text-destructive" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
+                    <h1 className="text-2xl font-semibold tracking-tight text-muted-foreground">
                       BAMS - Banking & Payment Management
                     </h1>
                     <p className="text-muted-foreground text-sm">

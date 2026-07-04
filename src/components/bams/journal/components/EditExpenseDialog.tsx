@@ -439,7 +439,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
               <label
                 htmlFor="editBillAttachment"
                 {...billDropzone}
-                className={cn("mt-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/30", billDragActive && "border-primary bg-primary/10")}
+                className={cn("mt-1 flex items-center justify-center gap-2 p-3 border border-dashed rounded-md cursor-pointer hover:bg-muted/30", billDragActive && "border-primary bg-primary/10")}
               >
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">

@@ -170,7 +170,7 @@ export function FlaggedClientsTab() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-yellow-500" />
+          <AlertTriangle className="h-5 w-5 text-warning" />
           Flagged Clients
         </CardTitle>
         <CardDescription>

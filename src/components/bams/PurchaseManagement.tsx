@@ -419,12 +419,12 @@ export function PurchaseManagement() {
                 {[1, 2, 3].map((stepNum) => (
                   <div key={stepNum} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      stepNum <= step ? 'bg-blue-600 text-white' : 
+                      stepNum <= step ? 'bg-info text-primary-foreground' : 
                       'bg-muted text-muted-foreground'
                     } ${stepNum === step ? 'ring-2 ring-blue-300' : ''}`}>
                       {stepNum < step ? '✓' : stepNum}
                     </div>
-                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-muted'}`} />}
+                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-info' : 'bg-muted'}`} />}
                   </div>
                 ))}
               </div>
@@ -620,11 +620,11 @@ export function PurchaseManagement() {
                             className="flex-1"
                             required={formData.frequency === "Custom"}
                           />
-                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <p className="text-sm text-blue-700 font-medium">
+                          <div className="bg-info/10 p-3 rounded-lg border border-info/20">
+                            <p className="text-sm text-info font-medium">
                               Hours Guide
                             </p>
-                            <div className="text-xs text-blue-600 space-y-1 mt-1">
+                            <div className="text-xs text-info space-y-1 mt-1">
                               <div>• 12 hours = Twice daily</div>
                               <div>• 72 hours = Every 3 days</div>
                               <div>• 168 hours = Weekly</div>
@@ -710,12 +710,12 @@ export function PurchaseManagement() {
         <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Smartphone className="h-4 w-4 text-blue-600" />
+              <Smartphone className="h-4 w-4 text-info" />
               Available UPI Limit
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold tabular-nums text-blue-600">
+            <div className="text-2xl font-semibold tabular-nums text-info">
               ₹{getTotalAvailableUPI().toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -727,12 +727,12 @@ export function PurchaseManagement() {
         <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building className="h-4 w-4 text-green-600" />
+              <Building className="h-4 w-4 text-success" />
               Available Bank Transfer Limit
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold tabular-nums text-green-600">
+            <div className="text-2xl font-semibold tabular-nums text-success">
               ₹{getTotalAvailableBankTransfer().toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -744,12 +744,12 @@ export function PurchaseManagement() {
         <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-purple-600" />
+              <TrendingDown className="h-4 w-4 text-primary" />
               Total Available
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold tabular-nums text-purple-600">
+            <div className="text-2xl font-semibold tabular-nums text-primary">
               ₹{(getTotalAvailableUPI() + getTotalAvailableBankTransfer()).toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -791,9 +791,9 @@ export function PurchaseManagement() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {method.type === "UPI" ? (
-                          <Smartphone className="h-4 w-4 text-blue-600" />
+                          <Smartphone className="h-4 w-4 text-info" />
                         ) : (
-                          <Building className="h-4 w-4 text-green-600" />
+                          <Building className="h-4 w-4 text-success" />
                         )}
                         {method.type}
                       </div>
@@ -807,7 +807,7 @@ export function PurchaseManagement() {
                     </TableCell>
                     <TableCell>₹{method.paymentLimit.toLocaleString('en-IN')}</TableCell>
                     <TableCell>₹{method.currentUsage.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className={availableLimit === 0 ? "text-red-600 font-medium" : ""}>
+                    <TableCell className={availableLimit === 0 ? "text-destructive font-medium" : ""}>
                       ₹{availableLimit.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
@@ -815,7 +815,7 @@ export function PurchaseManagement() {
                         <Progress value={usagePercentage} className="w-16" />
                         <span className="text-xs">{usagePercentage.toFixed(0)}%</span>
                         {usagePercentage >= 100 && (
-                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                          <AlertTriangle className="h-4 w-4 text-destructive" />
                         )}
                       </div>
                     </TableCell>
@@ -840,7 +840,7 @@ export function PurchaseManagement() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDelete(method.id)}
-                              className="text-red-600 hover:text-red-700"
+                              className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>

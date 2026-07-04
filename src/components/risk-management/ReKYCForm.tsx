@@ -217,14 +217,14 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                   href={getFileUrl(rekycData.aadhar_front_url) || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-info hover:underline"
                 >
                   View Aadhar Front Document
                 </a>
               </div>
             ) : (
               <div
-                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragAadharFront ? "border-primary bg-primary/10" : "border-transparent"}`}
+                className={`rounded-md border border-dashed p-2 transition-colors ${dragAadharFront ? "border-primary bg-primary/10" : "border-transparent"}`}
                 {...dropAadharFront}
               >
                 <Input
@@ -250,14 +250,14 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                   href={getFileUrl(rekycData.aadhar_back_url) || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-info hover:underline"
                 >
                   View Aadhar Back Document
                 </a>
               </div>
             ) : (
               <div
-                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragAadharBack ? "border-primary bg-primary/10" : "border-transparent"}`}
+                className={`rounded-md border border-dashed p-2 transition-colors ${dragAadharBack ? "border-primary bg-primary/10" : "border-transparent"}`}
                 {...dropAadharBack}
               >
                 <Input
@@ -283,14 +283,14 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                   href={getFileUrl(rekycData.pan_card_url) || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-info hover:underline"
                 >
                   View PAN Card Document
                 </a>
               </div>
             ) : (
               <div
-                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragPanCard ? "border-primary bg-primary/10" : "border-transparent"}`}
+                className={`rounded-md border border-dashed p-2 transition-colors ${dragPanCard ? "border-primary bg-primary/10" : "border-transparent"}`}
                 {...dropPanCard}
               >
                 <Input
@@ -316,14 +316,14 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                   href={getFileUrl(rekycData.bank_statement_url) || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-info hover:underline"
                 >
                   View Bank Statement
                 </a>
               </div>
             ) : (
               <div
-                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragBankStatement ? "border-primary bg-primary/10" : "border-transparent"}`}
+                className={`rounded-md border border-dashed p-2 transition-colors ${dragBankStatement ? "border-primary bg-primary/10" : "border-transparent"}`}
                 {...dropBankStatement}
               >
                 <Input
@@ -349,14 +349,14 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                   href={getFileUrl(rekycData.vkyc_video_url) || "#"} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-info hover:underline"
                 >
                   View vKYC Video
                 </a>
               </div>
             ) : (
               <div
-                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragVkycVideo ? "border-primary bg-primary/10" : "border-transparent"}`}
+                className={`rounded-md border border-dashed p-2 transition-colors ${dragVkycVideo ? "border-primary bg-primary/10" : "border-transparent"}`}
                 {...dropVkycVideo}
               >
                 <Input

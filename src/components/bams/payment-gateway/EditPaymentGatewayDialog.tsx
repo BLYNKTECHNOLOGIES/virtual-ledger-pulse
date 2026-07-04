@@ -186,7 +186,7 @@ export function EditPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select bank account for settlement" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 {bankAccounts.map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name} ({account.account_number.slice(-4)})
@@ -208,7 +208,7 @@ export function EditPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select risk category" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 <SelectItem value="LOW">Low Risk</SelectItem>
                 <SelectItem value="MEDIUM">Medium Risk</SelectItem>
                 <SelectItem value="HIGH">High Risk</SelectItem>
@@ -237,7 +237,7 @@ export function EditPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select settlement cycle" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 <SelectItem value="Instant">Instant</SelectItem>
                 <SelectItem value="T+1">T+1 (Next Day)</SelectItem>
                 <SelectItem value="T+2">T+2 (2 Days)</SelectItem>

@@ -655,7 +655,7 @@ export function BankAccountManagement() {
                     <SelectTrigger className="bg-background">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
+                    <SelectContent className="bg-background border shadow-sm z-50">
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="INACTIVE">Inactive</SelectItem>
                       <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
@@ -663,7 +663,7 @@ export function BankAccountManagement() {
                     </SelectContent>
                   </Select>
                   {formData.status === "DORMANT" && (
-                    <p className="text-xs text-amber-600 mt-1">
+                    <p className="text-xs text-warning mt-1">
                       ⚠️ Dormant banks are excluded from all transactions and calculations
                     </p>
                   )}
@@ -677,7 +677,7 @@ export function BankAccountManagement() {
                     <SelectTrigger className="bg-background">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
+                    <SelectContent className="bg-background border shadow-sm z-50">
                       <SelectItem value="SAVINGS">Savings</SelectItem>
                       <SelectItem value="CURRENT">Current</SelectItem>
                       <SelectItem value="CREDIT">Credit</SelectItem>
@@ -694,7 +694,7 @@ export function BankAccountManagement() {
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select Company" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
+                    <SelectContent className="bg-background border shadow-sm z-50">
                       {subsidiaries?.map((subsidiary) => (
                         <SelectItem key={subsidiary.id} value={subsidiary.id}>
                           {subsidiary.firm_name}
@@ -789,7 +789,7 @@ export function BankAccountManagement() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span>{account.account_name}</span>
                               {isAdjustmentBank(account.account_name) && (
-                                <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700 bg-amber-50">
+                                <Badge variant="outline" className="text-[10px] border-warning/20 text-warning bg-warning/10">
                                   Audit Bucket — excluded from totals
                                 </Badge>
                               )}
@@ -800,10 +800,10 @@ export function BankAccountManagement() {
                           <TableCell>
                             <Badge variant="outline" className={
                               account.account_type === "SAVINGS"
-                                ? "bg-blue-50 text-blue-700"
+                                ? "bg-info/10 text-info"
                                 : account.account_type === "CREDIT"
-                                  ? "bg-red-50 text-red-700"
-                                  : "bg-green-50 text-green-700"
+                                  ? "bg-destructive/10 text-destructive"
+                                  : "bg-success/10 text-success"
                             }>
                               {account.account_type === "SAVINGS"
                                 ? "Savings"
@@ -815,13 +815,13 @@ export function BankAccountManagement() {
                           <TableCell>{account.account_number}</TableCell>
                           <TableCell>{account.IFSC}</TableCell>
                           <TableCell>{account.branch || "-"}</TableCell>
-                          <TableCell className={(account.balance as number) < 0 ? "text-red-600 font-bold" : ""}>
+                          <TableCell className={(account.balance as number) < 0 ? "text-destructive font-bold" : ""}>
                             ₹{((account.balance as number) || 0).toLocaleString('en-IN')}
                           </TableCell>
-                          <TableCell className="text-orange-600 font-medium">
+                          <TableCell className="text-warning font-medium">
                             ₹{((account.lien_amount || 0) as number).toLocaleString('en-IN')}
                           </TableCell>
-                          <TableCell className="text-green-600 font-bold">
+                          <TableCell className="text-success font-bold">
                             ₹{(((account.balance as number) || 0) - ((account.lien_amount || 0) as number)).toLocaleString('en-IN')}
                           </TableCell>
                           <TableCell>
@@ -903,15 +903,15 @@ export function BankAccountManagement() {
 
         {/* Dormant Accounts Tab */}
         <TabsContent value="dormant">
-          <Card className="border-amber-200 bg-amber-50/30">
+          <Card className="border-warning/20 bg-warning/10/30">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <Moon className="h-5 w-5 text-amber-600" />
-                <CardTitle className="text-amber-800">Dormant Bank Accounts</CardTitle>
+                <Moon className="h-5 w-5 text-warning" />
+                <CardTitle className="text-warning">Dormant Bank Accounts</CardTitle>
               </div>
-              <Alert className="bg-amber-100 border-amber-300 mt-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800 text-sm">
+              <Alert className="bg-warning/10 border-warning/20 mt-2">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <AlertDescription className="text-warning text-sm">
                   Dormant accounts are excluded from all transactions, calculations, selectors, and reports. 
                   Historical data remains intact.
                 </AlertDescription>
@@ -935,7 +935,7 @@ export function BankAccountManagement() {
                   </TableHeader>
                   <TableBody>
                     {dormantAccounts?.map((account) => (
-                      <TableRow key={account.id} className="bg-amber-50/50">
+                      <TableRow key={account.id} className="bg-warning/10/50">
                         <TableCell className="font-medium">{account.account_name}</TableCell>
                         <TableCell>{account.bank_name}</TableCell>
                         <TableCell>{account.account_number}</TableCell>
@@ -959,7 +959,7 @@ export function BankAccountManagement() {
                               size="sm" 
                               onClick={() => reactivateMutation.mutate(account.id)}
                               disabled={reactivateMutation.isPending}
-                              className="flex items-center gap-1 bg-card hover:bg-green-50 text-green-700 border-green-300"
+                              className="flex items-center gap-1 bg-card hover:bg-success/10 text-success border-success/20"
                             >
                               <RefreshCw className="h-3 w-3" />
                               Reactivate
@@ -1071,11 +1071,11 @@ export function BankAccountManagement() {
                         <TableCell>{account.account_number}</TableCell>
                         <TableCell>{account.IFSC}</TableCell>
                         <TableCell>{account.branch || "-"}</TableCell>
-                        <TableCell className={account.balance < 0 ? "text-red-600 font-bold" : ""}>
+                        <TableCell className={account.balance < 0 ? "text-destructive font-bold" : ""}>
                           ₹{account.balance.toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                          <Badge variant="secondary" className="bg-warning/10 text-warning">
                             Pending Approval
                           </Badge>
                         </TableCell>
@@ -1144,7 +1144,7 @@ export function BankAccountManagement() {
       <Dialog open={showDormantConfirmDialog} onOpenChange={setShowDormantConfirmDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-700">
+            <DialogTitle className="flex items-center gap-2 text-warning">
               <AlertTriangle className="h-5 w-5" />
               Mark Account as Dormant
             </DialogTitle>
@@ -1154,9 +1154,9 @@ export function BankAccountManagement() {
           </DialogHeader>
           
           <div className="space-y-4">
-            <Alert className="bg-amber-50 border-amber-300">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800 text-sm space-y-2">
+            <Alert className="bg-warning/10 border-warning/20">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="text-warning text-sm space-y-2">
                 <p><strong>Account:</strong> {accountToDormant?.account_name} ({accountToDormant?.bank_name})</p>
                 <p><strong>Current Balance:</strong> ₹{accountToDormant?.balance?.toLocaleString('en-IN')}</p>
                 <p className="mt-2">Once marked dormant:</p>
@@ -1176,7 +1176,7 @@ export function BankAccountManagement() {
             </Button>
             <Button 
               variant="default"
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-warning hover:bg-warning"
               onClick={() => accountToDormant && markDormantMutation.mutate(accountToDormant)}
               disabled={markDormantMutation.isPending}
             >

@@ -445,10 +445,10 @@ export function PaymentMethodManagement() {
 
   const getRiskBadgeColor = (risk: string) => {
     switch (risk) {
-      case "High Risk": return "bg-red-100 text-red-800";
-      case "Medium Risk": return "bg-yellow-100 text-yellow-800";
-      case "Low Risk": return "bg-blue-100 text-blue-800";
-      case "No Risk": return "bg-green-100 text-green-800";
+      case "High Risk": return "bg-destructive/10 text-destructive";
+      case "Medium Risk": return "bg-warning/10 text-warning";
+      case "Low Risk": return "bg-info/10 text-info";
+      case "No Risk": return "bg-success/10 text-success";
       default: return "bg-muted text-foreground";
     }
   };
@@ -506,12 +506,12 @@ export function PaymentMethodManagement() {
                 {Array.from({ length: formData.payment_gateway ? 4 : 3 }, (_, i) => i + 1).map((stepNum) => (
                   <div key={stepNum} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      stepNum <= step ? 'bg-blue-600 text-white' : 
+                      stepNum <= step ? 'bg-info text-primary-foreground' : 
                       'bg-muted text-muted-foreground'
                     } ${stepNum === step ? 'ring-2 ring-blue-300' : ''}`}>
                       {stepNum < step ? '✓' : stepNum}
                     </div>
-                    {stepNum < (formData.payment_gateway ? 4 : 3) && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-muted'}`} />}
+                    {stepNum < (formData.payment_gateway ? 4 : 3) && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-info' : 'bg-muted'}`} />}
                   </div>
                 ))}
               </div>
@@ -533,7 +533,7 @@ export function PaymentMethodManagement() {
                       value={formData.bank_account_id} 
                       onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}
                     >
-                      <SelectTrigger className={!formData.bank_account_id ? "border-red-300" : ""}>
+                      <SelectTrigger className={!formData.bank_account_id ? "border-destructive/20" : ""}>
                         <SelectValue placeholder="Select bank account (Required)" />
                       </SelectTrigger>
                       <SelectContent>
@@ -577,7 +577,7 @@ export function PaymentMethodManagement() {
                         value={formData.upi_id}
                         onChange={(e) => setFormData(prev => ({ ...prev, upi_id: e.target.value }))}
                         placeholder="user@paytm"
-                        className={formData.type === "UPI" && !formData.upi_id.trim() ? "border-red-300" : ""}
+                        className={formData.type === "UPI" && !formData.upi_id.trim() ? "border-destructive/20" : ""}
                       />
                     </div>
                   )}
@@ -640,7 +640,7 @@ export function PaymentMethodManagement() {
                         settlement_cycle: e.target.checked ? prev.settlement_cycle : "",
                         settlement_days: e.target.checked ? prev.settlement_days : ""
                       }))}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-border rounded"
+                      className="h-4 w-4 text-info focus:ring-blue-500 border-border rounded"
                     />
                     <Label htmlFor="payment_gateway" className="text-sm font-medium text-foreground">
                       Payment Gateway
@@ -789,11 +789,11 @@ export function PaymentMethodManagement() {
                             className="flex-1"
                             required={formData.frequency === "Custom"}
                           />
-                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <p className="text-sm text-blue-700 font-medium">
+                          <div className="bg-info/10 p-3 rounded-lg border border-info/20">
+                            <p className="text-sm text-info font-medium">
                               Hours Guide
                             </p>
-                            <div className="text-xs text-blue-600 space-y-1 mt-1">
+                            <div className="text-xs text-info space-y-1 mt-1">
                               <div>• 12 hours = Twice daily</div>
                               <div>• 72 hours = Every 3 days</div>
                               <div>• 168 hours = Weekly</div>
@@ -808,8 +808,8 @@ export function PaymentMethodManagement() {
                   )}
 
 
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="p-3 bg-info/10 rounded-lg">
+                    <p className="text-sm text-info">
                       <strong>Important:</strong> All sales transactions through this payment method will be automatically credited to the selected bank account. This ensures proper financial tracking and reconciliation.
                     </p>
                   </div>
@@ -862,9 +862,9 @@ export function PaymentMethodManagement() {
                     </div>
                   )}
 
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                    <h4 className="text-sm font-semibold text-blue-800 mb-2">Settlement Cycle Examples</h4>
-                    <div className="text-xs text-blue-700 space-y-1">
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-info/20">
+                    <h4 className="text-sm font-semibold text-info mb-2">Settlement Cycle Examples</h4>
+                    <div className="text-xs text-info space-y-1">
                       <div><strong>Instant Settlement:</strong> Funds available immediately in your account</div>
                       <div><strong>T+1 Day:</strong> Funds available next business day</div>
                       <div><strong>T+2 Days:</strong> Funds available in 2 business days</div>
@@ -1057,7 +1057,7 @@ export function PaymentMethodManagement() {
                   )}
                 </div>
               )}
-              <p className="mt-2 text-amber-600 text-sm">
+              <p className="mt-2 text-warning text-sm">
                 This action will deactivate the payment method. Historical transactions will be preserved.
               </p>
             </AlertDialogDescription>
@@ -1066,7 +1066,7 @@ export function PaymentMethodManagement() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingMethod && deleteMethodMutation.mutate(deletingMethod.id)}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive hover:bg-destructive"
             >
               {deleteMethodMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>

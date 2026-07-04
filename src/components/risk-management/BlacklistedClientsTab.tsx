@@ -108,7 +108,7 @@ export function BlacklistedClientsTab() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <XCircle className="h-5 w-5 text-red-500" />
+          <XCircle className="h-5 w-5 text-destructive" />
           Blacklisted Clients
         </CardTitle>
         <CardDescription>

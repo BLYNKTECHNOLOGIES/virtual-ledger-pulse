@@ -144,7 +144,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="animate-pulse">Loading TDS records...</div>
+          <TableSkeleton rows={5} columns={7} />
         </CardContent>
       </Card>
     );

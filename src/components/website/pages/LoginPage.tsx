@@ -4,13 +4,40 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, BarChart3 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 import blynkIcon from '@/assets/brand/blynk-icon.svg';
 import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
+
+/** A single CSS 3D cube used in the animated backdrop. */
+function Cube({
+  size,
+  className,
+  duration,
+  style,
+}: {
+  size: number;
+  className?: string;
+  duration: number;
+  style?: React.CSSProperties;
+}) {
+  const faces = ['f-front', 'f-back', 'f-right', 'f-left', 'f-top', 'f-bottom'];
+  return (
+    <div
+      className={`cube ${className ?? ''}`}
+      style={{ width: size, height: size, ['--h' as string]: `${size / 2}px`, ...style }}
+    >
+      <div className="cube-inner" style={{ animationDuration: `${duration}s` }}>
+        {faces.map((f) => (
+          <div key={f} className={`face ${f}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function LoginPage() {
   const [email, setEmail] = useState('');

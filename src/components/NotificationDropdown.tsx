@@ -22,9 +22,9 @@ function getNotificationIcon(type: GlobalNotification['type']) {
     case 'error':
       return <AlertTriangle className="h-4 w-4 text-destructive" />;
     case 'warning':
-      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+      return <AlertTriangle className="h-4 w-4 text-warning" />;
     case 'success':
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
+      return <CheckCircle className="h-4 w-4 text-success" />;
     default:
       return <Info className="h-4 w-4 text-primary" />;
   }
@@ -170,7 +170,7 @@ export function NotificationDropdown() {
           <DropdownMenuItem onClick={handleToggleMute}>
             {isMuted ? (
               <>
-                <Volume2 className="h-4 w-4 mr-2 text-green-500" />
+                <Volume2 className="h-4 w-4 mr-2 text-success" />
                 <span>Unmute Sounds</span>
               </>
             ) : (

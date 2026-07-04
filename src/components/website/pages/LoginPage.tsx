@@ -154,7 +154,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Staff Login</CardTitle>
@@ -165,12 +165,12 @@ export function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm">
                 {error}
               </div>
             )}
             {success && (
-              <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-md text-sm">
+              <div className="bg-success/10 border border-success/20 text-success px-4 py-3 rounded-md text-sm">
                 {success}
               </div>
             )}
@@ -178,7 +178,7 @@ export function LoginPage() {
             <div className="space-y-2">
               <Label htmlFor="email">Email or Username</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="text"
@@ -194,7 +194,7 @@ export function LoginPage() {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -212,9 +212,9 @@ export function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
+                    <Eye className="h-4 w-4 text-muted-foreground" />
                   )}
                 </Button>
               </div>
@@ -222,12 +222,12 @@ export function LoginPage() {
             
             <Button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              className="w-full bg-primary hover:bg-primary/90"
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
                   Signing in...
                 </>
               ) : (
@@ -239,19 +239,19 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                className="text-sm text-primary hover:text-primary/80 hover:underline"
               >
                 Forgot password?
               </button>
             </div>
           </form>
 
-          <div className="mt-4 pt-4 border-t text-center text-sm text-gray-600">
+          <div className="mt-4 pt-4 border-t text-center text-sm text-muted-foreground">
             New here?{' '}
             <button
               type="button"
               onClick={() => setShowRegister(true)}
-              className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              className="font-medium text-primary hover:text-primary/80 hover:underline"
             >
               Register
             </button>

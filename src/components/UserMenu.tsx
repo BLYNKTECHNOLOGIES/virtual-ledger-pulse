@@ -31,14 +31,14 @@ export function UserMenu() {
         {user.avatar_url ? (
           <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
         ) : (
-          <AvatarFallback className={`text-white ${isAdmin ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
+          <AvatarFallback className={`text-primary-foreground ${isAdmin ? 'bg-destructive' : 'bg-primary'}`}>
             {getInitials(user.firstName, user.lastName, user.email)}
           </AvatarFallback>
         )}
       </Avatar>
       {isAdmin && (
         <div className="absolute -top-1 -right-1">
-          <Shield className="h-4 w-4 text-red-600" />
+          <Shield className="h-4 w-4 text-destructive" />
         </div>
       )}
     </Button>

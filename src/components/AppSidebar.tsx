@@ -20,8 +20,8 @@ const reconciliationItem: SidebarGroupItem = {
   title: "Reconciliation",
   url: "/reconciliation",
   icon: ShieldCheck,
-  color: "text-rose-600",
-  bgColor: "bg-rose-100",
+  color: "text-destructive",
+  bgColor: "bg-destructive/10",
   permissions: [],
 };
 
@@ -32,8 +32,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Dashboard",
     url: "/dashboard",
     icon: Home,
-    color: "text-blue-600",
-    bgColor: "bg-blue-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["dashboard_view"]
   },
   {
@@ -41,8 +41,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "ERP Entry",
     url: "/erp-entry",
     icon: Inbox,
-    color: "text-sky-600",
-    bgColor: "bg-sky-100",
+    color: "text-info",
+    bgColor: "bg-info/10",
     permissions: ["erp_entry_view", "erp_entry_manage"]
   },
   {
@@ -50,8 +50,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Stock Management",
     url: "/stock",
     icon: Package,
-    color: "text-amber-600",
-    bgColor: "bg-amber-100",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
     permissions: ["stock_view", "stock_manage"]
   },
   {
@@ -59,8 +59,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Sales",
     url: "/sales",
     icon: TrendingUp,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100",
+    color: "text-success",
+    bgColor: "bg-success/10",
     permissions: ["sales_view", "sales_manage"]
   },
   {
@@ -68,8 +68,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Purchase",
     url: "/purchase",
     icon: ShoppingCart,
-    color: "text-purple-600",
-    bgColor: "bg-purple-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["purchase_view", "purchase_manage"]
   },
   {
@@ -77,8 +77,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "BAMS",
     url: "/bams",
     icon: Building2,
-    color: "text-orange-600",
-    bgColor: "bg-orange-100",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
     permissions: ["bams_view", "bams_manage"]
   },
   {
@@ -86,8 +86,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Clients",
     url: "/clients",
     icon: Users,
-    color: "text-cyan-600",
-    bgColor: "bg-cyan-100",
+    color: "text-info",
+    bgColor: "bg-info/10",
     permissions: ["clients_view", "clients_manage"]
   },
   {
@@ -95,8 +95,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "RA Dashboard",
     url: "/ra-dashboard",
     icon: Headset,
-    color: "text-pink-600",
-    bgColor: "bg-pink-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["ra_dashboard_view"]
   },
   {
@@ -104,8 +104,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Leads",
     url: "/leads",
     icon: UserPlus,
-    color: "text-teal-600",
-    bgColor: "bg-teal-100",
+    color: "text-success",
+    bgColor: "bg-success/10",
     permissions: ["leads_view", "leads_manage"]
   },
   {
@@ -113,8 +113,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "User Management",
     url: "/user-management",
     icon: Settings,
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["user_management_view", "user_management_manage"]
   },
   {
@@ -122,8 +122,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Compliance",
     url: "/compliance",
     icon: Scale,
-    color: "text-red-600",
-    bgColor: "bg-red-100",
+    color: "text-destructive",
+    bgColor: "bg-destructive/10",
     permissions: ["compliance_view", "compliance_manage"]
   },
   {
@@ -131,8 +131,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Risk Management",
     url: "/risk-management",
     icon: Shield,
-    color: "text-yellow-600",
-    bgColor: "bg-yellow-100",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
     permissions: ["risk_management_view", "risk_management_manage"]
   },
   {
@@ -140,8 +140,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "HRMS",
     url: "/hrms",
     icon: UserCheck,
-    color: "text-pink-600",
-    bgColor: "bg-pink-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["hrms_view", "hrms_manage"]
   },
   {
@@ -149,8 +149,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Tasks",
     url: "/tasks",
     icon: CheckSquare,
-    color: "text-violet-600",
-    bgColor: "bg-violet-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["tasks_view", "tasks_manage"]
   },
   {
@@ -158,8 +158,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "AI Help",
     url: "/help-assistant",
     icon: Sparkles,
-    color: "text-fuchsia-600",
-    bgColor: "bg-fuchsia-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["help_assistant_view", "help_assistant_manage"]
   },
   {
@@ -167,8 +167,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Shortcuts",
     url: "/shortcuts",
     icon: Keyboard,
-    color: "text-slate-600",
-    bgColor: "bg-slate-100",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
     permissions: [] // visible to all users
   }
 ];
@@ -179,16 +179,16 @@ const sidebarGroups: SidebarGroupConfig[] = [
     id: "finance-analytics",
     title: "Finance & Analytics",
     icon: BarChart3,
-    color: "text-green-600",
-    bgColor: "bg-green-100",
+    color: "text-success",
+    bgColor: "bg-success/10",
     children: [
       {
         id: "accounting",
         title: "Tax Management",
         url: "/accounting",
         icon: BookOpen,
-        color: "text-yellow-700",
-        bgColor: "bg-yellow-100",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
         permissions: ["accounting_view", "accounting_manage"]
       },
       {
@@ -196,8 +196,8 @@ const sidebarGroups: SidebarGroupConfig[] = [
         title: "P&L",
         url: "/profit-loss",
         icon: TrendingUp,
-        color: "text-teal-600",
-        bgColor: "bg-teal-100",
+        color: "text-success",
+        bgColor: "bg-success/10",
         permissions: ["accounting_view", "accounting_manage"]
       },
       {
@@ -205,8 +205,8 @@ const sidebarGroups: SidebarGroupConfig[] = [
         title: "Financials",
         url: "/financials",
         icon: Calculator,
-        color: "text-emerald-600",
-        bgColor: "bg-emerald-100",
+        color: "text-success",
+        bgColor: "bg-success/10",
         permissions: ["accounting_view", "accounting_manage"]
       },
       {
@@ -214,8 +214,8 @@ const sidebarGroups: SidebarGroupConfig[] = [
         title: "Statistics",
         url: "/statistics",
         icon: BarChart3,
-        color: "text-green-600",
-        bgColor: "bg-green-100",
+        color: "text-success",
+        bgColor: "bg-success/10",
         permissions: ["statistics_view", "statistics_manage"]
       }
      ]
@@ -224,16 +224,16 @@ const sidebarGroups: SidebarGroupConfig[] = [
     id: "utility",
     title: "Utility",
     icon: Wrench,
-    color: "text-gray-600",
-    bgColor: "bg-gray-100",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
     children: [
       {
         id: "utility-hub",
         title: "All Tools",
         url: "/utility",
         icon: Wrench,
-        color: "text-gray-600",
-        bgColor: "bg-gray-100",
+        color: "text-muted-foreground",
+        bgColor: "bg-muted",
         permissions: ["utility_view"]
       }
     ]
@@ -346,25 +346,25 @@ export function AppSidebar() {
 
   if (isLoading) {
     return (
-      <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg">
-        <SidebarHeader className="p-4 border-b-2 border-gray-100 bg-blue-600">
+      <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm">
+        <SidebarHeader className="p-4 border-b border-sidebar-border bg-primary">
           <div className="flex items-center justify-center">
-            <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse"></div>
+            <div className="w-8 h-8 bg-primary-foreground/20 rounded-lg animate-pulse"></div>
           </div>
         </SidebarHeader>
         
-        <SidebarContent className="bg-white">
+        <SidebarContent className="bg-sidebar">
           <SidebarGroup>
             <SidebarGroupContent>
               <div className="flex justify-center items-center h-20">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
         
-        <SidebarFooter className="p-4 border-t-2 border-gray-100 bg-gray-50">
-          <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-gray-600 hover:bg-white hover:text-gray-800 ml-auto rounded-lg">
+        <SidebarFooter className="p-4 border-t border-sidebar-border bg-sidebar-accent">
+          <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ml-auto rounded-lg">
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </SidebarFooter>
@@ -377,24 +377,24 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg" collapsible="icon">
-      <SidebarHeader className={`border-b-2 border-gray-100 bg-blue-600 ${isCollapsed ? 'p-2' : 'p-4'}`}>
+    <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm" collapsible="icon">
+      <SidebarHeader className={`border-b border-sidebar-border bg-primary ${isCollapsed ? 'p-2' : 'p-4'}`}>
         <div className={`flex items-center justify-center min-h-[60px] ${isCollapsed ? 'min-h-[56px]' : 'min-h-[60px]'}`}>
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="BLYNK Virtual Technologies Logo" 
-            className={`w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg ${isCollapsed ? 'h-8 w-8' : 'h-12'}`}
+            className={`w-auto flex-shrink-0 bg-primary-foreground/10 p-2 rounded-lg shadow-sm ${isCollapsed ? 'h-8 w-8' : 'h-12'}`}
           />
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 ml-3">
-              <h2 className="text-sm font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
-              <p className="text-sm text-blue-100 font-bold -mt-0.5 truncate">TECHNOLOGIES</p>
+              <h2 className="text-sm font-bold text-primary-foreground tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
+              <p className="text-sm text-primary-foreground/80 font-bold -mt-0.5 truncate">TECHNOLOGIES</p>
             </div>
           )}
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-white overflow-y-auto max-h-screen">
+      <SidebarContent className="bg-sidebar overflow-y-auto max-h-screen">
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext
@@ -437,9 +437,9 @@ export function AppSidebar() {
         {orderedEntries.length === 0 && (
           <SidebarGroup>
             <SidebarGroupContent>
-              <div className="text-center py-8 text-gray-500">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <Shield className="h-8 w-8 text-gray-400" />
+              <div className="text-center py-8 text-muted-foreground">
+                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <Shield className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <p className="text-sm font-medium">No accessible modules</p>
               </div>
@@ -448,12 +448,12 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       
-      <SidebarFooter className={`border-t-2 border-gray-100 bg-gray-50 ${isCollapsed ? 'p-1' : 'p-2'}`}>
+      <SidebarFooter className={`border-t border-sidebar-border bg-sidebar-accent ${isCollapsed ? 'p-1' : 'p-2'}`}>
         <div className="flex flex-col gap-2">
           <Link to="/terminal">
             <Button
               variant="ghost"
-              className={`w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-amber-400 hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 hover:text-amber-300 border border-amber-500/30 hover:border-amber-400/50 shadow-lg hover:shadow-amber-500/10 transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
+              className={`w-full bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
             >
               <Megaphone className={`h-4 w-4 ${isCollapsed ? '' : 'mr-2'}`} />
               {!isCollapsed && <span className="text-xs">Terminal</span>}
@@ -461,7 +461,7 @@ export function AppSidebar() {
           </Link>
           <div className="flex items-center justify-center">
             {!isCollapsed && (
-              <div className="text-xs text-gray-500 font-medium truncate flex-1 mr-2 bg-white px-2 py-1 rounded-lg shadow-sm">
+              <div className="text-xs text-muted-foreground font-medium truncate flex-1 mr-2 bg-sidebar px-2 py-1 rounded-lg shadow-sm">
                 © 2025 BLYNK Virtual Technologies
               </div>
             )}
@@ -469,7 +469,7 @@ export function AppSidebar() {
               variant="ghost" 
               size="sm" 
               onClick={toggleSidebar} 
-              className={`text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg flex-shrink-0 border-2 border-transparent hover:border-gray-200 transition-all duration-200 ${isCollapsed ? 'h-8 w-8 p-0' : ''}`}
+              className={`text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg flex-shrink-0 border border-transparent hover:border-sidebar-border transition-all duration-200 ${isCollapsed ? 'h-8 w-8 p-0' : ''}`}
             >
               {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </Button>

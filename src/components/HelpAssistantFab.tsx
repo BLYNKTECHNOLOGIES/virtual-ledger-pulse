@@ -26,9 +26,9 @@ export function HelpAssistantFab() {
           hover ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-2 scale-95 pointer-events-none"
         )}
       >
-        <div className="relative bg-card text-slate-800 text-xs font-medium px-3 py-2 rounded-2xl shadow-lg border border-slate-200">
+        <div className="relative bg-card text-card-foreground text-xs font-medium px-3 py-2 rounded-2xl shadow-lg border border-border">
           Hi! Need help? Ask me anything ✨
-          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-card border-r border-b border-slate-200 rotate-45" />
+          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-card border-r border-b border-border rotate-45" />
         </div>
       </div>
 
@@ -38,13 +38,13 @@ export function HelpAssistantFab() {
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         aria-label="Open AI Help Assistant"
-        className="group relative outline-none focus-visible:ring-4 focus-visible:ring-cyan-300/50 rounded-full"
+        className="group relative outline-none focus-visible:ring-4 focus-visible:ring-primary/50 rounded-full"
       >
         {/* Soft glow halo */}
-        <span className="pointer-events-none absolute inset-0 rounded-full bg-cyan-300/40 blur-xl scale-110 animate-pulse" />
+        <span className="pointer-events-none absolute inset-0 rounded-full bg-primary/40 blur-xl scale-110 animate-pulse" />
 
         {/* Pedestal / shadow */}
-        <span className="pointer-events-none absolute left-1/2 -bottom-1 -translate-x-1/2 w-14 h-2 rounded-full bg-slate-900/25 blur-md" />
+        <span className="pointer-events-none absolute left-1/2 -bottom-1 -translate-x-1/2 w-14 h-2 rounded-full bg-foreground/25 blur-md" />
 
         {/* Robot body — bobs gently, tilts on hover */}
         <span

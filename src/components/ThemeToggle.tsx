@@ -57,7 +57,7 @@ export function ThemeToggle() {
             <Card 
               key={theme.id}
               className={`cursor-pointer transition-all hover:shadow-md ${
-                selectedTheme === theme.id ? 'ring-2 ring-blue-500' : ''
+                selectedTheme === theme.id ? 'ring-2 ring-primary' : ''
               }`}
               onClick={() => handleThemeSelect(theme.id)}
             >
@@ -65,7 +65,7 @@ export function ThemeToggle() {
                 <div className={`w-full h-16 rounded-lg mb-3 border-2 ${theme.preview}`}>
                   {selectedTheme === theme.id && (
                     <div className="flex items-center justify-center h-full">
-                      <Check className="h-6 w-6 text-green-500" />
+                      <Check className="h-6 w-6 text-success" />
                     </div>
                   )}
                 </div>

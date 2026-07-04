@@ -52,8 +52,8 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
       <SidebarMenuButton
         tooltip={isCollapsed ? item.title : undefined}
         className={`
-          hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-all duration-150 rounded-xl group border border-transparent hover:border-gray-200 hover:shadow-sm
-          ${isActive ? 'bg-blue-50 text-blue-700 font-semibold border-blue-200 shadow-sm' : ''}
+          hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-accent-foreground transition-all duration-150 rounded-xl group border border-transparent hover:border-sidebar-border hover:shadow-sm
+          ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-sidebar-border shadow-sm' : ''}
           ${isDragging ? 'opacity-50 z-50' : ''}
           ${isCollapsed ? 'justify-center' : ''}
         `}
@@ -63,9 +63,9 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
             <div 
               {...attributes}
               {...listeners}
-              className="touch-none flex-shrink-0 p-1.5 hover:bg-blue-100 bg-gray-100 rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-gray-200"
+              className="touch-none flex-shrink-0 p-1.5 hover:bg-primary/10 bg-muted rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-border"
             >
-              <GripVertical className="h-4 w-4 text-gray-600" />
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
           )}
           <Link 
@@ -73,8 +73,8 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
             onClick={(e) => isDragMode && e.preventDefault()}
             className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}
           >
-            <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
-              <item.icon className={`h-4 w-4 ${isActive ? 'text-blue-700' : item.color} transition-colors duration-200`} />
+            <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/10' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
+              <item.icon className={`h-4 w-4 ${isActive ? 'text-primary' : item.color} transition-colors duration-200`} />
             </div>
             {!isCollapsed && (
               <span className="font-medium text-sm truncate transition-all duration-200 flex-1">

@@ -274,9 +274,14 @@ export function useBinanceChatWebSocket(
 
   // ---- Clear messages and restart polling when order changes ----
   useEffect(() => {
-    setMessages([]);
+    // Restore instantly from the module cache (survives unmount) instead of
+    // blanking the panel and waiting for the WS/REST refresh to arrive.
+    setMessages(
+      activeOrderNo ? messageCache.get(messageCacheKey(activeOrderNo, accountIdRef.current ?? null)) ?? [] : []
+    );
 
     if (!activeOrderNo) return;
+
 
     // Let the fast cached/archived DB read (used by ChatPanel) win the browser's
     // limited connection pool and paint first. The slow Binance REST/credential

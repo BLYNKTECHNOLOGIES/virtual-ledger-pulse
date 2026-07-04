@@ -16,15 +16,15 @@ interface ExceptionLaneProps {
 }
 
 const severityStyles: Record<string, string> = {
-  critical: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300",
-  warning: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
-  info: "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300",
+  critical: "bg-destructive/10 text-destructive",
+  warning: "bg-warning/10 text-warning",
+  info: "bg-info/10 text-info",
 };
 
 const SeverityIcon = ({ severity }: { severity: string }) => {
-  if (severity === "critical") return <AlertTriangle className="h-4 w-4 text-rose-500" />;
-  if (severity === "warning") return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-  return <Info className="h-4 w-4 text-sky-500" />;
+  if (severity === "critical") return <AlertTriangle className="h-4 w-4 text-destructive" />;
+  if (severity === "warning") return <AlertTriangle className="h-4 w-4 text-warning" />;
+  return <Info className="h-4 w-4 text-info" />;
 };
 
 export function ExceptionLane({
@@ -61,7 +61,7 @@ export function ExceptionLane({
         </div>
         <Badge
           variant={openCount > 0 ? "destructive" : "secondary"}
-          className={cn(openCount === 0 && "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300")}
+          className={cn(openCount === 0 && "bg-success/10 text-success")}
         >
           {openCount} open
         </Badge>
@@ -71,7 +71,7 @@ export function ExceptionLane({
         <div className="divide-y border-t">
           {visible.length === 0 && (
             <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
               No {showResolved ? "" : "open "}exceptions in this lane.
             </div>
           )}
@@ -96,7 +96,7 @@ export function ExceptionLane({
                         {item.severity}
                       </Badge>
                       {resolved && (
-                        <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                        <Badge className="bg-success/10 text-success">
                           Resolved
                         </Badge>
                       )}
@@ -107,7 +107,7 @@ export function ExceptionLane({
                     <div className="text-sm text-muted-foreground">{item.subtitle}</div>
                     <div className="text-xs text-muted-foreground tabular-nums">{item.detail}</div>
                     {resolved && (state?.resolved_by_name || state?.resolution_reason) && (
-                      <div className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">
+                      <div className="mt-0.5 text-xs text-success">
                         by {state?.resolved_by_name || "—"}
                         {state?.resolution_reason ? ` · ${state.resolution_reason}` : ""}
                       </div>

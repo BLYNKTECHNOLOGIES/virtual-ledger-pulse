@@ -127,9 +127,10 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
           )}
 
           <div className="flex items-center gap-1.5 mt-1">
-            <p className="text-[9px] text-muted-foreground">
+            <p className="text-[9px] t-mono text-muted-foreground">
               {message.timestamp ? format(new Date(message.timestamp), 'HH:mm') : ''}
             </p>
+
             {message._deliveryStatus === 'sending' && (
               <span className="flex items-center gap-0.5 text-[8px] text-muted-foreground">
                 <Loader2 className="h-2.5 w-2.5 animate-spin" />

@@ -298,7 +298,7 @@ export function BankAccountManagement() {
         updatePayload.dormant_by = null;
       }
       
-      const { error } = await supabase.from('bank_accounts').update(updatePayload as any).eq('id', accountData.id);
+      const { error } = await supabase.from('bank_accounts').update(updatePayload).eq('id', accountData.id);
       if (error) throw error;
     },
     onSuccess: () => {

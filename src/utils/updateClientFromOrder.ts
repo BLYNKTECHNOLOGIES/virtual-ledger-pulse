@@ -61,7 +61,7 @@ export async function updateClientFromOrder({
 
     const { error } = await supabase
       .from('clients')
-      .update(updates as any)
+      .update(updates)
       .eq('id', client.id);
 
     if (error) {

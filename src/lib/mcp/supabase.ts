@@ -8,10 +8,9 @@ import type { ToolContext } from "@lovable.dev/mcp-js";
  * import-safe for build-time extraction and Edge Function cold start.
  */
 export function supabaseForUser(ctx: ToolContext) {
-  const env = (globalThis as any).process?.env ?? {};
-  const url = env.SUPABASE_URL!;
+  const url = process.env.SUPABASE_URL!;
   const anonKey =
-    env.SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_ANON_KEY!;
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY!;
   return createClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false },

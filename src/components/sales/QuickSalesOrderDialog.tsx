@@ -106,7 +106,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
           settlement_status: 'DIRECT',
           bank_account_id: orderData.bank_account_id,
           description: `Sales Order - ${orderData.order_number}`
-        } as any)
+        })
         .select()
         .single();
 

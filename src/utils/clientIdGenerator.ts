@@ -119,7 +119,7 @@ export const createSellerClient = async (
           }
         }
         if (Object.keys(updates).length > 0) {
-          await supabase.from('clients').update(updates as any).eq('id', phoneMatch.id);
+          await supabase.from('clients').update(updates).eq('id', phoneMatch.id);
         }
         return { id: phoneMatch.id, client_id: phoneMatch.client_id };
       }
@@ -134,7 +134,7 @@ export const createSellerClient = async (
         }
       }
       if (Object.keys(updates).length > 0) {
-        await supabase.from('clients').update(updates as any).eq('id', existingClient.id);
+        await supabase.from('clients').update(updates).eq('id', existingClient.id);
       }
       return { id: existingClient.id, client_id: existingClient.client_id };
     }
@@ -163,7 +163,7 @@ export const createSellerClient = async (
           }
         }
         if (Object.keys(updates).length > 0) {
-          await supabase.from('clients').update(updates as any).eq('id', existingByVN.id);
+          await supabase.from('clients').update(updates).eq('id', existingByVN.id);
         }
         return { id: existingByVN.id, client_id: existingByVN.client_id };
       }
@@ -224,7 +224,7 @@ export const createBuyerClient = async (
       const updates: Record<string, string> = {};
       if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
       if (Object.keys(updates).length > 0) {
-        await supabase.from('clients').update(updates as any).eq('id', existingClient.id);
+        await supabase.from('clients').update(updates).eq('id', existingClient.id);
       }
       return { id: existingClient.id, client_id: existingClient.client_id };
     }

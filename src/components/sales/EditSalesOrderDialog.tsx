@@ -378,7 +378,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               order_number: data.order_number,
               client_name: data.client_name,
               order_date: data.order_date,
-            } as any);
+            });
           } else if (bankAccountId) {
             await supabase.from('bank_transactions').insert({
               bank_account_id: bankAccountId,

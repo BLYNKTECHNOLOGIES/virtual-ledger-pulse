@@ -13,7 +13,7 @@ export default function Statistics() {
     <PermissionGate
       permissions={["statistics_view"]}
       fallback={
-        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center page-mount">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">

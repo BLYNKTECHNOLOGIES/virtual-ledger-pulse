@@ -97,7 +97,7 @@ export default function MPIPage() {
   const topPerformers = [...results].sort((a, b) => Number(b.total_score) - Number(a.total_score)).slice(0, 10);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">MPI — Performance Index</h1>

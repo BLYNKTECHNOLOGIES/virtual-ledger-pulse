@@ -53,7 +53,7 @@ function SalarySummaryCard({
   const monthly = Math.round(ctc / 12);
 
   return (
-    <div className="border border-border rounded-lg p-4 bg-muted/30">
+    <div className="border border-border rounded-lg p-4 bg-muted/30 page-mount">
       <h3 className="text-sm font-semibold text-foreground mb-3">Salary Summary</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>

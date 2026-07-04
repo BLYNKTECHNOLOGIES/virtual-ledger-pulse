@@ -252,7 +252,7 @@ export default function ErpEntryManager() {
 
   if (accessLoading) {
     return (
-      <div className="p-6 space-y-3">
+      <div className="p-6 space-y-3 page-mount">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
       </div>

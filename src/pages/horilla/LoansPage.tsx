@@ -120,7 +120,7 @@ export default function LoansPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Loans & Advances</h1>

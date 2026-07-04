@@ -83,7 +83,7 @@ export default function EmployeeDocumentsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Employee Documents</h1>

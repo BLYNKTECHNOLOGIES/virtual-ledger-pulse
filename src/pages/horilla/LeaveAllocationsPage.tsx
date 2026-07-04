@@ -157,7 +157,7 @@ export default function LeaveAllocationsPage() {
   const uniqueEmployees = cumulativeData.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Leave Allocations</h1>

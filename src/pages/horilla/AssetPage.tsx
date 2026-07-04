@@ -58,7 +58,7 @@ export default function AssetPage() {
   const statusColor = (s: string) => s === "available" ? "bg-success/10 text-success" : s === "assigned" ? "bg-info/10 text-info" : s === "maintenance" ? "bg-warning/10 text-warning" : "bg-muted text-foreground";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-semibold text-foreground">Assets</h1><p className="text-sm text-muted-foreground">Manage company assets and equipment</p></div>
         <Button onClick={() => { setEditId(null); setForm({ name: "", asset_type: "hardware", serial_number: "", status: "available", purchase_cost: 0, condition: "good", notes: "" }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-2" /> Add Asset</Button>

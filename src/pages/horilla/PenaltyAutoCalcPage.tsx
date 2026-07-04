@@ -100,7 +100,7 @@ export default function PenaltyAutoCalcPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Late Penalty Auto-Calculation</h1>
         <p className="text-sm text-muted-foreground">Calculate penalties based on monthly late attendance counts</p>

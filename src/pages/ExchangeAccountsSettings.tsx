@@ -86,7 +86,7 @@ export default function ExchangeAccountsSettings() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6 page-mount">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Binance Accounts</h1>
         <p className="text-sm text-muted-foreground mt-1">

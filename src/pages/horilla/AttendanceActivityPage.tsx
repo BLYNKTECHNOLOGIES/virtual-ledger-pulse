@@ -267,7 +267,7 @@ export default function AttendanceActivityPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       {/* Header — stacks on mobile */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

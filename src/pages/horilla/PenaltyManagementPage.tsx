@@ -241,7 +241,7 @@ export default function PenaltyManagementPage() {
   const appliedCount = penalties.filter((p: any) => p.is_applied).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Penalty Management</h1>

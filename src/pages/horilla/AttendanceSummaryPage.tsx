@@ -104,7 +104,7 @@ export default function AttendanceSummaryPage() {
   const topLate = [...empSummary].sort((a: any, b: any) => b.total_late_min - a.total_late_min).slice(0, 5);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Attendance Summary</h1>
         <p className="text-sm text-muted-foreground">Monthly attendance analytics per employee</p>

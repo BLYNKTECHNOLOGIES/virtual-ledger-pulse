@@ -30,7 +30,7 @@ const UtilityHub = () => {
 
   return (
     <PermissionGate permissions={["utility_view"]}>
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-5xl mx-auto space-y-6 page-mount">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Utility Tools</h1>
         <p className="text-sm text-muted-foreground mt-1">Quick access to all tools and utilities</p>

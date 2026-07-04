@@ -93,6 +93,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
       <Button
         variant="outline"
         size="sm"
+        className="h-9"
         onClick={() => onFiltersChange({ page: 1, rows: 50, fetchAll: filters.fetchAll })}
       >
         Reset
@@ -101,6 +102,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
       <Button
         variant="outline"
         size="icon"
+        className="h-9 w-9"
         onClick={onRefresh}
         disabled={isRefreshing}
       >

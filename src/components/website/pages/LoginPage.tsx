@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
+import blynkIcon from '@/assets/brand/blynk-icon.svg';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');

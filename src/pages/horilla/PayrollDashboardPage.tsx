@@ -261,7 +261,7 @@ export default function PayrollDashboardPage() {
                             <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
                               {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs text-amber-700" onClick={() => setLockConfirm(r)}>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-warning" onClick={() => setLockConfirm(r)}>
                               <Lock className="h-3 w-3 mr-1" /> Lock & Complete
                             </Button>
                           </>

@@ -63,7 +63,7 @@ export function BulkActionToolbar({
         </Button>
       )}
 
-      <Button variant="outline" size="sm" onClick={onBulkRiskGuard} className="text-amber-500 border-amber-500/30">
+      <Button variant="outline" size="sm" onClick={onBulkRiskGuard} className="text-warning border-warning/30">
         <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
         Risk Guard
       </Button>

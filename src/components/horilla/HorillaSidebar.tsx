@@ -273,8 +273,8 @@ export function HorillaSidebar({
     >
       <div className="h-14 flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-[#6C63FF] rounded-lg flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm">B</span>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[#6C63FF]/10">
+            <img src={blynkIcon} alt="BLYNK" className="w-6 h-6" />
           </div>
           {!collapsed && (
             <div className="flex flex-col leading-tight">

@@ -193,9 +193,7 @@ export default function AdManager() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                </div>
+                <TableSkeleton rows={8} columns={9} />
               ) : (
                 <CategorizedAdTable
                   ads={displayAds}

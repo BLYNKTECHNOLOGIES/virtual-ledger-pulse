@@ -38,7 +38,7 @@ export function UserMenu() {
       </Avatar>
       {isAdmin && (
         <div className="absolute -top-1 -right-1">
-          <Shield className="h-4 w-4 text-red-600" />
+          <Shield className="h-4 w-4 text-destructive" />
         </div>
       )}
     </Button>

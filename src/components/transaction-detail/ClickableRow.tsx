@@ -15,7 +15,7 @@ interface ClickableRowProps extends ComponentProps<typeof TableRow> {
  * pointer cursor. Clicks on interactive children (buttons, links, inputs)
  * are NOT intercepted so existing row actions keep working.
  */
-export function ClickableRow({ txType, txId, onClick, className, children, ...rest }: ClickableRowProps) {
+export function ClickableRow({ txType, txId, onClick, onKeyDown, className, children, ...rest }: ClickableRowProps) {
   const handleClick = useCallback(
     (e: MouseEvent<HTMLTableRowElement>) => {
       onClick?.(e);
@@ -30,13 +30,37 @@ export function ClickableRow({ txType, txId, onClick, className, children, ...re
     [txType, txId, onClick],
   );
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+      onKeyDown?.(e);
+      if (e.defaultPrevented || !txId) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        const target = e.target as HTMLElement;
+        if (target.closest('button, a, input, textarea, select, [role="button"], [data-no-row-click]')) {
+          return;
+        }
+        e.preventDefault();
+        openTransaction({ type: txType, id: txId });
+      }
+    },
+    [txType, txId, onKeyDown],
+  );
+
   return (
     <TableRow
       {...rest}
       id={txId ? `tx-row-${txId}` : undefined}
       data-tx-id={txId || undefined}
       onClick={handleClick}
-      className={cn(txId ? 'cursor-pointer' : undefined, className)}
+      onKeyDown={handleKeyDown}
+      role={txId ? 'button' : undefined}
+      tabIndex={txId ? 0 : undefined}
+      className={cn(
+        txId
+          ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+          : undefined,
+        className,
+      )}
     >
       {children}
     </TableRow>

@@ -86,31 +86,31 @@ export function TopHeader() {
 
 
   return (
-    <header className="h-14 md:h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-3 md:px-6 shadow-sm">
+    <header className="h-14 md:h-16 bg-card border-b-2 border-border flex items-center justify-between px-3 md:px-6 shadow-sm">
       <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
         <SidebarTrigger
-          className="hidden md:inline-flex h-9 w-9 flex-shrink-0 text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-2 border-gray-200 rounded-lg"
+          className="hidden md:inline-flex h-9 w-9 flex-shrink-0 text-muted-foreground hover:bg-primary/10 hover:text-primary border border-border rounded-lg"
           aria-label="Toggle sidebar"
           title="Collapse / expand sidebar (Ctrl/⌘ + B)"
         />
         <button 
           onClick={handleDashboardClick}
-          className="text-sm md:text-lg font-bold text-blue-700 hover:text-blue-800 transition-colors cursor-pointer truncate"
+          className="text-sm md:text-lg font-bold text-primary hover:text-primary/80 transition-colors cursor-pointer truncate"
         >
           <span className="hidden sm:inline">BLYNK VIRTUAL TECHNOLOGIES PVT. LTD.</span>
           <span className="sm:hidden">BLYNK VT</span>
         </button>
         
         {isDragMode && (
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-blue-50 border-2 border-blue-200 rounded-lg">
-            <Edit3 className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">Sidebar Edit Mode Active</span>
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-lg">
+            <Edit3 className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">Sidebar Edit Mode Active</span>
           </div>
         )}
         {isDashboardRearrangeMode && (
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-blue-50 border-2 border-blue-200 rounded-lg">
-            <GripVertical className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">Dashboard Rearrange Active</span>
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-lg">
+            <GripVertical className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">Dashboard Rearrange Active</span>
           </div>
         )}
       </div>
@@ -121,7 +121,7 @@ export function TopHeader() {
           variant="ghost"
           size="sm"
           onClick={handlePageSearch}
-          className="p-2 border-2 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-gray-200"
+          className="p-2 border rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary border-border"
           aria-label="Search this page"
           title="Search this page ( / )"
         >
@@ -134,9 +134,9 @@ export function TopHeader() {
           onClick={openPalette}
           className="relative hidden lg:flex items-center"
         >
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <span
-            className="w-64 xl:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-500 text-left focus:outline-none"
+            className="w-64 xl:w-96 pl-10 pr-4 py-2 border border-border rounded-lg bg-muted text-sm text-muted-foreground text-left focus:outline-none"
           >
             Search or type a command (⌘ + K)
           </span>
@@ -149,7 +149,7 @@ export function TopHeader() {
               variant="ghost"
               size="sm"
               onClick={() => navigate('/settings/exchange-accounts')}
-              className="p-2 border-2 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-gray-200"
+              className="p-2 border rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary border-border"
               aria-label="Binance Accounts"
               title="Binance Accounts"
             >
@@ -164,10 +164,10 @@ export function TopHeader() {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className={`p-2 border-2 rounded-lg transition-colors ${
+                className={`p-2 border rounded-lg transition-colors ${
                   isDragMode 
-                    ? 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100' 
-                    : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-gray-200'
+                    ? 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20' 
+                    : 'text-muted-foreground hover:bg-primary/10 hover:text-primary border-border'
                 }`}
               >
                 <Settings className="h-5 w-5" />

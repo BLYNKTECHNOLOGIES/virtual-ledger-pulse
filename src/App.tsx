@@ -132,6 +132,7 @@ import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
 import ExchangeAccountsSettings from './pages/ExchangeAccountsSettings';
+import OAuthConsent from './pages/OAuthConsent';
 
 const router = createBrowserRouter([
   // Login — the only public route

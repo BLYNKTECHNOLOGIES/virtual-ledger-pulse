@@ -530,7 +530,7 @@ export function TaxManagementTab() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="animate-pulse py-8 text-center text-muted-foreground">Loading TDS records...</div>
+            <TableSkeleton rows={8} columns={7} />
           ) : (
             <Tabs value={activeCompany} onValueChange={setActiveCompany}>
               <TabsList className="flex flex-wrap h-auto">

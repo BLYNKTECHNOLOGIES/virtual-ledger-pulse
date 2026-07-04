@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Clock, FileWarning, MessageSquare, RefreshCw, ShieldOff, TimerReset } from 'lucide-react';
 import { format } from 'date-fns';
@@ -393,6 +393,31 @@ export default function TerminalAppeals() {
       setIsSyncing(false);
     }
   };
+
+  // Auto-sync live Binance appeals so active cases reflect without a manual click.
+  // Runs on mount and every 90s while the module is enabled and the operator can
+  // manage appeals. A ref lock prevents overlapping runs with the manual button.
+  const autoSyncLockRef = useRef(false);
+  useEffect(() => {
+    if (!isEnabled || !hasPermission('terminal_appeals_manage')) return;
+
+    const runAutoSync = async () => {
+      if (autoSyncLockRef.current || isSyncing) return;
+      autoSyncLockRef.current = true;
+      try {
+        await syncAppealOrders();
+      } catch {
+        // syncAppealOrders surfaces its own errors; swallow here to keep the interval alive.
+      } finally {
+        autoSyncLockRef.current = false;
+      }
+    };
+
+    runAutoSync();
+    const interval = setInterval(runAutoSync, 90_000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled]);
 
   const openChatForCase = (caseItem: TerminalAppealCase) => {
     markOrderChatRead(caseItem.order_number);

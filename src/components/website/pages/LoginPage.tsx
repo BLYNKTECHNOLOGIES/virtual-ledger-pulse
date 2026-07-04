@@ -234,8 +234,8 @@ export function LoginPage() {
                 <img src={blynkIcon} alt="Blynk" className="h-8 w-8" />
               </div>
             </div>
-            <img src={blynkLogoWhite} alt="Blynk" className="h-6 w-auto opacity-90" />
-            <p className="mt-3 text-sm text-white/55">
+            <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
+            <p className="mt-1.5 text-sm text-white/55">
               Sign in to your Blynk workspace to continue
             </p>
           </div>

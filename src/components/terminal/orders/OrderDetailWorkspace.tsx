@@ -243,7 +243,8 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   // Mobile layout: tabbed single-panel view
   if (isMobile) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="relative flex flex-col h-full">
+        {stepArrows}
         {topBar}
         <div className="px-2 py-1.5 border-b border-border bg-card shrink-0">
           <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)}>

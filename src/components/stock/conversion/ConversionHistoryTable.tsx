@@ -15,9 +15,9 @@ import { ClickableRow } from "@/components/transaction-detail";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING_APPROVAL: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-800",
+  PENDING_APPROVAL: "bg-warning/10 text-warning",
+  APPROVED: "bg-success/10 text-success",
+  REJECTED: "bg-destructive/10 text-destructive",
 };
 
 export function ConversionHistoryTable() {
@@ -146,7 +146,7 @@ export function ConversionHistoryTable() {
                     </TableCell>
                     <TableCell className="text-right">
                       {c.side === 'SELL' && (c as any).realized_pnl_usdt != null ? (
-                        <span className={`font-mono text-xs ${Number((c as any).realized_pnl_usdt) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`font-mono text-xs ${Number((c as any).realized_pnl_usdt) >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {Number((c as any).realized_pnl_usdt) >= 0 ? '+' : ''}${formatSmartDecimal((c as any).realized_pnl_usdt, 4)}
                         </span>
                       ) : '—'}
@@ -164,7 +164,7 @@ export function ConversionHistoryTable() {
                         ? `${c.rejector.username} (${c.rejected_at ? format(new Date(c.rejected_at), 'dd MMM HH:mm') : ''})`
                         : '—'}
                       {c.rejection_reason && (
-                        <span className="block text-[10px] text-red-500 mt-0.5">{c.rejection_reason}</span>
+                        <span className="block text-[10px] text-destructive mt-0.5">{c.rejection_reason}</span>
                       )}
                     </TableCell>
                   </ClickableRow>

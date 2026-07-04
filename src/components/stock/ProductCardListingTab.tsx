@@ -137,7 +137,7 @@ export function ProductCardListingTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info/20"></div>
       </div>
     );
   }
@@ -182,7 +182,7 @@ export function ProductCardListingTab() {
           </div>
         ) : (
           filteredProducts.map((product) => (
-            <Card key={product.id} className="hover:shadow-lg transition-shadow">
+            <Card key={product.id} className="hover:shadow-sm transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
@@ -203,7 +203,7 @@ export function ProductCardListingTab() {
                       <Package className="h-3 w-3" />
                       In Stock
                     </span>
-                    <p className="font-semibold text-lg text-green-600">
+                    <p className="font-semibold text-lg text-success">
                       {product.total_stock.toFixed(2)}
                     </p>
                   </div>
@@ -212,7 +212,7 @@ export function ProductCardListingTab() {
                       <DollarSign className="h-3 w-3" />
                       Avg Cost
                     </span>
-                    <p className="font-semibold text-lg text-blue-600">
+                    <p className="font-semibold text-lg text-info">
                       ₹{product.average_cost.toFixed(2)}
                     </p>
                   </div>
@@ -221,7 +221,7 @@ export function ProductCardListingTab() {
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Holdings Value:</span>
-                    <span className="font-bold text-purple-600">₹{product.total_value.toFixed(2)}</span>
+                    <span className="font-bold text-primary">₹{product.total_value.toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -259,7 +259,7 @@ export function ProductCardListingTab() {
                           .map((wallet) => (
                           <div key={wallet.wallet_id} className="flex justify-between items-center text-xs">
                             <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                              <div className="w-2 h-2 rounded-full bg-info"></div>
                               <span className="text-muted-foreground">{wallet.wallet_name}</span>
                             </div>
                             <div className="text-right flex items-center gap-1.5">
@@ -273,14 +273,14 @@ export function ProductCardListingTab() {
                                 return (
                                   <Tooltip>
                                     <TooltipTrigger>
-                                      <span className={`text-[10px] font-bold ${diff > 0 ? 'text-orange-500' : 'text-red-500'}`}>
+                                      <span className={`text-[10px] font-bold ${diff > 0 ? 'text-warning' : 'text-destructive'}`}>
                                         {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                       <p className="text-xs">Binance Balance: {bBal.toFixed(2)}</p>
                                       <p className="text-xs">ERP Balance: {(Number(wallet.balance) || 0).toFixed(2)}</p>
-                                      <p className="text-xs text-orange-400">Difference from Binance API (funding + spot)</p>
+                                      <p className="text-xs text-warning">Difference from Binance API (funding + spot)</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 );

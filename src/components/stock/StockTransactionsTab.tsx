@@ -641,38 +641,38 @@ export function StockTransactionsTab() {
 
   const getTransactionBadge = (type: string, refType?: string) => {
     if (refType === 'ERP_CONVERSION') {
-      return <Badge className="bg-indigo-100 text-indigo-800">Conversion</Badge>;
+      return <Badge className="bg-primary/10 text-primary">Conversion</Badge>;
     }
     if (refType === 'WALLET_TRANSFER') {
-      if (type === 'CREDIT') return <Badge className="bg-purple-100 text-purple-800">Transfer In</Badge>;
-      if (type === 'DEBIT') return <Badge className="bg-orange-100 text-orange-800">Transfer Out</Badge>;
+      if (type === 'CREDIT') return <Badge className="bg-primary/10 text-primary">Transfer In</Badge>;
+      if (type === 'DEBIT') return <Badge className="bg-warning/10 text-warning">Transfer Out</Badge>;
     }
     if (refType === 'TRANSFER_FEE') {
-      return <Badge className="bg-amber-100 text-amber-800">Transfer Fee</Badge>;
+      return <Badge className="bg-warning/10 text-warning">Transfer Fee</Badge>;
     }
     if (refType === 'SALES_ORDER_FEE') {
-      return <Badge className="bg-amber-100 text-amber-800">Platform Fee</Badge>;
+      return <Badge className="bg-warning/10 text-warning">Platform Fee</Badge>;
     }
     switch (type) {
       case 'IN':
-        return <Badge className="bg-green-100 text-green-800">Stock In</Badge>;
+        return <Badge className="bg-success/10 text-success">Stock In</Badge>;
       case 'OUT':
-        return <Badge className="bg-red-100 text-red-800">Stock Out</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive">Stock Out</Badge>;
       case 'PURCHASE':
-        return <Badge className="bg-blue-100 text-blue-800">Purchase</Badge>;
+        return <Badge className="bg-info/10 text-info">Purchase</Badge>;
       case 'Sales':
       case 'SALES_ORDER':
-        return <Badge className="bg-red-100 text-red-800">Sales</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive">Sales</Badge>;
       case 'TRANSFER_IN':
-        return <Badge className="bg-purple-100 text-purple-800">Transfer In</Badge>;
+        return <Badge className="bg-primary/10 text-primary">Transfer In</Badge>;
       case 'TRANSFER_OUT':
-        return <Badge className="bg-orange-100 text-orange-800">Transfer Out</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Transfer Out</Badge>;
       case 'CREDIT':
-        return <Badge className="bg-green-100 text-green-800">Manual Credit</Badge>;
+        return <Badge className="bg-success/10 text-success">Manual Credit</Badge>;
       case 'DEBIT':
-        return <Badge className="bg-red-100 text-red-800">Manual Debit</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive">Manual Debit</Badge>;
       case 'TRANSFER_FEE':
-        return <Badge className="bg-amber-100 text-amber-800">Transfer Fee</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Transfer Fee</Badge>;
       default:
         return <Badge variant="secondary">{type}</Badge>;
     }
@@ -880,7 +880,7 @@ export function StockTransactionsTab() {
               </div>
               <Button
                 onClick={() => setShowAdjustmentDialog(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-info hover:bg-info/90 text-primary-foreground"
               >
                 <ArrowLeftRight className="h-4 w-4 mr-2" />
                 Manual Adjustment
@@ -1017,7 +1017,7 @@ export function StockTransactionsTab() {
                       </td>
                       <td className="py-3 px-4">
                         {entry.wallet_name ? (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          <Badge variant="outline" className="bg-info/10 text-info border-info/20">
                             {entry.wallet_name}
                           </Badge>
                         ) : '-'}
@@ -1232,7 +1232,7 @@ export function StockTransactionsTab() {
                   <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} {adjustmentData.assetCode}</span>
                 </div>
                 {parseFloat(adjustmentData.transferFee || '0') > 0 && (
-                  <div className="flex justify-between text-amber-600">
+                  <div className="flex justify-between text-warning">
                     <span>Fee (deducted from sender):</span>
                     <span>{parseFloat(adjustmentData.transferFee || '0').toFixed(4)} {adjustmentData.assetCode}</span>
                   </div>
@@ -1241,7 +1241,7 @@ export function StockTransactionsTab() {
                   <span>Total Deducted from Sender:</span>
                   <span>{(parseFloat(adjustmentData.amount || '0') + parseFloat(adjustmentData.transferFee || '0')).toFixed(4)} {adjustmentData.assetCode}</span>
                 </div>
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-success">
                   <span>Receiver Gets:</span>
                   <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} {adjustmentData.assetCode}</span>
                 </div>
@@ -1269,7 +1269,7 @@ export function StockTransactionsTab() {
                   manualAdjustmentMutation.mutate(adjustmentData);
                 }}
                 disabled={manualAdjustmentMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-info hover:bg-info/90"
               >
                 {manualAdjustmentMutation.isPending ? "Processing..." : "Submit Adjustment"}
               </Button>

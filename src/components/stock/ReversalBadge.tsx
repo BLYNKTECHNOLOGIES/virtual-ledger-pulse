@@ -55,7 +55,7 @@ export function ReversalBadge({
         <TooltipTrigger asChild>
           <Badge
             variant="outline"
-            className="ml-1 gap-1 bg-amber-50 text-amber-800 border-amber-200 text-[10px] py-0 px-1.5"
+            className="ml-1 gap-1 bg-warning/10 text-warning border-warning/20 text-[10px] py-0 px-1.5"
           >
             <RotateCcw className="h-2.5 w-2.5" />
             Reversed →

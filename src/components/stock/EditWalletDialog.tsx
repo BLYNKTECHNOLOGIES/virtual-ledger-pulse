@@ -123,7 +123,7 @@ export function EditWalletDialog({ open, onOpenChange, wallet }: EditWalletDialo
               <SelectTrigger>
                 <SelectValue placeholder="Select chain" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 <SelectItem value="Ethereum">Ethereum (ETH)</SelectItem>
                 <SelectItem value="Binance Smart Chain">Binance Smart Chain (BSC)</SelectItem>
                 <SelectItem value="Polygon">Polygon (MATIC)</SelectItem>

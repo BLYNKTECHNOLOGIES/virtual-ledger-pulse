@@ -100,7 +100,7 @@ export function WalletSelector({
         <SelectTrigger id="wallet-select">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent className="bg-background border shadow-lg z-50">
+        <SelectContent className="bg-background border shadow-sm z-50">
           {wallets?.map((wallet) => {
             const balance = showBalanceInfo ? getWalletBalance(wallet.id) : null;
             const feeLabel = formatFeeLabel(wallet);
@@ -109,7 +109,7 @@ export function WalletSelector({
                 <div className="flex items-center gap-2 w-full">
                   <span className="font-medium">{wallet.wallet_name}</span>
                   {feeLabel && (
-                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                    <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
                       <Percent className="h-2.5 w-2.5 mr-0.5" />
                       {feeLabel}
                     </Badge>

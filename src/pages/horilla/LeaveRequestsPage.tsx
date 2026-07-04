@@ -199,18 +199,18 @@ export default function LeaveRequestsPage() {
                         {r.hr_leave_types?.name}
                       </span>
                     </td>
-                    <td className="px-4 py-3">{r.start_date}</td>
-                    <td className="px-4 py-3">{r.end_date}</td>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-4 py-3 tabular-nums">{r.start_date}</td>
+                    <td className="px-4 py-3 tabular-nums">{r.end_date}</td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
                       {r.total_days}
-                      {r.is_half_day && <span className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
+                      {r.is_half_day && <span className="ml-1 text-[10px] bg-info/10 text-info px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
                     </td>
                     <td className="px-4 py-3">
                       {(r.leave_clashes_count || 0) > 0 ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
                                 <AlertTriangle className="h-3 w-3" />
                                 {r.leave_clashes_count}
                               </span>
@@ -226,9 +226,9 @@ export default function LeaveRequestsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        r.status === "approved" ? "bg-green-100 text-green-700" :
-                        r.status === "rejected" ? "bg-red-100 text-red-700" :
-                        "bg-yellow-100 text-yellow-700"
+                        r.status === "approved" ? "bg-success/10 text-success" :
+                        r.status === "rejected" ? "bg-destructive/10 text-destructive" :
+                        "bg-warning/10 text-warning"
                       }`}>{r.status}</span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>

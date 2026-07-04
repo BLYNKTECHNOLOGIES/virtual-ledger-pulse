@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useBinanceUserDetail, useRefreshMerchantState } from '@/hooks/useBinanceActions';
+import { useValueFlash } from '@/hooks/useValueFlash';
 
 function statusLabel(status: unknown) {
   const value = Number(status);

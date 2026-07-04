@@ -48,7 +48,7 @@ export default function BAMS() {
         </div>
       }
     >
-      <div className="min-h-screen bg-muted/50 p-6">
+      <div className="min-h-screen bg-muted/50 p-6 page-mount">
         {/* Header */}
         <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
           <div className="px-6 py-8">

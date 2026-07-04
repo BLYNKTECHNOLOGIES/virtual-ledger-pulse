@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
+
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -1071,21 +1070,27 @@ function TerminalOrdersContent() {
 
   return (
     <div className="p-4 md:p-6 space-y-5">
-      {/* Header */}
+      {/* Command strip */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
+          <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
             <ShoppingCart className="h-5 w-5 text-primary" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Orders</h1>
-            <p className="text-xs text-muted-foreground">P2P Trade Order Management</p>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Orders · P2P Trade Management</span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center h-6 px-2 rounded-md text-[11px] t-mono bg-primary/10 text-primary border border-primary/20">
+                {visibleOrders.length} / {displayOrders.length}
+              </span>
+              {totalUnread > 0 && (
+                <span className="inline-flex items-center h-6 px-2 rounded-md text-[11px] t-mono bg-destructive/10 text-destructive border border-destructive/20">
+                  {totalUnread} unread
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-            {visibleOrders.length} of {displayOrders.length} orders
-          </Badge>
           {canChat && (
             <Button
               variant="outline"
@@ -1117,37 +1122,45 @@ function TerminalOrdersContent() {
         </div>
       </div>
 
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <Tabs value={tradeFilter} onValueChange={setTradeFilter}>
-          <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All ({rawOrders.length})</TabsTrigger>
-            <TabsTrigger value="BUY" className="text-[11px] h-6 px-3">Buy ({rawOrders.filter(o => o.tradeType === 'BUY').length})</TabsTrigger>
-            <TabsTrigger value="SELL" className="text-[11px] h-6 px-3">Sell ({rawOrders.filter(o => o.tradeType === 'SELL').length})</TabsTrigger>
+          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+              All <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{rawOrders.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="BUY" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+              Buy <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-trade-buy/10 text-trade-buy text-center">{rawOrders.filter(o => o.tradeType === 'BUY').length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="SELL" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+              Sell <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-trade-sell/10 text-trade-sell text-center">{rawOrders.filter(o => o.tradeType === 'SELL').length}</span>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
         <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All Status</TabsTrigger>
-            <TabsTrigger value="active" className="text-[11px] h-6 px-3">Active</TabsTrigger>
-            <TabsTrigger value="completed" className="text-[11px] h-6 px-3">Completed</TabsTrigger>
-            <TabsTrigger value="cancelled" className="text-[11px] h-6 px-3">Cancelled</TabsTrigger>
+          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">All Status</TabsTrigger>
+            <TabsTrigger value="active" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Active</TabsTrigger>
+            <TabsTrigger value="completed" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Completed</TabsTrigger>
+            <TabsTrigger value="cancelled" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Cancelled</TabsTrigger>
           </TabsList>
         </Tabs>
 
         <Tabs value={assignmentFilter} onValueChange={setAssignmentFilter}>
-          <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All</TabsTrigger>
-            <TabsTrigger value="mine" className="text-[11px] h-6 px-3 gap-1">
+          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">All</TabsTrigger>
+            <TabsTrigger value="mine" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1">
               <User className="h-3 w-3" /> My Orders
             </TabsTrigger>
-            <TabsTrigger value="team" className="text-[11px] h-6 px-3 gap-1">
+            <TabsTrigger value="team" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1">
               <Users className="h-3 w-3" /> Team
             </TabsTrigger>
-            <TabsTrigger value="unassigned" className="text-[11px] h-6 px-3">Unassigned</TabsTrigger>
+            <TabsTrigger value="unassigned" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Unassigned</TabsTrigger>
           </TabsList>
         </Tabs>
+
 
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -1172,15 +1185,31 @@ function TerminalOrdersContent() {
 
 
       {/* Orders Table */}
-      <Card className="bg-card border-border">
-        <CardContent className="p-0">
+      <div className="t-panel overflow-hidden">
+        <div className="p-0">
           {isLoading ? (
-            <div className="p-6 space-y-3">
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+            <div className="divide-y divide-border">
+              {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                  <div className="flex flex-col gap-1.5 w-28">
+                    <div className="t-shimmer h-3 w-16 rounded" />
+                    <div className="t-shimmer h-2.5 w-24 rounded" />
+                  </div>
+                  <div className="t-shimmer h-3 w-32 rounded" />
+                  <div className="t-shimmer h-3 w-16 rounded" />
+                  <div className="flex flex-col gap-1.5 w-28">
+                    <div className="t-shimmer h-3 w-20 rounded" />
+                    <div className="t-shimmer h-2.5 w-14 rounded" />
+                  </div>
+                  <div className="t-shimmer h-3 w-24 rounded" />
+                  <div className="t-shimmer h-5 w-12 rounded-full ml-auto" />
+                  <div className="t-shimmer h-6 w-16 rounded" />
+                </div>
+              ))}
             </div>
           ) : displayOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <ShoppingCart className="h-10 w-10 text-muted-foreground/20 mb-3" />
+            <div className="flex flex-col items-center justify-center py-12">
+              <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mb-3" />
               <p className="text-sm text-muted-foreground">
                 {isFetchingHistory ? 'Loading orders...' : 'No orders found'}
               </p>
@@ -1191,6 +1220,7 @@ function TerminalOrdersContent() {
               </p>
             </div>
           ) : (
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1226,26 +1256,27 @@ function TerminalOrdersContent() {
                     return (
                       <TableRow
                         key={order.id}
-                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${hasAltUpiRequest ? 'bg-warning/5 border-l-2 border-l-amber-500' : ''}`}
+                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${order.trade_type === 'BUY' ? 'shadow-[inset_2px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_2px_0_0_hsl(var(--trade-sell))]'} ${hasAltUpiRequest ? 'bg-warning/5' : ''}`}
                         onClick={() => setSelectedOrder(order)}>
 
                         {/* Type/Date */}
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs">
-                              <span className={`font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                              <span className={`t-mono uppercase text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
                                 {order.trade_type === 'BUY' ? 'Buy' : 'Sell'}
                               </span>
                               {' '}
                               <span className="text-foreground font-medium">{order.asset}</span>
                             </span>
-                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
                               {order.binance_create_time
                                 ? format(new Date(order.binance_create_time), 'yyyy-MM-dd HH:mm')
                                 : '—'}
                             </span>
                           </div>
                         </TableCell>
+
 
                         {/* Order number */}
                         <TableCell className="py-3">
@@ -1292,23 +1323,24 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Price */}
-                        <TableCell className="py-3">
-                          <span className="text-xs text-foreground tabular-nums">
+                        <TableCell className="py-3 text-right">
+                          <span className="text-xs text-muted-foreground t-mono tabular-nums">
                             {Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}
                           </span>
                         </TableCell>
 
                         {/* Fiat / Crypto Amount */}
-                        <TableCell className="py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs text-foreground tabular-nums font-medium">
+                        <TableCell className="py-3 text-right">
+                          <div className="flex flex-col gap-0.5 items-end">
+                            <span className="text-xs text-foreground t-mono tabular-nums font-medium">
                               {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
                             </span>
-                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
                               {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
                             </span>
                           </div>
                         </TableCell>
+
 
                         {/* Counterparty */}
                         <TableCell className="py-3">
@@ -1347,9 +1379,11 @@ function TerminalOrdersContent() {
                         {/* Status */}
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className={`text-[10px] w-fit ${style.badgeClass}`}>
+                            <Badge variant="outline" className={`text-[10px] w-fit gap-1 ${style.badgeClass}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${(style as any).dotColor || 'bg-current'}`} />
                               {style.label}
                             </Badge>
+
                             {isActive && order.binance_create_time && (
                               <OrderRowTimer
                                 createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()}
@@ -1402,8 +1436,9 @@ function TerminalOrdersContent() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
 
       {/* Order Assignment Dialog */}
       {assignDialogOrder && (
@@ -1473,7 +1508,7 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
 
   if (!expiryTime) {
     // Fallback: just show creation time
-    return <span className="text-[10px] text-muted-foreground tabular-nums">{format(new Date(createTime), 'HH:mm')}</span>;
+    return <span className="text-[10px] text-muted-foreground t-mono tabular-nums">{format(new Date(createTime), 'HH:mm')}</span>;
   }
 
   const urgencyClass = isExpired
@@ -1482,11 +1517,12 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
       ? 'text-destructive animate-pulse'
       : remaining && parseInt(remaining) <= 5
         ? 'text-warning'
-        : 'text-muted-foreground';
+        : 'text-trade-pending';
 
   return (
-    <span className={`text-[10px] tabular-nums ${urgencyClass}`}>
+    <span className={`text-[10px] t-mono tabular-nums ${urgencyClass}`}>
       ⏱ {remaining}
     </span>
+
   );
 }

@@ -76,12 +76,13 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
     <>
       <div className={`flex ${isOperator ? 'justify-end' : 'justify-start'}`}>
         <div
-          className={`max-w-[80%] min-w-0 rounded-lg px-3 py-2 overflow-hidden ${
+          className={`max-w-[75%] min-w-0 px-3 py-2 overflow-hidden ${
             isOperator
-              ? 'bg-primary/15 border border-primary/20 text-foreground'
-              : 'bg-secondary border border-border text-foreground'
+              ? 'bg-primary/12 border border-primary/25 text-foreground rounded-lg rounded-tr-sm'
+              : 'bg-secondary border border-border text-foreground rounded-lg rounded-tl-sm'
           }`}
         >
+
           <p className={`text-[9px] font-semibold mb-0.5 ${
             isOperator ? 'text-primary' : 'text-trade-pending'
           }`}>
@@ -96,7 +97,7 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
               <img
                 src={message.imageUrl}
                 alt="Chat image"
-                className="max-w-full w-auto rounded max-h-48 object-contain transition-all group-hover:brightness-75"
+                className="max-w-full w-auto rounded-md border border-border max-h-48 object-contain transition-all group-hover:brightness-75"
                 loading="lazy"
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
@@ -126,9 +127,10 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
           )}
 
           <div className="flex items-center gap-1.5 mt-1">
-            <p className="text-[9px] text-muted-foreground">
+            <p className="text-[9px] t-mono text-muted-foreground">
               {message.timestamp ? format(new Date(message.timestamp), 'HH:mm') : ''}
             </p>
+
             {message._deliveryStatus === 'sending' && (
               <span className="flex items-center gap-0.5 text-[8px] text-muted-foreground">
                 <Loader2 className="h-2.5 w-2.5 animate-spin" />

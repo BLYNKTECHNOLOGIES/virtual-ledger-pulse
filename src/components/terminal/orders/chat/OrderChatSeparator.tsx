@@ -19,23 +19,24 @@ export function OrderChatSeparator({ orderNumber, tradeType, asset, totalPrice, 
       <div className="flex-1 h-px bg-border" />
       <div className="flex items-center gap-1.5 bg-muted/50 border border-border/60 rounded-full px-3 py-1">
         <ArrowUpDown className="h-2.5 w-2.5 text-muted-foreground" />
-        <span className="text-[9px] text-muted-foreground font-medium">
+        <span className="text-[10px] t-mono text-muted-foreground uppercase tracking-wide">
           Order #{orderNumber.slice(-8)}
         </span>
-        <span className={`text-[9px] font-semibold ${tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+        <span className={`text-[10px] t-mono uppercase tracking-wide font-semibold ${tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
           {tradeType}
         </span>
         {asset && (
-          <span className="text-[9px] text-muted-foreground">{asset}</span>
+          <span className="text-[10px] t-mono text-muted-foreground">{asset}</span>
         )}
         {amountStr && (
-          <span className="text-[9px] text-foreground font-medium">{amountStr}</span>
+          <span className="text-[10px] t-mono text-foreground font-medium">{amountStr}</span>
         )}
         {dateStr && (
-          <span className="text-[9px] text-muted-foreground">• {dateStr}</span>
+          <span className="text-[10px] t-mono text-muted-foreground">• {dateStr}</span>
         )}
       </div>
       <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
+

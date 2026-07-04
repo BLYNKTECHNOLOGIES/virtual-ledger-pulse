@@ -405,7 +405,8 @@ export function TaxManagementTab() {
         <TableBody>
           {visibleRows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                <Receipt className="h-10 w-10 mx-auto mb-3 opacity-40" />
                 No TDS records for this selection
               </TableCell>
             </TableRow>

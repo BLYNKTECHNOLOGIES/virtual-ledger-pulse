@@ -1509,7 +1509,7 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
 
   if (!expiryTime) {
     // Fallback: just show creation time
-    return <span className="text-[10px] text-muted-foreground tabular-nums">{format(new Date(createTime), 'HH:mm')}</span>;
+    return <span className="text-[10px] text-muted-foreground t-mono tabular-nums">{format(new Date(createTime), 'HH:mm')}</span>;
   }
 
   const urgencyClass = isExpired
@@ -1518,11 +1518,12 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
       ? 'text-destructive animate-pulse'
       : remaining && parseInt(remaining) <= 5
         ? 'text-warning'
-        : 'text-muted-foreground';
+        : 'text-trade-pending';
 
   return (
-    <span className={`text-[10px] tabular-nums ${urgencyClass}`}>
+    <span className={`text-[10px] t-mono tabular-nums ${urgencyClass}`}>
       ⏱ {remaining}
     </span>
+
   );
 }

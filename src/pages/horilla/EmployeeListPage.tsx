@@ -869,27 +869,27 @@ export default function EmployeeListPage() {
                   selected ? "border-primary ring-1 ring-primary/20" : "border-border hover:border-border/80"
                 }`}
               >
-                <div className={`h-16 ${getColor(emp.id)} relative`}>
+                <div className="h-16 bg-muted relative">
                   <div className="absolute top-2 left-2">
                     <input
                       type="checkbox"
                       checked={selected}
                       onChange={(e) => { e.stopPropagation(); toggleOne(emp.id); }}
-                      className="rounded border-white/50 bg-white/20 text-[#00bcd4] focus:ring-[#00bcd4] cursor-pointer"
+                      className="rounded border-border text-[#00bcd4] focus:ring-[#00bcd4] cursor-pointer"
                     />
                   </div>
                   <div className="absolute top-2 right-2">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      emp.is_active ? "bg-emerald-400/90 text-white" : "bg-red-400/90 text-white"
+                      emp.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
                     }`}>
                       {emp.is_active ? "Active" : "Inactive"}
                     </span>
                   </div>
                   <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
                     {emp.profile_image_url ? (
-                      <img src={emp.profile_image_url} className="w-14 h-14 rounded-full object-cover border-3 border-white shadow-sm" alt="" />
+                      <img src={emp.profile_image_url} className="w-14 h-14 rounded-full object-cover border-2 border-background shadow-sm" alt="" />
                     ) : (
-                      <div className={`w-14 h-14 rounded-full ${getColor(emp.id)} flex items-center justify-center text-white font-bold text-lg border-3 border-white shadow-sm`}>
+                      <div className={`w-14 h-14 rounded-full ${getColor(emp.id)} flex items-center justify-center font-bold text-lg border-2 border-background shadow-sm`}>
                         {initials(emp.first_name, emp.last_name)}
                       </div>
                     )}

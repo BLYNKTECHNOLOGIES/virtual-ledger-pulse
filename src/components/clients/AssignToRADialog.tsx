@@ -55,7 +55,7 @@ export function AssignToRADialog({
 
         <div className="space-y-4">
           {alreadyAssignedCount > 0 && (
-            <div className="flex items-start gap-2 rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
+            <div className="flex items-start gap-2 rounded-lg bg-warning/5 border border-yellow-200 p-3 text-sm text-warning">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span>
                 {alreadyAssignedCount} of the selected client(s) already have an active RA.

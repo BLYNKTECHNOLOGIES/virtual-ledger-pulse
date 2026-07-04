@@ -136,7 +136,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
               </div>
               <div>
                 <Label className="text-sm font-medium">Current Month Used</Label>
-                <p className="text-2xl font-bold text-green-600">₹{client?.current_month_used?.toLocaleString('en-IN') || '0'}</p>
+                <p className="text-2xl font-bold text-success">₹{client?.current_month_used?.toLocaleString('en-IN') || '0'}</p>
               </div>
             </div>
           </div>

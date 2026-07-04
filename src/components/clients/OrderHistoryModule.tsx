@@ -88,7 +88,7 @@ function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
         </div>
         <div>
           <Label className="text-sm font-medium text-muted-foreground">Total Amount</Label>
-          <p className="text-xl font-bold text-green-600">₹{selectedOrder.total_amount?.toLocaleString('en-IN')}</p>
+          <p className="text-xl font-bold text-success">₹{selectedOrder.total_amount?.toLocaleString('en-IN')}</p>
         </div>
         <div>
           <Label className="text-sm font-medium text-muted-foreground">Platform</Label>
@@ -111,31 +111,31 @@ function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
         <div>
           <Label className="text-sm font-medium text-muted-foreground">Order Type</Label>
           {selectedOrder.isBuyOrder ? (
-            <Badge className="bg-green-100 text-green-800">Buy Order</Badge>
+            <Badge className="bg-success/10 text-success border-success/20">Buy Order</Badge>
           ) : (
-            <Badge className="bg-orange-100 text-orange-800">Sell Order</Badge>
+            <Badge className="bg-warning/10 text-warning border-warning/20">Sell Order</Badge>
           )}
         </div>
       </div>
 
       {/* Bank Account Info */}
       {bankAccountData && (
-        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+        <div className="p-4 bg-info/5 rounded-lg border border-info/20 dark:bg-blue-900/20 dark:border-blue-800">
           <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-3 flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             {selectedOrder.isBuyOrder ? 'Payment Received In' : 'Payment Made From'}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-sm font-medium text-blue-700 dark:text-blue-500">Bank Account</Label>
+              <Label className="text-sm font-medium text-info dark:text-blue-500">Bank Account</Label>
               <p className="text-sm text-blue-900 dark:text-blue-300">{bankAccountData.account_name}</p>
             </div>
             <div>
-              <Label className="text-sm font-medium text-blue-700 dark:text-blue-500">Bank Name</Label>
+              <Label className="text-sm font-medium text-info dark:text-blue-500">Bank Name</Label>
               <p className="text-sm text-blue-900 dark:text-blue-300">{bankAccountData.bank_name}</p>
             </div>
             <div className="col-span-2">
-              <Label className="text-sm font-medium text-blue-700 dark:text-blue-500">Account Number</Label>
+              <Label className="text-sm font-medium text-info dark:text-blue-500">Account Number</Label>
               <p className="text-sm text-blue-900 dark:text-blue-300 font-mono">
                 {bankAccountData.account_number
                   ? `****${bankAccountData.account_number.slice(-4)}`
@@ -310,13 +310,13 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
 
   const getStatusBadge = (status: string, paymentStatus?: string) => {
     if (status === 'COMPLETED' && (!paymentStatus || paymentStatus === 'COMPLETED')) {
-      return <Badge className="bg-green-100 text-green-800 border-green-300">Completed</Badge>;
+      return <Badge className="bg-success/10 text-success border-success/20 border-green-300">Completed</Badge>;
     }
     if (status === 'PENDING') {
-      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">Processing</Badge>;
+      return <Badge className="bg-warning/10 text-warning border-warning/20 border-yellow-300">Processing</Badge>;
     }
     if (status === 'CANCELLED') {
-      return <Badge className="bg-red-100 text-red-800 border-red-300">Cancelled</Badge>;
+      return <Badge className="bg-destructive/10 text-destructive border-destructive/20 border-red-300">Cancelled</Badge>;
     }
     return <Badge variant="outline">{status}</Badge>;
   };
@@ -382,9 +382,9 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
               </TableCell>
               <TableCell>
                 {isBuyOrder ? (
-                  <Badge className="bg-green-100 text-green-800">Buy</Badge>
+                  <Badge className="bg-success/10 text-success border-success/20">Buy</Badge>
                 ) : (
-                  <Badge className="bg-orange-100 text-orange-800">Sell</Badge>
+                  <Badge className="bg-warning/10 text-warning border-warning/20">Sell</Badge>
                 )}
               </TableCell>
               <TableCell className="max-w-32 truncate">

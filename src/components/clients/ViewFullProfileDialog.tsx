@@ -268,11 +268,11 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [] 
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
-                <p className="text-lg font-semibold text-green-600">₹{client.first_order_value?.toLocaleString('en-IN') || '0'}</p>
+                <p className="text-lg font-semibold text-success">₹{client.first_order_value?.toLocaleString('en-IN') || '0'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Client Value Score</label>
-                <p className="text-lg font-semibold text-blue-600">{client.client_value_score || 0}</p>
+                <p className="text-lg font-semibold text-primary">{client.client_value_score || 0}</p>
               </div>
             </CardContent>
           </Card>
@@ -288,15 +288,15 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [] 
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Total Orders</label>
-                <p className="text-2xl font-bold text-blue-600">{totalOrders}</p>
+                <p className="text-2xl font-bold text-primary">{totalOrders}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Total Volume</label>
-                <p className="text-2xl font-bold text-green-600">₹{totalVolume.toLocaleString('en-IN')}</p>
+                <p className="text-2xl font-bold text-success">₹{totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Average Order Value</label>
-                <p className="text-2xl font-bold text-purple-600">₹{avgOrderValue.toLocaleString('en-IN')}</p>
+                <p className="text-2xl font-bold text-primary">₹{avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
             </CardContent>
           </Card>

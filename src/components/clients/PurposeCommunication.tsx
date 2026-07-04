@@ -142,7 +142,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-green-600" />
+            <MessageCircle className="h-5 w-5 text-success" />
             Purpose & Communication
           </CardTitle>
         </CardHeader>
@@ -163,7 +163,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-green-600" />
+          <MessageCircle className="h-5 w-5 text-success" />
           Purpose & Communication
         </CardTitle>
       </CardHeader>
@@ -172,8 +172,8 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
           <label className="text-sm font-medium text-muted-foreground">Purpose of Buying</label>
           <div className="mt-1">
             {client.buying_purpose ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">{client.buying_purpose}</p>
+              <div className="bg-info/5 border border-info/20 rounded-lg p-3">
+                <p className="text-sm text-info">{client.buying_purpose}</p>
               </div>
             ) : (
               <Badge variant="outline" className="text-muted-foreground border-muted">
@@ -284,7 +284,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
               {followupDate ? (
                 <>
                   <span className="text-sm">{new Date(followupDate).toLocaleDateString()}</span>
-                  <Badge variant="outline" className={`${hasFollowup ? 'text-orange-600 border-orange-200 bg-orange-50' : 'text-muted-foreground border-border bg-muted/50'}`}>
+                  <Badge variant="outline" className={`${hasFollowup ? 'text-warning border-warning/20 bg-warning/5' : 'text-muted-foreground border-border bg-muted/50'}`}>
                     {hasFollowup ? 'Alert Set' : 'Past Due'}
                   </Badge>
                 </>

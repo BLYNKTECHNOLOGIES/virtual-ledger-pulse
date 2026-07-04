@@ -74,11 +74,11 @@ export function ClientOrderSummaryDialog({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
-        return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+        return <Badge className="bg-success/10 text-success border-success/20">Completed</Badge>;
       case 'PENDING':
         return <Badge className="bg-amber-100 text-amber-800">Pending</Badge>;
       case 'CANCELLED':
-        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Cancelled</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -197,7 +197,7 @@ export function ClientOrderSummaryDialog({
                       onClick={() => openTransaction({ type: 'purchase_order', id: order.id })}
                       title="Click to view full order details"
                     >
-                      <td className="py-2 px-4 font-mono text-sm text-blue-600 hover:underline">{order.order_number}</td>
+                      <td className="py-2 px-4 font-mono text-sm text-primary hover:underline">{order.order_number}</td>
                       <td className="py-2 px-4 text-sm">
                         {order.order_date 
                           ? format(new Date(order.order_date), 'dd MMM yyyy')

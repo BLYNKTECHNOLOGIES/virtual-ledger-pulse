@@ -178,11 +178,11 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
     switch (status) {
       case 'COMPLETED':
       case 'APPROVED':
-        return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
+        return <Badge className="bg-success/10 text-success border-success/20">Approved</Badge>;
       case 'PENDING':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+        return <Badge className="bg-warning/10 text-warning border-warning/20">Pending</Badge>;
       case 'REJECTED':
-        return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Rejected</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -254,7 +254,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                   return (
                     <div key={type} className="space-y-2">
                       <div className="flex items-center gap-2">
-                        {type === 'vkyc_video' ? <Video className="h-4 w-4 text-blue-600" /> : <FileText className="h-4 w-4 text-green-600" />}
+                        {type === 'vkyc_video' ? <Video className="h-4 w-4 text-primary" /> : <FileText className="h-4 w-4 text-success" />}
                         <span className="text-sm font-medium">{DOC_TYPE_LABELS[type]}</span>
                         <Badge variant="outline" className="text-xs">{docs.length} file{docs.length > 1 ? 's' : ''}</Badge>
                       </div>
@@ -368,7 +368,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                   {incomeDetails.source_of_fund_url && (
                     <div>
                       <p className="text-xs text-muted-foreground">Source of Fund Document</p>
-                      <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline flex items-center gap-1">
+                      <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline flex items-center gap-1">
                         View Document <ExternalLink className="h-3 w-3" />
                       </a>
                     </div>

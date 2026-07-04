@@ -94,11 +94,11 @@ const COSMOS_OPTIONS = [
   { value: 'normal', label: 'Normal' },
 ];
 const VOLUME_TRENDS = [
-  { value: 'growing', label: 'Growing (+10%)', icon: TrendingUp, color: 'text-green-600' },
+  { value: 'growing', label: 'Growing (+10%)', icon: TrendingUp, color: 'text-success' },
   { value: 'stable', label: 'Stable (±10%)', icon: Minus, color: 'text-muted-foreground' },
-  { value: 'declining', label: 'Declining (-10% to -30%)', icon: TrendingDown, color: 'text-yellow-600' },
-  { value: 'dropping', label: 'Dropping (< -30%)', icon: TrendingDown, color: 'text-red-600' },
-  { value: 'new', label: 'New (No history)', icon: Sparkles, color: 'text-blue-600' },
+  { value: 'declining', label: 'Declining (-10% to -30%)', icon: TrendingDown, color: 'text-warning' },
+  { value: 'dropping', label: 'Dropping (< -30%)', icon: TrendingDown, color: 'text-destructive' },
+  { value: 'new', label: 'New (No history)', icon: Sparkles, color: 'text-primary' },
 ];
 
 // Multi-select dropdown component

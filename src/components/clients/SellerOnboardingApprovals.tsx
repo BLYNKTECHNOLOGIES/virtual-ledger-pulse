@@ -572,9 +572,9 @@ export function SellerOnboardingApprovals() {
       case 'PENDING_APPROVAL':
         return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
       case 'VERIFIED':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" /> Approved</Badge>;
+        return <Badge className="bg-success/10 text-success border-success/20"><CheckCircle className="h-3 w-3 mr-1" /> Approved</Badge>;
       case 'REJECTED':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive border-destructive/20"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -682,26 +682,26 @@ export function SellerOnboardingApprovals() {
                         <TableCell>
                           <button
                             onClick={() => handleViewOrders(seller.id)}
-                            className="font-medium text-blue-600 hover:underline flex items-center gap-1"
+                            className="font-medium text-primary hover:underline flex items-center gap-1"
                           >
                             {seller.name}
                             <Eye className="h-3 w-3" />
                           </button>
                           {isSameUser && (
-                            <Badge className="mt-1 bg-purple-100 text-purple-800 text-xs">
+                            <Badge className="mt-1 bg-primary/10 text-primary border-primary/20 text-xs">
                               ⚠ Same User — different name
                             </Badge>
                           )}
                           {isSameUserByVName && (
                             <Badge
-                              className="mt-1 bg-purple-100 text-purple-800 text-xs"
+                              className="mt-1 bg-primary/10 text-primary border-primary/20 text-xs"
                               title="Multiple pending sellers share this verified KYC name."
                             >
                               ⚠ Same User — same KYC name
                             </Badge>
                           )}
                           {!isSameUser && !isSameUserByVName && identityState === 'linked_known' && nickInfo?.existingClient && (
-                            <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                            <Badge className="mt-1 bg-info/10 text-info border-info/20 text-xs">
                               🔗 Known Client: {nickInfo.existingClient.name} · @{nickInfo.nickname}
                             </Badge>
                           )}

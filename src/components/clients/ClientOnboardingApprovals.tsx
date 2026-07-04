@@ -1529,10 +1529,10 @@ export function ClientOnboardingApprovals() {
 
   const getStatusBadge = (status: string) => {
     const variants = {
-      'PENDING': 'bg-yellow-100 text-yellow-800',
-      'UNDER_REVIEW': 'bg-blue-100 text-blue-800',
-      'APPROVED': 'bg-green-100 text-green-800',
-      'REJECTED': 'bg-red-100 text-red-800'
+      'PENDING': 'bg-warning/10 text-warning border-warning/20',
+      'UNDER_REVIEW': 'bg-info/10 text-info border-info/20',
+      'APPROVED': 'bg-success/10 text-success border-success/20',
+      'REJECTED': 'bg-destructive/10 text-destructive border-destructive/20'
     };
     return <Badge className={variants[status as keyof typeof variants]}>{status}</Badge>;
   };
@@ -1706,7 +1706,7 @@ export function ClientOnboardingApprovals() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <AlertCircle className="h-6 w-6 text-orange-600" />
+        <AlertCircle className="h-6 w-6 text-warning" />
         <h2 className="text-2xl font-bold">Client Onboarding Approvals</h2>
         <Badge variant="destructive">{pendingApprovals.length} Pending</Badge>
       </div>
@@ -1715,7 +1715,7 @@ export function ClientOnboardingApprovals() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-orange-600" />
+            <AlertCircle className="h-5 w-5 text-warning" />
             Pending Client Approvals ({pendingApprovals.length})
           </CardTitle>
         </CardHeader>
@@ -1788,13 +1788,13 @@ export function ClientOnboardingApprovals() {
                         )}
                       </div>
                       {sameUserNick && (
-                        <Badge className="mt-1 bg-purple-100 text-purple-800 text-xs">
+                        <Badge className="mt-1 bg-primary/10 text-primary border-primary/20 text-xs">
                           ⚠ Same User — different name
                         </Badge>
                       )}
                       {sameUserVName && (
                         <Badge
-                          className="mt-1 bg-purple-100 text-purple-800 text-xs"
+                          className="mt-1 bg-primary/10 text-primary border-primary/20 text-xs"
                           title="Multiple pending approvals share this verified KYC name."
                         >
                           ⚠ Same User — same KYC name
@@ -1802,7 +1802,7 @@ export function ClientOnboardingApprovals() {
                       )}
                       {!sameUserNick && !sameUserVName && state === 'linked_known' && matched && (
                         <Badge
-                          className="mt-1 bg-blue-100 text-blue-800 text-xs"
+                          className="mt-1 bg-info/10 text-info border-info/20 text-xs"
                           title={`Client ID: ${matched.client_id || matched.id} • Risk: ${matched.risk_appetite || '—'} • Buyer: ${matched.buyer_approval_status || '—'} • Seller: ${matched.seller_approval_status || '—'}`}
                         >
                           🔗 Known Client: {matched.name}{idInfo?.nickname ? ` · @${idInfo.nickname}` : ''}
@@ -2043,17 +2043,17 @@ export function ClientOnboardingApprovals() {
             <div className="space-y-6">
               {/* Existing Client Match Warning */}
               {existingClientMatch && (
-                <div className="border-2 border-orange-300 bg-orange-50 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-orange-800 font-semibold">
+                <div className="border border-warning/30 bg-warning/5 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-warning font-semibold">
                     <AlertTriangle className="h-5 w-5" />
                     Existing Client Found with Same Name
                   </div>
-                  <p className="text-sm text-orange-700">
+                  <p className="text-sm text-warning">
                     A client named <strong>"{existingClientMatch.name}"</strong> already exists. Please verify if this is the same person before proceeding.
                   </p>
                   
                   {/* Existing client details */}
-                   <div className="bg-card rounded-md p-3 border border-orange-200">
+                   <div className="bg-card rounded-md p-3 border border-warning/20">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
@@ -2078,7 +2078,7 @@ export function ClientOnboardingApprovals() {
 
                   {/* Recent Transactions */}
                   {existingClientTransactions.length > 0 && (
-                    <div className="bg-card rounded-md p-3 border border-orange-200">
+                    <div className="bg-card rounded-md p-3 border border-warning/20">
                       <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
                       <div className="w-full">
                         <table className="w-full text-xs table-fixed">
@@ -2115,7 +2115,7 @@ export function ClientOnboardingApprovals() {
                                 <td className="py-1 pr-2">{tx.client_phone || '-'}</td>
                                 <td className="py-1 pr-2">{tx.client_state || '-'}</td>
                                 <td className="py-1">
-                                  <span className={`px-1.5 py-0.5 rounded text-xs ${tx.status === 'APPROVED' ? 'bg-green-100 text-green-700' : tx.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-muted text-muted-foreground'}`}>
+                                  <span className={`px-1.5 py-0.5 rounded text-xs ${tx.status === 'APPROVED' ? 'bg-success/10 text-success' : tx.status === 'PENDING' ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'}`}>
                                     {tx.status}
                                   </span>
                                 </td>
@@ -2127,7 +2127,7 @@ export function ClientOnboardingApprovals() {
                     </div>
                   )}
 
-                  <div className="bg-card rounded-md p-3 border border-orange-200">
+                  <div className="bg-card rounded-md p-3 border border-warning/20">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
@@ -2168,7 +2168,7 @@ export function ClientOnboardingApprovals() {
                   </div>
                   
                   {approvalMode === 'create_new' && (
-                    <p className="text-xs text-orange-600">
+                    <p className="text-xs text-warning">
                       ⚠️ Creating a new client with the same name requires the existing client's name to be disambiguated first. 
                       Please ensure their names differ (e.g., add a middle name or location) to avoid the unique name constraint.
                     </p>
@@ -2240,7 +2240,7 @@ export function ClientOnboardingApprovals() {
               </div>
 
               {/* Bank Details Section */}
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="bg-info/5 p-4 rounded-lg border border-info/20">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold flex items-center gap-2">
                     <CreditCard className="h-4 w-4" />
@@ -2258,7 +2258,7 @@ export function ClientOnboardingApprovals() {
                 </div>
                 <div className="space-y-4">
                   {bankEntries.map((entry, index) => (
-                    <div key={index} className="bg-card p-3 rounded-md border border-blue-100 space-y-3">
+                    <div key={index} className="bg-card p-3 rounded-md border border-info/20 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">Bank Account #{index + 1}</span>
                         {index > 0 && (
@@ -2477,7 +2477,7 @@ export function ClientOnboardingApprovals() {
               </div>
 
               {/* KYC Documents Section */}
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="bg-success/5 p-4 rounded-lg border border-success/20">
                 <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   KYC Documents
@@ -2643,9 +2643,9 @@ export function ClientOnboardingApprovals() {
               </div>
 
               {/* Additional Documents Section */}
-              <div className="bg-purple-50/40 border border-purple-100 rounded-md p-4 space-y-3">
+              <div className="bg-primary/5 border border-primary/20 rounded-md p-4 space-y-3">
                 <Label className="text-base font-semibold flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-purple-600" />
+                  <FileText className="h-4 w-4 text-primary" />
                   Additional Documents <span className="text-xs font-normal text-muted-foreground">(Optional — payment receipts, invoices, supporting docs)</span>
                 </Label>
                 <div className="bg-card p-3 rounded-md border space-y-2">

@@ -91,7 +91,7 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-foreground">
                 Bank Account #{index + 1}
-                {account.isCustomBank && <span className="ml-2 text-xs text-blue-600">(Custom Bank)</span>}
+                {account.isCustomBank && <span className="ml-2 text-xs text-primary">(Custom Bank)</span>}
               </h4>
               <Button
                 type="button"

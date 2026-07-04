@@ -112,25 +112,25 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
   const renderAnalysisContent = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-blue-100 dark:border-blue-900">
-          <div className="text-3xl font-bold text-blue-600">{totalOrders}</div>
+        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-info/20 dark:border-blue-900">
+          <div className="text-3xl font-bold text-primary">{totalOrders}</div>
           <div className="text-sm text-muted-foreground mt-1">
             Total {activeTab === 'buy' ? 'Buy' : 'Sell'} Orders
           </div>
         </div>
         
         <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-green-100 dark:border-green-900">
-          <div className="text-3xl font-bold text-green-600">{avgOrdersPerMonth}</div>
+          <div className="text-3xl font-bold text-success">{avgOrdersPerMonth}</div>
           <div className="text-sm text-muted-foreground mt-1">Avg Orders/Month</div>
         </div>
         
-        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-purple-100 dark:border-purple-900">
-          <div className="text-3xl font-bold text-purple-600">₹{averageOrderAmount.toLocaleString('en-IN')}</div>
+        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-primary/20 dark:border-purple-900">
+          <div className="text-3xl font-bold text-primary">₹{averageOrderAmount.toLocaleString('en-IN')}</div>
           <div className="text-sm text-muted-foreground mt-1">Average Order Amount</div>
         </div>
         
         <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-green-100 dark:border-green-900">
-          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-900/20 px-3 py-1">
+          <Badge variant="outline" className="text-success border-green-300 bg-success/5 dark:bg-green-900/20 px-3 py-1">
             {getPatternStatus()}
           </Badge>
           <div className="text-sm text-muted-foreground mt-2">Order Frequency</div>
@@ -141,7 +141,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         <div className="p-4 bg-card dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900">
           <label className="text-sm font-medium text-muted-foreground">Cosmos Alert (Pattern Change)</label>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 dark:bg-red-900/20 px-3 py-1">
+            <Badge variant="outline" className="text-destructive border-red-300 bg-red-50 dark:bg-red-900/20 px-3 py-1">
               ❌ No Alert
             </Badge>
           </div>
@@ -150,7 +150,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         <div className="p-4 bg-card dark:bg-gray-800 rounded-lg border border-green-100 dark:border-green-900">
           <label className="text-sm font-medium text-muted-foreground">250% Spike Detected?</label>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-900/20 px-3 py-1">
+            <Badge variant="outline" className="text-success border-green-300 bg-success/5 dark:bg-green-900/20 px-3 py-1">
               No
             </Badge>
           </div>
@@ -163,7 +163,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <BarChart className="h-5 w-5 text-blue-600" />
+          <BarChart className="h-5 w-5 text-primary" />
           Trading Pattern Analysis
         </CardTitle>
       </CardHeader>
@@ -197,15 +197,15 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         )}
 
         <div className="flex flex-wrap gap-3 pt-6 border-t border-border mt-6">
-          <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+          <Button size="sm" variant="outline" className="border-blue-300 text-primary hover:bg-info/5 dark:hover:bg-blue-900/20">
             <TrendingUp className="h-4 w-4 mr-2" />
             View Charts
           </Button>
-          <Button size="sm" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+          <Button size="sm" variant="outline" className="border-purple-300 text-primary hover:bg-primary/5 dark:hover:bg-purple-900/20">
             <Activity className="h-4 w-4 mr-2" />
             Pattern Settings
           </Button>
-          <Button size="sm" variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20">
+          <Button size="sm" variant="outline" className="border-orange-300 text-warning hover:bg-warning/5 dark:hover:bg-orange-900/20">
             <AlertTriangle className="h-4 w-4 mr-2" />
             Alert Rules
           </Button>

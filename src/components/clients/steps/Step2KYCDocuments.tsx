@@ -137,7 +137,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
               />
             </div>
             {formData.pan_card_file && (
-              <p className="text-sm text-green-600 mt-1">✓ {formData.pan_card_file.name}</p>
+              <p className="text-sm text-success mt-1">✓ {formData.pan_card_file.name}</p>
             )}
           </div>
 
@@ -162,7 +162,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
               />
             </div>
             {formData.aadhar_front_file && (
-              <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_front_file.name}</p>
+              <p className="text-sm text-success mt-1">✓ {formData.aadhar_front_file.name}</p>
             )}
           </div>
         </div>
@@ -188,7 +188,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
             />
           </div>
           {formData.aadhar_back_file && (
-            <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_back_file.name}</p>
+            <p className="text-sm text-success mt-1">✓ {formData.aadhar_back_file.name}</p>
           )}
         </div>
       </div>

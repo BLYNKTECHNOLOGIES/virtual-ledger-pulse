@@ -66,7 +66,10 @@ const escapePostgrestOrValue = (value: string) =>
 
 export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetType }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date; assetType?: string }) {
   const normalizedSearch = normalizeSearch(searchTerm);
-  const hasServerFilter = !!normalizedSearch || !!dateFrom || !!dateTo;
+  const normalizedAsset = (assetType || '').trim();
+  // Asset filtering is applied client-side (derived from joined product fields),
+  // so it must load the full history rather than only the recent 100 rows.
+  const hasServerFilter = !!normalizedSearch || !!dateFrom || !!dateTo || !!normalizedAsset;
 
   // Fetch completed purchase orders
   const { data: completedOrders, isLoading, isError: isCompletedError, error: completedError } = useQuery({

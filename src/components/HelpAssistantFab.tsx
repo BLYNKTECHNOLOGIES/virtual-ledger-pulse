@@ -38,13 +38,13 @@ export function HelpAssistantFab() {
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         aria-label="Open AI Help Assistant"
-        className="group relative outline-none focus-visible:ring-4 focus-visible:ring-cyan-300/50 rounded-full"
+        className="group relative outline-none focus-visible:ring-4 focus-visible:ring-primary/50 rounded-full"
       >
         {/* Soft glow halo */}
-        <span className="pointer-events-none absolute inset-0 rounded-full bg-cyan-300/40 blur-xl scale-110 animate-pulse" />
+        <span className="pointer-events-none absolute inset-0 rounded-full bg-primary/40 blur-xl scale-110 animate-pulse" />
 
         {/* Pedestal / shadow */}
-        <span className="pointer-events-none absolute left-1/2 -bottom-1 -translate-x-1/2 w-14 h-2 rounded-full bg-slate-900/25 blur-md" />
+        <span className="pointer-events-none absolute left-1/2 -bottom-1 -translate-x-1/2 w-14 h-2 rounded-full bg-foreground/25 blur-md" />
 
         {/* Robot body — bobs gently, tilts on hover */}
         <span

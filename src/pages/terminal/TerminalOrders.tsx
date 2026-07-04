@@ -1058,12 +1058,14 @@ function TerminalOrdersContent() {
       <div className="h-[calc(100vh-48px)]">
         <OrderDetailWorkspace
           order={selectedOrder}
+          onStepOrder={stepSelectedOrder}
           onClose={async () => {
             setSelectedOrder(null);
             // Ensure list reflects the latest terminal status after viewing an order
             await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
           }}
         />
+
       </div>
     );
   }

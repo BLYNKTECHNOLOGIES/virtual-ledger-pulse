@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import { useState, useMemo, useRef, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,12 +21,33 @@ interface Props {
   order: P2POrderRecord;
   onClose: () => void;
   preserveOrderStatus?: boolean;
+  /** Step to prev (-1) / next (1) order — mirrors the desktop Shift+Arrow shortcut. */
+  onStepOrder?: (direction: 1 | -1) => void;
 }
 
-export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = false }: Props) {
+export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = false, onStepOrder }: Props) {
   const [rightPanel, setRightPanel] = useState<'profile' | 'internal'>('internal');
   const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('internal');
   const isMobile = useIsMobile();
+  // Swipe-to-navigate on the order number (mobile) — mirrors desktop Shift+Arrow.
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const handleSwipeStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const handleSwipeEnd = (e: React.TouchEvent) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start || !onStepOrder) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    // Require a mostly-horizontal deliberate swipe.
+    if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+    // Swipe right → next (ArrowRight); swipe left → previous (ArrowLeft).
+    onStepOrder(dx > 0 ? 1 : -1);
+  };
+
   // The order's owning Binance account. Every per-order live Binance call
   // (chat, order detail, live status) MUST be scoped to this account —
   // otherwise, in multi-account / "All accounts" mode the proxy falls back to
@@ -140,9 +161,15 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span className="text-xs font-medium text-foreground">
+        <span
+          className="text-xs font-medium text-foreground select-none touch-pan-y"
+          onTouchStart={onStepOrder ? handleSwipeStart : undefined}
+          onTouchEnd={onStepOrder ? handleSwipeEnd : undefined}
+          title={onStepOrder ? 'Swipe left/right to move between orders' : undefined}
+        >
           Order #{order.binance_order_number.slice(-8)}
         </span>
+
         <span className={`text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
           {order.trade_type}
         </span>

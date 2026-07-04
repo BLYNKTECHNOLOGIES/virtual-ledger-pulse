@@ -165,12 +165,17 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
   const completedOrders = orders?.filter(order => order.status === 'COMPLETED').length || 0;
 
   return (
-    <Card className="shadow-lg">
+    <Card className="h-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <User className="h-5 w-5 text-blue-600" />
-          Client Overview Panel
-        </CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+            {(client.name || '?').trim().split(/\s+/).slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join('')}
+          </div>
+          <div className="min-w-0">
+            <CardTitle className="truncate text-base">{client.name}</CardTitle>
+            <p className="text-xs text-muted-foreground">Client Overview</p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -180,7 +185,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client ID</label>
-            <p className="text-lg font-semibold text-blue-600">{client.client_id}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">{client.client_id}</p>
           </div>
         </div>
 

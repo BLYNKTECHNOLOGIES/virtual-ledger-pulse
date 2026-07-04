@@ -460,7 +460,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Sales</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-muted">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       {(metrics?.salesGrowth ?? 0) >= 0 ? (
                         <ArrowUpIcon className="h-4 w-4 text-success" />
@@ -489,7 +489,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sales Orders</p>
-                    <p className="text-2xl xl:text-3xl font-semibold tabular-nums mt-2 truncate text-muted">{metrics?.totalSalesOrders || 0}</p>
+                    <p className="text-2xl xl:text-3xl font-semibold tabular-nums mt-2 truncate text-foreground">{metrics?.totalSalesOrders || 0}</p>
                     <div className="flex items-center gap-1 mt-2">
                       {(metrics?.ordersGrowth ?? 0) >= 0 ? (
                         <ArrowUpIcon className="h-4 w-4 text-success" />
@@ -518,10 +518,10 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Clients</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-muted">{metrics?.totalClients || 0}</div>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">{metrics?.totalClients || 0}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-info" />
-                      <span className="text-sm font-medium text-muted">Verified: {metrics?.verifiedClients || 0}</span>
+                      <span className="text-sm font-medium text-muted-foreground">Verified: {metrics?.verifiedClients || 0}</span>
                     </div>
                   </div>
                   <div className="bg-info/10 p-3 rounded-lg shadow-sm flex-shrink-0">
@@ -541,10 +541,10 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 relative z-10">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-muted">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-warning" />
-                      <span className="text-sm font-medium text-muted">Banks + Stock</span>
+                      <span className="text-sm font-medium text-muted-foreground">Banks + Stock</span>
                     </div>
                   </div>
                   <div className="bg-warning/10 p-3 rounded-lg shadow-sm flex-shrink-0 relative z-0">
@@ -697,12 +697,12 @@ export default function Dashboard() {
                   <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-info" />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-muted truncate">Welcome to Dashboard</h1>
+                  <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground truncate">Welcome to Dashboard</h1>
                   <p className="text-muted-foreground text-sm md:text-base truncate">Monitor your business performance</p>
                 </div>
               </div>
               <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">
-                <div className="bg-card border border-info/20 text-muted rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                <div className="bg-card border border-info/20 text-foreground rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-info" />
                     <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
@@ -711,7 +711,7 @@ export default function Dashboard() {
                 <div className="bg-card border border-success/20 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-success" />
-                    <span className="text-xs md:text-sm font-medium text-muted whitespace-nowrap">System Active</span>
+                    <span className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">System Active</span>
                   </div>
                 </div>
               </div>
@@ -736,7 +736,7 @@ export default function Dashboard() {
                   }}
                   className={`flex-shrink-0 ${isEditMode ? 
                     "bg-warning/10 border border-warning text-warning hover:bg-warning/10 shadow-sm" : 
-                    "bg-card border border-border text-muted hover:bg-muted/50 shadow-sm"
+                    "bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
                   }`}
                 >
                   <Settings className="h-4 w-4 mr-1 md:mr-2" />
@@ -753,7 +753,7 @@ export default function Dashboard() {
                       variant="outline"
                       size="sm"
                       onClick={handleResetDashboard}
-                      className="flex-shrink-0 bg-card border border-border text-muted hover:bg-muted/50 shadow-sm"
+                      className="flex-shrink-0 bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
                     >
                       <RotateCcw className="h-4 w-4 mr-1" />
                       <span className="hidden sm:inline">Reset</span>
@@ -778,7 +778,7 @@ export default function Dashboard() {
                   size="sm"
                   onClick={handleRefreshDashboard}
                   disabled={isRefreshing}
-                  className="bg-card border border-border text-muted hover:bg-muted/50 shadow-sm flex-shrink-0"
+                  className="bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm flex-shrink-0"
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>

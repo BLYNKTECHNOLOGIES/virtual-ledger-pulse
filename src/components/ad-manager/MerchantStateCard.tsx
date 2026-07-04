@@ -51,6 +51,7 @@ export function MerchantStateCard() {
   const businessStatus = hasLiveStatus ? apiData?.businessStatus : latestSnapshot?.business_status;
   const hasRestriction = Number(businessStatus) === 2 || Number(businessStatus) === 3;
   const isCachedOnly = !hasLiveStatus && !!latestSnapshot;
+  const statusFlash = useValueFlash(businessStatus ?? '', 'value-flash');
 
   return (
     <div className={`flex h-9 shrink-0 items-center gap-2 rounded-md border px-2.5 ${hasRestriction || isCachedOnly ? 'border-warning/30 bg-warning/5' : 'border-border bg-card'}`}>

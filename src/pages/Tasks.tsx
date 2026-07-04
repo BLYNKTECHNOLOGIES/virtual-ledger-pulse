@@ -186,9 +186,9 @@ export default function Tasks() {
 
   return (
     <PermissionGate permissions={["tasks_view"]}>
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-4 page-mount">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Task Management</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Task Management</h1>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Task
         </Button>

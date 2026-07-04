@@ -9,12 +9,11 @@ const corsHeaders = {
 const RECIPIENTS = ["Shubham.singh@blynkex.com", "abhisheksingh@blynkex.com"];
 
 // Copper / amber palette
-const COPPER = "#4F46E5";
-const COPPER_DARK = "#4338CA";
-const AMBER = "#D97706";
-const GREEN = "#16A34A";
-const RED = "#DC2626";
-
+const COPPER = "#B87333";
+const COPPER_DARK = "#8C5A2B";
+const AMBER = "#C77B3B";
+const GREEN = "#2E7D32";
+const RED = "#C62828";
 
 // ---------- helpers ----------
 

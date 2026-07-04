@@ -156,17 +156,17 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   });
 
   const topBar = (
-    <div className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-border bg-card">
+    <div
+      className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-border bg-card select-none touch-pan-y"
+      onTouchStart={onStepOrder ? handleSwipeStart : undefined}
+      onTouchEnd={onStepOrder ? handleSwipeEnd : undefined}
+      title={onStepOrder ? 'Swipe left/right to move between orders' : undefined}
+    >
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span
-          className="text-xs font-medium text-foreground select-none touch-pan-y"
-          onTouchStart={onStepOrder ? handleSwipeStart : undefined}
-          onTouchEnd={onStepOrder ? handleSwipeEnd : undefined}
-          title={onStepOrder ? 'Swipe left/right to move between orders' : undefined}
-        >
+        <span className="text-xs font-medium text-foreground">
           Order #{order.binance_order_number.slice(-8)}
         </span>
 

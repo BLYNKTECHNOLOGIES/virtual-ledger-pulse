@@ -143,6 +143,11 @@ const router = createBrowserRouter([
     path: "/login",
     element: <LoginPage />,
   },
+  // MCP OAuth consent — public route (handles its own auth redirect)
+  {
+    path: "/.lovable/oauth/consent",
+    element: <OAuthConsent />,
+  },
   // ERP System Routes - All protected with authentication
   {
     path: "/dashboard",

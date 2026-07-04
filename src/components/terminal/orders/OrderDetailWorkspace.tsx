@@ -161,9 +161,15 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span className="text-xs font-medium text-foreground">
+        <span
+          className="text-xs font-medium text-foreground select-none touch-pan-y"
+          onTouchStart={onStepOrder ? handleSwipeStart : undefined}
+          onTouchEnd={onStepOrder ? handleSwipeEnd : undefined}
+          title={onStepOrder ? 'Swipe left/right to move between orders' : undefined}
+        >
           Order #{order.binance_order_number.slice(-8)}
         </span>
+
         <span className={`text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
           {order.trade_type}
         </span>

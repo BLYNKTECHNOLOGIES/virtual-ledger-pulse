@@ -218,21 +218,22 @@ export function GrossProfitHistoryTab() {
 
         <Card className="bg-gradient-to-br from-info to-primary text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-info text-sm font-medium">Change</p>
+            <p className="text-primary-foreground/80 text-sm font-medium">Change</p>
             <p className="text-2xl font-bold mt-2">
               {Number(changePercent) >= 0 ? "+" : ""}{changePercent}%
             </p>
-            <p className="text-sm mt-1 text-info">vs previous snapshot</p>
+            <p className="text-sm mt-1 text-primary-foreground/80">vs previous snapshot</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-muted to-muted text-primary-foreground border-0">
+        <Card className="bg-muted border-0">
           <CardContent className="p-6">
             <p className="text-muted-foreground text-sm font-medium">Total Snapshots</p>
-            <p className="text-2xl font-bold mt-2">{mergedData?.length || 0}</p>
+            <p className="text-2xl font-bold mt-2 text-foreground">{mergedData?.length || 0}</p>
             <p className="text-sm mt-1 text-muted-foreground">Daily records</p>
           </CardContent>
         </Card>
+
       </div>
 
       {/* Chart */}

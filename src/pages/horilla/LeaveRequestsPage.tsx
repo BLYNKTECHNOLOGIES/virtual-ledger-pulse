@@ -181,7 +181,7 @@ export default function LeaveRequestsPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>

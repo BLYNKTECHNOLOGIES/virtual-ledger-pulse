@@ -788,8 +788,9 @@ export function ClientDashboard() {
                   </table>
                   
                   {filteredSellers?.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No sellers found matching your filters.
+                    <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                      <Users className="h-8 w-8 text-muted-foreground/60" />
+                      <p className="text-sm text-muted-foreground">No sellers found matching your filters.</p>
                     </div>
                   )}
                 </div>

@@ -37,9 +37,9 @@ const StatusBadge = ({ status }: { status: string }) => {
     status === "APPLIED"
       ? "bg-primary/10 text-primary"
       : status === "INTERVIEW"
-      ? "bg-yellow-500/10 text-yellow-700"
+      ? "bg-warning/10 text-warning"
       : status === "SELECTED" || status === "ONBOARDED"
-      ? "bg-emerald-500/10 text-emerald-700"
+      ? "bg-success/10 text-success"
       : status === "REJECTED" || status === "NOT_INTERESTED"
       ? "bg-destructive/10 text-destructive"
       : "bg-muted text-muted-foreground";

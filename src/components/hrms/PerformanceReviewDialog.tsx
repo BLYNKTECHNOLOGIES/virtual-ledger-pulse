@@ -223,7 +223,7 @@ export function PerformanceReviewDialog({ open, onOpenChange }: PerformanceRevie
           </div>
 
           {formData.criteria.some(c => c.score > 0) && (
-            <div className="p-3 bg-blue-50 rounded">
+            <div className="p-3 bg-info/10 rounded">
               <p className="font-medium">Final Score: {calculateFinalScore().toFixed(1)}%</p>
             </div>
           )}

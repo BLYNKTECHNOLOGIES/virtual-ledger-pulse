@@ -75,17 +75,17 @@ const PaymentScreenshotGenerator = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Date & Time <span className="text-red-500">*</span></Label>
+                <Label>Date & Time <span className="text-destructive">*</span></Label>
                 <Input type="datetime-local" value={form.dateTime} onChange={(e) => update("dateTime", e.target.value)} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>To UPI ID <span className="text-red-500">*</span></Label>
+                  <Label>To UPI ID <span className="text-destructive">*</span></Label>
                   <Input placeholder="e.g. 8839420199@omni" value={form.toUpiId} onChange={(e) => update("toUpiId", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Amount (₹) <span className="text-red-500">*</span></Label>
+                  <Label>Amount (₹) <span className="text-destructive">*</span></Label>
                   <Input type="number" placeholder="e.g. 100" value={form.amount} onChange={(e) => update("amount", e.target.value)} />
                 </div>
               </div>
@@ -96,7 +96,7 @@ const PaymentScreenshotGenerator = () => {
                   <Input type="number" placeholder="e.g. 7.50" value={form.paymentProviderFees} onChange={(e) => update("paymentProviderFees", e.target.value)} />
                 </div>
                 <div>
-                  <Label>UPI Transaction ID <span className="text-red-500">*</span></Label>
+                  <Label>UPI Transaction ID <span className="text-destructive">*</span></Label>
                   <Input placeholder="e.g. S26032117..." value={form.upiTransactionId} onChange={(e) => update("upiTransactionId", e.target.value)} />
                 </div>
               </div>

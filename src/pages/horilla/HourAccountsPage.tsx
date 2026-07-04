@@ -112,28 +112,28 @@ export default function HourAccountsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-green-50 rounded-lg"><Clock className="h-5 w-5 text-green-600" /></div>
+            <div className="p-2 bg-success/10 rounded-lg"><Clock className="h-5 w-5 text-success" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Total Worked</p>
-              <p className="text-xl font-bold text-green-700">{formatHHMM(totalWorked)}</p>
+              <p className="text-xl font-bold text-success">{formatHHMM(totalWorked)}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-orange-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-orange-600" /></div>
+            <div className="p-2 bg-warning/10 rounded-lg"><AlertTriangle className="h-5 w-5 text-warning" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Total Pending</p>
-              <p className="text-xl font-bold text-orange-700">{formatHHMM(totalPending)}</p>
+              <p className="text-xl font-bold text-warning">{formatHHMM(totalPending)}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg"><Timer className="h-5 w-5 text-blue-600" /></div>
+            <div className="p-2 bg-info/10 rounded-lg"><Timer className="h-5 w-5 text-info" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Total Overtime</p>
-              <p className="text-xl font-bold text-blue-700">{formatHHMM(totalOvertime)}</p>
+              <p className="text-xl font-bold text-info">{formatHHMM(totalOvertime)}</p>
             </div>
           </CardContent>
         </Card>
@@ -172,24 +172,24 @@ export default function HourAccountsPage() {
                         {a.hr_employees?.first_name} {a.hr_employees?.last_name}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.badge_id}</td>
-                      <td className="px-4 py-3 font-medium text-green-700">{a.worked_hours || "00:00"}</td>
+                      <td className="px-4 py-3 font-medium text-success">{a.worked_hours || "00:00"}</td>
                       <td className="px-4 py-3">
-                        <span className={hasPending ? "text-orange-600 font-medium" : "text-muted-foreground"}>
+                        <span className={hasPending ? "text-warning font-medium" : "text-muted-foreground"}>
                           {a.pending_hours || "00:00"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={hasOT ? "text-blue-600 font-medium" : "text-muted-foreground"}>
+                        <span className={hasOT ? "text-info font-medium" : "text-muted-foreground"}>
                           {a.overtime || "00:00"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {hasPending ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Deficit</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">Deficit</span>
                         ) : hasOT ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Overtime</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-info/10 text-info">Overtime</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">On Track</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">On Track</span>
                         )}
                       </td>
                     </tr>

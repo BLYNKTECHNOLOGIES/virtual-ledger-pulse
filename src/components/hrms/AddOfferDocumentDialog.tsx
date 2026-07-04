@@ -182,7 +182,7 @@ export function AddOfferDocumentDialog({ open, onOpenChange }: AddOfferDocumentD
           <div>
             <Label htmlFor="document_upload">Upload Document</Label>
             <div
-              className={`mt-2 rounded-md border-2 border-dashed p-3 transition-colors ${
+              className={`mt-2 rounded-md border border-dashed p-3 transition-colors ${
                 isDragActive ? "border-primary bg-primary/10" : "border-transparent"
               }`}
               {...dropzoneProps}
@@ -198,7 +198,7 @@ export function AddOfferDocumentDialog({ open, onOpenChange }: AddOfferDocumentD
                 <div className="mt-2 text-sm text-muted-foreground">Uploading...</div>
               )}
               {formData.document_url && (
-                <div className="mt-2 text-sm text-green-600">Document uploaded successfully</div>
+                <div className="mt-2 text-sm text-success">Document uploaded successfully</div>
               )}
               {isDragActive && (
                 <p className="mt-1 text-xs text-primary text-center">Drop file here</p>

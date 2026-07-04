@@ -90,11 +90,11 @@ export default function HRLogsPage() {
                       <TableCell className="text-sm max-w-[200px] truncate">{e.subject || "—"}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{e.template_name}</Badge></TableCell>
                       <TableCell>
-                        <Badge className={e.status === "sent" ? "bg-green-100 text-green-800" : e.status === "failed" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"}>
+                        <Badge className={e.status === "sent" ? "bg-success/10 text-success" : e.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}>
                           {e.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-red-500 max-w-[150px] truncate">{e.error_message || "—"}</TableCell>
+                      <TableCell className="text-xs text-destructive max-w-[150px] truncate">{e.error_message || "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -13,7 +13,7 @@ export default function TerminalComingSoon({ title, description, features }: Pro
       <div className="h-16 w-16 rounded-2xl bg-muted/20 border border-border flex items-center justify-center mb-6">
         <Lock className="h-7 w-7 text-muted-foreground/50" />
       </div>
-      <Badge variant="outline" className="mb-4 text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+      <Badge variant="outline" className="mb-4 text-xs bg-warning/10 text-warning border-warning/30">
         <Clock className="h-3 w-3 mr-1" /> Coming Soon
       </Badge>
       <h2 className="text-xl font-semibold text-foreground mb-2">{title}</h2>

@@ -123,7 +123,7 @@ export function AddLeadDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button className="bg-info hover:bg-info">
           <UserPlus className="h-4 w-4 mr-2" />
           New Lead
         </Button>
@@ -150,7 +150,7 @@ export function AddLeadDialog() {
                   required
                 />
                 {isExistingClient && (
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full whitespace-nowrap">
+                  <span className="text-xs bg-success/10 text-success px-2 py-1 rounded-full whitespace-nowrap">
                     Existing Client
                   </span>
                 )}
@@ -158,7 +158,7 @@ export function AddLeadDialog() {
             </div>
             
             {showSuggestions && filteredClients.length > 0 && formData.name.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-sm max-h-40 overflow-y-auto">
                 {filteredClients.map((client) => (
                   <div
                     key={client.id}

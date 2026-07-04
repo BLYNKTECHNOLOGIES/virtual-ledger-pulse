@@ -68,7 +68,7 @@ export default function AnnouncementsPage() {
                 </div>
                 <div className="flex gap-1 shrink-0 ml-4">
                   <Button size="sm" variant="ghost" onClick={() => { setEditId(a.id); setForm({ title: a.title, content: a.content || "", category: a.category || "general", is_pinned: a.is_pinned }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="ghost" className="text-red-600" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
             </CardContent>

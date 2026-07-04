@@ -28,7 +28,7 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div
-              className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
+              className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground"
               style={{ backgroundColor: color }}
             >
               {asset.slice(0, 2)}
@@ -49,7 +49,7 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
             </div>
             <div className="bg-accent/10 rounded-lg p-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Frozen / Locked</p>
-              <p className="text-sm font-semibold text-amber-400 tabular-nums">
+              <p className="text-sm font-semibold text-warning tabular-nums">
                 {data.total_locked > 0 ? data.total_locked.toFixed(8) : "0.00000000"}
               </p>
             </div>
@@ -68,7 +68,7 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
                       row.type === "available"
                         ? "bg-trade-buy"
                         : row.type === "locked"
-                        ? "bg-amber-400"
+                        ? "bg-warning"
                         : "bg-trade-sell"
                     }`}
                   />
@@ -83,8 +83,8 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
 
           {/* Explanation for frozen */}
           {data.total_locked > 0 && (
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-              <p className="text-[10px] text-amber-400">
+            <div className="bg-warning/5 border border-warning/20 rounded-lg p-3">
+              <p className="text-[10px] text-warning">
                 Locked/frozen funds may be held in P2P orders, open spot orders, or escrow. 
                 These values are fetched directly from Binance API.
               </p>

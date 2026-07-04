@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 const STATUS_COLORS: Record<string, string> = {
-  scheduled: "bg-blue-100 text-blue-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-red-100 text-red-700",
-  pending: "bg-amber-100 text-amber-700",
+  scheduled: "bg-info/10 text-info",
+  completed: "bg-success/10 text-success",
+  cancelled: "bg-destructive/10 text-destructive",
+  pending: "bg-warning/10 text-warning",
 };
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
@@ -156,7 +156,7 @@ export default function InterviewListPage() {
         </div>
         <button
           onClick={() => setScheduleOpen(true)}
-          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" /> Schedule Interview
         </button>
@@ -165,10 +165,10 @@ export default function InterviewListPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Interviews", value: stats.total, icon: Calendar, color: "bg-violet-100 text-violet-600" },
-          { label: "Scheduled", value: stats.scheduled, icon: Clock, color: "bg-blue-100 text-blue-600" },
-          { label: "Completed", value: stats.completed, icon: CheckCircle, color: "bg-emerald-100 text-emerald-600" },
-          { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "bg-red-100 text-red-600" },
+          { label: "Total Interviews", value: stats.total, icon: Calendar, color: "bg-primary/10 text-primary" },
+          { label: "Scheduled", value: stats.scheduled, icon: Clock, color: "bg-info/10 text-info" },
+          { label: "Completed", value: stats.completed, icon: CheckCircle, color: "bg-success/10 text-success" },
+          { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "bg-destructive/10 text-destructive" },
         ].map(s => (
           <div key={s.label} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center shrink-0`}>
@@ -212,7 +212,7 @@ export default function InterviewListPage() {
           <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <Calendar className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+            <Calendar className="h-10 w-10 mx-auto text-muted mb-3" />
             <p className="text-muted-foreground text-sm">No interviews found</p>
             <button onClick={() => setScheduleOpen(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
               + Schedule your first interview
@@ -236,7 +236,7 @@ export default function InterviewListPage() {
               {filtered.map((iv: any) => {
                 const TypeIcon = TYPE_ICONS[iv.interview_type] || Calendar;
                 return (
-                  <tr key={iv.id} className="border-b border-gray-50 hover:bg-muted/50 transition-colors">
+                  <tr key={iv.id} className="border-b border-muted/20 hover:bg-muted/50 transition-colors">
                     <td className="py-3 px-4">
                       <button
                         onClick={() => navigate(`/hrms/recruitment/candidates/${iv.candidate_id}`)}
@@ -262,11 +262,11 @@ export default function InterviewListPage() {
                       {iv.rating ? (
                         <div className="flex items-center gap-0.5">
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className={`h-3.5 w-3.5 ${i < iv.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                            <Star key={i} className={`h-3.5 w-3.5 ${i < iv.rating ? "text-warning fill-warning" : "text-muted"}`} />
                           ))}
                         </div>
                       ) : (
-                        <span className="text-gray-300 text-xs">—</span>
+                        <span className="text-muted text-xs">—</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -280,13 +280,13 @@ export default function InterviewListPage() {
                           <>
                             <button
                               onClick={() => setFeedbackForm({ id: iv.id, rating: 3, feedback: "" })}
-                              className="text-[10px] px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              className="text-[10px] px-2 py-1 rounded bg-success/10 text-success hover:bg-success/10"
                             >
                               Feedback
                             </button>
                             <button
                               onClick={() => statusMutation.mutate({ id: iv.id, status: "cancelled" })}
-                              className="text-[10px] px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100"
+                              className="text-[10px] px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/10"
                             >
                               Cancel
                             </button>
@@ -310,7 +310,7 @@ export default function InterviewListPage() {
       {/* Feedback Modal */}
       {feedbackForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Interview Feedback</h2>
               <button onClick={() => setFeedbackForm(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -321,7 +321,7 @@ export default function InterviewListPage() {
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(r => (
                     <button key={r} onClick={() => setFeedbackForm({ ...feedbackForm, rating: r })}>
-                      <Star className={`h-6 w-6 ${r <= feedbackForm.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                      <Star className={`h-6 w-6 ${r <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted"}`} />
                     </button>
                   ))}
                 </div>
@@ -339,7 +339,7 @@ export default function InterviewListPage() {
             </div>
             <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
               <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button onClick={() => feedbackMutation.mutate()} className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c]">Save Feedback</button>
+              <button onClick={() => feedbackMutation.mutate()} className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]">Save Feedback</button>
             </div>
           </div>
         </div>
@@ -348,7 +348,7 @@ export default function InterviewListPage() {
       {/* Schedule Interview Modal */}
       {scheduleOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-card rounded-xl w-full max-w-lg shadow-sm max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h2 className="text-lg font-semibold text-foreground">Schedule Interview</h2>
               <button onClick={() => setScheduleOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -422,7 +422,7 @@ export default function InterviewListPage() {
               <button
                 onClick={() => scheduleMutation.mutate()}
                 disabled={!scheduleForm.candidate_id || !scheduleForm.interviewer_name || !scheduleForm.interview_date || scheduleMutation.isPending}
-                className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
               >
                 {scheduleMutation.isPending ? "Scheduling..." : "Schedule Interview"}
               </button>

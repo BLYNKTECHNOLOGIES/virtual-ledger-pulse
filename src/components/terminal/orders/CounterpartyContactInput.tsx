@@ -138,7 +138,7 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
         <Phone className="h-3 w-3 text-primary" />
         <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Contact & State</span>
         {hasContact && !isEditing && (
-          <Badge variant="outline" className="text-[8px] px-1 py-0 bg-green-50 text-green-700 border-green-200">
+          <Badge variant="outline" className="text-[8px] px-1 py-0 bg-success/10 text-success border-success/20">
             <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
             Captured
           </Badge>

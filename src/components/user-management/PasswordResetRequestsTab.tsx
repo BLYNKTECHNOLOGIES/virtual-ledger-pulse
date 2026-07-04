@@ -144,13 +144,13 @@ export function PasswordResetRequestsTab() {
               {pendingRequests.map((req) => (
                 <div
                   key={req.id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                  className="flex items-center justify-between p-4 border rounded-lg bg-warning/10 dark:bg-warning/20 border-warning/20 dark:border-warning"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{req.username}</span>
                       <span className="text-sm text-muted-foreground">({req.email})</span>
-                      <Badge variant="outline" className="text-amber-700 border-amber-300">
+                      <Badge variant="outline" className="text-warning border-warning">
                         <Clock className="h-3 w-3 mr-1" /> Pending
                       </Badge>
                     </div>
@@ -167,7 +167,7 @@ export function PasswordResetRequestsTab() {
                     <Button
                       size="sm"
                       onClick={() => handleApproveAndReset(req)}
-                      className="bg-green-600 hover:bg-green-700"
+                      className="bg-success hover:bg-success"
                     >
                       <Check className="h-4 w-4 mr-1" /> Reset Password
                     </Button>

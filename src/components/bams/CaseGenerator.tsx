@@ -24,7 +24,7 @@ const CASE_TYPES = [
   { value: 'PAYMENT_NOT_CREDITED', label: 'Payment not Credited to Beneficiary', color: 'bg-info/10 text-info border-info/20' },
   { value: 'SETTLEMENT_NOT_RECEIVED', label: 'Settlement Not Received', color: 'bg-primary/10 text-primary border-primary/20' },
   { value: 'LIEN_RECEIVED', label: 'Lien Received', color: 'bg-accent/10 text-accent border-accent/20' },
-  { value: 'BALANCE_DISCREPANCY', label: 'Balance Discrepancy', color: 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-purple-300 dark:border-primary/20' },
+  { value: 'BALANCE_DISCREPANCY', label: 'Balance Discrepancy', color: 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary dark:border-primary/20' },
 ];
 
 const PRIORITIES = [

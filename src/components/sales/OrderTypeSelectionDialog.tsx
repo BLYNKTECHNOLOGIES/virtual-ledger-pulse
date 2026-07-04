@@ -34,7 +34,7 @@ export function OrderTypeSelectionDialog({
                 onClick={() => handleOrderTypeSelection('repeat')}>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <RefreshCw className="h-5 w-5 text-green-600" />
+                <RefreshCw className="h-5 w-5 text-success" />
                 Repeat Order
               </CardTitle>
             </CardHeader>
@@ -49,7 +49,7 @@ export function OrderTypeSelectionDialog({
                 onClick={() => handleOrderTypeSelection('new')}>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <UserPlus className="h-5 w-5 text-blue-600" />
+                <UserPlus className="h-5 w-5 text-info" />
                 New Client
               </CardTitle>
             </CardHeader>

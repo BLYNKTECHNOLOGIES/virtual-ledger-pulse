@@ -98,7 +98,7 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
           <Card key={bank.id}>
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-green-100 rounded-lg"><CreditCard className="h-5 w-5 text-green-600" /></div>
+                <div className="p-2 bg-success/10 rounded-lg"><CreditCard className="h-5 w-5 text-success" /></div>
                 <div>
                   <h4 className="font-semibold text-foreground">{bank.bank_name || 'Bank'}</h4>
                   {bank.branch && <p className="text-sm text-muted-foreground">{bank.branch}</p>}
@@ -312,7 +312,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label className="text-[#00bcd4]">Gross Salary (CTC)</Label>
-            <div className="text-2xl font-bold text-green-600">₹{totalSalary.toLocaleString('en-IN')}</div>
+            <div className="text-2xl font-bold text-success">₹{totalSalary.toLocaleString('en-IN')}</div>
           </div>
           <Separator />
           
@@ -335,8 +335,8 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions</p>
                   {breakdown.deductions.map((item: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
-                      <Label className="text-red-500">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
-                      <span className="text-base font-semibold text-red-600">-₹{item.amount.toLocaleString('en-IN')}</span>
+                      <Label className="text-destructive">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
+                      <span className="text-base font-semibold text-destructive">-₹{item.amount.toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                 </div>
@@ -345,7 +345,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
               <Separator />
               <div className="flex justify-between items-center pt-1">
                 <Label className="text-base font-bold">Net Pay</Label>
-                <span className="text-xl font-bold text-green-600">₹{breakdown.netPay.toLocaleString('en-IN')}</span>
+                <span className="text-xl font-bold text-success">₹{breakdown.netPay.toLocaleString('en-IN')}</span>
               </div>
             </>
           )}
@@ -376,7 +376,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
               <Separator />
               <div>
                 <Label>Monthly Employer Total</Label>
-                <div className="text-xl font-bold text-blue-600">
+                <div className="text-xl font-bold text-info">
                   ₹{breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0).toLocaleString('en-IN')}
                 </div>
               </div>
@@ -442,7 +442,7 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                     </p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    p.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    p.status === 'paid' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
                   }`}>{p.status || 'draft'}</span>
                 </div>
 
@@ -453,11 +453,11 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-[10px] text-muted-foreground uppercase">Present</p>
-                    <p className="text-lg font-bold text-green-600">{p.present_days || 0}</p>
+                    <p className="text-lg font-bold text-success">{p.present_days || 0}</p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-[10px] text-muted-foreground uppercase">LOP Days</p>
-                    <p className="text-lg font-bold text-red-600">{p.lop_days || (p.working_days && p.present_days ? p.working_days - p.present_days : 0)}</p>
+                    <p className="text-lg font-bold text-destructive">{p.lop_days || (p.working_days && p.present_days ? p.working_days - p.present_days : 0)}</p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-[10px] text-muted-foreground uppercase">OT Hours</p>
@@ -471,12 +471,12 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                     {Object.entries(earnings).map(([k, v]) => (
                       <div key={k} className="flex justify-between text-sm border-b border-border/50 py-1">
                         <span className="text-muted-foreground">{k}</span>
-                        <span className="font-medium text-green-600">₹{Number(v).toLocaleString('en-IN')}</span>
+                        <span className="font-medium text-success">₹{Number(v).toLocaleString('en-IN')}</span>
                       </div>
                     ))}
                     <div className="flex justify-between text-sm font-bold pt-2">
                       <span>Total Earnings</span>
-                      <span className="text-green-600">₹{Number(p.total_earnings).toLocaleString('en-IN')}</span>
+                      <span className="text-success">₹{Number(p.total_earnings).toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                   <div>
@@ -484,18 +484,18 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                     {Object.entries(deductions).map(([k, v]) => (
                       <div key={k} className="flex justify-between text-sm border-b border-border/50 py-1">
                         <span className="text-muted-foreground">{k}</span>
-                        <span className="font-medium text-red-600">-₹{Number(v).toLocaleString('en-IN')}</span>
+                        <span className="font-medium text-destructive">-₹{Number(v).toLocaleString('en-IN')}</span>
                       </div>
                     ))}
                     {(p.lop_deduction && Number(p.lop_deduction) > 0) && (
                       <div className="flex justify-between text-sm border-b border-border/50 py-1">
                         <span className="text-muted-foreground">LOP Deduction</span>
-                        <span className="font-medium text-red-600">-₹{Number(p.lop_deduction).toLocaleString('en-IN')}</span>
+                        <span className="font-medium text-destructive">-₹{Number(p.lop_deduction).toLocaleString('en-IN')}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm font-bold pt-2">
                       <span>Total Deductions</span>
-                      <span className="text-red-600">-₹{Number(p.total_deductions).toLocaleString('en-IN')}</span>
+                      <span className="text-destructive">-₹{Number(p.total_deductions).toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                 </div>
@@ -503,7 +503,7 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                 <Separator className="my-3" />
                 <div className="flex justify-between items-center">
                   <span className="text-base font-bold">Net Pay</span>
-                  <span className="text-xl font-bold text-green-600">₹{Number(p.net_salary).toLocaleString('en-IN')}</span>
+                  <span className="text-xl font-bold text-success">₹{Number(p.net_salary).toLocaleString('en-IN')}</span>
                 </div>
               </CardContent>
             </Card>
@@ -881,8 +881,8 @@ export default function UserProfile() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-green-100 text-green-800';
-      case 'INACTIVE': return 'bg-red-100 text-red-800';
+      case 'ACTIVE': return 'bg-success/10 text-success';
+      case 'INACTIVE': return 'bg-destructive/10 text-destructive';
       default: return 'bg-muted text-foreground';
     }
   };
@@ -890,10 +890,10 @@ export default function UserProfile() {
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
 
   const statusColors: Record<string, string> = {
-    approved: "text-green-600",
-    rejected: "text-red-600",
+    approved: "text-success",
+    rejected: "text-destructive",
     cancelled: "text-muted-foreground",
-    pending: "text-amber-600",
+    pending: "text-warning",
   };
 
   const displayName = hrEmployee
@@ -915,13 +915,13 @@ export default function UserProfile() {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* ─── Header ─── */}
-      <div className="bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-muted to-muted rounded-xl p-6 text-primary-foreground">
         <div className="flex items-center gap-6">
           <Avatar className="h-24 w-24 border-4 border-white/20">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
             ) : (
-              <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
+              <AvatarFallback className="text-2xl font-bold bg-white/20 text-primary-foreground">
                 {displayName ? getInitials(displayName) : 'U'}
               </AvatarFallback>
             )}
@@ -1003,7 +1003,7 @@ export default function UserProfile() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-[#00bcd4] text-white text-xs flex items-center justify-center font-bold">1</span>
+                    <span className="w-6 h-6 rounded-full bg-[#00bcd4] text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
                     <CardTitle className="text-[#00bcd4]">Work Information</CardTitle>
                   </div>
                 </CardHeader>
@@ -1080,7 +1080,7 @@ export default function UserProfile() {
                 <div className="flex items-center gap-2">
                   <Dialog open={showLeaveCreate} onOpenChange={setShowLeaveCreate}>
                     <DialogTrigger asChild>
-                      <Button size="sm" className="bg-[#E8604C] hover:bg-[#d4553f] text-white gap-1.5">
+                      <Button size="sm" className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground gap-1.5">
                         <Plus className="h-4 w-4" /> Create
                       </Button>
                     </DialogTrigger>
@@ -1143,7 +1143,7 @@ export default function UserProfile() {
                   return (
                     <div key={lt.id} className="border border-border rounded-lg p-5 bg-card">
                       <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm mb-3"
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm mb-3"
                         style={{ backgroundColor: lt.color || '#888' }}
                       >
                         {lt.code || '??'}
@@ -1177,10 +1177,10 @@ export default function UserProfile() {
                   {leaveRequests.length > 0 ? `${leaveRequests.length} request(s)` : ''}
                 </span>
                 <div className="flex items-center gap-4 text-xs">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Rejected</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Cancelled</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Approved</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Requested</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive" /> Rejected</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted" /> Cancelled</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success" /> Approved</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-warning" /> Requested</span>
                 </div>
               </div>
 
@@ -1216,7 +1216,7 @@ export default function UserProfile() {
                           }`}>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                <span className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
+                                <span className="w-7 h-7 rounded-full text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
                                   {lt?.code?.substring(0, 2) || '??'}
                                 </span>
                                 <span className="font-medium text-foreground">{lt?.name || 'Unknown'}</span>
@@ -1235,7 +1235,7 @@ export default function UserProfile() {
                               {isCancellable ? (
                                 <Button
                                   size="sm"
-                                  className="bg-gray-400 hover:bg-gray-500 text-white text-xs px-5"
+                                  className="bg-muted hover:bg-muted text-primary-foreground text-xs px-5"
                                   onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
                                   disabled={cancelLeaveMutation.isPending}
                                 >
@@ -1264,7 +1264,7 @@ export default function UserProfile() {
                                   </Button>
                                 )}
                                 {isEditable && (
-                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-600"
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                                     onClick={() => deleteLeaveRequestMutation.mutate(req.id)}
                                     disabled={deleteLeaveRequestMutation.isPending}
                                   >
@@ -1364,7 +1364,7 @@ export default function UserProfile() {
                   ].map((doc, index) => (
                     <div key={index} className="border rounded-lg p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <FileText className="h-8 w-8 text-blue-500" />
+                        <FileText className="h-8 w-8 text-info" />
                         <div>
                           <p className="font-medium">{doc.name}</p>
                           {doc.date && <p className="text-sm text-muted-foreground">Generated: {doc.date}</p>}
@@ -1501,11 +1501,11 @@ export default function UserProfile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                <div className="p-4 bg-info/10 dark:bg-info/20 rounded-lg">
                   <h4 className="font-medium mb-2">Account Security</h4>
                   <p className="text-sm text-muted-foreground">Your account is secured with encrypted password storage.</p>
                 </div>
-                <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                <div className="p-4 bg-success/10 dark:bg-success/20 rounded-lg">
                   <h4 className="font-medium mb-2">Password Requirements</h4>
                   <ul className="text-sm text-muted-foreground list-disc list-inside">
                     <li>Minimum 6 characters</li>

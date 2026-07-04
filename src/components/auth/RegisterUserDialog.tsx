@@ -121,7 +121,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
       <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-blue-600" />
+            <UserPlus className="h-5 w-5 text-info" />
             Register New User
           </DialogTitle>
           <DialogDescription>
@@ -131,7 +131,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
 
         {submitted ? (
           <div className="flex flex-col items-center text-center gap-3 py-6">
-            <CheckCircle2 className="h-12 w-12 text-green-600" />
+            <CheckCircle2 className="h-12 w-12 text-success" />
             <h3 className="text-lg font-semibold text-foreground">Registration Submitted</h3>
             <p className="text-sm text-muted-foreground">
               Your registration is pending Super Admin approval. You'll be able to log in once approved.
@@ -240,7 +240,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
               <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={isLoading}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+              <Button type="submit" disabled={isLoading} className="bg-info hover:bg-info">
                 {isLoading ? "Submitting..." : "Submit Registration"}
               </Button>
             </div>

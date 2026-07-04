@@ -2,9 +2,9 @@ import { Badge } from '@/components/ui/badge';
 
 const priorityConfig = {
   low: { label: 'Low', className: 'bg-muted text-muted-foreground' },
-  medium: { label: 'Medium', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-  high: { label: 'High', className: 'bg-orange-100 text-orange-700 border-orange-200' },
-  critical: { label: 'Critical', className: 'bg-red-100 text-red-700 border-red-200' },
+  medium: { label: 'Medium', className: 'bg-info/10 text-info border-info/20' },
+  high: { label: 'High', className: 'bg-warning/10 text-warning border-warning/20' },
+  critical: { label: 'Critical', className: 'bg-destructive/10 text-destructive border-destructive/20' },
 };
 
 export function TaskPriorityBadge({ priority }: { priority: string }) {

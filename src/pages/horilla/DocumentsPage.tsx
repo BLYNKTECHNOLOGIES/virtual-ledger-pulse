@@ -67,7 +67,7 @@ export default function DocumentsPage() {
                   {d.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{d.description}</p>}
                   <p className="text-[10px] text-muted-foreground mt-2">{new Date(d.created_at).toLocaleDateString()}</p>
                 </div>
-                <Button size="sm" variant="ghost" className="text-red-600 shrink-0" onClick={() => deleteMutation.mutate(d.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                <Button size="sm" variant="ghost" className="text-destructive shrink-0" onClick={() => deleteMutation.mutate(d.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
               </div>
             </CardContent>
           </Card>

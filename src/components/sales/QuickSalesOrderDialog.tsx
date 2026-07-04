@@ -248,7 +248,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-slate-800">
+          <DialogTitle className="text-xl font-bold text-muted">
             Quick Sales Order Creation
           </DialogTitle>
         </DialogHeader>
@@ -379,7 +379,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
             <Button 
               type="submit" 
               disabled={createSalesOrderMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-success hover:bg-success"
             >
               {createSalesOrderMutation.isPending ? "Creating..." : "Create Sales Order"}
             </Button>

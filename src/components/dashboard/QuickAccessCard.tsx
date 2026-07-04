@@ -25,8 +25,8 @@ export function QuickAccessCard({ title, description, href, icon }: QuickAccessC
     <Card className="h-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <IconComponent className="h-5 w-5 text-blue-600" />
+          <div className="p-2 bg-info/10 rounded-lg">
+            <IconComponent className="h-5 w-5 text-info" />
           </div>
           <CardTitle className="text-lg font-semibold">{title}</CardTitle>
         </div>

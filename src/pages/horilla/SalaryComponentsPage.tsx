@@ -106,7 +106,7 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
                     <td className="px-4 py-3 font-medium">{c.name}</td>
                     <td className="px-4 py-3"><span className="bg-muted px-1.5 py-0.5 rounded text-xs">{c.code}</span></td>
                     <td className="px-4 py-3">
-                      {c.is_taxable ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Taxable</span> : <span className="text-xs text-muted-foreground">Non-taxable</span>}
+                      {c.is_taxable ? <span className="text-xs bg-warning/10 text-warning px-2 py-0.5 rounded-full">Taxable</span> : <span className="text-xs text-muted-foreground">Non-taxable</span>}
                     </td>
                     <td className="px-4 py-3">
                       <Switch checked={c.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: c.id, is_active: v })} />
@@ -114,7 +114,7 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => deleteMutation.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </td>
                   </tr>

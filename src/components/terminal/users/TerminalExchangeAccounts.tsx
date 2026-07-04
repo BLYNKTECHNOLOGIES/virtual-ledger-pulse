@@ -146,7 +146,7 @@ export function TerminalExchangeAccounts() {
                   <TableCell className="text-sm text-muted-foreground font-mono">{acc.account_identifier}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={acc.is_active
-                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs"
+                      ? "bg-success/20 text-success border-success/30 text-xs"
                       : "bg-muted/20 text-muted-foreground border-muted/30 text-xs"
                     }>
                       {acc.is_active ? "Active" : "Inactive"}

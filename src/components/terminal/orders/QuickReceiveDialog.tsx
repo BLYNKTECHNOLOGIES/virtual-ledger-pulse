@@ -180,8 +180,8 @@ export function QuickReceiveDialog({
   };
 
   const triggerClass = variant === 'inline'
-    ? 'h-7 text-[10px] gap-1 px-2 bg-amber-500 hover:bg-amber-500/90 text-white border-0'
-    : 'w-full h-8 text-xs gap-1.5 bg-amber-500 hover:bg-amber-500/90 text-white border-0';
+    ? 'h-7 text-[10px] gap-1 px-2 bg-warning hover:bg-warning/90 text-primary-foreground border-0'
+    : 'w-full h-8 text-xs gap-1.5 bg-warning hover:bg-warning/90 text-primary-foreground border-0';
 
   return (
     <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCode(''); firedRef.current = false; } }}>
@@ -199,7 +199,7 @@ export function QuickReceiveDialog({
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-amber-500" />
+            <Zap className="h-4 w-4 text-warning" />
             Quick Receive — Auto-Release
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
@@ -214,7 +214,7 @@ export function QuickReceiveDialog({
                 <div className="flex justify-between"><span className="text-muted-foreground">Quick Receive limit</span><span className="font-medium tabular-nums">{Number(quickConfirmAmountUpLimit).toLocaleString('en-IN')} {fiatUnit || 'INR'}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Asset</span><span className="font-medium">{asset || 'USDT'}</span></div>
               </div>
-              <p className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <p className="flex items-center gap-1.5 text-warning dark:text-warning">
                 <Shield className="h-3 w-3" />
                 2FA verification required.
               </p>
@@ -274,7 +274,7 @@ export function QuickReceiveDialog({
           <Button
             onClick={() => doRelease()}
             disabled={!code.trim() || (authMethod === 'GOOGLE' && code.length < 6) || releaseCoin.isPending}
-            className="gap-1.5 bg-amber-500 hover:bg-amber-500/90 text-white"
+            className="gap-1.5 bg-warning hover:bg-warning/90 text-primary-foreground"
           >
             {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
             Quick Receive

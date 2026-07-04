@@ -162,17 +162,17 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
   }
 
   return (
-    <Card className={`bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200 ${className}`}>
+    <Card className={`bg-gradient-to-br from-success to-teal-50 border-success/20 ${className}`}>
       <CardHeader className={compact ? "pb-2 pt-4 px-4" : "pb-3"}>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-emerald-800">
-            <div className="p-2 bg-emerald-100 rounded-lg">
-              <Building className="h-4 w-4 text-emerald-600" />
+          <CardTitle className="flex items-center gap-2 text-success">
+            <div className="p-2 bg-success/10 rounded-lg">
+              <Building className="h-4 w-4 text-success" />
             </div>
             <span className={compact ? "text-sm" : "text-base"}>Bank Balance</span>
           </CardTitle>
           {selectedBankIds.length > 0 && (
-            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-xs">
+            <Badge variant="secondary" className="bg-success/10 text-success text-xs">
               {selectedBankIds.length} selected
             </Badge>
           )}
@@ -187,7 +187,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
             </div>
           ) : (
             <div className="text-center py-2">
-              <p className="text-2xl md:text-3xl font-bold text-emerald-700">
+              <p className="text-2xl md:text-3xl font-bold text-success">
                 {formatCurrency(selectedBalance)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -201,11 +201,11 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-full justify-between bg-card hover:bg-emerald-50 border-emerald-200"
+              className="w-full justify-between bg-card hover:bg-success/10 border-success/20"
               size={compact ? "sm" : "default"}
             >
               <span className="flex items-center gap-2 text-sm">
-                <Wallet className="h-4 w-4 text-emerald-600" />
+                <Wallet className="h-4 w-4 text-success" />
                 {selectedBankIds.length === 0
                   ? "Select bank accounts"
                   : `${selectedBankIds.length} account${selectedBankIds.length > 1 ? 's' : ''} selected`
@@ -248,7 +248,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                         key={account.id}
                         className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
                           isSelected
-                            ? 'bg-emerald-50 border border-emerald-200'
+                            ? 'bg-success/10 border border-success/20'
                             : 'hover:bg-muted/50 border border-transparent'
                         }`}
                         onClick={() => handleToggleBank(account.id)}
@@ -256,7 +256,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => handleToggleBank(account.id)}
-                          className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                          className="data-[state=checked]:bg-success data-[state=checked]:border-success"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -271,11 +271,11 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className={`text-sm font-semibold ${availableBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <p className={`text-sm font-semibold ${availableBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
                             {formatCurrency(availableBalance)}
                           </p>
                           {Number(account.lien_amount) > 0 && (
-                            <p className="text-[10px] text-amber-600">
+                            <p className="text-[10px] text-warning">
                               Lien: {formatCurrency(Number(account.lien_amount))}
                             </p>
                           )}
@@ -290,7 +290,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
         </Popover>
 
         {selectedBankIds.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-emerald-200/50">
+          <div className="mt-3 pt-3 border-t border-success/20/50">
             <div className="flex flex-wrap gap-1.5">
               {bankAccounts
                 .filter(account => selectedBankIds.includes(account.id))
@@ -299,13 +299,13 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                   <Badge
                     key={account.id}
                     variant="outline"
-                    className="text-[10px] bg-card border-emerald-200 text-emerald-700"
+                    className="text-[10px] bg-card border-success/20 text-success"
                   >
                     {account.bank_name}
                   </Badge>
                 ))}
               {selectedBankIds.length > 3 && (
-                <Badge variant="outline" className="text-[10px] bg-card border-emerald-200 text-emerald-700">
+                <Badge variant="outline" className="text-[10px] bg-card border-success/20 text-success">
                   +{selectedBankIds.length - 3} more
                 </Badge>
               )}

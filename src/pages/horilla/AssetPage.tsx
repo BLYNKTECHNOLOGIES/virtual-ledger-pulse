@@ -55,7 +55,7 @@ export default function AssetPage() {
 
   const filtered = assets.filter((a: any) => a.name?.toLowerCase().includes(search.toLowerCase()) || a.serial_number?.toLowerCase().includes(search.toLowerCase()));
 
-  const statusColor = (s: string) => s === "available" ? "bg-green-100 text-green-700" : s === "assigned" ? "bg-blue-100 text-blue-700" : s === "maintenance" ? "bg-yellow-100 text-yellow-700" : "bg-muted text-foreground";
+  const statusColor = (s: string) => s === "available" ? "bg-success/10 text-success" : s === "assigned" ? "bg-info/10 text-info" : s === "maintenance" ? "bg-warning/10 text-warning" : "bg-muted text-foreground";
 
   return (
     <div className="space-y-6">
@@ -77,7 +77,7 @@ export default function AssetPage() {
             <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(a.status)}`}>{a.status}</span></td>
             <td className="px-4 py-3 text-muted-foreground capitalize">{a.condition}</td>
             <td className="px-4 py-3">₹{(a.purchase_cost || 0).toLocaleString('en-IN')}</td>
-            <td className="px-4 py-3"><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => { setEditId(a.id); setForm({ name: a.name, asset_type: a.asset_type, serial_number: a.serial_number || "", status: a.status, purchase_cost: a.purchase_cost || 0, condition: a.condition || "good", notes: a.notes || "" }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5" /></Button><Button size="sm" variant="ghost" className="text-red-600" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></td>
+            <td className="px-4 py-3"><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => { setEditId(a.id); setForm({ name: a.name, asset_type: a.asset_type, serial_number: a.serial_number || "", status: a.status, purchase_cost: a.purchase_cost || 0, condition: a.condition || "good", notes: a.notes || "" }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5" /></Button><Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></td>
           </tr>
         ))}</tbody></table>
       </CardContent></Card>

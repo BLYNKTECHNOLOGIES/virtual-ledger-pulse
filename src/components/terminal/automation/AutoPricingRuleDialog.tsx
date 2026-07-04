@@ -330,13 +330,13 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   <Label>Rule Name</Label>
                   <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" />
                 </div>
-                <div className="flex items-center gap-2 p-2 rounded-md border border-amber-500/30 bg-amber-500/5">
+                <div className="flex items-center gap-2 p-2 rounded-md border border-warning/30 bg-warning/5">
                   <Switch checked={isDryRun} onCheckedChange={setIsDryRun} />
                   <div>
                     <Label className="text-xs font-medium">Dry-Run Mode</Label>
                     <p className="text-[10px] text-muted-foreground">Calculates & logs prices without calling Binance API. Use to test rules safely.</p>
                   </div>
-                  {isDryRun && <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">DRY RUN</Badge>}
+                  {isDryRun && <Badge className="bg-warning/20 text-warning border-warning/40 text-[10px]">DRY RUN</Badge>}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -461,7 +461,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             <Badge
                               key={asset}
                               variant={r.found ? 'default' : 'outline'}
-                              className={`text-[10px] ${r.found ? 'bg-green-600/80 hover:bg-green-600' : 'text-muted-foreground opacity-60'}`}
+                              className={`text-[10px] ${r.found ? 'bg-success/80 hover:bg-success' : 'text-muted-foreground opacity-60'}`}
                             >
                               {asset} {r.found ? `₹${Number(r.price).toLocaleString('en-IN')}` : '✕'}
                             </Badge>
@@ -637,7 +637,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                                             variant="outline"
                                             className={`text-[10px] px-1.5 py-0 ${
                                               ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'border-success text-success'
-                                              : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-amber-500 text-amber-500'
+                                              : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-warning text-warning'
                                               : 'border-muted-foreground text-muted-foreground'
                                             }`}
                                           >

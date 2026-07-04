@@ -48,11 +48,11 @@ const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => 
     <div
       {...dropzoneProps}
       className={`
-        relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 cursor-pointer
+        relative border border-dashed rounded-xl p-12 text-center transition-all duration-300 cursor-pointer
         ${isDragActive
           ? "border-primary bg-primary/5 scale-[1.02]"
           : fileName
-            ? "border-green-500 bg-green-50"
+            ? "border-success bg-success/10"
             : "border-border hover:border-primary/50 hover:bg-muted/50"
         }
       `}
@@ -68,8 +68,8 @@ const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => 
 
       {fileName ? (
         <div className="flex flex-col items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
-            <FileText className="w-7 h-7 text-green-600" />
+          <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center">
+            <FileText className="w-7 h-7 text-success" />
           </div>
           <p className="text-lg font-semibold text-foreground">{fileName}</p>
           <p className="text-sm text-muted-foreground">Click or drag to replace</p>

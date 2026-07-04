@@ -235,8 +235,8 @@ export function TerminalAccessTab() {
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-50 rounded-lg">
-              <Terminal className="h-5 w-5 text-emerald-600" />
+            <div className="p-2 bg-success/10 rounded-lg">
+              <Terminal className="h-5 w-5 text-success" />
             </div>
             <div>
               <CardTitle className="text-lg">Terminal Access Management</CardTitle>
@@ -253,7 +253,7 @@ export function TerminalAccessTab() {
             <PermissionGate permissions={["user_management_manage"]} showFallback={false}>
               <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                  <Button size="sm" className="bg-success hover:bg-success">
                     <UserPlus className="h-4 w-4 mr-1" />
                     Grant Access
                   </Button>
@@ -316,7 +316,7 @@ export function TerminalAccessTab() {
                     <Button
                       onClick={handleAssignRole}
                       disabled={!selectedUserId || !selectedRoleId || isAssigning}
-                      className="bg-emerald-600 hover:bg-emerald-700"
+                      className="bg-success hover:bg-success"
                     >
                       {isAssigning ? "Assigning..." : "Grant Access"}
                     </Button>
@@ -343,7 +343,7 @@ export function TerminalAccessTab() {
 
         {isLoading ? (
           <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-success" />
             <span className="ml-2 text-sm text-muted-foreground">Loading terminal access...</span>
           </div>
         ) : filteredAssignments.length > 0 ? (

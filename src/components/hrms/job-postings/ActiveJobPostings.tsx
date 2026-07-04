@@ -95,7 +95,7 @@ export function ActiveJobPostings() {
   return (
     <section aria-labelledby="active-jobs-title" className="space-y-4">
       <header className="flex items-center justify-between">
-        <h2 id="active-jobs-title" className="text-xl font-semibold text-slate-800">Active Job Postings</h2>
+        <h2 id="active-jobs-title" className="text-xl font-semibold text-muted">Active Job Postings</h2>
       </header>
 
       {loading ? (
@@ -127,11 +127,11 @@ export function ActiveJobPostings() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-lg text-slate-800 flex items-center gap-2">
+                        <CardTitle className="text-lg text-muted flex items-center gap-2">
                           {job.title}
-                          <Badge className="bg-green-100 text-green-800">Active</Badge>
+                          <Badge className="bg-success/10 text-success">Active</Badge>
                         </CardTitle>
-                        <div className="mt-1 text-sm text-slate-600 flex flex-wrap items-center gap-3">
+                        <div className="mt-1 text-sm text-muted flex flex-wrap items-center gap-3">
                           {job.department && (
                             <span className="inline-flex items-center gap-1"><Briefcase className="h-4 w-4" />{job.department}</span>
                           )}
@@ -151,7 +151,7 @@ export function ActiveJobPostings() {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    <div className="text-sm text-slate-600 flex flex-wrap items-center gap-3">
+                    <div className="text-sm text-muted flex flex-wrap items-center gap-3">
                       {job.experience_required && <span>{job.experience_required}</span>}
                       {job.qualifications && <span>• {job.qualifications}</span>}
                       <span className="inline-flex items-center gap-1">
@@ -165,13 +165,13 @@ export function ActiveJobPostings() {
                         className="rounded-lg border bg-card p-4 shadow-sm h-auto justify-start"
                         onClick={() => onSoon("View Responses")}
                       >
-                        <div className="flex items-center justify-between w-full text-slate-700">
+                        <div className="flex items-center justify-between w-full text-muted">
                           <div className="flex items-center gap-2 font-medium">
                             <MessageSquare className="h-4 w-4" /> {counts.responses} Responses
                           </div>
                           <ArrowRight className="h-4 w-4" />
                         </div>
-                        <p className="mt-1 text-xs text-slate-500 w-full text-left">From candidates</p>
+                        <p className="mt-1 text-xs text-muted w-full text-left">From candidates</p>
                       </Button>
 
                       <Button
@@ -179,13 +179,13 @@ export function ActiveJobPostings() {
                         className="rounded-lg border bg-card p-4 shadow-sm h-auto justify-start"
                         onClick={() => onSoon("View Hot Leads")}
                       >
-                        <div className="flex items-center justify-between w-full text-slate-700">
+                        <div className="flex items-center justify-between w-full text-muted">
                           <div className="flex items-center gap-2 font-medium">
-                            <Flame className="h-4 w-4 text-orange-500" /> {counts.hotLeads} Hot Leads
+                            <Flame className="h-4 w-4 text-warning" /> {counts.hotLeads} Hot Leads
                           </div>
                           <ArrowRight className="h-4 w-4" />
                         </div>
-                        <p className="mt-1 text-xs text-slate-500 w-full text-left">Match your job post</p>
+                        <p className="mt-1 text-xs text-muted w-full text-left">Match your job post</p>
                       </Button>
 
                       <Button
@@ -193,19 +193,19 @@ export function ActiveJobPostings() {
                         className="rounded-lg border bg-card p-4 shadow-sm h-auto justify-start"
                         onClick={() => onSoon("View Candidates")}
                       >
-                        <div className="flex items-center justify-between w-full text-slate-700">
+                        <div className="flex items-center justify-between w-full text-muted">
                           <div className="flex items-center gap-2 font-medium">
                             <Lock className="h-4 w-4" /> {totalCandidates ?? 0} Candidates
                           </div>
                           <ArrowRight className="h-4 w-4" />
                         </div>
-                        <p className="mt-1 text-xs text-slate-500 w-full text-left">Available in database</p>
+                        <p className="mt-1 text-xs text-muted w-full text-left">Available in database</p>
                       </Button>
                     </div>
 
                     <Separator className="my-1" />
 
-                    <div className="flex items-center justify-between text-xs text-slate-500">
+                    <div className="flex items-center justify-between text-xs text-muted">
                       <span>
                         Posted on: {new Date(job.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "2-digit" })}
                       </span>
@@ -221,7 +221,7 @@ export function ActiveJobPostings() {
 
           {(!jobs || jobs.length === 0) && (
             <Card>
-              <CardContent className="py-10 text-center text-slate-500">
+              <CardContent className="py-10 text-center text-muted">
                 No active job postings. Create your first job to get started.
               </CardContent>
             </Card>

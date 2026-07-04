@@ -78,15 +78,15 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
 
   const renderLink = (link: QuickLink) => {
     const linkContent = (
-      <div className="flex items-center justify-between p-4 border rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-300 group hover:shadow-md hover:border-blue-200">
+      <div className="flex items-center justify-between p-4 border rounded-xl hover:bg-gradient-to-r hover:from-info hover:to-primary transition-all duration-300 group hover:shadow-md hover:border-info/20">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-sm group-hover:shadow-md transition-all duration-300">
-            <LinkIcon className="h-5 w-5 text-white" />
+          <div className="p-3 bg-gradient-to-br from-info to-primary rounded-xl shadow-sm group-hover:shadow-md transition-all duration-300">
+            <LinkIcon className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <p className="font-semibold text-foreground group-hover:text-blue-900">{link.title}</p>
+            <p className="font-semibold text-foreground group-hover:text-info">{link.title}</p>
             {link.description && (
-              <p className="text-sm text-muted-foreground group-hover:text-blue-700">{link.description}</p>
+              <p className="text-sm text-muted-foreground group-hover:text-info">{link.description}</p>
             )}
           </div>
         </div>
@@ -98,7 +98,7 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
               e.preventDefault();
               handleEditLink(link);
             }}
-            className="h-9 w-9 p-0 hover:bg-blue-100 hover:text-blue-700"
+            className="h-9 w-9 p-0 hover:bg-info/10 hover:text-info"
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -109,7 +109,7 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
               e.preventDefault();
               handleDeleteLink(link.id);
             }}
-            className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -135,16 +135,16 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
 
   return (
     <Card className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 bg-card shadow-sm border-0">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 bg-gradient-to-r from-gray-50 to-gray-100">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 bg-gradient-to-r from-muted to-muted">
         <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm">
-            <LinkIcon className="h-5 w-5 text-white" />
+          <div className="p-2 bg-gradient-to-br from-info to-primary rounded-lg shadow-sm">
+            <LinkIcon className="h-5 w-5 text-primary-foreground" />
           </div>
           Quick Links
         </CardTitle>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-sm">
+            <Button size="sm" className="bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary text-primary-foreground shadow-sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Link
             </Button>
@@ -192,12 +192,12 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
                   id="isExternal"
                   checked={formData.isExternal}
                   onChange={(e) => setFormData(prev => ({ ...prev, isExternal: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded border-border focus:ring-blue-500"
+                  className="w-4 h-4 text-info rounded border-border focus:ring-info"
                 />
                 <Label htmlFor="isExternal" className="text-sm">External link (opens in new tab)</Label>
               </div>
               <div className="flex gap-3 pt-4">
-                <Button onClick={handleAddLink} className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Button onClick={handleAddLink} className="flex-1 bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary">
                   {editingLink ? 'Update Link' : 'Add Link'}
                 </Button>
                 <Button 
@@ -221,14 +221,14 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
           {quickLinks.map(renderLink)}
           {quickLinks.length === 0 && (
             <div className="col-span-full text-center py-12">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <LinkIcon className="h-8 w-8 text-blue-500" />
+              <div className="w-16 h-16 bg-gradient-to-br from-info to-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                <LinkIcon className="h-8 w-8 text-info" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">No quick links added yet</h3>
               <p className="text-muted-foreground mb-4">Create shortcuts to your most-used pages and external tools</p>
               <Button
                 onClick={() => setShowAddDialog(true)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Your First Link

@@ -107,11 +107,11 @@ export function SmallBuysSyncTab() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending_approval':
-        return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+        return <Badge className="bg-warning/10 text-warning"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
       case 'approved':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+        return <Badge className="bg-success/10 text-success"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
       case 'rejected':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }

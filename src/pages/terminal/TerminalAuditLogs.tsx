@@ -126,7 +126,7 @@ export default function TerminalAuditLogs() {
               <p className="text-xs text-muted-foreground">
                 Track order assignment actions
                 {!isTerminalAdmin && (
-                  <span className="inline-flex items-center gap-1 ml-2 text-amber-500">
+                  <span className="inline-flex items-center gap-1 ml-2 text-warning">
                     <ShieldAlert className="h-3 w-3" /> Showing your branch only
                   </span>
                 )}

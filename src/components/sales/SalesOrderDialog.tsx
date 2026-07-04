@@ -677,7 +677,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                         <span className="text-muted-foreground">Fee (INR):</span>
                         <span>₹{calculatedFee.feeINR.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between font-medium text-amber-600">
+                      <div className="flex justify-between font-medium text-warning">
                         <span>Fee to Deduct (USDT):</span>
                         <span>{calculatedFee.feeUSDT.toFixed(6)} USDT</span>
                       </div>

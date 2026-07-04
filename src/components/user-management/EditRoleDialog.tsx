@@ -242,10 +242,10 @@ const normalizePermission = (perm: string): string => permissionMapping[perm] ||
 const normalizePermissions = (perms: string[]): string[] => [...new Set(perms.map(normalizePermission))];
 
 const TIER_STYLES: Record<string, { badge: string; icon: typeof Eye }> = {
-  view: { badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: Eye },
-  manage: { badge: 'bg-blue-100 text-blue-700 border-blue-200', icon: Settings },
-  destructive: { badge: 'bg-red-100 text-red-700 border-red-200', icon: Trash2 },
-  special: { badge: 'bg-amber-100 text-amber-700 border-amber-200', icon: Zap },
+  view: { badge: 'bg-success/10 text-success border-success/20', icon: Eye },
+  manage: { badge: 'bg-info/10 text-info border-info/20', icon: Settings },
+  destructive: { badge: 'bg-destructive/10 text-destructive border-destructive/20', icon: Trash2 },
+  special: { badge: 'bg-warning/10 text-warning border-warning/20', icon: Zap },
 };
 
 // System roles that cannot have their name changed
@@ -478,7 +478,7 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
                 return (
                   <div key={key} className={cn(
                     "border-b last:border-b-0",
-                    key === 'destructive' && "bg-red-50/30"
+                    key === 'destructive' && "bg-destructive/10/30"
                   )}>
                     <button
                       type="button"
@@ -569,12 +569,12 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
                 <Label className="text-sm font-medium mb-2 block">Changes Preview</Label>
                 <div className="flex flex-wrap gap-1">
                   {permissionDiff.added.map(p => (
-                    <Badge key={`add-${p}`} className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">
+                    <Badge key={`add-${p}`} className="text-xs bg-success/10 text-success border-success/20">
                       + {p.replace(/_/g, ' ')}
                     </Badge>
                   ))}
                   {permissionDiff.removed.map(p => (
-                    <Badge key={`rem-${p}`} className="text-xs bg-red-100 text-red-700 border-red-200">
+                    <Badge key={`rem-${p}`} className="text-xs bg-destructive/10 text-destructive border-destructive/20">
                       − {p.replace(/_/g, ' ')}
                     </Badge>
                   ))}

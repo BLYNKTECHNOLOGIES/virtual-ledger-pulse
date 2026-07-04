@@ -724,7 +724,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Select state" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[100] max-h-60">
+                <SelectContent className="bg-background border shadow-sm z-[100] max-h-60">
                   {INDIAN_STATES_AND_UTS.map((state) => (
                     <SelectItem key={state} value={state}>
                       {state}
@@ -746,7 +746,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Select product" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[100]">
+                <SelectContent className="bg-background border shadow-sm z-[100]">
                   {products?.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} - {product.code}
@@ -765,7 +765,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[100]">
+                <SelectContent className="bg-background border shadow-sm z-[100]">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name} - Balance: {wallet.current_balance}
@@ -883,7 +883,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   <span>Quantity Sold:</span>
                   <span className="font-medium">{quantity.toFixed(4)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-orange-600">
+                <div className="flex justify-between text-sm text-warning">
                   <span>Platform Fee ({selectedWalletFee}%):</span>
                   <span className="font-medium">+{calculatedFee.toFixed(4)}</span>
                 </div>
@@ -895,7 +895,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             )}
             
             {isOffMarket && (
-              <Badge variant="secondary" className="bg-green-100 text-green-700">
+              <Badge variant="secondary" className="bg-success/10 text-success">
                 No platform fees will be applied
               </Badge>
             )}
@@ -932,7 +932,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   <SelectTrigger>
                     <SelectValue placeholder="Select payment method" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover border border-border shadow-lg z-50">
+                  <SelectContent className="bg-popover border border-border shadow-sm z-50">
                     {paymentMethods?.map((method) => {
                       const displayLabel = (method as any).nickname 
                         ? (method as any).nickname
@@ -975,7 +975,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   <div className="flex items-center gap-2">
                     <Label className="font-medium">Payment Distribution</Label>
                     {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                     ) : (
                       <AlertCircle className="h-4 w-4 text-destructive" />
                     )}
@@ -993,7 +993,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   </div>
                   <div className="text-center">
                     <div className="text-muted-foreground text-xs mb-1">Remaining</div>
-                    <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                    <div className={`font-semibold ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
                       ₹{splitAllocation.remaining.toFixed(2)}
                     </div>
                   </div>
@@ -1025,7 +1025,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                           <SelectTrigger>
                             <SelectValue placeholder="Select payment method" />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                             {paymentMethods?.map((method: any) => {
                               const displayLabel = method.nickname 
                                 ? method.nickname

@@ -74,7 +74,7 @@ export function WeeklyOffManager() {
                   <p className="text-sm font-medium text-foreground">{p.name}</p>
                   <div className="flex gap-1 mt-1">
                     {(p.weekly_offs || []).map((d: number) => (
-                      <span key={d} className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] rounded font-medium">
+                      <span key={d} className="px-1.5 py-0.5 bg-destructive/10 text-destructive text-[10px] rounded font-medium">
                         {DAYS[d]}
                       </span>
                     ))}
@@ -82,7 +82,7 @@ export function WeeklyOffManager() {
                       <>
                         <span className="text-[10px] text-muted-foreground mx-1">alt:</span>
                         {p.alternate_week_offs.map((d: number) => (
-                          <span key={`alt-${d}`} className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded font-medium">
+                          <span key={`alt-${d}`} className="px-1.5 py-0.5 bg-warning/10 text-warning text-[10px] rounded font-medium">
                             {DAYS[d]}
                           </span>
                         ))}
@@ -116,7 +116,7 @@ export function WeeklyOffManager() {
                     onClick={() => toggleDay(i, "weekly_offs")}
                     className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
                       form.weekly_offs.includes(i)
-                        ? "bg-red-100 text-red-700 border-red-300"
+                        ? "bg-destructive/10 text-destructive border-destructive"
                         : "bg-background text-muted-foreground border-border hover:bg-muted"
                     }`}
                   >
@@ -144,7 +144,7 @@ export function WeeklyOffManager() {
                       onClick={() => toggleDay(i, "alternate_week_offs")}
                       className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
                         form.alternate_week_offs.includes(i)
-                          ? "bg-amber-100 text-amber-700 border-amber-300"
+                          ? "bg-warning/10 text-warning border-warning"
                           : "bg-background text-muted-foreground border-border hover:bg-muted"
                       }`}
                     >

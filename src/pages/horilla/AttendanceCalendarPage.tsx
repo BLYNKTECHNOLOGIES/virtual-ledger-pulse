@@ -14,19 +14,19 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMont
 import { ChevronLeft, ChevronRight, Search, Users, Calendar } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
-  present: "bg-green-500",
-  absent: "bg-red-500",
-  late: "bg-amber-500",
-  half_day: "bg-blue-500",
-  holiday: "bg-purple-500",
-  leave: "bg-indigo-500",
+  present: "bg-success",
+  absent: "bg-destructive",
+  late: "bg-warning",
+  half_day: "bg-info",
+  holiday: "bg-primary",
+  leave: "bg-primary",
 };
 
 const STATUS_BG: Record<string, string> = {
-  present: "bg-green-50 border-green-200 text-green-700",
-  absent: "bg-red-50 border-red-200 text-red-700",
-  late: "bg-amber-50 border-amber-200 text-amber-700",
-  half_day: "bg-blue-50 border-blue-200 text-blue-700",
+  present: "bg-success/10 border-success/20 text-success",
+  absent: "bg-destructive/10 border-destructive/20 text-destructive",
+  late: "bg-warning/10 border-warning/20 text-warning",
+  half_day: "bg-info/10 border-info/20 text-info",
 };
 
 export default function AttendanceCalendarPage() {
@@ -215,7 +215,7 @@ export default function AttendanceCalendarPage() {
                       const dateStr = format(day, "yyyy-MM-dd");
                       const record = empAttendance[dateStr];
                       const status = record?.attendance_status;
-                      const dotColor = status ? STATUS_COLORS[status] || "bg-gray-300" : "";
+                      const dotColor = status ? STATUS_COLORS[status] || "bg-muted/20" : "";
                       const today = isToday(day);
 
                       return (

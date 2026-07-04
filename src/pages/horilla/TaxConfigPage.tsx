@@ -191,7 +191,7 @@ export default function TaxConfigPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-base">{fs.name}</CardTitle>
-                        {fs.is_default && <Badge className="bg-amber-100 text-amber-700 text-xs"><Star className="h-3 w-3 mr-0.5" /> Default</Badge>}
+                        {fs.is_default && <Badge className="bg-warning/10 text-warning text-xs"><Star className="h-3 w-3 mr-0.5" /> Default</Badge>}
                         <Badge variant={fs.is_active ? "default" : "secondary"} className="text-xs">{fs.is_active ? "Active" : "Inactive"}</Badge>
                       </div>
                       <div className="flex gap-1">
@@ -224,7 +224,7 @@ export default function TaxConfigPage() {
                               <td className="px-4 py-2">{formatINR(b.min_income)}</td>
                               <td className="px-4 py-2">{b.max_income ? formatINR(b.max_income) : "∞"}</td>
                               <td className="px-4 py-2">
-                                <Badge className={b.tax_rate === 0 ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}>
+                                <Badge className={b.tax_rate === 0 ? "bg-success/10 text-success" : "bg-info/10 text-info"}>
                                   {b.tax_rate}%
                                 </Badge>
                               </td>
@@ -276,7 +276,7 @@ export default function TaxConfigPage() {
               {testResult !== null && (
                 <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                   {testResult === 0 && Number(testIncome) <= 1200000 && filingStatuses.find((f: any) => f.id === testFSId)?.name?.toLowerCase().includes("new regime") && (
-                    <div className="p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded text-xs text-green-700 dark:text-green-400">
+                    <div className="p-2 bg-success/10 dark:bg-success/30 border border-success/20 dark:border-success rounded text-xs text-success dark:text-success">
                       ✅ Section 87A rebate applied — No tax for income up to ₹12,00,000 under New Regime
                     </div>
                   )}

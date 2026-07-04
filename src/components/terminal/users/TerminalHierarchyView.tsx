@@ -26,12 +26,12 @@ const LEVEL_ICONS: Record<number, React.ElementType> = {
 };
 
 const LEVEL_COLORS: Record<number, string> = {
-  0: "bg-red-500/20 text-red-400 border-red-500/30",
-  1: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  2: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  3: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  4: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-  5: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  0: "bg-destructive/20 text-destructive border-destructive/30",
+  1: "bg-warning/20 text-warning border-warning/30",
+  2: "bg-primary/20 text-primary border-primary/30",
+  3: "bg-info/20 text-info border-info/30",
+  4: "bg-info/20 text-info border-info/30",
+  5: "bg-success/20 text-success border-success/30",
 };
 
 function TreeNode({ node, depth = 0 }: { node: HierarchyNode; depth?: number }) {

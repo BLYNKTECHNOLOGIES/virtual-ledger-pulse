@@ -81,9 +81,9 @@ export function EmployeeInformationTab() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-green-100 text-green-800';
-      case 'INACTIVE': return 'bg-red-100 text-red-800';
-      case 'ON_LEAVE': return 'bg-yellow-100 text-yellow-800';
+      case 'ACTIVE': return 'bg-success/10 text-success';
+      case 'INACTIVE': return 'bg-destructive/10 text-destructive';
+      case 'ON_LEAVE': return 'bg-warning/10 text-warning';
       default: return 'bg-muted text-foreground';
     }
   };
@@ -147,7 +147,7 @@ export function EmployeeInformationTab() {
                       <td className="py-3 px-4">
                         <div>
                           <p className="font-medium">{employee.name}</p>
-                          <p className="text-sm text-blue-600">{employee.employee_id}</p>
+                          <p className="text-sm text-info">{employee.employee_id}</p>
                           <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Mail className="h-3 w-3" />
@@ -189,7 +189,7 @@ export function EmployeeInformationTab() {
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="outline" className="text-red-600 hover:text-red-800 hover:bg-red-50">
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
@@ -204,7 +204,7 @@ export function EmployeeInformationTab() {
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => handleDelete(employee.id)}
-                                  className="bg-red-600 hover:bg-red-700"
+                                  className="bg-destructive hover:bg-destructive"
                                 >
                                   Delete
                                 </AlertDialogAction>

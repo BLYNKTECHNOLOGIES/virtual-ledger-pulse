@@ -241,7 +241,7 @@ export default function SalaryStructureTemplates() {
                       <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(t); }}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-600" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(t.id); }}>
+                      <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(t.id); }}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -252,14 +252,14 @@ export default function SalaryStructureTemplates() {
                     <div className="border-t px-4 pb-4 pt-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <p className="text-xs font-semibold text-green-700 mb-2">EARNINGS / ALLOWANCES</p>
+                          <p className="text-xs font-semibold text-success mb-2">EARNINGS / ALLOWANCES</p>
                           <div className="space-y-1">
                             {earningItems.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                             {earningItems.map((i: any) => (
-                              <div key={i.id} className="flex justify-between text-sm bg-green-50 px-3 py-1.5 rounded">
+                              <div key={i.id} className="flex justify-between text-sm bg-success/10 px-3 py-1.5 rounded">
                                 <span>
                                   {i.hr_salary_components?.name} <span className="text-xs text-muted-foreground">({i.hr_salary_components?.code})</span>
-                                  {i.is_variable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                                  {i.is_variable && <span className="ml-1.5 text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full">Variable</span>}
                                 </span>
                                 <span className="font-medium">
                                   {i.calculation_type === "formula"
@@ -273,14 +273,14 @@ export default function SalaryStructureTemplates() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-red-600 mb-2">DEDUCTIONS</p>
+                          <p className="text-xs font-semibold text-destructive mb-2">DEDUCTIONS</p>
                           <div className="space-y-1">
                             {deductionItems.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                             {deductionItems.map((i: any) => (
-                              <div key={i.id} className="flex justify-between text-sm bg-red-50 px-3 py-1.5 rounded">
+                              <div key={i.id} className="flex justify-between text-sm bg-destructive/10 px-3 py-1.5 rounded">
                                 <span>
                                   {i.hr_salary_components?.name} <span className="text-xs text-muted-foreground">({i.hr_salary_components?.code})</span>
-                                  {i.is_variable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                                  {i.is_variable && <span className="ml-1.5 text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full">Variable</span>}
                                 </span>
                                 <span className="font-medium">
                                   {i.calculation_type === "formula"
@@ -337,7 +337,7 @@ export default function SalaryStructureTemplates() {
                 {items.map((item, idx) => {
                   const comp = getComponent(item.component_id);
                   return (
-                    <div key={idx} className={`p-3 rounded-lg border ${comp?.component_type === "deduction" ? "bg-red-50/50 border-red-100" : "bg-green-50/50 border-green-100"}`}>
+                    <div key={idx} className={`p-3 rounded-lg border ${comp?.component_type === "deduction" ? "bg-destructive/10/50 border-destructive/20" : "bg-success/10/50 border-success/20"}`}>
                       <div className="grid grid-cols-12 gap-2 items-end">
                         <div className="col-span-4">
                           <Label className="text-xs">Component</Label>
@@ -410,7 +410,7 @@ export default function SalaryStructureTemplates() {
                         )}
                         <div className={item.calculation_type === "percentage" ? "col-span-1" : "col-span-4"}>
                           <div className="flex items-center gap-1 mt-4">
-                            <Button size="sm" variant="ghost" className="text-red-500" onClick={() => removeItem(idx)}>
+                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeItem(idx)}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -424,7 +424,7 @@ export default function SalaryStructureTemplates() {
                           id={`variable-${idx}`}
                           className="rounded border-border"
                         />
-                        <label htmlFor={`variable-${idx}`} className="text-xs text-amber-700">
+                        <label htmlFor={`variable-${idx}`} className="text-xs text-warning">
                           Variable / Occasional (e.g. Incentives, Penalty — defaults to ₹0 unless applied)
                         </label>
                       </div>

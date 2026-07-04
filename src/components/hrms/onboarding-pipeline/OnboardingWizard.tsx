@@ -331,7 +331,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         <h2 className="text-lg font-bold">
           {isCompleted ? "Onboarding Complete" : "Employee Onboarding"}
         </h2>
-        {isCompleted && <Badge className="bg-green-100 text-green-800">✅ Completed</Badge>}
+        {isCompleted && <Badge className="bg-success/10 text-success">✅ Completed</Badge>}
       </div>
 
       {/* Stage stepper */}
@@ -352,7 +352,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
                 isCurrent
                   ? "bg-primary text-primary-foreground"
                   : isDone
-                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  ? "bg-success/10 text-success dark:bg-success dark:text-success"
                   : accessible
                   ? "bg-muted hover:bg-muted/80"
                   : "bg-muted/40 text-muted-foreground cursor-not-allowed"

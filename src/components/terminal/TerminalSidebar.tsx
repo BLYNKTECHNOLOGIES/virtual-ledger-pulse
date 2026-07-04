@@ -143,7 +143,7 @@ export function TerminalSidebar() {
                         </span>
                       )}
                       {item.comingSoon && (
-                        <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider flex items-center gap-0.5">
+                        <span className="text-[8px] bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider flex items-center gap-0.5">
                           <Clock className="h-2.5 w-2.5" /> Soon
                         </span>
                       )}
@@ -165,7 +165,7 @@ export function TerminalSidebar() {
         <Link to="/dashboard">
           <Button
             variant="ghost"
-            className="w-full h-8 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-amber-400 hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 hover:text-amber-300 border border-amber-500/30 hover:border-amber-400/50 shadow-lg hover:shadow-amber-500/10 transition-all duration-300 font-semibold tracking-wide text-xs"
+            className="w-full h-8 bg-gradient-to-r from-muted via-muted to-muted text-warning hover:from-muted hover:via-muted hover:to-muted hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm hover:shadow-warning/10 transition-all duration-300 font-semibold tracking-wide text-xs"
           >
             <Building2 className="h-3.5 w-3.5 mr-2" />
             ERP Dashboard

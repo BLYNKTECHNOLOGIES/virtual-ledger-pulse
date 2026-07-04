@@ -150,7 +150,7 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
             {task && <TaskPriorityBadge priority={task.priority} />}
             {task && <TaskStatusBadge status={task.status} />}
             {task?.is_pinned && (
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <Star className="h-4 w-4 fill-warning text-warning" />
             )}
             {isOverdue && (
               <Badge variant="destructive" className="gap-1">
@@ -158,7 +158,7 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
               </Badge>
             )}
             {isDueSoon && (
-              <Badge variant="outline" className="gap-1 bg-orange-50 text-orange-700 border-orange-200">
+              <Badge variant="outline" className="gap-1 bg-warning/10 text-warning border-warning/20">
                 <Clock className="h-3 w-3" /> Due Soon
               </Badge>
             )}
@@ -170,7 +170,7 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
             {/* Quick actions row */}
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" variant="outline" onClick={handlePin}>
-                <Star className={`h-3.5 w-3.5 mr-1 ${task.is_pinned ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                <Star className={`h-3.5 w-3.5 mr-1 ${task.is_pinned ? 'fill-warning text-warning' : ''}`} />
                 {task.is_pinned ? 'Unpin' : 'Pin'}
               </Button>
               <Button size="sm" variant="outline" onClick={handleDuplicate}>

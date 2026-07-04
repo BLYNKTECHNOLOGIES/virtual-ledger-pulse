@@ -33,7 +33,7 @@ export function ExchangeAccountSwitcher() {
   // User locked to a single account → static badge, no dropdown.
   if (!canSwitch && boundAccountId) {
     return (
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 border-border bg-muted/50">
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/50">
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: activeColor }} />
         <span className="text-sm font-medium text-foreground">{activeLabel}</span>
       </div>
@@ -49,10 +49,10 @@ export function ExchangeAccountSwitcher() {
         <Button
           variant="ghost"
           size="sm"
-          className="flex items-center gap-2 border-2 border-border rounded-lg text-foreground hover:bg-blue-50 hover:text-blue-700"
+          className="flex items-center gap-2 border border-border rounded-lg text-foreground hover:bg-info/10 hover:text-info"
         >
           {activeAccountId === ALL_ACCOUNTS ? (
-            <Layers className="h-4 w-4 text-slate-500" />
+            <Layers className="h-4 w-4 text-muted" />
           ) : (
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: activeColor }} />
           )}
@@ -72,7 +72,7 @@ export function ExchangeAccountSwitcher() {
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: acc.color || "#64748B" }} />
             <span className="flex-1 truncate">{acc.account_name}</span>
             {!acc.is_active && <span className="text-xs text-muted-foreground">inactive</span>}
-            {activeAccountId === acc.id && <Check className="h-4 w-4 text-blue-600" />}
+            {activeAccountId === acc.id && <Check className="h-4 w-4 text-info" />}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
@@ -80,9 +80,9 @@ export function ExchangeAccountSwitcher() {
           onClick={() => setActiveAccountId(ALL_ACCOUNTS)}
           className="cursor-pointer flex items-center gap-2"
         >
-          <Layers className="h-4 w-4 text-slate-500" />
+          <Layers className="h-4 w-4 text-muted" />
           <span className="flex-1">All accounts</span>
-          {activeAccountId === ALL_ACCOUNTS && <Check className="h-4 w-4 text-blue-600" />}
+          {activeAccountId === ALL_ACCOUNTS && <Check className="h-4 w-4 text-info" />}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

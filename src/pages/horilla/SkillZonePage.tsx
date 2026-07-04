@@ -137,7 +137,7 @@ export default function SkillZonePage() {
         </div>
         <button
           onClick={() => { closeDialog(); setCreateOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" /> Create Skill Zone
         </button>
@@ -191,7 +191,7 @@ export default function SkillZonePage() {
                     <Edit className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: zone.id, name: zone.zone_name }); }}
-                    className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500">
+                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -201,10 +201,10 @@ export default function SkillZonePage() {
                     {candidates.length === 0 ? (
                       <div className="px-4 py-3 text-xs text-muted-foreground">No candidates in this zone yet.</div>
                     ) : (
-                      <div className="divide-y divide-gray-50">
+                      <div className="divide-y divide-muted">
                         {candidates.map((zc: any) => (
                           <div key={zc.id} className="flex items-center gap-3 px-4 py-2 pl-12">
-                            <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600 shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
                               {zc.hr_candidates?.name?.[0]?.toUpperCase() || "?"}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -212,7 +212,7 @@ export default function SkillZonePage() {
                               <p className="text-[10px] text-muted-foreground">{zc.hr_candidates?.email}</p>
                             </div>
                             <button onClick={() => removeCandidateMutation.mutate(zc.id)}
-                              className="text-[10px] text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50">
+                              className="text-[10px] text-destructive hover:text-destructive px-2 py-1 rounded hover:bg-destructive/10">
                               Remove
                             </button>
                           </div>
@@ -232,7 +232,7 @@ export default function SkillZonePage() {
                           <button
                             onClick={() => { if (selectedCandidate) addCandidateMutation.mutate({ zoneId: zone.id, candidateId: selectedCandidate }); }}
                             disabled={!selectedCandidate}
-                            className="px-3 py-2 text-xs bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+                            className="px-3 py-2 text-xs bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
                           >Add</button>
                           <button onClick={() => { setAddCandOpen(null); setSelectedCandidate(""); }} className="p-1 text-muted-foreground hover:text-foreground">
                             <X className="h-4 w-4" />
@@ -255,7 +255,7 @@ export default function SkillZonePage() {
       {/* Create/Edit Dialog */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">{editZone ? "Edit" : "Create"} Skill Zone</h2>
               <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -272,7 +272,7 @@ export default function SkillZonePage() {
             </div>
             <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
               <button onClick={closeDialog} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button onClick={() => saveMutation.mutate()} disabled={!form.zone_name} className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+              <button onClick={() => saveMutation.mutate()} disabled={!form.zone_name} className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {editZone ? "Update" : "Create"}
               </button>
             </div>

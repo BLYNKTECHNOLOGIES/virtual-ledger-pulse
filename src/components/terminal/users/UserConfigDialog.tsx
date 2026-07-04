@@ -505,8 +505,8 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
             {/* Reset Biometric Registration */}
             {biometricResetDone ? (
-              <div className="space-y-2 border border-green-500/30 rounded-lg p-3 bg-green-500/5">
-                <label className="text-xs font-medium text-green-600 dark:text-green-400 flex items-center gap-1.5">
+              <div className="space-y-2 border border-success/30 rounded-lg p-3 bg-success/5">
+                <label className="text-xs font-medium text-success dark:text-success flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Biometric Registration Reset
                 </label>
                 <p className="text-[11px] text-muted-foreground">

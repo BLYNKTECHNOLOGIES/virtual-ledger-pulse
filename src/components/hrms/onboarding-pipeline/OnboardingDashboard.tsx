@@ -28,13 +28,13 @@ const STAGE_LABELS: Record<number, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
-  stage_1: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  stage_2: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-  stage_3: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  stage_4: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  stage_5: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  stage_1: "bg-info/10 text-info dark:bg-info dark:text-info",
+  stage_2: "bg-primary/10 text-primary dark:bg-primary dark:text-primary",
+  stage_3: "bg-primary/10 text-primary dark:bg-primary dark:text-primary",
+  stage_4: "bg-warning/10 text-warning dark:bg-warning dark:text-warning",
+  stage_5: "bg-warning/10 text-warning dark:bg-warning dark:text-warning",
+  completed: "bg-success/10 text-success dark:bg-success dark:text-success",
+  cancelled: "bg-destructive/10 text-destructive dark:bg-destructive dark:text-destructive",
 };
 
 interface OnboardingDashboardProps {
@@ -77,21 +77,21 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-4 text-center">
-            <Clock className="h-5 w-5 mx-auto mb-1 text-blue-500" />
+            <Clock className="h-5 w-5 mx-auto mb-1 text-info" />
             <p className="text-2xl font-bold">{inProgress.length}</p>
             <p className="text-xs text-muted-foreground">In Progress</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
+            <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-success" />
             <p className="text-2xl font-bold">{completed.length}</p>
             <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <XCircle className="h-5 w-5 mx-auto mb-1 text-red-500" />
+            <XCircle className="h-5 w-5 mx-auto mb-1 text-destructive" />
             <p className="text-2xl font-bold">{cancelled.length}</p>
             <p className="text-xs text-muted-foreground">Cancelled</p>
           </CardContent>

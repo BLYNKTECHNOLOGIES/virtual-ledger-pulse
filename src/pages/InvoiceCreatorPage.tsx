@@ -163,7 +163,7 @@ const InvoiceCreatorPage = () => {
       </div>
 
       {/* Info */}
-      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 text-sm rounded-md">
+      <div className="flex items-start gap-2 bg-warning/10 border border-warning/20 text-warning px-4 py-2.5 text-sm rounded-md">
         <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
         <span>
           <strong>Important:</strong> All invoice data including GST settings, margin details, and transaction references are controlled via the CSV.
@@ -216,7 +216,7 @@ const InvoiceCreatorPage = () => {
 
       {/* GST detected */}
       {records.length > 0 && gst.enabled && (
-        <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 px-4 py-2 text-sm rounded-md">
+        <div className="flex items-center gap-2 bg-success/10 border border-success/20 text-success px-4 py-2 text-sm rounded-md">
           <Receipt className="h-4 w-4 flex-shrink-0" />
           <span>
             GST detected from CSV: <strong>{gst.rate}% {gst.type === "IGST" ? "IGST" : "CGST+SGST"}</strong>

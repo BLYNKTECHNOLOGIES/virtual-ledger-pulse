@@ -158,8 +158,8 @@ export function StatutoryReportsPanel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={handleDownloadECR}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <FileText className="h-5 w-5 text-blue-600" />
+            <div className="p-2 bg-info/10 rounded-lg">
+              <FileText className="h-5 w-5 text-info" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">EPF ECR File</p>
@@ -171,8 +171,8 @@ export function StatutoryReportsPanel() {
 
         <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={handleDownloadESI}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <FileText className="h-5 w-5 text-green-600" />
+            <div className="p-2 bg-success/10 rounded-lg">
+              <FileText className="h-5 w-5 text-success" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">ESI Contribution Statement</p>

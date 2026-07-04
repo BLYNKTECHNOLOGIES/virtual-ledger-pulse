@@ -140,14 +140,14 @@ export function RecruitmentTab() {
 
   const getStatusBadge = (status: string) => {
     const colors = {
-      'OPEN': 'bg-green-100 text-green-800',
+      'OPEN': 'bg-success/10 text-success',
       'CLOSED': 'bg-muted text-foreground',
-      'APPLIED': 'bg-blue-100 text-blue-800',
-      'INTERVIEW': 'bg-yellow-100 text-yellow-800',
-      'SELECTED': 'bg-green-100 text-green-800',
-      'REJECTED': 'bg-red-100 text-red-800',
+      'APPLIED': 'bg-info/10 text-info',
+      'INTERVIEW': 'bg-warning/10 text-warning',
+      'SELECTED': 'bg-success/10 text-success',
+      'REJECTED': 'bg-destructive/10 text-destructive',
       'NOT_INTERESTED': 'bg-muted text-foreground',
-      'ONBOARDED': 'bg-purple-100 text-purple-800'
+      'ONBOARDED': 'bg-primary/10 text-primary'
     };
     return <Badge className={colors[status as keyof typeof colors] || 'bg-muted text-foreground'}>{status}</Badge>;
   };

@@ -181,7 +181,7 @@ export default function ReportsPage() {
             className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground" />
           <div className="relative group">
             <Button variant="outline" size="sm"><Download className="h-4 w-4 mr-1" /> Export</Button>
-            <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[140px] hidden group-hover:block z-50">
+            <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-sm py-1 min-w-[140px] hidden group-hover:block z-50">
               {["employees", "leaves", "payroll", "attendance"].map(t => (
                 <button key={t} onClick={() => handleExport(t)}
                   className="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-muted capitalize">{t}</button>
@@ -194,12 +194,12 @@ export default function ReportsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
-          { label: "Total Employees", value: employees.length, icon: Users, color: "text-violet-600 bg-violet-50" },
-          { label: "Active", value: employees.filter((e: any) => e.is_active).length, icon: Users, color: "text-emerald-600 bg-emerald-50" },
-          { label: "Leave Requests", value: filteredLeaves.length, icon: CalendarDays, color: "text-orange-600 bg-orange-50" },
-          { label: "Payroll Runs", value: filteredPayroll.length, icon: Wallet, color: "text-purple-600 bg-purple-50" },
-          { label: "Total Payroll Cost", value: `₹${(totalPayrollCost / 100000).toFixed(1)}L`, icon: TrendingUp, color: "text-blue-600 bg-blue-50" },
-          { label: "Avg Payroll/Run", value: `₹${(avgPayrollCost / 1000).toFixed(0)}K`, icon: Clock, color: "text-rose-600 bg-rose-50" },
+          { label: "Total Employees", value: employees.length, icon: Users, color: "text-primary bg-primary/10" },
+          { label: "Active", value: employees.filter((e: any) => e.is_active).length, icon: Users, color: "text-success bg-success/10" },
+          { label: "Leave Requests", value: filteredLeaves.length, icon: CalendarDays, color: "text-warning bg-warning/10" },
+          { label: "Payroll Runs", value: filteredPayroll.length, icon: Wallet, color: "text-primary bg-primary/10" },
+          { label: "Total Payroll Cost", value: `₹${(totalPayrollCost / 100000).toFixed(1)}L`, icon: TrendingUp, color: "text-info bg-info/10" },
+          { label: "Avg Payroll/Run", value: `₹${(avgPayrollCost / 1000).toFixed(0)}K`, icon: Clock, color: "text-destructive bg-destructive/10" },
         ].map(s => (
           <Card key={s.label}><CardContent className="p-3 flex items-center gap-2">
             <div className={`p-1.5 rounded-lg ${s.color.split(' ')[1]}`}><s.icon className={`h-4 w-4 ${s.color.split(' ')[0]}`} /></div>

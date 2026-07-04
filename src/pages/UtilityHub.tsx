@@ -9,9 +9,9 @@ const tools = [
     description: "Bulk CSV to PDF invoice generator. Upload your data using the provided template to generate invoices.",
     icon: FileText,
     route: "/utility/invoice-creator",
-    color: "text-orange-600",
-    bgColor: "bg-orange-50",
-    borderColor: "border-orange-200",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+    borderColor: "border-warning/20",
   },
   {
     id: "payment-screenshot",
@@ -19,9 +19,9 @@ const tools = [
     description: "Generate payment receipt screenshots with transaction details for record keeping.",
     icon: CreditCard,
     route: "/utility/payment-screenshot",
-    color: "text-green-600",
-    bgColor: "bg-green-50",
-    borderColor: "border-green-200",
+    color: "text-success",
+    bgColor: "bg-success/10",
+    borderColor: "border-success/20",
   },
 ];
 
@@ -43,7 +43,7 @@ const UtilityHub = () => {
             <div
               key={tool.id}
               onClick={() => navigate(tool.route)}
-              className={`group flex flex-col gap-3 p-5 rounded-xl border-2 ${tool.borderColor} ${tool.bgColor} hover:shadow-lg transition-all duration-200 cursor-pointer`}
+              className={`group flex flex-col gap-3 p-5 rounded-xl border ${tool.borderColor} ${tool.bgColor} hover:shadow-sm transition-all duration-200 cursor-pointer`}
             >
               <div className="flex items-center justify-between">
                 <div className="p-2.5 rounded-lg bg-card shadow-sm">

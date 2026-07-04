@@ -445,7 +445,7 @@ export function TerminalSyncTab() {
                     <TableCell className="text-xs">
                       {isMaskedName ? (
                         <div className="flex flex-col items-start gap-0.5">
-                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                          <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20">
                             Awaiting Verified Name
                           </Badge>
                           <ExchangeAccountBadge accountId={record.exchange_account_id} />

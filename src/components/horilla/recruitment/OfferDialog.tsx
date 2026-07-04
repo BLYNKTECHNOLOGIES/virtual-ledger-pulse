@@ -90,16 +90,16 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
 
   const STATUS_STYLES: Record<string, string> = {
     draft: "bg-muted text-muted-foreground",
-    sent: "bg-blue-100 text-blue-700",
-    accepted: "bg-emerald-100 text-emerald-700",
-    rejected: "bg-red-100 text-red-700",
-    expired: "bg-amber-100 text-amber-700",
-    negotiating: "bg-violet-100 text-violet-700",
+    sent: "bg-info/10 text-info",
+    accepted: "bg-success/10 text-success",
+    rejected: "bg-destructive/10 text-destructive",
+    expired: "bg-warning/10 text-warning",
+    negotiating: "bg-primary/10 text-primary",
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-card rounded-xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col">
+      <div className="bg-card rounded-xl w-full max-w-lg shadow-sm max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Offer Letters — {candidateName}</h2>
@@ -145,7 +145,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                 <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
                 <button onClick={() => createMutation.mutate()}
                   disabled={!form.offered_salary || createMutation.isPending}
-                  className="px-4 py-2 text-sm text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                  className="px-4 py-2 text-sm text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                   {createMutation.isPending ? "Creating..." : "Send Offer"}
                 </button>
               </div>
@@ -153,7 +153,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
           ) : (
             <div className="space-y-3">
               <button onClick={() => setShowCreate(true)}
-                className="w-full border-2 border-dashed border-border rounded-lg py-3 text-sm text-[#E8604C] font-medium hover:border-[#E8604C]/30 transition-colors">
+                className="w-full border border-dashed border-border rounded-lg py-3 text-sm text-[#E8604C] font-medium hover:border-[#E8604C]/30 transition-colors">
                 + Create New Offer
               </button>
 
@@ -161,7 +161,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                 <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
               ) : offers.length === 0 ? (
                 <div className="text-center py-6">
-                  <FileText className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                  <FileText className="h-8 w-8 mx-auto text-muted mb-2" />
                   <p className="text-sm text-muted-foreground">No offers created yet</p>
                 </div>
               ) : offers.map(offer => (
@@ -188,15 +188,15 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                     {offer.status === "sent" && (
                       <div className="flex gap-1">
                         <button onClick={() => updateStatusMutation.mutate({ id: offer.id, status: "accepted" })}
-                          className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600" title="Accept">
+                          className="p-1.5 rounded-lg hover:bg-success/10 text-success" title="Accept">
                           <CheckCircle className="h-4 w-4" />
                         </button>
                         <button onClick={() => updateStatusMutation.mutate({ id: offer.id, status: "negotiating" })}
-                          className="p-1.5 rounded-lg hover:bg-violet-50 text-violet-600" title="Negotiating">
+                          className="p-1.5 rounded-lg hover:bg-primary/10 text-primary" title="Negotiating">
                           <DollarSign className="h-4 w-4" />
                         </button>
                         <button onClick={() => updateStatusMutation.mutate({ id: offer.id, status: "rejected" })}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-600" title="Reject">
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" title="Reject">
                           <XCircle className="h-4 w-4" />
                         </button>
                       </div>
@@ -204,11 +204,11 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                     {offer.status === "negotiating" && (
                       <div className="flex gap-1">
                         <button onClick={() => updateStatusMutation.mutate({ id: offer.id, status: "accepted" })}
-                          className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600" title="Accept">
+                          className="p-1.5 rounded-lg hover:bg-success/10 text-success" title="Accept">
                           <CheckCircle className="h-4 w-4" />
                         </button>
                         <button onClick={() => updateStatusMutation.mutate({ id: offer.id, status: "rejected" })}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-600" title="Reject">
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" title="Reject">
                           <XCircle className="h-4 w-4" />
                         </button>
                       </div>

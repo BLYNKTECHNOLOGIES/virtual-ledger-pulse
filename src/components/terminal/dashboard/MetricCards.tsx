@@ -36,7 +36,7 @@ export function MetricCards({
   const cards = [
     { label: 'Active Orders', formatted: String(activeOrders || 0), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
     { label: 'Awaiting Payment', formatted: String(awaitingPayment || 0), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
-    { label: 'Awaiting Release', formatted: String(awaitingRelease || 0), icon: Send, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { label: 'Awaiting Release', formatted: String(awaitingRelease || 0), icon: Send, color: 'text-warning', bg: 'bg-warning/10' },
     { label: completedLabel, formatted: String(completedInPeriod || 0), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
     { label: 'Appeals', formatted: String(appeals || 0), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
     { label: 'Buy Volume', formatted: formatVolume(totalBuyVolume || 0), icon: ArrowDownLeft, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },

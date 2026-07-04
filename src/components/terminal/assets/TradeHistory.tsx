@@ -185,7 +185,7 @@ export function TradeHistory() {
                         className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                           trade.source === "terminal"
                             ? "bg-primary/10 text-primary"
-                            : "bg-amber-500/10 text-amber-400"
+                            : "bg-warning/10 text-warning"
                         }`}
                       >
                         {trade.source === "terminal" ? "Terminal" : "Binance"}
@@ -198,7 +198,7 @@ export function TradeHistory() {
                             ? "bg-trade-buy/10 text-trade-buy"
                             : trade.status === "FAILED"
                             ? "bg-trade-sell/10 text-trade-sell"
-                            : "bg-amber-500/10 text-amber-400"
+                            : "bg-warning/10 text-warning"
                         }`}
                       >
                         {trade.status}

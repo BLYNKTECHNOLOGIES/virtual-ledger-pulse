@@ -72,8 +72,8 @@ function useErpFullHistory() {
 }
 
 const statusConfig = {
-  PENDING: { label: "Pending", icon: Clock, className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" },
-  PROCESSED: { label: "Processed", icon: CheckCircle, className: "bg-green-500/10 text-green-400 border-green-500/30" },
+  PENDING: { label: "Pending", icon: Clock, className: "bg-warning/10 text-warning border-warning/30" },
+  PROCESSED: { label: "Processed", icon: CheckCircle, className: "bg-success/10 text-success border-success/30" },
   REJECTED: { label: "Rejected", icon: XCircle, className: "bg-destructive/10 text-destructive border-destructive/30" },
 };
 

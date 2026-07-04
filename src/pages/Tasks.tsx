@@ -186,9 +186,9 @@ export default function Tasks() {
 
   return (
     <PermissionGate permissions={["tasks_view"]}>
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-4 page-mount">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Task Management</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Task Management</h1>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Task
         </Button>
@@ -248,14 +248,14 @@ export default function Tasks() {
                   return (
                     <TableRow
                       key={task.id}
-                      className={`cursor-pointer ${task.status === 'completed' ? 'opacity-50' : ''} ${task.is_pinned ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : ''}`}
+                      className={`cursor-pointer ${task.status === 'completed' ? 'opacity-50' : ''} ${task.is_pinned ? 'bg-warning/10/50 dark:bg-warning/10' : ''}`}
                     >
                       <TableCell onClick={e => e.stopPropagation()}>
                         <Checkbox checked={selectedIds.has(task.id)} onCheckedChange={() => toggleSelect(task.id)} />
                       </TableCell>
                       <TableCell onClick={e => handleTogglePin(e, task)} className="px-1">
                         <button className="p-1 rounded hover:bg-muted transition-colors" title={task.is_pinned ? 'Unpin' : 'Pin'}>
-                          <Star className={`h-4 w-4 ${task.is_pinned ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/40 hover:text-muted-foreground'}`} />
+                          <Star className={`h-4 w-4 ${task.is_pinned ? 'fill-warning text-warning' : 'text-muted-foreground/40 hover:text-muted-foreground'}`} />
                         </button>
                       </TableCell>
                       <TableCell onClick={() => openDetail(task.id)}>
@@ -267,7 +267,7 @@ export default function Tasks() {
                             </Badge>
                           )}
                           {isDueSoon && (
-                            <Badge variant="outline" className="gap-0.5 text-[10px] px-1.5 py-0 bg-orange-50 text-orange-700 border-orange-200">
+                            <Badge variant="outline" className="gap-0.5 text-[10px] px-1.5 py-0 bg-warning/10 text-warning border-warning/20">
                               <Clock className="h-2.5 w-2.5" /> Due Soon
                             </Badge>
                           )}

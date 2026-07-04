@@ -114,12 +114,12 @@ export function LiveAttendanceDashboard() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <UserCheck className="h-5 w-5 text-green-600" />
+            <div className="p-2 rounded-lg bg-success/10">
+              <UserCheck className="h-5 w-5 text-success" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Present</p>
-              <p className="text-2xl font-bold text-green-600">{presentCount}</p>
+              <p className="text-2xl font-bold text-success">{presentCount}</p>
             </div>
           </CardContent>
         </Card>
@@ -136,12 +136,12 @@ export function LiveAttendanceDashboard() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/10">
-              <Activity className="h-5 w-5 text-blue-600" />
+            <div className="p-2 rounded-lg bg-info/10">
+              <Activity className="h-5 w-5 text-info" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">In Office Now</p>
-              <p className="text-2xl font-bold text-blue-600">{inOfficeCount}</p>
+              <p className="text-2xl font-bold text-info">{inOfficeCount}</p>
             </div>
           </CardContent>
         </Card>
@@ -175,11 +175,11 @@ export function LiveAttendanceDashboard() {
                         {emp.first_name[0]}{emp.last_name[0]}
                       </div>
                       <span
-                        className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${
+                        className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border border-card ${
                           isInOffice
-                            ? "bg-green-500"
+                            ? "bg-success"
                             : hasLeft
-                            ? "bg-amber-500"
+                            ? "bg-warning"
                             : "bg-muted-foreground/30"
                         }`}
                       />

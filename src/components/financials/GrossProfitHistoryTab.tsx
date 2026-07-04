@@ -187,9 +187,9 @@ export function GrossProfitHistoryTab() {
     <div className="space-y-6">
       {/* Sync bar if gap detected */}
       {hasGap && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-warning/20 bg-warning/10">
           <CardContent className="p-3 flex items-center justify-between">
-            <span className="text-sm text-amber-700">
+            <span className="text-sm text-warning">
               Missing snapshots detected. Click sync to backfill missing dates.
             </span>
             <Button
@@ -208,39 +208,39 @@ export function GrossProfitHistoryTab() {
 
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className={`${isPositive ? 'bg-gradient-to-br from-emerald-600 to-green-700' : 'bg-gradient-to-br from-red-600 to-rose-700'} text-white border-0`}>
+        <Card className={`${isPositive ? 'bg-gradient-to-br from-success to-success' : 'bg-gradient-to-br from-destructive to-destructive'} text-primary-foreground border-0`}>
           <CardContent className="p-6">
-            <p className="text-white/80 text-sm font-medium">Latest Day's Gross Profit</p>
+            <p className="text-primary-foreground/80 text-sm font-medium">Latest Day's Gross Profit</p>
             <p className="text-2xl font-bold mt-2">{formatCurrency(latestValue)}</p>
-            <p className="text-sm mt-1 text-white/80">{latestDate}</p>
+            <p className="text-sm mt-1 text-primary-foreground/80">{latestDate}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-info to-primary text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-blue-200 text-sm font-medium">Change</p>
+            <p className="text-info text-sm font-medium">Change</p>
             <p className="text-2xl font-bold mt-2">
               {Number(changePercent) >= 0 ? "+" : ""}{changePercent}%
             </p>
-            <p className="text-sm mt-1 text-blue-200">vs previous snapshot</p>
+            <p className="text-sm mt-1 text-info">vs previous snapshot</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-slate-600 to-gray-700 text-white border-0">
+        <Card className="bg-gradient-to-br from-muted to-muted text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-slate-200 text-sm font-medium">Total Snapshots</p>
+            <p className="text-muted text-sm font-medium">Total Snapshots</p>
             <p className="text-2xl font-bold mt-2">{mergedData?.length || 0}</p>
-            <p className="text-sm mt-1 text-slate-200">Daily records</p>
+            <p className="text-sm mt-1 text-muted">Daily records</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Chart */}
-      <Card className="bg-card dark:bg-card border-2 border-border dark:border-border shadow-xl">
-        <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
+      <Card className="bg-card dark:bg-card border border-border dark:border-border shadow-sm">
+        <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3 text-xl text-white">
-              <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
+            <CardTitle className="flex items-center gap-3 text-xl text-primary-foreground">
+              <div className="p-2 bg-success rounded-lg shadow-md">
                 <BarChart3 className="h-6 w-6" />
               </div>
               Gross Profit Trend
@@ -249,7 +249,7 @@ export function GrossProfitHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "day" ? "secondary" : "ghost"}
-                className={viewMode === "day" ? "bg-card text-emerald-700" : "text-white hover:bg-emerald-500"}
+                className={viewMode === "day" ? "bg-card text-success" : "text-primary-foreground hover:bg-success"}
                 onClick={() => setViewMode("day")}
               >
                 Day
@@ -257,7 +257,7 @@ export function GrossProfitHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "month" ? "secondary" : "ghost"}
-                className={viewMode === "month" ? "bg-card text-emerald-700" : "text-white hover:bg-emerald-500"}
+                className={viewMode === "month" ? "bg-card text-success" : "text-primary-foreground hover:bg-success"}
                 onClick={() => setViewMode("month")}
               >
                 Month
@@ -364,7 +364,7 @@ export function GrossProfitHistoryTab() {
                         <TableCell className="text-sm">{format(new Date(item.snapshot_date), "dd MMM yyyy")}</TableCell>
                         <TableCell className="text-right font-mono text-sm">{Number(item.total_sales_qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-mono text-sm">₹{npm.toFixed(2)}</TableCell>
-                        <TableCell className={`text-right font-mono text-sm font-semibold ${Number(item.gross_profit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <TableCell className={`text-right font-mono text-sm font-semibold ${Number(item.gross_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
                           ₹{Number(item.gross_profit).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
@@ -375,7 +375,7 @@ export function GrossProfitHistoryTab() {
                       <TableCell className="text-sm">{item.date}</TableCell>
                       <TableCell className="text-right font-mono text-sm">—</TableCell>
                       <TableCell className="text-right font-mono text-sm">₹{Number(item.npm).toFixed(2)}</TableCell>
-                      <TableCell className={`text-right font-mono text-sm font-semibold ${item.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <TableCell className={`text-right font-mono text-sm font-semibold ${item.value >= 0 ? 'text-success' : 'text-destructive'}`}>
                         ₹{Number(item.value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>

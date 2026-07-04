@@ -302,18 +302,18 @@ export default function CandidateProfilePage() {
   ];
 
   const STATUS_COLORS: Record<string, string> = {
-    scheduled: "bg-blue-100 text-blue-700",
-    completed: "bg-emerald-100 text-emerald-700",
-    cancelled: "bg-red-100 text-red-700",
-    no_show: "bg-amber-100 text-amber-700",
+    scheduled: "bg-info/10 text-info",
+    completed: "bg-success/10 text-success",
+    cancelled: "bg-destructive/10 text-destructive",
+    no_show: "bg-warning/10 text-warning",
   };
 
   const OFFER_STYLES: Record<string, string> = {
     draft: "bg-muted text-muted-foreground",
-    sent: "bg-blue-100 text-blue-700",
-    accepted: "bg-emerald-100 text-emerald-700",
-    rejected: "bg-red-100 text-red-700",
-    negotiating: "bg-violet-100 text-violet-700",
+    sent: "bg-info/10 text-info",
+    accepted: "bg-success/10 text-success",
+    rejected: "bg-destructive/10 text-destructive",
+    negotiating: "bg-primary/10 text-primary",
   };
 
   return (
@@ -325,7 +325,7 @@ export default function CandidateProfilePage() {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-violet-500 flex items-center justify-center text-white font-bold text-xl shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl shrink-0">
               {candidate.profile_image_url ? (
                 <img src={candidate.profile_image_url} className="w-16 h-16 rounded-2xl object-cover" alt="" />
               ) : initials}
@@ -334,23 +334,23 @@ export default function CandidateProfilePage() {
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-foreground">{candidate.name}</h1>
                 {candidate.hired ? (
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">Hired</span>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success">Hired</span>
                 ) : candidate.canceled ? (
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-100 text-red-700">Rejected</span>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-destructive/10 text-destructive">Rejected</span>
                 ) : (
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">In Progress</span>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning">In Progress</span>
                 )}
               </div>
               <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                 {candidate.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{candidate.email}</span>}
                 {candidate.mobile && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{candidate.mobile}</span>}
                 {recruitment && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{recruitment.title}</span>}
-                {stage && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">{stage.stage_name}</span>}
+                {stage && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-info/10 text-info">{stage.stage_name}</span>}
               </div>
               {/* Rating */}
               <div className="flex items-center gap-1 mt-1.5">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className={`h-4 w-4 ${i < (candidate.rating || 0) ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                  <Star key={i} className={`h-4 w-4 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted"}`} />
                 ))}
                 {candidate.rating ? <span className="text-xs text-muted-foreground ml-1">({candidate.rating}/5)</span> : null}
               </div>
@@ -360,11 +360,11 @@ export default function CandidateProfilePage() {
               {!candidate.hired && !candidate.canceled && (
                 <>
                   <button onClick={() => hireMutation.mutate()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700">
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-foreground bg-success rounded-lg hover:bg-success">
                     <UserCheck className="h-3.5 w-3.5" /> Hire
                   </button>
                   <button onClick={() => cancelMutation.mutate()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/10">
                     <UserX className="h-3.5 w-3.5" /> Reject
                   </button>
                 </>
@@ -406,10 +406,10 @@ export default function CandidateProfilePage() {
                 <div><p className="text-xs text-muted-foreground">Source</p><p className="text-foreground">{candidate.source || "—"}</p></div>
                 <div className="col-span-2"><p className="text-xs text-muted-foreground">Address</p><p className="text-foreground">{[candidate.address, candidate.city, candidate.state, candidate.country].filter(Boolean).join(", ") || "—"}</p></div>
                 {candidate.portfolio_url && (
-                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Portfolio</p><a href={candidate.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline flex items-center gap-1"><Globe className="h-3 w-3" />{candidate.portfolio_url}</a></div>
+                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Portfolio</p><a href={candidate.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-info text-sm hover:underline flex items-center gap-1"><Globe className="h-3 w-3" />{candidate.portfolio_url}</a></div>
                 )}
                 {candidate.resume_url && (
-                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Resume</p><a href={candidate.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline flex items-center gap-1"><FileText className="h-3 w-3" />View Resume</a></div>
+                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Resume</p><a href={candidate.resume_url} target="_blank" rel="noopener noreferrer" className="text-info text-sm hover:underline flex items-center gap-1"><FileText className="h-3 w-3" />View Resume</a></div>
                 )}
               </div>
             </div>
@@ -417,13 +417,13 @@ export default function CandidateProfilePage() {
               <h3 className="text-sm font-semibold text-foreground">Recruitment Information</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><p className="text-xs text-muted-foreground">Recruitment</p><p className="text-foreground font-medium">{recruitment?.title || "—"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Current Stage</p><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{stage?.stage_name || "—"}</span></div>
+                <div><p className="text-xs text-muted-foreground">Current Stage</p><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-info/10 text-info">{stage?.stage_name || "—"}</span></div>
                 <div><p className="text-xs text-muted-foreground">Schedule Date</p><p className="text-foreground">{candidate.schedule_date || "—"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Offer Status</p><p className="text-foreground">{candidate.offer_letter_status || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Applied On</p><p className="text-foreground">{new Date(candidate.created_at).toLocaleDateString()}</p></div>
                 {candidate.hired_date && <div><p className="text-xs text-muted-foreground">Hired Date</p><p className="text-foreground">{candidate.hired_date}</p></div>}
                 {candidate.joining_date && <div><p className="text-xs text-muted-foreground">Joining Date</p><p className="text-foreground">{candidate.joining_date}</p></div>}
-                {candidate.reject_reason && <div className="col-span-2"><p className="text-xs text-muted-foreground">Reject Reason</p><p className="text-red-600">{candidate.reject_reason}</p></div>}
+                {candidate.reject_reason && <div className="col-span-2"><p className="text-xs text-muted-foreground">Reject Reason</p><p className="text-destructive">{candidate.reject_reason}</p></div>}
               </div>
             </div>
           </div>
@@ -436,13 +436,13 @@ export default function CandidateProfilePage() {
                 className={`${inputCls} resize-none flex-1`} rows={2} placeholder="Add a remark or note about this candidate..." />
               <button onClick={() => addNoteMutation.mutate()}
                 disabled={!newNote.trim() || addNoteMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50 self-end">
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50 self-end">
                 <Plus className="h-4 w-4" />
               </button>
             </div>
             {notes.length === 0 ? (
               <div className="text-center py-8">
-                <MessageSquare className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <MessageSquare className="h-8 w-8 mx-auto text-muted mb-2" />
                 <p className="text-sm text-muted-foreground">No notes yet. Add remarks from interviews or evaluations.</p>
               </div>
             ) : notes.map((n: any) => (
@@ -463,19 +463,19 @@ export default function CandidateProfilePage() {
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map(r => (
                   <button key={r} onClick={() => setNewRating(r)}>
-                    <Star className={`h-6 w-6 ${r <= newRating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                    <Star className={`h-6 w-6 ${r <= newRating ? "text-warning fill-warning" : "text-muted"}`} />
                   </button>
                 ))}
               </div>
               <button onClick={() => addRatingMutation.mutate()}
                 disabled={addRatingMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 Add Rating
               </button>
             </div>
             {ratings.length === 0 ? (
               <div className="text-center py-8">
-                <Star className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <Star className="h-8 w-8 mx-auto text-muted mb-2" />
                 <p className="text-sm text-muted-foreground">No ratings yet. Be the first to rate this candidate.</p>
               </div>
             ) : (
@@ -491,7 +491,7 @@ export default function CandidateProfilePage() {
                     <div className="flex items-center gap-3">
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map(i => (
-                          <Star key={i} className={`h-4 w-4 ${i <= r.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                          <Star key={i} className={`h-4 w-4 ${i <= r.rating ? "text-warning fill-warning" : "text-muted"}`} />
                         ))}
                       </div>
                       <span className="text-sm text-muted-foreground">
@@ -511,7 +511,7 @@ export default function CandidateProfilePage() {
             <h3 className="text-sm font-semibold text-foreground">Stage Transition Log</h3>
             {stageNotes.length === 0 ? (
               <div className="text-center py-8">
-                <Clock className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <Clock className="h-8 w-8 mx-auto text-muted mb-2" />
                 <p className="text-sm text-muted-foreground">No stage transitions recorded yet.</p>
               </div>
             ) : (
@@ -522,7 +522,7 @@ export default function CandidateProfilePage() {
                     <div className="absolute -left-4 top-1.5 w-2.5 h-2.5 rounded-full bg-[#E8604C] ring-2 ring-white" />
                     <div className="border border-border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-foreground px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
+                        <span className="text-xs font-medium text-foreground px-1.5 py-0.5 rounded bg-info/10 text-info">
                           {sn.hr_stages?.stage_name || "Unknown Stage"}
                         </span>
                         <span className="text-[10px] text-muted-foreground">{new Date(sn.created_at).toLocaleString('en-IN')}</span>
@@ -541,13 +541,13 @@ export default function CandidateProfilePage() {
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-semibold text-foreground">Interview History</h3>
               <button onClick={() => setInterviewOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c]">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c]">
                 <Calendar className="h-3 w-3" /> Schedule Interview
               </button>
             </div>
             {interviews.length === 0 ? (
               <div className="text-center py-8">
-                <Calendar className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <Calendar className="h-8 w-8 mx-auto text-muted mb-2" />
                 <p className="text-sm text-muted-foreground">No interviews scheduled</p>
               </div>
             ) : interviews.map((iv: any) => (
@@ -577,19 +577,19 @@ export default function CandidateProfilePage() {
                       {iv.rating && (
                         <div className="flex gap-0.5">
                           {[1, 2, 3, 4, 5].map((i: number) => (
-                            <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                            <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted"}`} />
                           ))}
                         </div>
                       )}
                       {iv.recommendation && iv.recommendation !== "pending" && (
-                        <span className={`text-[10px] font-semibold ${iv.recommendation.includes("yes") ? "text-emerald-600" : "text-red-600"}`}>
+                        <span className={`text-[10px] font-semibold ${iv.recommendation.includes("yes") ? "text-success" : "text-destructive"}`}>
                           {iv.recommendation.replace("_", " ").toUpperCase()}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">{iv.feedback}</p>
-                    {iv.strengths && <p className="text-[10px] text-emerald-600 mt-1">✓ {iv.strengths}</p>}
-                    {iv.weaknesses && <p className="text-[10px] text-red-500 mt-0.5">✗ {iv.weaknesses}</p>}
+                    {iv.strengths && <p className="text-[10px] text-success mt-1">✓ {iv.strengths}</p>}
+                    {iv.weaknesses && <p className="text-[10px] text-destructive mt-0.5">✗ {iv.weaknesses}</p>}
                   </div>
                 )}
               </div>
@@ -602,13 +602,13 @@ export default function CandidateProfilePage() {
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-semibold text-foreground">Offer Letters</h3>
               <button onClick={() => setOfferOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c]">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c]">
                 <FileText className="h-3 w-3" /> Create Offer
               </button>
             </div>
             {offers.length === 0 ? (
               <div className="text-center py-8">
-                <FileText className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <FileText className="h-8 w-8 mx-auto text-muted mb-2" />
                 <p className="text-sm text-muted-foreground">No offers created</p>
               </div>
             ) : offers.map((offer: any) => (
@@ -681,7 +681,7 @@ export default function CandidateProfilePage() {
                   if (stageTasks.length === 0) return null;
                   return (
                     <div key={cs.id} className="border border-border rounded-lg p-3">
-                      <p className="text-xs font-medium text-muted-foreground mb-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 inline-block">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 px-1.5 py-0.5 rounded bg-info/10 text-info inline-block">
                         {cs.hr_stages?.stage_name || "Unknown Stage"}
                       </p>
                       <div className="space-y-1.5">
@@ -695,16 +695,16 @@ export default function CandidateProfilePage() {
                               className="shrink-0"
                             >
                               {task.status === "completed" ? (
-                                <CheckSquare className="h-4 w-4 text-emerald-500" />
+                                <CheckSquare className="h-4 w-4 text-success" />
                               ) : (
-                                <Square className="h-4 w-4 text-gray-300" />
+                                <Square className="h-4 w-4 text-muted" />
                               )}
                             </button>
                             <span className={`text-sm ${task.status === "completed" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                               {task.title || task.hr_onboarding_tasks?.title || `Task ${task.id.slice(0,6)}`}
                             </span>
                             <span className={`text-[10px] ml-auto px-1.5 py-0.5 rounded-full font-medium ${
-                              task.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                              task.status === "completed" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
                             }`}>
                               {task.status}
                             </span>
@@ -726,27 +726,27 @@ export default function CandidateProfilePage() {
               <div className="absolute left-2 top-1 bottom-1 w-px bg-muted" />
               {candidate.hired_date && (
                 <div className="relative">
-                  <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                  <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-white" />
                   <p className="text-sm text-foreground font-medium">Hired</p>
                   <p className="text-xs text-muted-foreground">{candidate.hired_date}</p>
                 </div>
               )}
               {offers.filter((o: any) => o.status === "accepted").map((o: any) => (
                 <div key={o.id} className="relative">
-                  <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-white" />
+                  <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-info ring-2 ring-white" />
                   <p className="text-sm text-foreground">Offer accepted — ₹{Number(o.offered_salary).toLocaleString('en-IN')}</p>
                   <p className="text-xs text-muted-foreground">{o.accepted_at ? new Date(o.accepted_at).toLocaleDateString() : ""}</p>
                 </div>
               ))}
               {interviews.filter((iv: any) => iv.status === "completed").map((iv: any) => (
                 <div key={iv.id} className="relative">
-                  <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-violet-500 ring-2 ring-white" />
+                  <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-white" />
                   <p className="text-sm text-foreground">Interview with {iv.interviewer_name} — {iv.recommendation || "pending"}</p>
                   <p className="text-xs text-muted-foreground">{new Date(iv.interview_date).toLocaleDateString()}</p>
                 </div>
               ))}
               <div className="relative">
-                <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-gray-400 ring-2 ring-white" />
+                <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-muted ring-2 ring-white" />
                 <p className="text-sm text-foreground">Applied</p>
                 <p className="text-xs text-muted-foreground">{new Date(candidate.created_at).toLocaleDateString()}</p>
               </div>
@@ -758,7 +758,7 @@ export default function CandidateProfilePage() {
       {/* Edit Dialog */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-lg shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-lg shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Edit Candidate</h2>
               <button onClick={() => setEditing(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -827,7 +827,7 @@ export default function CandidateProfilePage() {
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
               <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}
-                className="px-4 py-2 text-sm text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50 flex items-center gap-1.5">
+                className="px-4 py-2 text-sm text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50 flex items-center gap-1.5">
                 <Save className="h-3.5 w-3.5" /> {updateMutation.isPending ? "Saving..." : "Save"}
               </button>
             </div>

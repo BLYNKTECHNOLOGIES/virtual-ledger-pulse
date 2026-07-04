@@ -204,7 +204,7 @@ export function AssetMovementHistory() {
       case "deposit": return <ArrowDownLeft className="h-3.5 w-3.5 text-trade-buy" />;
       case "withdrawal": return <ArrowUpRight className="h-3.5 w-3.5 text-trade-sell" />;
       case "transfer": return <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />;
-      case "p2p": return <Repeat className="h-3.5 w-3.5 text-amber-400" />;
+      case "p2p": return <Repeat className="h-3.5 w-3.5 text-warning" />;
       default: return null;
     }
   };
@@ -214,7 +214,7 @@ export function AssetMovementHistory() {
       deposit: "bg-trade-buy/10 text-trade-buy",
       withdrawal: "bg-trade-sell/10 text-trade-sell",
       transfer: "bg-primary/10 text-primary",
-      p2p: "bg-amber-500/10 text-amber-400",
+      p2p: "bg-warning/10 text-warning",
     };
     const labels: Record<string, string> = {
       deposit: "Deposit",
@@ -237,7 +237,7 @@ export function AssetMovementHistory() {
     } else if (s === "failed" || s === "failure" || s === "rejected" || s === "cancelled") {
       cls = "bg-trade-sell/10 text-trade-sell";
     } else if (s === "pending" || s === "processing" || s === "awaiting approval") {
-      cls = "bg-amber-500/10 text-amber-400";
+      cls = "bg-warning/10 text-warning";
     }
     return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${cls}`}>{status}</span>;
   };

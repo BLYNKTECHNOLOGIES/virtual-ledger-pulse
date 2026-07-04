@@ -95,7 +95,7 @@ export function RoleUsersDialog({ role, onClose }: RoleUsersDialogProps) {
         <div className="space-y-4">
           {isLoading ? (
             <div className="flex justify-center items-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
               <span className="ml-2">Loading users...</span>
             </div>
           ) : (

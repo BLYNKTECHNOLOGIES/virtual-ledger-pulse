@@ -159,7 +159,7 @@ export default function AssetAssignmentsPage() {
                   <td className="px-4 py-3 text-muted-foreground">{a.assigned_date}</td>
                   <td className="px-4 py-3 text-muted-foreground">{a.return_date || "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-muted text-foreground"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-success/10 text-success" : "bg-muted text-foreground"}`}>
                       {a.status}
                     </span>
                   </td>

@@ -80,15 +80,15 @@ export default function MonthlyHoursSummaryPage() {
         </CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total Overtime</div>
-          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><TrendingUp className="h-5 w-5 text-green-500" />{totals.totalOvertime.toFixed(1)}h</div>
+          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><TrendingUp className="h-5 w-5 text-success" />{totals.totalOvertime.toFixed(1)}h</div>
         </CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total Late Arrivals</div>
-          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-yellow-500" />{totals.totalLate}</div>
+          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" />{totals.totalLate}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total Absent Days</div>
-          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><CalendarDays className="h-5 w-5 text-red-500" />{totals.totalAbsent}</div>
+          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><CalendarDays className="h-5 w-5 text-destructive" />{totals.totalAbsent}</div>
         </CardContent></Card>
       </div>
 
@@ -148,11 +148,11 @@ export default function MonthlyHoursSummaryPage() {
                     <tr key={i} className="border-b hover:bg-muted/30">
                       <td className="p-3 font-medium">{s.employee_name}<div className="text-xs text-muted-foreground">{s.badge_id}</div></td>
                       <td className="text-center p-3">{s.present_days ?? 0}</td>
-                      <td className="text-center p-3 text-red-600">{s.absent_days ?? 0}</td>
+                      <td className="text-center p-3 text-destructive">{s.absent_days ?? 0}</td>
                       <td className="text-center p-3">{(s.total_worked_hours ?? 0).toFixed(1)}</td>
-                      <td className="text-center p-3 text-green-600">{(s.total_overtime_hours ?? 0).toFixed(1)}</td>
-                      <td className="text-center p-3 text-yellow-600">{s.late_count ?? 0}</td>
-                      <td className="text-center p-3 text-orange-600">{s.early_out_count ?? 0}</td>
+                      <td className="text-center p-3 text-success">{(s.total_overtime_hours ?? 0).toFixed(1)}</td>
+                      <td className="text-center p-3 text-warning">{s.late_count ?? 0}</td>
+                      <td className="text-center p-3 text-warning">{s.early_out_count ?? 0}</td>
                       <td className="text-center p-3">{s.total_late_minutes ?? 0}</td>
                       <td className="text-center p-3">{s.total_early_minutes ?? 0}</td>
                     </tr>

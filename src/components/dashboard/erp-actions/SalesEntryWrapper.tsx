@@ -452,7 +452,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               <Label>State</Label>
               <Select value={formData.client_state} onValueChange={(value) => handleInputChange('client_state', value)}>
                 <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[100] max-h-60">
+                <SelectContent className="bg-background border shadow-sm z-[100] max-h-60">
                   {INDIAN_STATES_AND_UTS.map((state) => (
                     <SelectItem key={state} value={state}>{state}</SelectItem>
                   ))}
@@ -467,7 +467,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               <Label>Product</Label>
               <Select value={formData.product_id} onValueChange={(value) => handleInputChange('product_id', value)}>
                 <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[100]">
+                <SelectContent className="bg-background border shadow-sm z-[100]">
                   {products?.map((product) => (
                     <SelectItem key={product.id} value={product.id}>{product.name} - {product.code}</SelectItem>
                   ))}
@@ -478,7 +478,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               <Label>Wallet *</Label>
               <Select value={formData.wallet_id} onValueChange={(value) => handleInputChange('wallet_id', value)} disabled={!!item.wallet_id}>
                 <SelectTrigger><SelectValue placeholder="Select wallet" /></SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-[100]">
+                <SelectContent className="bg-background border shadow-sm z-[100]">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name} - Balance: {wallet.current_balance}
@@ -539,9 +539,9 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
 
           {/* Warn if quantity differs from actual withdrawal amount */}
           {item.movement_type === 'withdrawal' && quantity > 0 && Math.abs(quantity - prefillQuantity) > 0.001 && (
-            <Alert className="border-orange-500 bg-orange-50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="text-orange-700">
+            <Alert className="border-warning bg-warning/10">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="text-warning">
                 Quantity ({quantity.toFixed(4)}) differs from actual Binance withdrawal ({prefillQuantity}). 
                 This will cause wallet ledger drift. Use the actual withdrawal amount.
               </AlertDescription>
@@ -576,7 +576,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
                   <span>Quantity Sold:</span>
                   <span className="font-medium">{quantity.toFixed(4)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-orange-600">
+                <div className="flex justify-between text-sm text-warning">
                   <span>Platform Fee ({selectedWalletFee}%):</span>
                   <span className="font-medium">+{calculatedFee.toFixed(4)}</span>
                 </div>
@@ -588,14 +588,14 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             )}
 
             {isOffMarket && (
-              <Badge variant="secondary" className="bg-green-100 text-green-700">
+              <Badge variant="secondary" className="bg-success/10 text-success">
                 No platform fees will be applied
               </Badge>
             )}
           </div>
 
           {/* Binance Commission */}
-          <Card className="border-blue-200 bg-blue-50/30">
+          <Card className="border-info/20 bg-info/10/30">
             <CardContent className="pt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Label className="font-medium">Binance Commission</Label>
@@ -611,7 +611,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               />
               {binanceCommission > 0 && (
                 <div className="text-sm bg-background p-2 rounded border">
-                  <div className="flex justify-between text-orange-600">
+                  <div className="flex justify-between text-warning">
                     <span>Binance Commission:</span>
                     <span>-{binanceCommission.toFixed(4)} {item.asset}</span>
                   </div>
@@ -629,7 +629,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               <Label>Payment Method</Label>
               <Select value={formData.sales_payment_method_id} onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}>
                 <SelectTrigger><SelectValue placeholder="Select payment method" /></SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectContent className="bg-background border shadow-sm z-50">
                   {paymentMethods?.map((method: any) => {
                     const displayLabel = method.nickname
                       ? method.nickname

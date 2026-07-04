@@ -15,13 +15,13 @@ import { format } from "date-fns";
 import { Plus, AlertTriangle, Search, Gavel, Users } from "lucide-react";
 
 const ACTION_TYPES = [
-  { value: "verbal_warning", label: "Verbal Warning", color: "bg-yellow-100 text-yellow-800" },
-  { value: "written_warning", label: "Written Warning", color: "bg-orange-100 text-orange-800" },
-  { value: "suspension", label: "Suspension", color: "bg-red-100 text-red-800" },
-  { value: "demotion", label: "Demotion", color: "bg-purple-100 text-purple-800" },
-  { value: "termination", label: "Termination", color: "bg-red-200 text-red-900" },
-  { value: "probation", label: "Probation", color: "bg-blue-100 text-blue-800" },
-  { value: "counseling", label: "Counseling", color: "bg-green-100 text-green-800" },
+  { value: "verbal_warning", label: "Verbal Warning", color: "bg-warning/10 text-warning" },
+  { value: "written_warning", label: "Written Warning", color: "bg-warning/10 text-warning" },
+  { value: "suspension", label: "Suspension", color: "bg-destructive/10 text-destructive" },
+  { value: "demotion", label: "Demotion", color: "bg-primary/10 text-primary" },
+  { value: "termination", label: "Termination", color: "bg-destructive/20 text-destructive" },
+  { value: "probation", label: "Probation", color: "bg-info/10 text-info" },
+  { value: "counseling", label: "Counseling", color: "bg-success/10 text-success" },
 ];
 
 const UNIT_OPTIONS = ["days", "weeks", "months"];

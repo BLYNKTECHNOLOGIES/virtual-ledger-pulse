@@ -93,7 +93,7 @@ export function PaymentMethodSelectionDialog({
     <Card 
       key={method.id}
       className={`cursor-pointer transition-all ${
-        selectedPaymentMethod?.id === method.id ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
+        selectedPaymentMethod?.id === method.id ? 'ring-2 ring-info' : 'hover:shadow-md'
       }`}
       onClick={() => setSelectedPaymentMethod(method)}
     >
@@ -101,15 +101,15 @@ export function PaymentMethodSelectionDialog({
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
             {method.type === 'UPI' ? (
-              <CreditCard className="h-4 w-4 text-purple-600" />
+              <CreditCard className="h-4 w-4 text-primary" />
             ) : (
-              <Building className="h-4 w-4 text-blue-600" />
+              <Building className="h-4 w-4 text-info" />
             )}
             <span className="font-medium">
               {method.bank_accounts ? method.bank_accounts.account_name : method.type}
             </span>
           </div>
-          <Badge variant="outline" className="text-green-600">
+          <Badge variant="outline" className="text-success">
             Available: ₹{(method.payment_limit - method.current_usage).toLocaleString('en-IN')}
           </Badge>
         </div>
@@ -212,7 +212,7 @@ export function PaymentMethodSelectionDialog({
             <Button 
               onClick={handleUserPaying}
               disabled={!selectedPaymentMethod}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-info hover:bg-info"
             >
               <Clock className="h-4 w-4 mr-2" />
               User Paying
@@ -220,7 +220,7 @@ export function PaymentMethodSelectionDialog({
             <Button 
               onClick={handlePaymentDone}
               disabled={!selectedPaymentMethod}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-success hover:bg-success"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Payment Done

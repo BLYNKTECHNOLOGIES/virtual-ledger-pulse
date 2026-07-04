@@ -26,9 +26,9 @@ interface SizeRange {
 }
 
 const ORDER_TYPE_CONFIG: Record<string, { label: string; icon: typeof ArrowDownCircle; color: string }> = {
-  BUY: { label: "Buy", icon: ArrowDownCircle, color: "text-green-400" },
-  SELL: { label: "Sell", icon: ArrowUpCircle, color: "text-red-400" },
-  BOTH: { label: "Both", icon: ArrowLeftRight, color: "text-blue-400" },
+  BUY: { label: "Buy", icon: ArrowDownCircle, color: "text-success" },
+  SELL: { label: "Sell", icon: ArrowUpCircle, color: "text-destructive" },
+  BOTH: { label: "Both", icon: ArrowLeftRight, color: "text-info" },
 };
 
 export function TerminalSizeRanges() {

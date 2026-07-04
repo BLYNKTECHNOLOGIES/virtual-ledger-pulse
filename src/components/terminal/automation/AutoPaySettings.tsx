@@ -23,7 +23,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
   const getLogIcon = (status: string) => {
     if (status === "success") return <CheckCircle className="h-4 w-4 text-trade-buy" />;
     if (status === "failed") return <XCircle className="h-4 w-4 text-trade-sell" />;
-    if (status === "warning" || status === "unverified_success") return <AlertTriangle className="h-4 w-4 text-amber-400" />;
+    if (status === "warning" || status === "unverified_success") return <AlertTriangle className="h-4 w-4 text-warning" />;
     if (status === "pending") return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
     return <Timer className="h-4 w-4 text-muted-foreground" />;
   };
@@ -77,7 +77,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
 
   const getReleaseStatusClass = (status: string) => {
     if (status === "resolved") return "border-trade-buy/30 text-trade-buy bg-trade-buy/5";
-    if (status === "overdue" || status === "release_overdue" || status === "already_appeal" || status === "complaint_window_closing") return "border-amber-500/30 text-amber-500 bg-amber-500/5";
+    if (status === "overdue" || status === "release_overdue" || status === "already_appeal" || status === "complaint_window_closing") return "border-warning/30 text-warning bg-warning/5";
     if (status === "complaint_window_expired") return "border-destructive/30 text-destructive bg-destructive/5";
     if (status === "error" || status === "detail_unavailable") return "border-destructive/30 text-destructive bg-destructive/5";
     return "";
@@ -151,10 +151,10 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
           </div>
 
           {settings?.is_active && (
-            <div className="flex items-center gap-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+            <div className="flex items-center gap-3 p-3 bg-warning/5 border border-warning/20 rounded-lg">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
               <div className="flex-1 space-y-2">
-                <p className="text-xs text-amber-300">
+                <p className="text-xs text-warning">
                   Orders will be marked as paid when less than <strong>{currentMinutes} minutes</strong> remain before expiry.
                   This runs every 60 seconds via the automation engine.
                 </p>
@@ -190,7 +190,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
             </CardTitle>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">{awaitingReleaseCount} deadline pending</Badge>
-              {overdueReleaseCount > 0 && <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-500 bg-amber-500/5">{overdueReleaseCount} overdue</Badge>}
+              {overdueReleaseCount > 0 && <Badge variant="outline" className="text-xs border-warning/30 text-warning bg-warning/5">{overdueReleaseCount} overdue</Badge>}
             </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">Monitoring checks marked-paid orders from the last 48 hours and skips orders already resolved or in appeal.</p>
@@ -303,7 +303,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         {log.error_message ? (
-                          <p className={`text-xs truncate ${log.status === "warning" || log.status === "unverified_success" ? "text-amber-400" : "text-destructive"}`}>
+                          <p className={`text-xs truncate ${log.status === "warning" || log.status === "unverified_success" ? "text-warning" : "text-destructive"}`}>
                             {log.decision_reason ? `${log.decision_reason}: ` : ""}{log.error_message}
                           </p>
                         ) : (

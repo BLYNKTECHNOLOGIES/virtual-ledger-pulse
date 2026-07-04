@@ -85,13 +85,13 @@ export default function AttendancePunchesPage() {
         </Card>
         <Card className="flex-1 min-w-[100px]">
           <CardContent className="p-3 text-center">
-            <div className="text-xl font-bold text-green-600">{totalIn}</div>
+            <div className="text-xl font-bold text-success">{totalIn}</div>
             <div className="text-xs text-muted-foreground">Check-Ins</div>
           </CardContent>
         </Card>
         <Card className="flex-1 min-w-[100px]">
           <CardContent className="p-3 text-center">
-            <div className="text-xl font-bold text-orange-600">{totalOut}</div>
+            <div className="text-xl font-bold text-warning">{totalOut}</div>
             <div className="text-xs text-muted-foreground">Check-Outs</div>
           </CardContent>
         </Card>

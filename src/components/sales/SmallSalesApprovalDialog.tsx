@@ -538,23 +538,23 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
             const usdtEquivQty = qty * coinUsdtRate;
             const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
             return (
-              <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-xs font-semibold text-blue-900 dark:text-blue-400 mb-1.5 flex items-center gap-1">
+              <div className="p-2.5 bg-info/10 dark:bg-info/20 rounded-lg border border-info/20 dark:border-info">
+                <p className="text-xs font-semibold text-info dark:text-info mb-1.5 flex items-center gap-1">
                   <Coins className="h-3.5 w-3.5" />
                   USDT Equivalent (Live)
                 </p>
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <span className="text-blue-700 dark:text-blue-500">{assetCode}/USDT</span>
-                    <p className="font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(coinUsdtRate, 6)}</p>
+                    <span className="text-info dark:text-info">{assetCode}/USDT</span>
+                    <p className="font-medium text-info dark:text-info">{formatSmartDecimal(coinUsdtRate, 6)}</p>
                   </div>
                   <div>
-                    <span className="text-blue-700 dark:text-blue-500">USDT Qty</span>
-                    <p className="font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(usdtEquivQty, 4)}</p>
+                    <span className="text-info dark:text-info">USDT Qty</span>
+                    <p className="font-medium text-info dark:text-info">{formatSmartDecimal(usdtEquivQty, 4)}</p>
                   </div>
                   <div>
-                    <span className="text-blue-700 dark:text-blue-500">USDT Rate</span>
-                    <p className="font-medium text-blue-900 dark:text-blue-300">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
+                    <span className="text-info dark:text-info">USDT Rate</span>
+                    <p className="font-medium text-info dark:text-info">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
                   </div>
                 </div>
               </div>
@@ -617,7 +617,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
                   <div className="flex items-center gap-2">
                     <Label className="font-medium text-sm">Payment Distribution</Label>
                     {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                     ) : (
                       <AlertCircle className="h-4 w-4 text-destructive" />
                     )}
@@ -639,7 +639,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
                   </div>
                   <div className="text-center">
                     <div className="text-muted-foreground text-[10px] mb-1">Remaining</div>
-                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? 'text-green-600' : 'text-destructive'}`}>
+                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? 'text-success' : 'text-destructive'}`}>
                       ₹{splitAllocation.remaining.toFixed(2)}
                     </div>
                   </div>
@@ -672,7 +672,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
                           <SelectTrigger className="h-9 text-sm">
                             <SelectValue placeholder="Select payment method" />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                             {paymentMethods?.map((method: any) => (
                               <SelectItem key={method.id} value={method.id}>
                                 {method.nickname || method.type} {method.payment_gateway ? '(Gateway)' : ''}

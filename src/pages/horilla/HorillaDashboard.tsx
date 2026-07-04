@@ -157,14 +157,14 @@ export default function HorillaDashboard() {
   ].filter(d => d.value > 0);
 
   const stats = [
-    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-violet-100", iconColor: "text-violet-600" },
-    { label: "Active Employees", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-    { label: "Open Positions", value: activeRecruitments, sub: `${totalVacancies} vacancies`, icon: Briefcase, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
-    { label: "Candidates", value: totalCandidates, sub: `${hiredCandidates} hired`, icon: UserPlus, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Active Employees", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
+    { label: "Open Positions", value: activeRecruitments, sub: `${totalVacancies} vacancies`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
+    { label: "Candidates", value: totalCandidates, sub: `${hiredCandidates} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-teal-100", iconColor: "text-teal-600" },
-    { label: "Pending Leaves", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-orange-100", iconColor: "text-orange-600" },
+    { label: "Pending Leaves", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Onboarding", value: onboardingCount, sub: "candidates in pipeline", icon: Rocket, iconBg: "bg-[#E8604C]/10", iconColor: "text-[#E8604C]" },
-    { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+    { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
   ];
 
   return (
@@ -196,7 +196,7 @@ export default function HorillaDashboard() {
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <AlertTriangle className="h-4 w-4 text-amber-500" /> Pending Leave Requests
+              <AlertTriangle className="h-4 w-4 text-warning" /> Pending Leave Requests
             </h3>
             <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/leave/requests")}>
               View All <ArrowRight className="h-3 w-3" />
@@ -207,7 +207,7 @@ export default function HorillaDashboard() {
           ) : (
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {pendingLeaves.slice(0, 5).map((lr: any) => (
-                <div key={lr.id} className="flex items-center justify-between py-2 px-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div key={lr.id} className="flex items-center justify-between py-2 px-3 bg-warning/10 dark:bg-warning/30 rounded-lg border border-warning/20 dark:border-warning">
                   <div>
                     <p className="text-xs font-medium text-foreground">
                       {lr.hr_employees?.first_name} {lr.hr_employees?.last_name}
@@ -229,7 +229,7 @@ export default function HorillaDashboard() {
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <XCircle className="h-4 w-4 text-red-500" /> Today's Absentees
+              <XCircle className="h-4 w-4 text-destructive" /> Today's Absentees
             </h3>
             <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/attendance")}>
               View All <ArrowRight className="h-3 w-3" />
@@ -240,7 +240,7 @@ export default function HorillaDashboard() {
           ) : (
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
               {todayAbsentees.slice(0, 8).map((emp: any) => (
-                <div key={emp.id} className="flex items-center justify-between py-1.5 px-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
+                <div key={emp.id} className="flex items-center justify-between py-1.5 px-3 bg-destructive/10 dark:bg-destructive/30 rounded-lg">
                   <p className="text-xs font-medium text-foreground">
                     {emp.first_name} {emp.last_name}
                     <span className="text-muted-foreground ml-1">({emp.badge_id})</span>
@@ -258,7 +258,7 @@ export default function HorillaDashboard() {
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <Wallet className="h-4 w-4 text-purple-500" /> Payroll Actions
+              <Wallet className="h-4 w-4 text-primary" /> Payroll Actions
             </h3>
             <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/payroll")}>
               Go to Payroll <ArrowRight className="h-3 w-3" />
@@ -267,7 +267,7 @@ export default function HorillaDashboard() {
           <div className="space-y-2">
             {draftPayrolls.length > 0 ? (
               draftPayrolls.slice(0, 3).map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between py-2 px-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                <div key={r.id} className="flex items-center justify-between py-2 px-3 bg-primary/10 dark:bg-primary/30 rounded-lg border border-primary/20 dark:border-primary">
                   <div>
                     <p className="text-xs font-medium text-foreground">{r.title}</p>
                     <p className="text-[10px] text-muted-foreground">{r.employee_count || 0} employees · draft</p>
@@ -372,9 +372,9 @@ export default function HorillaDashboard() {
           <h3 className="text-sm font-semibold text-foreground mb-3">Leave Summary</h3>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Pending", value: pendingLeaves.length, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
-              { label: "Approved", value: approvedLeaves, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
-              { label: "Rejected", value: (leaveRequests || []).filter((l: any) => l.status === "rejected").length, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
+              { label: "Pending", value: pendingLeaves.length, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
+              { label: "Approved", value: approvedLeaves, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+              { label: "Rejected", value: (leaveRequests || []).filter((l: any) => l.status === "rejected").length, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
             ].map(s => (
               <div key={s.label} className={`${s.bg} rounded-lg p-3 text-center`}>
                 <s.icon className={`h-5 w-5 ${s.color} mx-auto mb-1`} />
@@ -400,8 +400,8 @@ export default function HorillaDashboard() {
                   <div className="text-right">
                     <p className="text-sm font-semibold text-foreground">₹{(r.total_net || 0).toLocaleString('en-IN')}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                      r.status === "completed" ? "bg-green-100 text-green-700" :
-                      r.status === "processing" ? "bg-blue-100 text-blue-700" :
+                      r.status === "completed" ? "bg-success/10 text-success" :
+                      r.status === "processing" ? "bg-info/10 text-info" :
                       "bg-muted text-muted-foreground"
                     }`}>{r.status}</span>
                   </div>

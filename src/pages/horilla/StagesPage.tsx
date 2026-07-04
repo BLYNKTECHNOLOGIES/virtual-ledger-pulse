@@ -167,12 +167,12 @@ export default function StagesPage() {
   });
 
   const STAGE_TYPES: Record<string, { label: string; color: string }> = {
-    initial: { label: "Initial", color: "bg-blue-100 text-blue-700" },
-    test: { label: "Test", color: "bg-amber-100 text-amber-700" },
-    interview: { label: "Interview", color: "bg-violet-100 text-violet-700" },
-    offer: { label: "Offer", color: "bg-emerald-100 text-emerald-700" },
-    hired: { label: "Hired", color: "bg-green-100 text-green-700" },
-    cancelled: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+    initial: { label: "Initial", color: "bg-info/10 text-info" },
+    test: { label: "Test", color: "bg-warning/10 text-warning" },
+    interview: { label: "Interview", color: "bg-primary/10 text-primary" },
+    offer: { label: "Offer", color: "bg-success/10 text-success" },
+    hired: { label: "Hired", color: "bg-success/10 text-success" },
+    cancelled: { label: "Cancelled", color: "bg-destructive/10 text-destructive" },
     other: { label: "Other", color: "bg-muted text-foreground" },
   };
 
@@ -187,7 +187,7 @@ export default function StagesPage() {
         </div>
         <button
           onClick={() => { closeDialog(); setCreateOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" /> Add Stage
         </button>
@@ -223,14 +223,14 @@ export default function StagesPage() {
                   <span className="text-xs text-muted-foreground font-normal">({recStages.length} stages)</span>
                 </h3>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-muted">
                 {recStages.map((stage: any, i: number) => {
                   const typeInfo = STAGE_TYPES[stage.stage_type] || STAGE_TYPES.initial;
                   const count = getCountForStage(stage.id);
                     return (
                       <div key={stage.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-4">
-                          <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
+                          <GripVertical className="h-4 w-4 text-muted shrink-0" />
                           <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
                             {i + 1}
                           </div>
@@ -244,7 +244,7 @@ export default function StagesPage() {
                             {count} candidate{count !== 1 ? "s" : ""}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => setManagerDialogStageId(stage.id)} className="p-1 rounded hover:bg-blue-50 text-muted-foreground hover:text-blue-600" title="Manage stage managers">
+                            <button onClick={() => setManagerDialogStageId(stage.id)} className="p-1 rounded hover:bg-info/10 text-muted-foreground hover:text-info" title="Manage stage managers">
                               <UserPlus className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => openEdit(stage)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
@@ -252,7 +252,7 @@ export default function StagesPage() {
                             </button>
                             <button
                               onClick={() => setDeleteTarget({ id: stage.id, name: stage.stage_name })}
-                              className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500"
+                              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -263,9 +263,9 @@ export default function StagesPage() {
                           <div className="flex items-center gap-2 mt-1.5 ml-14 flex-wrap">
                             <Users className="h-3 w-3 text-muted-foreground" />
                             {getManagersForStage(stage.id).map((m: any) => (
-                              <span key={m.id} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 flex items-center gap-1">
+                              <span key={m.id} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
                                 {m.hr_employees?.first_name} {m.hr_employees?.last_name}
-                                <button onClick={() => removeManagerMutation.mutate(m.id)} className="hover:text-red-500">
+                                <button onClick={() => removeManagerMutation.mutate(m.id)} className="hover:text-destructive">
                                   <X className="h-2.5 w-2.5" />
                                 </button>
                               </span>
@@ -284,7 +284,7 @@ export default function StagesPage() {
       {/* Create/Edit Dialog */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">{editStage ? "Edit" : "Add"} Stage</h2>
               <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -319,7 +319,7 @@ export default function StagesPage() {
               <button
                 onClick={() => saveMutation.mutate()}
                 disabled={!form.stage_name || (!editStage && !form.recruitment_id)}
-                className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
               >
                 {editStage ? "Update" : "Create"}
               </button>
@@ -331,7 +331,7 @@ export default function StagesPage() {
       {/* Stage Manager Assignment Dialog */}
       {managerDialogStageId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Assign Stage Manager</h2>
               <button onClick={() => setManagerDialogStageId(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -356,7 +356,7 @@ export default function StagesPage() {
                     {getManagersForStage(managerDialogStageId).map((m: any) => (
                       <div key={m.id} className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
                         <span className="text-sm text-foreground">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
-                        <button onClick={() => removeManagerMutation.mutate(m.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                        <button onClick={() => removeManagerMutation.mutate(m.id)} className="text-xs text-destructive hover:underline">Remove</button>
                       </div>
                     ))}
                   </div>
@@ -368,7 +368,7 @@ export default function StagesPage() {
               <button
                 onClick={() => addManagerMutation.mutate()}
                 disabled={!selectedManagerId}
-                className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
               >
                 Assign
               </button>

@@ -722,12 +722,12 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             <h3 className="text-lg font-semibold">Step 1: Choose Order Type</h3>
             <div className="grid grid-cols-1 gap-4">
               <Card 
-                className={`cursor-pointer transition-all ${orderType === 'repeat' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+                className={`cursor-pointer transition-all ${orderType === 'repeat' ? 'ring-2 ring-info' : 'hover:shadow-md'}`}
                 onClick={() => handleOrderTypeSelection('repeat')}
               >
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <RefreshCw className="h-5 w-5 text-green-600" />
+                    <RefreshCw className="h-5 w-5 text-success" />
                     Repeat Order ✅
                   </CardTitle>
                 </CardHeader>
@@ -808,8 +808,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                      </SelectContent>
                    </Select>
                  </div>
-                <div className="p-3 bg-yellow-50 rounded-lg">
-                  <p className="text-sm text-yellow-800">
+                <div className="p-3 bg-warning/10 rounded-lg">
+                  <p className="text-sm text-warning">
                     <strong>Note:</strong> New clients automatically get HIGH risk appetite by default
                   </p>
                 </div>
@@ -872,7 +872,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 </Select>
               </div>
 
-              <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="p-4 bg-info/10 rounded-lg">
                 <h4 className="font-medium mb-2">Client Risk Information</h4>
                 <div className="text-sm space-y-1">
                   <div><strong>Client Risk Level:</strong> {selectedClient?.risk_appetite || newClientData.risk_appetite}</div>
@@ -897,10 +897,10 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             <h3 className="text-lg font-semibold">Step 4: Payment Method Details</h3>
             
             {selectedPaymentMethod ? (
-              <div className="p-4 bg-green-50 rounded-lg border">
+              <div className="p-4 bg-success/10 rounded-lg border">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-green-800">🔁 Selected Payment Method</h4>
-                  <Badge className="bg-green-100 text-green-800">
+                  <h4 className="font-medium text-success">🔁 Selected Payment Method</h4>
+                  <Badge className="bg-success/10 text-success">
                     {selectedPaymentMethod.type}
                   </Badge>
                 </div>
@@ -995,8 +995,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 </div>
               </div>
             ) : (
-              <div className="p-4 bg-red-50 rounded-lg">
-                <p className="text-sm text-red-800">
+              <div className="p-4 bg-destructive/10 rounded-lg">
+                <p className="text-sm text-destructive">
                   {availablePaymentMethods.length === 0 
                     ? `No payment methods available for ${paymentType} with ${selectedClient?.risk_appetite || newClientData.risk_appetite} risk level. Please contact administrator to add payment methods.`
                     : "All available payment methods have been provided. No available methods left. Contact your admin."
@@ -1020,8 +1020,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Change Payment Method</h3>
             
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800 mb-4">
+            <div className="p-4 bg-info/10 rounded-lg">
+              <p className="text-sm text-info mb-4">
                 Would you like to change the payment method type (UPI/Bank Transfer) or keep the same type but get an alternative method?
               </p>
               
@@ -1077,7 +1077,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
               <Button 
                 onClick={handleUserPaying}
-                className="w-full flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                className="w-full flex items-center gap-2 bg-info hover:bg-info"
               >
                 <Clock className="h-4 w-4" />
                 🔵 User Paying

@@ -133,7 +133,7 @@ export default function SalaryStructureAssignments() {
                         <p className="font-semibold text-foreground">{emp.first_name} {emp.last_name}</p>
                         <p className="text-xs text-muted-foreground">
                           {emp.badge_id}
-                          {tmplName && <span className="ml-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs">{tmplName}</span>}
+                          {tmplName && <span className="ml-2 bg-info/10 text-info px-2 py-0.5 rounded-full text-xs">{tmplName}</span>}
                         </p>
                       </div>
                     </div>
@@ -142,8 +142,8 @@ export default function SalaryStructureAssignments() {
                         <p className="text-muted-foreground">Total Salary: <span className="font-medium text-foreground">₹{(Number(emp.total_salary) || 0).toLocaleString('en-IN')}</span></p>
                         {breakdown && (
                           <>
-                            <p className="text-green-700">Earnings: ₹{breakdown.totalEarnings.toLocaleString('en-IN')}</p>
-                            <p className="text-red-600">Deductions: ₹{breakdown.totalDeductions.toLocaleString('en-IN')}</p>
+                            <p className="text-success">Earnings: ₹{breakdown.totalEarnings.toLocaleString('en-IN')}</p>
+                            <p className="text-destructive">Deductions: ₹{breakdown.totalDeductions.toLocaleString('en-IN')}</p>
                             <p className="font-bold text-foreground">Net: ₹{breakdown.net.toLocaleString('en-IN')}</p>
                           </>
                         )}
@@ -157,14 +157,14 @@ export default function SalaryStructureAssignments() {
                   {breakdown && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-3">
                       <div>
-                        <p className="text-xs font-semibold text-green-700 mb-1.5">EARNINGS</p>
+                        <p className="text-xs font-semibold text-success mb-1.5">EARNINGS</p>
                         <div className="space-y-1">
                           {breakdown.earnings.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                           {breakdown.earnings.map((e, i) => (
-                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${e.isVariable ? 'bg-amber-50/50' : 'bg-green-50'}`}>
+                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${e.isVariable ? 'bg-warning/10/50' : 'bg-success/10'}`}>
                               <span>
                                 {e.name} <span className="text-xs text-muted-foreground">({e.code})</span>
-                                {e.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                                {e.isVariable && <span className="ml-1.5 text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full">Variable</span>}
                               </span>
                               <span className="font-medium">{e.isVariable ? '—' : `₹${e.amount.toLocaleString('en-IN')}`}</span>
                             </div>
@@ -172,14 +172,14 @@ export default function SalaryStructureAssignments() {
                         </div>
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-red-600 mb-1.5">DEDUCTIONS</p>
+                        <p className="text-xs font-semibold text-destructive mb-1.5">DEDUCTIONS</p>
                         <div className="space-y-1">
                           {breakdown.deductions.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                           {breakdown.deductions.map((d, i) => (
-                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${d.isVariable ? 'bg-amber-50/50' : 'bg-red-50'}`}>
+                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${d.isVariable ? 'bg-warning/10/50' : 'bg-destructive/10'}`}>
                               <span>
                                 {d.name} <span className="text-xs text-muted-foreground">({d.code})</span>
-                                {d.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                                {d.isVariable && <span className="ml-1.5 text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full">Variable</span>}
                               </span>
                               <span className="font-medium">{d.isVariable ? '—' : `₹${d.amount.toLocaleString('en-IN')}`}</span>
                             </div>
@@ -258,7 +258,7 @@ export default function SalaryStructureAssignments() {
                       }
                       const typeLabel = i.calculation_type === "percentage" ? `${Number(i.value)}%` : i.calculation_type === "formula" ? "Formula" : "Fixed";
                       return (
-                        <div key={idx} className={`flex justify-between px-2 py-1 rounded ${comp.component_type === "deduction" ? "text-red-700" : "text-green-700"}`}>
+                        <div key={idx} className={`flex justify-between px-2 py-1 rounded ${comp.component_type === "deduction" ? "text-destructive" : "text-success"}`}>
                           <span>{comp.name} ({typeLabel})</span>
                           <span className="font-medium">{comp.component_type === "deduction" ? "−" : "+"}₹{amount.toLocaleString('en-IN')}</span>
                         </div>

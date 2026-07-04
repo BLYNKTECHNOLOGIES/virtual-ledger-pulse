@@ -311,7 +311,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
             <p className="font-mono text-sm font-medium">{order.order_number}</p>
             <p className="font-semibold text-lg">{order.supplier_name}</p>
           </div>
-          <Badge className="bg-green-100 text-green-800">Completed</Badge>
+          <Badge className="bg-success/10 text-success">Completed</Badge>
         </div>
         
         <div className="grid grid-cols-2 gap-2 text-sm mb-3">
@@ -351,7 +351,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
             variant="ghost" 
             size="sm"
             onClick={() => setSelectedOrderForDetails(order)}
-            className="text-blue-600 flex-1"
+            className="text-info flex-1"
           >
             <Eye className="h-4 w-4 mr-1" />
             View
@@ -360,7 +360,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
             variant="ghost"
             size="sm"
             onClick={() => setSelectedOrderForEdit(order)}
-            className="text-green-600 flex-1"
+            className="text-success flex-1"
           >
             <Edit className="h-4 w-4 mr-1" />
             Edit
@@ -371,7 +371,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
               size="sm"
               onClick={() => setOrderToDelete(order)}
               disabled={deleteMutation.isPending}
-              className="text-red-600"
+              className="text-destructive"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -386,7 +386,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
       <Card>
         <CardHeader className="p-4 md:p-6">
           <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-            <CheckCircle className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-success" />
             Completed Purchase Orders
           </CardTitle>
         </CardHeader>
@@ -425,7 +425,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                         <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                         <TableCell>
                           <div
-                            className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            className="font-medium text-info hover:text-info hover:underline cursor-pointer"
                             onClick={() => navigateToClient(order.supplier_name)}
                           >
                             {order.supplier_name}
@@ -445,7 +445,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                           ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString('en-IN') || Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell>
-                          <Badge className="bg-green-100 text-green-800">Completed</Badge>
+                          <Badge className="bg-success/10 text-success">Completed</Badge>
                         </TableCell>
                         <TableCell>
                           {(order as any).created_by_user ? (
@@ -468,7 +468,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                               variant="ghost" 
                               size="sm"
                               onClick={() => setSelectedOrderForDetails(order)}
-                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                              className="text-info hover:text-info hover:bg-info/10"
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               View
@@ -477,7 +477,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                               variant="ghost" 
                               size="sm"
                               onClick={() => setSelectedOrderForEdit(order)}
-                              className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                              className="text-success hover:text-success hover:bg-success/10"
                             >
                               <Edit className="h-4 w-4 mr-1" />
                               Edit

@@ -29,9 +29,9 @@ export function OfferDocumentsTable() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ACCEPTED': return 'bg-green-100 text-green-800';
-      case 'REJECTED': return 'bg-red-100 text-red-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'ACCEPTED': return 'bg-success/10 text-success';
+      case 'REJECTED': return 'bg-destructive/10 text-destructive';
+      case 'PENDING': return 'bg-warning/10 text-warning';
       default: return 'bg-muted text-foreground';
     }
   };

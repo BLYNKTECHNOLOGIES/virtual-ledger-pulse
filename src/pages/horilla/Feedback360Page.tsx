@@ -37,10 +37,10 @@ interface Employee {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  self: "bg-purple-100 text-purple-700",
-  peer: "bg-blue-100 text-blue-700",
-  manager: "bg-amber-100 text-amber-700",
-  subordinate: "bg-emerald-100 text-emerald-700",
+  self: "bg-primary/10 text-primary",
+  peer: "bg-info/10 text-info",
+  manager: "bg-warning/10 text-warning",
+  subordinate: "bg-success/10 text-success",
 };
 
 const emptyForm = {
@@ -117,7 +117,7 @@ export default function Feedback360Page() {
     return (
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((s) => (
-          <Star key={s} className={`h-3.5 w-3.5 ${s <= rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+          <Star key={s} className={`h-3.5 w-3.5 ${s <= rating ? "text-warning fill-warning" : "text-muted"}`} />
         ))}
       </div>
     );
@@ -132,7 +132,7 @@ export default function Feedback360Page() {
           <h1 className="text-2xl font-bold text-foreground">360° Feedback</h1>
           <p className="text-muted-foreground text-sm">Multi-directional performance feedback</p>
         </div>
-        <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>
+        <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" /> New Feedback
         </Button>
       </div>
@@ -167,12 +167,12 @@ export default function Feedback360Page() {
                     <p className="text-xs text-muted-foreground">{fb.review_cycle}</p>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(fb.id)}>
-                    <Trash2 className="h-4 w-4 text-red-400" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className={TYPE_COLORS[fb.feedback_type]}>{fb.feedback_type}</Badge>
-                  <Badge variant="outline" className={fb.status === "submitted" ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}>
+                  <Badge variant="outline" className={fb.status === "submitted" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
                     {fb.status}
                   </Badge>
                 </div>
@@ -214,7 +214,7 @@ export default function Feedback360Page() {
             <div><Label>Strengths</Label><Textarea value={form.strengths} onChange={(e) => setForm({ ...form, strengths: e.target.value })} rows={2} /></div>
             <div><Label>Areas for Improvement</Label><Textarea value={form.improvements} onChange={(e) => setForm({ ...form, improvements: e.target.value })} rows={2} /></div>
             <div><Label>Comments</Label><Textarea value={form.comments} onChange={(e) => setForm({ ...form, comments: e.target.value })} rows={2} /></div>
-            <Button className="w-full bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={handleCreate}>Submit Feedback</Button>
+            <Button className="w-full bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={handleCreate}>Submit Feedback</Button>
           </div>
         </DialogContent>
       </Dialog>

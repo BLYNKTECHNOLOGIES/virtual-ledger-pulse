@@ -106,10 +106,10 @@ function getRoleType(roleName: string): 'payer' | 'operator' | 'admin' | 'hybrid
 
 function getRoleBadgeClass(roleName: string) {
   const name = roleName.toLowerCase();
-  if (name.includes('super')) return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-  if (name.includes('admin') || name.includes('coo')) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+  if (name.includes('super')) return 'bg-warning/20 text-warning border-warning/30';
+  if (name.includes('admin') || name.includes('coo')) return 'bg-info/20 text-info border-info/30';
   if (name.includes('payer') && name.includes('operator')) return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
-  if (name.includes('payer')) return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+  if (name.includes('payer')) return 'bg-primary/20 text-primary border-primary/30';
   return 'bg-primary/20 text-primary border-primary/30';
 }
 
@@ -121,9 +121,9 @@ function formatDuration(minutes: number | null): string {
 }
 
 function getScoreColor(score: number) {
-  if (score >= 80) return 'text-green-500';
-  if (score >= 60) return 'text-amber-500';
-  if (score >= 40) return 'text-orange-500';
+  if (score >= 80) return 'text-success';
+  if (score >= 60) return 'text-warning';
+  if (score >= 40) return 'text-warning';
   return 'text-destructive';
 }
 
@@ -489,11 +489,11 @@ function TerminalOperatorDetailContent() {
 
       // Action details
       const actionDetailsList: ActionDetail[] = [
-        { action_type: 'marked_paid', count: paymentsMade, label: 'Payments Made', icon: CreditCard, color: 'text-purple-400' },
-        { action_type: 'release', count: releasesPerformed, label: 'Coin Releases', icon: Unlock, color: 'text-emerald-400' },
-        { action_type: 'chat', count: chatMessages, label: 'Chat Messages', icon: MessageSquare, color: 'text-amber-400' },
+        { action_type: 'marked_paid', count: paymentsMade, label: 'Payments Made', icon: CreditCard, color: 'text-primary' },
+        { action_type: 'release', count: releasesPerformed, label: 'Coin Releases', icon: Unlock, color: 'text-success' },
+        { action_type: 'chat', count: chatMessages, label: 'Chat Messages', icon: MessageSquare, color: 'text-warning' },
         { action_type: 'escalation', count: escalations, label: 'Escalations', icon: AlertTriangle, color: 'text-destructive' },
-        { action_type: 'approval', count: approvalActions, label: 'Approvals/Rejections', icon: Shield, color: 'text-blue-400' },
+        { action_type: 'approval', count: approvalActions, label: 'Approvals/Rejections', icon: Shield, color: 'text-info' },
       ];
 
       const actionTypeCounts = new Map<string, number>();
@@ -731,7 +731,7 @@ function TerminalOperatorDetailContent() {
                 <Badge variant="outline" className="text-[9px] capitalize">{profile.specialization}</Badge>
               )}
               <div className="flex items-center gap-1">
-                <div className={`h-1.5 w-1.5 rounded-full ${profile?.is_active !== false ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                <div className={`h-1.5 w-1.5 rounded-full ${profile?.is_active !== false ? 'bg-success' : 'bg-muted-foreground'}`} />
                 <span className="text-[9px] text-muted-foreground">{profile?.is_active !== false ? 'Online' : 'Offline'}</span>
               </div>
             </div>
@@ -744,7 +744,7 @@ function TerminalOperatorDetailContent() {
             <span className={`text-xl font-bold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}</span>
           </div>
           {m.activeLoad > 0 && (
-            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">{m.activeLoad} active</Badge>
+            <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px]">{m.activeLoad} active</Badge>
           )}
           <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={fetchData}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
@@ -771,11 +771,11 @@ function TerminalOperatorDetailContent() {
           {isPayer && (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
-                <StatMini icon={CreditCard} label="Payments Made" value={m.paymentsMade} color="text-purple-500" />
-                <StatMini icon={Banknote} label="Payment Volume" value={fmtVol(m.payerPaymentVolume || m.totalVolume)} color="text-green-500" />
-                <StatMini icon={Lock} label="Locks Completed" value={`${m.payerLocksCompleted}/${m.payerLocksTotal}`} color="text-cyan-500" />
-                <StatMini icon={Timer} label="Avg Lock→Pay" value={formatDuration(m.payerAvgLockToPayMin)} color="text-blue-500" />
-                <StatMini icon={Activity} label={liveEligibleOrders.length > 0 ? 'Eligible Orders' : 'Active Locks'} value={liveEligibleOrders.length > 0 ? liveEligibleOrders.length : m.payerLocksActive} color="text-amber-500" />
+                <StatMini icon={CreditCard} label="Payments Made" value={m.paymentsMade} color="text-primary" />
+                <StatMini icon={Banknote} label="Payment Volume" value={fmtVol(m.payerPaymentVolume || m.totalVolume)} color="text-success" />
+                <StatMini icon={Lock} label="Locks Completed" value={`${m.payerLocksCompleted}/${m.payerLocksTotal}`} color="text-info" />
+                <StatMini icon={Timer} label="Avg Lock→Pay" value={formatDuration(m.payerAvgLockToPayMin)} color="text-info" />
+                <StatMini icon={Activity} label={liveEligibleOrders.length > 0 ? 'Eligible Orders' : 'Active Locks'} value={liveEligibleOrders.length > 0 ? liveEligibleOrders.length : m.payerLocksActive} color="text-warning" />
               </div>
 
               {/* Payer timing cards */}
@@ -792,10 +792,10 @@ function TerminalOperatorDetailContent() {
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
                 <StatMini icon={Package} label="Total Handled" value={m.ordersHandled} color="text-primary" />
-                <StatMini icon={CheckCircle} label="Completed" value={m.ordersCompleted} color="text-green-500" />
+                <StatMini icon={CheckCircle} label="Completed" value={m.ordersCompleted} color="text-success" />
                 <StatMini icon={XCircle} label="Cancelled" value={m.ordersCancelled} color="text-destructive" />
-                <StatMini icon={TrendingUp} label="Total Volume" value={fmtVol(m.totalVolume)} color="text-emerald-500" />
-                <StatMini icon={Activity} label="Active Now" value={m.activeLoad} color="text-amber-500" />
+                <StatMini icon={TrendingUp} label="Total Volume" value={fmtVol(m.totalVolume)} color="text-success" />
+                <StatMini icon={Activity} label="Active Now" value={m.activeLoad} color="text-warning" />
               </div>
 
               {/* Operator timing cards */}
@@ -824,7 +824,7 @@ function TerminalOperatorDetailContent() {
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Payments</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-green-500">{m.todayCompleted}</div>
+                        <div className="text-base sm:text-lg font-bold text-success">{m.todayCompleted}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
@@ -839,7 +839,7 @@ function TerminalOperatorDetailContent() {
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Handled</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-green-500">{m.todayCompleted}</div>
+                        <div className="text-base sm:text-lg font-bold text-success">{m.todayCompleted}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
@@ -851,7 +851,7 @@ function TerminalOperatorDetailContent() {
                 </div>
                 {m.peakHour != null && (
                   <div className="mt-2 flex items-center gap-2 text-[9px] text-muted-foreground bg-muted/20 rounded p-1.5">
-                    <Zap className="h-3 w-3 text-amber-500 shrink-0" />
+                    <Zap className="h-3 w-3 text-warning shrink-0" />
                     <span>Peak: <strong className="text-foreground">{m.peakHour}:00</strong> ({m.peakHourOrders} orders)</span>
                   </div>
                 )}
@@ -866,14 +866,14 @@ function TerminalOperatorDetailContent() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div className="flex items-center gap-2">
-                      <ArrowDownRight className="h-3 w-3 text-green-500" />
+                      <ArrowDownRight className="h-3 w-3 text-success" />
                       <span className="text-[10px] text-muted-foreground">Buy Volume</span>
                     </div>
                     <span className="text-xs font-bold text-foreground">{fmtVol(m.buyVolume)}</span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div className="flex items-center gap-2">
-                      <ArrowUpRight className="h-3 w-3 text-amber-500" />
+                      <ArrowUpRight className="h-3 w-3 text-warning" />
                       <span className="text-[10px] text-muted-foreground">Sell Volume</span>
                     </div>
                     <span className="text-xs font-bold text-foreground">{fmtVol(m.sellVolume)}</span>
@@ -897,9 +897,9 @@ function TerminalOperatorDetailContent() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] sm:text-xs">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <Lock className="h-3 w-3 text-cyan-500" /> Lock Success Rate
+                      <Lock className="h-3 w-3 text-info" /> Lock Success Rate
                     </span>
-                    <span className="font-semibold text-cyan-500">
+                    <span className="font-semibold text-info">
                       {m.payerLocksTotal > 0 ? Math.round((m.payerLocksCompleted / m.payerLocksTotal) * 100) : 0}%
                     </span>
                   </div>
@@ -908,9 +908,9 @@ function TerminalOperatorDetailContent() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] sm:text-xs">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-green-500" /> Order Completion Rate
+                      <CheckCircle className="h-3 w-3 text-success" /> Order Completion Rate
                     </span>
-                    <span className="font-semibold text-green-500">{m.completionRate}%</span>
+                    <span className="font-semibold text-success">{m.completionRate}%</span>
                   </div>
                   <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
                 </div>
@@ -920,9 +920,9 @@ function TerminalOperatorDetailContent() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] sm:text-xs">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-green-500" /> Completion Rate
+                      <CheckCircle className="h-3 w-3 text-success" /> Completion Rate
                     </span>
-                    <span className="font-semibold text-green-500">{m.completionRate}%</span>
+                    <span className="font-semibold text-success">{m.completionRate}%</span>
                   </div>
                   <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
                 </div>
@@ -1017,8 +1017,8 @@ function TerminalOperatorDetailContent() {
             <Card className="border-border bg-card border-l-2 border-l-amber-500">
               <CardContent className="p-3 sm:p-4">
                 <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5 text-amber-500" /> Current Eligible Orders
-                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] ml-1">{liveEligibleOrders.length}</Badge>
+                  <Activity className="h-3.5 w-3.5 text-warning" /> Current Eligible Orders
+                  <Badge className="bg-warning/20 text-warning border-warning/30 text-[9px] ml-1">{liveEligibleOrders.length}</Badge>
                 </h4>
                 <div className="overflow-x-auto -mx-1">
                   <table className="w-full text-[10px] sm:text-[11px]">
@@ -1035,9 +1035,9 @@ function TerminalOperatorDetailContent() {
                     </thead>
                     <tbody>
                       {liveEligibleOrders.slice(0, 20).map((order: any, i: number) => {
-                        const statusColor = order.order_status === 'BUYER_PAYED' ? 'text-blue-400 border-blue-400/30' 
+                        const statusColor = order.order_status === 'BUYER_PAYED' ? 'text-info border-info/30' 
                           : order.order_status === 'APPEAL' ? 'text-destructive border-destructive/30' 
-                          : 'text-amber-400 border-amber-400/30';
+                          : 'text-warning border-warning/30';
                         return (
                           <tr key={order.order_number || i} className="border-b border-border/50 hover:bg-muted/20">
                             <td className="py-1 px-1.5 font-mono text-[9px]">...{order.order_number?.slice(-8)}</td>
@@ -1074,7 +1074,7 @@ function TerminalOperatorDetailContent() {
             <Card className="border-border bg-card border-l-2 border-l-blue-500">
               <CardContent className="p-3 sm:p-4">
                 <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5 text-blue-500" /> Assignment Scope
+                  <Shield className="h-3.5 w-3.5 text-info" /> Assignment Scope
                 </h4>
                 <p className="text-[10px] text-muted-foreground mb-2">
                   This payer has active assignments but hasn't processed any orders yet. Performance metrics will populate once they start handling orders.
@@ -1084,7 +1084,7 @@ function TerminalOperatorDetailContent() {
                     const rangeName = a.size_range_id ? sizeRangeNames.get(a.size_range_id) : a.ad_id;
                     const rangeDetail = a.size_range_id ? sizeRangeDetails.get(a.size_range_id) : null;
                     return (
-                      <Badge key={a.id} variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400">
+                      <Badge key={a.id} variant="outline" className="text-[9px] gap-1 border-info/30 text-info">
                         {a.assignment_type === 'size_range' ? '📏' : '📢'} {rangeName || a.id.slice(0, 8)}
                         {rangeDetail && ` (₹${rangeDetail.min_amount?.toLocaleString('en-IN')}–₹${rangeDetail.max_amount?.toLocaleString('en-IN')})`}
                       </Badge>
@@ -1106,28 +1106,28 @@ function TerminalOperatorDetailContent() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <Card className="border-border bg-card border-l-2 border-l-blue-500">
               <CardContent className="p-2.5 text-center">
-                <UserCheck className="h-4 w-4 text-blue-400 mx-auto mb-1" />
+                <UserCheck className="h-4 w-4 text-info mx-auto mb-1" />
                 <div className="text-base font-bold text-foreground">{payerAssignData.filter(a => a.is_active).length}/{payerAssignData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Payer Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-indigo-500">
               <CardContent className="p-2.5 text-center">
-                <ClipboardList className="h-4 w-4 text-indigo-400 mx-auto mb-1" />
+                <ClipboardList className="h-4 w-4 text-primary mx-auto mb-1" />
                 <div className="text-base font-bold text-foreground">{operatorAssignData.filter(a => a.is_active).length}/{operatorAssignData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Operator Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-cyan-500">
               <CardContent className="p-2.5 text-center">
-                <Lock className="h-4 w-4 text-cyan-400 mx-auto mb-1" />
+                <Lock className="h-4 w-4 text-info mx-auto mb-1" />
                 <div className="text-base font-bold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}/{payerLockData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Payer Locks</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-emerald-500">
               <CardContent className="p-2.5 text-center">
-                <Link2 className="h-4 w-4 text-emerald-400 mx-auto mb-1" />
+                <Link2 className="h-4 w-4 text-success mx-auto mb-1" />
                 <div className="text-base font-bold text-foreground">
                   {new Set([...payerAssignData.map(a => a.ad_id), ...operatorAssignData.map(a => a.ad_id)].filter(Boolean)).size}
                 </div>
@@ -1141,7 +1141,7 @@ function TerminalOperatorDetailContent() {
             <Card className="border-border bg-card">
               <CardHeader className="pb-2 px-3 pt-3">
                 <CardTitle className="text-xs flex items-center gap-2">
-                  <UserCheck className="h-3.5 w-3.5 text-blue-400" /> Payer Assignments
+                  <UserCheck className="h-3.5 w-3.5 text-info" /> Payer Assignments
                   <Badge variant="outline" className="text-[9px]">{payerAssignData.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -1163,7 +1163,7 @@ function TerminalOperatorDetailContent() {
                             {a.size_range_id ? (sizeRangeNames.get(a.size_range_id) || a.size_range_id.slice(0, 8)) : a.ad_id || '—'}
                           </td>
                           <td className="py-1 px-1.5">
-                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-green-500 border-green-500/30' : 'text-muted-foreground'}`}>
+                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-success border-success/30' : 'text-muted-foreground'}`}>
                               {a.is_active ? 'Active' : 'Inactive'}
                             </Badge>
                           </td>
@@ -1181,7 +1181,7 @@ function TerminalOperatorDetailContent() {
             <Card className="border-border bg-card">
               <CardHeader className="pb-2 px-3 pt-3">
                 <CardTitle className="text-xs flex items-center gap-2">
-                  <ClipboardList className="h-3.5 w-3.5 text-indigo-400" /> Operator Assignments
+                  <ClipboardList className="h-3.5 w-3.5 text-primary" /> Operator Assignments
                   <Badge variant="outline" className="text-[9px]">{operatorAssignData.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -1203,7 +1203,7 @@ function TerminalOperatorDetailContent() {
                             {a.size_range_id ? (sizeRangeNames.get(a.size_range_id) || a.size_range_id.slice(0, 8)) : a.ad_id || '—'}
                           </td>
                           <td className="py-1 px-1.5">
-                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-green-500 border-green-500/30' : 'text-muted-foreground'}`}>
+                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-success border-success/30' : 'text-muted-foreground'}`}>
                               {a.is_active ? 'Active' : 'Inactive'}
                             </Badge>
                           </td>
@@ -1221,7 +1221,7 @@ function TerminalOperatorDetailContent() {
             <Card className="border-border bg-card">
               <CardHeader className="pb-2 px-3 pt-3">
                 <CardTitle className="text-xs flex items-center gap-2">
-                  <Lock className="h-3.5 w-3.5 text-cyan-400" /> Payer Locks
+                  <Lock className="h-3.5 w-3.5 text-info" /> Payer Locks
                   <Badge variant="outline" className="text-[9px]">{payerLockData.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -1249,7 +1249,7 @@ function TerminalOperatorDetailContent() {
                               {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString('en-IN')}` : '—'}
                             </td>
                             <td className="py-1 px-1.5">
-                              <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                              <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-success border-success/30' : 'text-warning border-warning/30'}`}>
                                 {lock.status}
                               </Badge>
                             </td>
@@ -1285,11 +1285,11 @@ function TerminalOperatorDetailContent() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
             {[
-              { label: 'Payments', value: m.paymentsMade, icon: CreditCard, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
-              { label: 'Releases', value: m.releasesPerformed, icon: Unlock, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-              { label: 'Chats', value: m.chatMessagesSent, icon: MessageSquare, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
+              { label: 'Payments', value: m.paymentsMade, icon: CreditCard, color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
+              { label: 'Releases', value: m.releasesPerformed, icon: Unlock, color: 'text-success', bg: 'bg-success/10 border-success/20' },
+              { label: 'Chats', value: m.chatMessagesSent, icon: MessageSquare, color: 'text-warning', bg: 'bg-warning/10 border-warning/20' },
               { label: 'Escalations', value: m.escalationsHandled, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/20' },
-              { label: 'Approvals', value: m.approvalActions, icon: Shield, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+              { label: 'Approvals', value: m.approvalActions, icon: Shield, color: 'text-info', bg: 'bg-info/10 border-info/20' },
             ].map(({ label, value, icon: Icon, color, bg }) => (
               <Card key={label} className={`border ${bg}`}>
                 <CardContent className="p-2.5 text-center">
@@ -1482,7 +1482,7 @@ function TerminalOperatorDetailContent() {
                                 {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString('en-IN')}` : '—'}
                               </td>
                               <td className="py-1 px-1.5">
-                                <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                                <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-success border-success/30' : 'text-warning border-warning/30'}`}>
                                   {lock.status}
                                 </Badge>
                               </td>
@@ -1528,13 +1528,13 @@ function TerminalOperatorDetailContent() {
                         <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
                           <td className="py-1 px-1.5 font-mono text-[9px]">...{a.order_number?.slice(-8)}</td>
                           <td className="py-1 px-1.5">
-                            <Badge variant="outline" className={`text-[8px] ${a.trade_type === 'BUY' ? 'text-green-500 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>
+                            <Badge variant="outline" className={`text-[8px] ${a.trade_type === 'BUY' ? 'text-success border-success/30' : 'text-warning border-warning/30'}`}>
                               {a.trade_type || 'N/A'}
                             </Badge>
                           </td>
                           <td className="py-1 px-1.5 text-right font-medium">₹{Number(a.total_price || 0).toLocaleString('en-IN')}</td>
                           <td className="py-1 px-1.5">
-                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : a.assignment_type === 'cancelled' ? 'text-destructive border-destructive/30' : 'text-green-500 border-green-500/30'}`}>
+                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-warning border-warning/30' : a.assignment_type === 'cancelled' ? 'text-destructive border-destructive/30' : 'text-success border-success/30'}`}>
                               {a.is_active ? 'Active' : a.assignment_type === 'cancelled' ? 'Cancelled' : 'Done'}
                             </Badge>
                           </td>

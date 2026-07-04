@@ -176,10 +176,10 @@ export default function LeaveAllocationsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Employees Allocated", value: uniqueEmployees, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Days Allocated (All Time)", value: totalAllocated, icon: CalendarDays, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Total Days Used (All Time)", value: totalUsed, icon: BarChart3, color: "text-orange-600", bg: "bg-orange-50" },
-          { label: "Cumulative Balance", value: totalAllocated - totalUsed, icon: CalendarDays, color: "text-violet-600", bg: "bg-violet-50" },
+          { label: "Employees Allocated", value: uniqueEmployees, icon: Users, color: "text-info", bg: "bg-info/10" },
+          { label: "Total Days Allocated (All Time)", value: totalAllocated, icon: CalendarDays, color: "text-success", bg: "bg-success/10" },
+          { label: "Total Days Used (All Time)", value: totalUsed, icon: BarChart3, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Cumulative Balance", value: totalAllocated - totalUsed, icon: CalendarDays, color: "text-primary", bg: "bg-primary/10" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -216,7 +216,7 @@ export default function LeaveAllocationsPage() {
       ) : groupedArr.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <CalendarDays className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+            <CalendarDays className="h-10 w-10 mx-auto text-muted mb-3" />
             <p className="text-muted-foreground text-sm">No leave allocations for {getQuarterLabel(quarter)} {year}</p>
             <button onClick={() => setShowBulk(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
               Bulk allocate for all employees →
@@ -323,7 +323,7 @@ export default function LeaveAllocationsPage() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">💡 Unused days from previous quarters automatically carry forward.</p>
-            {leaveTypes.length === 0 && <p className="text-xs text-amber-600">⚠ Create leave types first before bulk allocating.</p>}
+            {leaveTypes.length === 0 && <p className="text-xs text-warning">⚠ Create leave types first before bulk allocating.</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBulk(false)}>Cancel</Button>

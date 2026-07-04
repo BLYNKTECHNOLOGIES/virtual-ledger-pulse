@@ -58,7 +58,7 @@ export function CustomerGrowthWidget() {
           <div className="text-2xl font-bold text-foreground">{data?.[data.length - 1]?.clients || 0}</div>
           <p className="text-xs text-muted-foreground">Total Clients</p>
         </div>
-        <Badge className={`${Number(growth) >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+        <Badge className={`${Number(growth) >= 0 ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
           {Number(growth) >= 0 ? '+' : ''}{growth}% this month
         </Badge>
       </div>
@@ -90,7 +90,7 @@ export function RecentOrdersWidget() {
     <div className="p-4 space-y-2.5">
       {(data || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No recent orders</p>}
       {(data || []).map((o: any) => (
-        <div key={o.id} onClick={() => openTransaction({ type: 'sales_order', id: o.id })} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-muted/50 transition-colors rounded px-1" title="Click to view full order details">
+        <div key={o.id} onClick={() => openTransaction({ type: 'sales_order', id: o.id })} className="flex items-center justify-between py-2 border-b border-muted/20 last:border-0 cursor-pointer hover:bg-muted/50 transition-colors rounded px-1" title="Click to view full order details">
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground truncate">{o.order_number}</p>
             <p className="text-xs text-muted-foreground truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>
@@ -126,9 +126,9 @@ export function DailyActivityWidget() {
   if (isLoading) return <WidgetLoader />;
 
   const stats = [
-    { label: 'Sales Today', value: data?.sales || 0, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Purchases', value: data?.purchases || 0, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'New Clients', value: data?.newClients || 0, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Sales Today', value: data?.sales || 0, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'Purchases', value: data?.purchases || 0, color: 'text-info', bg: 'bg-info/10' },
+    { label: 'New Clients', value: data?.newClients || 0, color: 'text-primary', bg: 'bg-primary/10' },
   ];
 
   return (
@@ -180,20 +180,20 @@ export function QuickStatsWidget({ metrics, dateRange }: { metrics?: any; dateRa
 
   return (
     <div className="p-4 grid grid-cols-2 gap-3">
-      <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-        <div className="text-xl font-bold text-blue-600">{stats.orders.toLocaleString('en-IN')}</div>
+      <div className="text-center p-3 bg-info/10 dark:bg-info/30 rounded-lg">
+        <div className="text-xl font-bold text-info">{stats.orders.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Orders</p>
       </div>
-      <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
-        <div className="text-xl font-bold text-green-600">{stats.verifiedClients.toLocaleString('en-IN')}</div>
+      <div className="text-center p-3 bg-success/10 dark:bg-success/30 rounded-lg">
+        <div className="text-xl font-bold text-success">{stats.verifiedClients.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Verified Clients</p>
       </div>
-      <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
-        <div className="text-xl font-bold text-purple-600">{stats.totalClients.toLocaleString('en-IN')}</div>
+      <div className="text-center p-3 bg-primary/10 dark:bg-primary/30 rounded-lg">
+        <div className="text-xl font-bold text-primary">{stats.totalClients.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Total Clients</p>
       </div>
-      <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
-        <div className="text-xl font-bold text-orange-600">{stats.purchases.toLocaleString('en-IN')}</div>
+      <div className="text-center p-3 bg-warning/10 dark:bg-warning/30 rounded-lg">
+        <div className="text-xl font-bold text-warning">{stats.purchases.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Purchases</p>
       </div>
     </div>
@@ -405,7 +405,7 @@ export function EarningsRateWidget() {
   return (
     <div className="p-4">
       <div className="text-center mb-3">
-        <div className="text-lg font-bold text-blue-600">₹{Math.round(todayEarnings).toLocaleString('en-IN')}</div>
+        <div className="text-lg font-bold text-info">₹{Math.round(todayEarnings).toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Today's Sales</p>
       </div>
       <ResponsiveContainer width="100%" height={80}>
@@ -469,7 +469,7 @@ export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; t
 
   return (
     <div className="text-center p-4">
-      <div className={`text-3xl font-bold ${Number(data?.margin) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{data?.margin}%</div>
+      <div className={`text-3xl font-bold ${Number(data?.margin) >= 0 ? 'text-success' : 'text-destructive'}`}>{data?.margin}%</div>
       <p className="text-sm text-muted-foreground mt-1">Profit Margin ({data?.periodLabel})</p>
       <p className="text-xs text-muted-foreground mt-2">Profit: ₹{Math.round(data?.profit || 0).toLocaleString('en-IN')}</p>
     </div>
@@ -613,29 +613,29 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
       label: 'Revenue',
       value: `₹${((data?.thisSalesTotal || 0) / 100000).toFixed(1)}L`,
       change: data?.revenueGrowth || 0,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-info',
+      bgColor: 'bg-info/10',
     },
     {
       label: 'Gross Profit',
       value: `₹${((data?.thisGrossProfit || 0) / 100000).toFixed(1)}L`,
       change: Number(profitGrowth),
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-success',
+      bgColor: 'bg-success/10',
     },
     {
       label: 'Profit Margin',
       value: `${(data?.profitMargin || 0).toFixed(1)}%`,
       change: null,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
     },
     {
       label: 'Volume Traded',
       value: `${((data?.thisSalesQty || 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })} USDT`,
       change: (data?.lastSalesQty || 0) > 0 ? (((data?.thisSalesQty || 0) - (data?.lastSalesQty || 0)) / (data?.lastSalesQty || 1)) * 100 : null,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
     },
   ];
 
@@ -649,11 +649,11 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
             {kpi.change !== null && (
               <div className="flex items-center gap-1 mt-1">
                 {kpi.change >= 0 ? (
-                  <TrendingUp className="h-3 w-3 text-green-500" />
+                  <TrendingUp className="h-3 w-3 text-success" />
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-red-500" />
+                  <TrendingDown className="h-3 w-3 text-destructive" />
                 )}
-                <span className={`text-xs ${kpi.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`text-xs ${kpi.change >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% MoM
                 </span>
               </div>
@@ -674,7 +674,7 @@ export function ConversionRateWidget({ metrics }: { metrics?: any }) {
   const rate = metrics?.totalClients > 0 ? ((metrics.verifiedClients / metrics.totalClients) * 100).toFixed(1) : '0';
   return (
     <div className="text-center p-4">
-      <div className="text-3xl font-bold text-blue-600">{rate}%</div>
+      <div className="text-3xl font-bold text-info">{rate}%</div>
       <p className="text-sm text-muted-foreground mt-1">KYC Conversion Rate</p>
       <p className="text-xs text-muted-foreground mt-2">{metrics?.verifiedClients || 0} verified of {metrics?.totalClients || 0}</p>
     </div>
@@ -718,12 +718,12 @@ export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?
 
   return (
     <div className="text-center p-4">
-      <div className={`text-3xl font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+      <div className={`text-3xl font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
         {isPositive ? '+' : ''}{data?.growth}%
       </div>
       <p className="text-sm text-muted-foreground mt-1">Revenue Growth ({data?.periodLabel})</p>
       <div className="flex items-center justify-center gap-1 mt-2">
-        {isPositive ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
+        {isPositive ? <TrendingUp className="h-4 w-4 text-success" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
         <span className="text-xs text-muted-foreground">vs previous period</span>
       </div>
     </div>
@@ -791,17 +791,17 @@ export function CashFlowWidget() {
   return (
     <div className="p-4 space-y-3">
       <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="bg-green-50 rounded-lg p-2">
+        <div className="bg-success/10 rounded-lg p-2">
           <p className="text-xs text-muted-foreground">Gross Profit</p>
-          <p className="text-sm font-bold text-green-600">₹{((data?.totalIncome || 0) / 1000).toFixed(1)}k</p>
+          <p className="text-sm font-bold text-success">₹{((data?.totalIncome || 0) / 1000).toFixed(1)}k</p>
         </div>
-        <div className="bg-red-50 rounded-lg p-2">
+        <div className="bg-destructive/10 rounded-lg p-2">
           <p className="text-xs text-muted-foreground">Expense</p>
-          <p className="text-sm font-bold text-red-600">₹{((data?.totalExpense || 0) / 1000).toFixed(1)}k</p>
+          <p className="text-sm font-bold text-destructive">₹{((data?.totalExpense || 0) / 1000).toFixed(1)}k</p>
         </div>
-        <div className="bg-blue-50 rounded-lg p-2">
+        <div className="bg-info/10 rounded-lg p-2">
           <p className="text-xs text-muted-foreground">Net</p>
-          <p className={`text-sm font-bold ${(data?.net || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-sm font-bold ${(data?.net || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
             {(data?.net || 0) >= 0 ? '+' : ''}₹{((data?.net || 0) / 1000).toFixed(1)}k
           </p>
         </div>
@@ -884,7 +884,7 @@ export function ExpenseTrendsWidget() {
         </div>
         <div className="flex items-center gap-2">
           {data?.change !== 0 && (
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
               {(data?.change || 0) > 0 ? '↑' : '↓'} {Math.abs(data?.change || 0).toFixed(1)}%
             </span>
           )}
@@ -1050,27 +1050,27 @@ export function TeamStatusWidget() {
   return (
     <div className="p-4 space-y-3">
       <div className="grid grid-cols-4 gap-2">
-        <div className="text-center p-2 bg-blue-50 rounded-lg">
-          <div className="text-lg font-bold text-blue-600">{data?.total || 0}</div>
+        <div className="text-center p-2 bg-info/10 rounded-lg">
+          <div className="text-lg font-bold text-info">{data?.total || 0}</div>
           <p className="text-[10px] text-muted-foreground">Total</p>
         </div>
-        <div className="text-center p-2 bg-green-50 rounded-lg">
-          <div className="text-lg font-bold text-green-600">{data?.present || 0}</div>
+        <div className="text-center p-2 bg-success/10 rounded-lg">
+          <div className="text-lg font-bold text-success">{data?.present || 0}</div>
           <p className="text-[10px] text-muted-foreground">Present</p>
         </div>
-        <div className="text-center p-2 bg-red-50 rounded-lg">
-          <div className="text-lg font-bold text-red-600">{data?.absent || 0}</div>
+        <div className="text-center p-2 bg-destructive/10 rounded-lg">
+          <div className="text-lg font-bold text-destructive">{data?.absent || 0}</div>
           <p className="text-[10px] text-muted-foreground">Absent</p>
         </div>
-        <div className="text-center p-2 bg-amber-50 rounded-lg">
-          <div className="text-lg font-bold text-amber-600">{data?.late || 0}</div>
+        <div className="text-center p-2 bg-warning/10 rounded-lg">
+          <div className="text-lg font-bold text-warning">{data?.late || 0}</div>
           <p className="text-[10px] text-muted-foreground">Late</p>
         </div>
       </div>
 
       <div>
         <div className="flex items-center gap-1.5 mb-2">
-          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
           <span className="text-xs font-semibold text-foreground">Currently In Office ({data?.activeNow?.length || 0})</span>
         </div>
         <div className="max-h-32 overflow-y-auto space-y-1">
@@ -1180,7 +1180,7 @@ export function UpcomingTasksWidget() {
         items.push({
           label: 'KYC Approvals',
           count: pendingKyc || 0,
-          color: 'bg-red-500',
+          color: 'bg-destructive',
           urgency: pendingKyc && pendingKyc > 0 ? 'Urgent' : 'Clear',
         });
       }
@@ -1191,8 +1191,8 @@ export function UpcomingTasksWidget() {
           supabase.from('hr_employee_onboarding').select('id', { count: 'exact', head: true }).not('status', 'in', '("completed","cancelled")'),
         ]);
         items.push(
-          { label: 'Leave Requests', count: pendingLeave || 0, color: 'bg-yellow-500', urgency: pendingLeave && pendingLeave > 0 ? 'Pending' : 'Clear' },
-          { label: 'Onboarding', count: pendingOnboard || 0, color: 'bg-blue-500', urgency: pendingOnboard && pendingOnboard > 0 ? 'In Progress' : 'Clear' },
+          { label: 'Leave Requests', count: pendingLeave || 0, color: 'bg-warning', urgency: pendingLeave && pendingLeave > 0 ? 'Pending' : 'Clear' },
+          { label: 'Onboarding', count: pendingOnboard || 0, color: 'bg-info', urgency: pendingOnboard && pendingOnboard > 0 ? 'In Progress' : 'Clear' },
         );
       }
 
@@ -1288,7 +1288,7 @@ export function TerminalSalesApprovalWidget() {
         onClick={() => navigate('/sales?tab=terminal-sync')}
       >
         <span className="text-sm font-medium text-foreground">Pending Approval</span>
-        <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-sm font-bold">{data?.pending || 0}</Badge>
+        <Badge variant="secondary" className="bg-warning/10 text-warning text-sm font-bold">{data?.pending || 0}</Badge>
       </div>
       {(data?.recentPending?.length || 0) > 0 && (
         <div className="space-y-1.5">
@@ -1304,7 +1304,7 @@ export function TerminalSalesApprovalWidget() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 px-2 text-[10px] text-green-700 border-green-300 hover:bg-green-50"
+                    className="h-6 px-2 text-[10px] text-success border-success hover:bg-success/10"
                     onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
                   >
                     Approve
@@ -1377,7 +1377,7 @@ export function TerminalPurchaseApprovalWidget() {
         onClick={() => navigate('/purchase?tab=terminal_sync')}
       >
         <span className="text-sm font-medium text-foreground">Pending Approval</span>
-        <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-sm font-bold">{data?.pending || 0}</Badge>
+        <Badge variant="secondary" className="bg-warning/10 text-warning text-sm font-bold">{data?.pending || 0}</Badge>
       </div>
       {(data?.recentPending?.length || 0) > 0 && (
         <div className="space-y-1.5">
@@ -1393,7 +1393,7 @@ export function TerminalPurchaseApprovalWidget() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 px-2 text-[10px] text-green-700 border-green-300 hover:bg-green-50"
+                    className="h-6 px-2 text-[10px] text-success border-success hover:bg-success/10"
                     onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
                   >
                     Approve

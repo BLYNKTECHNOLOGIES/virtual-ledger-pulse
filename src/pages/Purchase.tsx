@@ -437,14 +437,14 @@ export default function Purchase() {
         <div className="px-4 md:px-6 py-4 md:py-8">
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 md:p-3 bg-violet-50 rounded-xl shadow-sm">
-                <ShoppingBag className="h-6 w-6 md:h-8 md:w-8 text-violet-600" />
+              <div className="p-2 md:p-3 bg-primary/10 rounded-xl shadow-sm">
+                <ShoppingBag className="h-6 w-6 md:h-8 md:w-8 text-primary" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
+                <h1 className="text-xl md:text-3xl font-bold tracking-tight text-muted truncate">
                   Purchase Order Management
                 </h1>
-                <p className="text-slate-600 text-sm md:text-lg truncate">
+                <p className="text-muted text-sm md:text-lg truncate">
                   Manage purchases and orders
                 </p>
               </div>

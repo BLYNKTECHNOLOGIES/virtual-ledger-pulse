@@ -53,17 +53,17 @@ export function UserPayingStatusDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-600" />
+            <Clock className="h-5 w-5 text-info" />
             User Payment Status - {clientName}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
+          <div className="p-4 bg-info/10 rounded-lg">
+            <p className="text-sm text-info">
               <strong>Order Amount:</strong> ₹{orderAmount.toLocaleString('en-IN')}
             </p>
-            <p className="text-sm text-blue-600 mt-1">
+            <p className="text-sm text-info mt-1">
               Status: User is currently paying
             </p>
           </div>
@@ -71,7 +71,7 @@ export function UserPayingStatusDialog({
           <div className="space-y-2">
             <Button 
               onClick={handlePaymentDone}
-              className="w-full bg-green-600 hover:bg-green-700"
+              className="w-full bg-success hover:bg-success"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Payment Done

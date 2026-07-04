@@ -57,9 +57,9 @@ export default function SalaryRevisionsPage() {
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {isIncrease ? (
-                      <TrendingUp className="h-5 w-5 text-green-600 shrink-0" />
+                      <TrendingUp className="h-5 w-5 text-success shrink-0" />
                     ) : (
-                      <TrendingDown className="h-5 w-5 text-red-500 shrink-0" />
+                      <TrendingDown className="h-5 w-5 text-destructive shrink-0" />
                     )}
                     <div>
                       <p className="font-medium text-foreground">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</p>

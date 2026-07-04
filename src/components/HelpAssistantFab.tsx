@@ -26,9 +26,9 @@ export function HelpAssistantFab() {
           hover ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-2 scale-95 pointer-events-none"
         )}
       >
-        <div className="relative bg-card text-slate-800 text-xs font-medium px-3 py-2 rounded-2xl shadow-lg border border-slate-200">
+        <div className="relative bg-card text-card-foreground text-xs font-medium px-3 py-2 rounded-2xl shadow-lg border border-border">
           Hi! Need help? Ask me anything ✨
-          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-card border-r border-b border-slate-200 rotate-45" />
+          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-card border-r border-b border-border rotate-45" />
         </div>
       </div>
 

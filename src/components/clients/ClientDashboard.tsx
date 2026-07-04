@@ -554,6 +554,9 @@ export function ClientDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                {isLoading ? (
+                  <TableSkeleton rows={6} columns={canAssignRA ? 12 : 11} />
+                ) : (
                 <div className="overflow-x-auto rounded-xl border border-border">
                   <table className="w-full">
                     <thead>

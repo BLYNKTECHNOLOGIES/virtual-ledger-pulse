@@ -1324,23 +1324,24 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Price */}
-                        <TableCell className="py-3">
-                          <span className="text-xs text-foreground tabular-nums">
+                        <TableCell className="py-3 text-right">
+                          <span className="text-xs text-muted-foreground t-mono tabular-nums">
                             {Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}
                           </span>
                         </TableCell>
 
                         {/* Fiat / Crypto Amount */}
-                        <TableCell className="py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs text-foreground tabular-nums font-medium">
+                        <TableCell className="py-3 text-right">
+                          <div className="flex flex-col gap-0.5 items-end">
+                            <span className="text-xs text-foreground t-mono tabular-nums font-medium">
                               {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
                             </span>
-                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
                               {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
                             </span>
                           </div>
                         </TableCell>
+
 
                         {/* Counterparty */}
                         <TableCell className="py-3">

@@ -112,38 +112,44 @@ export function TerminalSidebar() {
 
       <SidebarContent className="px-2 py-2.5">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[9px] uppercase tracking-[0.12em] text-sidebar-foreground px-3 mb-1">
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground px-3 mb-1">
             Operations
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleItems.map((item) => (
+              {visibleItems.map((item) => {
+                const active = isActive(item.url);
+                return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive(item.url)}
-                    className="h-8 gap-2 text-[12px] rounded transition-colors"
+                    isActive={active}
+                    className="h-9 gap-2 text-[12px] rounded-md transition-colors data-[active=true]:bg-primary/10 hover:bg-white/5"
                   >
-                    <Link to={item.url}>
+                    <Link to={item.url} className="relative">
+                      <span
+                        className={`absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-primary transition-opacity duration-200 ${active ? 'opacity-100' : 'opacity-0'}`}
+                        aria-hidden="true"
+                      />
                       <item.icon className="h-3.5 w-3.5 shrink-0" />
                       <span className="flex-1">{item.title}</span>
                       {item.showActiveCount && activeCount > 0 && (
-                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
+                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending/15 text-trade-pending rounded-full t-mono px-1">
                           {activeCount}
                         </span>
                       )}
                       {item.showPayerPendingCount && payerPendingOrders.length > 0 && (
-                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
+                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending/15 text-trade-pending rounded-full t-mono px-1">
                           {payerPendingOrders.length}
                         </span>
                       )}
                       {item.showAppealPendingCount && pendingAppealCheckInCount > 0 && (
-                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
+                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending/15 text-trade-pending rounded-full t-mono px-1">
                           {pendingAppealCheckInCount}
                         </span>
                       )}
                       {item.comingSoon && (
-                        <span className="text-[8px] bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider flex items-center gap-0.5">
+                        <span className="text-[8px] bg-transparent text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium uppercase tracking-wider flex items-center gap-0.5">
                           <Clock className="h-2.5 w-2.5" /> Soon
                         </span>
                       )}
@@ -155,7 +161,8 @@ export function TerminalSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -461,7 +461,7 @@ export function AppSidebar() {
           </Link>
           <div className="flex items-center justify-center">
             {!isCollapsed && (
-              <div className="text-xs text-gray-500 font-medium truncate flex-1 mr-2 bg-white px-2 py-1 rounded-lg shadow-sm">
+              <div className="text-xs text-muted-foreground font-medium truncate flex-1 mr-2 bg-sidebar px-2 py-1 rounded-lg shadow-sm">
                 © 2025 BLYNK Virtual Technologies
               </div>
             )}
@@ -469,7 +469,7 @@ export function AppSidebar() {
               variant="ghost" 
               size="sm" 
               onClick={toggleSidebar} 
-              className={`text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg flex-shrink-0 border-2 border-transparent hover:border-gray-200 transition-all duration-200 ${isCollapsed ? 'h-8 w-8 p-0' : ''}`}
+              className={`text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg flex-shrink-0 border border-transparent hover:border-sidebar-border transition-all duration-200 ${isCollapsed ? 'h-8 w-8 p-0' : ''}`}
             >
               {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </Button>

@@ -248,7 +248,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Total Orders</label>
-            <p className="text-lg font-semibold text-blue-600">{totalOrders}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">{totalOrders}</p>
             <p className="text-xs text-muted-foreground">{completedOrders} completed</p>
           </div>
         </div>

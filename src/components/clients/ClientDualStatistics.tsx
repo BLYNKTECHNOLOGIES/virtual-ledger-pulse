@@ -153,7 +153,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
             <ArrowRightLeft className="h-5 w-5 text-primary" />
             <CardTitle>Trading Statistics</CardTitle>
             {isComposite && (
-              <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                 COMPOSITE
               </Badge>
             )}

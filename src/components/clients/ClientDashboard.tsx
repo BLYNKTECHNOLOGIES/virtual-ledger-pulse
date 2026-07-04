@@ -804,6 +804,7 @@ export function ClientDashboard() {
                     </div>
                   )}
                 </div>
+                )}
             </CardContent>
           </Card>
             </TabsContent>

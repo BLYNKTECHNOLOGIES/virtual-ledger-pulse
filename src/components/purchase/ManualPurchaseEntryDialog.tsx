@@ -681,7 +681,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 <SelectTrigger>
                   <SelectValue placeholder="Select product" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover z-[60] border border-border shadow-lg">
+                <SelectContent className="bg-popover z-[60] border border-border shadow-sm">
                   {productsLoading ? (
                     <SelectItem value="loading" disabled>Loading products...</SelectItem>
                   ) : productsError ? (
@@ -761,7 +761,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 <SelectTrigger>
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name}
@@ -807,7 +807,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   <SelectTrigger>
                     <SelectValue placeholder="Select bank account" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                  <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                     {bankAccounts?.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -832,7 +832,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   <div className="flex items-center gap-2">
                     <Label className="font-medium">Payment Distribution</Label>
                     {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                     ) : (
                       <AlertCircle className="h-4 w-4 text-destructive" />
                     )}
@@ -851,7 +851,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   </div>
                   <div className="text-center">
                     <div className="text-muted-foreground text-xs mb-1">Remaining</div>
-                    <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                    <div className={`font-semibold ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
                       ₹{splitAllocation.remaining.toFixed(2)}
                     </div>
                   </div>
@@ -887,7 +887,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                           <SelectTrigger>
                             <SelectValue placeholder="Select bank account" />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                             {bankAccounts?.map((account) => (
                               <SelectItem key={account.id} value={account.id}>
                                 {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -927,7 +927,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           )}
 
           {/* TDS Section */}
-          <Card className="border-amber-200 bg-amber-50/50">
+          <Card className="border-warning/20 bg-warning/10/50">
             <CardContent className="pt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Label className="font-medium">TDS Deduction</Label>
@@ -966,11 +966,11 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 <div className="text-sm bg-card p-2 rounded border">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">TDS Amount ({tdsCalculation.tdsRate}%):</span>
-                    <span className="font-medium text-amber-600">₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
+                    <span className="font-medium text-warning">₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between mt-1">
                     <span className="text-muted-foreground">Net Payable:</span>
-                    <span className="font-semibold text-green-600">₹{tdsCalculation.netPayable.toFixed(2)}</span>
+                    <span className="font-semibold text-success">₹{tdsCalculation.netPayable.toFixed(2)}</span>
                   </div>
                 </div>
               )}
@@ -1030,11 +1030,11 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                     <div className="text-sm bg-muted/50 p-2 rounded border">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Fee Amount:</span>
-                        <span className="font-medium text-orange-600">{feeCalculation.feeAmount.toFixed(4)} USDT</span>
+                        <span className="font-medium text-warning">{feeCalculation.feeAmount.toFixed(4)} USDT</span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-muted-foreground">Net Credit to Wallet:</span>
-                        <span className="font-semibold text-green-600">{feeCalculation.netCredit.toFixed(4)} USDT</span>
+                        <span className="font-semibold text-success">{feeCalculation.netCredit.toFixed(4)} USDT</span>
                       </div>
                     </div>
                   )}
@@ -1084,7 +1084,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                     <span>₹{parseFloat(formData.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                   {tdsCalculation.tdsRate > 0 && (
-                    <div className="flex justify-between text-amber-600">
+                    <div className="flex justify-between text-warning">
                       <span>TDS Deducted ({tdsCalculation.tdsRate}%):</span>
                       <span>-₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
                     </div>
@@ -1124,12 +1124,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                         <span>{parseFloat(formData.quantity || '0').toFixed(4)} USDT</span>
                       </div>
                       {!formData.is_off_market && feeCalculation.feeAmount > 0 && (
-                        <div className="flex justify-between text-orange-600">
+                        <div className="flex justify-between text-warning">
                           <span>Platform Fee:</span>
                           <span>-{feeCalculation.feeAmount.toFixed(4)} USDT</span>
                         </div>
                       )}
-                      <div className="flex justify-between font-semibold text-green-600">
+                      <div className="flex justify-between font-semibold text-success">
                         <span>Wallet Credit:</span>
                         <span>+{feeCalculation.netCredit.toFixed(4)} USDT</span>
                       </div>

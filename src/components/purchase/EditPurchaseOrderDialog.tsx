@@ -797,7 +797,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                   <span>TDS Rate:</span>
                   <span className="font-medium">{formData.tds_option === "TDS_1_PERCENT" ? "1%" : "20%"}</span>
                 </div>
-                <div className="flex justify-between text-sm text-orange-600">
+                <div className="flex justify-between text-sm text-warning">
                   <span>TDS Amount:</span>
                   <span className="font-medium">₹{tdsAmount.toFixed(2)}</span>
                 </div>
@@ -852,7 +852,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                 <SelectTrigger>
                   <SelectValue placeholder="Select bank account" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                   {bankAccounts?.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -867,7 +867,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                     <div className="flex items-center gap-2">
                       <Label className="font-medium">Payment Distribution</Label>
                       {splitAllocation.isValid ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <CheckCircle2 className="h-4 w-4 text-success" />
                       ) : (
                         <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
@@ -886,7 +886,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                     </div>
                     <div className="text-center">
                       <div className="text-muted-foreground text-xs mb-1">Remaining</div>
-                      <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                      <div className={`font-semibold ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
                         ₹{splitAllocation.remaining.toFixed(2)}
                       </div>
                     </div>
@@ -920,7 +920,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                             <SelectTrigger>
                               <SelectValue placeholder="Select bank account" />
                             </SelectTrigger>
-                            <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                            <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                               {bankAccounts?.map((account) => (
                                 <SelectItem key={account.id} value={account.id}>
                                   {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}

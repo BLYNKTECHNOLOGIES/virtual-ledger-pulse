@@ -148,13 +148,13 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return <Badge className="bg-green-100 text-green-800">Payment Received</Badge>;
+        return <Badge className="bg-success/10 text-success">Payment Received</Badge>;
       case "PARTIAL":
-        return <Badge className="bg-yellow-100 text-yellow-800">Partial Payment</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Partial Payment</Badge>;
       case "PENDING":
-        return <Badge className="bg-blue-100 text-blue-800">Pending</Badge>;
+        return <Badge className="bg-info/10 text-info">Pending</Badge>;
       case "FAILED":
-        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive">Failed</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -242,23 +242,23 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             const usdtEquivQty = qty * storedMarketRate;
             const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
             return (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-2 flex items-center gap-2">
+              <div className="p-3 bg-info/10 dark:bg-info/20 rounded-lg border border-info/20 dark:border-info">
+                <h3 className="text-sm font-semibold text-info dark:text-info mb-2 flex items-center gap-2">
                   <Coins className="h-4 w-4" />
                   USDT Equivalent (Snapshot)
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-blue-700 dark:text-blue-500">{assetCode}/USDT Rate</label>
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(storedMarketRate, 6)}</p>
+                    <label className="text-xs font-medium text-info dark:text-info">{assetCode}/USDT Rate</label>
+                    <p className="text-sm font-medium text-info dark:text-info">{formatSmartDecimal(storedMarketRate, 6)}</p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Qty</label>
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(usdtEquivQty, 4)}</p>
+                    <label className="text-xs font-medium text-info dark:text-info">Equiv. USDT Qty</label>
+                    <p className="text-sm font-medium text-info dark:text-info">{formatSmartDecimal(usdtEquivQty, 4)}</p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Rate</label>
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
+                    <label className="text-xs font-medium text-info dark:text-info">Equiv. USDT Rate</label>
+                    <p className="text-sm font-medium text-info dark:text-info">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
                   </div>
                 </div>
               </div>
@@ -267,19 +267,19 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
 
           {/* Platform Fee Information */}
           {(order.fee_amount > 0 || order.fee_percentage > 0) && (
-            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
-              <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-400 mb-3 flex items-center gap-2">
+            <div className="p-4 bg-warning/10 rounded-lg border border-warning/20 dark:bg-warning/20 dark:border-warning">
+              <h3 className="text-sm font-semibold text-warning dark:text-warning mb-3 flex items-center gap-2">
                 <Coins className="h-4 w-4" />
                 Platform Fee Details
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-amber-700 dark:text-amber-500">Fee Percentage</label>
-                  <p className="text-sm text-amber-900 dark:text-amber-300">{Number(order.fee_percentage || 0).toFixed(2)}%</p>
+                  <label className="text-sm font-medium text-warning dark:text-warning">Fee Percentage</label>
+                  <p className="text-sm text-warning dark:text-warning">{Number(order.fee_percentage || 0).toFixed(2)}%</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-amber-700 dark:text-amber-500">Fee Amount (USDT)</label>
-                  <p className="text-sm text-amber-900 dark:text-amber-300 font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
+                  <label className="text-sm font-medium text-warning dark:text-warning">Fee Amount (USDT)</label>
+                  <p className="text-sm text-warning dark:text-warning font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
                 </div>
               </div>
             </div>
@@ -287,20 +287,20 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
 
           {/* Bank Account Information */}
           {bankAccountData && (
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
-              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-3">Payment Received In</h3>
+            <div className="p-4 bg-info/10 rounded-lg border border-info/20 dark:bg-info/20 dark:border-info">
+              <h3 className="text-sm font-semibold text-info dark:text-info mb-3">Payment Received In</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-blue-700 dark:text-blue-500">Bank Account</label>
-                  <p className="text-sm text-blue-900 dark:text-blue-300">{bankAccountData.account_name}</p>
+                  <label className="text-sm font-medium text-info dark:text-info">Bank Account</label>
+                  <p className="text-sm text-info dark:text-info">{bankAccountData.account_name}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-blue-700 dark:text-blue-500">Bank Name</label>
-                  <p className="text-sm text-blue-900 dark:text-blue-300">{bankAccountData.bank_name}</p>
+                  <label className="text-sm font-medium text-info dark:text-info">Bank Name</label>
+                  <p className="text-sm text-info dark:text-info">{bankAccountData.bank_name}</p>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-sm font-medium text-blue-700 dark:text-blue-500">Account Number</label>
-                  <p className="text-sm text-blue-900 dark:text-blue-300 font-mono">
+                  <label className="text-sm font-medium text-info dark:text-info">Account Number</label>
+                  <p className="text-sm text-info dark:text-info font-mono">
                     {bankAccountData.account_number ? 
                       `****${bankAccountData.account_number.slice(-4)}` : 
                       'N/A'
@@ -351,8 +351,8 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
           )}
 
           {order.cosmos_alert && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
-              <p className="text-sm text-red-800 dark:text-red-400 font-medium">⚠️ COSMOS Alert was triggered for this order</p>
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg dark:bg-destructive/20 dark:border-destructive">
+              <p className="text-sm text-destructive dark:text-destructive font-medium">⚠️ COSMOS Alert was triggered for this order</p>
             </div>
           )}
 

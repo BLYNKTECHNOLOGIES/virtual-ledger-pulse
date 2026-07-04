@@ -467,7 +467,7 @@ export function TerminalSalesSyncTab() {
                         </div>
                       ) : (
                         <div className="flex flex-col items-start gap-0.5">
-                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                          <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20">
                             Name Pending
                           </Badge>
                           <ExchangeAccountBadge accountId={record.exchange_account_id} />
@@ -506,7 +506,7 @@ export function TerminalSalesSyncTab() {
                       {(record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending') && (
                         <div className="flex gap-1">
                           {isPendingVerifiedName ? (
-                            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                            <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20">
                               Awaiting Name
                             </Badge>
                           ) : (

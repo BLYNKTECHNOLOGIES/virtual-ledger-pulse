@@ -765,7 +765,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                     <div className="flex items-center gap-2">
                       <Label className="font-medium">Payment Distribution</Label>
                       {splitAllocation.isValid ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <CheckCircle2 className="h-4 w-4 text-success" />
                       ) : (
                         <AlertCircle className="h-4 w-4 text-destructive" />
                       )}
@@ -784,7 +784,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                     </div>
                     <div className="text-center">
                       <div className="text-muted-foreground text-xs mb-1">Remaining</div>
-                      <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                      <div className={`font-semibold ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
                         ₹{splitAllocation.remaining.toFixed(2)}
                       </div>
                     </div>

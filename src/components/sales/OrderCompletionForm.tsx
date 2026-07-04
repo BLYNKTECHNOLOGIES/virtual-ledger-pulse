@@ -257,7 +257,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-success" />
             Complete Sales Order - {order?.order_number}
           </DialogTitle>
         </DialogHeader>
@@ -289,10 +289,10 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
               </div>
 
               {selectedWallet && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div className="mt-4 p-3 bg-info/10 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Wallet className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-800">Wallet Details</span>
+                    <Wallet className="h-4 w-4 text-info" />
+                    <span className="font-medium text-info">Wallet Details</span>
                   </div>
                   <div className="text-sm space-y-1">
                     <div>Name: {selectedWallet.wallet_name}</div>
@@ -377,12 +377,12 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                 />
               </div>
 
-              <div className="p-3 bg-green-50 rounded-lg">
+              <div className="p-3 bg-success/10 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <span className="font-medium text-green-800">Final Amount</span>
+                  <DollarSign className="h-4 w-4 text-success" />
+                  <span className="font-medium text-success">Final Amount</span>
                 </div>
-                <div className="text-lg font-bold text-green-800">
+                <div className="text-lg font-bold text-success">
                   ₹{totalAmount.toLocaleString('en-IN')}
                 </div>
               </div>
@@ -398,7 +398,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
           <Button 
             onClick={() => completeOrderMutation.mutate()}
             disabled={completeOrderMutation.isPending || !formData.stockName}
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-success hover:bg-success"
           >
             {completeOrderMutation.isPending ? 'Completing...' : 'Complete Order'}
           </Button>

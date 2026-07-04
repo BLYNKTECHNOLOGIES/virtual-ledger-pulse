@@ -25,16 +25,16 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
 
 // Color mapping for action types
 const ACTION_COLORS: Record<string, string> = {
-  'order_created': 'text-blue-500',
-  'banking_collected': 'text-purple-500',
-  'pan_collected': 'text-indigo-500',
-  'added_to_bank': 'text-orange-500',
-  'payment_created': 'text-emerald-500',
-  'payment_completed': 'text-emerald-600',
-  'order_completed': 'text-green-500',
-  'order_cancelled': 'text-red-500',
-  'order_edited': 'text-amber-500',
-  'manual_entry_created': 'text-blue-600',
+  'order_created': 'text-info',
+  'banking_collected': 'text-primary',
+  'pan_collected': 'text-primary',
+  'added_to_bank': 'text-warning',
+  'payment_created': 'text-success',
+  'payment_completed': 'text-success',
+  'order_completed': 'text-success',
+  'order_cancelled': 'text-destructive',
+  'order_edited': 'text-warning',
+  'manual_entry_created': 'text-info',
 };
 
 function ActorRow({ actor }: { actor: OrderActor }) {

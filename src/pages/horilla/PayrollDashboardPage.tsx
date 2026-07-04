@@ -202,7 +202,7 @@ export default function PayrollDashboardPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Title", "Period", "Run Date", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className={`px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap ${["Employees", "Gross", "Deductions", "Net"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>

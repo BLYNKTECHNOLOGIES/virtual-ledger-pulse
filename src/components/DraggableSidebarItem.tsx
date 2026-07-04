@@ -63,9 +63,9 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
             <div 
               {...attributes}
               {...listeners}
-              className="touch-none flex-shrink-0 p-1.5 hover:bg-blue-100 bg-gray-100 rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-gray-200"
+              className="touch-none flex-shrink-0 p-1.5 hover:bg-primary/10 bg-muted rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-border"
             >
-              <GripVertical className="h-4 w-4 text-gray-600" />
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
           )}
           <Link 

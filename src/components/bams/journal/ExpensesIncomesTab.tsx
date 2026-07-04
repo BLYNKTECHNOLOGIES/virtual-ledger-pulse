@@ -299,7 +299,7 @@ export function ExpensesIncomesTab() {
                      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
                        <Button
                          variant="ghost"
-                         size="icon"
+                         size="icon" aria-label="Edit"
                          className="h-8 w-8"
                          onClick={() => handleEditClick(transaction)}
                        >
@@ -308,7 +308,7 @@ export function ExpensesIncomesTab() {
                        <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
                          <Button
                            variant="ghost"
-                           size="icon"
+                           size="icon" aria-label="Reverse"
                            className="h-8 w-8 text-destructive hover:text-destructive"
                            onClick={() => handleReverseClick(transaction)}
                            disabled={transaction.is_reversed || !!transaction.reverses_transaction_id}

@@ -146,12 +146,12 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selecte
             </TableCell>
             <TableCell className="text-right">
               <div className="flex items-center justify-end gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(ad)}>
+                <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
                   <Edit className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="icon" aria-label="Disable / Locked"
                   className="h-8 w-8"
                   onClick={() => onToggleStatus(ad.advNo, ad.advStatus)}
                   disabled={isTogglingStatus}

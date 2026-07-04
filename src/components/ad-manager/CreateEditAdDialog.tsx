@@ -486,14 +486,14 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     <span>Ref: <span className="font-semibold text-foreground">₹{priceRange.referencePrice}</span></span>
                     <span className="text-muted-foreground/60">|</span>
                     <span>Range: <span className="font-medium text-foreground">{priceRange.min} – {priceRange.max}</span></span>
-                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refetchRefPrice()} title="Refresh price range">
+                    <Button variant="ghost" size="icon" aria-label="Refresh" className="h-5 w-5" onClick={() => refetchRefPrice()} title="Refresh price range">
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </>
                 ) : (
                   <span className="flex items-center gap-1 text-destructive">
                     <AlertTriangle className="h-3 w-3" /> Unable to fetch price range
-                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refetchRefPrice()}>
+                    <Button variant="ghost" size="icon" aria-label="Refresh" className="h-5 w-5" onClick={() => refetchRefPrice()}>
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </span>
@@ -517,7 +517,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
               <div>
                 <Label>Price ({form.fiatUnit})</Label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" type="button"
+                  <Button variant="outline" size="icon" aria-label="Decrease" type="button"
                     onMouseDown={() => startHold(-priceStep)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
@@ -535,7 +535,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                     className={cn("text-center", isPriceOutOfRange && "border-destructive focus-visible:ring-destructive")}
                   />
-                  <Button variant="outline" size="icon" type="button"
+                  <Button variant="outline" size="icon" aria-label="Increase" type="button"
                     onMouseDown={() => startHold(priceStep)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
@@ -567,7 +567,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
               <div>
                 <Label>Floating Ratio (%)</Label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" type="button"
+                  <Button variant="outline" size="icon" aria-label="Decrease" type="button"
                     onMouseDown={() => startFloatingRatioHold(-0.01)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
@@ -585,7 +585,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     placeholder="e.g., 1.5 for 1.5% above market"
                     className="text-center"
                   />
-                  <Button variant="outline" size="icon" type="button"
+                  <Button variant="outline" size="icon" aria-label="Increase" type="button"
                     onMouseDown={() => startFloatingRatioHold(0.01)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}

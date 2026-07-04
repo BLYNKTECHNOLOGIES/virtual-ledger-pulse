@@ -134,7 +134,7 @@ export function AvailablePaymentGateways() {
                     </Badge>
                     {canManage && (
                       <Button
-                        size="icon"
+                        size="icon" aria-label="Edit"
                         variant="ghost"
                         onClick={() => handleEditGateway(gateway)}
                         className="h-8 w-8"

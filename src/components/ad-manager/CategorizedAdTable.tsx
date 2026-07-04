@@ -449,7 +449,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="icon"
+                                size="icon" aria-label="Block / Unblock"
                                 className="h-8 w-8"
                                 onClick={() => toggleExclusion.mutate({ advNo: ad.advNo, exclude: !excludedAds?.has(ad.advNo) })}
                                 disabled={toggleExclusion.isPending}
@@ -466,12 +466,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(ad)}>
+                        <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
                           <Edit className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon" aria-label="Disable / Locked"
                           className="h-8 w-8"
                           onClick={() => onToggleStatus(ad.advNo, ad.advStatus)}
                           disabled={isTogglingStatus}

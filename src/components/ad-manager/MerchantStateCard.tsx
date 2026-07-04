@@ -59,7 +59,7 @@ export function MerchantStateCard() {
         {isCachedOnly ? `Cached ${statusLabel(businessStatus)}` : statusLabel(businessStatus)}
       </Badge>
       {(userDetail.isError || isCachedOnly) && <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-destructive/30 text-destructive bg-destructive/5">API</Badge>}
-      <Button variant="ghost" size="icon" onClick={() => refreshState.mutate()} disabled={refreshState.isPending || userDetail.isLoading} className="h-6 w-6 text-muted-foreground hover:text-foreground">
+      <Button variant="ghost" size="icon" aria-label="Refresh" onClick={() => refreshState.mutate()} disabled={refreshState.isPending || userDetail.isLoading} className="h-6 w-6 text-muted-foreground hover:text-foreground">
         {refreshState.isPending || userDetail.isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
       </Button>
     </div>

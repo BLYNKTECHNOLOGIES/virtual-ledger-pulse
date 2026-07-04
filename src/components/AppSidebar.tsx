@@ -377,24 +377,24 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg" collapsible="icon">
-      <SidebarHeader className={`border-b-2 border-gray-100 bg-blue-600 ${isCollapsed ? 'p-2' : 'p-4'}`}>
+    <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm" collapsible="icon">
+      <SidebarHeader className={`border-b border-sidebar-border bg-primary ${isCollapsed ? 'p-2' : 'p-4'}`}>
         <div className={`flex items-center justify-center min-h-[60px] ${isCollapsed ? 'min-h-[56px]' : 'min-h-[60px]'}`}>
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="BLYNK Virtual Technologies Logo" 
-            className={`w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg ${isCollapsed ? 'h-8 w-8' : 'h-12'}`}
+            className={`w-auto flex-shrink-0 bg-primary-foreground/10 p-2 rounded-lg shadow-sm ${isCollapsed ? 'h-8 w-8' : 'h-12'}`}
           />
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 ml-3">
-              <h2 className="text-sm font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
-              <p className="text-sm text-blue-100 font-bold -mt-0.5 truncate">TECHNOLOGIES</p>
+              <h2 className="text-sm font-bold text-primary-foreground tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
+              <p className="text-sm text-primary-foreground/80 font-bold -mt-0.5 truncate">TECHNOLOGIES</p>
             </div>
           )}
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-white overflow-y-auto max-h-screen">
+      <SidebarContent className="bg-sidebar overflow-y-auto max-h-screen">
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext

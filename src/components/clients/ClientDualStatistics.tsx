@@ -272,9 +272,9 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
             </div>
             <div>
               <label className="text-sm font-medium text-primary">Client Type</label>
-              <Badge className={
+              <Badge variant="outline" className={
                 isComposite 
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white' 
+                  ? 'bg-primary/10 text-primary border-primary/20' 
                   : isBuyer 
                     ? 'bg-success/10 text-success border-success/20' 
                     : 'bg-warning/10 text-warning border-warning/20'

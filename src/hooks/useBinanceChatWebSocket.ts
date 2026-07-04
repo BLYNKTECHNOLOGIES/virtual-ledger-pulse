@@ -522,9 +522,14 @@ export function useBinanceChatWebSocket(
   // Connect on mount, cleanup on unmount
   useEffect(() => {
     shouldReconnectRef.current = true;
-    connect();
+    // Delay the WS handshake (getChatCredential + relay connect) a tick so the
+    // cached/archived DB read paints first instead of queuing behind it.
+    const startTimer = setTimeout(() => {
+      if (shouldReconnectRef.current) connect();
+    }, 250);
 
     return () => {
+      clearTimeout(startTimer);
       shouldReconnectRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);

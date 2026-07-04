@@ -139,9 +139,9 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
                       {!transfer.is_reversed && !transfer.reverses_transaction_id && (
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon" aria-label="Reverse"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() = aria-label="Reverse"> setReverseTarget(transfer)}
+                          onClick={() => setReverseTarget(transfer)}
                           disabled={reverseMutation.isPending}
                           title="Reverse transfer (posts counter-entries)"
                         >

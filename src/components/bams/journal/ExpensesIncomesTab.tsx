@@ -299,18 +299,18 @@ export function ExpensesIncomesTab() {
                      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
                        <Button
                          variant="ghost"
-                         size="icon"
+                         size="icon" aria-label="Edit"
                          className="h-8 w-8"
-                         onClick={() = aria-label="Edit"> handleEditClick(transaction)}
+                         onClick={() => handleEditClick(transaction)}
                        >
                          <Pencil className="h-4 w-4" />
                        </Button>
                        <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
                          <Button
                            variant="ghost"
-                           size="icon"
+                           size="icon" aria-label="Reverse"
                            className="h-8 w-8 text-destructive hover:text-destructive"
-                           onClick={() = aria-label="Reverse"> handleReverseClick(transaction)}
+                           onClick={() => handleReverseClick(transaction)}
                            disabled={transaction.is_reversed || !!transaction.reverses_transaction_id}
                            title={transaction.is_reversed ? "Already reversed" : transaction.reverses_transaction_id ? "Reversal entries cannot be reversed" : "Reverse this entry"}
                          >

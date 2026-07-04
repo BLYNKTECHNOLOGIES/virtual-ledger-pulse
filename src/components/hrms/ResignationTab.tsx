@@ -659,7 +659,7 @@ export function ResignationTab() {
                   </span>
                   <Badge variant="outline" className="text-xs">{item.category}</Badge>
                 </div>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() = aria-label="Delete"> deleteTemplateItem.mutate(item.id)}>
+                <Button size="icon" aria-label="Delete" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteTemplateItem.mutate(item.id)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>

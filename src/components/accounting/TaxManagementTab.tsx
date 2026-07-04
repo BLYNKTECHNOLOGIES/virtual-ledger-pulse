@@ -442,16 +442,16 @@ export function TaxManagementTab() {
                 {r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '-'}
               </TableCell>
               <TableCell className="text-right tabular-nums">{inr(Number(r.paid_amount))}</TableCell>
-              <TableCell className="text-right tabular-nums font-medium text-orange-600">
+              <TableCell className="text-right tabular-nums font-medium text-warning">
                 {inr(Number(r.allocated_tds_amount))}
               </TableCell>
               <TableCell>
                 {r.payment_status === 'PAID' ? (
-                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                  <Badge className="bg-success/10 text-success border-success/20">
                     {r.already_recorded ? 'Paid (Pre-recorded)' : 'Paid'}
                   </Badge>
                 ) : (
-                  <Badge variant="destructive">Unpaid</Badge>
+                  <Badge className="bg-destructive/10 text-destructive border-destructive/20">Unpaid</Badge>
                 )}
               </TableCell>
             </TableRow>

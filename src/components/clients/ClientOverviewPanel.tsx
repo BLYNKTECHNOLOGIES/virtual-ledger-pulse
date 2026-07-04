@@ -301,15 +301,15 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
             <label className="text-sm font-medium text-muted-foreground">Client Type</label>
             <div className="flex gap-2">
               {isComposite ? (
-                <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                   Composite
                 </Badge>
               ) : isSeller ? (
-                <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+                <Badge variant="outline" className="text-warning border-warning/20 bg-warning/10">
                   Seller
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                <Badge variant="outline" className="text-info border-info/20 bg-info/10">
                   Buyer
                 </Badge>
               )}

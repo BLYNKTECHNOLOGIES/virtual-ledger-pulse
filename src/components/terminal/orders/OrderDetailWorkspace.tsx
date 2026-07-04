@@ -27,7 +27,7 @@ interface Props {
 
 export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = false, onStepOrder }: Props) {
   const [rightPanel, setRightPanel] = useState<'profile' | 'internal'>('internal');
-  const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('internal');
+  const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('chat');
   const isMobile = useIsMobile();
   // Swipe-to-navigate on the order number (mobile) — mirrors desktop Shift+Arrow.
   const swipeStart = useRef<{ x: number; y: number } | null>(null);

@@ -265,7 +265,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       // First create the sales order
       const { data: salesOrder, error: salesError } = await supabase
         .from('sales_orders')
-        .insert([salesOrderData])
+        .insert([salesOrderData] as any)
         .select()
         .single();
       

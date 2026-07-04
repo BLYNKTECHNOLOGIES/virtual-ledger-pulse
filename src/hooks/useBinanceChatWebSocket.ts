@@ -97,6 +97,13 @@ function invalidateChatCredential(accountId: string | null) {
   credentialCache.delete(accountId ?? '__default__');
 }
 
+// ---- Module-level per-order message cache ----
+// Survives component unmount so reopening a chat paints the last-loaded
+// messages instantly while the WS/REST refresh happens in the background.
+const messageCache = new Map<string, TrackedMessage[]>();
+const messageCacheKey = (orderNo: string, accountId: string | null) =>
+  `${accountId ?? '__default__'}::${orderNo}`;
+
 export function useBinanceChatWebSocket(
   activeOrderNo: string | null,
   accountId?: string | null

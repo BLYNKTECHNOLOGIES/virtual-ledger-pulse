@@ -107,10 +107,10 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
 
   // Determine client priority based on value
   const getPriorityTag = () => {
-    if (totalLifetimeValue >= 1000000) return { label: 'Platinum', color: 'bg-purple-500' };
-    if (totalLifetimeValue >= 500000) return { label: 'Gold', color: 'bg-yellow-500' };
-    if (totalLifetimeValue >= 200000) return { label: 'Silver', color: 'bg-gray-400' };
-    return { label: 'Bronze', color: 'bg-orange-500' };
+    if (totalLifetimeValue >= 1000000) return { label: 'Platinum', color: 'bg-primary/10 text-primary border-primary/20' };
+    if (totalLifetimeValue >= 500000) return { label: 'Gold', color: 'bg-warning/10 text-warning border-warning/20' };
+    if (totalLifetimeValue >= 200000) return { label: 'Silver', color: 'bg-muted text-muted-foreground border-border' };
+    return { label: 'Bronze', color: 'bg-warning/10 text-warning border-warning/20' };
   };
 
   const priorityTag = getPriorityTag();

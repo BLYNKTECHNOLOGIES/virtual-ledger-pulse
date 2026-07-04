@@ -282,10 +282,10 @@ export default function AttendanceActivityPage() {
       {/* Stats — 2 cols mobile, 4 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Employees Today", value: consolidated.length, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Currently In", value: currentlyIn, icon: LogIn, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Employees Today", value: consolidated.length, icon: Clock, color: "text-info", bg: "bg-info/10" },
+          { label: "Currently In", value: currentlyIn, icon: LogIn, color: "text-success", bg: "bg-success/10" },
           { label: "Clocked Out", value: clockedOut, icon: LogOut, color: "text-muted-foreground", bg: "bg-muted/50" },
-          { label: "Total Hours", value: `${totalHours.toFixed(1)}h`, icon: Timer, color: "text-orange-600", bg: "bg-orange-50" },
+          { label: "Total Hours", value: `${totalHours.toFixed(1)}h`, icon: Timer, color: "text-warning", bg: "bg-warning/10" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-3 sm:p-4 flex items-center gap-3">
@@ -329,13 +329,13 @@ export default function AttendanceActivityPage() {
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{c.employeeName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.badgeId}</td>
                     <td className="px-4 py-3">
-                      <span className="text-green-600 font-medium">{formatTime(c.firstClockIn)}</span>
+                      <span className="text-success font-medium">{formatTime(c.firstClockIn)}</span>
                     </td>
                     <td className="px-4 py-3">
                       {c.isActive ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 animate-pulse">Active</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success animate-pulse">Active</span>
                       ) : (
-                        <span className="text-red-600 font-medium">{formatTime(c.lastClockOut)}</span>
+                        <span className="text-destructive font-medium">{formatTime(c.lastClockOut)}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 font-semibold">{c.isActive ? "—" : formatDuration(c.durationMinutes)}</td>
@@ -380,7 +380,7 @@ export default function AttendanceActivityPage() {
                     <p className="text-xs text-muted-foreground">{c.badgeId}</p>
                   </div>
                   {c.isActive ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 animate-pulse shrink-0">Active</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success animate-pulse shrink-0">Active</span>
                   ) : (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground shrink-0">Done</span>
                   )}
@@ -390,11 +390,11 @@ export default function AttendanceActivityPage() {
                 <div className="grid grid-cols-3 gap-2 text-center mb-3">
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">In</p>
-                    <p className="text-sm font-semibold text-green-600">{formatTime(c.firstClockIn)}</p>
+                    <p className="text-sm font-semibold text-success">{formatTime(c.firstClockIn)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Out</p>
-                    <p className="text-sm font-semibold text-red-600">{c.isActive ? "—" : formatTime(c.lastClockOut)}</p>
+                    <p className="text-sm font-semibold text-destructive">{c.isActive ? "—" : formatTime(c.lastClockOut)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Duration</p>

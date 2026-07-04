@@ -398,9 +398,9 @@ export function ResignationTab() {
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
-      case "pending_approval": return <Badge className="bg-blue-100 text-blue-800">Pending Approval</Badge>;
-      case "notice_period": return <Badge className="bg-amber-100 text-amber-800">Notice Period</Badge>;
-      case "completed": return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+      case "pending_approval": return <Badge className="bg-info/10 text-info">Pending Approval</Badge>;
+      case "notice_period": return <Badge className="bg-warning/10 text-warning">Notice Period</Badge>;
+      case "completed": return <Badge className="bg-success/10 text-success">Completed</Badge>;
       case "withdrawn": return <Badge className="bg-muted text-foreground">Withdrawn</Badge>;
       default: return <Badge variant="outline">Unknown</Badge>;
     }
@@ -454,7 +454,7 @@ export function ResignationTab() {
           ) : (
             <div className="grid gap-3">
               {pendingApprovals.map(emp => (
-                <Card key={emp.id} className="hover:shadow-md transition-shadow border-blue-200 dark:border-blue-800">
+                <Card key={emp.id} className="hover:shadow-md transition-shadow border-info/20 dark:border-info">
                   <CardContent className="py-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                       <div className="space-y-1">
@@ -514,7 +514,7 @@ export function ResignationTab() {
                         <Button size="sm" variant="outline" onClick={() => openChecklist(emp)}>
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Checklist
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => {
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
                           setConfirmAction({ type: 'withdraw', id: emp.id, label: 'Withdraw this resignation?' });
                         }}>
                           <XCircle className="h-4 w-4 mr-1" /> Withdraw
@@ -690,7 +690,7 @@ export function ResignationTab() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" /> Resignation Acknowledgement
+              <CheckCircle2 className="h-5 w-5 text-success" /> Resignation Acknowledgement
             </DialogTitle>
           </DialogHeader>
           {acknowledgementData && (
@@ -726,11 +726,11 @@ export function ResignationTab() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">F&F Settlement (Auto-Calculated)</p>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Leave Encashment ({acknowledgementData.fnf.encashDays}d)</span>
-                    <span className="font-medium text-green-600">+₹{Number(acknowledgementData.fnf.leaveEncashAmount).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.leaveEncashAmount).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Deposit Refund</span>
-                    <span className="font-medium text-green-600">+₹{Number(acknowledgementData.fnf.depositRefund).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.depositRefund).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Loan Recovery</span>
@@ -746,8 +746,8 @@ export function ResignationTab() {
                   </div>
                 </div>
               )}
-              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                <p className="text-sm text-green-800 dark:text-green-200">
+              <div className="bg-success/10 dark:bg-success/30 border border-success/20 dark:border-success rounded-lg p-3">
+                <p className="text-sm text-success dark:text-success">
                   ✓ Employee has been deactivated<br />
                   ✓ F&F Settlement draft created with calculated values<br />
                   ✓ Account deletion scheduled

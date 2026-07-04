@@ -106,7 +106,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
             <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground relative transition-colors">
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-destructive text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -127,14 +127,14 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
               ) : notifications.map((n: any) => (
                 <div
                   key={n.id}
-                  className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-blue-50/50" : ""}`}
+                  className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-info/10/50" : ""}`}
                   onClick={() => {
                     if (!n.is_read) markReadMutation.mutate(n.id);
                     if (n.link) { navigate(n.link); setOpen(false); }
                   }}
                 >
                   <div className="flex items-start gap-2">
-                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />}
+                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-info mt-1.5 shrink-0" />}
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm ${!n.is_read ? "font-medium" : "text-muted-foreground"}`}>{n.title}</p>
                       {n.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>}
@@ -149,7 +149,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
         <button
           onClick={() => navigate("/dashboard")}
-          className="ml-1 w-9 h-9 rounded-full bg-[#6C63FF] flex items-center justify-center text-white hover:bg-[#5a52e0] transition-colors"
+          className="ml-1 w-9 h-9 rounded-full bg-[#6C63FF] flex items-center justify-center text-primary-foreground hover:bg-[#5a52e0] transition-colors"
         >
           <User className="h-5 w-5" />
         </button>

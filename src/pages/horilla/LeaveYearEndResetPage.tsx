@@ -209,8 +209,8 @@ export default function LeaveYearEndResetPage() {
                       <td className="px-4 py-3 font-medium">{s.name} <span className="text-muted-foreground text-xs">({s.code})</span></td>
                       <td className="px-4 py-3 capitalize">{s.carryforward_type?.replace(/_/g, " ") || "—"}</td>
                       <td className="px-4 py-3">{s.count}</td>
-                      <td className="px-4 py-3 text-green-600 font-medium">{s.totalCarry} days</td>
-                      <td className="px-4 py-3 text-red-600 font-medium">{s.totalLapsed} days</td>
+                      <td className="px-4 py-3 text-success font-medium">{s.totalCarry} days</td>
+                      <td className="px-4 py-3 text-destructive font-medium">{s.totalLapsed} days</td>
                     </tr>
                   ))}
                 </tbody>
@@ -229,7 +229,7 @@ export default function LeaveYearEndResetPage() {
       {previewData && previewData.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
-            <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-3" />
+            <AlertTriangle className="h-10 w-10 text-warning mx-auto mb-3" />
             <p className="text-muted-foreground">No leave allocations found for {selectedYear}. Nothing to reset.</p>
           </CardContent>
         </Card>
@@ -238,7 +238,7 @@ export default function LeaveYearEndResetPage() {
       <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-600" /> Confirm Year-End Reset</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Confirm Year-End Reset</AlertDialogTitle>
             <AlertDialogDescription>
               This will create/update <strong>{previewData?.length || 0} leave allocations</strong> for <strong>{Number(selectedYear) + 1}</strong>. 
               Carry forwards and lapsed amounts will be finalized. This cannot be undone.

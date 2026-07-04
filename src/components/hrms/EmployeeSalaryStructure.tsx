@@ -102,7 +102,7 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
           <div className="flex gap-2">
             <Card className="flex-1">
               <CardContent className="p-3 text-center">
-                <div className="text-lg font-bold text-green-600">₹{totalFixed.toLocaleString("en-IN")}</div>
+                <div className="text-lg font-bold text-success">₹{totalFixed.toLocaleString("en-IN")}</div>
                 <div className="text-xs text-muted-foreground">Total Fixed</div>
               </CardContent>
             </Card>

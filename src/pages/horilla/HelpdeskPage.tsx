@@ -50,8 +50,8 @@ export default function HelpdeskPage() {
   const filtered = tickets.filter((t: any) => t.title?.toLowerCase().includes(search.toLowerCase()));
   const stats = { open: tickets.filter((t: any) => t.status === "open").length, in_progress: tickets.filter((t: any) => t.status === "in_progress").length, resolved: tickets.filter((t: any) => t.status === "resolved").length };
 
-  const priorityColor = (p: string) => p === "high" ? "bg-red-100 text-red-700" : p === "medium" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700";
-  const statusColor = (s: string) => s === "open" ? "bg-blue-100 text-blue-700" : s === "in_progress" ? "bg-yellow-100 text-yellow-700" : s === "resolved" ? "bg-green-100 text-green-700" : "bg-muted text-foreground";
+  const priorityColor = (p: string) => p === "high" ? "bg-destructive/10 text-destructive" : p === "medium" ? "bg-warning/10 text-warning" : "bg-success/10 text-success";
+  const statusColor = (s: string) => s === "open" ? "bg-info/10 text-info" : s === "in_progress" ? "bg-warning/10 text-warning" : s === "resolved" ? "bg-success/10 text-success" : "bg-muted text-foreground";
 
   return (
     <div className="space-y-6">
@@ -60,7 +60,7 @@ export default function HelpdeskPage() {
         <Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-2" /> New Ticket</Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[{ label: "Open", value: stats.open, icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50" }, { label: "In Progress", value: stats.in_progress, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" }, { label: "Resolved", value: stats.resolved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" }].map(s => (
+        {[{ label: "Open", value: stats.open, icon: MessageSquare, color: "text-info", bg: "bg-info/10" }, { label: "In Progress", value: stats.in_progress, icon: Clock, color: "text-warning", bg: "bg-warning/10" }, { label: "Resolved", value: stats.resolved, icon: CheckCircle, color: "text-success", bg: "bg-success/10" }].map(s => (
           <Card key={s.label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div><div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div></CardContent></Card>
         ))}
       </div>
@@ -78,8 +78,8 @@ export default function HelpdeskPage() {
             <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(t.status)}`}>{t.status}</span></td>
             <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
             <td className="px-4 py-3"><div className="flex gap-1">
-              {t.status === "open" && <Button size="sm" variant="ghost" className="text-yellow-600 h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "in_progress" })}><Clock className="h-4 w-4" /></Button>}
-              {(t.status === "open" || t.status === "in_progress") && <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "resolved" })}><CheckCircle className="h-4 w-4" /></Button>}
+              {t.status === "open" && <Button size="sm" variant="ghost" className="text-warning h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "in_progress" })}><Clock className="h-4 w-4" /></Button>}
+              {(t.status === "open" || t.status === "in_progress") && <Button size="sm" variant="ghost" className="text-success h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "resolved" })}><CheckCircle className="h-4 w-4" /></Button>}
             </div></td>
           </tr>
         ))}</tbody></table>

@@ -139,7 +139,7 @@ export default function CompOffPage() {
         <div className="flex items-center gap-3">
           <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24" min="2020" max="2030" />
           {pending.length > 0 && (
-            <Button onClick={() => bulkAllocateMutation.mutate()} disabled={bulkAllocateMutation.isPending} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => bulkAllocateMutation.mutate()} disabled={bulkAllocateMutation.isPending} className="bg-success hover:bg-success">
               <Gift className="h-4 w-4 mr-1" /> Allocate All ({pending.length})
             </Button>
           )}
@@ -149,10 +149,10 @@ export default function CompOffPage() {
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Credits", value: `${totalCredits} days`, icon: Gift, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Sunday Work", value: sundayCount, icon: Calendar, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Holiday Work", value: holidayCount, icon: Clock, color: "text-orange-600", bg: "bg-orange-50" },
-          { label: "Allocated as Leave", value: `${allocated.length}/${credits.length}`, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Total Credits", value: `${totalCredits} days`, icon: Gift, color: "text-success", bg: "bg-success/10" },
+          { label: "Sunday Work", value: sundayCount, icon: Calendar, color: "text-info", bg: "bg-info/10" },
+          { label: "Holiday Work", value: holidayCount, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Allocated as Leave", value: `${allocated.length}/${credits.length}`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -193,23 +193,23 @@ export default function CompOffPage() {
                     <TableCell>{c.credit_date}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        c.credit_type === "sunday" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                        c.credit_type === "sunday" ? "bg-info/10 text-info" : "bg-warning/10 text-warning"
                       }`}>
                         {c.credit_type === "sunday" ? "Sunday" : "Holiday"}
                       </span>
                     </TableCell>
-                    <TableCell className="font-medium text-emerald-600">{c.credit_days} day{c.credit_days > 1 ? "s" : ""}</TableCell>
+                    <TableCell className="font-medium text-success">{c.credit_days} day{c.credit_days > 1 ? "s" : ""}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.expires_at || "Year-end"}</TableCell>
                     <TableCell>
                       {c.is_allocated ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Allocated</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Allocated</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Pending</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Pending</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {!c.is_allocated && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => allocateMutation.mutate(c)}>
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-success border-success/20 hover:bg-success/10" onClick={() => allocateMutation.mutate(c)}>
                           <ArrowRight className="h-3 w-3 mr-1" /> Allocate Leave
                         </Button>
                       )}

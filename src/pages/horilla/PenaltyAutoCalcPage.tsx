@@ -118,7 +118,7 @@ export default function PenaltyAutoCalcPage() {
               {calculateMutation.isPending ? "Calculating..." : "Calculate Penalties"}
             </Button>
             {calculated && results.length > 0 && (
-              <Button onClick={() => applyMutation.mutate()} disabled={applyMutation.isPending} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={() => applyMutation.mutate()} disabled={applyMutation.isPending} className="bg-success hover:bg-success">
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {applyMutation.isPending ? "Applying..." : `Apply ${results.length} Penalties`}
               </Button>
@@ -155,7 +155,7 @@ export default function PenaltyAutoCalcPage() {
           <CardContent>
             {results.length === 0 ? (
               <div className="text-center py-6">
-                <CheckCircle className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                <CheckCircle className="h-8 w-8 mx-auto text-success mb-2" />
                 <p className="text-muted-foreground">No penalties to apply — all employees within limits</p>
               </div>
             ) : (
@@ -175,11 +175,11 @@ export default function PenaltyAutoCalcPage() {
                       <tr key={i} className="border-b hover:bg-muted/30">
                         <td className="px-4 py-2 font-medium">{r.employee_name} <span className="text-muted-foreground text-xs">({r.badge_id})</span></td>
                         <td className="px-4 py-2">
-                          <span className="text-amber-600 font-semibold">{r.late_count}</span>
+                          <span className="text-warning font-semibold">{r.late_count}</span>
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">{r.rule_name}</td>
                         <td className="px-4 py-2">{r.penalty_days}</td>
-                        <td className="px-4 py-2 text-red-600 font-semibold">₹{r.deduction_amount.toLocaleString("en-IN")}</td>
+                        <td className="px-4 py-2 text-destructive font-semibold">₹{r.deduction_amount.toLocaleString("en-IN")}</td>
                       </tr>
                     ))}
                   </tbody>

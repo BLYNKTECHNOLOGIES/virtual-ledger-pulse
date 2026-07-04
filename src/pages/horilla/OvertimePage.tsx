@@ -47,13 +47,13 @@ export default function OvertimePage() {
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-orange-50"><Clock className="h-5 w-5 text-orange-600" /></div>
+            <div className="p-2 rounded-lg bg-warning/10"><Clock className="h-5 w-5 text-warning" /></div>
             <div><p className="text-2xl font-bold">{totalOT.toFixed(1)}h</p><p className="text-xs text-muted-foreground">Total OT Hours</p></div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-50"><Clock className="h-5 w-5 text-blue-600" /></div>
+            <div className="p-2 rounded-lg bg-info/10"><Clock className="h-5 w-5 text-info" /></div>
             <div><p className="text-2xl font-bold">{filtered.length}</p><p className="text-xs text-muted-foreground">OT Records</p></div>
           </CardContent>
         </Card>
@@ -89,7 +89,7 @@ export default function OvertimePage() {
                     <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3">{r.attendance_date}</td>
-                    <td className="px-4 py-3"><span className="font-semibold text-orange-600">{r.overtime_hours}h</span></td>
+                    <td className="px-4 py-3"><span className="font-semibold text-warning">{r.overtime_hours}h</span></td>
                     <td className="px-4 py-3">{r.check_in || "—"}</td>
                     <td className="px-4 py-3">{r.check_out || "—"}</td>
                   </tr>

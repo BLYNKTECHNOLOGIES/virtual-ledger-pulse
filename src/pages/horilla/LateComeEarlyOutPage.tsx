@@ -111,28 +111,28 @@ export default function LateComeEarlyOutPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-orange-50 rounded-lg"><Clock className="h-5 w-5 text-orange-600" /></div>
+            <div className="p-2 bg-warning/10 rounded-lg"><Clock className="h-5 w-5 text-warning" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Late Comes</p>
-              <p className="text-xl font-bold text-orange-700">{totalLateRecords}</p>
+              <p className="text-xl font-bold text-warning">{totalLateRecords}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-red-50 rounded-lg"><TrendingDown className="h-5 w-5 text-red-600" /></div>
+            <div className="p-2 bg-destructive/10 rounded-lg"><TrendingDown className="h-5 w-5 text-destructive" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Early Outs</p>
-              <p className="text-xl font-bold text-red-700">{totalEarlyRecords}</p>
+              <p className="text-xl font-bold text-destructive">{totalEarlyRecords}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-yellow-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-yellow-600" /></div>
+            <div className="p-2 bg-warning/10 rounded-lg"><AlertTriangle className="h-5 w-5 text-warning" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Employees Affected</p>
-              <p className="text-xl font-bold text-yellow-700">{summaryList.length}</p>
+              <p className="text-xl font-bold text-warning">{summaryList.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -168,16 +168,16 @@ export default function LateComeEarlyOutPage() {
                         <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
                         <td className="px-4 py-3">
                           {s.lateCount > 0 ? (
-                            <Badge variant="destructive" className="bg-orange-100 text-orange-700 hover:bg-orange-100">{s.lateCount}</Badge>
+                            <Badge variant="destructive" className="bg-warning/10 text-warning hover:bg-warning/10">{s.lateCount}</Badge>
                           ) : <span className="text-muted-foreground">0</span>}
                         </td>
-                        <td className="px-4 py-3 text-orange-600 font-medium">{s.totalLateMins || "—"}</td>
+                        <td className="px-4 py-3 text-warning font-medium">{s.totalLateMins || "—"}</td>
                         <td className="px-4 py-3">
                           {s.earlyCount > 0 ? (
-                            <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">{s.earlyCount}</Badge>
+                            <Badge variant="destructive" className="bg-destructive/10 text-destructive hover:bg-destructive/10">{s.earlyCount}</Badge>
                           ) : <span className="text-muted-foreground">0</span>}
                         </td>
-                        <td className="px-4 py-3 text-red-600 font-medium">{s.totalEarlyMins || "—"}</td>
+                        <td className="px-4 py-3 text-destructive font-medium">{s.totalEarlyMins || "—"}</td>
                         <td className="px-4 py-3 font-bold">{s.lateCount + s.earlyCount}</td>
                       </tr>
                     ))
@@ -215,7 +215,7 @@ export default function LateComeEarlyOutPage() {
                         <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
                         <td className="px-4 py-3">
                           <Badge variant={r.type === "late_come" ? "secondary" : "destructive"}
-                            className={r.type === "late_come" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}>
+                            className={r.type === "late_come" ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive"}>
                             {r.type === "late_come" ? "Late Come" : "Early Out"}
                           </Badge>
                         </td>

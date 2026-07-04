@@ -145,22 +145,22 @@ export default function AttendancePolicyPage() {
                     <span className="font-medium">{p.grace_period_minutes} min</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                     <span className="text-muted-foreground">Half-day if &lt;</span>
                     <span className="font-medium">{p.half_day_threshold_minutes} min</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
                     <span className="text-muted-foreground">Early leave:</span>
                     <span className="font-medium">{p.early_leave_threshold_minutes} min</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">{p.late_count_for_lop} lates</span>
-                    <span className="text-xs text-red-500">= 1 LOP</span>
+                    <span className="text-xs text-destructive">= 1 LOP</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">{p.half_day_count_for_lop} half-days</span>
-                    <span className="text-xs text-red-500">= 1 LOP</span>
+                    <span className="text-xs text-destructive">= 1 LOP</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Min OT:</span>

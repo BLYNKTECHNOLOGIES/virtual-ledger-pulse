@@ -237,14 +237,14 @@ export default function DepositManagementPage() {
 
   const txTypeColor = (type: string) => {
     switch (type) {
-      case "collection": return "bg-green-100 text-green-700";
-      case "penalty_deduction": return "bg-red-100 text-red-700";
-      case "replenishment": return "bg-blue-100 text-blue-700";
-      case "ff_refund": return "bg-purple-100 text-purple-700";
-      case "initiated": return "bg-cyan-100 text-cyan-700";
-      case "modified": return "bg-orange-100 text-orange-700";
-      case "completed": return "bg-emerald-100 text-emerald-700";
-      case "paused": return "bg-yellow-100 text-yellow-700";
+      case "collection": return "bg-success/10 text-success";
+      case "penalty_deduction": return "bg-destructive/10 text-destructive";
+      case "replenishment": return "bg-info/10 text-info";
+      case "ff_refund": return "bg-primary/10 text-primary";
+      case "initiated": return "bg-info/10 text-info";
+      case "modified": return "bg-warning/10 text-warning";
+      case "completed": return "bg-success/10 text-success";
+      case "paused": return "bg-warning/10 text-warning";
       case "resumed": return "bg-teal-100 text-teal-700";
       default: return "bg-muted text-foreground";
     }
@@ -329,10 +329,10 @@ export default function DepositManagementPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Deposits", value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Collected", value: `₹${totalCollected.toLocaleString('en-IN')}`, icon: BadgeIndianRupee, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Current Balance", value: `₹${totalBalance.toLocaleString('en-IN')}`, icon: Shield, color: "text-purple-600", bg: "bg-purple-50" },
-          { label: "Fully Collected", value: `${fullyCollected}/${deposits.length}`, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: "Total Deposits", value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-info", bg: "bg-info/10" },
+          { label: "Collected", value: `₹${totalCollected.toLocaleString('en-IN')}`, icon: BadgeIndianRupee, color: "text-success", bg: "bg-success/10" },
+          { label: "Current Balance", value: `₹${totalBalance.toLocaleString('en-IN')}`, icon: Shield, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Fully Collected", value: `${fullyCollected}/${deposits.length}`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -376,8 +376,8 @@ export default function DepositManagementPage() {
                         <span className="text-xs text-muted-foreground ml-1">({d.hr_employees?.badge_id})</span>
                       </TableCell>
                       <TableCell className="font-medium">₹{Number(d.total_deposit_amount).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-green-600">₹{Number(d.collected_amount).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-purple-600 font-medium">₹{Number(d.current_balance).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-success">₹{Number(d.collected_amount).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-primary font-medium">₹{Number(d.current_balance).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Progress value={progress} className="h-2 w-20" />
@@ -392,11 +392,11 @@ export default function DepositManagementPage() {
                         {d.is_settled ? (
                           <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">Settled</span>
                         ) : d.is_fully_collected ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Fully Collected</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Fully Collected</span>
                         ) : d.is_paused ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Paused</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Paused</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Collecting</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Collecting</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -415,13 +415,13 @@ export default function DepositManagementPage() {
                                     <Play className="h-3 w-3" />
                                   </Button>
                                 ) : (
-                                  <Button size="sm" variant="ghost" className="h-7 text-yellow-600" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'pause' })} title="Pause Deductions">
+                                  <Button size="sm" variant="ghost" className="h-7 text-warning" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'pause' })} title="Pause Deductions">
                                     <Pause className="h-3 w-3" />
                                   </Button>
                                 )
                               )}
                               {d.is_fully_collected && d.current_balance > 0 && (
-                                <Button size="sm" variant="ghost" className="h-7 text-purple-600" onClick={() => settleMutation.mutate(d)} title="F&F Settle">
+                                <Button size="sm" variant="ghost" className="h-7 text-primary" onClick={() => settleMutation.mutate(d)} title="F&F Settle">
                                   <CheckCircle className="h-3 w-3" />
                                 </Button>
                               )}
@@ -502,7 +502,7 @@ export default function DepositManagementPage() {
                           {txTypeLabel(t.transaction_type)}
                         </span>
                       </TableCell>
-                      <TableCell className={`font-medium ${Number(t.amount) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <TableCell className={`font-medium ${Number(t.amount) >= 0 ? "text-success" : "text-destructive"}`}>
                         {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString('en-IN')}
                       </TableCell>
                       <TableCell className="text-sm">₹{Number(t.balance_after).toLocaleString('en-IN')}</TableCell>

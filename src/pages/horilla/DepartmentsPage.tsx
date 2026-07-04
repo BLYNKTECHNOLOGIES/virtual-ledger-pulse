@@ -105,7 +105,7 @@ export default function DepartmentsPage() {
         </div>
         <button
           onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" />
           Add Department
@@ -144,7 +144,7 @@ export default function DepartmentsPage() {
                   <button
                     onClick={() => toggleActiveMutation.mutate({ id: d.id, isActive: d.is_active })}
                     className={`text-[10px] font-medium px-2 py-0.5 rounded-full cursor-pointer ${
-                      d.is_active ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                      d.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
                     }`}
                   >
                     {d.is_active ? "Active" : "Inactive"}
@@ -152,7 +152,7 @@ export default function DepartmentsPage() {
                   <button onClick={() => openEdit(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => setDeleteTarget({ id: d.id, name: d.name })} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">
+                  <button onClick={() => setDeleteTarget({ id: d.id, name: d.name })} className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -175,7 +175,7 @@ export default function DepartmentsPage() {
       {/* Dialog */}
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">{editId ? "Edit" : "Add"} Department</h2>
               <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -200,7 +200,7 @@ export default function DepartmentsPage() {
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
               <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
               </button>
             </div>

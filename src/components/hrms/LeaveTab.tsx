@@ -148,10 +148,10 @@ export function LeaveTab({
   });
 
   const statusColors: Record<string, string> = {
-    Approved: "text-green-600",
-    Rejected: "text-red-600",
+    Approved: "text-success",
+    Rejected: "text-destructive",
     Cancelled: "text-muted-foreground",
-    Requested: "text-amber-600",
+    Requested: "text-warning",
   };
 
   const SortHeader = ({ field, label }: { field: string; label: string }) => (
@@ -177,7 +177,7 @@ export function LeaveTab({
           return (
             <div key={ltId} className="min-w-[240px] border-r border-border last:border-r-0 pr-8 mr-8 last:pr-0 last:mr-0 py-4">
               <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-base mb-3"
+                className="w-14 h-14 rounded-full flex items-center justify-center text-primary-foreground font-bold text-base mb-3"
                 style={{ backgroundColor: lt?.color || "#888" }}
               >
                 {lt?.code || "??"}
@@ -211,23 +211,23 @@ export function LeaveTab({
           <div className="flex items-center justify-between">
             <div>
               {selectedIds.size > 0 && (
-                <span className="bg-[#00bcd4] text-white text-xs font-medium px-3 py-1.5 rounded-lg">
+                <span className="bg-[#00bcd4] text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-lg">
                   Select ({selectedIds.size})
                 </span>
               )}
             </div>
             <div className="flex items-center gap-4 text-xs">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Rejected
+                <span className="w-2.5 h-2.5 rounded-full bg-destructive" /> Rejected
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Cancelled
+                <span className="w-2.5 h-2.5 rounded-full bg-muted" /> Cancelled
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Approved
+                <span className="w-2.5 h-2.5 rounded-full bg-success" /> Approved
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Requested
+                <span className="w-2.5 h-2.5 rounded-full bg-warning" /> Requested
               </span>
             </div>
           </div>
@@ -280,7 +280,7 @@ export function LeaveTab({
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <span
-                            className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0"
+                            className="w-7 h-7 rounded-full text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0"
                             style={{ backgroundColor: lt?.color || "#888" }}
                           >
                             {lt?.code?.substring(0, 2) || "??"}
@@ -313,7 +313,7 @@ export function LeaveTab({
                             <button
                               onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Approved" })}
                               disabled={updateStatusMutation.isPending}
-                              className="bg-amber-400 hover:bg-amber-500 text-white px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
+                              className="bg-warning hover:bg-warning text-primary-foreground px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
                               title="Approve"
                             >
                               <Check className="h-4 w-4" />
@@ -321,7 +321,7 @@ export function LeaveTab({
                             <button
                               onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Rejected" })}
                               disabled={updateStatusMutation.isPending}
-                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-r-lg transition-colors disabled:opacity-50"
+                              className="bg-destructive hover:bg-destructive text-primary-foreground px-3 py-1.5 rounded-r-lg transition-colors disabled:opacity-50"
                               title="Reject"
                             >
                               <X className="h-4 w-4" />
@@ -329,7 +329,7 @@ export function LeaveTab({
                           </div>
                         ) : req.status === "Cancelled" ? (
                           <div className="flex items-center justify-center">
-                            <span className="bg-amber-400/80 text-white px-3 py-1.5 rounded-lg">
+                            <span className="bg-warning/80 text-primary-foreground px-3 py-1.5 rounded-lg">
                               <Check className="h-4 w-4" />
                             </span>
                           </div>

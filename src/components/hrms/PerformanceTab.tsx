@@ -31,8 +31,8 @@ export function PerformanceTab() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
+      case 'COMPLETED': return 'bg-success/10 text-success';
+      case 'IN_PROGRESS': return 'bg-warning/10 text-warning';
       case 'DRAFT': return 'bg-muted text-foreground';
       default: return 'bg-muted text-foreground';
     }
@@ -85,7 +85,7 @@ export function PerformanceTab() {
                           <td className="py-3 px-4">
                             <div>
                               <p className="font-medium">{review.employees?.name}</p>
-                              <p className="text-sm text-blue-600">{review.employees?.employee_id}</p>
+                              <p className="text-sm text-info">{review.employees?.employee_id}</p>
                               <p className="text-sm text-muted-foreground">{review.employees?.department}</p>
                             </div>
                           </td>

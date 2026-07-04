@@ -98,7 +98,7 @@ export default function ShiftsPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-foreground">{s.name}</h3>
-                    {s.is_night_shift && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Night Shift</span>}
+                    {s.is_night_shift && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Night Shift</span>}
                   </div>
                   <Switch checked={s.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: s.id, is_active: v })} />
                 </div>
@@ -109,7 +109,7 @@ export default function ShiftsPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" size="sm" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
-                  <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => deleteMutation.mutate(s.id)}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
+                  <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => deleteMutation.mutate(s.id)}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
                 </div>
               </CardContent>
             </Card>

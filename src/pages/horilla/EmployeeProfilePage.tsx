@@ -100,7 +100,7 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
   const modeLabel = deposit.deduction_mode === "one_time" ? "One-Time" : deposit.deduction_mode === "percentage" ? `${deposit.deduction_value}% of Salary` : `₹${Number(deposit.deduction_value).toLocaleString('en-IN')}/month`;
 
   const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund" };
-  const txTypeColor: Record<string, string> = { collection: "text-green-600", penalty_deduction: "text-red-600", replenishment: "text-blue-600", ff_refund: "text-purple-600" };
+  const txTypeColor: Record<string, string> = { collection: "text-success", penalty_deduction: "text-destructive", replenishment: "text-info", ff_refund: "text-primary" };
 
   return (
     <div className="mt-6">
@@ -115,11 +115,11 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Collected</p>
-            <p className="text-sm font-semibold text-green-600">₹{Number(deposit.collected_amount).toLocaleString('en-IN')}</p>
+            <p className="text-sm font-semibold text-success">₹{Number(deposit.collected_amount).toLocaleString('en-IN')}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Current Balance</p>
-            <p className="text-sm font-semibold text-purple-600">₹{Number(deposit.current_balance).toLocaleString('en-IN')}</p>
+            <p className="text-sm font-semibold text-primary">₹{Number(deposit.current_balance).toLocaleString('en-IN')}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Deduction Mode</p>
@@ -134,7 +134,7 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
           <Progress value={progress} className="h-2" />
         </div>
         <div>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${deposit.is_fully_collected ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${deposit.is_fully_collected ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
             {deposit.is_fully_collected ? "Fully Collected" : "Collecting"}
           </span>
         </div>
@@ -151,7 +151,7 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
                     </span>
                     <span className="text-muted-foreground">{t.transaction_date}</span>
                   </div>
-                  <span className={`font-medium ${Number(t.amount) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <span className={`font-medium ${Number(t.amount) >= 0 ? "text-success" : "text-destructive"}`}>
                     {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -516,7 +516,7 @@ export default function EmployeeProfilePage() {
     return <div className="text-center py-16 text-muted-foreground">Loading...</div>;
   }
 
-  const colors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500"];
+  const colors = ["bg-primary", "bg-info", "bg-success", "bg-warning", "bg-destructive"];
   const color = colors[emp.id.charCodeAt(0) % colors.length];
 
   const inputCls = "w-full border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#00bcd4] bg-background text-foreground";
@@ -559,7 +559,7 @@ export default function EmployeeProfilePage() {
           {emp.profile_image_url ? (
             <img src={emp.profile_image_url} className="w-20 h-20 rounded-lg object-cover" alt="" />
           ) : (
-            <div className={`w-20 h-20 rounded-lg ${color} flex items-center justify-center text-white font-bold text-2xl`}>
+            <div className={`w-20 h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-2xl`}>
               {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
             </div>
           )}
@@ -590,14 +590,14 @@ export default function EmployeeProfilePage() {
           <button
             onClick={() => prevId && navigate(`/hrms/employee/${prevId}`)}
             disabled={!prevId}
-            className="p-1.5 rounded-full bg-[#00bcd4] text-white hover:bg-[#00a5bb] disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-full bg-[#00bcd4] text-primary-foreground hover:bg-[#00a5bb] disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => nextId && navigate(`/hrms/employee/${nextId}`)}
             disabled={!nextId}
-            className="p-1.5 rounded-full bg-[#00bcd4] text-white hover:bg-[#00a5bb] disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-full bg-[#00bcd4] text-primary-foreground hover:bg-[#00a5bb] disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -612,7 +612,7 @@ export default function EmployeeProfilePage() {
             onClick={() => { setActiveTab(t); setEditing(false); }}
             className={`px-4 py-1.5 text-sm font-medium rounded-full border transition-colors ${
               activeTab === t
-                ? "bg-[#00bcd4] text-white border-[#00bcd4]"
+                ? "bg-[#00bcd4] text-primary-foreground border-[#00bcd4]"
                 : "bg-card text-foreground border-border hover:border-[#00bcd4]/50"
             }`}
           >
@@ -633,7 +633,7 @@ export default function EmployeeProfilePage() {
                 {editing ? (
                   <div className="flex gap-2">
                     <button onClick={() => setEditing(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted">Cancel</button>
-                    <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="text-xs text-white bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
+                    <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="text-xs text-primary-foreground bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
                       {saveMutation.isPending ? "Saving..." : "Save"}
                     </button>
                   </div>
@@ -678,13 +678,13 @@ export default function EmployeeProfilePage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="bg-[#00bcd4] text-white text-xs font-bold px-2 py-0.5 rounded-full">1</span>
+                  <span className="bg-[#00bcd4] text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">1</span>
                   <h3 className="text-base font-semibold text-[#00bcd4]">Work Information</h3>
                 </div>
                 {editingWorkInfo ? (
                   <div className="flex gap-2">
                     <button onClick={() => setEditingWorkInfo(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted">Cancel</button>
-                    <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-white bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
+                    <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-primary-foreground bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
                       {saveWorkInfoMutation.isPending ? "Saving..." : "Save"}
                     </button>
                   </div>
@@ -795,7 +795,7 @@ export default function EmployeeProfilePage() {
               {editingWorkInfo ? (
                 <div className="flex gap-2">
                   <button onClick={() => setEditingWorkInfo(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted">Cancel</button>
-                  <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-white bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
+                  <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-primary-foreground bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
                     {saveWorkInfoMutation.isPending ? "Saving..." : "Save"}
                   </button>
                 </div>
@@ -929,7 +929,7 @@ export default function EmployeeProfilePage() {
               <button
                 onClick={() => noteText.trim() && addNoteMutation.mutate()}
                 disabled={!noteText.trim() || addNoteMutation.isPending}
-                className="px-4 py-2 text-sm font-medium bg-[#00bcd4] text-white rounded-lg hover:bg-[#00a5bb] disabled:opacity-40"
+                className="px-4 py-2 text-sm font-medium bg-[#00bcd4] text-primary-foreground rounded-lg hover:bg-[#00a5bb] disabled:opacity-40"
               >
                 <Plus className="h-4 w-4 inline mr-1" />
                 Add
@@ -1015,8 +1015,8 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3 text-muted-foreground">{aa.assigned_date}</td>
                         <td className="py-2.5 px-3">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            aa.status === "Assigned" ? "bg-green-100 text-green-700" :
-                            aa.status === "Returned" ? "bg-muted text-foreground" : "bg-yellow-100 text-yellow-700"
+                            aa.status === "Assigned" ? "bg-success/10 text-success" :
+                            aa.status === "Returned" ? "bg-muted text-foreground" : "bg-warning/10 text-warning"
                           }`}>
                             {aa.status}
                           </span>
@@ -1057,9 +1057,9 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3 text-foreground">{att.attendance_date}</td>
                         <td className="py-2.5 px-3">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            att.attendance_status === "Present" ? "bg-green-100 text-green-700" :
-                            att.attendance_status === "Absent" ? "bg-red-100 text-red-700" :
-                            att.attendance_status === "Half Day" ? "bg-yellow-100 text-yellow-700" : "bg-muted text-foreground"
+                            att.attendance_status === "Present" ? "bg-success/10 text-success" :
+                            att.attendance_status === "Absent" ? "bg-destructive/10 text-destructive" :
+                            att.attendance_status === "Half Day" ? "bg-warning/10 text-warning" : "bg-muted text-foreground"
                           }`}>
                             {att.attendance_status || "None"}
                           </span>
@@ -1110,14 +1110,14 @@ export default function EmployeeProfilePage() {
                       <tr key={ps.id} className="border-b border-border/50">
                         <td className="py-2.5 px-3 text-foreground">{ps.payment_date || "Pending"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">₹{Number(ps.gross_salary).toLocaleString('en-IN')}</td>
-                        <td className="py-2.5 px-3 text-green-600">₹{Number(ps.total_earnings).toLocaleString('en-IN')}</td>
-                        <td className="py-2.5 px-3 text-red-600">₹{Number(ps.total_deductions).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 px-3 text-success">₹{Number(ps.total_earnings).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 px-3 text-destructive">₹{Number(ps.total_deductions).toLocaleString('en-IN')}</td>
                         <td className="py-2.5 px-3 text-foreground font-semibold">₹{Number(ps.net_salary).toLocaleString('en-IN')}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{ps.working_days ?? "—"}</td>
                         <td className="py-2.5 px-3">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            ps.status === "Paid" ? "bg-green-100 text-green-700" :
-                            ps.status === "Draft" ? "bg-muted text-foreground" : "bg-yellow-100 text-yellow-700"
+                            ps.status === "Paid" ? "bg-success/10 text-success" :
+                            ps.status === "Draft" ? "bg-muted text-foreground" : "bg-warning/10 text-warning"
                           }`}>
                             {ps.status || "Draft"}
                           </span>
@@ -1167,7 +1167,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <p className={`font-medium ${emp.is_active ? "text-green-600" : "text-destructive"}`}>{emp.is_active ? "Active" : "Inactive"}</p>
+                  <p className={`font-medium ${emp.is_active ? "text-success" : "text-destructive"}`}>{emp.is_active ? "Active" : "Inactive"}</p>
                 </div>
               </div>
             </div>

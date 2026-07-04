@@ -47,11 +47,11 @@ export default function AssetDashboardPage() {
 
   const stats = [
     { label: "Total Assets", value: assets.length, icon: Laptop, color: "text-[#E8604C]" },
-    { label: "Available", value: statusCounts.available, icon: CheckCircle, color: "text-green-600" },
-    { label: "Assigned", value: statusCounts.assigned, icon: Users, color: "text-blue-600" },
-    { label: "Maintenance", value: statusCounts.maintenance, icon: Wrench, color: "text-yellow-600" },
+    { label: "Available", value: statusCounts.available, icon: CheckCircle, color: "text-success" },
+    { label: "Assigned", value: statusCounts.assigned, icon: Users, color: "text-info" },
+    { label: "Maintenance", value: statusCounts.maintenance, icon: Wrench, color: "text-warning" },
     { label: "Retired", value: statusCounts.retired, icon: Archive, color: "text-muted-foreground" },
-    { label: "Total Value", value: `₹${totalValue.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-purple-600" },
+    { label: "Total Value", value: `₹${totalValue.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-primary" },
   ];
 
   return (
@@ -124,7 +124,7 @@ export default function AssetDashboardPage() {
                     <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.employee_name || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{a.assigned_date}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-muted text-foreground"}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-success/10 text-success" : "bg-muted text-foreground"}`}>
                         {a.status}
                       </span>
                     </td>

@@ -133,7 +133,7 @@ export default function CandidatesListPage() {
   });
 
   const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
+  const avatarColors = ["bg-primary", "bg-info", "bg-success", "bg-warning", "bg-destructive", "bg-info"];
   const getColor = (id: string) => avatarColors[id.charCodeAt(0) % avatarColors.length];
 
   const hiredCount = (candidates || []).filter(c => c.hired).length;
@@ -151,7 +151,7 @@ export default function CandidatesListPage() {
         </div>
         <button
           onClick={() => { navigate("/hrms/recruitment/pipeline"); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" />
           Add Candidate
@@ -165,13 +165,13 @@ export default function CandidatesListPage() {
           <input type="text" placeholder="Search candidates..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full" />
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
-          <button onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "active" ? "bg-blue-100 text-blue-700 ring-1 ring-blue-300" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
+          <button onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "active" ? "bg-info/10 text-info ring-1 ring-info" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
             In Progress ({activeCount})
           </button>
-          <button onClick={() => setStatusFilter(statusFilter === "hired" ? "all" : "hired")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "hired" ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
+          <button onClick={() => setStatusFilter(statusFilter === "hired" ? "all" : "hired")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "hired" ? "bg-success/10 text-success ring-1 ring-success" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
             <UserCheck className="h-3 w-3" /> Hired ({hiredCount})
           </button>
-          <button onClick={() => setStatusFilter(statusFilter === "canceled" ? "all" : "canceled")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "canceled" ? "bg-red-100 text-red-700 ring-1 ring-red-300" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
+          <button onClick={() => setStatusFilter(statusFilter === "canceled" ? "all" : "canceled")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "canceled" ? "bg-destructive/10 text-destructive ring-1 ring-destructive" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
             <UserX className="h-3 w-3" /> Canceled ({canceledCount})
           </button>
         </div>
@@ -203,10 +203,10 @@ export default function CandidatesListPage() {
             </thead>
             <tbody>
               {filtered.map(c => (
-                <tr key={c.id} className="border-b border-gray-50 hover:bg-muted/50 transition-colors">
+                <tr key={c.id} className="border-b border-muted/20 hover:bg-muted/50 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full ${getColor(c.id)} flex items-center justify-center text-white font-medium text-xs`}>
+                      <div className={`w-8 h-8 rounded-full ${getColor(c.id)} flex items-center justify-center text-primary-foreground font-medium text-xs`}>
                         {initials(c.name)}
                       </div>
                       <div>
@@ -217,46 +217,46 @@ export default function CandidatesListPage() {
                   </td>
                   <td className="py-3 px-4 text-muted-foreground text-xs">{getRecTitle(c.recruitment_id)}</td>
                   <td className="py-3 px-4">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{getStageName(c.stage_id)}</span>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-info/10 text-info">{getStageName(c.stage_id)}</span>
                   </td>
                   <td className="py-3 px-4 text-muted-foreground text-xs">{c.source || "—"}</td>
                   <td className="py-3 px-4">
                     {c.rating ? (
                       <div className="flex items-center gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className={`h-3 w-3 ${i < c.rating! ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                          <Star key={i} className={`h-3 w-3 ${i < c.rating! ? "text-warning fill-warning" : "text-muted"}`} />
                         ))}
                       </div>
                     ) : "—"}
                   </td>
                   <td className="py-3 px-4">
                     {c.hired ? (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Hired</span>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-success/10 text-success">Hired</span>
                     ) : c.canceled ? (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Canceled</span>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Canceled</span>
                     ) : (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning">In Progress</span>
                     )}
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => navigate(`/hrms/recruitment/candidates/${c.id}`)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-blue-600" title="View Profile">
+                      <button onClick={() => navigate(`/hrms/recruitment/candidates/${c.id}`)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-info" title="View Profile">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
                       <button onClick={() => { setEditCandidate(c); setEditForm({ name: c.name, email: c.email || "", mobile: c.mobile || "", source: c.source || "" }); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit">
                         <Edit className="h-3.5 w-3.5" />
                       </button>
                       {!c.hired && !c.canceled && (
-                        <button onClick={() => hireMutation.mutate(c.id)} className="p-1 rounded hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600" title="Mark as Hired">
+                        <button onClick={() => hireMutation.mutate(c.id)} className="p-1 rounded hover:bg-success/10 text-muted-foreground hover:text-success" title="Mark as Hired">
                           <UserCheck className="h-3.5 w-3.5" />
                         </button>
                       )}
                       {!c.canceled && !c.hired && (
-                        <button onClick={() => cancelMutation.mutate(c.id)} className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500" title="Cancel">
+                        <button onClick={() => cancelMutation.mutate(c.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Cancel">
                           <UserX className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      <button onClick={() => setDeleteTarget({ id: c.id, name: c.name })} className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500" title="Delete">
+                      <button onClick={() => setDeleteTarget({ id: c.id, name: c.name })} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Delete">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -271,14 +271,14 @@ export default function CandidatesListPage() {
       {/* View Candidate Dialog */}
       {viewCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Candidate Details</h2>
               <button onClick={() => setViewCandidate(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-full ${getColor(viewCandidate.id)} flex items-center justify-center text-white font-bold text-lg`}>
+                <div className={`w-12 h-12 rounded-full ${getColor(viewCandidate.id)} flex items-center justify-center text-primary-foreground font-bold text-lg`}>
                   {initials(viewCandidate.name)}
                 </div>
                 <div>
@@ -294,15 +294,15 @@ export default function CandidatesListPage() {
                 <div><p className="text-xs text-muted-foreground">Gender</p><p className="text-foreground">{viewCandidate.gender || "—"}</p></div>
                 <div><p className="text-xs text-muted-foreground">DOB</p><p className="text-foreground">{viewCandidate.dob || "—"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Status</p>
-                  {viewCandidate.hired ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Hired</span>
-                    : viewCandidate.canceled ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Canceled</span>
-                    : <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>}
+                  {viewCandidate.hired ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-success/10 text-success">Hired</span>
+                    : viewCandidate.canceled ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Canceled</span>
+                    : <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning">In Progress</span>}
                 </div>
                 <div><p className="text-xs text-muted-foreground">Rating</p>
                   {viewCandidate.rating ? (
                     <div className="flex items-center gap-0.5">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`h-3 w-3 ${i < viewCandidate.rating! ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                        <Star key={i} className={`h-3 w-3 ${i < viewCandidate.rating! ? "text-warning fill-warning" : "text-muted"}`} />
                       ))}
                     </div>
                   ) : <p className="text-foreground">—</p>}
@@ -319,7 +319,7 @@ export default function CandidatesListPage() {
       {/* Edit Candidate Dialog */}
       {editCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Edit Candidate</h2>
               <button onClick={() => setEditCandidate(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -354,7 +354,7 @@ export default function CandidatesListPage() {
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
               <button onClick={() => setEditCandidate(null)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
-              <button onClick={() => updateMutation.mutate()} disabled={!editForm.name || updateMutation.isPending} className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+              <button onClick={() => updateMutation.mutate()} disabled={!editForm.name || updateMutation.isPending} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </button>
             </div>

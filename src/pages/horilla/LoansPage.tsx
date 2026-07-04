@@ -111,10 +111,10 @@ export default function LoansPage() {
 
   const statusColor = (s: string) => {
     switch (s) {
-      case "pending": return "bg-amber-100 text-amber-700";
-      case "active": return "bg-green-100 text-green-700";
+      case "pending": return "bg-warning/10 text-warning";
+      case "active": return "bg-success/10 text-success";
       case "closed": return "bg-muted text-muted-foreground";
-      case "rejected": return "bg-red-100 text-red-700";
+      case "rejected": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-muted-foreground";
     }
   };
@@ -133,10 +133,10 @@ export default function LoansPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Loans", value: loans.length, icon: Wallet, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Disbursed", value: `₹${totalDisbursed.toLocaleString("en-IN")}`, icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Outstanding", value: `₹${totalOutstanding.toLocaleString("en-IN")}`, icon: TrendingDown, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Pending Approval", value: pendingCount, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Total Loans", value: loans.length, icon: Wallet, color: "text-info", bg: "bg-info/10" },
+          { label: "Total Disbursed", value: `₹${totalDisbursed.toLocaleString("en-IN")}`, icon: IndianRupee, color: "text-success", bg: "bg-success/10" },
+          { label: "Outstanding", value: `₹${totalOutstanding.toLocaleString("en-IN")}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Pending Approval", value: pendingCount, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -186,7 +186,7 @@ export default function LoansPage() {
                     <td className="px-4 py-3 capitalize">{l.loan_type?.replace(/_/g, " ")}</td>
                     <td className="px-4 py-3 font-medium">₹{Number(l.amount).toLocaleString("en-IN")}</td>
                     <td className="px-4 py-3">₹{Number(l.emi_amount).toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3 font-semibold text-red-600">₹{Number(l.outstanding_balance).toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 font-semibold text-destructive">₹{Number(l.outstanding_balance).toLocaleString("en-IN")}</td>
                     <td className="px-4 py-3">{l.tenure_months} mo</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.start_emi_date}</td>
                     <td className="px-4 py-3">
@@ -195,10 +195,10 @@ export default function LoansPage() {
                     <td className="px-4 py-3">
                       {l.status === "pending" && (
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-green-600" onClick={() => approveMutation.mutate({ id: l.id, action: "approved" })}>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-success" onClick={() => approveMutation.mutate({ id: l.id, action: "approved" })}>
                             <CheckCircle className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600" onClick={() => approveMutation.mutate({ id: l.id, action: "rejected" })}>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => approveMutation.mutate({ id: l.id, action: "rejected" })}>
                             <XCircle className="h-4 w-4" />
                           </Button>
                         </div>
@@ -273,7 +273,7 @@ export default function LoansPage() {
                 <div><p className="text-muted-foreground">Type</p><p className="font-medium capitalize">{selectedLoan.loan_type?.replace(/_/g, " ")}</p></div>
                 <div><p className="text-muted-foreground">Status</p><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(selectedLoan.status)}`}>{selectedLoan.status}</span></div>
                 <div><p className="text-muted-foreground">Amount</p><p className="font-bold">₹{Number(selectedLoan.amount).toLocaleString("en-IN")}</p></div>
-                <div><p className="text-muted-foreground">Outstanding</p><p className="font-bold text-red-600">₹{Number(selectedLoan.outstanding_balance).toLocaleString("en-IN")}</p></div>
+                <div><p className="text-muted-foreground">Outstanding</p><p className="font-bold text-destructive">₹{Number(selectedLoan.outstanding_balance).toLocaleString("en-IN")}</p></div>
                 <div><p className="text-muted-foreground">EMI</p><p className="font-medium">₹{Number(selectedLoan.emi_amount).toLocaleString("en-IN")}/mo</p></div>
                 <div><p className="text-muted-foreground">Tenure</p><p className="font-medium">{selectedLoan.tenure_months} months</p></div>
                 <div><p className="text-muted-foreground">Disbursed</p><p className="font-medium">{selectedLoan.disbursement_date}</p></div>
@@ -294,7 +294,7 @@ export default function LoansPage() {
                           <p className="text-muted-foreground capitalize">{r.repayment_type?.replace(/_/g, " ")}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-green-600">₹{Number(r.amount).toLocaleString("en-IN")}</p>
+                          <p className="font-semibold text-success">₹{Number(r.amount).toLocaleString("en-IN")}</p>
                           <p className="text-muted-foreground">Bal: ₹{Number(r.balance_after).toLocaleString("en-IN")}</p>
                         </div>
                       </div>

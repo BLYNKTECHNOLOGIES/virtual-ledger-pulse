@@ -107,23 +107,23 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
   const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const STATUS_COLORS: Record<string, string> = {
-    scheduled: "bg-blue-100 text-blue-700",
-    completed: "bg-emerald-100 text-emerald-700",
-    cancelled: "bg-red-100 text-red-700",
-    no_show: "bg-amber-100 text-amber-700",
+    scheduled: "bg-info/10 text-info",
+    completed: "bg-success/10 text-success",
+    cancelled: "bg-destructive/10 text-destructive",
+    no_show: "bg-warning/10 text-warning",
   };
 
   const REC_COLORS: Record<string, string> = {
     pending: "text-muted-foreground",
-    strong_yes: "text-emerald-600",
-    yes: "text-green-600",
-    no: "text-red-600",
-    strong_no: "text-red-700",
+    strong_yes: "text-success",
+    yes: "text-success",
+    no: "text-destructive",
+    strong_no: "text-destructive",
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-card rounded-xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col">
+      <div className="bg-card rounded-xl w-full max-w-2xl shadow-sm max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Interviews — {candidateName}</h2>
@@ -153,7 +153,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map(i => (
                       <button key={i} onClick={() => setFeedbackForm({ ...feedbackForm, rating: i })}>
-                        <Star className={`h-5 w-5 ${i <= feedbackForm.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                        <Star className={`h-5 w-5 ${i <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted"}`} />
                       </button>
                     ))}
                   </div>
@@ -189,7 +189,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
                   <button onClick={() => feedbackMutation.mutate()}
                     disabled={feedbackMutation.isPending}
-                    className="px-4 py-2 text-sm text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                    className="px-4 py-2 text-sm text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                     {feedbackMutation.isPending ? "Saving..." : "Save Feedback"}
                   </button>
                 </div>
@@ -201,7 +201,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
                 ) : interviews.length === 0 ? (
                   <div className="text-center py-8">
-                    <Calendar className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                    <Calendar className="h-8 w-8 mx-auto text-muted mb-2" />
                     <p className="text-sm text-muted-foreground">No interviews scheduled</p>
                     <button onClick={() => setTab("schedule")} className="mt-2 text-sm text-[#E8604C] hover:underline">
                       + Schedule first interview
@@ -235,9 +235,9 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                               <MessageSquare className="h-3 w-3 inline mr-0.5" />Feedback
                             </button>
                             <button onClick={() => statusMutation.mutate({ id: iv.id, status: "cancelled" })}
-                              className="text-[10px] text-red-500 hover:underline px-1.5 py-0.5">Cancel</button>
+                              className="text-[10px] text-destructive hover:underline px-1.5 py-0.5">Cancel</button>
                             <button onClick={() => statusMutation.mutate({ id: iv.id, status: "no_show" })}
-                              className="text-[10px] text-amber-600 hover:underline px-1.5 py-0.5">No Show</button>
+                              className="text-[10px] text-warning hover:underline px-1.5 py-0.5">No Show</button>
                           </>
                         )}
                       </div>
@@ -249,7 +249,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                           {iv.rating && (
                             <div className="flex gap-0.5">
                               {[1, 2, 3, 4, 5].map(i => (
-                                <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                                <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted"}`} />
                               ))}
                             </div>
                           )}
@@ -260,8 +260,8 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{iv.feedback}</p>
-                        {iv.strengths && <p className="text-[10px] text-emerald-600 mt-1">✓ {iv.strengths}</p>}
-                        {iv.weaknesses && <p className="text-[10px] text-red-500 mt-0.5">✗ {iv.weaknesses}</p>}
+                        {iv.strengths && <p className="text-[10px] text-success mt-1">✓ {iv.strengths}</p>}
+                        {iv.weaknesses && <p className="text-[10px] text-destructive mt-0.5">✗ {iv.weaknesses}</p>}
                       </div>
                     )}
                   </div>
@@ -318,7 +318,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                 <button
                   onClick={() => scheduleMutation.mutate()}
                   disabled={!form.interviewer_name || !form.interview_date || scheduleMutation.isPending}
-                  className="px-4 py-2 text-sm text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+                  className="px-4 py-2 text-sm text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
                 >
                   {scheduleMutation.isPending ? "Scheduling..." : "Schedule Interview"}
                 </button>

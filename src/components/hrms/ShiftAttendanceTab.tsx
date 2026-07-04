@@ -120,7 +120,7 @@ export function ShiftAttendanceTab() {
                      <p className="text-xs md:text-sm text-muted-foreground">June 16, 2025</p>
                    </div>
                    <div className="text-right">
-                     <div className="text-xl md:text-2xl font-bold text-green-600">18/20</div>
+                     <div className="text-xl md:text-2xl font-bold text-success">18/20</div>
                      <div className="text-xs md:text-sm text-muted-foreground">Present</div>
                    </div>
                  </div>

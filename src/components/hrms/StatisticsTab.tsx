@@ -589,11 +589,11 @@ export function StatisticsTab() {
       {/* Primary KPI Cards - Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <ClickableCard to="/sales">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white h-full">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-success to-success text-primary-foreground h-full">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-emerald-100 text-xs font-medium">Revenue</p>
+                  <p className="text-success text-xs font-medium">Revenue</p>
                   <p className="text-xl font-bold">{formatCurrency(kpi.revenue)}</p>
                   <div className="flex items-center mt-1">
                     {kpi.revenueChange >= 0 ? (
@@ -603,18 +603,18 @@ export function StatisticsTab() {
                     )}
                   </div>
                 </div>
-                <DollarSign className="h-8 w-8 text-emerald-200" />
+                <DollarSign className="h-8 w-8 text-success" />
               </div>
             </CardContent>
           </Card>
         </ClickableCard>
 
         <ClickableCard to="/clients">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white h-full">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-info to-info text-primary-foreground h-full">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-xs font-medium">New Clients</p>
+                  <p className="text-info text-xs font-medium">New Clients</p>
                   <p className="text-xl font-bold">{clientStats.newInPeriod}</p>
                   <div className="flex items-center mt-1">
                     {clientGrowthChange >= 0 ? (
@@ -624,33 +624,33 @@ export function StatisticsTab() {
                     )}
                   </div>
                 </div>
-                <UserPlus className="h-8 w-8 text-blue-200" />
+                <UserPlus className="h-8 w-8 text-info" />
               </div>
             </CardContent>
           </Card>
         </ClickableCard>
 
         <ClickableCard to="/clients">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white h-full">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-primary to-primary text-primary-foreground h-full">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-xs font-medium">KYC Verified</p>
+                  <p className="text-primary text-xs font-medium">KYC Verified</p>
                   <p className="text-xl font-bold">{kycStats.newVerifiedInPeriod}</p>
-                  <p className="text-xs text-purple-200 mt-1">{kycStats.verificationRate}% total rate</p>
+                  <p className="text-xs text-primary mt-1">{kycStats.verificationRate}% total rate</p>
                 </div>
-                <UserCheck className="h-8 w-8 text-purple-200" />
+                <UserCheck className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
         </ClickableCard>
 
         <ClickableCard to="/leads">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-amber-500 to-amber-600 text-white h-full">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-warning to-warning text-primary-foreground h-full">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-amber-100 text-xs font-medium">New Leads</p>
+                  <p className="text-warning text-xs font-medium">New Leads</p>
                   <p className="text-xl font-bold">{leadStats.newInPeriod}</p>
                   <div className="flex items-center mt-1">
                     {leadStats.leadsChange >= 0 ? (
@@ -660,14 +660,14 @@ export function StatisticsTab() {
                     )}
                   </div>
                 </div>
-                <Target className="h-8 w-8 text-amber-200" />
+                <Target className="h-8 w-8 text-warning" />
               </div>
             </CardContent>
           </Card>
         </ClickableCard>
 
         <ClickableCard to="/leads">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-teal-500 to-teal-600 text-white h-full">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-teal-500 to-teal-600 text-primary-foreground h-full">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -682,15 +682,15 @@ export function StatisticsTab() {
         </ClickableCard>
 
         <ClickableCard to="/profit-loss">
-          <Card className={`shadow-md border-0 text-white h-full ${kpi.profit >= 0 ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-red-500 to-red-600'}`}>
+          <Card className={`shadow-md border-0 text-primary-foreground h-full ${kpi.profit >= 0 ? 'bg-gradient-to-br from-success to-success' : 'bg-gradient-to-br from-destructive to-destructive'}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/80 text-xs font-medium">Net Profit</p>
+                  <p className="text-primary-foreground/80 text-xs font-medium">Net Profit</p>
                   <p className="text-xl font-bold">{formatCurrency(Math.abs(kpi.profit))}</p>
-                  <p className="text-xs text-white/70 mt-1">{kpi.profit >= 0 ? 'Profit' : 'Loss'}</p>
+                  <p className="text-xs text-primary-foreground/70 mt-1">{kpi.profit >= 0 ? 'Profit' : 'Loss'}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-white/60" />
+                <TrendingUp className="h-8 w-8 text-primary-foreground/60" />
               </div>
             </CardContent>
           </Card>
@@ -711,7 +711,7 @@ export function StatisticsTab() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Growth Trends Chart */}
-            <Card className="shadow-lg border-0">
+            <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
@@ -735,10 +735,10 @@ export function StatisticsTab() {
             </Card>
 
             {/* Revenue Chart */}
-            <Card className="shadow-lg border-0">
+            <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-emerald-600" />
+                  <DollarSign className="h-5 w-5 text-success" />
                   Revenue & Trades
                 </CardTitle>
               </CardHeader>
@@ -767,28 +767,28 @@ export function StatisticsTab() {
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4 text-center">
-                <ShoppingCart className="h-6 w-6 mx-auto text-blue-600 mb-2" />
+                <ShoppingCart className="h-6 w-6 mx-auto text-info mb-2" />
                 <p className="text-2xl font-bold">{kpi.trades}</p>
                 <p className="text-xs text-muted-foreground">Trades</p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4 text-center">
-                <Target className="h-6 w-6 mx-auto text-amber-600 mb-2" />
+                <Target className="h-6 w-6 mx-auto text-warning mb-2" />
                 <p className="text-2xl font-bold">{leadStats.open}</p>
                 <p className="text-xs text-muted-foreground">Open Leads</p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4 text-center">
-                <Clock className="h-6 w-6 mx-auto text-orange-600 mb-2" />
+                <Clock className="h-6 w-6 mx-auto text-warning mb-2" />
                 <p className="text-2xl font-bold">{onboardingStats.pending}</p>
                 <p className="text-xs text-muted-foreground">Pending Approvals</p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4 text-center">
-                <Briefcase className="h-6 w-6 mx-auto text-purple-600 mb-2" />
+                <Briefcase className="h-6 w-6 mx-auto text-primary mb-2" />
                 <p className="text-2xl font-bold">{kpi.employees}</p>
                 <p className="text-xs text-muted-foreground">Employees</p>
               </CardContent>
@@ -806,54 +806,54 @@ export function StatisticsTab() {
         {/* Clients & KYC Tab */}
         <TabsContent value="clients" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-md bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+            <Card className="shadow-md bg-gradient-to-br from-info to-info dark:from-info dark:to-info">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">New Clients</p>
-                    <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">{clientStats.newInPeriod}</p>
-                    <p className="text-xs text-blue-500 mt-1">This period</p>
+                    <p className="text-sm text-info dark:text-info font-medium">New Clients</p>
+                    <p className="text-3xl font-bold text-info dark:text-info">{clientStats.newInPeriod}</p>
+                    <p className="text-xs text-info mt-1">This period</p>
                   </div>
-                  <UserPlus className="h-10 w-10 text-blue-400" />
+                  <UserPlus className="h-10 w-10 text-info" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-md bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+            <Card className="shadow-md bg-gradient-to-br from-success to-success dark:from-success dark:to-success">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-green-600 dark:text-green-400 font-medium">KYC Verified</p>
-                    <p className="text-3xl font-bold text-green-700 dark:text-green-300">{kycStats.verified}</p>
-                    <p className="text-xs text-green-500 mt-1">In selected period ({kycStats.verifiedAllTime} all-time)</p>
+                    <p className="text-sm text-success dark:text-success font-medium">KYC Verified</p>
+                    <p className="text-3xl font-bold text-success dark:text-success">{kycStats.verified}</p>
+                    <p className="text-xs text-success mt-1">In selected period ({kycStats.verifiedAllTime} all-time)</p>
                   </div>
-                  <CheckCircle className="h-10 w-10 text-green-400" />
+                  <CheckCircle className="h-10 w-10 text-success" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-md bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900">
+            <Card className="shadow-md bg-gradient-to-br from-warning to-warning dark:from-warning dark:to-warning">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">KYC Pending</p>
-                    <p className="text-3xl font-bold text-amber-700 dark:text-amber-300">{kycStats.pending}</p>
-                    <p className="text-xs text-amber-500 mt-1">In selected period</p>
+                    <p className="text-sm text-warning dark:text-warning font-medium">KYC Pending</p>
+                    <p className="text-3xl font-bold text-warning dark:text-warning">{kycStats.pending}</p>
+                    <p className="text-xs text-warning mt-1">In selected period</p>
                   </div>
-                  <AlertCircle className="h-10 w-10 text-amber-400" />
+                  <AlertCircle className="h-10 w-10 text-warning" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-md bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900">
+            <Card className="shadow-md bg-gradient-to-br from-destructive to-destructive dark:from-destructive dark:to-destructive">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">KYC Rejected</p>
-                    <p className="text-3xl font-bold text-red-700 dark:text-red-300">{kycStats.rejected}</p>
-                    <p className="text-xs text-red-500 mt-1">In selected period</p>
+                    <p className="text-sm text-destructive dark:text-destructive font-medium">KYC Rejected</p>
+                    <p className="text-3xl font-bold text-destructive dark:text-destructive">{kycStats.rejected}</p>
+                    <p className="text-xs text-destructive mt-1">In selected period</p>
                   </div>
-                  <XCircle className="h-10 w-10 text-red-400" />
+                  <XCircle className="h-10 w-10 text-destructive" />
                 </div>
               </CardContent>
             </Card>
@@ -861,7 +861,7 @@ export function StatisticsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* KYC Status Pie Chart */}
-            <Card className="shadow-lg">
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <UserCheck className="h-5 w-5 text-primary" />
@@ -894,7 +894,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Client Type Breakdown */}
-            <Card className="shadow-lg">
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
@@ -903,25 +903,25 @@ export function StatisticsTab() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                  <div className="p-4 bg-info/10 dark:bg-info rounded-lg">
                     <p className="text-sm text-muted-foreground">New Buyers</p>
-                    <p className="text-2xl font-bold text-blue-600">{clientStats.buyers}</p>
+                    <p className="text-2xl font-bold text-info">{clientStats.buyers}</p>
                     <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
-                  <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                  <div className="p-4 bg-primary/10 dark:bg-primary rounded-lg">
                     <p className="text-sm text-muted-foreground">New Sellers</p>
-                    <p className="text-2xl font-bold text-purple-600">{clientStats.sellers}</p>
+                    <p className="text-2xl font-bold text-primary">{clientStats.sellers}</p>
                     <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
                 </div>
                 <div className="p-4 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Verification Rate</span>
-                    <span className="text-lg font-bold text-green-600">{kycStats.verificationRate}%</span>
+                    <span className="text-lg font-bold text-success">{kycStats.verificationRate}%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2 mt-2">
                     <div 
-                      className="bg-green-500 h-2 rounded-full" 
+                      className="bg-success h-2 rounded-full" 
                       style={{ width: `${kycStats.verificationRate}%` }}
                     ></div>
                   </div>
@@ -941,7 +941,7 @@ export function StatisticsTab() {
                     <p className="text-sm text-muted-foreground">New Leads</p>
                     <p className="text-2xl font-bold">{leadStats.newInPeriod}</p>
                   </div>
-                  <Target className="h-8 w-8 text-amber-500" />
+                  <Target className="h-8 w-8 text-warning" />
                 </div>
               </CardContent>
             </Card>
@@ -952,7 +952,7 @@ export function StatisticsTab() {
                     <p className="text-sm text-muted-foreground">Open Leads</p>
                     <p className="text-2xl font-bold">{leadStats.open}</p>
                   </div>
-                  <Clock className="h-8 w-8 text-blue-500" />
+                  <Clock className="h-8 w-8 text-info" />
                 </div>
               </CardContent>
             </Card>
@@ -961,9 +961,9 @@ export function StatisticsTab() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Converted</p>
-                    <p className="text-2xl font-bold text-green-600">{leadStats.converted}</p>
+                    <p className="text-2xl font-bold text-success">{leadStats.converted}</p>
                   </div>
-                  <CheckCircle className="h-8 w-8 text-green-500" />
+                  <CheckCircle className="h-8 w-8 text-success" />
                 </div>
               </CardContent>
             </Card>
@@ -972,13 +972,13 @@ export function StatisticsTab() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Lost</p>
-                    <p className="text-2xl font-bold text-red-600">{leadStats.lost}</p>
+                    <p className="text-2xl font-bold text-destructive">{leadStats.lost}</p>
                   </div>
-                  <XCircle className="h-8 w-8 text-red-500" />
+                  <XCircle className="h-8 w-8 text-destructive" />
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-md bg-gradient-to-br from-teal-500 to-teal-600 text-white">
+            <Card className="shadow-md bg-gradient-to-br from-teal-500 to-teal-600 text-primary-foreground">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -993,7 +993,7 @@ export function StatisticsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Lead Sources */}
-            <Card className="shadow-lg">
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Phone className="h-5 w-5 text-primary" />
@@ -1016,7 +1016,7 @@ export function StatisticsTab() {
                         <TableRow key={source.name}>
                           <TableCell className="font-medium">{source.name}</TableCell>
                           <TableCell className="text-center">{source.leads}</TableCell>
-                          <TableCell className="text-center text-green-600">{source.converted}</TableCell>
+                          <TableCell className="text-center text-success">{source.converted}</TableCell>
                           <TableCell className="text-right">
                             <Badge variant={source.rate >= 50 ? "default" : source.rate >= 25 ? "secondary" : "outline"}>
                               {source.rate}%
@@ -1035,7 +1035,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Lead Trend Chart */}
-            <Card className="shadow-lg">
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
@@ -1061,7 +1061,7 @@ export function StatisticsTab() {
 
         {/* Performance Tab */}
         <TabsContent value="performance" className="space-y-6">
-          <Card className="shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Award className="h-5 w-5 text-primary" />
@@ -1085,13 +1085,13 @@ export function StatisticsTab() {
                       <TableRow key={emp.name}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
-                            {index < 3 && <Star className="h-4 w-4 text-amber-500" />}
+                            {index < 3 && <Star className="h-4 w-4 text-warning" />}
                             {emp.name}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">{emp.clientsAdded}</TableCell>
                         <TableCell className="text-center">{emp.ordersHandled}</TableCell>
-                        <TableCell className="text-right font-semibold text-green-600">
+                        <TableCell className="text-right font-semibold text-success">
                           {formatCurrency(emp.revenue)}
                         </TableCell>
                       </TableRow>
@@ -1109,17 +1109,17 @@ export function StatisticsTab() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mt-6">
                     <div className="p-4 bg-muted/50 rounded-lg">
-                      <UserPlus className="h-6 w-6 mx-auto text-blue-500 mb-2" />
+                      <UserPlus className="h-6 w-6 mx-auto text-info mb-2" />
                       <p className="text-sm font-medium">Clients Added</p>
                       <p className="text-xs text-muted-foreground">Track new client acquisitions</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
-                      <ShoppingCart className="h-6 w-6 mx-auto text-purple-500 mb-2" />
+                      <ShoppingCart className="h-6 w-6 mx-auto text-primary mb-2" />
                       <p className="text-sm font-medium">Orders Handled</p>
                       <p className="text-xs text-muted-foreground">Monitor order processing</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
-                      <DollarSign className="h-6 w-6 mx-auto text-green-500 mb-2" />
+                      <DollarSign className="h-6 w-6 mx-auto text-success mb-2" />
                       <p className="text-sm font-medium">Revenue Generated</p>
                       <p className="text-xs text-muted-foreground">Measure contribution</p>
                     </div>
@@ -1130,7 +1130,7 @@ export function StatisticsTab() {
           </Card>
 
           {/* Top Clients */}
-          <Card className="shadow-lg">
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
@@ -1176,19 +1176,19 @@ export function StatisticsTab() {
             <Card className="shadow-md">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(kpi.revenue)}</p>
+                <p className="text-2xl font-bold text-success">{formatCurrency(kpi.revenue)}</p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Operating Expenses</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
+                <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Net Profit</p>
-                <p className={`text-2xl font-bold ${kpi.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-2xl font-bold ${kpi.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {formatCurrency(kpi.profit)}
                 </p>
               </CardContent>
@@ -1203,7 +1203,7 @@ export function StatisticsTab() {
 
           {/* USDT Fees Widget - Single Simple Card */}
           <Card 
-            className="shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+            className="shadow-md cursor-pointer hover:shadow-sm transition-shadow"
             onClick={() => setShowFeeHistoryDialog(true)}
           >
             <CardContent className="p-4">
@@ -1220,10 +1220,10 @@ export function StatisticsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Expense Breakdown */}
-            <Card className="shadow-lg">
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FileBarChart className="h-5 w-5 text-red-600" />
+                  <FileBarChart className="h-5 w-5 text-destructive" />
                   Expense Breakdown
                 </CardTitle>
               </CardHeader>
@@ -1260,10 +1260,10 @@ export function StatisticsTab() {
             </Card>
 
             {/* Expense Breakdown Pie Chart */}
-            <Card className="shadow-lg">
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-orange-600" />
+                  <BarChart3 className="h-5 w-5 text-warning" />
                   Expense Distribution
                 </CardTitle>
               </CardHeader>

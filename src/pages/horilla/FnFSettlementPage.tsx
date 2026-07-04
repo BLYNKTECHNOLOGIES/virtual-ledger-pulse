@@ -220,7 +220,7 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
                     {s.status === "approved" && (
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}>
+                      <Button size="sm" className="bg-success hover:bg-success" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}>
                         Mark Paid
                       </Button>
                     )}
@@ -230,9 +230,9 @@ export default function FnFSettlementPage() {
                   <div><span className="text-muted-foreground">Pending Salary</span><p className="font-medium">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground">Leave Encash</span><p className="font-medium">₹{Number(s.leave_encashment_amount).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground">Bonus</span><p className="font-medium">₹{Number(s.bonus_amount).toLocaleString("en-IN")}</p></div>
-                  <div><span className="text-muted-foreground">Loan Recovery</span><p className="font-medium text-red-600">-₹{Number(s.loan_recovery).toLocaleString("en-IN")}</p></div>
-                  <div><span className="text-muted-foreground">Penalties</span><p className="font-medium text-red-600">-₹{Number(s.penalty_deductions).toLocaleString("en-IN")}</p></div>
-                  <div><span className="text-muted-foreground">Other Ded.</span><p className="font-medium text-red-600">-₹{Number(s.other_deductions).toLocaleString("en-IN")}</p></div>
+                  <div><span className="text-muted-foreground">Loan Recovery</span><p className="font-medium text-destructive">-₹{Number(s.loan_recovery).toLocaleString("en-IN")}</p></div>
+                  <div><span className="text-muted-foreground">Penalties</span><p className="font-medium text-destructive">-₹{Number(s.penalty_deductions).toLocaleString("en-IN")}</p></div>
+                  <div><span className="text-muted-foreground">Other Ded.</span><p className="font-medium text-destructive">-₹{Number(s.other_deductions).toLocaleString("en-IN")}</p></div>
                 </div>
               </CardContent>
             </Card>

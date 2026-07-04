@@ -77,7 +77,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
   };
 
   const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
+  const avatarColors = ["bg-primary", "bg-info", "bg-success", "bg-warning", "bg-destructive", "bg-info"];
   const getColor = (id: string) => avatarColors[id.charCodeAt(0) % avatarColors.length];
   const stageIdx = stages.findIndex(s => s.id === currentStageId);
 
@@ -85,13 +85,13 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
     <div ref={setNodeRef} style={style}
       className="bg-card rounded-lg border border-border p-3 hover:shadow-sm hover:border-border transition-all group">
       <div className="flex items-start gap-2.5">
-        <div {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-muted-foreground cursor-grab active:cursor-grabbing">
+        <div {...attributes} {...listeners} className="mt-1 text-muted hover:text-muted-foreground cursor-grab active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
         {candidate.profile_image_url ? (
           <img src={candidate.profile_image_url} className="w-8 h-8 rounded-full object-cover" alt="" />
         ) : (
-          <div className={`w-8 h-8 rounded-full ${getColor(candidate.id)} flex items-center justify-center text-white font-medium text-xs shrink-0`}>
+          <div className={`w-8 h-8 rounded-full ${getColor(candidate.id)} flex items-center justify-center text-primary-foreground font-medium text-xs shrink-0`}>
             {initials(candidate.name)}
           </div>
         )}
@@ -108,20 +108,20 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
             className="text-[10px] text-[#E8604C] hover:underline px-1">Next →</button>
         )}
         <button onClick={() => onInterview(candidate)}
-          className="text-[10px] text-blue-600 hover:underline px-1 flex items-center gap-0.5">
+          className="text-[10px] text-info hover:underline px-1 flex items-center gap-0.5">
           <Calendar className="h-2.5 w-2.5" />Interview
         </button>
         <button onClick={() => onOffer(candidate)}
-          className="text-[10px] text-violet-600 hover:underline px-1 flex items-center gap-0.5">
+          className="text-[10px] text-primary hover:underline px-1 flex items-center gap-0.5">
           <FileText className="h-2.5 w-2.5" />Offer
         </button>
         {!candidate.hired && !candidate.canceled && (
           <button onClick={() => onHire(candidate.id)}
-            className="text-[10px] text-emerald-600 hover:underline px-1">Hire ✓</button>
+            className="text-[10px] text-success hover:underline px-1">Hire ✓</button>
         )}
         {!candidate.canceled && !candidate.hired && (
           <button onClick={() => onCancel(candidate.id)}
-            className="text-[10px] text-red-500 hover:underline px-1">Cancel ✗</button>
+            className="text-[10px] text-destructive hover:underline px-1">Cancel ✗</button>
         )}
       </div>
 
@@ -130,7 +130,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         {candidate.rating !== null && candidate.rating > 0 && (
           <div className="flex items-center gap-0.5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className={`h-3 w-3 ${i < (candidate.rating || 0) ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+              <Star key={i} className={`h-3 w-3 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted"}`} />
             ))}
           </div>
         )}
@@ -139,9 +139,9 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         )}
         {candidate.offer_letter_status && candidate.offer_letter_status !== "none" && (
           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-            candidate.offer_letter_status === "accepted" ? "bg-emerald-100 text-emerald-700" :
-            candidate.offer_letter_status === "rejected" ? "bg-red-100 text-red-700" :
-            candidate.offer_letter_status === "sent" ? "bg-blue-100 text-blue-700" :
+            candidate.offer_letter_status === "accepted" ? "bg-success/10 text-success" :
+            candidate.offer_letter_status === "rejected" ? "bg-destructive/10 text-destructive" :
+            candidate.offer_letter_status === "sent" ? "bg-info/10 text-info" :
             "bg-muted text-muted-foreground"
           }`}>
             Offer: {candidate.offer_letter_status}
@@ -168,7 +168,7 @@ function StageColumn({ stage, children, candidateIds }: {
       <div
         ref={setNodeRef}
         className={`flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-[100px] rounded-b-xl transition-colors ${
-          isOver ? "bg-blue-50/50 ring-2 ring-blue-200 ring-inset" : ""
+          isOver ? "bg-info/10/50 ring-2 ring-info ring-inset" : ""
         }`}
       >
         {children}
@@ -480,7 +480,7 @@ export default function RecruitmentPipelinePage() {
             <p className="text-muted-foreground text-xs mt-1">Create a recruitment to start building your pipeline</p>
             <button
               onClick={() => navigate("/hrms/recruitment")}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#E8604C] text-white text-sm font-medium rounded-lg hover:bg-[#d04e3c] transition-colors shadow-sm"
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#E8604C] text-primary-foreground text-sm font-medium rounded-lg hover:bg-[#d04e3c] transition-colors shadow-sm"
             >
               <Plus className="h-4 w-4" /> Create Recruitment
             </button>
@@ -530,7 +530,7 @@ export default function RecruitmentPipelinePage() {
                             if (stageCandidates.length > 0) { toast.error("Remove all candidates first"); return; }
                             setDeleteStageTarget({ id: stage.id, name: stage.stage_name });
                           }}
-                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors"
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
                           title="Delete stage">
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -572,9 +572,9 @@ export default function RecruitmentPipelinePage() {
           {/* Drag Overlay */}
           <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
             {draggedCandidate && (
-              <div className="bg-card rounded-lg border-2 border-[#E8604C] p-3 shadow-xl w-64 opacity-95 rotate-2">
+              <div className="bg-card rounded-lg border border-[#E8604C] p-3 shadow-sm w-64 opacity-95 rotate-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-violet-500 flex items-center justify-center text-white font-medium text-xs">
+                  <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-medium text-xs">
                     {draggedCandidate.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
                   </div>
                   <div>
@@ -591,7 +591,7 @@ export default function RecruitmentPipelinePage() {
       {/* Add Candidate Dialog */}
       {addCandidateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Add Candidate</h2>
               <button onClick={() => setAddCandidateOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
@@ -653,7 +653,7 @@ export default function RecruitmentPipelinePage() {
               <button onClick={() => setAddCandidateOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => addCandidateMutation.mutate()}
                 disabled={!candidateForm.name || addCandidateMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {addCandidateMutation.isPending ? "Adding..." : "Add"}
               </button>
             </div>
@@ -664,7 +664,7 @@ export default function RecruitmentPipelinePage() {
       {/* Add Stage Dialog */}
       {addStageOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-sm shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-sm shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Add Stage</h2>
               <button onClick={() => setAddStageOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
@@ -697,7 +697,7 @@ export default function RecruitmentPipelinePage() {
               <button onClick={() => setAddStageOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => addStageMutation.mutate()}
                 disabled={!stageForm.stage_name || addStageMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {addStageMutation.isPending ? "Adding..." : "Add Stage"}
               </button>
             </div>

@@ -95,9 +95,9 @@ export default function BiometricDevicesPage() {
   );
 
   const getStatusIndicator = (d: any) => {
-    if (d.is_live_capture) return { label: "Live Capture", color: "bg-yellow-400" };
-    if (d.is_scheduled) return { label: "Scheduled", color: "bg-blue-500" };
-    return { label: "Not-Connected", color: "bg-red-500" };
+    if (d.is_live_capture) return { label: "Live Capture", color: "bg-warning" };
+    if (d.is_scheduled) return { label: "Scheduled", color: "bg-info" };
+    return { label: "Not-Connected", color: "bg-destructive" };
   };
 
   return (
@@ -109,9 +109,9 @@ export default function BiometricDevicesPage() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400" /> Live Capture</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Scheduled</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Not-Connected</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-warning" /> Live Capture</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-info" /> Scheduled</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive" /> Not-Connected</span>
           </div>
           <Button
             onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }}
@@ -168,7 +168,7 @@ export default function BiometricDevicesPage() {
                         }}>
                           <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={() => deleteMutation.mutate(d.id)}>
+                        <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(d.id)}>
                           <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -203,7 +203,7 @@ export default function BiometricDevicesPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className={`text-xs h-7 ${d.is_scheduled ? "border-orange-400 text-orange-500 hover:bg-orange-50" : "border-teal-500 text-teal-600 hover:bg-teal-50"}`}
+                      className={`text-xs h-7 ${d.is_scheduled ? "border-warning text-warning hover:bg-warning/10" : "border-teal-500 text-teal-600 hover:bg-teal-50"}`}
                       onClick={async () => {
                         await (supabase as any).from("hr_biometric_devices").update({ is_scheduled: !d.is_scheduled }).eq("id", d.id);
                         qc.invalidateQueries({ queryKey: ["hr_biometric_devices"] });
@@ -212,7 +212,7 @@ export default function BiometricDevicesPage() {
                     >
                       {d.is_scheduled ? "Unschedule" : "Schedule"}
                     </Button>
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-gray-400 text-muted-foreground hover:bg-muted/50">
+                    <Button size="sm" variant="outline" className="text-xs h-7 border-muted text-muted-foreground hover:bg-muted/50">
                       Employee
                     </Button>
                   </div>

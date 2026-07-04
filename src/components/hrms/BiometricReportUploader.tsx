@@ -425,7 +425,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
         {step === "upload" && (
           <div
-            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all ${isDragActive ? "border-primary bg-primary/10" : ""}`}
+            className={`border border-dashed rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all ${isDragActive ? "border-primary bg-primary/10" : ""}`}
             onClick={() => document.getElementById("biometric-file-input")?.click()}
             {...dropzoneProps}
           >
@@ -469,11 +469,11 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                 </CardContent>
               </Card>
               <Card 
-                className={`cursor-pointer transition-all ${tableFilter === "matched" ? "ring-2 ring-green-500" : "hover:bg-muted/50"}`}
+                className={`cursor-pointer transition-all ${tableFilter === "matched" ? "ring-2 ring-success" : "hover:bg-muted/50"}`}
                 onClick={() => setTableFilter(tableFilter === "matched" ? "all" : "matched")}
               >
                 <CardContent className="p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600">{matchedCount}</p>
+                  <p className="text-2xl font-bold text-success">{matchedCount}</p>
                   <p className="text-xs text-muted-foreground">Matched</p>
                 </CardContent>
               </Card>
@@ -482,13 +482,13 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                 onClick={() => setTableFilter(tableFilter === "unmatched" ? "all" : "unmatched")}
               >
                 <CardContent className="p-3 text-center">
-                  <p className="text-2xl font-bold text-red-600">{unmatchedNames.length}</p>
+                  <p className="text-2xl font-bold text-destructive">{unmatchedNames.length}</p>
                   <p className="text-xs text-muted-foreground">Unmatched</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-3 text-center">
-                  <p className="text-2xl font-bold text-blue-600">{nonWeeklyOff}</p>
+                  <p className="text-2xl font-bold text-info">{nonWeeklyOff}</p>
                   <p className="text-xs text-muted-foreground">Records to Import</p>
                 </CardContent>
               </Card>
@@ -532,7 +532,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                     <tr key={i} className={`border-b ${!row.employeeId ? "bg-destructive/5" : ""}`}>
                       <td className="px-3 py-1.5">
                         {row.employeeId ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <CheckCircle2 className="h-4 w-4 text-success" />
                         ) : (
                           <AlertCircle className="h-4 w-4 text-destructive" />
                         )}
@@ -547,9 +547,9 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                       <td className="px-3 py-1.5">{row.checkOut || "—"}</td>
                       <td className="px-3 py-1.5">
                         <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                          row.status === "present" ? "bg-green-100 text-green-700" :
-                          row.status === "absent" ? "bg-red-100 text-red-700" :
-                          row.status === "half_day" ? "bg-yellow-100 text-yellow-700" :
+                          row.status === "present" ? "bg-success/10 text-success" :
+                          row.status === "absent" ? "bg-destructive/10 text-destructive" :
+                          row.status === "half_day" ? "bg-warning/10 text-warning" :
                           "bg-muted text-muted-foreground"
                         }`}>{row.status}</span>
                       </td>
@@ -564,8 +564,8 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
         {step === "done" && (
           <div className="text-center py-8 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-8 h-8 text-success" />
             </div>
             <div>
               <p className="text-lg font-semibold text-foreground">Import Complete</p>

@@ -168,7 +168,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 </Select>
               </div>
               <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mt-0.5 text-amber-500" />
+                <AlertTriangle className="h-3 w-3 mt-0.5 text-warning" />
                 <span>A system-generated password will be emailed. User will be forced to change it on first login.</span>
               </div>
             </div>
@@ -181,7 +181,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             <Button
               onClick={handleFinalize}
               disabled={finalizing}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-success hover:bg-success text-primary-foreground"
             >
               {finalizing ? "Creating Employee..." : "✅ Finalize & Create Employee"}
             </Button>

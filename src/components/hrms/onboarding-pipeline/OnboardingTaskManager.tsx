@@ -247,7 +247,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
                             className="mt-0.5"
                           >
                             {isCompleted ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              <CheckCircle2 className="h-5 w-5 text-success" />
                             ) : (
                               <Circle className="h-5 w-5 text-muted-foreground" />
                             )}
@@ -257,7 +257,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
                             {task.description && <p className="text-xs text-muted-foreground">{task.description}</p>}
                           </div>
                           <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 h-7 w-7" onClick={() => deleteTask.mutate(task.id)}>
-                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </div>
                       );

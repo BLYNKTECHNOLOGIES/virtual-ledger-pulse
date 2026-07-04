@@ -49,7 +49,7 @@ export function BiometricDeviceStatus() {
              >
                <div className="flex items-center gap-3 min-w-0">
                  {device.is_connected ? (
-                   <Wifi className="h-4 w-4 text-green-600 shrink-0" />
+                   <Wifi className="h-4 w-4 text-success shrink-0" />
                  ) : (
                    <WifiOff className="h-4 w-4 text-destructive shrink-0" />
                  )}

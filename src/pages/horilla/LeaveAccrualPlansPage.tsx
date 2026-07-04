@@ -174,7 +174,7 @@ export default function LeaveAccrualPlansPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge style={{ backgroundColor: p.hr_leave_types?.color || "#6B7280" }} className="text-white text-xs">
+                  <Badge style={{ backgroundColor: p.hr_leave_types?.color || "#6B7280" }} className="text-primary-foreground text-xs">
                     {p.hr_leave_types?.name}
                   </Badge>
                   <Badge variant={p.is_active ? "default" : "secondary"} className="text-xs">
@@ -217,7 +217,7 @@ export default function LeaveAccrualPlansPage() {
                     <td className="px-4 py-2">{log.accrual_date}</td>
                     <td className="px-4 py-2">{log.hr_leave_accrual_plans?.name}</td>
                     <td className="px-4 py-2">{log.hr_employees?.first_name} {log.hr_employees?.last_name}</td>
-                    <td className="px-4 py-2 font-medium text-green-600">+{log.accrued_days}</td>
+                    <td className="px-4 py-2 font-medium text-success">+{log.accrued_days}</td>
                   </tr>
                 ))}
               </tbody>

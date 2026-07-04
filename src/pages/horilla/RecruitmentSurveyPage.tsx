@@ -156,7 +156,7 @@ export default function RecruitmentSurveyPage() {
         </div>
         <button
           onClick={() => { closeDialog(); setCreateOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" /> Create Template
         </button>
@@ -165,15 +165,15 @@ export default function RecruitmentSurveyPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0"><ClipboardList className="h-5 w-5 text-violet-600" /></div>
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><ClipboardList className="h-5 w-5 text-primary" /></div>
           <div><p className="text-2xl font-bold text-foreground">{templates.length}</p><p className="text-xs text-muted-foreground">Templates</p></div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0"><FileText className="h-5 w-5 text-blue-600" /></div>
+          <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0"><FileText className="h-5 w-5 text-info" /></div>
           <div><p className="text-2xl font-bold text-foreground">{questions.length}</p><p className="text-xs text-muted-foreground">Total Questions</p></div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0"><CheckSquare className="h-5 w-5 text-emerald-600" /></div>
+          <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0"><CheckSquare className="h-5 w-5 text-success" /></div>
           <div><p className="text-2xl font-bold text-foreground">{responses.length}</p><p className="text-xs text-muted-foreground">Responses</p></div>
         </div>
       </div>
@@ -198,17 +198,17 @@ export default function RecruitmentSurveyPage() {
                   <ClipboardList className="h-4 w-4 text-[#E8604C]" />
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-semibold text-foreground">{tpl.title}</span>
-                    {tpl.is_general_template && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">General</span>}
+                    {tpl.is_general_template && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info font-medium">General</span>}
                     {tpl.description && <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>}
                   </div>
                   <span className="text-xs text-muted-foreground">{tplQuestions.length} Q&apos;s</span>
                   <span className="text-xs text-muted-foreground">{tplResponses.length} responses</span>
                   <button onClick={(e) => { e.stopPropagation(); setViewResponses(viewResponses === tpl.id ? null : tpl.id); setViewAnalytics(null); }}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-blue-600" title="View Responses">
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-info" title="View Responses">
                     <Eye className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setViewAnalytics(viewAnalytics === tpl.id ? null : tpl.id); setViewResponses(null); }}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-emerald-600" title="Analytics">
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-success" title="Analytics">
                     <BarChart3 className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setForm({ title: tpl.title, description: tpl.description || "", is_general_template: tpl.is_general_template }); setEditTemplate(tpl); setCreateOpen(true); }}
@@ -216,7 +216,7 @@ export default function RecruitmentSurveyPage() {
                     <Edit className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: tpl.id, name: tpl.title }); }}
-                    className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500">
+                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -226,7 +226,7 @@ export default function RecruitmentSurveyPage() {
                     {tplQuestions.length === 0 ? (
                       <div className="px-4 py-3 text-xs text-muted-foreground">No questions added yet.</div>
                     ) : (
-                      <div className="divide-y divide-gray-50">
+                      <div className="divide-y divide-muted">
                         {tplQuestions.map((q: any, i: number) => (
                           <div key={q.id} className="flex items-center gap-3 px-4 py-2 pl-12">
                             <span className="text-xs text-muted-foreground font-mono w-5">{i + 1}.</span>
@@ -234,11 +234,11 @@ export default function RecruitmentSurveyPage() {
                               <p className="text-sm text-foreground">{q.question}</p>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{q.question_type}</span>
-                                {q.is_required && <span className="text-[10px] text-red-400">Required</span>}
+                                {q.is_required && <span className="text-[10px] text-destructive">Required</span>}
                                 {q.options && <span className="text-[10px] text-muted-foreground">Options: {(q.options as string[]).join(", ")}</span>}
                               </div>
                             </div>
-                            <button onClick={() => deleteQuestionMutation.mutate(q.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500">
+                            <button onClick={() => deleteQuestionMutation.mutate(q.id)} className="p-1 rounded hover:bg-destructive/10 text-muted hover:text-destructive">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           </div>
@@ -263,7 +263,7 @@ export default function RecruitmentSurveyPage() {
                           )}
                           <div className="flex gap-2">
                             <button onClick={() => addQuestionMutation.mutate(tpl.id)} disabled={!qForm.question}
-                              className="px-3 py-1.5 text-xs bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">Add</button>
+                              className="px-3 py-1.5 text-xs bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">Add</button>
                             <button onClick={() => { setAddQTo(null); setQForm({ question: "", question_type: "text", is_required: true, options: "" }); }}
                               className="px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
                           </div>
@@ -320,7 +320,7 @@ export default function RecruitmentSurveyPage() {
       {/* Create/Edit Dialog */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">{editTemplate ? "Edit" : "Create"} Survey Template</h2>
               <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
@@ -341,7 +341,7 @@ export default function RecruitmentSurveyPage() {
             </div>
             <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
               <button onClick={closeDialog} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button onClick={() => saveTemplateMutation.mutate()} disabled={!form.title} className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+              <button onClick={() => saveTemplateMutation.mutate()} disabled={!form.title} className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {editTemplate ? "Update" : "Create"}
               </button>
             </div>
@@ -439,20 +439,20 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-green-600">Yes</span>
+                  <span className="text-success">Yes</span>
                   <span className="font-medium">{q.total > 0 ? Math.round((q.yes / q.total) * 100) : 0}%</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${q.total > 0 ? (q.yes / q.total) * 100 : 0}%` }} />
+                  <div className="h-full bg-success rounded-full" style={{ width: `${q.total > 0 ? (q.yes / q.total) * 100 : 0}%` }} />
                 </div>
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-red-600">No</span>
+                  <span className="text-destructive">No</span>
                   <span className="font-medium">{q.total > 0 ? Math.round((q.no / q.total) * 100) : 0}%</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 rounded-full" style={{ width: `${q.total > 0 ? (q.no / q.total) * 100 : 0}%` }} />
+                  <div className="h-full bg-destructive rounded-full" style={{ width: `${q.total > 0 ? (q.no / q.total) * 100 : 0}%` }} />
                 </div>
               </div>
             </div>
@@ -464,7 +464,7 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
                 <div key={opt} className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground w-24 truncate">{opt}</span>
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${q.total > 0 ? ((count as number) / q.total) * 100 : 0}%` }} />
+                    <div className="h-full bg-info rounded-full" style={{ width: `${q.total > 0 ? ((count as number) / q.total) * 100 : 0}%` }} />
                   </div>
                   <span className="text-[10px] text-muted-foreground w-6 text-right">{count as number}</span>
                 </div>

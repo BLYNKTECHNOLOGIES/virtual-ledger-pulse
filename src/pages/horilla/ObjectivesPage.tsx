@@ -40,16 +40,16 @@ interface Employee {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-foreground",
-  active: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
+  active: "bg-info/10 text-info",
+  completed: "bg-success/10 text-success",
+  cancelled: "bg-destructive/10 text-destructive",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
-  medium: "bg-yellow-100 text-yellow-700",
-  high: "bg-orange-100 text-orange-700",
-  critical: "bg-red-100 text-red-700",
+  medium: "bg-warning/10 text-warning",
+  high: "bg-warning/10 text-warning",
+  critical: "bg-destructive/10 text-destructive",
 };
 
 const emptyForm = {
@@ -145,7 +145,7 @@ export default function ObjectivesPage() {
           <h1 className="text-2xl font-bold text-foreground">Objectives & Key Results</h1>
           <p className="text-muted-foreground text-sm">Set and track OKRs for individuals, teams, and the company</p>
         </div>
-        <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={openCreate}>
+        <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={openCreate}>
           <Plus className="h-4 w-4 mr-1" /> New Objective
         </Button>
       </div>
@@ -200,7 +200,7 @@ export default function ObjectivesPage() {
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(obj)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(obj.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(obj.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </div>
               </CardContent>
@@ -231,7 +231,7 @@ export default function ObjectivesPage() {
               <div><Label>Review Cycle</Label><Input placeholder="e.g. Q1-2026" value={form.review_cycle} onChange={(e) => setForm({ ...form, review_cycle: e.target.value })} /></div>
               <div><Label>Assign To</Label><Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}><SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger><SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent></Select></div>
             </div>
-            <Button className="w-full bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={handleSave}>
+            <Button className="w-full bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={handleSave}>
               {editId ? "Update Objective" : "Create Objective"}
             </Button>
           </div>

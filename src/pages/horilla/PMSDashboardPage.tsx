@@ -11,9 +11,9 @@ import { useMemo } from "react";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-foreground",
-  active: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
+  active: "bg-info/10 text-info",
+  completed: "bg-success/10 text-success",
+  cancelled: "bg-destructive/10 text-destructive",
 };
 
 const PIE_COLORS = ["#6366f1", "#3b82f6", "#22c55e", "#ef4444"];
@@ -59,10 +59,10 @@ export default function PMSDashboardPage() {
   }, [objectives]);
 
   const stats = [
-    { label: "Total Objectives", value: objectives.length, icon: Target, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { label: "Avg Progress", value: `${avgProgress}%`, icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Feedback Reviews", value: safeStats.total, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Avg Rating", value: safeStats.avgRating || "–", icon: Star, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Total Objectives", value: objectives.length, icon: Target, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Avg Progress", value: `${avgProgress}%`, icon: TrendingUp, color: "text-info", bg: "bg-info/10" },
+    { label: "Feedback Reviews", value: safeStats.total, icon: Users, color: "text-success", bg: "bg-success/10" },
+    { label: "Avg Rating", value: safeStats.avgRating || "–", icon: Star, color: "text-warning", bg: "bg-warning/10" },
   ];
 
   if (loading) return <div className="flex items-center justify-center py-24 text-muted-foreground">Loading PMS data...</div>;
@@ -76,7 +76,7 @@ export default function PMSDashboardPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate("/hrms/pms/feedback")}>360° Feedback</Button>
-          <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={() => navigate("/hrms/pms/objectives")}>
+          <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => navigate("/hrms/pms/objectives")}>
             <Plus className="h-4 w-4 mr-1" /> Manage Objectives
           </Button>
         </div>

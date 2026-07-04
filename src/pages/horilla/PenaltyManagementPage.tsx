@@ -252,10 +252,10 @@ export default function PenaltyManagementPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Penalties", value: penalties.length, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Penalty Days", value: `${totalPenaltyDays} days`, icon: Clock, color: "text-orange-600", bg: "bg-orange-50" },
-          { label: "Fixed Amount", value: `₹${totalPenaltyAmount.toLocaleString('en-IN')}`, icon: Gavel, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Applied to Payroll", value: `${appliedCount}/${penalties.length}`, icon: FileText, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Total Penalties", value: penalties.length, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Penalty Days", value: `${totalPenaltyDays} days`, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Fixed Amount", value: `₹${totalPenaltyAmount.toLocaleString('en-IN')}`, icon: Gavel, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Applied to Payroll", value: `${appliedCount}/${penalties.length}`, icon: FileText, color: "text-success", bg: "bg-success/10" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -313,25 +313,25 @@ export default function PenaltyManagementPage() {
                         </TableCell>
                         <TableCell>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            p.penalty_type === "late_slab" ? "bg-orange-100 text-orange-700" :
-                            p.penalty_type === "manual" ? "bg-purple-100 text-purple-700" :
-                            "bg-red-100 text-red-700"
+                            p.penalty_type === "late_slab" ? "bg-warning/10 text-warning" :
+                            p.penalty_type === "manual" ? "bg-primary/10 text-primary" :
+                            "bg-destructive/10 text-destructive"
                           }`}>
                             {p.penalty_type === "late_slab" ? "Late Slab" : p.penalty_type === "manual" ? "Manual" : p.penalty_type}
                           </span>
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate text-sm">{p.penalty_reason}</TableCell>
                         <TableCell>{p.late_count || "—"}</TableCell>
-                        <TableCell className="text-orange-600 font-medium">{p.penalty_days > 0 ? `${p.penalty_days} day${p.penalty_days > 1 ? "s" : ""}` : "—"}</TableCell>
-                        <TableCell className="text-red-600 font-medium">{p.penalty_amount > 0 ? `₹${Number(p.penalty_amount).toLocaleString('en-IN')}` : "—"}</TableCell>
+                        <TableCell className="text-warning font-medium">{p.penalty_days > 0 ? `${p.penalty_days} day${p.penalty_days > 1 ? "s" : ""}` : "—"}</TableCell>
+                        <TableCell className="text-destructive font-medium">{p.penalty_amount > 0 ? `₹${Number(p.penalty_amount).toLocaleString('en-IN')}` : "—"}</TableCell>
                         <TableCell>
                           {p.is_applied ? (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Applied</span>
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Applied</span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Pending</span>
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Pending</span>
                           )}
                           {p.deduct_from_deposit && (
-                            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">From Deposit</span>
+                            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary">From Deposit</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -384,7 +384,7 @@ export default function PenaltyManagementPage() {
                         <TableCell>
                           {r.late_count_min}{r.late_count_max ? `–${r.late_count_max}` : "+"} lates
                         </TableCell>
-                        <TableCell className="font-medium text-red-600">
+                        <TableCell className="font-medium text-destructive">
                           {r.penalty_type === "days" ? `${r.penalty_value} day${r.penalty_value > 1 ? "s" : ""} salary` : `₹${Number(r.penalty_value).toLocaleString('en-IN')}`}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[250px] truncate">{r.description || "—"}</TableCell>

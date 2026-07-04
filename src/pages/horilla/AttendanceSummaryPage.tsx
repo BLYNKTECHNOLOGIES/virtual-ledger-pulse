@@ -112,11 +112,11 @@ export default function AttendanceSummaryPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: "Total Records", value: attendance.length, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Present", value: overallPresent, icon: Users, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Absent", value: overallAbsent, icon: Users, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Late", value: overallLate, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50" },
-          { label: "Attendance Rate", value: `${attendanceRate}%`, icon: TrendingUp, color: "text-violet-600", bg: "bg-violet-50" },
+          { label: "Total Records", value: attendance.length, icon: Clock, color: "text-info", bg: "bg-info/10" },
+          { label: "Present", value: overallPresent, icon: Users, color: "text-success", bg: "bg-success/10" },
+          { label: "Absent", value: overallAbsent, icon: Users, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Late", value: overallLate, icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Attendance Rate", value: `${attendanceRate}%`, icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -194,18 +194,18 @@ export default function AttendanceSummaryPage() {
                     <tr key={s.employee?.id} className="border-b hover:bg-muted/50">
                       <td className="px-4 py-3 font-medium whitespace-nowrap">{s.employee?.first_name} {s.employee?.last_name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{s.employee?.badge_id}</td>
-                      <td className="px-4 py-3 text-green-600 font-medium">{s.present}</td>
-                      <td className="px-4 py-3 text-red-600 font-medium">{s.absent}</td>
-                      <td className="px-4 py-3 text-yellow-600 font-medium">{s.late}</td>
-                      <td className="px-4 py-3 text-blue-600">{s.half_day}</td>
+                      <td className="px-4 py-3 text-success font-medium">{s.present}</td>
+                      <td className="px-4 py-3 text-destructive font-medium">{s.absent}</td>
+                      <td className="px-4 py-3 text-warning font-medium">{s.late}</td>
+                      <td className="px-4 py-3 text-info">{s.half_day}</td>
                       <td className="px-4 py-3">{s.total_ot > 0 ? `${s.total_ot.toFixed(1)}h` : "—"}</td>
                       <td className="px-4 py-3">{s.total_late_min > 0 ? `${s.total_late_min}m` : "—"}</td>
                       <td className="px-4 py-3">{s.total_early_min > 0 ? `${s.total_early_min}m` : "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          Number(rate) >= 80 ? "bg-green-100 text-green-700" :
-                          Number(rate) >= 50 ? "bg-yellow-100 text-yellow-700" :
-                          "bg-red-100 text-red-700"
+                          Number(rate) >= 80 ? "bg-success/10 text-success" :
+                          Number(rate) >= 50 ? "bg-warning/10 text-warning" :
+                          "bg-destructive/10 text-destructive"
                         }`}>{rate}%</span>
                       </td>
                     </tr>

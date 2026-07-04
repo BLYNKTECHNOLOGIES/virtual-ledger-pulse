@@ -109,9 +109,9 @@ export default function HolidaysPage() {
                     </td>
                     <td className="px-4 py-3">{format(new Date(h.date), "MMM dd, yyyy")}</td>
                     <td className="px-4 py-3 text-muted-foreground">{format(new Date(h.date), "EEEE")}</td>
-                    <td className="px-4 py-3">{h.recurring ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Yearly</span> : "—"}</td>
+                    <td className="px-4 py-3">{h.recurring ? <span className="text-xs bg-info/10 text-info px-2 py-0.5 rounded-full">Yearly</span> : "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${h.is_active ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${h.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
                         {h.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>
@@ -120,7 +120,7 @@ export default function HolidaysPage() {
                         <Button size="sm" variant="ghost" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => deleteMutation.mutate(h.id)}>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>

@@ -97,7 +97,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-card rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl">
+      <div className="bg-card rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-sm">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">Edit Employee</h2>
           <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
@@ -153,7 +153,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
             <label className="text-sm font-medium text-foreground">Status:</label>
             <button
               onClick={() => setForm({ ...form, is_active: !form.is_active })}
-              className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${form.is_active ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+              className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${form.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
             >
               {form.is_active ? "Active" : "Inactive"}
             </button>
@@ -206,7 +206,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
           <button
             onClick={() => updateMutation.mutate()}
             disabled={!form.badge_id || !form.first_name || !form.last_name || updateMutation.isPending}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
           >
             {updateMutation.isPending ? "Saving..." : "Save Changes"}
           </button>

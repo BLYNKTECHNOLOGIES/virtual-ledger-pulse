@@ -262,8 +262,8 @@ export default function PayslipsPage() {
   });
 
   const statusColor = (s: string) => {
-    if (s === "paid") return "bg-green-100 text-green-700";
-    if (s === "pending") return "bg-yellow-100 text-yellow-700";
+    if (s === "paid") return "bg-success/10 text-success";
+    if (s === "pending") return "bg-warning/10 text-warning";
     return "bg-muted text-foreground";
   };
 
@@ -309,8 +309,8 @@ export default function PayslipsPage() {
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3 text-xs">{p.hr_payroll_runs?.title}</td>
-                    <td className="px-4 py-3 text-green-700 font-medium">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-red-600">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-success font-medium">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-destructive">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 font-semibold">₹{p.net_salary?.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3">{p.present_days || 0}/{p.working_days || 0}</td>
                     <td className="px-4 py-3">
@@ -371,25 +371,25 @@ export default function PayslipsPage() {
 
                 return (
                   <div>
-                    <p className="text-xs font-semibold text-blue-700 mb-2">ATTENDANCE BREAKDOWN</p>
+                    <p className="text-xs font-semibold text-info mb-2">ATTENDANCE BREAKDOWN</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-blue-50 rounded-lg px-3 py-2 text-center">
-                        <p className="text-lg font-bold text-blue-700">{workingDays}</p>
+                      <div className="bg-info/10 rounded-lg px-3 py-2 text-center">
+                        <p className="text-lg font-bold text-info">{workingDays}</p>
                         <p className="text-[10px] text-muted-foreground">Total Working Days (Mon-Sat)</p>
                       </div>
-                      <div className="bg-green-50 rounded-lg px-3 py-2 text-center">
-                        <p className="text-lg font-bold text-green-700">{fullPresentCount}</p>
+                      <div className="bg-success/10 rounded-lg px-3 py-2 text-center">
+                        <p className="text-lg font-bold text-success">{fullPresentCount}</p>
                         <p className="text-[10px] text-muted-foreground">Present Days</p>
                       </div>
                       {halfDayCount > 0 && (
-                        <div className="bg-purple-50 rounded-lg px-3 py-2 text-center">
-                          <p className="text-lg font-bold text-purple-700">{halfDayCount}</p>
+                        <div className="bg-primary/10 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-primary">{halfDayCount}</p>
                           <p className="text-[10px] text-muted-foreground">Half Days ({halfDayCount * 0.5}d paid)</p>
                         </div>
                       )}
                       {sundayWorked > 0 && (
-                        <div className="bg-orange-50 rounded-lg px-3 py-2 text-center">
-                          <p className="text-lg font-bold text-orange-700">{sundayWorked}</p>
+                        <div className="bg-warning/10 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-warning">{sundayWorked}</p>
                           <p className="text-[10px] text-muted-foreground">Sunday Worked (Extra Pay)</p>
                         </div>
                       )}
@@ -400,19 +400,19 @@ export default function PayslipsPage() {
                         </div>
                       )}
                       {Object.entries(leaveByType).map(([name, days]) => (
-                        <div key={name} className="bg-amber-50 rounded-lg px-3 py-2 text-center">
-                          <p className="text-lg font-bold text-amber-700">{days}</p>
+                        <div key={name} className="bg-warning/10 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-warning">{days}</p>
                           <p className="text-[10px] text-muted-foreground">{name}</p>
                         </div>
                       ))}
                       {totalLeaveDaysFromRequests === 0 && (
-                        <div className="bg-amber-50 rounded-lg px-3 py-2 text-center">
-                          <p className="text-lg font-bold text-amber-700">0</p>
+                        <div className="bg-warning/10 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-warning">0</p>
                           <p className="text-[10px] text-muted-foreground">Leave Days</p>
                         </div>
                       )}
-                      <div className="bg-red-50 rounded-lg px-3 py-2 text-center">
-                        <p className="text-lg font-bold text-red-600">{absentDays}</p>
+                      <div className="bg-destructive/10 rounded-lg px-3 py-2 text-center">
+                        <p className="text-lg font-bold text-destructive">{absentDays}</p>
                         <p className="text-[10px] text-muted-foreground">Absent Days</p>
                       </div>
                     </div>
@@ -426,27 +426,27 @@ export default function PayslipsPage() {
 
               {/* Earnings */}
               <div>
-                <p className="text-xs font-semibold text-green-700 mb-2">EARNINGS</p>
+                <p className="text-xs font-semibold text-success mb-2">EARNINGS</p>
                 <div className="space-y-1">
                   {detail.earnings_breakdown && Object.entries(detail.earnings_breakdown).map(([name, amount]) => (
-                    <div key={name} className="flex justify-between text-sm bg-green-50 px-3 py-1.5 rounded">
+                    <div key={name} className="flex justify-between text-sm bg-success/10 px-3 py-1.5 rounded">
                       <span>{name}</span>
                       <span className="font-medium">₹{Number(amount).toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                   <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
                     <span>Total Earnings</span>
-                    <span className="text-green-700">₹{detail.total_earnings?.toLocaleString('en-IN')}</span>
+                    <span className="text-success">₹{detail.total_earnings?.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
 
               {/* Deductions */}
               <div>
-                <p className="text-xs font-semibold text-red-600 mb-2">DEDUCTIONS</p>
+                <p className="text-xs font-semibold text-destructive mb-2">DEDUCTIONS</p>
                 <div className="space-y-1">
                   {detail.deductions_breakdown && Object.entries(detail.deductions_breakdown).map(([name, amount]) => (
-                    <div key={name} className="flex justify-between text-sm bg-red-50 px-3 py-1.5 rounded">
+                    <div key={name} className="flex justify-between text-sm bg-destructive/10 px-3 py-1.5 rounded">
                       <span>{name}</span>
                       <span className="font-medium">₹{Number(amount).toLocaleString('en-IN')}</span>
                     </div>
@@ -456,7 +456,7 @@ export default function PayslipsPage() {
                   )}
                   <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
                     <span>Total Deductions</span>
-                    <span className="text-red-600">₹{detail.total_deductions?.toLocaleString('en-IN')}</span>
+                    <span className="text-destructive">₹{detail.total_deductions?.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
@@ -469,8 +469,8 @@ export default function PayslipsPage() {
 
               {/* Payment */}
               {detail.status === "paid" ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
-                  <div className="flex items-center gap-2 text-green-700 font-medium">
+                <div className="bg-success/10 border border-success/20 rounded-lg p-3 text-sm">
+                  <div className="flex items-center gap-2 text-success font-medium">
                     <CheckCircle className="h-4 w-4" /> Paid
                   </div>
                   {detail.payment_date && <p className="text-xs text-muted-foreground mt-1">Date: {detail.payment_date}</p>}
@@ -480,7 +480,7 @@ export default function PayslipsPage() {
                 <div className="space-y-2">
                   <div><Label>Payment Reference (optional)</Label><Input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="e.g. NEFT ref number" /></div>
                   <Button
-                    className="w-full bg-green-600 hover:bg-green-700"
+                    className="w-full bg-success hover:bg-success"
                     onClick={() => markPaidMutation.mutate({ id: detail.id, ref: payRef })}
                     disabled={markPaidMutation.isPending}
                   >

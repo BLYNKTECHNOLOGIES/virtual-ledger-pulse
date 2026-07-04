@@ -110,9 +110,9 @@ export default function LeaveAllocationRequestsPage() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case "approved": return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
-      case "rejected": return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-      default: return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case "approved": return <Badge className="bg-success/10 text-success">Approved</Badge>;
+      case "rejected": return <Badge className="bg-destructive/10 text-destructive">Rejected</Badge>;
+      default: return <Badge className="bg-warning/10 text-warning">Pending</Badge>;
     }
   };
 
@@ -182,10 +182,10 @@ export default function LeaveAllocationRequestsPage() {
                   <TableCell>
                     {r.status === "pending" && (
                       <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" className="text-green-600 h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "approved" })}>
+                        <Button size="sm" variant="ghost" className="text-success h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "approved" })}>
                           <CheckCircle className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-red-600 h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "rejected" })}>
+                        <Button size="sm" variant="ghost" className="text-destructive h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "rejected" })}>
                           <XCircle className="h-4 w-4" />
                         </Button>
                       </div>

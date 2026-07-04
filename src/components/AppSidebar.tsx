@@ -448,7 +448,7 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       
-      <SidebarFooter className={`border-t-2 border-gray-100 bg-gray-50 ${isCollapsed ? 'p-1' : 'p-2'}`}>
+      <SidebarFooter className={`border-t border-sidebar-border bg-sidebar-accent ${isCollapsed ? 'p-1' : 'p-2'}`}>
         <div className="flex flex-col gap-2">
           <Link to="/terminal">
             <Button

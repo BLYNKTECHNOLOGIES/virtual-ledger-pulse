@@ -81,10 +81,10 @@ export default function ClientDetail() {
   const showAsSellerOnly = !isBuyer && (isSeller || legacySeller);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 page-mount">
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold">Client Details</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Client Details</h1>
           <ClientExchangeBadge clientId={clientId} clientName={client?.name} />
         </div>
         <p className="text-muted-foreground mt-1">Comprehensive view of client information and trading activity</p>

@@ -137,7 +137,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-blue-600" />
+            <User className="h-5 w-5 text-primary" />
             Client Overview Panel
           </CardTitle>
         </CardHeader>
@@ -165,12 +165,17 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
   const completedOrders = orders?.filter(order => order.status === 'COMPLETED').length || 0;
 
   return (
-    <Card className="shadow-lg">
+    <Card className="h-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <User className="h-5 w-5 text-blue-600" />
-          Client Overview Panel
-        </CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+            {(client.name || '?').trim().split(/\s+/).slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join('')}
+          </div>
+          <div className="min-w-0">
+            <CardTitle className="truncate text-base">{client.name}</CardTitle>
+            <p className="text-xs text-muted-foreground">Client Overview</p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -180,7 +185,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client ID</label>
-            <p className="text-lg font-semibold text-blue-600">{client.client_id}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">{client.client_id}</p>
           </div>
         </div>
 
@@ -226,7 +231,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client Age</label>
-            <p className="text-sm text-green-600 font-medium">{clientAge} months</p>
+            <p className="text-sm text-success font-medium tabular-nums">{clientAge} months</p>
           </div>
         </div>
 
@@ -235,7 +240,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
             <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
             <div className="flex items-center gap-2">
               <IndianRupee className="h-4 w-4 text-muted-foreground" />
-              <span className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString('en-IN')}</span>
+              <span className="text-lg font-semibold text-success tabular-nums">₹{firstOrderValue.toLocaleString('en-IN')}</span>
             </div>
             {firstOrder && (
               <p className="text-xs text-muted-foreground">Order #{firstOrder.order_number} on {new Date(firstOrder.order_date).toLocaleDateString()}</p>
@@ -243,7 +248,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Total Orders</label>
-            <p className="text-lg font-semibold text-blue-600">{totalOrders}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">{totalOrders}</p>
             <p className="text-xs text-muted-foreground">{completedOrders} completed</p>
           </div>
         </div>
@@ -275,19 +280,19 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="PREMIUM">
-                  <span className="text-emerald-600 font-medium">Premium</span>
+                  <span className="text-success font-medium">Premium</span>
                 </SelectItem>
                 <SelectItem value="ESTABLISHED">
-                  <span className="text-blue-600 font-medium">Established</span>
+                  <span className="text-info font-medium">Established</span>
                 </SelectItem>
                 <SelectItem value="STANDARD">
-                  <span className="text-yellow-600 font-medium">Standard</span>
+                  <span className="text-warning font-medium">Standard</span>
                 </SelectItem>
                 <SelectItem value="CAUTIOUS">
-                  <span className="text-orange-600 font-medium">Cautious</span>
+                  <span className="text-warning font-medium">Cautious</span>
                 </SelectItem>
                 <SelectItem value="HIGH_RISK">
-                  <span className="text-red-600 font-medium">High Risk</span>
+                  <span className="text-destructive font-medium">High Risk</span>
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -296,15 +301,15 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
             <label className="text-sm font-medium text-muted-foreground">Client Type</label>
             <div className="flex gap-2">
               {isComposite ? (
-                <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                   Composite
                 </Badge>
               ) : isSeller ? (
-                <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+                <Badge variant="outline" className="text-warning border-warning/20 bg-warning/10">
                   Seller
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                <Badge variant="outline" className="text-info border-info/20 bg-info/10">
                   Buyer
                 </Badge>
               )}
@@ -329,7 +334,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Total Trade Volume</label>
-            <p className="text-lg font-semibold text-purple-600">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">KYC Status</label>
@@ -368,7 +373,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
               {incomeDetails.source_of_fund_url && (
                 <div>
                   <p className="text-xs text-muted-foreground">Source of Fund Doc</p>
-                  <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">
+                  <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
                     View Document
                   </a>
                 </div>

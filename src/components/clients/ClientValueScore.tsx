@@ -76,7 +76,7 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-purple-600" />
+            <TrendingUp className="h-5 w-5 text-primary" />
             Client Value Score
           </CardTitle>
         </CardHeader>
@@ -107,10 +107,10 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
 
   // Determine client priority based on value
   const getPriorityTag = () => {
-    if (totalLifetimeValue >= 1000000) return { label: 'Platinum', color: 'bg-purple-500' };
-    if (totalLifetimeValue >= 500000) return { label: 'Gold', color: 'bg-yellow-500' };
-    if (totalLifetimeValue >= 200000) return { label: 'Silver', color: 'bg-gray-400' };
-    return { label: 'Bronze', color: 'bg-orange-500' };
+    if (totalLifetimeValue >= 1000000) return { label: 'Platinum', color: 'bg-primary/10 text-primary border-primary/20' };
+    if (totalLifetimeValue >= 500000) return { label: 'Gold', color: 'bg-warning/10 text-warning border-warning/20' };
+    if (totalLifetimeValue >= 200000) return { label: 'Silver', color: 'bg-muted text-muted-foreground border-border' };
+    return { label: 'Bronze', color: 'bg-warning/10 text-warning border-warning/20' };
   };
 
   const priorityTag = getPriorityTag();
@@ -119,32 +119,32 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-purple-600" />
+          <TrendingUp className="h-5 w-5 text-primary" />
           Client Value Score
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
           <label className="text-sm font-medium text-muted-foreground">Monthly Purchase Value</label>
-          <p className="text-2xl font-bold text-green-600">₹{monthlyPurchaseValue.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-bold text-success tabular-nums">₹{monthlyPurchaseValue.toLocaleString('en-IN')}</p>
           <p className="text-xs text-muted-foreground">{currentMonthOrders.length} orders this month</p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Client Value (3%)</label>
-          <p className="text-xl font-semibold text-purple-600">₹{clientValue.toLocaleString('en-IN')}</p>
+          <p className="text-xl font-semibold text-primary tabular-nums">₹{clientValue.toLocaleString('en-IN')}</p>
           <p className="text-sm text-muted-foreground">Indicates priority level</p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Total Lifetime Value</label>
-          <p className="text-lg font-semibold text-blue-600">₹{totalLifetimeValue.toLocaleString('en-IN')}</p>
+          <p className="text-lg font-semibold text-primary tabular-nums">₹{totalLifetimeValue.toLocaleString('en-IN')}</p>
           <p className="text-xs text-muted-foreground">{orders?.length || 0} total orders</p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Client Priority Tag</label>
-          <Badge className={`${priorityTag.color} text-white flex items-center gap-1 w-fit`}>
+          <Badge variant="outline" className={`${priorityTag.color} flex items-center gap-1 w-fit`}>
             <Star className="h-3 w-3" />
             {priorityTag.label}
           </Badge>
@@ -152,7 +152,7 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Client Value Score</label>
-          <p className="text-lg font-semibold text-indigo-600">{client.client_value_score || 0}/100</p>
+          <p className="text-lg font-semibold text-primary tabular-nums">{client.client_value_score || 0}/100</p>
         </div>
       </CardContent>
     </Card>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuickAction } from "@/hooks/useQuickAction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -141,10 +142,10 @@ export function ClientDashboard() {
   };
 
   const getClientPriority = (valueScore: number) => {
-    if (valueScore >= 10000) return { tag: 'Platinum', color: 'bg-purple-100 text-purple-800' };
-    if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-yellow-100 text-yellow-800' };
-    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-muted text-foreground' };
-    return { tag: 'General', color: 'bg-blue-100 text-blue-800' };
+    if (valueScore >= 10000) return { tag: 'Platinum', color: 'bg-primary/10 text-primary border-primary/20' };
+    if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-warning/10 text-warning border-warning/20' };
+    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-muted text-muted-foreground border-border' };
+    return { tag: 'General', color: 'bg-info/10 text-info border-info/20' };
   };
 
   // Get volume trend and change based on period and client type
@@ -405,11 +406,11 @@ export function ClientDashboard() {
 
   const getRiskBadge = (risk: string) => {
     const colors = {
-      'PREMIUM': 'bg-emerald-100 text-emerald-800',
-      'ESTABLISHED': 'bg-blue-100 text-blue-800',
-      'STANDARD': 'bg-yellow-100 text-yellow-800',
-      'CAUTIOUS': 'bg-orange-100 text-orange-800',
-      'HIGH_RISK': 'bg-red-100 text-red-800',
+      'PREMIUM': 'bg-success/10 text-success border-success/20',
+      'ESTABLISHED': 'bg-info/10 text-info border-info/20',
+      'STANDARD': 'bg-warning/10 text-warning border-warning/20',
+      'CAUTIOUS': 'bg-warning/10 text-warning border-warning/20',
+      'HIGH_RISK': 'bg-destructive/10 text-destructive border-destructive/20',
     };
     const labels: Record<string, string> = {
       'PREMIUM': 'Premium',
@@ -418,28 +419,28 @@ export function ClientDashboard() {
       'CAUTIOUS': 'Cautious',
       'HIGH_RISK': 'High Risk',
     };
-    return <Badge className={colors[risk as keyof typeof colors] || 'bg-muted text-foreground'}>{labels[risk] || risk}</Badge>;
+    return <Badge variant="outline" className={colors[risk as keyof typeof colors] || 'bg-muted text-muted-foreground border-border'}>{labels[risk] || risk}</Badge>;
   };
 
   const getKYCBadge = (status: string) => {
     const colors = {
-      'VERIFIED': 'bg-green-100 text-green-800',
-      'PENDING': 'bg-yellow-100 text-yellow-800',
-      'REJECTED': 'bg-red-100 text-red-800'
+      'VERIFIED': 'bg-success/10 text-success border-success/20',
+      'PENDING': 'bg-warning/10 text-warning border-warning/20',
+      'REJECTED': 'bg-destructive/10 text-destructive border-destructive/20'
     };
-    return <Badge className={colors[status as keyof typeof colors] || 'bg-muted text-foreground'}>{status}</Badge>;
+    return <Badge variant="outline" className={colors[status as keyof typeof colors] || 'bg-muted text-muted-foreground border-border'}>{status}</Badge>;
   };
 
   const getActivityStatusBadge = (daysSinceLastOrder: number | null | undefined, totalOrders: number) => {
     const status = getClientActivityStatus(daysSinceLastOrder ?? null, totalOrders);
     const statusConfig = {
-      'active': { label: 'Active', color: 'bg-green-100 text-green-800' },
-      'inactive': { label: 'Inactive', color: 'bg-yellow-100 text-yellow-800' },
-      'dormant': { label: 'Dormant', color: 'bg-red-100 text-red-800' },
-      'new': { label: 'New', color: 'bg-blue-100 text-blue-800' },
+      'active': { label: 'Active', color: 'bg-success/10 text-success border-success/20' },
+      'inactive': { label: 'Inactive', color: 'bg-warning/10 text-warning border-warning/20' },
+      'dormant': { label: 'Dormant', color: 'bg-destructive/10 text-destructive border-destructive/20' },
+      'new': { label: 'New', color: 'bg-info/10 text-info border-info/20' },
     };
     const config = statusConfig[status];
-    return <Badge className={config.color}>{config.label}</Badge>;
+    return <Badge variant="outline" className={config.color}>{config.label}</Badge>;
   };
 
   const formatLastOrderDate = (dateStr: string | null | undefined) => {
@@ -456,7 +457,7 @@ export function ClientDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full ${canAssignRA ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="directory">Client Directory</TabsTrigger>
@@ -492,13 +493,14 @@ export function ClientDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-0">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center space-x-2 max-w-sm">
-                      <Search className="h-4 w-4 text-muted-foreground" />
+                    <div className="relative w-full max-w-sm">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Search buyers by name or ID..."
                         data-page-search
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9"
                       />
                     </div>
                     <div className="flex-1" />
@@ -552,10 +554,13 @@ export function ClientDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                <div className="overflow-x-auto">
+                {isLoading ? (
+                  <TableSkeleton rows={6} columns={canAssignRA ? 12 : 11} />
+                ) : (
+                <div className="overflow-x-auto rounded-xl border border-border">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b">
+                      <tr className="border-b border-border bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
                         {canAssignRA && (
                           <th className="text-left py-3 px-4 w-10">
                             <Checkbox
@@ -564,17 +569,17 @@ export function ClientDashboard() {
                             />
                           </th>
                         )}
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Buyer Name</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Buyer ID</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assigned RM</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Risk Level</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Orders</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Order</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Trend</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">COSMOS</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">KYC</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Priority</th>
+                        <th className="text-left py-3 px-4 font-medium">Buyer Name</th>
+                        <th className="text-left py-3 px-4 font-medium">Buyer ID</th>
+                        <th className="text-left py-3 px-4 font-medium">Assigned RM</th>
+                        <th className="text-left py-3 px-4 font-medium">Risk Level</th>
+                        <th className="text-right py-3 px-4 font-medium">Total Orders</th>
+                        <th className="text-left py-3 px-4 font-medium">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium">Trend</th>
+                        <th className="text-left py-3 px-4 font-medium">Status</th>
+                        <th className="text-left py-3 px-4 font-medium">COSMOS</th>
+                        <th className="text-left py-3 px-4 font-medium">KYC</th>
+                        <th className="text-left py-3 px-4 font-medium">Priority</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -604,7 +609,7 @@ export function ClientDashboard() {
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
-                            <td className="py-3 px-4">{totalOrders}</td>
+                            <td className="py-3 px-4 text-right tabular-nums">{totalOrders}</td>
                             <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastSalesOrderDate)}</td>
                             <td className="py-3 px-4">
                               <VolumeTrendBadge trend={trend} changePercent={changePercent} />
@@ -614,9 +619,9 @@ export function ClientDashboard() {
                             </td>
                             <td className="py-3 px-4">
                               {cosmosAlert ? (
-                                <Badge variant="destructive">Alert</Badge>
+                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Alert</Badge>
                               ) : (
-                                <Badge variant="secondary">Normal</Badge>
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/20">Normal</Badge>
                               )}
                             </td>
                             <td className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>
@@ -630,11 +635,13 @@ export function ClientDashboard() {
                   </table>
                   
                   {filteredBuyers?.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No buyers found matching your filters.
+                    <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                      <Users className="h-8 w-8 text-muted-foreground/60" />
+                      <p className="text-sm text-muted-foreground">No buyers found matching your filters.</p>
                     </div>
                   )}
                 </div>
+                )}
             </CardContent>
               </Card>
             </TabsContent>
@@ -650,12 +657,13 @@ export function ClientDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-0">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center space-x-2 max-w-sm">
-                      <Search className="h-4 w-4 text-muted-foreground" />
+                    <div className="relative w-full max-w-sm">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Search sellers by name or ID..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9"
                       />
                     </div>
                     <div className="flex-1" />
@@ -709,10 +717,13 @@ export function ClientDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                <div className="overflow-x-auto">
+                {isLoading ? (
+                  <TableSkeleton rows={6} columns={canAssignRA ? 12 : 11} />
+                ) : (
+                <div className="overflow-x-auto rounded-xl border border-border">
                   <table className="w-full">
                     <thead>
-                       <tr className="border-b">
+                       <tr className="border-b border-border bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
                          {canAssignRA && (
                            <th className="text-left py-3 px-4 w-10">
                              <Checkbox
@@ -721,17 +732,17 @@ export function ClientDashboard() {
                              />
                            </th>
                          )}
-                         <th className="text-left py-3 px-4 font-medium text-muted-foreground">Seller Name</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Seller ID</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assigned RM</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Risk Level</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Orders</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Order</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Trend</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">COSMOS</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">KYC</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Priority</th>
+                         <th className="text-left py-3 px-4 font-medium">Seller Name</th>
+                        <th className="text-left py-3 px-4 font-medium">Seller ID</th>
+                        <th className="text-left py-3 px-4 font-medium">Assigned RM</th>
+                        <th className="text-left py-3 px-4 font-medium">Risk Level</th>
+                        <th className="text-right py-3 px-4 font-medium">Total Orders</th>
+                        <th className="text-left py-3 px-4 font-medium">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium">Trend</th>
+                        <th className="text-left py-3 px-4 font-medium">Status</th>
+                        <th className="text-left py-3 px-4 font-medium">COSMOS</th>
+                        <th className="text-left py-3 px-4 font-medium">KYC</th>
+                        <th className="text-left py-3 px-4 font-medium">Priority</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -761,7 +772,7 @@ export function ClientDashboard() {
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
-                            <td className="py-3 px-4">{totalOrders}</td>
+                            <td className="py-3 px-4 text-right tabular-nums">{totalOrders}</td>
                             <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastPurchaseOrderDate)}</td>
                             <td className="py-3 px-4">
                               <VolumeTrendBadge trend={trend} changePercent={changePercent} />
@@ -771,9 +782,9 @@ export function ClientDashboard() {
                             </td>
                             <td className="py-3 px-4">
                               {cosmosAlert ? (
-                                <Badge variant="destructive">Alert</Badge>
+                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Alert</Badge>
                               ) : (
-                                <Badge variant="secondary">Normal</Badge>
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/20">Normal</Badge>
                               )}
                             </td>
                             <td className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>
@@ -787,11 +798,13 @@ export function ClientDashboard() {
                   </table>
                   
                   {filteredSellers?.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No sellers found matching your filters.
+                    <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                      <Users className="h-8 w-8 text-muted-foreground/60" />
+                      <p className="text-sm text-muted-foreground">No sellers found matching your filters.</p>
                     </div>
                   )}
                 </div>
+                )}
             </CardContent>
           </Card>
             </TabsContent>

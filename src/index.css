@@ -11,6 +11,66 @@
 .animate-shake {
   animation: shake 0.5s ease-in-out;
 }
+
+/* ===== Premium login animations ===== */
+@keyframes aurora-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6%, -8%) scale(1.15); }
+  66%  { transform: translate(-8%, 6%) scale(0.92); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes aurora-drift-slow {
+  0%   { transform: translate(0, 0) scale(1.05); }
+  50%  { transform: translate(-10%, 10%) scale(1.2); }
+  100% { transform: translate(0, 0) scale(1.05); }
+}
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+@keyframes grid-pan {
+  0%   { background-position: 0 0; }
+  100% { background-position: 48px 48px; }
+}
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(220%) skewX(-18deg); }
+}
+@keyframes login-rise {
+  0%   { opacity: 0; transform: translateY(22px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes ring-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.85); }
+  50%      { opacity: 0.9; transform: scale(1.2); }
+}
+
+.animate-aurora       { animation: aurora-drift 18s ease-in-out infinite; }
+.animate-aurora-slow  { animation: aurora-drift-slow 26s ease-in-out infinite; }
+.animate-float-y      { animation: float-y 7s ease-in-out infinite; }
+.animate-grid-pan     { animation: grid-pan 6s linear infinite; }
+.animate-ring-spin    { animation: ring-spin 22s linear infinite; }
+.animate-twinkle      { animation: twinkle 4s ease-in-out infinite; }
+
+.login-rise { opacity: 0; animation: login-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+.shimmer-btn { position: relative; overflow: hidden; }
+.shimmer-btn::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.25), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+}
+.shimmer-btn:hover::after { animation: shimmer-sweep 0.9s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora, .animate-aurora-slow, .animate-float-y,
+  .animate-grid-pan, .animate-ring-spin, .animate-twinkle,
+  .login-rise { animation: none; opacity: 1; }
+}
 @tailwind components;
 @tailwind utilities;
 

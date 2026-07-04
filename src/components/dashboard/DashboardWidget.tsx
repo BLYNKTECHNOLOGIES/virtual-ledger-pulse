@@ -43,6 +43,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 import {
@@ -128,10 +129,90 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
   const IconComponent = widget.icon || widgetIconMap[widget.id] || BarChart3;
 
   const GrossProfitWidgetContent = () => {
-    const gross = (metrics?.totalRevenue || metrics?.totalSales || 0) - (metrics?.totalSpending || 0);
+    // Gross Profit must match the P&L page (source of truth):
+    // NPM × Total Sales Qty, where NPM = Avg Sales Rate − Effective Purchase Rate
+    // (effective purchase rate is adjusted for USDT fees). All values normalized to
+    // USDT-equivalent via effective_usdt_qty / effective_usdt_rate.
+    const toDateStr = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const now = new Date();
+    const startStr = toDateStr(dateRange?.from ?? new Date(now.getFullYear(), now.getMonth(), 1));
+    const endStr = toDateStr(dateRange?.to ?? now);
+
+    const { data: gross, isLoading } = useQuery({
+      queryKey: ['dashboard_gross_profit_pnl', startStr, endStr],
+      queryFn: async () => {
+        // Legacy non-USDT orders excluded from WAC (same list as P&L)
+        const excludedOrderIds = [
+          '1fd66952-bf77-4bf4-a183-4c0fbc34510f',
+          '937f087e-6b2a-4328-a2dd-0166e0682c5b',
+          '4f90519e-6d47-43c4-8206-9278927c788f',
+        ];
+
+        const [salesOrders, purchaseOrders, feeDeductionsData, conversionFeesData, transferFeesData] = await Promise.all([
+          fetchAllPaginated<any>(() => supabase.from('sales_orders')
+            .select('quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate')
+            .eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+          fetchAllPaginated<any>(() => supabase.from('purchase_orders')
+            .select('id, total_amount, effective_usdt_qty')
+            .eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+          fetchAllPaginated<any>(() => supabase.from('wallet_fee_deductions')
+            .select('fee_usdt_amount').gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
+          fetchAllPaginated<any>(() => supabase.from('erp_product_conversions')
+            .select('fee_amount').eq('status', 'APPROVED').gte('approved_at', startStr).lte('approved_at', endStr + 'T23:59:59')),
+          fetchAllPaginated<any>(() => supabase.from('wallet_transactions')
+            .select('amount').eq('transaction_type', 'DEBIT').eq('reference_type', 'TRANSFER_FEE').eq('asset_code', 'USDT')
+            .gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
+        ]);
+
+        // Sales — USDT-equivalent
+        const totalSalesValue = (salesOrders || []).reduce((s: number, o: any) =>
+          s + (Number(o.effective_usdt_qty || o.quantity) || 0) * (Number(o.effective_usdt_rate || o.price_per_unit) || 0), 0);
+        const totalSalesQty = (salesOrders || []).reduce((s: number, o: any) =>
+          s + (Number(o.effective_usdt_qty || o.quantity) || 0), 0);
+        const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
+
+        // Purchases — USDT-equivalent (all-assets mode uses effective_usdt_qty + total_amount)
+        let totalPurchaseValue = 0;
+        let totalPurchaseQty = 0;
+        (purchaseOrders || [])
+          .filter((po: any) => !excludedOrderIds.includes(po.id))
+          .forEach((po: any) => {
+            const effQty = Number(po.effective_usdt_qty || 0);
+            const totalAmt = Number(po.total_amount || 0);
+            if (effQty > 0) {
+              totalPurchaseQty += effQty;
+              totalPurchaseValue += totalAmt;
+            }
+          });
+        const avgPurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
+
+        // Total USDT fees from authoritative sources
+        const totalUsdtFees =
+          (feeDeductionsData || []).reduce((s: number, f: any) => s + Number(f.fee_usdt_amount || 0), 0) +
+          (conversionFeesData || []).reduce((s: number, f: any) => s + Number(f.fee_amount || 0), 0) +
+          (transferFeesData || []).reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+
+        const netPurchaseQty = totalPurchaseQty - totalUsdtFees;
+        const effectivePurchaseRate = (totalPurchaseQty > 0 && netPurchaseQty > 0)
+          ? totalPurchaseValue / netPurchaseQty
+          : avgPurchaseRate;
+
+        const npm = avgSalesRate - effectivePurchaseRate;
+        return npm * totalSalesQty;
+      },
+      staleTime: 60000,
+    });
+
     return (
       <div className="text-center p-4">
-        <div className="text-3xl font-bold text-foreground">₹{Math.round(Number(gross)).toLocaleString('en-IN')}</div>
+        <div className={`text-3xl font-bold ${Number(gross || 0) >= 0 ? 'text-foreground' : 'text-destructive'}`}>
+          {isLoading ? '—' : `₹${Math.round(Number(gross || 0)).toLocaleString('en-IN')}`}
+        </div>
         <p className="text-sm text-muted-foreground mt-1">Gross Profit</p>
       </div>
     );

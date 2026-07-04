@@ -143,11 +143,11 @@ export default function PayrollDashboardPage() {
   const statusColor = (status: string) => {
     switch (status) {
       case "draft": return "bg-muted text-foreground";
-      case "processing": return "bg-blue-100 text-blue-700";
-      case "reviewed": return "bg-indigo-100 text-indigo-700";
-      case "completed": return "bg-green-100 text-green-700";
-      case "paid": return "bg-emerald-100 text-emerald-800";
-      case "cancelled": return "bg-red-100 text-red-700";
+      case "processing": return "bg-info/10 text-info";
+      case "reviewed": return "bg-primary/10 text-primary";
+      case "completed": return "bg-success/10 text-success";
+      case "paid": return "bg-success/10 text-success";
+      case "cancelled": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-foreground";
     }
   };
@@ -168,10 +168,10 @@ export default function PayrollDashboardPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Payroll Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Payroll Dashboard</h1>
           <p className="text-sm text-muted-foreground">Manage payroll runs, generate payslips and process payments</p>
         </div>
         <Button onClick={() => setShowCreate(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
@@ -179,17 +179,17 @@ export default function PayrollDashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[
-          { label: "Total Runs", value: runs.length, icon: Wallet, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Gross", value: `₹${totalGross.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Total Deductions", value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: TrendingDown, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Total Net Pay", value: `₹${totalNet.toLocaleString('en-IN')}`, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+          { label: "Total Runs", value: runs.length, icon: Wallet, color: "text-info", bg: "bg-info/10" },
+          { label: "Total Gross", value: `₹${totalGross.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
+          { label: "Total Deductions", value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Total Net Pay", value: `₹${totalNet.toLocaleString('en-IN')}`, icon: Users, color: "text-primary", bg: "bg-primary/10" },
         ].map((s) => (
-          <Card key={s.label}>
+          <Card key={s.label} className="h-full transition-shadow hover:shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+              <div><p className="text-xl font-semibold tabular-nums">{s.value}</p><p className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -202,7 +202,7 @@ export default function PayrollDashboardPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Title", "Period", "Run Date", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className={`px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap ${["Employees", "Gross", "Deductions", "Net"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -216,15 +216,15 @@ export default function PayrollDashboardPage() {
                   <tr key={r.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium">{r.title}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
-                    <td className="px-4 py-3">{r.run_date}</td>
-                    <td className="px-4 py-3">{r.employee_count || 0}</td>
-                    <td className="px-4 py-3 text-green-700 font-medium">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-red-600">₹{(r.total_deductions || 0).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 font-semibold">₹{(r.total_net || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 tabular-nums">{r.run_date}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{r.employee_count || 0}</td>
+                    <td className="px-4 py-3 text-right text-success font-medium tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-right text-destructive tabular-nums">₹{(r.total_deductions || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums">₹{(r.total_net || 0).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {r.is_locked && (
-                          <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mr-1">
+                          <span className="inline-flex items-center gap-1 text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full mr-1">
                             <Lock className="h-3 w-3" /> Locked
                           </span>
                         )}
@@ -250,7 +250,7 @@ export default function PayrollDashboardPage() {
                             <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
                               {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs text-indigo-700" onClick={() => setReviewDialog(r)}>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-primary" onClick={() => setReviewDialog(r)}>
                               <CheckCircle className="h-3 w-3 mr-1" /> Review & Approve
                             </Button>
                           </>
@@ -261,7 +261,7 @@ export default function PayrollDashboardPage() {
                             <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
                               {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs text-amber-700" onClick={() => setLockConfirm(r)}>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-warning" onClick={() => setLockConfirm(r)}>
                               <Lock className="h-3 w-3 mr-1" /> Lock & Complete
                             </Button>
                           </>
@@ -269,17 +269,17 @@ export default function PayrollDashboardPage() {
                         {/* Completed & Locked: Mark Paid + Re-run */}
                         {r.status === "completed" && r.is_locked && (
                           <>
-                            <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
+                            <Button size="sm" className="h-7 text-xs bg-success hover:bg-success/90 text-success-foreground" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
                               <CheckCircle className="h-3 w-3 mr-1" /> Mark as Paid
                             </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => setRerunDialog(r)}>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-warning border-warning/30 hover:bg-warning/10" onClick={() => setRerunDialog(r)}>
                               <Unlock className="h-3 w-3 mr-1" /> Unlock & Re-run
                             </Button>
                           </>
                         )}
                         {/* Paid: Final state */}
                         {r.status === "paid" && (
-                          <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
+                          <span className="text-xs text-success font-medium flex items-center gap-1">
                             <CheckCircle className="h-3 w-3" /> Disbursed
                           </span>
                         )}
@@ -314,14 +314,14 @@ export default function PayrollDashboardPage() {
       <AlertDialog open={!!lockConfirm} onOpenChange={(open) => !open && setLockConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Lock Payroll Run?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-warning" /> Lock Payroll Run?</AlertDialogTitle>
             <AlertDialogDescription>
               Locking <strong>{lockConfirm?.title}</strong> will mark it as completed and prevent any further modifications or regeneration. This action can only be reversed via a controlled re-run.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={() => lockMutation.mutate(lockConfirm?.id)}>
+            <AlertDialogAction className="bg-warning hover:bg-warning/90 text-warning-foreground" onClick={() => lockMutation.mutate(lockConfirm?.id)}>
               <Lock className="h-4 w-4 mr-1" /> Lock & Complete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -332,7 +332,7 @@ export default function PayrollDashboardPage() {
       <Dialog open={!!reviewDialog} onOpenChange={(open) => { if (!open) { setReviewDialog(null); setReviewNotes(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-indigo-600" /> Review & Approve Payroll</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-primary" /> Review & Approve Payroll</DialogTitle>
             <DialogDescription>
               Reviewing <strong>{reviewDialog?.title}</strong> — {reviewDialog?.employee_count || 0} payslips, Net Pay ₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}.
             </DialogDescription>
@@ -341,28 +341,28 @@ export default function PayrollDashboardPage() {
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="bg-muted/50 rounded-lg p-3">
                 <p className="text-[10px] text-muted-foreground uppercase">Gross</p>
-                <p className="text-sm font-bold text-green-600">₹{(reviewDialog?.total_gross || 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm font-bold text-success tabular-nums">₹{(reviewDialog?.total_gross || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
                 <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
-                <p className="text-sm font-bold text-red-600">₹{(reviewDialog?.total_deductions || 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm font-bold text-destructive tabular-nums">₹{(reviewDialog?.total_deductions || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
                 <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
-                <p className="text-sm font-bold">₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm font-bold tabular-nums">₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}</p>
               </div>
             </div>
             <div>
               <Label>Review Notes</Label>
               <Textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Verification notes, discrepancies checked..." className="mt-1" />
             </div>
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-800">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm text-foreground">
               <strong>Review confirms</strong> payslip amounts are verified and ready for final lock. After approval, the payroll can be locked to prevent changes.
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setReviewDialog(null); setReviewNotes(""); }}>Cancel</Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate({ id: reviewDialog?.id, notes: reviewNotes.trim() })}>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate({ id: reviewDialog?.id, notes: reviewNotes.trim() })}>
               {reviewMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Reviewing...</> : <><CheckCircle className="h-4 w-4 mr-1" /> Approve</>}
             </Button>
           </DialogFooter>
@@ -373,7 +373,7 @@ export default function PayrollDashboardPage() {
       <Dialog open={!!rerunDialog} onOpenChange={(open) => { if (!open) { setRerunDialog(null); setRerunReason(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Unlock className="h-5 w-5 text-orange-600" /> Unlock & Re-run Payroll</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Unlock className="h-5 w-5 text-warning" /> Unlock & Re-run Payroll</DialogTitle>
             <DialogDescription>
               This will unlock <strong>{rerunDialog?.title}</strong>, delete existing payslips, and regenerate them with current data. This is Re-run #{(rerunDialog?.rerun_count || 0) + 1}.
             </DialogDescription>
@@ -388,14 +388,14 @@ export default function PayrollDashboardPage() {
                 className="mt-1"
               />
             </div>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
+            <div className="bg-warning/5 border border-warning/20 rounded-lg p-3 text-sm text-foreground">
               <strong>Warning:</strong> All existing payslips for this run will be deleted and regenerated. Make sure any corrections are already applied before proceeding.
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setRerunDialog(null); setRerunReason(""); }}>Cancel</Button>
             <Button
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-warning hover:bg-warning/90 text-warning-foreground"
               disabled={!rerunReason.trim() || rerunMutation.isPending}
               onClick={() => rerunMutation.mutate({ id: rerunDialog?.id, reason: rerunReason.trim() })}
             >

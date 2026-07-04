@@ -465,7 +465,7 @@ export default function EmployeeListPage() {
 
   // ─── Helpers ───
   const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
-  const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500"];
+  const avatarColors = ["bg-primary/10 text-primary", "bg-info/10 text-info", "bg-success/10 text-success", "bg-warning/10 text-warning"];
   const getColor = (id: string) => avatarColors[id.charCodeAt(0) % avatarColors.length];
 
   const resetPage = () => setCurrentPage(1);
@@ -483,16 +483,16 @@ export default function EmployeeListPage() {
 
   // ─── Sort icon for column headers ───
   const SortIcon = ({ colKey }: { colKey: string }) => {
-    if (sort.column !== colKey) return <ArrowUpDown className="h-3 w-3 ml-1 text-gray-300 inline" />;
+    if (sort.column !== colKey) return <ArrowUpDown className="h-3 w-3 ml-1 text-muted-foreground/40 inline" />;
     if (sort.direction === "asc") return <ChevronUp className="h-3 w-3 ml-1 text-[#00bcd4] inline" />;
     return <ChevronDown className="h-3 w-3 ml-1 text-[#00bcd4] inline" />;
   };
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-0 page-mount">
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-foreground">Employees</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Employees</h1>
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-52">
@@ -780,7 +780,7 @@ export default function EmployeeListPage() {
                           {emp.profile_image_url ? (
                             <img src={emp.profile_image_url} className="w-8 h-8 rounded-full object-cover" alt="" />
                           ) : (
-                            <div className={`w-8 h-8 rounded-full ${getColor(emp.id)} flex items-center justify-center text-white font-medium text-xs`}>
+                            <div className={`w-8 h-8 rounded-full ${getColor(emp.id)} flex items-center justify-center font-medium text-xs`}>
                               {initials(emp.first_name, emp.last_name)}
                             </div>
                           )}
@@ -869,27 +869,27 @@ export default function EmployeeListPage() {
                   selected ? "border-primary ring-1 ring-primary/20" : "border-border hover:border-border/80"
                 }`}
               >
-                <div className={`h-16 ${getColor(emp.id)} relative`}>
+                <div className="h-16 bg-muted relative">
                   <div className="absolute top-2 left-2">
                     <input
                       type="checkbox"
                       checked={selected}
                       onChange={(e) => { e.stopPropagation(); toggleOne(emp.id); }}
-                      className="rounded border-white/50 bg-white/20 text-[#00bcd4] focus:ring-[#00bcd4] cursor-pointer"
+                      className="rounded border-border text-[#00bcd4] focus:ring-[#00bcd4] cursor-pointer"
                     />
                   </div>
                   <div className="absolute top-2 right-2">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      emp.is_active ? "bg-emerald-400/90 text-white" : "bg-red-400/90 text-white"
+                      emp.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
                     }`}>
                       {emp.is_active ? "Active" : "Inactive"}
                     </span>
                   </div>
                   <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
                     {emp.profile_image_url ? (
-                      <img src={emp.profile_image_url} className="w-14 h-14 rounded-full object-cover border-3 border-white shadow-sm" alt="" />
+                      <img src={emp.profile_image_url} className="w-14 h-14 rounded-full object-cover border-2 border-background shadow-sm" alt="" />
                     ) : (
-                      <div className={`w-14 h-14 rounded-full ${getColor(emp.id)} flex items-center justify-center text-white font-bold text-lg border-3 border-white shadow-sm`}>
+                      <div className={`w-14 h-14 rounded-full ${getColor(emp.id)} flex items-center justify-center font-bold text-lg border-2 border-background shadow-sm`}>
                         {initials(emp.first_name, emp.last_name)}
                       </div>
                     )}
@@ -922,7 +922,7 @@ export default function EmployeeListPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={(e) => { e.stopPropagation(); navigate(`/hrms/employee/${emp.id}`); }}
-                      className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-blue-600 transition-colors" title="View Profile">
+                      className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="View Profile">
                       <Eye className="h-3.5 w-3.5" />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleEdit(emp); }}

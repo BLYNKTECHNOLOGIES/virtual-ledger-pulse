@@ -148,10 +148,10 @@ export default function LeaveRequestsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Leave Requests</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Leave Requests</h1>
           <p className="text-sm text-muted-foreground">Manage employee leave requests</p>
         </div>
         <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
@@ -162,10 +162,10 @@ export default function LeaveRequestsPage() {
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
@@ -181,7 +181,7 @@ export default function LeaveRequestsPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -199,18 +199,18 @@ export default function LeaveRequestsPage() {
                         {r.hr_leave_types?.name}
                       </span>
                     </td>
-                    <td className="px-4 py-3">{r.start_date}</td>
-                    <td className="px-4 py-3">{r.end_date}</td>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-4 py-3 tabular-nums">{r.start_date}</td>
+                    <td className="px-4 py-3 tabular-nums">{r.end_date}</td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
                       {r.total_days}
-                      {r.is_half_day && <span className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
+                      {r.is_half_day && <span className="ml-1 text-[10px] bg-info/10 text-info px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
                     </td>
                     <td className="px-4 py-3">
                       {(r.leave_clashes_count || 0) > 0 ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
                                 <AlertTriangle className="h-3 w-3" />
                                 {r.leave_clashes_count}
                               </span>
@@ -226,25 +226,25 @@ export default function LeaveRequestsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        r.status === "approved" ? "bg-green-100 text-green-700" :
-                        r.status === "rejected" ? "bg-red-100 text-red-700" :
-                        "bg-yellow-100 text-yellow-700"
+                        r.status === "approved" ? "bg-success/10 text-success" :
+                        r.status === "rejected" ? "bg-destructive/10 text-destructive" :
+                        "bg-warning/10 text-warning"
                       }`}>{r.status}</span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
                     <td className="px-4 py-3">
                       {r.status === "pending" && (
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved", request: r })}>
+                          <Button size="sm" variant="ghost" className="text-success h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved", request: r })}>
                             <CheckCircle className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="text-red-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}>
+                          <Button size="sm" variant="ghost" className="text-destructive h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}>
                             <XCircle className="h-4 w-4" />
                           </Button>
                         </div>
                       )}
                       {r.status === "approved" && (
-                        <Button size="sm" variant="ghost" className="text-orange-600 h-7 text-xs" onClick={() => statusMutation.mutate({ id: r.id, status: "cancelled", request: r })}>
+                        <Button size="sm" variant="ghost" className="text-warning h-7 text-xs" onClick={() => statusMutation.mutate({ id: r.id, status: "cancelled", request: r })}>
                           Cancel
                         </Button>
                       )}

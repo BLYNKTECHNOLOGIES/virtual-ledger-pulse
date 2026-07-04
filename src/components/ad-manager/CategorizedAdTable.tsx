@@ -408,12 +408,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     <TableCell>
                       <span className="text-xs">{ad.priceType === 1 ? 'Fixed' : 'Floating'}</span>
                     </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      ₹{Number(ad.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      {ad.priceType === 2 && ad.priceFloatingRatio && (
-                        <span className="text-xs text-muted-foreground ml-1">({Number(ad.priceFloatingRatio).toFixed(2)}%)</span>
-                      )}
-                    </TableCell>
+                    <AdPriceCell ad={ad} />
                     <TableCell className="text-right tabular-nums">
                       {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}
                       <div className="text-xs text-muted-foreground">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -199,24 +199,92 @@ export default function Dashboard() {
   const [activeWidgetIds, setActiveWidgetIds] = useState<string[]>(() => readWidgetIds(storageKey));
   const [customSpans, setCustomSpans] = useState<Record<string, number>>(() => readSpans(spansStorageKey));
 
-  // Re-load both when the authenticated user changes (e.g. login, page refresh)
+  // Tracks whether the user's saved layout has been loaded from the database.
+  // Persistence to the DB is gated on this so we never overwrite a remote layout
+  // with the localStorage/default seed before it has been fetched.
+  const dbLoadedRef = useRef(false);
+
+  // Re-load local seed when the authenticated user changes (login, refresh).
   useEffect(() => {
+    dbLoadedRef.current = false;
     setActiveWidgetIds(readWidgetIds(storageKey));
     setCustomSpans(readSpans(spansStorageKey));
   }, [storageKey, spansStorageKey, readWidgetIds, readSpans]);
+
+  // ── Cross-device layout: source of truth is user_preferences.widget_settings ──
+  const { data: dbLayout } = useQuery({
+    queryKey: ['dashboard-layout', userId],
+    queryFn: async () => {
+      if (userId === 'default') return null;
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('widget_settings')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const settings = (data?.widget_settings as Record<string, unknown>) || {};
+      return (settings.dashboard as { activeWidgets?: string[]; spans?: Record<string, number> }) ?? {};
+    },
+    enabled: userId !== 'default',
+    staleTime: 60_000,
+  });
+
+  // Apply the remote layout once it arrives (overrides the local seed).
+  useEffect(() => {
+    if (!dbLayout) return;
+    if (Array.isArray(dbLayout.activeWidgets) && dbLayout.activeWidgets.length > 0) {
+      const seen = new Set<string>();
+      const ids = dbLayout.activeWidgets.filter((id) => (seen.has(id) ? false : (seen.add(id), true)));
+      setActiveWidgetIds(ids);
+      if (storageKey) localStorage.setItem(storageKey, JSON.stringify(ids));
+    }
+    if (dbLayout.spans && typeof dbLayout.spans === 'object') {
+      setCustomSpans(dbLayout.spans);
+      if (spansStorageKey) localStorage.setItem(spansStorageKey, JSON.stringify(dbLayout.spans));
+    }
+    dbLoadedRef.current = true;
+  }, [dbLayout, storageKey, spansStorageKey]);
+
+  // Persist the current layout to user_preferences (per-user, cross-device).
+  const persistLayoutToDb = useCallback(async (ids: string[], spans: Record<string, number>) => {
+    if (userId === 'default') return;
+    try {
+      const { data: existing } = await supabase
+        .from('user_preferences')
+        .select('id, widget_settings')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const currentSettings = (existing?.widget_settings as Record<string, unknown>) || {};
+      const newSettings = { ...currentSettings, dashboard: { activeWidgets: ids, spans } };
+      if (existing) {
+        await supabase
+          .from('user_preferences')
+          .update({ widget_settings: newSettings, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+      } else {
+        await supabase
+          .from('user_preferences')
+          .insert({ user_id: userId, widget_settings: newSettings });
+      }
+    } catch (err) {
+      console.warn('Failed to persist dashboard layout:', err);
+    }
+  }, [userId]);
 
   const handleResizeWidget = useCallback((widgetId: string, span: WidgetSize) => {
     setCustomSpans(prev => {
       const next = { ...prev, [widgetId]: span };
       if (spansStorageKey) localStorage.setItem(spansStorageKey, JSON.stringify(next));
+      persistLayoutToDb(activeWidgetIds, next);
       return next;
     });
-  }, [spansStorageKey]);
+  }, [spansStorageKey, persistLayoutToDb, activeWidgetIds]);
 
-  // Persist active widgets whenever they change (only for real users)
+  // Persist active widgets whenever they change (localStorage + DB once loaded).
   useEffect(() => {
     if (storageKey) localStorage.setItem(storageKey, JSON.stringify(activeWidgetIds));
-  }, [activeWidgetIds, storageKey]);
+    if (dbLoadedRef.current) persistLayoutToDb(activeWidgetIds, customSpans);
+  }, [activeWidgetIds, storageKey, persistLayoutToDb, customSpans]);
+
 
   // Filter by permissions
   const visibleWidgetIds = useMemo(() => {

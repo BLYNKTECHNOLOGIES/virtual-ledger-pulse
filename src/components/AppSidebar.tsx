@@ -437,9 +437,9 @@ export function AppSidebar() {
         {orderedEntries.length === 0 && (
           <SidebarGroup>
             <SidebarGroupContent>
-              <div className="text-center py-8 text-gray-500">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <Shield className="h-8 w-8 text-gray-400" />
+              <div className="text-center py-8 text-muted-foreground">
+                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <Shield className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <p className="text-sm font-medium">No accessible modules</p>
               </div>

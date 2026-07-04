@@ -377,16 +377,8 @@ export function useBinanceChatWebSocket(
     setError(null);
 
     try {
-      const credResult = await callBinanceAds('getChatCredential', {}, accountIdRef.current ?? undefined);
-      const credData = credResult?.data?.data || credResult?.data || credResult;
-      const relay: RelayInfo | undefined = credResult?.data?._relay || credResult?._relay;
-
-      if (!credData?.chatWssUrl || !credData?.listenKey || !credData?.listenToken) {
-        throw new Error('Invalid chat credentials received');
-      }
-      if (!relay?.relayUrl || !relay?.relayToken) {
-        throw new Error('Relay info missing from getChatCredential response');
-      }
+      // Reuse a cached credential within its TTL to skip the round-trip on reconnect/open.
+      const { credData, relay } = await getCachedChatCredential(accountIdRef.current ?? null);
 
       relayInfoRef.current = relay;
 

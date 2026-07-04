@@ -57,6 +57,46 @@ async function wsDataToString(data: any): Promise<string> {
 
 let tempIdCounter = 1;
 
+// ---- Module-level chat credential cache ----
+// Reuse the getChatCredential result across opens/reconnects within its TTL to
+// avoid a full round-trip (browser -> edge -> relay -> Binance) on every open.
+// Binance listenKeys are valid ~60m; we refresh conservatively at 25m.
+interface CachedCredential {
+  credData: any;
+  relay: RelayInfo;
+  fetchedAt: number;
+}
+const CREDENTIAL_TTL_MS = 25 * 60 * 1000;
+const credentialCache = new Map<string, CachedCredential>();
+
+async function getCachedChatCredential(accountId: string | null): Promise<CachedCredential> {
+  const cacheKey = accountId ?? '__default__';
+  const cached = credentialCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < CREDENTIAL_TTL_MS) {
+    return cached;
+  }
+
+  const credResult = await callBinanceAds('getChatCredential', {}, accountId ?? undefined);
+  const credData = credResult?.data?.data || credResult?.data || credResult;
+  const relay: RelayInfo | undefined = credResult?.data?._relay || credResult?._relay;
+
+  if (!credData?.chatWssUrl || !credData?.listenKey || !credData?.listenToken) {
+    throw new Error('Invalid chat credentials received');
+  }
+  if (!relay?.relayUrl || !relay?.relayToken) {
+    throw new Error('Relay info missing from getChatCredential response');
+  }
+
+  const entry: CachedCredential = { credData, relay, fetchedAt: Date.now() };
+  credentialCache.set(cacheKey, entry);
+  return entry;
+}
+
+/** Drop a cached credential so the next connect re-fetches (e.g. after a rejected listenKey). */
+function invalidateChatCredential(accountId: string | null) {
+  credentialCache.delete(accountId ?? '__default__');
+}
+
 export function useBinanceChatWebSocket(
   activeOrderNo: string | null,
   accountId?: string | null

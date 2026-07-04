@@ -259,8 +259,9 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
             )}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            No TDS records found for this seller
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+            <Receipt className="h-8 w-8 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">No TDS records found for this seller</p>
           </div>
         )}
       </CardContent>

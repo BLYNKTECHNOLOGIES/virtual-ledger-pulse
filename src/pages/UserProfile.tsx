@@ -768,7 +768,7 @@ export default function UserProfile() {
     mutationFn: async (bankData: typeof newBankAccount) => {
       const { error } = await supabase.from('bank_accounts').insert({
         ...bankData, created_by: user?.id, status: 'ACTIVE', balance: 0
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -2850,7 +2850,7 @@ function ReuploadDocumentDialog({
       if (!result.url) throw new Error('Upload did not return a URL.');
       const { error } = await supabase
         .from('client_onboarding_approvals')
-        .update({ [target.field]: result.url })
+        .update({ [target.field]: result.url } as any)
         .eq('id', target.approvalId);
       if (error) throw error;
       toast({ title: 'Document re-uploaded', description: `${target.label} was replaced successfully.` });

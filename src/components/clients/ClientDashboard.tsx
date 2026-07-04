@@ -772,9 +772,9 @@ export function ClientDashboard() {
                             </td>
                             <td className="py-3 px-4">
                               {cosmosAlert ? (
-                                <Badge variant="destructive">Alert</Badge>
+                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Alert</Badge>
                               ) : (
-                                <Badge variant="secondary">Normal</Badge>
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/20">Normal</Badge>
                               )}
                             </td>
                             <td className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>

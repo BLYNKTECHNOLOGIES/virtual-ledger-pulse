@@ -18,7 +18,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.asset || 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, asset: v === 'all' ? '' : v, page: 1 })}
       >
-        <SelectTrigger className="w-[130px]">
+        <SelectTrigger className="h-9 w-[130px]">
           <SelectValue placeholder="Asset" />
         </SelectTrigger>
         <SelectContent>
@@ -35,7 +35,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.tradeType || 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, tradeType: v === 'all' ? '' : v, page: 1 })}
       >
-        <SelectTrigger className="w-[130px]">
+        <SelectTrigger className="h-9 w-[130px]">
           <SelectValue placeholder="Trade Type" />
         </SelectTrigger>
         <SelectContent>
@@ -49,7 +49,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.advStatus !== null && filters.advStatus !== undefined ? String(filters.advStatus) : 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, advStatus: v === 'all' ? null : Number(v), page: 1 })}
       >
-        <SelectTrigger className="w-[130px]">
+        <SelectTrigger className="h-9 w-[130px]">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -64,7 +64,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.priceType !== null && filters.priceType !== undefined ? String(filters.priceType) : 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, priceType: v === 'all' ? null : Number(v), page: 1 })}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="h-9 w-[140px]">
           <SelectValue placeholder="Price Type" />
         </SelectTrigger>
         <SelectContent>
@@ -78,7 +78,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         type="date"
         value={filters.startDate || ''}
         onChange={(e) => onFiltersChange({ ...filters, startDate: e.target.value, page: 1 })}
-        className="w-[150px]"
+        className="h-9 w-[150px]"
         placeholder="Start Date"
       />
       <span className="text-muted-foreground">→</span>
@@ -86,13 +86,14 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         type="date"
         value={filters.endDate || ''}
         onChange={(e) => onFiltersChange({ ...filters, endDate: e.target.value, page: 1 })}
-        className="w-[150px]"
+        className="h-9 w-[150px]"
         placeholder="End Date"
       />
 
       <Button
         variant="outline"
         size="sm"
+        className="h-9"
         onClick={() => onFiltersChange({ page: 1, rows: 50, fetchAll: filters.fetchAll })}
       >
         Reset
@@ -101,6 +102,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
       <Button
         variant="outline"
         size="icon"
+        className="h-9 w-9"
         onClick={onRefresh}
         disabled={isRefreshing}
       >

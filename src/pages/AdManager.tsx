@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import { PermissionGate } from '@/components/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -111,7 +112,7 @@ export default function AdManager() {
   const handleTabChange = (tab: string) => { setActiveTab(tab); setSelectedAdvNos(new Set()); };
 
   const content = (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="page-mount space-y-6 p-4 md:p-6">
       {/* Rest controls — uses all ads, independent of current tab/filter */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
@@ -125,8 +126,9 @@ export default function AdManager() {
             <Megaphone className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">Ads Manager</h1>
-            <p className="text-xs text-muted-foreground">Manage your Binance P2P merchant ads</p>
+            <h1 className="text-2xl font-semibold text-foreground">Ads Manager</h1>
+            <p className="text-sm text-muted-foreground">Manage your Binance P2P merchant ads</p>
+
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -192,9 +194,7 @@ export default function AdManager() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                </div>
+                <TableSkeleton rows={8} columns={9} />
               ) : (
                 <CategorizedAdTable
                   ads={displayAds}

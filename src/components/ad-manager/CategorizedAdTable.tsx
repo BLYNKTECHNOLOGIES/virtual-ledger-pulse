@@ -5,8 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react';
-import { BinanceAd, getAdStatusLabel, getAdStatusVariant, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck, Megaphone } from 'lucide-react';
+import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { format } from 'date-fns';
@@ -227,7 +227,8 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
 
   if (!ads || ads.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+        <Megaphone className="h-8 w-8 opacity-40" />
         <p className="text-sm">No ads found</p>
       </div>
     );
@@ -282,15 +283,15 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
   return (
     <Table>
       <TableHeader>
-        <TableRow>
+        <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:text-[11px] [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:font-medium">
           <TableHead className="w-10"></TableHead>
           <TableHead>Ad ID</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Asset</TableHead>
           <TableHead>Price Type</TableHead>
-          <TableHead>Price</TableHead>
-          <TableHead>Available Qty</TableHead>
-          <TableHead>Order Limit</TableHead>
+          <TableHead className="text-right">Price</TableHead>
+          <TableHead className="text-right">Available Qty</TableHead>
+          <TableHead className="text-right">Order Limit</TableHead>
           <TableHead>Payment Methods</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Updated</TableHead>
@@ -307,7 +308,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
 
           return [
             // Category header row
-            <TableRow key={`cat-${category.key}`} className="bg-muted/50 hover:bg-muted/70 border-t-2 border-border">
+            <TableRow key={`cat-${category.key}`} className="bg-muted/50 hover:bg-muted/70 border-t border-border">
               <TableCell className="py-2">
                 <Checkbox
                   checked={catAllSelected}
@@ -380,7 +381,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col items-start gap-1">
-                        <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-trade-buy text-white' : 'bg-trade-sell text-white'}>
+                        <Badge variant="outline" className={ad.tradeType === 'BUY' ? 'bg-success/10 text-success border-success/20' : 'bg-destructive/10 text-destructive border-destructive/20'}>
                           {ad.tradeType}
                         </Badge>
                         {isBlockAd(ad) && (
@@ -394,19 +395,19 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     <TableCell>
                       <span className="text-xs">{ad.priceType === 1 ? 'Fixed' : 'Floating'}</span>
                     </TableCell>
-                    <TableCell className="font-semibold">
+                    <TableCell className="text-right font-semibold tabular-nums">
                       ₹{Number(ad.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       {ad.priceType === 2 && ad.priceFloatingRatio && (
                         <span className="text-xs text-muted-foreground ml-1">({Number(ad.priceFloatingRatio).toFixed(2)}%)</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right tabular-nums">
                       {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}
                       <div className="text-xs text-muted-foreground">
                         / {Number(ad.initAmount || 0).toLocaleString('en-IN')} total
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className="text-right text-xs tabular-nums">
                       ₹{Number(ad.minSingleTransAmount || 0).toLocaleString('en-IN')} ~ ₹{Number(ad.maxSingleTransAmount || 0).toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
@@ -428,11 +429,11 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={getAdStatusVariant(ad.advStatus)}
+                        variant="outline"
                         className={
-                          ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success text-white'
-                          : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-amber-500 text-amber-500'
-                          : ''
+                          ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
+                          : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
+                          : 'bg-muted text-muted-foreground border-border'
                         }
                       >
                         {getAdStatusLabel(ad.advStatus)}
@@ -479,7 +480,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                           {ad.advStatus === BINANCE_AD_STATUS.ONLINE ? (
                             <PowerOff className="h-3.5 w-3.5 text-trade-sell" />
                           ) : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? (
-                            <Lock className="h-3.5 w-3.5 text-amber-500" />
+                            <Lock className="h-3.5 w-3.5 text-warning" />
                           ) : (
                             <Power className="h-3.5 w-3.5 text-trade-buy" />
                           )}

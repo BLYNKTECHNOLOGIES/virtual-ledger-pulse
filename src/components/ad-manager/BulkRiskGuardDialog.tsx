@@ -73,14 +73,14 @@ export function BulkRiskGuardDialog({ open, onOpenChange, ads, onComplete }: Pro
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-amber-500" />
+            <ShieldAlert className="h-4 w-4 text-warning" />
             Apply Risk Guard
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
+          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-warning mt-0.5" />
             <p className="text-muted-foreground">
               This sends only Binance-supported ad update fields. Unsupported fields are skipped and logged.
             </p>

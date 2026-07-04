@@ -67,8 +67,8 @@ export function BulkStatusDialog({ open, onOpenChange, ads, targetStatus, onComp
 
         {step === 'confirm' && (
           <div className="space-y-3 py-2">
-            <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-medium">Confirm Bulk Status Change</p>
                 <p className="text-muted-foreground mt-1">

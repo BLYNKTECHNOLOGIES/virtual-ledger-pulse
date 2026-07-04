@@ -115,13 +115,13 @@ export function SalesPurchasesTab() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingDown className="h-5 w-5 text-red-600" />
+                <TrendingDown className="h-5 w-5 text-destructive" />
                 Purchase Transactions ({purchaseOrders?.length || 0})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {purchaseLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                <TableSkeleton rows={6} columns={10} />
               ) : !purchaseOrders?.length ? (
                 <div className="text-center py-8">
                   <TrendingDown className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

@@ -710,10 +710,10 @@ export function ClientDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-border">
                   <table className="w-full">
                     <thead>
-                       <tr className="border-b">
+                       <tr className="border-b border-border bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
                          {canAssignRA && (
                            <th className="text-left py-3 px-4 w-10">
                              <Checkbox
@@ -722,17 +722,17 @@ export function ClientDashboard() {
                              />
                            </th>
                          )}
-                         <th className="text-left py-3 px-4 font-medium text-muted-foreground">Seller Name</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Seller ID</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assigned RM</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Risk Level</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Orders</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Order</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Trend</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">COSMOS</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">KYC</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Priority</th>
+                         <th className="text-left py-3 px-4 font-medium">Seller Name</th>
+                        <th className="text-left py-3 px-4 font-medium">Seller ID</th>
+                        <th className="text-left py-3 px-4 font-medium">Assigned RM</th>
+                        <th className="text-left py-3 px-4 font-medium">Risk Level</th>
+                        <th className="text-right py-3 px-4 font-medium">Total Orders</th>
+                        <th className="text-left py-3 px-4 font-medium">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium">Trend</th>
+                        <th className="text-left py-3 px-4 font-medium">Status</th>
+                        <th className="text-left py-3 px-4 font-medium">COSMOS</th>
+                        <th className="text-left py-3 px-4 font-medium">KYC</th>
+                        <th className="text-left py-3 px-4 font-medium">Priority</th>
                       </tr>
                     </thead>
                     <tbody>

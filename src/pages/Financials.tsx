@@ -174,10 +174,10 @@ export default function Financials() {
                   <Calculator className="h-8 w-8 text-success" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-muted">
+                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">
                     Financial Management
                   </h1>
-                  <p className="text-muted text-lg">
+                  <p className="text-muted-foreground text-lg">
                     Comprehensive financial overview and management
                   </p>
                 </div>

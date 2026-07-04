@@ -248,7 +248,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-muted">
+          <DialogTitle className="text-xl font-bold text-foreground">
             Quick Sales Order Creation
           </DialogTitle>
         </DialogHeader>

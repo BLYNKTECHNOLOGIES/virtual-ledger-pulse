@@ -85,7 +85,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
     <div ref={setNodeRef} style={style}
       className="bg-card rounded-lg border border-border p-3 hover:shadow-sm hover:border-border transition-all group">
       <div className="flex items-start gap-2.5">
-        <div {...attributes} {...listeners} className="mt-1 text-muted hover:text-muted-foreground cursor-grab active:cursor-grabbing">
+        <div {...attributes} {...listeners} className="mt-1 text-muted-foreground hover:text-muted-foreground-foreground cursor-grab active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
         {candidate.profile_image_url ? (
@@ -97,7 +97,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground truncate cursor-pointer hover:text-[#E8604C]" onClick={() => navigate(`/hrms/recruitment/candidates/${candidate.id}`)}>{candidate.name}</p>
-          {candidate.email && <p className="text-[11px] text-muted-foreground truncate">{candidate.email}</p>}
+          {candidate.email && <p className="text-[11px] text-muted-foreground-foreground truncate">{candidate.email}</p>}
         </div>
       </div>
 
@@ -130,19 +130,19 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         {candidate.rating !== null && candidate.rating > 0 && (
           <div className="flex items-center gap-0.5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className={`h-3 w-3 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted"}`} />
+              <Star key={i} className={`h-3 w-3 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted-foreground"}`} />
             ))}
           </div>
         )}
         {candidate.source && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{candidate.source}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground-foreground">{candidate.source}</span>
         )}
         {candidate.offer_letter_status && candidate.offer_letter_status !== "none" && (
           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
             candidate.offer_letter_status === "accepted" ? "bg-success/10 text-success" :
             candidate.offer_letter_status === "rejected" ? "bg-destructive/10 text-destructive" :
             candidate.offer_letter_status === "sent" ? "bg-info/10 text-info" :
-            "bg-muted text-muted-foreground"
+            "bg-muted text-muted-foreground-foreground"
           }`}>
             Offer: {candidate.offer_letter_status}
           </span>
@@ -421,12 +421,12 @@ export default function RecruitmentPipelinePage() {
       {/* Header */}
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/hrms/recruitment")} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <button onClick={() => navigate("/hrms/recruitment")} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground-foreground">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
             <h1 className="text-xl font-semibold text-foreground">{activeRec?.title || "Pipeline"}</h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground-foreground">
               {activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates · Drag to move between stages` : "Select a recruitment"}
             </p>
           </div>
@@ -452,7 +452,7 @@ export default function RecruitmentPipelinePage() {
       {activeRec && (
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center bg-card rounded-lg border border-border px-3 py-1.5 w-64">
-            <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+            <Search className="h-4 w-4 text-muted-foreground-foreground mr-2 shrink-0" />
             <input type="text" placeholder="Search candidates..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
               className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full" />
           </div>
@@ -463,7 +463,7 @@ export default function RecruitmentPipelinePage() {
               {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          <span className="text-xs text-muted-foreground ml-auto">
+          <span className="text-xs text-muted-foreground-foreground ml-auto">
             {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -474,10 +474,10 @@ export default function RecruitmentPipelinePage() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-              <Plus className="h-8 w-8 text-muted-foreground" />
+              <Plus className="h-8 w-8 text-muted-foreground-foreground" />
             </div>
-            <p className="text-muted-foreground text-sm font-medium">No active recruitment found</p>
-            <p className="text-muted-foreground text-xs mt-1">Create a recruitment to start building your pipeline</p>
+            <p className="text-muted-foreground-foreground text-sm font-medium">No active recruitment found</p>
+            <p className="text-muted-foreground-foreground text-xs mt-1">Create a recruitment to start building your pipeline</p>
             <button
               onClick={() => navigate("/hrms/recruitment")}
               className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#E8604C] text-primary-foreground text-sm font-medium rounded-lg hover:bg-[#d04e3c] transition-colors shadow-sm"
@@ -489,7 +489,7 @@ export default function RecruitmentPipelinePage() {
       ) : !stages?.length ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-muted-foreground text-sm">No stages defined for this recruitment</p>
+            <p className="text-muted-foreground-foreground text-sm">No stages defined for this recruitment</p>
             <button onClick={() => setAddStageOpen(true)} className="mt-2 text-[#E8604C] text-sm font-medium hover:underline">
               + Add first stage
             </button>
@@ -514,14 +514,14 @@ export default function RecruitmentPipelinePage() {
                     <div className="px-3 py-3 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-semibold text-foreground">{stage.stage_name}</h3>
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground-foreground">
                           {stageCandidates.length}
                         </span>
                       </div>
                       <div className="flex items-center gap-0.5">
                         <button
                           onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
-                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-[#E8604C] transition-colors"
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground-foreground hover:text-[#E8604C] transition-colors"
                           title="Add candidate">
                           <Plus className="h-3.5 w-3.5" />
                         </button>
@@ -530,7 +530,7 @@ export default function RecruitmentPipelinePage() {
                             if (stageCandidates.length > 0) { toast.error("Remove all candidates first"); return; }
                             setDeleteStageTarget({ id: stage.id, name: stage.stage_name });
                           }}
-                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground-foreground hover:text-destructive transition-colors"
                           title="Delete stage">
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -554,7 +554,7 @@ export default function RecruitmentPipelinePage() {
                       ))}
                       {stageCandidates.length === 0 && (
                         <div className="text-center py-6">
-                          <p className="text-xs text-muted-foreground">No candidates</p>
+                          <p className="text-xs text-muted-foreground-foreground">No candidates</p>
                           <button
                             onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
                             className="text-xs text-[#E8604C] mt-1 hover:underline">
@@ -579,7 +579,7 @@ export default function RecruitmentPipelinePage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-foreground">{draggedCandidate.name}</p>
-                    {draggedCandidate.email && <p className="text-[11px] text-muted-foreground">{draggedCandidate.email}</p>}
+                    {draggedCandidate.email && <p className="text-[11px] text-muted-foreground-foreground">{draggedCandidate.email}</p>}
                   </div>
                 </div>
               </div>
@@ -594,7 +594,7 @@ export default function RecruitmentPipelinePage() {
           <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Add Candidate</h2>
-              <button onClick={() => setAddCandidateOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
+              <button onClick={() => setAddCandidateOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -650,7 +650,7 @@ export default function RecruitmentPipelinePage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-              <button onClick={() => setAddCandidateOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
+              <button onClick={() => setAddCandidateOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => addCandidateMutation.mutate()}
                 disabled={!candidateForm.name || addCandidateMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
@@ -667,7 +667,7 @@ export default function RecruitmentPipelinePage() {
           <div className="bg-card rounded-xl w-full max-w-sm shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Add Stage</h2>
-              <button onClick={() => setAddStageOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
+              <button onClick={() => setAddStageOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -694,7 +694,7 @@ export default function RecruitmentPipelinePage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-              <button onClick={() => setAddStageOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
+              <button onClick={() => setAddStageOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => addStageMutation.mutate()}
                 disabled={!stageForm.stage_name || addStageMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">

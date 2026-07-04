@@ -228,9 +228,9 @@ export function GrossProfitHistoryTab() {
 
         <Card className="bg-gradient-to-br from-muted to-muted text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-muted text-sm font-medium">Total Snapshots</p>
+            <p className="text-muted-foreground text-sm font-medium">Total Snapshots</p>
             <p className="text-2xl font-bold mt-2">{mergedData?.length || 0}</p>
-            <p className="text-sm mt-1 text-muted">Daily records</p>
+            <p className="text-sm mt-1 text-muted-foreground">Daily records</p>
           </CardContent>
         </Card>
       </div>
@@ -267,11 +267,11 @@ export function GrossProfitHistoryTab() {
         </CardHeader>
         <CardContent className="p-6">
           {isLoading ? (
-            <div className="h-72 flex items-center justify-center text-muted-foreground">
+            <div className="h-72 flex items-center justify-center text-muted-foreground-foreground">
               Loading chart data...
             </div>
           ) : chartData.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground">
+            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground-foreground">
               <TrendingUp className="h-12 w-12 mb-4 opacity-50" />
               <p className="font-medium">No historical data yet</p>
               <p className="text-sm">Daily snapshots will appear here starting from tomorrow at 12:00 AM</p>

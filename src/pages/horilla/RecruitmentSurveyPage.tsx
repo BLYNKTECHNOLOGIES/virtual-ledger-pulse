@@ -152,7 +152,7 @@ export default function RecruitmentSurveyPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Recruitment Survey</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Create and manage survey templates for recruitment</p>
+          <p className="text-xs text-muted-foreground-foreground mt-0.5">Create and manage survey templates for recruitment</p>
         </div>
         <button
           onClick={() => { closeDialog(); setCreateOpen(true); }}
@@ -166,23 +166,23 @@ export default function RecruitmentSurveyPage() {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><ClipboardList className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-2xl font-bold text-foreground">{templates.length}</p><p className="text-xs text-muted-foreground">Templates</p></div>
+          <div><p className="text-2xl font-bold text-foreground">{templates.length}</p><p className="text-xs text-muted-foreground-foreground">Templates</p></div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0"><FileText className="h-5 w-5 text-info" /></div>
-          <div><p className="text-2xl font-bold text-foreground">{questions.length}</p><p className="text-xs text-muted-foreground">Total Questions</p></div>
+          <div><p className="text-2xl font-bold text-foreground">{questions.length}</p><p className="text-xs text-muted-foreground-foreground">Total Questions</p></div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0"><CheckSquare className="h-5 w-5 text-success" /></div>
-          <div><p className="text-2xl font-bold text-foreground">{responses.length}</p><p className="text-xs text-muted-foreground">Responses</p></div>
+          <div><p className="text-2xl font-bold text-foreground">{responses.length}</p><p className="text-xs text-muted-foreground-foreground">Responses</p></div>
         </div>
       </div>
 
       {/* Templates */}
       {isLoading ? (
-        <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
+        <div className="p-8 text-center text-muted-foreground-foreground text-sm">Loading...</div>
       ) : templates.length === 0 ? (
-        <div className="bg-card rounded-xl border border-border p-8 text-center text-muted-foreground text-sm">
+        <div className="bg-card rounded-xl border border-border p-8 text-center text-muted-foreground-foreground text-sm">
           No survey templates yet. Create one to start collecting candidate feedback.
         </div>
       ) : (
@@ -194,29 +194,29 @@ export default function RecruitmentSurveyPage() {
             return (
               <div key={tpl.id} className="bg-card rounded-xl border border-border overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50" onClick={() => toggleExpand(tpl.id)}>
-                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground-foreground" />}
                   <ClipboardList className="h-4 w-4 text-[#E8604C]" />
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-semibold text-foreground">{tpl.title}</span>
                     {tpl.is_general_template && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info font-medium">General</span>}
-                    {tpl.description && <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>}
+                    {tpl.description && <p className="text-xs text-muted-foreground-foreground mt-0.5">{tpl.description}</p>}
                   </div>
-                  <span className="text-xs text-muted-foreground">{tplQuestions.length} Q&apos;s</span>
-                  <span className="text-xs text-muted-foreground">{tplResponses.length} responses</span>
+                  <span className="text-xs text-muted-foreground-foreground">{tplQuestions.length} Q&apos;s</span>
+                  <span className="text-xs text-muted-foreground-foreground">{tplResponses.length} responses</span>
                   <button onClick={(e) => { e.stopPropagation(); setViewResponses(viewResponses === tpl.id ? null : tpl.id); setViewAnalytics(null); }}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-info" title="View Responses">
+                    className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-info" title="View Responses">
                     <Eye className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setViewAnalytics(viewAnalytics === tpl.id ? null : tpl.id); setViewResponses(null); }}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-success" title="Analytics">
+                    className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-success" title="Analytics">
                     <BarChart3 className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setForm({ title: tpl.title, description: tpl.description || "", is_general_template: tpl.is_general_template }); setEditTemplate(tpl); setCreateOpen(true); }}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+                    className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-foreground">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: tpl.id, name: tpl.title }); }}
-                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -224,21 +224,21 @@ export default function RecruitmentSurveyPage() {
                 {isExpanded && (
                   <div className="border-t border-border">
                     {tplQuestions.length === 0 ? (
-                      <div className="px-4 py-3 text-xs text-muted-foreground">No questions added yet.</div>
+                      <div className="px-4 py-3 text-xs text-muted-foreground-foreground">No questions added yet.</div>
                     ) : (
                       <div className="divide-y divide-muted">
                         {tplQuestions.map((q: any, i: number) => (
                           <div key={q.id} className="flex items-center gap-3 px-4 py-2 pl-12">
-                            <span className="text-xs text-muted-foreground font-mono w-5">{i + 1}.</span>
+                            <span className="text-xs text-muted-foreground-foreground font-mono w-5">{i + 1}.</span>
                             <div className="flex-1">
                               <p className="text-sm text-foreground">{q.question}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{q.question_type}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground-foreground">{q.question_type}</span>
                                 {q.is_required && <span className="text-[10px] text-destructive">Required</span>}
-                                {q.options && <span className="text-[10px] text-muted-foreground">Options: {(q.options as string[]).join(", ")}</span>}
+                                {q.options && <span className="text-[10px] text-muted-foreground-foreground">Options: {(q.options as string[]).join(", ")}</span>}
                               </div>
                             </div>
-                            <button onClick={() => deleteQuestionMutation.mutate(q.id)} className="p-1 rounded hover:bg-destructive/10 text-muted hover:text-destructive">
+                            <button onClick={() => deleteQuestionMutation.mutate(q.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           </div>
@@ -254,7 +254,7 @@ export default function RecruitmentSurveyPage() {
                             <select value={qForm.question_type} onChange={e => setQForm({ ...qForm, question_type: e.target.value })} className={inputCls + " flex-1"}>
                               {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                             </select>
-                            <label className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                            <label className="flex items-center gap-1 text-xs text-muted-foreground-foreground whitespace-nowrap">
                               <input type="checkbox" checked={qForm.is_required} onChange={e => setQForm({ ...qForm, is_required: e.target.checked })} /> Required
                             </label>
                           </div>
@@ -265,7 +265,7 @@ export default function RecruitmentSurveyPage() {
                             <button onClick={() => addQuestionMutation.mutate(tpl.id)} disabled={!qForm.question}
                               className="px-3 py-1.5 text-xs bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">Add</button>
                             <button onClick={() => { setAddQTo(null); setQForm({ question: "", question_type: "text", is_required: true, options: "" }); }}
-                              className="px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
+                              className="px-3 py-1.5 text-xs text-muted-foreground-foreground hover:bg-muted rounded-lg">Cancel</button>
                           </div>
                         </div>
                       ) : (
@@ -282,16 +282,16 @@ export default function RecruitmentSurveyPage() {
                   <div className="border-t border-border bg-muted/50 p-4">
                     <h4 className="text-sm font-semibold text-foreground mb-3">Responses ({tplResponses.length})</h4>
                     {tplResponses.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No responses yet.</p>
+                      <p className="text-xs text-muted-foreground-foreground">No responses yet.</p>
                     ) : (
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {tplResponses.map((r: any) => (
                           <div key={r.id} className="bg-card rounded-lg border border-border p-3">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm font-medium text-foreground">{r.hr_candidates?.name || r.respondent_name || "Anonymous"}</span>
-                              <span className="text-[10px] text-muted-foreground">{new Date(r.submitted_at).toLocaleDateString()}</span>
+                              <span className="text-[10px] text-muted-foreground-foreground">{new Date(r.submitted_at).toLocaleDateString()}</span>
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground-foreground">
                               {Object.entries(r.answers || {}).map(([qId, ans]) => (
                                 <p key={qId} className="mb-0.5"><strong className="text-foreground">Q:</strong> {String(ans)}</p>
                               ))}
@@ -323,7 +323,7 @@ export default function RecruitmentSurveyPage() {
           <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">{editTemplate ? "Edit" : "Create"} Survey Template</h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
+              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
@@ -340,7 +340,7 @@ export default function RecruitmentSurveyPage() {
               </label>
             </div>
             <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
-              <button onClick={closeDialog} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
+              <button onClick={closeDialog} className="px-4 py-2 text-sm text-muted-foreground-foreground hover:bg-muted rounded-lg">Cancel</button>
               <button onClick={() => saveTemplateMutation.mutate()} disabled={!form.title} className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {editTemplate ? "Update" : "Create"}
               </button>
@@ -399,7 +399,7 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
   if (responses.length === 0) {
     return (
       <div className="border-t border-border bg-muted/50 p-4">
-        <p className="text-xs text-muted-foreground text-center">No responses to analyze yet.</p>
+        <p className="text-xs text-muted-foreground-foreground text-center">No responses to analyze yet.</p>
       </div>
     );
   }
@@ -408,7 +408,7 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
     <div className="border-t border-border bg-muted/50 p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-foreground">Analytics</h4>
-        <span className="text-xs text-muted-foreground">{responses.length} total responses</span>
+        <span className="text-xs text-muted-foreground-foreground">{responses.length} total responses</span>
       </div>
 
       {analytics.map((q: any, i: number) => (
@@ -417,7 +417,7 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
 
           {q.type === "rating" && (
             <div className="space-y-1">
-              <p className="text-lg font-bold text-[#E8604C]">{q.avg} <span className="text-xs font-normal text-muted-foreground">/ 5 avg</span></p>
+              <p className="text-lg font-bold text-[#E8604C]">{q.avg} <span className="text-xs font-normal text-muted-foreground-foreground">/ 5 avg</span></p>
               <div className="flex gap-1 items-end h-12">
                 {[1, 2, 3, 4, 5].map(n => {
                   const pct = q.total > 0 ? (q.distribution[n] / q.total) * 100 : 0;
@@ -426,12 +426,12 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
                       <div className="w-full bg-muted rounded-t relative" style={{ height: `${Math.max(pct, 4)}%`, minHeight: 4 }}>
                         <div className="absolute inset-0 bg-[#E8604C] rounded-t" style={{ height: `${pct}%` }} />
                       </div>
-                      <span className="text-[9px] text-muted-foreground mt-0.5">{n}★</span>
+                      <span className="text-[9px] text-muted-foreground-foreground mt-0.5">{n}★</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-[10px] text-muted-foreground">{q.total} responses</p>
+              <p className="text-[10px] text-muted-foreground-foreground">{q.total} responses</p>
             </div>
           )}
 
@@ -462,11 +462,11 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
             <div className="space-y-1">
               {Object.entries(q.counts as Record<string, number>).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([opt, count]) => (
                 <div key={opt} className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-24 truncate">{opt}</span>
+                  <span className="text-xs text-muted-foreground-foreground w-24 truncate">{opt}</span>
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-info rounded-full" style={{ width: `${q.total > 0 ? ((count as number) / q.total) * 100 : 0}%` }} />
                   </div>
-                  <span className="text-[10px] text-muted-foreground w-6 text-right">{count as number}</span>
+                  <span className="text-[10px] text-muted-foreground-foreground w-6 text-right">{count as number}</span>
                 </div>
               ))}
             </div>
@@ -475,9 +475,9 @@ function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId
           {q.type === "text" && (
             <div className="space-y-1 max-h-20 overflow-y-auto">
               {q.answers.slice(0, 5).map((a: string, idx: number) => (
-                <p key={idx} className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">"{a}"</p>
+                <p key={idx} className="text-xs text-muted-foreground-foreground bg-muted/50 rounded px-2 py-1">"{a}"</p>
               ))}
-              {q.answers.length > 5 && <p className="text-[10px] text-muted-foreground">+{q.answers.length - 5} more</p>}
+              {q.answers.length > 5 && <p className="text-[10px] text-muted-foreground-foreground">+{q.answers.length - 5} more</p>}
             </div>
           )}
         </div>

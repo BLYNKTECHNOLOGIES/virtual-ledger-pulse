@@ -163,7 +163,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center text-muted-foreground">Loading fee data...</div>
+          <div className="text-center text-muted-foreground-foreground">Loading fee data...</div>
         </CardContent>
       </Card>
     );
@@ -267,9 +267,9 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted text-sm font-medium">Average Fee Rate</p>
+                <p className="text-muted-foreground text-sm font-medium">Average Fee Rate</p>
                 <p className="text-2xl font-bold mt-2">{avgFeeRate}%</p>
-                <p className="text-sm text-muted mt-1">On sales/purchase orders</p>
+                <p className="text-sm text-muted-foreground mt-1">On sales/purchase orders</p>
               </div>
               <div className="bg-muted p-3 rounded-xl">
                 <Percent className="h-6 w-6" />
@@ -319,11 +319,11 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                     <TableCell>
                       <div className="flex flex-col">
                         <span>{format(new Date(fee.created_at), 'dd/MM/yyyy')}</span>
-                        <span className="text-xs text-muted-foreground">{format(new Date(fee.created_at), 'HH:mm:ss')}</span>
+                        <span className="text-xs text-muted-foreground-foreground">{format(new Date(fee.created_at), 'HH:mm:ss')}</span>
                       </div>
                     </TableCell>
                     <TableCell>{fee.wallets?.wallet_name || 'N/A'}</TableCell>
-                    <TableCell className="max-w-[300px] truncate text-sm text-muted-foreground">
+                    <TableCell className="max-w-[300px] truncate text-sm text-muted-foreground-foreground">
                       {fee.description}
                     </TableCell>
                     <TableCell className="text-right text-warning font-medium">
@@ -399,7 +399,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                 <div key={wallet} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
                   <div>
                     <p className="font-medium">{wallet}</p>
-                    <p className="text-sm text-muted-foreground">{data.count} transactions</p>
+                    <p className="text-sm text-muted-foreground-foreground">{data.count} transactions</p>
                     <p className="text-xs text-warning">{formatUSDT(data.feesUSDT)}</p>
                   </div>
                   <Badge variant="secondary" className="text-lg px-3 py-1">
@@ -459,7 +459,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
               </TableBody>
             </Table>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground-foreground">
               <Coins className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">No fee deductions found</p>
               <p className="text-sm">Fee deductions will appear here when orders with platform fees are created</p>

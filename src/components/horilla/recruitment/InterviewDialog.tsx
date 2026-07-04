@@ -114,7 +114,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
   };
 
   const REC_COLORS: Record<string, string> = {
-    pending: "text-muted-foreground",
+    pending: "text-muted-foreground-foreground",
     strong_yes: "text-success",
     yes: "text-success",
     no: "text-destructive",
@@ -127,16 +127,16 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Interviews — {candidateName}</h2>
-            <p className="text-xs text-muted-foreground">{interviews.length} interview(s) scheduled</p>
+            <p className="text-xs text-muted-foreground-foreground">{interviews.length} interview(s) scheduled</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
         </div>
 
         {/* Tabs */}
         <div className="flex border-b border-border px-5 shrink-0">
           {(["list", "schedule"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-[#E8604C] text-[#E8604C]" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-[#E8604C] text-[#E8604C]" : "border-transparent text-muted-foreground-foreground hover:text-foreground"}`}>
               {t === "list" ? "All Interviews" : "+ Schedule New"}
             </button>
           ))}
@@ -153,7 +153,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map(i => (
                       <button key={i} onClick={() => setFeedbackForm({ ...feedbackForm, rating: i })}>
-                        <Star className={`h-5 w-5 ${i <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                        <Star className={`h-5 w-5 ${i <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                       </button>
                     ))}
                   </div>
@@ -186,7 +186,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   </select>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
+                  <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground-foreground rounded-lg hover:bg-muted">Cancel</button>
                   <button onClick={() => feedbackMutation.mutate()}
                     disabled={feedbackMutation.isPending}
                     className="px-4 py-2 text-sm text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
@@ -198,11 +198,11 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
               /* Interview List */
               <div className="space-y-3">
                 {isLoading ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
+                  <p className="text-sm text-muted-foreground-foreground text-center py-6">Loading...</p>
                 ) : interviews.length === 0 ? (
                   <div className="text-center py-8">
-                    <Calendar className="h-8 w-8 mx-auto text-muted mb-2" />
-                    <p className="text-sm text-muted-foreground">No interviews scheduled</p>
+                    <Calendar className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground-foreground">No interviews scheduled</p>
                     <button onClick={() => setTab("schedule")} className="mt-2 text-sm text-[#E8604C] hover:underline">
                       + Schedule first interview
                     </button>
@@ -213,11 +213,11 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-foreground">{iv.interviewer_name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground"}`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground-foreground"}`}>
                             {iv.status}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground-foreground">
                           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(iv.interview_date).toLocaleDateString()}</span>
                           {iv.interview_time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{iv.interview_time}</span>}
                           <span>{iv.duration_minutes}min</span>
@@ -249,7 +249,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                           {iv.rating && (
                             <div className="flex gap-0.5">
                               {[1, 2, 3, 4, 5].map(i => (
-                                <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                                <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                               ))}
                             </div>
                           )}
@@ -259,7 +259,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">{iv.feedback}</p>
+                        <p className="text-xs text-muted-foreground-foreground">{iv.feedback}</p>
                         {iv.strengths && <p className="text-[10px] text-success mt-1">✓ {iv.strengths}</p>}
                         {iv.weaknesses && <p className="text-[10px] text-destructive mt-0.5">✗ {iv.weaknesses}</p>}
                       </div>
@@ -314,7 +314,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={`${inputCls} resize-none`} rows={2} placeholder="Any special instructions..." />
               </div>
               <div className="flex gap-2 pt-2">
-                <button onClick={() => setTab("list")} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
+                <button onClick={() => setTab("list")} className="px-4 py-2 text-sm text-muted-foreground-foreground rounded-lg hover:bg-muted">Cancel</button>
                 <button
                   onClick={() => scheduleMutation.mutate()}
                   disabled={!form.interviewer_name || !form.interview_date || scheduleMutation.isPending}

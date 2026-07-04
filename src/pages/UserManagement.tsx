@@ -396,10 +396,10 @@ export default function UserManagement() {
                   <Users className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-muted">
+                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">
                     User Management
                   </h1>
-                  <p className="text-muted text-lg">
+                  <p className="text-muted-foreground text-lg">
                     Manage users, roles, and permissions
                   </p>
                 </div>

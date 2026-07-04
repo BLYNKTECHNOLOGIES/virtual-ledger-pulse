@@ -52,7 +52,7 @@ export function ExchangeAccountSwitcher() {
           className="flex items-center gap-2 border border-border rounded-lg text-foreground hover:bg-info/10 hover:text-info"
         >
           {activeAccountId === ALL_ACCOUNTS ? (
-            <Layers className="h-4 w-4 text-muted" />
+            <Layers className="h-4 w-4 text-muted-foreground" />
           ) : (
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: activeColor }} />
           )}
@@ -71,7 +71,7 @@ export function ExchangeAccountSwitcher() {
           >
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: acc.color || "#64748B" }} />
             <span className="flex-1 truncate">{acc.account_name}</span>
-            {!acc.is_active && <span className="text-xs text-muted-foreground">inactive</span>}
+            {!acc.is_active && <span className="text-xs text-muted-foreground-foreground">inactive</span>}
             {activeAccountId === acc.id && <Check className="h-4 w-4 text-info" />}
           </DropdownMenuItem>
         ))}
@@ -80,7 +80,7 @@ export function ExchangeAccountSwitcher() {
           onClick={() => setActiveAccountId(ALL_ACCOUNTS)}
           className="cursor-pointer flex items-center gap-2"
         >
-          <Layers className="h-4 w-4 text-muted" />
+          <Layers className="h-4 w-4 text-muted-foreground" />
           <span className="flex-1">All accounts</span>
           {activeAccountId === ALL_ACCOUNTS && <Check className="h-4 w-4 text-info" />}
         </DropdownMenuItem>

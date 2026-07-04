@@ -483,7 +483,7 @@ export default function EmployeeListPage() {
 
   // ─── Sort icon for column headers ───
   const SortIcon = ({ colKey }: { colKey: string }) => {
-    if (sort.column !== colKey) return <ArrowUpDown className="h-3 w-3 ml-1 text-gray-300 inline" />;
+    if (sort.column !== colKey) return <ArrowUpDown className="h-3 w-3 ml-1 text-muted-foreground/40 inline" />;
     if (sort.direction === "asc") return <ChevronUp className="h-3 w-3 ml-1 text-[#00bcd4] inline" />;
     return <ChevronDown className="h-3 w-3 ml-1 text-[#00bcd4] inline" />;
   };

@@ -1186,15 +1186,31 @@ function TerminalOrdersContent() {
 
 
       {/* Orders Table */}
-      <Card className="bg-card border-border">
-        <CardContent className="p-0">
+      <div className="t-panel overflow-hidden">
+        <div className="p-0">
           {isLoading ? (
-            <div className="p-6 space-y-3">
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+            <div className="divide-y divide-border">
+              {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                  <div className="flex flex-col gap-1.5 w-28">
+                    <div className="t-shimmer h-3 w-16 rounded" />
+                    <div className="t-shimmer h-2.5 w-24 rounded" />
+                  </div>
+                  <div className="t-shimmer h-3 w-32 rounded" />
+                  <div className="t-shimmer h-3 w-16 rounded" />
+                  <div className="flex flex-col gap-1.5 w-28">
+                    <div className="t-shimmer h-3 w-20 rounded" />
+                    <div className="t-shimmer h-2.5 w-14 rounded" />
+                  </div>
+                  <div className="t-shimmer h-3 w-24 rounded" />
+                  <div className="t-shimmer h-5 w-12 rounded-full ml-auto" />
+                  <div className="t-shimmer h-6 w-16 rounded" />
+                </div>
+              ))}
             </div>
           ) : displayOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <ShoppingCart className="h-10 w-10 text-muted-foreground/20 mb-3" />
+            <div className="flex flex-col items-center justify-center py-12">
+              <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mb-3" />
               <p className="text-sm text-muted-foreground">
                 {isFetchingHistory ? 'Loading orders...' : 'No orders found'}
               </p>
@@ -1205,6 +1221,7 @@ function TerminalOrdersContent() {
               </p>
             </div>
           ) : (
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

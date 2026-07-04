@@ -108,7 +108,7 @@ export function TaskComments({ taskId }: { taskId: string }) {
 
       <div className="relative mt-3">
         {showMentions && filteredUsers.length > 0 && (
-          <div className="absolute bottom-full mb-1 left-0 w-full bg-popover border rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto">
+          <div className="absolute bottom-full mb-1 left-0 w-full bg-popover border rounded-lg shadow-sm z-50 max-h-40 overflow-y-auto">
             {filteredUsers.map(u => (
               <button
                 key={u.id}

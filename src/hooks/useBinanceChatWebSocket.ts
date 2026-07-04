@@ -113,7 +113,9 @@ export function useBinanceChatWebSocket(
   // the proxy fall back to the primary account and stream a DIFFERENT order's chat.
   const accountIdRef = useRef<string | null>(accountId ?? null);
   accountIdRef.current = accountId ?? null;
-  const [messages, setMessages] = useState<TrackedMessage[]>([]);
+  const [messages, setMessages] = useState<TrackedMessage[]>(
+    () => (activeOrderNo ? messageCache.get(messageCacheKey(activeOrderNo, accountId ?? null)) ?? [] : [])
+  );
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);

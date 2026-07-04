@@ -105,7 +105,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         className="h-9 w-9"
         onClick={onRefresh}
         disabled={isRefreshing}
-      >
+       aria-label="Refresh">
         <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
       </Button>
     </div>

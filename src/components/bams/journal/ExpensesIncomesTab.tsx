@@ -290,7 +290,7 @@ export function ExpensesIncomesTab() {
                          className="h-8 w-8 text-primary hover:text-primary"
                          title="View receipt"
                          asChild
-                       >
+                        aria-label="Open details">
                          <a href={transaction.bill_url} target="_blank" rel="noreferrer">
                            <ExternalLink className="h-4 w-4" />
                          </a>
@@ -301,7 +301,7 @@ export function ExpensesIncomesTab() {
                          variant="ghost"
                          size="icon"
                          className="h-8 w-8"
-                         onClick={() => handleEditClick(transaction)}
+                         onClick={() = aria-label="Edit"> handleEditClick(transaction)}
                        >
                          <Pencil className="h-4 w-4" />
                        </Button>
@@ -310,7 +310,7 @@ export function ExpensesIncomesTab() {
                            variant="ghost"
                            size="icon"
                            className="h-8 w-8 text-destructive hover:text-destructive"
-                           onClick={() => handleReverseClick(transaction)}
+                           onClick={() = aria-label="Reverse"> handleReverseClick(transaction)}
                            disabled={transaction.is_reversed || !!transaction.reverses_transaction_id}
                            title={transaction.is_reversed ? "Already reversed" : transaction.reverses_transaction_id ? "Reversal entries cannot be reversed" : "Reverse this entry"}
                          >

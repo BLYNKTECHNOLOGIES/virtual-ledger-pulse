@@ -301,7 +301,7 @@ export function ExpensesIncomesTab() {
                          variant="ghost"
                          size="icon"
                          className="h-8 w-8"
-                         onClick={() = aria-label="Edit"> handleEditClick(transaction)}
+                         onClick={() => handleEditClick(transaction)}
                        >
                          <Pencil className="h-4 w-4" />
                        </Button>
@@ -310,7 +310,7 @@ export function ExpensesIncomesTab() {
                            variant="ghost"
                            size="icon"
                            className="h-8 w-8 text-destructive hover:text-destructive"
-                           onClick={() = aria-label="Reverse"> handleReverseClick(transaction)}
+                           onClick={() => handleReverseClick(transaction)}
                            disabled={transaction.is_reversed || !!transaction.reverses_transaction_id}
                            title={transaction.is_reversed ? "Already reversed" : transaction.reverses_transaction_id ? "Reversal entries cannot be reversed" : "Reverse this entry"}
                          >

@@ -141,7 +141,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
                           variant="ghost"
                           size="icon"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() = aria-label="Reverse"> setReverseTarget(transfer)}
+                          onClick={() => setReverseTarget(transfer)}
                           disabled={reverseMutation.isPending}
                           title="Reverse transfer (posts counter-entries)"
                         >

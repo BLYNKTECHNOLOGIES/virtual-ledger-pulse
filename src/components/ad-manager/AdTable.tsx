@@ -146,14 +146,14 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selecte
             </TableCell>
             <TableCell className="text-right">
               <div className="flex items-center justify-end gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() = aria-label="Edit"> onEdit(ad)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(ad)}>
                   <Edit className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() = aria-label="Disable / Locked"> onToggleStatus(ad.advNo, ad.advStatus)}
+                  onClick={() => onToggleStatus(ad.advNo, ad.advStatus)}
                   disabled={isTogglingStatus}
                   title={ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'Take Offline' : 'Go Online'}
                 >

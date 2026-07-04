@@ -510,10 +510,10 @@ export function OrgChartView() {
             {/* Zoom/pan/fullscreen controls */}
             <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
               <div className="flex gap-0.5">
-                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() = aria-label="Zoom in"> handleZoom("in")}>
+                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("in")}>
                   <ZoomIn className="h-4 w-4" />
                 </Button>
-                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() = aria-label="Zoom out"> handleZoom("out")}>
+                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("out")}>
                   <ZoomOut className="h-4 w-4" />
                 </Button>
                 <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} aria-label="Collapse / Expand">
@@ -522,19 +522,19 @@ export function OrgChartView() {
               </div>
               <div className="grid grid-cols-3 gap-0.5 mt-1">
                 <div />
-                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() = aria-label="Pan up"> handlePan("up")}>
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("up")}>
                   <ArrowUp className="h-3 w-3" />
                 </Button>
                 <div />
-                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() = aria-label="Pan left"> handlePan("left")}>
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("left")}>
                   <ArrowLeft className="h-3 w-3" />
                 </Button>
                 <div />
-                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() = aria-label="Pan right"> handlePan("right")}>
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("right")}>
                   <ArrowRight className="h-3 w-3" />
                 </Button>
                 <div />
-                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() = aria-label="Pan down"> handlePan("down")}>
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("down")}>
                   <ArrowDown className="h-3 w-3" />
                 </Button>
                 <div />

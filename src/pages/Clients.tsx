@@ -33,24 +33,22 @@ export default function Clients() {
         </div>
       }
     >
-    <div className="min-h-screen bg-muted/50 p-6">
+    <div className="min-h-screen bg-muted/50 p-6 page-mount">
       {/* Header */}
       <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
-        <div className="px-6 py-8">
+        <div className="px-6 py-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-teal-50 rounded-xl shadow-sm">
-                  <Users className="h-8 w-8 text-teal-600" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                    Client Management
-                  </h1>
-                  <p className="text-slate-600 text-lg">
-                    Comprehensive client relationship management
-                  </p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-primary/10 rounded-lg">
+                <Users className="h-7 w-7 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                  Client Management
+                </h1>
+                <p className="text-muted-foreground">
+                  Comprehensive client relationship management
+                </p>
               </div>
             </div>
           </div>

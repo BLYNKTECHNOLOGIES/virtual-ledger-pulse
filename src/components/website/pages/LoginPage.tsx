@@ -4,13 +4,40 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, BarChart3 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 import blynkIcon from '@/assets/brand/blynk-icon.svg';
 import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
+
+/** A single CSS 3D cube used in the animated backdrop. */
+function Cube({
+  size,
+  className,
+  duration,
+  style,
+}: {
+  size: number;
+  className?: string;
+  duration: number;
+  style?: React.CSSProperties;
+}) {
+  const faces = ['f-front', 'f-back', 'f-right', 'f-left', 'f-top', 'f-bottom'];
+  return (
+    <div
+      className={`cube ${className ?? ''}`}
+      style={{ width: size, height: size, ['--h' as string]: `${size / 2}px`, ...style }}
+    >
+      <div className="cube-inner" style={{ animationDuration: `${duration}s` }}>
+        {faces.map((f) => (
+          <div key={f} className={`face ${f}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -155,117 +182,64 @@ export function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[hsl(231_45%_7%)] text-white">
-      {/* ===== Animated backdrop ===== */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="relative min-h-screen w-full overflow-hidden bg-[hsl(231_45%_6%)] text-white">
+      {/* ===== 3D animated backdrop ===== */}
+      <div className="scene-3d pointer-events-none absolute inset-0 overflow-hidden">
         {/* base wash */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(231_55%_10%)] via-[hsl(231_45%_7%)] to-[hsl(250_50%_9%)]" />
-        {/* aurora orbs */}
-        <div className="absolute -top-40 -left-32 h-[32rem] w-[32rem] rounded-full bg-[hsl(231_81%_55%)]/40 blur-[120px] animate-aurora" />
-        <div className="absolute top-1/3 -right-40 h-[34rem] w-[34rem] rounded-full bg-[hsl(265_80%_60%)]/30 blur-[130px] animate-aurora-slow" />
-        <div className="absolute -bottom-48 left-1/4 h-[30rem] w-[30rem] rounded-full bg-[hsl(200_90%_55%)]/25 blur-[120px] animate-aurora" style={{ animationDelay: '-6s' }} />
-        {/* moving grid */}
-        <div
-          className="absolute inset-0 opacity-[0.10] animate-grid-pan"
-          style={{
-            backgroundImage:
-              'linear-gradient(hsl(0 0% 100% / 0.5) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 0.5) 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(231_50%_9%)] via-[hsl(231_45%_6%)] to-[hsl(255_50%_8%)]" />
+        {/* aurora glow */}
+        <div className="absolute -top-40 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/25 blur-[140px] animate-aurora" />
+        <div className="absolute bottom-0 -right-40 h-[32rem] w-[32rem] rounded-full bg-[hsl(265_80%_60%)]/20 blur-[130px] animate-aurora-slow" />
+
+        {/* 3D perspective floor */}
+        <div className="floor-3d" />
+
+        {/* Floating 3D cubes */}
+        <Cube size={90} duration={18} style={{ top: '14%', left: '12%' }} className="animate-float-y" />
+        <Cube size={56} duration={13} style={{ top: '22%', right: '14%', animationDelay: '-2s' }} className="animate-float-y" />
+        <Cube size={120} duration={26} style={{ bottom: '16%', left: '8%', animationDelay: '-4s' }} className="animate-float-y" />
+        <Cube size={70} duration={16} style={{ bottom: '22%', right: '10%', animationDelay: '-1s' }} className="animate-float-y" />
+        <Cube size={44} duration={11} style={{ top: '46%', left: '26%', animationDelay: '-3s' }} className="animate-float-y" />
+
         {/* twinkles */}
         {[
-          { top: '18%', left: '12%', d: '0s' },
-          { top: '30%', left: '82%', d: '1.2s' },
-          { top: '62%', left: '22%', d: '2.1s' },
-          { top: '75%', left: '70%', d: '0.6s' },
-          { top: '46%', left: '52%', d: '1.8s' },
-          { top: '12%', left: '60%', d: '2.6s' },
+          { top: '18%', left: '40%', d: '0s' },
+          { top: '30%', left: '72%', d: '1.2s' },
+          { top: '68%', left: '34%', d: '2.1s' },
+          { top: '58%', left: '64%', d: '0.6s' },
         ].map((s, i) => (
           <span
             key={i}
-            className="absolute h-1.5 w-1.5 rounded-full bg-white animate-twinkle"
+            className="absolute h-1 w-1 rounded-full bg-white animate-twinkle"
             style={{ top: s.top, left: s.left, animationDelay: s.d }}
           />
         ))}
-        {/* soft vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,hsl(231_45%_5%)_100%)]" />
+
+        {/* vignette */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,hsl(231_45%_4%)_100%)]" />
       </div>
 
-      {/* ===== Content ===== */}
-      <div className="relative z-10 min-h-screen w-full lg:grid lg:grid-cols-2">
-        {/* Brand side */}
-        <div className="hidden lg:flex flex-col justify-between p-12 xl:p-16">
-          <div className="login-rise" style={{ animationDelay: '0.05s' }}>
-            <img src={blynkLogoWhite} alt="Blynk" className="h-10 w-auto drop-shadow-lg" />
-          </div>
-
-          <div className="space-y-10">
-            <div className="space-y-5 login-rise" style={{ animationDelay: '0.15s' }}>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Enterprise Resource Platform
-              </span>
-              <h1 className="text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight">
-                Run the entire<br />business from<br />
-                <span className="bg-gradient-to-r from-white via-white to-[hsl(231_81%_75%)] bg-clip-text text-transparent">
-                  one command center.
-                </span>
-              </h1>
-              <p className="max-w-md text-base text-white/65">
-                Unified operations, real-time trading, finance and people —
-                engineered for speed, precision and control.
-              </p>
-            </div>
-
-            <div className="grid gap-3">
-              {[
-                { icon: Zap, title: 'Real-time sync', desc: 'Live data across every module' },
-                { icon: BarChart3, title: 'Actionable insight', desc: 'Analytics built into the flow' },
-                { icon: ShieldCheck, title: 'Enterprise security', desc: 'Role-based access & audit trails' },
-              ].map(({ icon: Icon, title, desc }, i) => (
-                <div
-                  key={title}
-                  className="login-rise flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm transition-colors hover:bg-white/10"
-                  style={{ animationDelay: `${0.3 + i * 0.1}s` }}
-                >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] shadow-lg">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{title}</p>
-                    <p className="text-xs text-white/55">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="login-rise text-xs text-white/45" style={{ animationDelay: '0.6s' }}>
-            © {new Date().getFullYear()} Blynk Technologies Private Limited
-          </div>
-        </div>
-
-        {/* Form side */}
-        <div className="flex min-h-screen items-center justify-center p-5 sm:p-10">
-          <div
-            className="login-rise w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-7 sm:p-9 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
-            style={{ animationDelay: '0.2s' }}
-          >
-            {/* Brand + rotating ring */}
-            <div className="mb-7 flex flex-col items-center text-center">
-              <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
-                <span className="absolute inset-0 rounded-full border border-dashed border-white/20 animate-ring-spin" />
-                <span className="absolute inset-1.5 rounded-full bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] blur-[2px] opacity-70 animate-float-y" />
-                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] shadow-xl animate-float-y">
-                  <img src={blynkIcon} alt="Blynk" className="h-8 w-8" />
-                </div>
+      {/* ===== Centered login form ===== */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center p-5 sm:p-8">
+        <div
+          className="login-rise w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-7 sm:p-9 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+          style={{ animationDelay: '0.1s' }}
+        >
+          {/* Brand + rotating ring */}
+          <div className="mb-7 flex flex-col items-center text-center">
+            <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
+              <span className="absolute inset-0 rounded-full border border-dashed border-white/20 animate-ring-spin" />
+              <span className="absolute inset-1.5 rounded-full bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] blur-[2px] opacity-70 animate-float-y" />
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] shadow-xl animate-float-y">
+                <img src={blynkIcon} alt="Blynk" className="h-8 w-8" />
               </div>
-              <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
-              <p className="mt-1.5 text-sm text-white/55">
-                Sign in to your Blynk workspace to continue
-              </p>
             </div>
+            <img src={blynkLogoWhite} alt="Blynk" className="h-6 w-auto opacity-90" />
+            <p className="mt-3 text-sm text-white/55">
+              Sign in to your Blynk workspace to continue
+            </p>
+          </div>
+
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
@@ -357,7 +331,6 @@ export function LoginPage() {
             </div>
           </div>
         </div>
-      </div>
 
       <RegisterUserDialog open={showRegister} onOpenChange={setShowRegister} />
 

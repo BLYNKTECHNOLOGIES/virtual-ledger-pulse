@@ -66,10 +66,65 @@
 }
 .shimmer-btn:hover::after { animation: shimmer-sweep 0.9s ease; }
 
+/* ===== 3D scene for login ===== */
+.scene-3d { perspective: 900px; perspective-origin: 50% 42%; }
+
+/* Infinite perspective floor that scrolls toward the viewer */
+@keyframes floor-move {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 80px; }
+}
+.floor-3d {
+  position: absolute;
+  left: -60%; right: -60%; bottom: -10%;
+  height: 130%;
+  transform: rotateX(74deg) translateZ(-40px);
+  transform-origin: 50% 100%;
+  background-image:
+    linear-gradient(hsl(231 81% 65% / 0.35) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, hsl(231 81% 65% / 0.35) 1.5px, transparent 1.5px);
+  background-size: 80px 80px;
+  animation: floor-move 3.2s linear infinite;
+  mask-image: radial-gradient(ellipse at 50% 30%, #000 15%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 15%, transparent 72%);
+}
+
+/* Floating 3D cubes */
+@keyframes cube-spin {
+  0%   { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg); }
+}
+@keyframes cube-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-26px); }
+}
+.cube {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+.cube > .cube-inner {
+  position: relative;
+  width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  animation: cube-spin linear infinite;
+}
+.cube .face {
+  position: absolute; inset: 0;
+  border: 1px solid hsl(231 81% 75% / 0.55);
+  background: linear-gradient(135deg, hsl(231 81% 60% / 0.14), hsl(265 80% 60% / 0.08));
+  backdrop-filter: blur(1px);
+}
+.cube .f-front  { transform: translateZ(var(--h)); }
+.cube .f-back   { transform: rotateY(180deg) translateZ(var(--h)); }
+.cube .f-right  { transform: rotateY(90deg)  translateZ(var(--h)); }
+.cube .f-left   { transform: rotateY(-90deg) translateZ(var(--h)); }
+.cube .f-top    { transform: rotateX(90deg)  translateZ(var(--h)); }
+.cube .f-bottom { transform: rotateX(-90deg) translateZ(var(--h)); }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-aurora, .animate-aurora-slow, .animate-float-y,
   .animate-grid-pan, .animate-ring-spin, .animate-twinkle,
-  .login-rise { animation: none; opacity: 1; }
+  .floor-3d, .cube > .cube-inner, .login-rise { animation: none; opacity: 1; }
 }
 @tailwind components;
 @tailwind utilities;

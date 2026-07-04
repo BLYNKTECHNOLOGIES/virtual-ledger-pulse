@@ -2875,7 +2875,7 @@ function ReuploadDocumentDialog({
           <div
             {...dropzoneProps}
             className={cn(
-              'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center text-sm transition-colors',
+              'flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center text-sm transition-colors',
               isDragActive ? 'border-primary bg-primary/5' : 'border-muted',
             )}
           >

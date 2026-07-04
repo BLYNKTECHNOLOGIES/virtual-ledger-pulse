@@ -102,7 +102,7 @@ export function TerminalSidebar() {
       <SidebarHeader className="px-4 py-3.5 border-b border-sidebar-border">
         <Link to="/terminal" className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <span className="text-primary font-bold text-[9px] tracking-tight">P2P</span>
+            <img src={blynkIcon} alt="BLYNK" className="h-5 w-5" />
           </div>
           <div>
             <h1 className="text-[13px] font-semibold text-sidebar-accent-foreground tracking-tight">Terminal</h1>

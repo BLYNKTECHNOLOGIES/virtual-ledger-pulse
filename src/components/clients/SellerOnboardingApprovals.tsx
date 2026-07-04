@@ -762,7 +762,7 @@ export function SellerOnboardingApprovals() {
                               size="sm"
                               onClick={() => handleApprove(seller.id)}
                               disabled={approveMutation.isPending}
-                              className="bg-green-600 hover:bg-green-700"
+                              className="bg-success hover:bg-success/90"
                               title={
                                 identityState === 'linked_known' && nickInfo?.existingClient
                                   ? `Approve seller side on existing client: ${nickInfo.existingClient.name}`
@@ -794,7 +794,7 @@ export function SellerOnboardingApprovals() {
               </Table>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <UserCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <UserCheck className="h-12 w-12 mx-auto mb-3 text-muted-foreground/60" />
               <p>No pending seller approvals</p>
               <p className="text-sm mt-1">New sellers will appear here when created from purchase orders</p>
             </div>
@@ -810,7 +810,7 @@ export function SellerOnboardingApprovals() {
       >
         <Button
           size="sm"
-          className="bg-green-600 hover:bg-green-700"
+          className="bg-success hover:bg-success/90"
           onClick={() => setShowBulkConfirm(true)}
           disabled={bulkApproveMutation.isPending}
         >
@@ -875,7 +875,7 @@ export function SellerOnboardingApprovals() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-green-600 hover:bg-green-700" onClick={handleBulkApproveConfirm}>
+            <AlertDialogAction className="bg-success hover:bg-success/90" onClick={handleBulkApproveConfirm}>
               Approve {selectedIds.size} Seller{selectedIds.size === 1 ? '' : 's'}
             </AlertDialogAction>
           </AlertDialogFooter>

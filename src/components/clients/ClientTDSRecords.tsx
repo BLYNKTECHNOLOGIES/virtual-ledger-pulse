@@ -185,7 +185,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
             </div>
             <p className="text-lg font-bold text-info">{stats.totalRecords}</p>
           </div>
-          <div className="bg-warning/5 rounded-lg p-3 border border-yellow-200">
+          <div className="bg-warning/5 rounded-lg p-3 border border-warning/20">
             <div className="flex items-center gap-2 text-warning mb-1">
               <Receipt className="h-4 w-4" />
               <span className="text-xs font-medium">Pending Filing</span>

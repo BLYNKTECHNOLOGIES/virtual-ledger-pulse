@@ -141,7 +141,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Cosmos Triggered?</label>
-            <Badge variant="outline" className={isCosmosTriggered ? "text-destructive border-red-200 bg-destructive/5" : "text-success border-success/20 bg-success/5"}>
+            <Badge variant="outline" className={isCosmosTriggered ? "text-destructive border-destructive/20 bg-destructive/5" : "text-success border-success/20 bg-success/5"}>
               {isCosmosTriggered ? "⚠️ Triggered" : "✅ Not Triggered"}
             </Badge>
           </div>
@@ -162,7 +162,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Risk Level</label>
-            <Badge variant="outline" className="text-primary border-purple-200 bg-primary/5">
+            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
               {client.default_risk_level || 'STANDARD'}
             </Badge>
           </div>

@@ -117,7 +117,7 @@ export function RAAssignmentsTab() {
                   <Badge className="bg-success/10 text-success border-success/20">{s.contacted} contacted</Badge>
                   <Badge className="bg-warning/10 text-warning border-warning/20">{s.pending} pending</Badge>
                   {s.converted > 0 && (
-                    <Badge className="bg-emerald-100 text-emerald-800">{s.converted} converted</Badge>
+                    <Badge className="bg-success/10 text-success border-success/20">{s.converted} converted</Badge>
                   )}
                   {s.notInterested > 0 && (
                     <Badge className="bg-destructive/10 text-destructive border-destructive/20">{s.notInterested} not interested</Badge>
@@ -160,7 +160,7 @@ export function RAAssignmentsTab() {
                               </td>
                               <td className="py-2 px-3">
                                 {a.status === "converted" ? (
-                                  <Badge className="bg-emerald-100 text-emerald-800">Converted</Badge>
+                                  <Badge className="bg-success/10 text-success border-success/20">Converted</Badge>
                                 ) : a.status === "not_interested" ? (
                                   <Badge className="bg-destructive/10 text-destructive border-destructive/20">Not Interested</Badge>
                                 ) : lr ? (

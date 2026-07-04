@@ -135,7 +135,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-500" />
+                <DollarSign className="h-4 w-4 text-success" />
                 <span className="text-sm text-muted-foreground">Total Value</span>
               </div>
               <p className="text-2xl font-bold mt-1">₹{summary.totalValue.toLocaleString('en-IN')}</p>
@@ -145,7 +145,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-purple-500" />
+                <TrendingUp className="h-4 w-4 text-primary" />
                 <span className="text-sm text-muted-foreground">Avg. Value</span>
               </div>
               <p className="text-2xl font-bold mt-1">₹{summary.averageValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
@@ -155,7 +155,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-orange-500" />
+                <Calendar className="h-4 w-4 text-warning" />
                 <span className="text-sm text-muted-foreground">First Order</span>
               </div>
               <p className="text-lg font-bold mt-1">

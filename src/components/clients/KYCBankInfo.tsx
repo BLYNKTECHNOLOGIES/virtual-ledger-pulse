@@ -98,7 +98,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
         variant="outline" 
         className={isVerified 
           ? "text-success border-success/20 bg-success/10" 
-          : "text-warning border-yellow-200 bg-warning/5"
+          : "text-warning border-warning/20 bg-warning/5"
         }
       >
         {status}

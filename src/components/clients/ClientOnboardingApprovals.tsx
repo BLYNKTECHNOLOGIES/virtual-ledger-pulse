@@ -2151,7 +2151,7 @@ export function ClientOnboardingApprovals() {
                           setFormData(prev => ({ ...prev, proposed_monthly_limit: existingClientMatch.monthly_limit!.toString() }));
                         }
                       }}
-                      className={approvalMode === 'merge' ? 'bg-green-600 hover:bg-green-700' : ''}
+                      className={approvalMode === 'merge' ? 'bg-success hover:bg-success/90' : ''}
                     >
                       <UserCheck className="h-4 w-4 mr-1" />
                       Same Person — Link to Existing
@@ -2160,7 +2160,7 @@ export function ClientOnboardingApprovals() {
                       variant={approvalMode === 'create_new' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setApprovalMode('create_new')}
-                      className={approvalMode === 'create_new' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                      className={approvalMode === 'create_new' ? 'bg-info hover:bg-info/90' : ''}
                     >
                       <UserPlus className="h-4 w-4 mr-1" />
                       Different Person — Create New
@@ -2785,7 +2785,7 @@ export function ClientOnboardingApprovals() {
                 <Button
                   onClick={handleApprove}
                   disabled={approveClientMutation.isPending || (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new')}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-success hover:bg-success/90"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   {approveClientMutation.isPending 

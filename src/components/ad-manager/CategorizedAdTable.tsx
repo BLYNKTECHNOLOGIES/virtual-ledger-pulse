@@ -307,7 +307,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
 
           return [
             // Category header row
-            <TableRow key={`cat-${category.key}`} className="bg-muted/50 hover:bg-muted/70 border-t-2 border-border">
+            <TableRow key={`cat-${category.key}`} className="bg-muted/50 hover:bg-muted/70 border-t border-border">
               <TableCell className="py-2">
                 <Checkbox
                   checked={catAllSelected}

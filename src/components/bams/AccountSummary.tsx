@@ -420,6 +420,7 @@ export function AccountSummary() {
   }
 
   const totalComputedBalance = accountsData?.reduce((sum, acc) => sum + acc.computed_balance, 0) || 0;
+  const totalBalanceFlash = useValueFlash(totalComputedBalance, "value-flash");
   const totalIncome = accountsData?.reduce((sum, acc) => sum + acc.total_income, 0) || 0;
   const totalExpense = accountsData?.reduce((sum, acc) => sum + acc.total_expense, 0) || 0;
 

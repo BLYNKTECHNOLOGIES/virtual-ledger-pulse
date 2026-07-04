@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
+import { useValueFlash } from "@/hooks/useValueFlash";
 
 interface MetricCardProps {
   title: string;
@@ -11,6 +12,7 @@ interface MetricCardProps {
 }
 
 export function MetricCard({ title, value, change, trend, icon: Icon }: MetricCardProps) {
+  const flash = useValueFlash(value, "value-flash");
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -18,7 +20,7 @@ export function MetricCard({ title, value, change, trend, icon: Icon }: MetricCa
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className={`text-2xl font-bold ${flash}`}>{value}</div>
         <p className={`text-xs ${trend === 'up' ? 'text-success' : 'text-destructive'}`}>
           {change} from last month
         </p>

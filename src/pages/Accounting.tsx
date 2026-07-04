@@ -39,15 +39,15 @@ export default function Accounting() {
         </div>
       }
     >
-    <div className="p-4 md:p-6">
+    <div className="p-4 md:p-6 page-mount space-y-6">
         {/* Header */}
-        <div className="mb-6">
+        <div>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-50 rounded-xl shadow-sm">
-              <Calculator className="h-8 w-8 text-emerald-600" />
+            <div className="p-3 bg-primary/10 rounded-xl shadow-sm">
+              <Calculator className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Tax Management</h1>
+              <h1 className="text-2xl font-semibold text-foreground">Tax Management</h1>
               <p className="text-muted-foreground mt-1">Tax and financial management</p>
             </div>
           </div>

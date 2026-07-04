@@ -84,9 +84,9 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
 
   const getStatusIcon = (hasDoc: boolean) => {
     return hasDoc ? (
-      <CheckCircle className="h-4 w-4 text-green-600" />
+      <CheckCircle className="h-4 w-4 text-success" />
     ) : (
-      <AlertCircle className="h-4 w-4 text-red-600" />
+      <AlertCircle className="h-4 w-4 text-destructive" />
     );
   };
 
@@ -97,7 +97,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
       <Badge 
         variant="outline" 
         className={isVerified 
-          ? "text-green-600 border-green-200 bg-green-50" 
+          ? "text-success border-success/20 bg-success/10" 
           : "text-yellow-600 border-yellow-200 bg-yellow-50"
         }
       >
@@ -111,7 +111,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600" />
+            <FileText className="h-5 w-5 text-primary" />
             KYC & Bank Account Info
           </CardTitle>
         </CardHeader>
@@ -140,7 +140,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-blue-600" />
+          <FileText className="h-5 w-5 text-primary" />
           KYC & Bank Account Info
         </CardTitle>
       </CardHeader>
@@ -164,7 +164,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
                       <button
                         key={doc.id}
                         onClick={() => handleViewDocument(doc.file_url)}
-                        className="text-sm text-blue-600 hover:underline flex items-center gap-1 bg-muted px-2 py-1 rounded"
+                        className="text-sm text-primary hover:underline flex items-center gap-1 bg-muted px-2 py-1 rounded"
                       >
                         {type === 'vkyc_video' ? <Video className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
                         <span className="max-w-[120px] truncate">{doc.file_name}</span>
@@ -179,7 +179,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
             {DOC_TYPE_ORDER.filter(t => !docsByType[t]).map(type => (
               <div key={type} className="flex items-center gap-2">
                 {type === 'aadhaar' ? (
-                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertCircle className="h-4 w-4 text-destructive" />
                 ) : (
                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
                 )}
@@ -199,7 +199,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
                 {getStatusIcon(!!client.pan_card_url)}
                 <button
                   onClick={() => handleViewDocument(client.pan_card_url || '')}
-                  className={`text-sm ${client.pan_card_url ? 'text-green-600' : 'text-red-600'} hover:underline flex items-center gap-1`}
+                  className={`text-sm ${client.pan_card_url ? 'text-success' : 'text-destructive'} hover:underline flex items-center gap-1`}
                   disabled={!client.pan_card_url}
                 >
                   {client.pan_card_url ? 'Uploaded' : 'Not Uploaded'}
@@ -214,16 +214,16 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
                 {getStatusIcon(hasLegacyAadhaar)}
                 <div className="flex gap-2">
                   {client.aadhar_front_url && (
-                    <button onClick={() => handleViewDocument(client.aadhar_front_url!)} className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                    <button onClick={() => handleViewDocument(client.aadhar_front_url!)} className="text-sm text-primary hover:underline flex items-center gap-1">
                       Front <ExternalLink className="h-3 w-3" />
                     </button>
                   )}
                   {client.aadhar_back_url && (
-                    <button onClick={() => handleViewDocument(client.aadhar_back_url!)} className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                    <button onClick={() => handleViewDocument(client.aadhar_back_url!)} className="text-sm text-primary hover:underline flex items-center gap-1">
                       Back <ExternalLink className="h-3 w-3" />
                     </button>
                   )}
-                  {!hasLegacyAadhaar && <span className="text-sm text-red-600">Not Uploaded</span>}
+                  {!hasLegacyAadhaar && <span className="text-sm text-destructive">Not Uploaded</span>}
                 </div>
               </div>
             </div>
@@ -233,7 +233,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
               <div className="flex flex-wrap gap-2">
                 {client.other_documents_urls && client.other_documents_urls.length > 0 ? (
                   client.other_documents_urls.map((url: string, index: number) => (
-                    <button key={index} onClick={() => handleViewDocument(url)} className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                    <button key={index} onClick={() => handleViewDocument(url)} className="text-sm text-primary hover:underline flex items-center gap-1">
                       Doc {index + 1} <ExternalLink className="h-3 w-3" />
                     </button>
                   ))
@@ -302,7 +302,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
                   }
                   if (!accounts.length) return <span className="text-sm text-muted-foreground">No linked bank accounts</span>;
                   return accounts.map((account: any, index: number) => (
-                    <Badge key={index} variant="outline" className="text-blue-600">
+                    <Badge key={index} variant="outline" className="text-primary">
                       {account.bankName} x{account.lastFourDigits}
                     </Badge>
                   ));
@@ -319,13 +319,13 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Pattern Mismatch</label>
-              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+              <Badge variant="outline" className="text-success border-success/20 bg-success/10">
                 ✅ No Alert
               </Badge>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Re-KYC Needed</label>
-              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+              <Badge variant="outline" className="text-success border-success/20 bg-success/10">
                 No
               </Badge>
             </div>

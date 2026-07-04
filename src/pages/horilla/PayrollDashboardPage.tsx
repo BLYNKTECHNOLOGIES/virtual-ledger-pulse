@@ -216,15 +216,15 @@ export default function PayrollDashboardPage() {
                   <tr key={r.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium">{r.title}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
-                    <td className="px-4 py-3">{r.run_date}</td>
-                    <td className="px-4 py-3">{r.employee_count || 0}</td>
-                    <td className="px-4 py-3 text-green-700 font-medium">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-red-600">₹{(r.total_deductions || 0).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 font-semibold">₹{(r.total_net || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 tabular-nums">{r.run_date}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{r.employee_count || 0}</td>
+                    <td className="px-4 py-3 text-right text-success font-medium tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-right text-destructive tabular-nums">₹{(r.total_deductions || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums">₹{(r.total_net || 0).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {r.is_locked && (
-                          <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mr-1">
+                          <span className="inline-flex items-center gap-1 text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full mr-1">
                             <Lock className="h-3 w-3" /> Locked
                           </span>
                         )}

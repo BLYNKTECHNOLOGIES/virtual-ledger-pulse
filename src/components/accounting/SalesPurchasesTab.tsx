@@ -59,13 +59,13 @@ export function SalesPurchasesTab() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-success" />
                 Sales Transactions ({salesOrders?.length || 0})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {salesLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                <TableSkeleton rows={6} columns={10} />
               ) : !salesOrders?.length ? (
                 <div className="text-center py-8">
                   <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

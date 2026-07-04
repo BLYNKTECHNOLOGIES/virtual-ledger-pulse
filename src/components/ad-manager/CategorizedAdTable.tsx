@@ -380,7 +380,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col items-start gap-1">
-                        <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-trade-buy text-white' : 'bg-trade-sell text-white'}>
+                        <Badge variant="outline" className={ad.tradeType === 'BUY' ? 'bg-success/10 text-success border-success/20' : 'bg-destructive/10 text-destructive border-destructive/20'}>
                           {ad.tradeType}
                         </Badge>
                         {isBlockAd(ad) && (

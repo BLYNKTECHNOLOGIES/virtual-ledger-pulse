@@ -334,7 +334,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Total Trade Volume</label>
-            <p className="text-lg font-semibold text-purple-600">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">KYC Status</label>

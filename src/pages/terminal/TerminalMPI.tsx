@@ -125,25 +125,25 @@ function formatDuration(minutes: number | null): string {
 
 function getRoleBadgeClass(roleName: string) {
   const name = roleName.toLowerCase();
-  if (name.includes('super')) return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-  if (name.includes('admin') || name.includes('coo')) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+  if (name.includes('super')) return 'bg-warning/20 text-warning border-warning/30';
+  if (name.includes('admin') || name.includes('coo')) return 'bg-info/20 text-info border-info/30';
   if (name.includes('payer') && name.includes('operator')) return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
-  if (name.includes('payer')) return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+  if (name.includes('payer')) return 'bg-primary/20 text-primary border-primary/30';
   if (name.includes('viewer')) return 'bg-muted text-muted-foreground border-border';
   return 'bg-primary/20 text-primary border-primary/30';
 }
 
 function getScoreColor(score: number) {
-  if (score >= 80) return 'text-green-500';
-  if (score >= 60) return 'text-amber-500';
-  if (score >= 40) return 'text-orange-500';
+  if (score >= 80) return 'text-success';
+  if (score >= 60) return 'text-warning';
+  if (score >= 40) return 'text-warning';
   return 'text-destructive';
 }
 
 function getScoreBg(score: number) {
-  if (score >= 80) return 'bg-green-500';
-  if (score >= 60) return 'bg-amber-500';
-  if (score >= 40) return 'bg-orange-500';
+  if (score >= 80) return 'bg-success';
+  if (score >= 60) return 'bg-warning';
+  if (score >= 40) return 'bg-warning';
   return 'bg-destructive';
 }
 
@@ -495,7 +495,7 @@ export default function TerminalMPI() {
             <p className="text-[10px] sm:text-xs text-muted-foreground">
               Real-time operational intelligence
               {!isTerminalAdmin && (
-                <span className="inline-flex items-center gap-1 ml-1 text-amber-500">
+                <span className="inline-flex items-center gap-1 ml-1 text-warning">
                   <ShieldAlert className="h-3 w-3" /> Your branch
                 </span>
               )}
@@ -548,12 +548,12 @@ export default function TerminalMPI() {
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
         {[
           { label: 'Orders', value: totalOrders, icon: Package, color: 'text-primary' },
-          { label: 'Volume', value: fmtVol(totalVolume), icon: TrendingUp, color: 'text-green-500' },
-          { label: 'Active', value: totalActive, icon: Activity, color: 'text-amber-500' },
-          { label: 'Avg Handle', value: formatDuration(overallAvgHandle), icon: Timer, color: 'text-blue-500' },
-          { label: 'Completed', value: totalCompleted, icon: CheckCircle, color: 'text-green-500' },
+          { label: 'Volume', value: fmtVol(totalVolume), icon: TrendingUp, color: 'text-success' },
+          { label: 'Active', value: totalActive, icon: Activity, color: 'text-warning' },
+          { label: 'Avg Handle', value: formatDuration(overallAvgHandle), icon: Timer, color: 'text-info' },
+          { label: 'Completed', value: totalCompleted, icon: CheckCircle, color: 'text-success' },
           { label: 'Cancelled', value: totalCancelled, icon: XCircle, color: 'text-destructive' },
-          { label: 'Payments', value: totalPayments, icon: CreditCard, color: 'text-purple-500' },
+          { label: 'Payments', value: totalPayments, icon: CreditCard, color: 'text-primary' },
           { label: 'Avg Score', value: `${avgEfficiency}%`, icon: Gauge, color: getScoreColor(avgEfficiency) },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label} className="border-border bg-card">
@@ -575,7 +575,7 @@ export default function TerminalMPI() {
         <Card className="border-border bg-card">
           <CardHeader className="pb-2 px-3 pt-3">
             <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
-              <Trophy className="h-3.5 w-3.5 text-amber-500" />
+              <Trophy className="h-3.5 w-3.5 text-warning" />
               Top Performers
             </CardTitle>
           </CardHeader>
@@ -589,9 +589,9 @@ export default function TerminalMPI() {
                 onClick={() => navigate(`/terminal/mpi/${m.userId}`)}
               >
                 <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  i === 0 ? 'bg-amber-500/20 text-amber-400' :
-                  i === 1 ? 'bg-slate-400/20 text-slate-400' :
-                  'bg-orange-800/20 text-orange-600'
+                  i === 0 ? 'bg-warning/20 text-warning' :
+                  i === 1 ? 'bg-muted/20 text-muted' :
+                  'bg-warning/20 text-warning'
                 }`}>
                   {i + 1}
                 </div>
@@ -706,7 +706,7 @@ export default function TerminalMPI() {
                     <div className="flex items-center gap-1.5">
                       {m.activeLoad > 0 && (
                         <div className="flex items-center gap-1">
-                          <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                           <span className="text-[9px] text-muted-foreground">{m.activeLoad}</span>
                         </div>
                       )}
@@ -741,9 +741,9 @@ export default function TerminalMPI() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="p-1 rounded bg-purple-500/5 border border-purple-500/10">
+                          <div className="p-1 rounded bg-primary/5 border border-primary/10">
                             <div className="flex items-center justify-center gap-1">
-                              <CreditCard className="h-2.5 w-2.5 text-purple-400" />
+                              <CreditCard className="h-2.5 w-2.5 text-primary" />
                               <span className="text-[10px] font-semibold text-foreground">{m.paymentsMade}</span>
                             </div>
                             <div className="text-[7px] text-muted-foreground">Payments</div>
@@ -755,9 +755,9 @@ export default function TerminalMPI() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="p-1 rounded bg-emerald-500/5 border border-emerald-500/10">
+                          <div className="p-1 rounded bg-success/5 border border-success/10">
                             <div className="flex items-center justify-center gap-1">
-                              <Unlock className="h-2.5 w-2.5 text-emerald-400" />
+                              <Unlock className="h-2.5 w-2.5 text-success" />
                               <span className="text-[10px] font-semibold text-foreground">{m.releasesPerformed}</span>
                             </div>
                             <div className="text-[7px] text-muted-foreground">Releases</div>
@@ -769,9 +769,9 @@ export default function TerminalMPI() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="p-1 rounded bg-amber-500/5 border border-amber-500/10">
+                          <div className="p-1 rounded bg-warning/5 border border-warning/10">
                             <div className="flex items-center justify-center gap-1">
-                              <MessageSquare className="h-2.5 w-2.5 text-amber-400" />
+                              <MessageSquare className="h-2.5 w-2.5 text-warning" />
                               <span className="text-[10px] font-semibold text-foreground">{m.chatMessagesSent}</span>
                             </div>
                             <div className="text-[7px] text-muted-foreground">Chats</div>
@@ -788,9 +788,9 @@ export default function TerminalMPI() {
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="p-1 rounded bg-blue-500/5 border border-blue-500/10">
+                            <div className="p-1 rounded bg-info/5 border border-info/10">
                               <div className="flex items-center justify-center gap-1">
-                                <UserCheck className="h-2.5 w-2.5 text-blue-400" />
+                                <UserCheck className="h-2.5 w-2.5 text-info" />
                                 <span className="text-[10px] font-semibold text-foreground">{m.payerAssignments.active}/{m.payerAssignments.total}</span>
                               </div>
                               <div className="text-[7px] text-muted-foreground">Payer Assign</div>
@@ -808,9 +808,9 @@ export default function TerminalMPI() {
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="p-1 rounded bg-indigo-500/5 border border-indigo-500/10">
+                            <div className="p-1 rounded bg-primary/5 border border-primary/10">
                               <div className="flex items-center justify-center gap-1">
-                                <ClipboardList className="h-2.5 w-2.5 text-indigo-400" />
+                                <ClipboardList className="h-2.5 w-2.5 text-primary" />
                                 <span className="text-[10px] font-semibold text-foreground">{m.operatorAssignments.active}/{m.operatorAssignments.total}</span>
                               </div>
                               <div className="text-[7px] text-muted-foreground">Op Assign</div>
@@ -828,9 +828,9 @@ export default function TerminalMPI() {
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="p-1 rounded bg-cyan-500/5 border border-cyan-500/10">
+                            <div className="p-1 rounded bg-info/5 border border-info/10">
                               <div className="flex items-center justify-center gap-1">
-                                <Lock className="h-2.5 w-2.5 text-cyan-400" />
+                                <Lock className="h-2.5 w-2.5 text-info" />
                                 <span className="text-[10px] font-semibold text-foreground">{m.payerLocksCompleted}/{m.payerLocksTotal}</span>
                               </div>
                               <div className="text-[7px] text-muted-foreground">Payer Locks</div>

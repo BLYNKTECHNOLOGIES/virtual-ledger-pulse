@@ -95,10 +95,10 @@ export function TerminalRoleComparison({ open, onOpenChange, roles, modules }: P
             <Badge variant="secondary" className="gap-1">
               <span className="text-muted-foreground">Shared:</span> {stats.shared}
             </Badge>
-            <Badge variant="outline" className="gap-1 border-blue-500/30 text-blue-400">
+            <Badge variant="outline" className="gap-1 border-info/30 text-info">
               Only {roleA?.name}: {stats.onlyA}
             </Badge>
-            <Badge variant="outline" className="gap-1 border-amber-500/30 text-amber-400">
+            <Badge variant="outline" className="gap-1 border-warning/30 text-warning">
               Only {roleB?.name}: {stats.onlyB}
             </Badge>
             <Badge variant="outline" className="gap-1 text-muted-foreground">
@@ -129,19 +129,19 @@ export function TerminalRoleComparison({ open, onOpenChange, roles, modules }: P
                         if (neither) return null;
 
                         let rowClass = "";
-                        if (both) rowClass = "bg-emerald-500/5";
-                        else if (inA) rowClass = "bg-blue-500/5";
-                        else rowClass = "bg-amber-500/5";
+                        if (both) rowClass = "bg-success/5";
+                        else if (inA) rowClass = "bg-info/5";
+                        else rowClass = "bg-warning/5";
 
                         return (
                           <div key={perm.key} className={`flex items-center justify-between py-1 px-2 rounded text-xs ${rowClass}`}>
                             <span className="text-muted-foreground flex-1">{perm.label}</span>
                             <div className="flex items-center gap-6 shrink-0">
                               <span className="w-16 text-center">
-                                {inA ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 inline" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground/30 inline" />}
+                                {inA ? <CheckCircle2 className="h-3.5 w-3.5 text-success inline" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground/30 inline" />}
                               </span>
                               <span className="w-16 text-center">
-                                {inB ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 inline" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground/30 inline" />}
+                                {inB ? <CheckCircle2 className="h-3.5 w-3.5 text-success inline" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground/30 inline" />}
                               </span>
                             </div>
                           </div>

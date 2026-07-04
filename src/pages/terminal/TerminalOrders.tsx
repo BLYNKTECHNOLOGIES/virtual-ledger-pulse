@@ -1213,7 +1213,7 @@ function TerminalOrdersContent() {
                     const needsKycVerification = order.trade_type === 'SELL' && order.additional_kyc_verify === 1 && opStatus === 'Pending Payment';
                     const displayStatus = needsKycVerification ? 'Verification Pending' : opStatus;
                     const style = needsKycVerification
-                      ? { label: 'Verification Pending', badgeClass: 'border-purple-500/30 text-purple-500 bg-purple-500/5', dotColor: 'bg-purple-500' }
+                      ? { label: 'Verification Pending', badgeClass: 'border-primary/30 text-primary bg-primary/5', dotColor: 'bg-primary' }
                       : getStatusStyle(opStatus);
                     const unread = unreadMap.get(order.binance_order_number) || 0;
                     const hasAltUpiRequest = pendingAltUpiOrderNumbers.has(order.binance_order_number);
@@ -1226,7 +1226,7 @@ function TerminalOrdersContent() {
                     return (
                       <TableRow
                         key={order.id}
-                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${hasAltUpiRequest ? 'bg-amber-500/5 border-l-2 border-l-amber-500' : ''}`}
+                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${hasAltUpiRequest ? 'bg-warning/5 border-l-2 border-l-amber-500' : ''}`}
                         onClick={() => setSelectedOrder(order)}>
 
                         {/* Type/Date */}
@@ -1267,19 +1267,19 @@ function TerminalOrdersContent() {
                             </div>
                             <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
                             {order.additional_kyc_verify === 1 && isActive && (
-                              <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-500 bg-amber-500/5 gap-0.5">
+                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/5 gap-0.5">
                                 <ShieldAlert className="h-2.5 w-2.5" />
                                 Requires Verification
                               </Badge>
                             )}
                             {hasAltUpiRequest && (
-                              <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-600 bg-amber-500/10 gap-0.5 animate-pulse">
+                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/10 gap-0.5 animate-pulse">
                                 <ArrowLeftRight className="h-2.5 w-2.5" />
                                 Alternate UPI Requested
                               </Badge>
                             )}
                             {releaseAlert && (
-                              <Badge variant="outline" className={`text-[9px] w-fit gap-0.5 ${releaseAlert.status === 'complaint_window_expired' ? 'border-destructive/30 text-destructive bg-destructive/5' : 'border-amber-500/30 text-amber-500 bg-amber-500/5'}`}>
+                              <Badge variant="outline" className={`text-[9px] w-fit gap-0.5 ${releaseAlert.status === 'complaint_window_expired' ? 'border-destructive/30 text-destructive bg-destructive/5' : 'border-warning/30 text-warning bg-warning/5'}`}>
                                 <AlertTriangle className="h-2.5 w-2.5" />
                                 {releaseAlert.status === 'complaint_window_closing'
                                   ? 'Complaint Window Closing'
@@ -1328,7 +1328,7 @@ function TerminalOrdersContent() {
                               return <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">You</Badge>;
                             }
                             if (vis === 'assigned_to_team' && assignment) {
-                              return <Badge variant="outline" className="text-[10px] bg-cyan-500/10 text-cyan-400 border-cyan-500/30">Team</Badge>;
+                              return <Badge variant="outline" className="text-[10px] bg-info/10 text-info border-info/30">Team</Badge>;
                             }
                             if (canManageOrders) {
                               return (
@@ -1434,7 +1434,7 @@ function OrderStatusBadge({ status, tradeType, additionalKycVerify }: { status: 
   const operational = mapToOperationalStatus(status, tradeType);
   const needsKyc = tradeType === 'SELL' && additionalKycVerify === 1 && operational === 'Pending Payment';
   const style = needsKyc
-    ? { label: 'Verification Pending', badgeClass: 'border-purple-500/30 text-purple-500 bg-purple-500/5' }
+    ? { label: 'Verification Pending', badgeClass: 'border-primary/30 text-primary bg-primary/5' }
     : getStatusStyle(operational);
   return <Badge variant="outline" className={`text-[10px] ${style.badgeClass}`}>{style.label}</Badge>;
 }
@@ -1477,11 +1477,11 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
   }
 
   const urgencyClass = isExpired
-    ? 'text-red-500 font-semibold'
+    ? 'text-destructive font-semibold'
     : remaining && parseInt(remaining) <= 2
-      ? 'text-red-500 animate-pulse'
+      ? 'text-destructive animate-pulse'
       : remaining && parseInt(remaining) <= 5
-        ? 'text-yellow-500'
+        ? 'text-warning'
         : 'text-muted-foreground';
 
   return (

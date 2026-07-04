@@ -83,9 +83,9 @@ function getRoleKPIs(roleName: string) {
 
 function getRoleBadgeClass(roleName: string) {
   const name = roleName.toLowerCase();
-  if (name.includes('super')) return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-  if (name.includes('admin') || name.includes('coo')) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-  if (name.includes('payer')) return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+  if (name.includes('super')) return 'bg-warning/20 text-warning border-warning/30';
+  if (name.includes('admin') || name.includes('coo')) return 'bg-info/20 text-info border-info/30';
+  if (name.includes('payer')) return 'bg-primary/20 text-primary border-primary/30';
   return 'bg-primary/20 text-primary border-primary/30';
 }
 
@@ -157,7 +157,7 @@ export function OperatorDetailDialog({
                     <Badge variant="outline" className="text-[10px] capitalize">{profile.specialization}</Badge>
                   )}
                   <div className="flex items-center gap-1 ml-1">
-                    <div className={`h-1.5 w-1.5 rounded-full ${profile?.is_active !== false ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                    <div className={`h-1.5 w-1.5 rounded-full ${profile?.is_active !== false ? 'bg-success' : 'bg-muted-foreground'}`} />
                     <span className="text-[10px] text-muted-foreground">
                       {profile?.is_active !== false ? 'Online' : 'Offline'}
                     </span>
@@ -167,7 +167,7 @@ export function OperatorDetailDialog({
             </div>
             <div className="flex items-center gap-2">
               {m.activeLoad > 0 && (
-                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
+                <Badge className="bg-warning/20 text-warning border-warning/30 text-xs">
                   {m.activeLoad} active
                 </Badge>
               )}
@@ -197,10 +197,10 @@ export function OperatorDetailDialog({
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
               { label: 'Total Handled', value: m.ordersHandled, icon: Package, color: 'text-primary' },
-              { label: 'Completed', value: m.ordersCompleted, icon: CheckCircle, color: 'text-green-500' },
+              { label: 'Completed', value: m.ordersCompleted, icon: CheckCircle, color: 'text-success' },
               { label: 'Cancelled', value: m.ordersCancelled, icon: XCircle, color: 'text-destructive' },
-              { label: 'Total Volume', value: `₹${(m.totalVolume / 1000).toFixed(0)}K`, icon: TrendingUp, color: 'text-emerald-500' },
-              { label: 'Avg Time', value: `${m.avgCompletionTime}m`, icon: Timer, color: 'text-blue-500' },
+              { label: 'Total Volume', value: `₹${(m.totalVolume / 1000).toFixed(0)}K`, icon: TrendingUp, color: 'text-success' },
+              { label: 'Avg Time', value: `${m.avgCompletionTime}m`, icon: Timer, color: 'text-info' },
             ].map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border border-border">
                 <Icon className={`h-4 w-4 ${color}`} />
@@ -217,9 +217,9 @@ export function OperatorDetailDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3 text-green-500" /> Completion Rate
+                  <CheckCircle className="h-3 w-3 text-success" /> Completion Rate
                 </span>
-                <span className="font-semibold text-green-500">{completionRate}%</span>
+                <span className="font-semibold text-success">{completionRate}%</span>
               </div>
               <Progress value={completionRate} className="h-2" />
             </div>
@@ -348,7 +348,7 @@ export function OperatorDetailDialog({
                         <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
                           <td className="py-1.5 px-2 font-mono">...{a.order_number?.slice(-8)}</td>
                           <td className="py-1.5 px-2">
-                            <Badge variant="outline" className={`text-[9px] ${a.trade_type === 'BUY' ? 'text-green-500 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>
+                            <Badge variant="outline" className={`text-[9px] ${a.trade_type === 'BUY' ? 'text-success border-success/30' : 'text-warning border-warning/30'}`}>
                               {a.trade_type || 'N/A'}
                             </Badge>
                           </td>
@@ -356,7 +356,7 @@ export function OperatorDetailDialog({
                             ₹{Number(a.total_price || 0).toLocaleString('en-IN')}
                           </td>
                           <td className="py-1.5 px-2">
-                            <Badge variant="outline" className={`text-[9px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : 'text-green-500 border-green-500/30'}`}>
+                            <Badge variant="outline" className={`text-[9px] ${a.is_active ? 'text-warning border-warning/30' : 'text-success border-success/30'}`}>
                               {a.is_active ? 'Active' : 'Done'}
                             </Badge>
                           </td>
@@ -376,7 +376,7 @@ export function OperatorDetailDialog({
           {profile && (
             <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
               <span className="flex items-center gap-1">
-                <Zap className={`h-3 w-3 ${profile.automation_included ? 'text-amber-400' : 'text-muted-foreground'}`} />
+                <Zap className={`h-3 w-3 ${profile.automation_included ? 'text-warning' : 'text-muted-foreground'}`} />
                 Auto-assign: {profile.automation_included ? 'Enabled' : 'Disabled'}
               </span>
               {profile.specialization && (

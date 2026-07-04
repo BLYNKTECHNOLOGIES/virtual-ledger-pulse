@@ -193,14 +193,14 @@ export function SmallSalesConfig() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-amber-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-amber-700">{preview?.small ?? 0}</p>
-              <p className="text-sm text-amber-600">Small Sales</p>
+            <div className="p-4 bg-warning/10 rounded-lg text-center">
+              <p className="text-2xl font-bold text-warning">{preview?.small ?? 0}</p>
+              <p className="text-sm text-warning">Small Sales</p>
               <Badge variant="outline" className="mt-1">₹{Number(config?.min_amount || 200).toLocaleString('en-IN')} – ₹{Number(config?.max_amount || 4000).toLocaleString('en-IN')}</Badge>
             </div>
-            <div className="p-4 bg-blue-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-blue-700">{preview?.big ?? 0}</p>
-              <p className="text-sm text-blue-600">Big Sales</p>
+            <div className="p-4 bg-info/10 rounded-lg text-center">
+              <p className="text-2xl font-bold text-info">{preview?.big ?? 0}</p>
+              <p className="text-sm text-info">Big Sales</p>
               <Badge variant="outline" className="mt-1">Outside range</Badge>
             </div>
           </div>

@@ -103,7 +103,7 @@ export function AssetOverview() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground"
                       style={{ backgroundColor: color }}
                     >
                       {asset.asset.slice(0, 2)}
@@ -111,7 +111,7 @@ export function AssetOverview() {
                     <div>
                       <p className="text-sm font-medium text-foreground">{asset.asset}</p>
                       {asset.total_locked > 0 && (
-                        <p className="text-[10px] text-amber-400">
+                        <p className="text-[10px] text-warning">
                           🔒 {asset.total_locked.toFixed(8)} locked
                         </p>
                       )}
@@ -138,11 +138,11 @@ export function AssetOverview() {
                       return (
                         <Tooltip>
                           <TooltipTrigger>
-                            <p className={`text-[9px] tabular-nums flex items-center justify-end gap-0.5 ${hasMismatch ? 'text-amber-400' : 'text-muted-foreground/60'}`}>
+                            <p className={`text-[9px] tabular-nums flex items-center justify-end gap-0.5 ${hasMismatch ? 'text-warning' : 'text-muted-foreground/60'}`}>
                               <Package className="h-2.5 w-2.5" />
                               ERP: {erpStock.toFixed(4)}
                               {hasMismatch && (
-                                <span className={diff > 0 ? 'text-green-400' : 'text-red-400'}>
+                                <span className={diff > 0 ? 'text-success' : 'text-destructive'}>
                                   ({diff > 0 ? '+' : ''}{diff.toFixed(4)})
                                 </span>
                               )}
@@ -151,7 +151,7 @@ export function AssetOverview() {
                           <TooltipContent>
                             <p className="text-xs">ERP Inventory: {erpStock.toFixed(4)}</p>
                             <p className="text-xs">Binance API: {asset.total_balance.toFixed(4)}</p>
-                            {hasMismatch && <p className="text-xs text-amber-400">Difference: {diff.toFixed(4)}</p>}
+                            {hasMismatch && <p className="text-xs text-warning">Difference: {diff.toFixed(4)}</p>}
                           </TooltipContent>
                         </Tooltip>
                       );

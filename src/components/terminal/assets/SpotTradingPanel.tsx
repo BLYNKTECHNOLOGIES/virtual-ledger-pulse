@@ -110,7 +110,7 @@ export function SpotTradingPanel() {
             <button
               className={`py-2 text-xs font-semibold rounded-md transition-colors ${
                 side === "BUY"
-                  ? "bg-trade-buy text-white"
+                  ? "bg-trade-buy text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setSide("BUY")}
@@ -120,7 +120,7 @@ export function SpotTradingPanel() {
             <button
               className={`py-2 text-xs font-semibold rounded-md transition-colors ${
                 side === "SELL"
-                  ? "bg-trade-sell text-white"
+                  ? "bg-trade-sell text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setSide("SELL")}
@@ -203,8 +203,8 @@ export function SpotTradingPanel() {
           <Button
             className={`w-full h-11 font-semibold text-sm ${
               side === "BUY"
-                ? "bg-trade-buy hover:bg-trade-buy/90 text-white"
-                : "bg-trade-sell hover:bg-trade-sell/90 text-white"
+                ? "bg-trade-buy hover:bg-trade-buy/90 text-primary-foreground"
+                : "bg-trade-sell hover:bg-trade-sell/90 text-primary-foreground"
             }`}
             disabled={!amount || parseFloat(amount) <= 0 || executeTrade.isPending}
             onClick={() => {
@@ -226,7 +226,7 @@ export function SpotTradingPanel() {
             <AlertDialogContent className="bg-card border-border max-w-sm">
               <AlertDialogHeader>
                 <AlertDialogTitle className="flex items-center gap-2 text-foreground">
-                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  <AlertTriangle className="h-5 w-5 text-warning" />
                   Confirm Buy Order
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-muted-foreground space-y-2">
@@ -255,7 +255,7 @@ export function SpotTradingPanel() {
               <AlertDialogFooter>
                 <AlertDialogCancel className="text-xs">Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  className="bg-trade-buy hover:bg-trade-buy/90 text-white text-xs"
+                  className="bg-trade-buy hover:bg-trade-buy/90 text-primary-foreground text-xs"
                   onClick={() => {
                     setBuyConfirmPending(false);
                     handleExecute();
@@ -283,7 +283,7 @@ export function SpotTradingPanel() {
                 <div key={p.base} className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
                     <div
-                      className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-white"
+                      className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-primary-foreground"
                       style={{ backgroundColor: color }}
                     >
                       {p.base.slice(0, 2)}
@@ -299,7 +299,7 @@ export function SpotTradingPanel() {
             {/* USDT balance */}
             <div className="flex items-center justify-between px-4 py-2.5 bg-accent/5">
               <div className="flex items-center gap-2">
-                <div className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-white bg-[#26A17B]">
+                <div className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-primary-foreground bg-[#26A17B]">
                   US
                 </div>
                 <span className="text-xs text-foreground font-medium">USDT</span>

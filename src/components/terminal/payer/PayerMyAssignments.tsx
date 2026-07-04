@@ -55,11 +55,11 @@ export function PayerMyAssignments() {
   if (isLoading) return null;
 
   return (
-    <Card className={`border ${isActive ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
+    <Card className={`border ${isActive ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'}`}>
       <CardContent className="p-3">
         <div className="flex items-center gap-2 mb-2">
           {isActive ? (
-            <Shield className="h-4 w-4 text-emerald-500" />
+            <Shield className="h-4 w-4 text-success" />
           ) : (
             <ShieldOff className="h-4 w-4 text-destructive" />
           )}
@@ -85,7 +85,7 @@ export function PayerMyAssignments() {
                   key={a.id}
                   className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] ${
                     a.is_active
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                      ? 'border-success/40 bg-success/10 text-success dark:text-success'
                       : 'border-muted bg-muted/30 text-muted-foreground line-through'
                   }`}
                 >

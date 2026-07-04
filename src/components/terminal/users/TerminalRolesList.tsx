@@ -201,19 +201,19 @@ const PERMISSION_MODULES: ModuleDef[] = [
 ];
 
 const TIER_STYLES: Record<PermTier, string> = {
-  view: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  manage: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  action: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-  special: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  destructive: 'bg-red-500/15 text-red-400 border-red-500/30',
+  view: 'bg-success/15 text-success border-success/30',
+  manage: 'bg-info/15 text-info border-info/30',
+  action: 'bg-info/15 text-info border-info/30',
+  special: 'bg-warning/15 text-warning border-warning/30',
+  destructive: 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
 const TIER_SWITCH_STYLES: Record<PermTier, string> = {
-  view: 'data-[state=checked]:bg-emerald-500',
-  manage: 'data-[state=checked]:bg-blue-500',
-  action: 'data-[state=checked]:bg-sky-500',
-  special: 'data-[state=checked]:bg-amber-500',
-  destructive: 'data-[state=checked]:bg-red-500',
+  view: 'data-[state=checked]:bg-success',
+  manage: 'data-[state=checked]:bg-info',
+  action: 'data-[state=checked]:bg-info',
+  special: 'data-[state=checked]:bg-warning',
+  destructive: 'data-[state=checked]:bg-destructive',
 };
 
 // ─── Role Template Presets ──────────────────────────────────────────
@@ -448,14 +448,14 @@ export function TerminalRolesList() {
   };
 
   const roleBadgeClass = (name: string, level: number | null) => {
-    if (level !== null && level < 0) return "bg-red-500/20 text-red-400 border-red-500/30";
-    if (level === 0 || name.toLowerCase() === "admin") return "bg-red-500/20 text-red-400 border-red-500/30";
-    if (level === 1) return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-    if (level === 2) return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-    if (level === 3) return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-    if (level === 4) return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
-    if (level === 5) return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-    if (name.toLowerCase() === "viewer") return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+    if (level !== null && level < 0) return "bg-destructive/20 text-destructive border-destructive/30";
+    if (level === 0 || name.toLowerCase() === "admin") return "bg-destructive/20 text-destructive border-destructive/30";
+    if (level === 1) return "bg-warning/20 text-warning border-warning/30";
+    if (level === 2) return "bg-primary/20 text-primary border-primary/30";
+    if (level === 3) return "bg-info/20 text-info border-info/30";
+    if (level === 4) return "bg-info/20 text-info border-info/30";
+    if (level === 5) return "bg-success/20 text-success border-success/30";
+    if (name.toLowerCase() === "viewer") return "bg-muted/20 text-muted border-muted/30";
     return "bg-primary/20 text-primary border-primary/30";
   };
 
@@ -637,7 +637,7 @@ export function TerminalRolesList() {
 
             {/* Tier legend */}
             <div className="px-6 flex flex-wrap gap-2">
-              {([['view', 'View', 'bg-emerald-500'], ['manage', 'Manage', 'bg-blue-500'], ['action', 'Action', 'bg-sky-500'], ['special', 'Special', 'bg-amber-500'], ['destructive', 'Destructive', 'bg-red-500']] as const).map(([tier, label, color]) => (
+              {([['view', 'View', 'bg-success'], ['manage', 'Manage', 'bg-info'], ['action', 'Action', 'bg-info'], ['special', 'Special', 'bg-warning'], ['destructive', 'Destructive', 'bg-destructive']] as const).map(([tier, label, color]) => (
                 <div key={tier} className="flex items-center gap-1">
                   <div className={`w-2 h-2 rounded-full ${color}`} />
                   <span className="text-[10px] text-muted-foreground">{label}</span>
@@ -662,7 +662,7 @@ export function TerminalRolesList() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{mod.icon}</span>
                           <span className="text-xs font-medium">{mod.label}</span>
-                          <Badge variant="secondary" className={`text-[10px] h-4 px-1.5 ${grantedInModule === mod.permissions.length ? 'bg-emerald-500/20 text-emerald-400' : grantedInModule > 0 ? 'bg-blue-500/20 text-blue-400' : ''}`}>
+                          <Badge variant="secondary" className={`text-[10px] h-4 px-1.5 ${grantedInModule === mod.permissions.length ? 'bg-success/20 text-success' : grantedInModule > 0 ? 'bg-info/20 text-info' : ''}`}>
                             {grantedInModule}/{mod.permissions.length}
                           </Badge>
                         </div>

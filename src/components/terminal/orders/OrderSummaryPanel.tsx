@@ -109,10 +109,10 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
 
         {/* Alternate UPI Request Alert */}
         {hasPendingAltUpi && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-2">
+          <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 space-y-2">
             <div className="flex items-center gap-2">
-              <RefreshCw className="h-3.5 w-3.5 text-amber-500" />
-              <span className="text-xs font-medium text-amber-500">Alternate UPI Requested</span>
+              <RefreshCw className="h-3.5 w-3.5 text-warning" />
+              <span className="text-xs font-medium text-warning">Alternate UPI Requested</span>
             </div>
             <p className="text-[10px] text-muted-foreground">Payer has requested an alternate UPI for this order.</p>
             <Button

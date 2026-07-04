@@ -51,9 +51,9 @@ function mapOrderStatusCode(code: number | string): string {
 
 function getStatusBadgeClass(status: string): string {
   const s = status.toLowerCase();
-  if (s.includes('pending') || s === '1') return 'border-amber-500/30 text-amber-500 bg-amber-500/5';
-  if (s.includes('paying') || s === '2') return 'border-blue-500/30 text-blue-500 bg-blue-500/5';
-  if (s.includes('paid') || s === '3') return 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5';
+  if (s.includes('pending') || s === '1') return 'border-warning/30 text-warning bg-warning/5';
+  if (s.includes('paying') || s === '2') return 'border-info/30 text-info bg-info/5';
+  if (s.includes('paid') || s === '3') return 'border-success/30 text-success bg-success/5';
   return 'border-muted-foreground/30 text-muted-foreground bg-muted/5';
 }
 
@@ -382,11 +382,11 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
       <TableCell className="py-3">
         {isCompleted ? (
           <div className="flex flex-col gap-1 items-start">
-            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
+            <Badge variant="outline" className="text-[10px] border-success/30 text-success bg-success/5">
               Marked Paid
             </Badge>
             {caseAgeMinutes !== null && (
-              <Badge variant="outline" className={`text-[10px] tabular-nums ${caseAgeMinutes >= 30 ? 'border-destructive/30 text-destructive bg-destructive/5' : caseAgeMinutes >= 10 ? 'border-amber-500/30 text-amber-500 bg-amber-500/5' : 'border-primary/30 text-primary bg-primary/5'}`}>
+              <Badge variant="outline" className={`text-[10px] tabular-nums ${caseAgeMinutes >= 30 ? 'border-destructive/30 text-destructive bg-destructive/5' : caseAgeMinutes >= 10 ? 'border-warning/30 text-warning bg-warning/5' : 'border-primary/30 text-primary bg-primary/5'}`}>
                 {formatCaseAge(caseAgeMinutes)} unreleased
               </Badge>
             )}
@@ -404,7 +404,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
           <span className="text-[10px] text-muted-foreground italic">—</span>
         ) : isPaidExternally ? (
           <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
-            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/5 mr-1">
+            <Badge variant="outline" className="text-[9px] border-warning/30 text-warning bg-warning/5 mr-1">
               Paid Externally
             </Badge>
             {/* Quick Receive — only when Binance allows for this order */}
@@ -427,7 +427,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-[10px] gap-1 px-2.5 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+              className="h-7 text-[10px] gap-1 px-2.5 border-success/30 text-success hover:bg-success/10"
               onClick={handleAcknowledge}
               disabled={isAcknowledging}
             >
@@ -673,7 +673,7 @@ function PaymentDetailsInline({ payMethods }: { payMethods: any[] }) {
 
         return (
           <div key={idx} className="flex items-center gap-2 text-[10px]">
-            <Badge variant="outline" className="text-[8px] px-1 py-0 border-emerald-500/30 text-emerald-500 shrink-0">Bank</Badge>
+            <Badge variant="outline" className="text-[8px] px-1 py-0 border-success/30 text-success shrink-0">Bank</Badge>
             <span
               className="text-foreground font-medium truncate cursor-pointer hover:text-primary transition-colors"
               onClick={(e) => copyPaymentDetails(e, verifiedName)}

@@ -131,7 +131,7 @@ export function BiometricRegistrationDialog({
 
         {step === 'done' && (
           <div className="flex flex-col items-center gap-4 py-8">
-            <CheckCircle2 className="h-16 w-16 text-green-500" />
+            <CheckCircle2 className="h-16 w-16 text-success" />
             <h3 className="text-lg font-semibold">Registration Complete!</h3>
             <p className="text-sm text-muted-foreground text-center">
               Your fingerprint has been registered. You can now use it to access the terminal.

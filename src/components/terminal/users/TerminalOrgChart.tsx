@@ -29,12 +29,12 @@ interface OrgNode {
 }
 
 const LEVEL_COLORS: Record<number, { bg: string; border: string; text: string }> = {
-  0: { bg: "bg-red-500/10", border: "border-red-500/40", text: "text-red-400" },
-  1: { bg: "bg-amber-500/10", border: "border-amber-500/40", text: "text-amber-400" },
-  2: { bg: "bg-purple-500/10", border: "border-purple-500/40", text: "text-purple-400" },
-  3: { bg: "bg-blue-500/10", border: "border-blue-500/40", text: "text-blue-400" },
-  4: { bg: "bg-cyan-500/10", border: "border-cyan-500/40", text: "text-cyan-400" },
-  5: { bg: "bg-emerald-500/10", border: "border-emerald-500/40", text: "text-emerald-400" },
+  0: { bg: "bg-destructive/10", border: "border-destructive/40", text: "text-destructive" },
+  1: { bg: "bg-warning/10", border: "border-warning/40", text: "text-warning" },
+  2: { bg: "bg-primary/10", border: "border-primary/40", text: "text-primary" },
+  3: { bg: "bg-info/10", border: "border-info/40", text: "text-info" },
+  4: { bg: "bg-info/10", border: "border-info/40", text: "text-info" },
+  5: { bg: "bg-success/10", border: "border-success/40", text: "text-success" },
 };
 
 const DEFAULT_COLOR = { bg: "bg-muted/20", border: "border-border", text: "text-muted-foreground" };
@@ -63,7 +63,7 @@ function OrgCardNode({
     <div className="flex flex-col items-center">
       {/* Card */}
       <div
-        className={`relative rounded-lg border-2 ${
+        className={`relative rounded-lg border ${
           node.isOrphan
             ? "border-destructive/70 bg-destructive/10 ring-2 ring-destructive/30 ring-offset-1 ring-offset-background"
             : `${colors.border} ${colors.bg}`

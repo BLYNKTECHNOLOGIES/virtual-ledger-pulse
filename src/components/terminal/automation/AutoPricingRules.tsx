@@ -35,15 +35,15 @@ import { AutoPricingLogs } from './AutoPricingLogs';
 import { formatDistanceToNow } from 'date-fns';
 
 const ALERT_STYLES: Record<string, string> = {
-  merchant_missing: 'border-amber-500 ring-2 ring-amber-500/30 animate-pulse',
-  deviation: 'border-orange-500 ring-2 ring-orange-500/30 animate-pulse',
+  merchant_missing: 'border-warning ring-2 ring-warning/30 animate-pulse',
+  deviation: 'border-warning ring-2 ring-warning/30 animate-pulse',
   error: 'border-destructive ring-2 ring-destructive/30 animate-pulse',
   auto_paused: 'border-destructive ring-2 ring-destructive/40 animate-pulse',
 };
 
 const ALERT_BADGE_STYLES: Record<string, string> = {
-  merchant_missing: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
-  deviation: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
+  merchant_missing: 'bg-warning/20 text-warning border-warning/40',
+  deviation: 'bg-warning/20 text-warning border-warning/40',
   error: 'bg-destructive/20 text-destructive border-destructive/40',
   auto_paused: 'bg-destructive/20 text-destructive border-destructive/40',
 };
@@ -108,7 +108,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
           <Badge className="bg-success/20 text-success">{activeCount} Active</Badge>
           {pausedCount > 0 && <Badge variant="destructive">{pausedCount} Paused</Badge>}
           {alertCount > 0 && (
-            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse">
+            <Badge className="bg-warning/20 text-warning border-warning/40 animate-pulse">
               <Bell className="h-3 w-3 mr-1" /> {alertCount} Alert{alertCount > 1 ? 's' : ''}
             </Badge>
           )}
@@ -155,7 +155,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                     <div className="mb-3 px-3 py-2 rounded-md bg-destructive/5 border border-destructive/20 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                          <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
                           <span className="text-xs font-medium text-foreground">{alertState.alertMessage}</span>
                           <Badge variant="outline" className={`text-[10px] ${alertBadgeStyle}`}>
                             {alertState.alertType?.replace('_', ' ')}
@@ -175,7 +175,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                         <div className="flex flex-col gap-1 pl-6">
                           {assetLogs.filter(l => l.status === 'error' || l.status === 'skipped').map(l => (
                             <div key={l.asset} className="flex items-center gap-2 text-[11px]">
-                              <span className={`font-semibold ${l.status === 'error' ? 'text-destructive' : 'text-amber-400'}`}>
+                              <span className={`font-semibold ${l.status === 'error' ? 'text-destructive' : 'text-warning'}`}>
                                 {l.asset}
                               </span>
                               <span className="text-muted-foreground">→</span>
@@ -214,7 +214,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                             {rule.offset_direction}
                           </Badge>
                           {rule.is_dry_run && (
-                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">DRY RUN</Badge>
+                            <Badge className="bg-warning/20 text-warning border-warning/40 text-[10px]">DRY RUN</Badge>
                           )}
                         </div>
 
@@ -230,9 +230,9 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                             let statusClass = 'bg-muted text-muted-foreground border-border'; // unknown/no data
 
                             if (isApplied) {
-                              statusClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                              statusClass = 'bg-success/15 text-success border-success/30';
                             } else if (isSkipped) {
-                              statusClass = 'bg-amber-500/15 text-amber-400 border-amber-500/40 animate-pulse';
+                              statusClass = 'bg-warning/15 text-warning border-warning/40 animate-pulse';
                             } else if (isError) {
                               statusClass = 'bg-destructive/15 text-destructive border-destructive/40 animate-pulse';
                             }
@@ -250,7 +250,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                   <div className="p-3 space-y-2">
                                     <div className="flex items-center justify-between">
                                       <span className="font-semibold text-sm">{asset}</span>
-                                      <Badge variant="outline" className={`text-[10px] ${isApplied ? 'bg-emerald-500/15 text-emerald-400' : isSkipped ? 'bg-amber-500/15 text-amber-400' : isError ? 'bg-destructive/15 text-destructive' : ''}`}>
+                                      <Badge variant="outline" className={`text-[10px] ${isApplied ? 'bg-success/15 text-success' : isSkipped ? 'bg-warning/15 text-warning' : isError ? 'bg-destructive/15 text-destructive' : ''}`}>
                                         {isApplied ? 'Applied' : isSkipped ? 'Skipped' : isError ? 'Error' : 'No Data'}
                                       </Badge>
                                     </div>
@@ -294,7 +294,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                         {log.deviation_from_market_pct != null && (
                                           <div className="flex justify-between">
                                             <span className="text-muted-foreground">Deviation</span>
-                                            <span className={`font-medium ${Number(log.deviation_from_market_pct) > 3 ? 'text-destructive' : 'text-amber-400'}`}>
+                                            <span className={`font-medium ${Number(log.deviation_from_market_pct) > 3 ? 'text-destructive' : 'text-warning'}`}>
                                               {Number(log.deviation_from_market_pct).toFixed(2)}%
                                             </span>
                                           </div>
@@ -303,13 +303,13 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                         {log.applied_price != null && (
                                           <div className="flex justify-between">
                                             <span className="text-muted-foreground">Applied Price</span>
-                                            <span className="font-medium text-emerald-400">₹{Number(log.applied_price).toLocaleString('en-IN')}</span>
+                                            <span className="font-medium text-success">₹{Number(log.applied_price).toLocaleString('en-IN')}</span>
                                           </div>
                                         )}
                                         {log.applied_ratio != null && (
                                           <div className="flex justify-between">
                                             <span className="text-muted-foreground">Applied Ratio</span>
-                                            <span className="font-medium text-emerald-400">{Number(log.applied_ratio).toFixed(4)}%</span>
+                                            <span className="font-medium text-success">{Number(log.applied_ratio).toFixed(4)}%</span>
                                           </div>
                                         )}
                                         {/* Guards */}

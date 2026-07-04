@@ -17,43 +17,43 @@ import {
 import { format } from 'date-fns';
 
 const CATEGORY_BADGE_COLORS: Record<ActionCategory, string> = {
-  ads: 'bg-amber-500/15 text-amber-500 border-amber-500/30',
-  orders: 'bg-blue-500/15 text-blue-500 border-blue-500/30',
-  automations: 'bg-purple-500/15 text-purple-500 border-purple-500/30',
-  assets: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
+  ads: 'bg-warning/15 text-warning border-warning/30',
+  orders: 'bg-info/15 text-info border-info/30',
+  automations: 'bg-primary/15 text-primary border-primary/30',
+  assets: 'bg-warning/15 text-warning border-warning/30',
 };
 
 const ACTION_BADGE_COLORS: Record<string, string> = {
   // Ads
   [AdActionTypes.AD_CREATED]: 'bg-success/15 text-success border-success/30',
-  [AdActionTypes.AD_UPDATED]: 'bg-blue-500/15 text-blue-500 border-blue-500/30',
-  [AdActionTypes.AD_STATUS_CHANGED]: 'bg-amber-500/15 text-amber-500 border-amber-500/30',
-  [AdActionTypes.AD_BULK_STATUS_CHANGED]: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
-  [AdActionTypes.AD_BULK_LIMITS_UPDATED]: 'bg-purple-500/15 text-purple-500 border-purple-500/30',
-  [AdActionTypes.AD_BULK_FLOATING_UPDATED]: 'bg-indigo-500/15 text-indigo-500 border-indigo-500/30',
-  [AdActionTypes.AD_REST_STARTED]: 'bg-red-500/15 text-red-500 border-red-500/30',
-  [AdActionTypes.AD_REST_ENDED]: 'bg-green-500/15 text-green-500 border-green-500/30',
+  [AdActionTypes.AD_UPDATED]: 'bg-info/15 text-info border-info/30',
+  [AdActionTypes.AD_STATUS_CHANGED]: 'bg-warning/15 text-warning border-warning/30',
+  [AdActionTypes.AD_BULK_STATUS_CHANGED]: 'bg-warning/15 text-warning border-warning/30',
+  [AdActionTypes.AD_BULK_LIMITS_UPDATED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.AD_BULK_FLOATING_UPDATED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.AD_REST_STARTED]: 'bg-destructive/15 text-destructive border-destructive/30',
+  [AdActionTypes.AD_REST_ENDED]: 'bg-success/15 text-success border-success/30',
   // Orders
-  [AdActionTypes.ORDER_MARKED_PAID]: 'bg-blue-500/15 text-blue-500 border-blue-500/30',
+  [AdActionTypes.ORDER_MARKED_PAID]: 'bg-info/15 text-info border-info/30',
   [AdActionTypes.ORDER_RELEASED]: 'bg-success/15 text-success border-success/30',
-  [AdActionTypes.ORDER_CANCELLED]: 'bg-red-500/15 text-red-500 border-red-500/30',
+  [AdActionTypes.ORDER_CANCELLED]: 'bg-destructive/15 text-destructive border-destructive/30',
   [AdActionTypes.ORDER_VERIFIED]: 'bg-teal-500/15 text-teal-500 border-teal-500/30',
   // Automations
-  [AdActionTypes.AUTO_PAY_TOGGLED]: 'bg-purple-500/15 text-purple-500 border-purple-500/30',
-  [AdActionTypes.AUTO_PAY_MINUTES_CHANGED]: 'bg-purple-500/15 text-purple-500 border-purple-500/30',
-  [AdActionTypes.SMALL_SALES_TOGGLED]: 'bg-indigo-500/15 text-indigo-500 border-indigo-500/30',
-  [AdActionTypes.SMALL_SALES_RANGE_CHANGED]: 'bg-indigo-500/15 text-indigo-500 border-indigo-500/30',
-  [AdActionTypes.AUTO_REPLY_RULE_CREATED]: 'bg-violet-500/15 text-violet-500 border-violet-500/30',
-  [AdActionTypes.AUTO_REPLY_RULE_UPDATED]: 'bg-violet-500/15 text-violet-500 border-violet-500/30',
-  [AdActionTypes.AUTO_REPLY_RULE_TOGGLED]: 'bg-violet-500/15 text-violet-500 border-violet-500/30',
-  [AdActionTypes.AUTO_REPLY_RULE_DELETED]: 'bg-violet-500/15 text-violet-500 border-violet-500/30',
+  [AdActionTypes.AUTO_PAY_TOGGLED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.AUTO_PAY_MINUTES_CHANGED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.SMALL_SALES_TOGGLED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.SMALL_SALES_RANGE_CHANGED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.AUTO_REPLY_RULE_CREATED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.AUTO_REPLY_RULE_UPDATED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.AUTO_REPLY_RULE_TOGGLED]: 'bg-primary/15 text-primary border-primary/30',
+  [AdActionTypes.AUTO_REPLY_RULE_DELETED]: 'bg-primary/15 text-primary border-primary/30',
   [AdActionTypes.SCHEDULE_CREATED]: 'bg-fuchsia-500/15 text-fuchsia-500 border-fuchsia-500/30',
   [AdActionTypes.SCHEDULE_UPDATED]: 'bg-fuchsia-500/15 text-fuchsia-500 border-fuchsia-500/30',
   [AdActionTypes.SCHEDULE_TOGGLED]: 'bg-fuchsia-500/15 text-fuchsia-500 border-fuchsia-500/30',
   [AdActionTypes.SCHEDULE_DELETED]: 'bg-fuchsia-500/15 text-fuchsia-500 border-fuchsia-500/30',
   // Assets
-  [AdActionTypes.SPOT_TRADE_EXECUTED]: 'bg-amber-500/15 text-amber-500 border-amber-500/30',
-  [AdActionTypes.SPOT_TRADE_FAILED]: 'bg-red-500/15 text-red-500 border-red-500/30',
+  [AdActionTypes.SPOT_TRADE_EXECUTED]: 'bg-warning/15 text-warning border-warning/30',
+  [AdActionTypes.SPOT_TRADE_FAILED]: 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
 function ActionBadge({ actionType }: { actionType: string }) {
@@ -257,7 +257,7 @@ export default function TerminalLogs() {
                     return (
                       <div key={log.id} className="relative pl-8 py-2.5 hover:bg-muted/30 rounded-md transition-colors group">
                         {/* Timeline dot */}
-                        <div className="absolute left-[5px] top-4 w-[13px] h-[13px] rounded-full border-2 bg-background border-primary/60 group-hover:border-primary transition-colors" />
+                        <div className="absolute left-[5px] top-4 w-[13px] h-[13px] rounded-full border bg-background border-primary/60 group-hover:border-primary transition-colors" />
 
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">

@@ -15,10 +15,10 @@ import {
 } from '@/hooks/useAutoScreenshotAutomation';
 
 const STATUS_COLORS: Record<string, string> = {
-  sent: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
-  skipped_out_of_range: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
-  skipped_non_upi: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
-  skipped_non_buy: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
+  sent: 'bg-success/15 text-success border-success/30',
+  skipped_out_of_range: 'bg-warning/15 text-warning border-warning/30',
+  skipped_non_upi: 'bg-warning/15 text-warning border-warning/30',
+  skipped_non_buy: 'bg-warning/15 text-warning border-warning/30',
   failed: 'bg-destructive/15 text-destructive border-destructive/30',
 };
 

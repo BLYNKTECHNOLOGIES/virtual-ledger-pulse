@@ -290,13 +290,13 @@ export function TerminalUsersList() {
   );
 
   const roleBadgeClass = (name: string, level: number | null) => {
-    if (level === 0 || name.toLowerCase() === 'admin') return "bg-red-500/20 text-red-400 border-red-500/30";
-    if (level === 1) return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-    if (level === 2) return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-    if (level === 3) return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-    if (level === 4) return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
-    if (level === 5) return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-    if (name.toLowerCase() === 'viewer') return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+    if (level === 0 || name.toLowerCase() === 'admin') return "bg-destructive/20 text-destructive border-destructive/30";
+    if (level === 1) return "bg-warning/20 text-warning border-warning/30";
+    if (level === 2) return "bg-primary/20 text-primary border-primary/30";
+    if (level === 3) return "bg-info/20 text-info border-info/30";
+    if (level === 4) return "bg-info/20 text-info border-info/30";
+    if (level === 5) return "bg-success/20 text-success border-success/30";
+    if (name.toLowerCase() === 'viewer') return "bg-muted/20 text-muted border-muted/30";
     return "bg-primary/20 text-primary border-primary/30";
   };
 

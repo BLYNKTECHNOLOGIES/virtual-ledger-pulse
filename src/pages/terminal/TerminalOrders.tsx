@@ -1380,9 +1380,11 @@ function TerminalOrdersContent() {
                         {/* Status */}
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className={`text-[10px] w-fit ${style.badgeClass}`}>
+                            <Badge variant="outline" className={`text-[10px] w-fit gap-1 ${style.badgeClass}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${(style as any).dotColor || 'bg-current'}`} />
                               {style.label}
                             </Badge>
+
                             {isActive && order.binance_create_time && (
                               <OrderRowTimer
                                 createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()}

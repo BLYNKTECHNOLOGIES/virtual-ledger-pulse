@@ -922,7 +922,7 @@ export default function EmployeeListPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={(e) => { e.stopPropagation(); navigate(`/hrms/employee/${emp.id}`); }}
-                      className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-blue-600 transition-colors" title="View Profile">
+                      className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="View Profile">
                       <Eye className="h-3.5 w-3.5" />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleEdit(emp); }}

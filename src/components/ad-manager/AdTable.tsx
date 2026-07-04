@@ -54,7 +54,7 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selecte
   return (
     <Table>
       <TableHeader>
-        <TableRow>
+        <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:text-[11px] [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:font-medium">
           <TableHead className="w-10">
             <Checkbox
               checked={allSelected}
@@ -67,9 +67,9 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selecte
           <TableHead>Type</TableHead>
           <TableHead>Asset</TableHead>
           <TableHead>Price Type</TableHead>
-          <TableHead>Price</TableHead>
-          <TableHead>Available Qty</TableHead>
-          <TableHead>Order Limit</TableHead>
+          <TableHead className="text-right">Price</TableHead>
+          <TableHead className="text-right">Available Qty</TableHead>
+          <TableHead className="text-right">Order Limit</TableHead>
           <TableHead>Payment Methods</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Updated</TableHead>

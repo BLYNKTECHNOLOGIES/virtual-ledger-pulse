@@ -197,7 +197,7 @@ export function SupplierAutocomplete({
       
       {/* Suggestions dropdown */}
       {showSuggestions && filteredClients.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-md max-h-60 overflow-y-auto">
           {filteredClients.map((client) => (
             <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(open) => {
               if (open) setHoveredClientId(client.id);
@@ -225,7 +225,7 @@ export function SupplierAutocomplete({
               <HoverCardContent 
                 side="right" 
                 align="start" 
-                className="w-80 p-3 z-[200] bg-popover border border-border shadow-xl"
+                className="w-80 p-3 z-[200] bg-popover border border-border shadow-md"
                 sideOffset={8}
               >
                 <ClientOrderPreview 
@@ -249,7 +249,7 @@ export function SupplierAutocomplete({
       
       {/* No matches found */}
       {showSuggestions && value.trim().length > 0 && filteredClients.length === 0 && !hasExactMatch && (
-        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg p-3">
+        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-md p-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <UserPlus className="h-4 w-4 text-primary" />
             <span>No existing clients found. A new seller will be created on submission.</span>

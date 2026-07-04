@@ -60,14 +60,14 @@ export default function Reconciliation() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 page-mount">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Reconciliation &amp; Exception Cockpit</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Reconciliation &amp; Exception Cockpit</h1>
             <p className="text-sm text-muted-foreground">
               Every data-integrity anomaly across the ledger in one place.
             </p>

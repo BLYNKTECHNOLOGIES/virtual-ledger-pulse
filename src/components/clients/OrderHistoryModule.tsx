@@ -328,7 +328,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
 
   if (!client) {
     return (
-      <Card className="shadow-lg">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
@@ -424,7 +424,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
   );
 
   return (
-    <Card className="shadow-lg">
+    <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">

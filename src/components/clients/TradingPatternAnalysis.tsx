@@ -160,7 +160,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
   );
 
   return (
-    <Card className="shadow-lg">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BarChart className="h-5 w-5 text-primary" />

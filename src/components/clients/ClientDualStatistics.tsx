@@ -146,7 +146,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
   }
 
   return (
-    <Card className="shadow-lg">
+    <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">

@@ -373,7 +373,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
               {incomeDetails.source_of_fund_url && (
                 <div>
                   <p className="text-xs text-muted-foreground">Source of Fund Doc</p>
-                  <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">
+                  <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">of
                     View Document
                   </a>
                 </div>

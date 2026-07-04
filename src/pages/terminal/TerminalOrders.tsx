@@ -1071,21 +1071,27 @@ function TerminalOrdersContent() {
 
   return (
     <div className="p-4 md:p-6 space-y-5">
-      {/* Header */}
+      {/* Command strip */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
+          <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
             <ShoppingCart className="h-5 w-5 text-primary" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Orders</h1>
-            <p className="text-xs text-muted-foreground">P2P Trade Order Management</p>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Orders · P2P Trade Management</span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center h-6 px-2 rounded-md text-[11px] t-mono bg-primary/10 text-primary border border-primary/20">
+                {visibleOrders.length} / {displayOrders.length}
+              </span>
+              {totalUnread > 0 && (
+                <span className="inline-flex items-center h-6 px-2 rounded-md text-[11px] t-mono bg-destructive/10 text-destructive border border-destructive/20">
+                  {totalUnread} unread
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-            {visibleOrders.length} of {displayOrders.length} orders
-          </Badge>
           {canChat && (
             <Button
               variant="outline"
@@ -1116,6 +1122,7 @@ function TerminalOrdersContent() {
           </Button>
         </div>
       </div>
+
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">

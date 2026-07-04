@@ -494,22 +494,22 @@ export function TaxManagementTab() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 stagger-children">
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><Calculator className="h-4 w-4" /><span className="text-sm">Total TDS Deducted</span></div>
-          <p className="text-2xl font-bold">{inr(totals.totalTds)}</p>
+          <p className="text-2xl font-bold tabular-nums">{inr(totals.totalTds)}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><Receipt className="h-4 w-4" /><span className="text-sm">Unpaid TDS</span></div>
-          <p className="text-2xl font-bold text-destructive">{inr(totals.unpaidTds)}</p>
+          <p className="text-2xl font-bold text-destructive tabular-nums">{inr(totals.unpaidTds)}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><CheckCircle className="h-4 w-4" /><span className="text-sm">Paid TDS</span></div>
-          <p className="text-2xl font-bold text-green-600">{inr(totals.paidTds)}</p>
+          <p className="text-2xl font-bold text-success tabular-nums">{inr(totals.paidTds)}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><IndianRupee className="h-4 w-4" /><span className="text-sm">TDS Transactions</span></div>
-          <p className="text-2xl font-bold">{allocations?.length || 0}</p>
+          <p className="text-2xl font-bold tabular-nums">{allocations?.length || 0}</p>
         </CardContent></Card>
       </div>
 

@@ -1984,7 +1984,7 @@ export function ClientOnboardingApprovals() {
             </TableHeader>
             <TableBody>
               {reviewedApprovals.map((approval) => (
-                <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-red-50' : ''}>
+                <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-destructive/5' : ''}>
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
                   <TableCell>₹{approval.order_amount.toLocaleString('en-IN')}</TableCell>
                   <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>

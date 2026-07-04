@@ -125,7 +125,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-blue-500" />
+                <Package className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">Total Orders</span>
               </div>
               <p className="text-2xl font-bold mt-1">{summary.totalOrders}</p>

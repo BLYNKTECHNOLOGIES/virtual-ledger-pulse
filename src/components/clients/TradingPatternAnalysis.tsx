@@ -119,7 +119,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
           </div>
         </div>
         
-        <div className="text-center p-4 bg-card rounded-lg shadow-sm border border-green-100">
+        <div className="text-center p-4 bg-card rounded-lg shadow-sm border border-success/20">
           <div className="text-3xl font-bold text-success">{avgOrdersPerMonth}</div>
           <div className="text-sm text-muted-foreground mt-1">Avg Orders/Month</div>
         </div>
@@ -129,8 +129,8 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
           <div className="text-sm text-muted-foreground mt-1">Average Order Amount</div>
         </div>
         
-        <div className="text-center p-4 bg-card rounded-lg shadow-sm border border-green-100">
-          <Badge variant="outline" className="text-success border-green-300 bg-success/5 px-3 py-1">
+        <div className="text-center p-4 bg-card rounded-lg shadow-sm border border-success/20">
+          <Badge variant="outline" className="text-success border-success/30 bg-success/5 px-3 py-1">
             {getPatternStatus()}
           </Badge>
           <div className="text-sm text-muted-foreground mt-2">Order Frequency</div>
@@ -138,19 +138,19 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-4 bg-card rounded-lg border border-red-100">
+        <div className="p-4 bg-card rounded-lg border border-destructive/20">
           <label className="text-sm font-medium text-muted-foreground">Cosmos Alert (Pattern Change)</label>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-destructive border-red-300 bg-red-50 px-3 py-1">
+            <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/5 px-3 py-1">
               ❌ No Alert
             </Badge>
           </div>
         </div>
         
-        <div className="p-4 bg-card rounded-lg border border-green-100">
+        <div className="p-4 bg-card rounded-lg border border-success/20">
           <label className="text-sm font-medium text-muted-foreground">250% Spike Detected?</label>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-success border-green-300 bg-success/5 px-3 py-1">
+            <Badge variant="outline" className="text-success border-success/30 bg-success/5 px-3 py-1">
               No
             </Badge>
           </div>
@@ -197,15 +197,15 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         )}
 
         <div className="flex flex-wrap gap-3 pt-6 border-t border-border mt-6">
-          <Button size="sm" variant="outline" className="border-blue-300 text-primary hover:bg-info/5">
+          <Button size="sm" variant="outline" className="border-info/30 text-primary hover:bg-info/5">
             <TrendingUp className="h-4 w-4 mr-2" />
             View Charts
           </Button>
-          <Button size="sm" variant="outline" className="border-purple-300 text-primary hover:bg-primary/5">
+          <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/5">
             <Activity className="h-4 w-4 mr-2" />
             Pattern Settings
           </Button>
-          <Button size="sm" variant="outline" className="border-orange-300 text-warning hover:bg-warning/5">
+          <Button size="sm" variant="outline" className="border-warning/30 text-warning hover:bg-warning/5">
             <AlertTriangle className="h-4 w-4 mr-2" />
             Alert Rules
           </Button>

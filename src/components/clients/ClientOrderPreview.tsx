@@ -211,7 +211,7 @@ export function ClientOrderPreview({
                 ? 'bg-accent text-accent-foreground border-accent' 
                 : clientRole === 'BUYER' 
                   ? 'bg-primary/10 text-primary border-primary/30' 
-                  : 'bg-orange-100 text-warning border-orange-300'
+                  : 'bg-warning/10 text-warning border-warning/30'
             }`}
           >
             {clientRole}

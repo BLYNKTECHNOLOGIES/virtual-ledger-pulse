@@ -121,22 +121,22 @@ function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
       {/* Bank Account Info */}
       {bankAccountData && (
         <div className="p-4 bg-info/5 rounded-lg border border-info/20">
-          <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-info mb-3 flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             {selectedOrder.isBuyOrder ? 'Payment Received In' : 'Payment Made From'}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium text-info">Bank Account</Label>
-              <p className="text-sm text-blue-900">{bankAccountData.account_name}</p>
+              <p className="text-sm text-info">{bankAccountData.account_name}</p>
             </div>
             <div>
               <Label className="text-sm font-medium text-info">Bank Name</Label>
-              <p className="text-sm text-blue-900">{bankAccountData.bank_name}</p>
+              <p className="text-sm text-info">{bankAccountData.bank_name}</p>
             </div>
             <div className="col-span-2">
               <Label className="text-sm font-medium text-info">Account Number</Label>
-              <p className="text-sm text-blue-900 font-mono">
+              <p className="text-sm text-info font-mono">
                 {bankAccountData.account_number
                   ? `****${bankAccountData.account_number.slice(-4)}`
                   : 'N/A'}
@@ -310,13 +310,13 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
 
   const getStatusBadge = (status: string, paymentStatus?: string) => {
     if (status === 'COMPLETED' && (!paymentStatus || paymentStatus === 'COMPLETED')) {
-      return <Badge className="bg-success/10 text-success border-success/20 border-green-300">Completed</Badge>;
+      return <Badge className="bg-success/10 text-success border-success/20 border-success/30">Completed</Badge>;
     }
     if (status === 'PENDING') {
-      return <Badge className="bg-warning/10 text-warning border-warning/20 border-yellow-300">Processing</Badge>;
+      return <Badge className="bg-warning/10 text-warning border-warning/20 border-warning/30">Processing</Badge>;
     }
     if (status === 'CANCELLED') {
-      return <Badge className="bg-destructive/10 text-destructive border-destructive/20 border-red-300">Cancelled</Badge>;
+      return <Badge className="bg-destructive/10 text-destructive border-destructive/20 border-destructive/30">Cancelled</Badge>;
     }
     return <Badge variant="outline">{status}</Badge>;
   };

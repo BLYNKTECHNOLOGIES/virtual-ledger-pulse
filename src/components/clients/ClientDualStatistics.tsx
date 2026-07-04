@@ -132,7 +132,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-indigo-600" />
+            <ArrowRightLeft className="h-5 w-5 text-primary" />
             Trading Statistics
           </CardTitle>
         </CardHeader>
@@ -150,7 +150,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
       <CardHeader>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-indigo-600" />
+            <ArrowRightLeft className="h-5 w-5 text-primary" />
             <CardTitle>Trading Statistics</CardTitle>
             {isComposite && (
               <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
@@ -250,28 +250,28 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
 
         {/* Combined Summary */}
         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
             Combined Summary
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium text-indigo-700">Total Trade Volume</label>
-              <p className="text-2xl font-bold text-indigo-600">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
+              <label className="text-sm font-medium text-primary">Total Trade Volume</label>
+              <p className="text-2xl font-bold text-primary">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Total Orders</label>
-              <p className="text-2xl font-bold text-indigo-600">{totalOrders}</p>
+              <label className="text-sm font-medium text-primary">Total Orders</label>
+              <p className="text-2xl font-bold text-primary">{totalOrders}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Avg Order Value</label>
-              <p className="text-2xl font-bold text-indigo-600">₹{avgOrderValue.toFixed(2)}</p>
+              <label className="text-sm font-medium text-primary">Avg Order Value</label>
+              <p className="text-2xl font-bold text-primary">₹{avgOrderValue.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">
                 Across all transactions
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Client Type</label>
+              <label className="text-sm font-medium text-primary">Client Type</label>
               <Badge className={
                 isComposite 
                   ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white' 

@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, AlertTriangle, Activity, IdCard } from 'lucide-react';
+import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Activity, IdCard } from 'lucide-react';
 import { InternalChatPanel } from './InternalChatPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CounterpartyPanInput } from './CounterpartyPanInput';
@@ -177,6 +177,31 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
     </div>
   );
 
+  // Subtle edge arrows to step between orders — same action as the swipe gesture
+  // and desktop Shift+Arrow shortcut. Left = order above (prev), Right = order below (next).
+  const stepArrows = onStepOrder ? (
+    <>
+      <button
+        type="button"
+        aria-label="Previous order (above in list)"
+        title="Previous order"
+        onClick={() => onStepOrder(-1)}
+        className="absolute left-1 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-card/70 backdrop-blur border border-border/50 text-muted-foreground shadow-sm flex items-center justify-center opacity-30 hover:opacity-100 hover:text-foreground hover:bg-card transition-opacity"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        aria-label="Next order (below in list)"
+        title="Next order"
+        onClick={() => onStepOrder(1)}
+        className="absolute right-1 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-card/70 backdrop-blur border border-border/50 text-muted-foreground shadow-sm flex items-center justify-center opacity-30 hover:opacity-100 hover:text-foreground hover:bg-card transition-opacity"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </>
+  ) : null;
+
   const chatContent = (
     <ChatPanel
       orderId={order.id}
@@ -218,7 +243,8 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   // Mobile layout: tabbed single-panel view
   if (isMobile) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="relative flex flex-col h-full">
+        {stepArrows}
         {topBar}
         <div className="px-2 py-1.5 border-b border-border bg-card shrink-0">
           <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)}>
@@ -270,7 +296,8 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
 
   // Desktop layout (unchanged 3-panel)
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full">
+      {stepArrows}
       {topBar}
       <div className="flex flex-1 overflow-hidden">
         <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">

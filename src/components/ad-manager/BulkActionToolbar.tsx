@@ -32,7 +32,7 @@ export function BulkActionToolbar({
   const hasOffline = selectedAds.some(ad => ad.advStatus !== BINANCE_AD_STATUS.ONLINE);
 
   return (
-    <div className="flex items-center gap-2 flex-wrap bg-muted border border-border rounded-lg px-4 py-2.5">
+    <div className="flex items-center gap-2 flex-wrap bg-card border border-border rounded-lg px-4 py-2.5 shadow-md animate-fade-in">
       <Badge variant="secondary" className="font-medium text-foreground bg-primary/20 border border-primary/30">
         {selectedAds.length} ad{selectedAds.length !== 1 ? 's' : ''} selected
       </Badge>

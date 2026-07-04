@@ -249,7 +249,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
         </div>
 
         {/* Combined Summary */}
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4">
+        <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
           <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
             Combined Summary

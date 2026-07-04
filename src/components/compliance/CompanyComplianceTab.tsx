@@ -57,7 +57,11 @@ export function CompanyComplianceTab() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-20 rounded-lg skeleton-shimmer" />
+              ))}
+            </div>
           ) : !subsidiaries || subsidiaries.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Building2 className="h-12 w-12 mx-auto mb-3 opacity-50" />

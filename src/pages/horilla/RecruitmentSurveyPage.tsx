@@ -238,7 +238,7 @@ export default function RecruitmentSurveyPage() {
                                 {q.options && <span className="text-[10px] text-muted-foreground">Options: {(q.options as string[]).join(", ")}</span>}
                               </div>
                             </div>
-                            <button onClick={() => deleteQuestionMutation.mutate(q.id)} className="p-1 rounded hover:bg-destructive/10 text-muted hover:text-destructive">
+                            <button onClick={() => deleteQuestionMutation.mutate(q.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           </div>

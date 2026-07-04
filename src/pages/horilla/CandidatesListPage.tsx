@@ -224,7 +224,7 @@ export default function CandidatesListPage() {
                     {c.rating ? (
                       <div className="flex items-center gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className={`h-3 w-3 ${i < c.rating! ? "text-warning fill-warning" : "text-muted"}`} />
+                          <Star key={i} className={`h-3 w-3 ${i < c.rating! ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                         ))}
                       </div>
                     ) : "—"}
@@ -302,7 +302,7 @@ export default function CandidatesListPage() {
                   {viewCandidate.rating ? (
                     <div className="flex items-center gap-0.5">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`h-3 w-3 ${i < viewCandidate.rating! ? "text-warning fill-warning" : "text-muted"}`} />
+                        <Star key={i} className={`h-3 w-3 ${i < viewCandidate.rating! ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                       ))}
                     </div>
                   ) : <p className="text-foreground">—</p>}

@@ -117,7 +117,7 @@ export default function Feedback360Page() {
     return (
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((s) => (
-          <Star key={s} className={`h-3.5 w-3.5 ${s <= rating ? "text-warning fill-warning" : "text-muted"}`} />
+          <Star key={s} className={`h-3.5 w-3.5 ${s <= rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
         ))}
       </div>
     );

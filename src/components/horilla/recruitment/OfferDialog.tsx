@@ -161,7 +161,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                 <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
               ) : offers.length === 0 ? (
                 <div className="text-center py-6">
-                  <FileText className="h-8 w-8 mx-auto text-muted mb-2" />
+                  <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground">No offers created yet</p>
                 </div>
               ) : offers.map(offer => (

@@ -401,7 +401,7 @@ export default function RecruitmentDashboardPage() {
                             {getRecManagers(rec.id).length > 3 && <span className="text-[10px] text-muted-foreground ml-1">+{getRecManagers(rec.id).length - 3}</span>}
                           </div>
                         ) : (
-                          <span className="text-[10px] text-muted">No managers</span>
+                          <span className="text-[10px] text-muted-foreground">No managers</span>
                         )}
                         <button onClick={() => setManagerDialogRecId(rec.id)} className="p-0.5 rounded hover:bg-info/10 text-muted-foreground hover:text-info" title="Assign managers">
                           <UserPlus className="h-3 w-3" />

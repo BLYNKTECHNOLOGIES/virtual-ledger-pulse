@@ -94,7 +94,7 @@ export function CollapsibleSidebarGroup({
             <SidebarMenuButton
               onClick={handleToggle}
               className={`
-                hover:bg-muted/10 text-muted hover:text-muted transition-all duration-200 rounded-xl group border border-transparent hover:border-muted/20 shadow-sm hover:shadow-md
+                hover:bg-muted/10 text-muted-foreground hover:text-foreground transition-all duration-200 rounded-xl group border border-transparent hover:border-muted/20 shadow-sm hover:shadow-md
                 ${hasActiveChild ? 'bg-info/10 text-info font-semibold shadow-md border-info/20' : ''}
                 ${isDragMode ? 'cursor-default' : 'cursor-pointer'}
                 ${isDragging ? 'opacity-50 z-50' : ''}
@@ -108,7 +108,7 @@ export function CollapsibleSidebarGroup({
                     {...listeners}
                     className="touch-none flex-shrink-0 p-1.5 hover:bg-info/10 bg-muted/10 rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-muted/20"
                   >
-                    <GripVertical className="h-4 w-4 text-muted" />
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
                   </div>
                 )}
                 <div className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}>
@@ -129,9 +129,9 @@ export function CollapsibleSidebarGroup({
                           )
                         )}
                         {isExpanded && isUnlocked ? (
-                          <ChevronDown className="h-4 w-4 text-muted" />
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-muted" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         )}
                       </div>
                     </>
@@ -161,7 +161,7 @@ export function CollapsibleSidebarGroup({
                   <SidebarMenuButton
                     asChild
                     className={`
-                      hover:bg-muted/10 text-muted hover:text-muted transition-all duration-200 rounded-lg group border border-transparent hover:border-muted/20 my-0.5
+                      hover:bg-muted/10 text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg group border border-transparent hover:border-muted/20 my-0.5
                       ${isActive ? 'bg-info/10 text-info font-medium border-info/20' : ''}
                     `}
                   >

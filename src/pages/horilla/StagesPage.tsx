@@ -230,7 +230,7 @@ export default function StagesPage() {
                     return (
                       <div key={stage.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-4">
-                          <GripVertical className="h-4 w-4 text-muted shrink-0" />
+                          <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
                           <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
                             {i + 1}
                           </div>

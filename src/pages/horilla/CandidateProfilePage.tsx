@@ -350,7 +350,7 @@ export default function CandidateProfilePage() {
               {/* Rating */}
               <div className="flex items-center gap-1 mt-1.5">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className={`h-4 w-4 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted"}`} />
+                  <Star key={i} className={`h-4 w-4 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                 ))}
                 {candidate.rating ? <span className="text-xs text-muted-foreground ml-1">({candidate.rating}/5)</span> : null}
               </div>
@@ -442,7 +442,7 @@ export default function CandidateProfilePage() {
             </div>
             {notes.length === 0 ? (
               <div className="text-center py-8">
-                <MessageSquare className="h-8 w-8 mx-auto text-muted mb-2" />
+                <MessageSquare className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">No notes yet. Add remarks from interviews or evaluations.</p>
               </div>
             ) : notes.map((n: any) => (
@@ -463,7 +463,7 @@ export default function CandidateProfilePage() {
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map(r => (
                   <button key={r} onClick={() => setNewRating(r)}>
-                    <Star className={`h-6 w-6 ${r <= newRating ? "text-warning fill-warning" : "text-muted"}`} />
+                    <Star className={`h-6 w-6 ${r <= newRating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                   </button>
                 ))}
               </div>
@@ -475,7 +475,7 @@ export default function CandidateProfilePage() {
             </div>
             {ratings.length === 0 ? (
               <div className="text-center py-8">
-                <Star className="h-8 w-8 mx-auto text-muted mb-2" />
+                <Star className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">No ratings yet. Be the first to rate this candidate.</p>
               </div>
             ) : (
@@ -491,7 +491,7 @@ export default function CandidateProfilePage() {
                     <div className="flex items-center gap-3">
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map(i => (
-                          <Star key={i} className={`h-4 w-4 ${i <= r.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                          <Star key={i} className={`h-4 w-4 ${i <= r.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                         ))}
                       </div>
                       <span className="text-sm text-muted-foreground">
@@ -511,7 +511,7 @@ export default function CandidateProfilePage() {
             <h3 className="text-sm font-semibold text-foreground">Stage Transition Log</h3>
             {stageNotes.length === 0 ? (
               <div className="text-center py-8">
-                <Clock className="h-8 w-8 mx-auto text-muted mb-2" />
+                <Clock className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">No stage transitions recorded yet.</p>
               </div>
             ) : (
@@ -547,7 +547,7 @@ export default function CandidateProfilePage() {
             </div>
             {interviews.length === 0 ? (
               <div className="text-center py-8">
-                <Calendar className="h-8 w-8 mx-auto text-muted mb-2" />
+                <Calendar className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">No interviews scheduled</p>
               </div>
             ) : interviews.map((iv: any) => (
@@ -577,7 +577,7 @@ export default function CandidateProfilePage() {
                       {iv.rating && (
                         <div className="flex gap-0.5">
                           {[1, 2, 3, 4, 5].map((i: number) => (
-                            <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                            <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                           ))}
                         </div>
                       )}
@@ -608,7 +608,7 @@ export default function CandidateProfilePage() {
             </div>
             {offers.length === 0 ? (
               <div className="text-center py-8">
-                <FileText className="h-8 w-8 mx-auto text-muted mb-2" />
+                <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">No offers created</p>
               </div>
             ) : offers.map((offer: any) => (
@@ -697,7 +697,7 @@ export default function CandidateProfilePage() {
                               {task.status === "completed" ? (
                                 <CheckSquare className="h-4 w-4 text-success" />
                               ) : (
-                                <Square className="h-4 w-4 text-muted" />
+                                <Square className="h-4 w-4 text-muted-foreground" />
                               )}
                             </button>
                             <span className={`text-sm ${task.status === "completed" ? "text-muted-foreground line-through" : "text-foreground"}`}>

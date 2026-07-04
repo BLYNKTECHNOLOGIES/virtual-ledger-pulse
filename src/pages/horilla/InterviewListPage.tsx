@@ -212,7 +212,7 @@ export default function InterviewListPage() {
           <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <Calendar className="h-10 w-10 mx-auto text-muted mb-3" />
+            <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground text-sm">No interviews found</p>
             <button onClick={() => setScheduleOpen(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
               + Schedule your first interview
@@ -262,11 +262,11 @@ export default function InterviewListPage() {
                       {iv.rating ? (
                         <div className="flex items-center gap-0.5">
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className={`h-3.5 w-3.5 ${i < iv.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                            <Star key={i} className={`h-3.5 w-3.5 ${i < iv.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                           ))}
                         </div>
                       ) : (
-                        <span className="text-muted text-xs">—</span>
+                        <span className="text-muted-foreground text-xs">—</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -321,7 +321,7 @@ export default function InterviewListPage() {
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(r => (
                     <button key={r} onClick={() => setFeedbackForm({ ...feedbackForm, rating: r })}>
-                      <Star className={`h-6 w-6 ${r <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                      <Star className={`h-6 w-6 ${r <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                     </button>
                   ))}
                 </div>

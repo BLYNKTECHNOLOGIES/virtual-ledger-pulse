@@ -153,7 +153,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map(i => (
                       <button key={i} onClick={() => setFeedbackForm({ ...feedbackForm, rating: i })}>
-                        <Star className={`h-5 w-5 ${i <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                        <Star className={`h-5 w-5 ${i <= feedbackForm.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                       </button>
                     ))}
                   </div>
@@ -201,7 +201,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
                 ) : interviews.length === 0 ? (
                   <div className="text-center py-8">
-                    <Calendar className="h-8 w-8 mx-auto text-muted mb-2" />
+                    <Calendar className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">No interviews scheduled</p>
                     <button onClick={() => setTab("schedule")} className="mt-2 text-sm text-[#E8604C] hover:underline">
                       + Schedule first interview
@@ -249,7 +249,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                           {iv.rating && (
                             <div className="flex gap-0.5">
                               {[1, 2, 3, 4, 5].map(i => (
-                                <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted"}`} />
+                                <Star key={i} className={`h-3 w-3 ${i <= iv.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
                               ))}
                             </div>
                           )}

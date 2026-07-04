@@ -85,7 +85,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
     <div ref={setNodeRef} style={style}
       className="bg-card rounded-lg border border-border p-3 hover:shadow-sm hover:border-border transition-all group">
       <div className="flex items-start gap-2.5">
-        <div {...attributes} {...listeners} className="mt-1 text-muted hover:text-muted-foreground cursor-grab active:cursor-grabbing">
+        <div {...attributes} {...listeners} className="mt-1 text-muted-foreground hover:text-muted-foreground cursor-grab active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
         {candidate.profile_image_url ? (
@@ -130,7 +130,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         {candidate.rating !== null && candidate.rating > 0 && (
           <div className="flex items-center gap-0.5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className={`h-3 w-3 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted"}`} />
+              <Star key={i} className={`h-3 w-3 ${i < (candidate.rating || 0) ? "text-warning fill-warning" : "text-muted-foreground"}`} />
             ))}
           </div>
         )}

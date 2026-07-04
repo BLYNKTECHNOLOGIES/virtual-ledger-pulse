@@ -267,9 +267,9 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted text-sm font-medium">Average Fee Rate</p>
+                <p className="text-muted-foreground text-sm font-medium">Average Fee Rate</p>
                 <p className="text-2xl font-bold mt-2">{avgFeeRate}%</p>
-                <p className="text-sm text-muted mt-1">On sales/purchase orders</p>
+                <p className="text-sm text-muted-foreground mt-1">On sales/purchase orders</p>
               </div>
               <div className="bg-muted p-3 rounded-xl">
                 <Percent className="h-6 w-6" />

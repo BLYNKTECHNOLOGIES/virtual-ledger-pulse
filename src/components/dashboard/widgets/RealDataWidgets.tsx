@@ -503,69 +503,95 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
         '4f90519e-6d47-43c4-8206-9278927c788f',
       ];
 
-      // Fetch current & previous period data in parallel
+      // Fetch current & previous period data in parallel.
+      // NOTE: Gross profit uses the SAME realized-P&L methodology as ProfitLoss.tsx
+      // (the source of truth): normalized USDT-equivalent sales/purchase values
+      // (effective_usdt_qty/rate) and NPM = avgSalesRate − effectivePurchaseRate.
+      // The previous implementation summed raw purchase_order_items quantities and
+      // INR unit_prices across mixed assets (USDT, BTC, ETH…), which corrupted the
+      // average purchase rate and could make gross profit negative even when every
+      // trade was profitable.
       const [
         thisSales,
         lastSales,
         thisPurchaseOrders,
         lastPurchaseOrders,
-        thisUsdtFees,
-        lastUsdtFees,
+        thisFeeDeductions,
+        lastFeeDeductions,
+        thisConvFees,
+        lastConvFees,
+        thisTransferFees,
+        lastTransferFees,
         { count: totalClients },
         { count: activeClients },
       ] = await Promise.all([
-        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
-        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
-        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
-        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
-        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
-          .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-          .gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
-        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
-          .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-          .gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, total_amount, effective_usdt_qty').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, total_amount, effective_usdt_qty').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
+        // USDT fees (same authoritative sources as ProfitLoss.tsx)
+        fetchAllPaginated<any>(() => supabase.from('wallet_fee_deductions').select('fee_usdt_amount').gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_fee_deductions').select('fee_usdt_amount').gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('erp_product_conversions').select('fee_amount').eq('status', 'APPROVED').gte('approved_at', startStr).lte('approved_at', endStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('erp_product_conversions').select('fee_amount').eq('status', 'APPROVED').gte('approved_at', prevStartStr).lte('approved_at', prevEndStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT').eq('reference_type', 'TRANSFER_FEE').eq('asset_code', 'USDT').gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT').eq('reference_type', 'TRANSFER_FEE').eq('asset_code', 'USDT').gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59')),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
       ]);
 
-      // Helper: compute gross profit using P&L logic (NPM * Sales Qty)
-      const computeGrossProfit = async (
+      // Sum USDT fees from the three authoritative sources (matches ProfitLoss.tsx)
+      const sumFees = (
+        deductions: any[] | null,
+        conversions: any[] | null,
+        transfers: any[] | null,
+      ) =>
+        (deductions || []).reduce((s: number, f: any) => s + Number(f.fee_usdt_amount || 0), 0) +
+        (conversions || []).reduce((s: number, f: any) => s + Number(f.fee_amount || 0), 0) +
+        (transfers || []).reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+
+      const thisTotalFees = sumFees(thisFeeDeductions, thisConvFees, thisTransferFees);
+      const lastTotalFees = sumFees(lastFeeDeductions, lastConvFees, lastTransferFees);
+
+      // Helper: compute gross profit using the ProfitLoss.tsx realized-P&L method.
+      // Values are normalized to USDT-equivalent so multi-asset trades compare
+      // like-for-like. Gross profit = (avgSalesRate − effectivePurchaseRate) × salesQty.
+      const computeGrossProfit = (
         salesData: any[] | null,
         purchaseOrders: any[] | null,
-        usdtFees: any[] | null
+        totalFees: number,
       ) => {
         const sales = salesData || [];
-        const totalSalesValue = sales.reduce((s: number, o: any) => s + (Number(o.quantity || 0) * Number(o.price_per_unit || 0)), 0);
-        const totalSalesQty = sales.reduce((s: number, o: any) => s + Number(o.quantity || 0), 0);
+        const totalSalesValue = sales.reduce(
+          (s: number, o: any) =>
+            s + Number(o.effective_usdt_qty || o.quantity || 0) * Number(o.effective_usdt_rate || o.price_per_unit || 0),
+          0,
+        );
+        const totalSalesQty = sales.reduce(
+          (s: number, o: any) => s + Number(o.effective_usdt_qty || o.quantity || 0),
+          0,
+        );
         const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
-        // Fetch purchase items
-        const poIds = (purchaseOrders || []).map((po: any) => po.id).filter((id: string) => !excludedOrderIds.includes(id));
+        // Purchases: use normalized effective_usdt_qty and total_amount straight
+        // from purchase_orders (same as ProfitLoss.tsx "All Assets" mode).
         let totalPurchaseValue = 0;
         let totalPurchaseQty = 0;
-
-        if (poIds.length > 0) {
-          const items: any[] = [];
-          for (let i = 0; i < poIds.length; i += 200) {
-            const chunk = poIds.slice(i, i + 200);
-            const chunkItems = await fetchAllPaginated<any>(() => supabase.from('purchase_order_items')
-              .select('purchase_order_id, quantity, unit_price, products!inner(code)')
-              .in('purchase_order_id', chunk));
-            items.push(...chunkItems);
-          }
-          items.forEach((item: any) => {
-            const qty = Number(item.quantity || 0);
-            const unitPrice = Number(item.unit_price || 0);
-            totalPurchaseValue += qty * unitPrice;
-            totalPurchaseQty += qty;
+        (purchaseOrders || [])
+          .filter((po: any) => !excludedOrderIds.includes(po.id))
+          .forEach((po: any) => {
+            const effQty = Number(po.effective_usdt_qty || 0);
+            if (effQty > 0) {
+              totalPurchaseQty += effQty;
+              totalPurchaseValue += Number(po.total_amount || 0);
+            }
           });
-        }
 
-        // Effective purchase rate (adjusted for USDT fees)
-        const totalFees = (usdtFees || []).reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
-        const netPurchaseQty = totalPurchaseQty - totalFees;
         const avgPurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
-        const effectivePurchaseRate = netPurchaseQty > 0 ? totalPurchaseValue / netPurchaseQty : avgPurchaseRate;
+        // Effective purchase rate adjusts qty down by USDT fees consumed
+        const netPurchaseQty = totalPurchaseQty - totalFees;
+        const effectivePurchaseRate =
+          totalPurchaseQty > 0 && netPurchaseQty > 0 ? totalPurchaseValue / netPurchaseQty : avgPurchaseRate;
 
         // NPM-based gross profit (matching P&L)
         const npm = avgSalesRate - effectivePurchaseRate;
@@ -575,8 +601,9 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
         return { totalSalesValue, totalSalesQty, grossProfit, profitMargin };
       };
 
-      const thisResult = await computeGrossProfit(thisSales, thisPurchaseOrders as any, thisUsdtFees);
-      const lastResult = await computeGrossProfit(lastSales, lastPurchaseOrders as any, lastUsdtFees);
+
+      const thisResult = computeGrossProfit(thisSales, thisPurchaseOrders as any, thisTotalFees);
+      const lastResult = computeGrossProfit(lastSales, lastPurchaseOrders as any, lastTotalFees);
 
       const revenueGrowth = lastResult.totalSalesValue > 0
         ? ((thisResult.totalSalesValue - lastResult.totalSalesValue) / lastResult.totalSalesValue) * 100 : 0;

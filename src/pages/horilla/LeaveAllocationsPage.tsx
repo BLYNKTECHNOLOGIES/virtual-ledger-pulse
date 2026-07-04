@@ -216,7 +216,7 @@ export default function LeaveAllocationsPage() {
       ) : groupedArr.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <CalendarDays className="h-10 w-10 mx-auto text-muted mb-3" />
+            <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground text-sm">No leave allocations for {getQuarterLabel(quarter)} {year}</p>
             <button onClick={() => setShowBulk(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
               Bulk allocate for all employees →

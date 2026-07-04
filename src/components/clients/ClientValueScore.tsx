@@ -144,7 +144,7 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Client Priority Tag</label>
-          <Badge className={`${priorityTag.color} text-white flex items-center gap-1 w-fit`}>
+          <Badge variant="outline" className={`${priorityTag.color} flex items-center gap-1 w-fit`}>
             <Star className="h-3 w-3" />
             {priorityTag.label}
           </Badge>

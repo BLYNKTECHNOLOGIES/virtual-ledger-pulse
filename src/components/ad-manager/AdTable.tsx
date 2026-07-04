@@ -27,7 +27,8 @@ interface AdTableProps {
 export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange }: AdTableProps) {
   if (!ads || ads.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+        <Megaphone className="h-8 w-8 opacity-40" />
         <p className="text-sm">No ads found</p>
       </div>
     );

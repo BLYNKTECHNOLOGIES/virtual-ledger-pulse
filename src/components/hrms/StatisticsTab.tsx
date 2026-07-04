@@ -795,7 +795,7 @@ export function StatisticsTab() {
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4 text-center">
-                <Building className="h-6 w-6 mx-auto text-teal-600 mb-2" />
+                <Building className="h-6 w-6 mx-auto text-info mb-2" />
                 <p className="text-2xl font-bold">{departmentData.length}</p>
                 <p className="text-xs text-muted-foreground">Departments</p>
               </CardContent>

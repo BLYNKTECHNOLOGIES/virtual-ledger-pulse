@@ -428,11 +428,11 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={getAdStatusVariant(ad.advStatus)}
+                        variant="outline"
                         className={
-                          ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success text-white'
-                          : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-amber-500 text-amber-500'
-                          : ''
+                          ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
+                          : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
+                          : 'bg-muted text-muted-foreground border-border'
                         }
                       >
                         {getAdStatusLabel(ad.advStatus)}

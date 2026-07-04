@@ -346,25 +346,25 @@ export function AppSidebar() {
 
   if (isLoading) {
     return (
-      <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg">
-        <SidebarHeader className="p-4 border-b-2 border-gray-100 bg-blue-600">
+      <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm">
+        <SidebarHeader className="p-4 border-b border-sidebar-border bg-primary">
           <div className="flex items-center justify-center">
-            <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse"></div>
+            <div className="w-8 h-8 bg-primary-foreground/20 rounded-lg animate-pulse"></div>
           </div>
         </SidebarHeader>
         
-        <SidebarContent className="bg-white">
+        <SidebarContent className="bg-sidebar">
           <SidebarGroup>
             <SidebarGroupContent>
               <div className="flex justify-center items-center h-20">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
         
-        <SidebarFooter className="p-4 border-t-2 border-gray-100 bg-gray-50">
-          <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-gray-600 hover:bg-white hover:text-gray-800 ml-auto rounded-lg">
+        <SidebarFooter className="p-4 border-t border-sidebar-border bg-sidebar-accent">
+          <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ml-auto rounded-lg">
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </SidebarFooter>

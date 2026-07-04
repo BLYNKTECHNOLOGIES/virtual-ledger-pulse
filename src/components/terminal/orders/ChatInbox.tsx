@@ -225,7 +225,7 @@ function ConversationRow({ conversation: c, onClick }: { conversation: ChatConve
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-4 py-3 hover:bg-secondary/50 transition-colors flex items-center gap-3"
+      className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-3"
     >
       {/* Avatar */}
       <div className="relative shrink-0">
@@ -244,25 +244,31 @@ function ConversationRow({ conversation: c, onClick }: { conversation: ChatConve
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className={`text-xs font-semibold text-foreground truncate ${c.chatUnreadCount > 0 ? '' : ''}`}>
-            {c.counterpartyNickname || 'Unknown'}
+          <span className="flex items-center gap-1.5 min-w-0">
+            {c.chatUnreadCount > 0 && (
+              <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+            )}
+            <span className={`text-[13px] text-foreground truncate ${c.chatUnreadCount > 0 ? 'font-semibold' : 'font-medium'}`}>
+              {c.counterpartyNickname || 'Unknown'}
+            </span>
           </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+          <span className="text-[10px] text-muted-foreground t-mono tabular-nums shrink-0">
             {c.createTime ? format(new Date(c.createTime), 'HH:mm') : ''}
           </span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className={`text-[9px] font-semibold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+          <span className={`text-[9px] t-mono uppercase font-semibold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
             {c.tradeType}
           </span>
-          <span className="text-[10px] text-muted-foreground truncate">
+          <span className="text-xs text-muted-foreground truncate">
             {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
           </span>
         </div>
-        <Badge variant="outline" className={`text-[8px] mt-1 ${statusStyle.badgeClass}`}>
+        <Badge variant="outline" className={`text-[8px] mt-1 gap-1 ${statusStyle.badgeClass}`}>
           {statusStyle.label}
         </Badge>
       </div>
+
 
       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
     </button>

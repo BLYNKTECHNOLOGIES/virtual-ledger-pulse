@@ -38,15 +38,18 @@ export function TerminalHeader() {
     : 'No terminal role';
 
   return (
-    <header className="h-10 flex items-center justify-between border-b border-border px-4 bg-card/80 backdrop-blur-sm shrink-0">
+    <header className="h-10 flex items-center justify-between border-b border-border px-4 bg-background shrink-0">
       <div className="flex items-center gap-3">
         <SidebarTrigger className="h-6 w-6 text-muted-foreground hover:text-foreground transition-colors" />
         <Separator orientation="vertical" className="h-3.5" />
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] hidden sm:inline">Terminal</span>
+        <Separator orientation="vertical" className="h-3.5 hidden sm:block" />
         <div className="flex items-center gap-1.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-          <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-[0.12em]">Connected</span>
+          <div className="h-1.5 w-1.5 rounded-full bg-success t-pulse" />
+          <span className="text-[10px] font-medium text-success uppercase tracking-[0.12em] t-mono">Live</span>
         </div>
       </div>
+
 
       <div className="flex items-center gap-1">
         {(isResting || isBinanceBreakDetected) && (

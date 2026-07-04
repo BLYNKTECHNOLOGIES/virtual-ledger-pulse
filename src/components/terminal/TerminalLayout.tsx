@@ -55,8 +55,10 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
                     </div>
                     <SidebarInset className="flex flex-col flex-1 min-w-0">
                       <TerminalHeader />
-                      <main className="flex-1 overflow-auto">
-                        {children}
+                      <main className="flex-1 overflow-auto t-grid-bg">
+                        <div className="t-mount">
+                          {children}
+                        </div>
                       </main>
                     </SidebarInset>
                   </div>

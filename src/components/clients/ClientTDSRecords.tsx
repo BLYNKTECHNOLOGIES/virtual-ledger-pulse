@@ -175,7 +175,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
               <IndianRupee className="h-4 w-4" />
               <span className="text-xs font-medium">Total TDS Deducted</span>
             </div>
-            <p className="text-lg font-bold text-warning">
+            <p className="text-lg font-bold text-warning tabular-nums">
               ₹{stats.totalTdsDeducted.toLocaleString('en-IN')}
             </p>
           </div>
@@ -184,21 +184,21 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
               <Calendar className="h-4 w-4" />
               <span className="text-xs font-medium">Total Records</span>
             </div>
-            <p className="text-lg font-bold text-info">{stats.totalRecords}</p>
+            <p className="text-lg font-bold text-info tabular-nums">{stats.totalRecords}</p>
           </div>
           <div className="bg-warning/5 rounded-lg p-3 border border-warning/20">
             <div className="flex items-center gap-2 text-warning mb-1">
               <Receipt className="h-4 w-4" />
               <span className="text-xs font-medium">Pending Filing</span>
             </div>
-            <p className="text-lg font-bold text-warning">{stats.pendingRecords}</p>
+            <p className="text-lg font-bold text-warning tabular-nums">{stats.pendingRecords}</p>
           </div>
           <div className="bg-success/5 rounded-lg p-3 border border-success/20">
             <div className="flex items-center gap-2 text-success mb-1">
               <FileCheck className="h-4 w-4" />
               <span className="text-xs font-medium">Filed</span>
             </div>
-            <p className="text-lg font-bold text-success">{stats.filedRecords}</p>
+            <p className="text-lg font-bold text-success tabular-nums">{stats.filedRecords}</p>
           </div>
         </div>
 

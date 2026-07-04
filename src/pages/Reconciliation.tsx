@@ -89,7 +89,7 @@ export default function Reconciliation() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 stagger-children">
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <ListChecks className="h-5 w-5 text-muted-foreground" />
@@ -101,9 +101,9 @@ export default function Reconciliation() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
-            <AlertTriangle className="h-5 w-5 text-rose-500" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             <div>
-              <div className="text-2xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
+              <div className="text-2xl font-bold tabular-nums text-destructive">
                 {data?.totalCritical ?? "—"}
               </div>
               <div className="text-xs text-muted-foreground">Critical</div>

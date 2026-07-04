@@ -488,6 +488,9 @@ export function useBinanceChatWebSocket(
 
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
+          // A closed socket may mean the (possibly cached) listenKey was rejected/expired.
+          // Drop the cached credential so the reconnect re-fetches a fresh one.
+          invalidateChatCredential(accountIdRef.current ?? null);
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
           reconnectTimerRef.current = setTimeout(() => {
             reconnectTimerRef.current = null;

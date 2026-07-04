@@ -57,7 +57,7 @@ export function MerchantStateCard() {
     <div className={`flex h-9 shrink-0 items-center gap-2 rounded-md border px-2.5 ${hasRestriction || isCachedOnly ? 'border-warning/30 bg-warning/5' : 'border-border bg-card'}`}>
       {hasRestriction ? <ShieldAlert className="h-4 w-4 text-warning" /> : <CheckCircle className="h-4 w-4 text-primary" />}
       <span className="text-xs font-medium text-foreground">Merchant</span>
-      <Badge variant="outline" className={`h-5 px-1.5 text-[10px] ${statusClass(businessStatus)}`}>
+      <Badge variant="outline" className={`h-5 px-1.5 text-[10px] ${statusClass(businessStatus)} ${statusFlash}`}>
         {isCachedOnly ? `Cached ${statusLabel(businessStatus)}` : statusLabel(businessStatus)}
       </Badge>
       {(userDetail.isError || isCachedOnly) && <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-destructive/30 text-destructive bg-destructive/5">API</Badge>}

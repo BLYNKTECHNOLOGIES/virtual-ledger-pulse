@@ -23,12 +23,13 @@ export function QuickReplyBar({ tradeType, orderType, onSelect }: Props) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground px-2"
+          className="h-7 rounded-full bg-secondary border border-border text-xs gap-1 text-muted-foreground hover:text-foreground hover:bg-accent hover:border-primary/30 transition-colors duration-150 px-3"
         >
           <Zap className="h-3 w-3 text-trade-pending" />
           Quick Replies
           <ChevronDown className="h-2.5 w-2.5" />
         </Button>
+
       </PopoverTrigger>
       <PopoverContent
         className="w-72 p-0 bg-card border-border"

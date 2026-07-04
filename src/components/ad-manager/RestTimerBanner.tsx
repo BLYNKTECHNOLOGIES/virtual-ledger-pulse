@@ -58,9 +58,9 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
   if (isResting) {
     return (
       <>
-        <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between gap-3 bg-warning/10 border border-warning/30 rounded-lg px-4 py-3">
           <div className="flex items-center gap-3">
-            <Coffee className="h-5 w-5 text-amber-500" />
+            <Coffee className="h-5 w-5 text-warning" />
             <div>
               <p className="text-sm font-medium text-foreground">Rest Mode Active</p>
               <p className="text-xs text-muted-foreground">
@@ -69,7 +69,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="font-mono text-lg border-amber-500/50 text-amber-600 px-3 py-1">
+            <Badge variant="outline" className="font-mono text-lg border-warning/50 text-warning px-3 py-1">
               {formatCountdown(countdown)}
             </Badge>
             <Button

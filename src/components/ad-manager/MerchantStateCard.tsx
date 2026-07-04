@@ -18,7 +18,7 @@ function statusClass(status: unknown) {
   const value = Number(status);
   if (value === 1) return 'border-trade-buy/30 text-trade-buy bg-trade-buy/5';
   if (value === 2) return 'border-destructive/30 text-destructive bg-destructive/5';
-  if (value === 3) return 'border-amber-500/30 text-amber-500 bg-amber-500/5';
+  if (value === 3) return 'border-warning/30 text-warning bg-warning/5';
   return 'border-muted-foreground/30 text-muted-foreground bg-muted/30';
 }
 
@@ -52,8 +52,8 @@ export function MerchantStateCard() {
   const isCachedOnly = !hasLiveStatus && !!latestSnapshot;
 
   return (
-    <div className={`flex h-9 shrink-0 items-center gap-2 rounded-md border px-2.5 ${hasRestriction || isCachedOnly ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-card'}`}>
-      {hasRestriction ? <ShieldAlert className="h-4 w-4 text-amber-500" /> : <CheckCircle className="h-4 w-4 text-primary" />}
+    <div className={`flex h-9 shrink-0 items-center gap-2 rounded-md border px-2.5 ${hasRestriction || isCachedOnly ? 'border-warning/30 bg-warning/5' : 'border-border bg-card'}`}>
+      {hasRestriction ? <ShieldAlert className="h-4 w-4 text-warning" /> : <CheckCircle className="h-4 w-4 text-primary" />}
       <span className="text-xs font-medium text-foreground">Merchant</span>
       <Badge variant="outline" className={`h-5 px-1.5 text-[10px] ${statusClass(businessStatus)}`}>
         {isCachedOnly ? `Cached ${statusLabel(businessStatus)}` : statusLabel(businessStatus)}

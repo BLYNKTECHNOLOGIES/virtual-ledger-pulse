@@ -187,9 +187,9 @@ export function StepCompletionDialog({
             </div>
 
             {uploadedFile && (
-              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 rounded-lg">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-sm text-blue-800">{uploadedFile.name}</span>
+              <div className="flex items-center gap-2 mt-2 p-2 bg-info/10 rounded-lg">
+                <FileText className="h-4 w-4 text-info" />
+                <span className="text-sm text-info">{uploadedFile.name}</span>
               </div>
             )}
           </div>

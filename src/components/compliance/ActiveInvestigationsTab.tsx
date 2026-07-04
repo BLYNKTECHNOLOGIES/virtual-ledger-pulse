@@ -10,9 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { InvestigationDetailsDialog } from "./InvestigationDetailsDialog";
 
 const priorityColors = {
-  'HIGH': 'bg-red-50/30 text-red-500 border-red-100',
-  'MEDIUM': 'bg-orange-50/30 text-orange-500 border-orange-100',
-  'LOW': 'bg-emerald-50/30 text-emerald-500 border-emerald-100'
+  'HIGH': 'bg-destructive/10 text-destructive border-destructive/20',
+  'MEDIUM': 'bg-warning/10 text-warning border-warning/20',
+  'LOW': 'bg-success/10 text-success border-success/20'
 };
 
 const caseTypeLabels = {
@@ -114,11 +114,11 @@ export function ActiveInvestigationsTab() {
   const getPriorityBadgeColor = (priority: string) => {
     switch (priority) {
       case 'HIGH':
-        return 'bg-red-50 text-red-500 border border-red-100';
+        return 'bg-destructive/10 text-destructive border border-destructive/20';
       case 'MEDIUM':
-        return 'bg-orange-50 text-orange-500 border border-orange-100';
+        return 'bg-warning/10 text-warning border border-warning/20';
       case 'LOW':
-        return 'bg-emerald-50 text-emerald-500 border border-emerald-100';
+        return 'bg-success/10 text-success border border-success/20';
       default:
         return 'bg-muted/50 text-muted-foreground border border-border';
     }
@@ -149,7 +149,7 @@ export function ActiveInvestigationsTab() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-blue-500" />
+            <Search className="h-5 w-5 text-info" />
             Active Account Investigations
           </CardTitle>
           <div className="flex gap-2">
@@ -211,7 +211,7 @@ export function ActiveInvestigationsTab() {
           {/* High Priority Investigations */}
           {investigations?.filter(inv => inv.priority === 'HIGH').length > 0 && (
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-red-400 mb-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-destructive mb-3">
                 <AlertTriangle className="h-5 w-5" />
                 High Priority Investigations ({investigations.filter(inv => inv.priority === 'HIGH').length})
               </h3>
@@ -229,7 +229,7 @@ export function ActiveInvestigationsTab() {
                         <p className="text-sm text-muted-foreground mb-1">
                           {investigation.bank_accounts?.account_name}
                         </p>
-                        <p className="text-sm font-medium text-blue-600 mb-2">
+                        <p className="text-sm font-medium text-info mb-2">
                           {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
                         </p>
                         <div className="mb-2">
@@ -256,7 +256,7 @@ export function ActiveInvestigationsTab() {
                     </div>
                     <div className="flex gap-2 mt-3">
                       {investigation.status === 'PENDING_APPROVAL' ? (
-                        <Badge className="bg-orange-50 text-orange-600 border border-orange-200 px-4 py-2">
+                        <Badge className="bg-warning/10 text-warning border border-warning/20 px-4 py-2">
                           <CheckCircle2 className="h-4 w-4 mr-2 inline" />
                           Submitted for Approval
                         </Badge>
@@ -264,7 +264,7 @@ export function ActiveInvestigationsTab() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="border-red-100 text-red-500 hover:bg-red-50"
+                          className="border-destructive/20 text-destructive hover:bg-destructive/10"
                           onClick={() => handleViewDetails(investigation)}
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
@@ -274,7 +274,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-blue-100 text-blue-500 hover:bg-blue-50"
+                        className="border-info/20 text-info hover:bg-info/10"
                         onClick={() => handleViewDetails(investigation)}
                       >
                         <History className="h-4 w-4 mr-2" />
@@ -290,7 +290,7 @@ export function ActiveInvestigationsTab() {
           {/* Low Priority Investigations */}
           {investigations?.filter(inv => inv.priority === 'LOW').length > 0 && (
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-emerald-400 mb-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-success mb-3">
                 <Clock className="h-5 w-5" />
                 Low Priority Investigations ({investigations.filter(inv => inv.priority === 'LOW').length})
               </h3>
@@ -308,7 +308,7 @@ export function ActiveInvestigationsTab() {
                         <p className="text-sm text-muted-foreground mb-1">
                           {investigation.bank_accounts?.account_name}
                         </p>
-                        <p className="text-sm font-medium text-blue-600 mb-2">
+                        <p className="text-sm font-medium text-info mb-2">
                           {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
                         </p>
                         <div className="mb-2">
@@ -335,7 +335,7 @@ export function ActiveInvestigationsTab() {
                     </div>
                     <div className="flex gap-2 mt-3">
                       {investigation.status === 'PENDING_APPROVAL' ? (
-                        <Badge className="bg-orange-50 text-orange-600 border border-orange-200 px-4 py-2">
+                        <Badge className="bg-warning/10 text-warning border border-warning/20 px-4 py-2">
                           <CheckCircle2 className="h-4 w-4 mr-2 inline" />
                           Submitted for Approval
                         </Badge>
@@ -343,7 +343,7 @@ export function ActiveInvestigationsTab() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="border-emerald-100 text-emerald-500 hover:bg-emerald-50"
+                          className="border-success/20 text-success hover:bg-success/10"
                           onClick={() => handleViewDetails(investigation)}
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
@@ -353,7 +353,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-blue-100 text-blue-500 hover:bg-blue-50"
+                        className="border-info/20 text-info hover:bg-info/10"
                         onClick={() => handleViewDetails(investigation)}
                       >
                         <History className="h-4 w-4 mr-2" />
@@ -369,7 +369,7 @@ export function ActiveInvestigationsTab() {
           {/* Medium Priority Investigations */}
           {investigations?.filter(inv => inv.priority === 'MEDIUM').length > 0 && (
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-orange-400 mb-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-warning mb-3">
                 <Clock className="h-5 w-5" />
                 Medium Priority Investigations ({investigations.filter(inv => inv.priority === 'MEDIUM').length})
               </h3>
@@ -387,7 +387,7 @@ export function ActiveInvestigationsTab() {
                         <p className="text-sm text-muted-foreground mb-1">
                           {investigation.bank_accounts?.account_name}
                         </p>
-                        <p className="text-sm font-medium text-blue-600 mb-2">
+                        <p className="text-sm font-medium text-info mb-2">
                           {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
                         </p>
                         <div className="mb-2">
@@ -414,7 +414,7 @@ export function ActiveInvestigationsTab() {
                     </div>
                     <div className="flex gap-2 mt-3">
                       {investigation.status === 'PENDING_APPROVAL' ? (
-                        <Badge className="bg-orange-50 text-orange-600 border border-orange-200 px-4 py-2">
+                        <Badge className="bg-warning/10 text-warning border border-warning/20 px-4 py-2">
                           <CheckCircle2 className="h-4 w-4 mr-2 inline" />
                           Submitted for Approval
                         </Badge>
@@ -422,7 +422,7 @@ export function ActiveInvestigationsTab() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="border-orange-100 text-orange-500 hover:bg-orange-50"
+                          className="border-warning/20 text-warning hover:bg-warning/10"
                           onClick={() => handleViewDetails(investigation)}
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
@@ -432,7 +432,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-blue-100 text-blue-500 hover:bg-blue-50"
+                        className="border-info/20 text-info hover:bg-info/10"
                         onClick={() => handleViewDetails(investigation)}
                       >
                         <History className="h-4 w-4 mr-2" />

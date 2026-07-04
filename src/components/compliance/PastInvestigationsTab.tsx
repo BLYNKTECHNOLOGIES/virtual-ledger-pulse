@@ -192,7 +192,7 @@ export function PastInvestigationsTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Archive className="h-5 w-5 text-green-500" />
+            <Archive className="h-5 w-5 text-success" />
             Past Account Investigations
           </CardTitle>
         </CardHeader>
@@ -260,7 +260,7 @@ export function PastInvestigationsTab() {
                         {investigation.resolution_notes && (
                           <div className="mt-2">
                             <span className="font-medium text-muted-foreground text-sm">Resolution:</span>
-                            <p className="text-sm text-green-700 line-clamp-2">{investigation.resolution_notes}</p>
+                            <p className="text-sm text-success line-clamp-2">{investigation.resolution_notes}</p>
                           </div>
                         )}
                       </div>

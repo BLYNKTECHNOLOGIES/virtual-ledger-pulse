@@ -205,7 +205,7 @@ export function PendingApprovalsTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-500" />
+            <Clock className="h-5 w-5 text-warning" />
             Pending Officer Approval
           </CardTitle>
         </CardHeader>
@@ -221,14 +221,14 @@ export function PendingApprovalsTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-500" />
+            <Clock className="h-5 w-5 text-warning" />
             Pending Officer Approval ({pendingApprovals?.length || 0})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {!pendingApprovals || pendingApprovals.length === 0 ? (
             <div className="text-center py-8">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">All Clear!</h3>
               <p className="text-muted-foreground">No investigations pending officer approval.</p>
             </div>
@@ -245,7 +245,7 @@ export function PendingApprovalsTab() {
                         <Badge variant={getPriorityColor(approval.bank_cases.priority)}>
                           {approval.bank_cases.priority}
                         </Badge>
-                        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
                           PENDING APPROVAL
                         </Badge>
                         <span className="text-sm text-muted-foreground">
@@ -351,7 +351,7 @@ export function PendingApprovalsTab() {
               </div>
 
               {/* Final Resolution */}
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-info/10 p-4 rounded-lg">
                 <h3 className="font-medium text-foreground mb-3">Final Resolution</h3>
                 <div className="bg-card p-3 rounded border">
                   <p className="text-sm text-foreground leading-relaxed">
@@ -369,13 +369,13 @@ export function PendingApprovalsTab() {
                       const fileName = url.split('/').pop()?.split('-').slice(3).join('-') || `Document ${index + 1}`;
                       return (
                         <div key={index} className="flex items-center gap-2 p-3 bg-muted/50 rounded border">
-                          <FileText className="h-4 w-4 text-blue-600" />
+                          <FileText className="h-4 w-4 text-info" />
                           <span className="text-sm text-foreground flex-1">{fileName}</span>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => window.open(url, '_blank')}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-info hover:text-info"
                           >
                             <ExternalLink className="h-3 w-3 mr-1" />
                             View
@@ -408,7 +408,7 @@ export function PendingApprovalsTab() {
                 <Button
                   variant="outline"
                   onClick={handleReject}
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  className="text-destructive border-destructive/20 hover:bg-destructive/10"
                 >
                   <X className="h-4 w-4 mr-1" />
                   Reject
@@ -416,7 +416,7 @@ export function PendingApprovalsTab() {
                 <Button
                   onClick={handleApprove}
                   disabled={approveMutation.isPending}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-success hover:bg-success/90 text-primary-foreground"
                 >
                   <CheckCircle className="h-4 w-4 mr-1" />
                   Approve & Resolve
@@ -437,7 +437,7 @@ export function PendingApprovalsTab() {
           <div className="space-y-4 p-4">
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">
-                Rejection Reason <span className="text-red-500">*</span>
+                Rejection Reason <span className="text-destructive">*</span>
               </label>
               <Textarea
                 value={rejectionReason}
@@ -461,7 +461,7 @@ export function PendingApprovalsTab() {
               <Button
                 onClick={handleSubmitRejection}
                 disabled={!rejectionReason.trim() || rejectMutation.isPending}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                className="bg-destructive hover:bg-destructive/90 text-primary-foreground"
               >
                 Submit Rejection
               </Button>

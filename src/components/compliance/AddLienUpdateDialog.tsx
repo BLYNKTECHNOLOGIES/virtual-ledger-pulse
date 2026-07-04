@@ -127,7 +127,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+        <Button size="sm" className="bg-info hover:bg-info/90">
           <Plus className="h-4 w-4 mr-1" />
           Add Update
         </Button>
@@ -153,7 +153,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
             <Label>Attachments</Label>
             <div
               className={cn(
-                "border-2 border-dashed border-border rounded-lg p-4 transition-colors",
+                "border border-dashed border-border rounded-lg p-4 transition-colors",
                 isDragActive && "border-primary bg-primary/10"
               )}
               {...dropzoneProps}
@@ -214,7 +214,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
                 disabled
                 className="opacity-60"
               />
-              <Label htmlFor="lien-resolved" className="text-sm font-medium text-green-600">
+              <Label htmlFor="lien-resolved" className="text-sm font-medium text-success">
                 ✓ This lien has been resolved and released (cannot be changed)
               </Label>
             </div>
@@ -224,7 +224,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className={isLienRelease ? "bg-green-600 hover:bg-green-700" : ""}>
+            <Button type="submit" className={isLienRelease ? "bg-success hover:bg-success/90" : ""}>
               {isLienRelease ? "Release Lien" : "Add Update"}
             </Button>
           </div>

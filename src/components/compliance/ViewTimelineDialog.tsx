@@ -128,8 +128,8 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
             <div className="text-center py-4 text-muted-foreground">No updates found</div>
           ) : (
             updates.map((update, index) => (
-              <div key={update.id} className="border-l-2 border-blue-200 pl-4 pb-4 relative">
-                <div className="absolute -left-2 top-0 w-4 h-4 bg-blue-500 rounded-full"></div>
+              <div key={update.id} className="border-l-2 border-info/20 pl-4 pb-4 relative">
+                <div className="absolute -left-2 top-0 w-4 h-4 bg-info rounded-full"></div>
                 <div className="bg-muted/50 p-3 rounded-md">
                   <div className="text-sm text-muted-foreground mb-1">
                     {format(new Date(update.created_at), 'PPpp')} - {update.created_by}
@@ -147,7 +147,7 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
                           
                           return (
                             <div key={urlIndex} className="flex items-center gap-2 p-2 bg-card rounded border">
-                              <FileText className="h-4 w-4 text-red-500" />
+                              <FileText className="h-4 w-4 text-destructive" />
                               <span className="text-sm flex-1 truncate">{fileName}</span>
                               <div className="flex gap-1">
                                 {isPdf && (

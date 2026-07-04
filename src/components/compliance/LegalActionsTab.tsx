@@ -915,7 +915,7 @@ export function LegalActionsTab() {
                   <h4 className="font-medium text-foreground mb-2">
                     {selectedAction.status === 'RESOLVED' || selectedAction.status === 'DISMISSED' ? 'Case Summary & Notes' : 'Notes'}
                   </h4>
-                  <div className="text-sm text-muted-foreground bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                  <div className="text-sm text-muted-foreground bg-info/10 border border-info/20 p-3 rounded-lg">
                     {selectedAction.notes}
                   </div>
                 </div>

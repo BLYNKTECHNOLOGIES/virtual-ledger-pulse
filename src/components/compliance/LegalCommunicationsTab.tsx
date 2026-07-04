@@ -299,7 +299,7 @@ export function LegalCommunicationsTab() {
                     <Label>Attachments</Label>
                     <div
                       className={cn(
-                        "border-2 border-dashed border-border rounded-lg p-4 transition-colors",
+                        "border border-dashed border-border rounded-lg p-4 transition-colors",
                         isDragActive && "border-primary bg-primary/10"
                       )}
                       {...dropzoneProps}

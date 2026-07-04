@@ -131,10 +131,10 @@ export function CaseTrackingTab() {
     switch (status) {
       case 'RESOLVED':
       case 'CLOSED':
-        return 'text-green-800 bg-green-50 border-green-200';
+        return 'text-success bg-success/10 border-success/20';
       case 'OPEN':
       case 'ACTIVE':
-        return 'text-red-800 bg-red-50 border-red-200';
+        return 'text-destructive bg-destructive/10 border-destructive/20';
       default:
         return 'text-foreground bg-muted/50 border-border';
     }
@@ -154,7 +154,7 @@ export function CaseTrackingTab() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             Case Tracking
           </CardTitle>
           <div className="flex gap-2">
@@ -238,7 +238,7 @@ export function CaseTrackingTab() {
 
             <ViewOnlyWrapper isViewOnly={!canManage}>
               <Button 
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-destructive hover:bg-destructive/90"
                 onClick={() => setShowNewCaseDialog(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -261,7 +261,7 @@ export function CaseTrackingTab() {
                   <p className="text-sm text-muted-foreground">
                     {bankCase.bank_accounts?.bank_name} - {bankCase.bank_accounts?.account_name}
                   </p>
-                  <p className="text-sm font-medium text-blue-600 mt-1">
+                  <p className="text-sm font-medium text-info mt-1">
                     {bankCase.case_type}
                   </p>
                 </div>
@@ -293,8 +293,8 @@ export function CaseTrackingTab() {
                   <div>
                     <span className="text-muted-foreground">Priority:</span> 
                     <span className={`ml-1 font-medium ${
-                      bankCase.priority === 'HIGH' ? 'text-red-600' : 
-                      bankCase.priority === 'MEDIUM' ? 'text-orange-600' : 'text-green-600'
+                      bankCase.priority === 'HIGH' ? 'text-destructive' : 
+                      bankCase.priority === 'MEDIUM' ? 'text-warning' : 'text-success'
                     }`}>
                       {bankCase.priority}
                     </span>
@@ -312,7 +312,7 @@ export function CaseTrackingTab() {
                   <Button 
                     variant="secondary" 
                     size="sm"
-                    className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+                    className="bg-info/10 text-info hover:bg-info/20"
                     disabled
                   >
                     <Clock className="h-4 w-4 mr-2" />
@@ -322,7 +322,7 @@ export function CaseTrackingTab() {
                   <Button 
                     variant="default" 
                     size="sm"
-                    className="bg-orange-600 hover:bg-orange-700"
+                    className="bg-warning hover:bg-warning/90"
                     onClick={() => startInvestigationMutation.mutate(bankCase.id)}
                     disabled={startInvestigationMutation.isPending}
                   >

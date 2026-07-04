@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://vagiqbespusdxsbqpvbo.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "blynkex-erp-mcp",
+      "version": "0.1.0",
+      "title": "Blynkex ERP MCP"
+    },
+    "tools": [
+      {
+        "name": "list_clients",
+        "title": "List clients",
+        "description": "List clients from the ERP client directory, most recently onboarded first. Respects the signed-in user's permissions (RLS).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "Optional case-insensitive filter on client name or phone."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max rows to return (default 25, capped at 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_sales_orders",
+        "title": "List sales orders",
+        "description": "List recent sales orders from the ERP, newest first. Respects the signed-in user's permissions (RLS).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "Optional exact status filter (e.g. completed, pending)."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max rows to return (default 25, capped at 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_purchase_orders",
+        "title": "List purchase orders",
+        "description": "List recent purchase orders from the ERP, newest first. Respects the signed-in user's permissions (RLS).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "Optional exact status filter (e.g. completed, pending)."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max rows to return (default 25, capped at 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_wallet_balances",
+        "title": "Get wallet balances",
+        "description": "Get current multi-asset wallet balances (USDT, TRX, BTC, etc.) from the ERP ledger. Respects the signed-in user's permissions (RLS).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

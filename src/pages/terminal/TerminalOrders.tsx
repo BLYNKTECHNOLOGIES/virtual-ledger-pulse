@@ -1257,26 +1257,27 @@ function TerminalOrdersContent() {
                     return (
                       <TableRow
                         key={order.id}
-                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${hasAltUpiRequest ? 'bg-warning/5 border-l-2 border-l-amber-500' : ''}`}
+                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${order.trade_type === 'BUY' ? 'shadow-[inset_2px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_2px_0_0_hsl(var(--trade-sell))]'} ${hasAltUpiRequest ? 'bg-warning/5' : ''}`}
                         onClick={() => setSelectedOrder(order)}>
 
                         {/* Type/Date */}
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs">
-                              <span className={`font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                              <span className={`t-mono uppercase text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
                                 {order.trade_type === 'BUY' ? 'Buy' : 'Sell'}
                               </span>
                               {' '}
                               <span className="text-foreground font-medium">{order.asset}</span>
                             </span>
-                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
                               {order.binance_create_time
                                 ? format(new Date(order.binance_create_time), 'yyyy-MM-dd HH:mm')
                                 : '—'}
                             </span>
                           </div>
                         </TableCell>
+
 
                         {/* Order number */}
                         <TableCell className="py-3">

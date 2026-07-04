@@ -27,31 +27,32 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
     <div className="flex flex-col h-full">
       {/* Header with order context */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-foreground truncate">
+            <span className="text-xs font-medium text-foreground truncate">
               {c.counterpartyNickname}
             </span>
-            <span className={`text-[10px] font-bold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+            <span className={`text-[10px] t-mono uppercase font-bold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
               {c.tradeType}
             </span>
-            <Badge variant="outline" className={`text-[8px] ${statusStyle.badgeClass}`}>
+            <Badge variant="outline" className={`text-[8px] gap-1 ${statusStyle.badgeClass}`}>
               {statusStyle.label}
             </Badge>
           </div>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[11px] t-mono text-muted-foreground bg-secondary border border-border px-1.5 rounded">
               #{c.orderNumber.slice(-8)}
             </span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] t-mono text-muted-foreground tabular-nums">
               {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
             </span>
           </div>
         </div>
       </div>
+
 
       {/* Chat panel — reuse existing */}
       <div className="flex-1 min-h-0">

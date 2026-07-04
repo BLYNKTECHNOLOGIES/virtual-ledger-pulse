@@ -314,14 +314,14 @@ export default function PayrollDashboardPage() {
       <AlertDialog open={!!lockConfirm} onOpenChange={(open) => !open && setLockConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Lock Payroll Run?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-warning" /> Lock Payroll Run?</AlertDialogTitle>
             <AlertDialogDescription>
               Locking <strong>{lockConfirm?.title}</strong> will mark it as completed and prevent any further modifications or regeneration. This action can only be reversed via a controlled re-run.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={() => lockMutation.mutate(lockConfirm?.id)}>
+            <AlertDialogAction className="bg-warning hover:bg-warning/90 text-warning-foreground" onClick={() => lockMutation.mutate(lockConfirm?.id)}>
               <Lock className="h-4 w-4 mr-1" /> Lock & Complete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -332,7 +332,7 @@ export default function PayrollDashboardPage() {
       <Dialog open={!!reviewDialog} onOpenChange={(open) => { if (!open) { setReviewDialog(null); setReviewNotes(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-indigo-600" /> Review & Approve Payroll</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-primary" /> Review & Approve Payroll</DialogTitle>
             <DialogDescription>
               Reviewing <strong>{reviewDialog?.title}</strong> — {reviewDialog?.employee_count || 0} payslips, Net Pay ₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}.
             </DialogDescription>
@@ -341,28 +341,28 @@ export default function PayrollDashboardPage() {
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="bg-muted/50 rounded-lg p-3">
                 <p className="text-[10px] text-muted-foreground uppercase">Gross</p>
-                <p className="text-sm font-bold text-green-600">₹{(reviewDialog?.total_gross || 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm font-bold text-success tabular-nums">₹{(reviewDialog?.total_gross || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
                 <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
-                <p className="text-sm font-bold text-red-600">₹{(reviewDialog?.total_deductions || 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm font-bold text-destructive tabular-nums">₹{(reviewDialog?.total_deductions || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
                 <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
-                <p className="text-sm font-bold">₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm font-bold tabular-nums">₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}</p>
               </div>
             </div>
             <div>
               <Label>Review Notes</Label>
               <Textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Verification notes, discrepancies checked..." className="mt-1" />
             </div>
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-800">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm text-foreground">
               <strong>Review confirms</strong> payslip amounts are verified and ready for final lock. After approval, the payroll can be locked to prevent changes.
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setReviewDialog(null); setReviewNotes(""); }}>Cancel</Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate({ id: reviewDialog?.id, notes: reviewNotes.trim() })}>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate({ id: reviewDialog?.id, notes: reviewNotes.trim() })}>
               {reviewMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Reviewing...</> : <><CheckCircle className="h-4 w-4 mr-1" /> Approve</>}
             </Button>
           </DialogFooter>
@@ -373,7 +373,7 @@ export default function PayrollDashboardPage() {
       <Dialog open={!!rerunDialog} onOpenChange={(open) => { if (!open) { setRerunDialog(null); setRerunReason(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Unlock className="h-5 w-5 text-orange-600" /> Unlock & Re-run Payroll</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Unlock className="h-5 w-5 text-warning" /> Unlock & Re-run Payroll</DialogTitle>
             <DialogDescription>
               This will unlock <strong>{rerunDialog?.title}</strong>, delete existing payslips, and regenerate them with current data. This is Re-run #{(rerunDialog?.rerun_count || 0) + 1}.
             </DialogDescription>
@@ -388,14 +388,14 @@ export default function PayrollDashboardPage() {
                 className="mt-1"
               />
             </div>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
+            <div className="bg-warning/5 border border-warning/20 rounded-lg p-3 text-sm text-foreground">
               <strong>Warning:</strong> All existing payslips for this run will be deleted and regenerated. Make sure any corrections are already applied before proceeding.
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setRerunDialog(null); setRerunReason(""); }}>Cancel</Button>
             <Button
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-warning hover:bg-warning/90 text-warning-foreground"
               disabled={!rerunReason.trim() || rerunMutation.isPending}
               onClick={() => rerunMutation.mutate({ id: rerunDialog?.id, reason: rerunReason.trim() })}
             >

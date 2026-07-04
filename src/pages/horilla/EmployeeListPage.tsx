@@ -780,7 +780,7 @@ export default function EmployeeListPage() {
                           {emp.profile_image_url ? (
                             <img src={emp.profile_image_url} className="w-8 h-8 rounded-full object-cover" alt="" />
                           ) : (
-                            <div className={`w-8 h-8 rounded-full ${getColor(emp.id)} flex items-center justify-center text-white font-medium text-xs`}>
+                            <div className={`w-8 h-8 rounded-full ${getColor(emp.id)} flex items-center justify-center font-medium text-xs`}>
                               {initials(emp.first_name, emp.last_name)}
                             </div>
                           )}

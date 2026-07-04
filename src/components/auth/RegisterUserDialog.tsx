@@ -23,6 +23,9 @@ const EMPTY = {
   confirmPassword: "",
 };
 
+const fieldClass =
+  "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/30";
+
 export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({ ...EMPTY });

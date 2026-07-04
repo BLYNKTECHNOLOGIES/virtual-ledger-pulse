@@ -1127,34 +1127,41 @@ function TerminalOrdersContent() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <Tabs value={tradeFilter} onValueChange={setTradeFilter}>
-          <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All ({rawOrders.length})</TabsTrigger>
-            <TabsTrigger value="BUY" className="text-[11px] h-6 px-3">Buy ({rawOrders.filter(o => o.tradeType === 'BUY').length})</TabsTrigger>
-            <TabsTrigger value="SELL" className="text-[11px] h-6 px-3">Sell ({rawOrders.filter(o => o.tradeType === 'SELL').length})</TabsTrigger>
+          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+              All <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{rawOrders.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="BUY" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+              Buy <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-trade-buy/10 text-trade-buy text-center">{rawOrders.filter(o => o.tradeType === 'BUY').length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="SELL" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+              Sell <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-trade-sell/10 text-trade-sell text-center">{rawOrders.filter(o => o.tradeType === 'SELL').length}</span>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
         <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All Status</TabsTrigger>
-            <TabsTrigger value="active" className="text-[11px] h-6 px-3">Active</TabsTrigger>
-            <TabsTrigger value="completed" className="text-[11px] h-6 px-3">Completed</TabsTrigger>
-            <TabsTrigger value="cancelled" className="text-[11px] h-6 px-3">Cancelled</TabsTrigger>
+          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">All Status</TabsTrigger>
+            <TabsTrigger value="active" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Active</TabsTrigger>
+            <TabsTrigger value="completed" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Completed</TabsTrigger>
+            <TabsTrigger value="cancelled" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Cancelled</TabsTrigger>
           </TabsList>
         </Tabs>
 
         <Tabs value={assignmentFilter} onValueChange={setAssignmentFilter}>
-          <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All</TabsTrigger>
-            <TabsTrigger value="mine" className="text-[11px] h-6 px-3 gap-1">
+          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">All</TabsTrigger>
+            <TabsTrigger value="mine" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1">
               <User className="h-3 w-3" /> My Orders
             </TabsTrigger>
-            <TabsTrigger value="team" className="text-[11px] h-6 px-3 gap-1">
+            <TabsTrigger value="team" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1">
               <Users className="h-3 w-3" /> Team
             </TabsTrigger>
-            <TabsTrigger value="unassigned" className="text-[11px] h-6 px-3">Unassigned</TabsTrigger>
+            <TabsTrigger value="unassigned" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Unassigned</TabsTrigger>
           </TabsList>
         </Tabs>
+
 
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

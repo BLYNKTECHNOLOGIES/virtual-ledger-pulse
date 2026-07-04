@@ -331,7 +331,6 @@ export function LoginPage() {
             </div>
           </div>
         </div>
-      </div>
 
       <RegisterUserDialog open={showRegister} onOpenChange={setShowRegister} />
 

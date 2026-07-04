@@ -421,7 +421,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           )}
 
           {/* Current order messages */}
-          {wsMessages.length === 0 && isConnecting ? (
+          {currentOrderMessages.length === 0 && isConnecting ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
               <p className="text-xs text-muted-foreground">Loading messages...</p>

@@ -268,8 +268,15 @@ export function useBinanceChatWebSocket(
 
     if (!activeOrderNo) return;
 
-    fetchGroupId(activeOrderNo);
-    fetchChatHistory(activeOrderNo);
+    // Let the fast cached/archived DB read (used by ChatPanel) win the browser's
+    // limited connection pool and paint first. The slow Binance REST/credential
+    // calls below would otherwise saturate the pool and delay the cached paint
+    // by 1-2s. We start them a tick later as a pure background refresh.
+    const kickoff = setTimeout(() => {
+      if (activeOrderRef.current !== activeOrderNo) return;
+      fetchGroupId(activeOrderNo);
+      fetchChatHistory(activeOrderNo);
+    }, 250);
 
     const poll = async () => {
       if (activeOrderRef.current !== activeOrderNo) return;
@@ -278,9 +285,10 @@ export function useBinanceChatWebSocket(
       pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
     };
 
-    pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
+    pollTimerRef.current = setTimeout(poll, pollIntervalRef.current + 250);
 
     return () => {
+      clearTimeout(kickoff);
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
       pollIntervalRef.current = 5000;
     };

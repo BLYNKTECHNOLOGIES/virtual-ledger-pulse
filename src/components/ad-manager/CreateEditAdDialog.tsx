@@ -704,7 +704,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                         <span className="text-sm font-bold" style={{ color: accentColor }}>{iconLabel}</span>
                         <span className="text-sm font-medium">{label}</span>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePayMethod(m)}>
+                      <Button variant="ghost" size="icon" aria-label="Remove payment method" className="h-6 w-6" onClick={() => togglePayMethod(m)}>
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>

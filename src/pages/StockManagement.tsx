@@ -65,21 +65,21 @@ export default function StockManagement() {
         </div>
       }
     >
-    <div className="min-h-screen bg-muted/50 p-6">
+    <div className="min-h-screen bg-muted/50 p-6 page-mount">
       {/* Header */}
       <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-cyan-50 rounded-xl shadow-sm">
-                  <Package className="h-8 w-8 text-cyan-600" />
+                <div className="p-3 bg-primary/10 rounded-xl shadow-sm">
+                  <Package className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                     Stock Management
                   </h1>
-                  <p className="text-slate-600 text-lg">
+                  <p className="text-muted-foreground">
                     Inventory, warehouse, and stock control system
                   </p>
                 </div>

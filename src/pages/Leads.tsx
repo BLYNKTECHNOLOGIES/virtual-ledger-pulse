@@ -237,7 +237,7 @@ export default function Leads() {
     <PermissionGate
       permissions={["leads_view"]}
       fallback={
-        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center page-mount">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -268,7 +268,7 @@ export default function Leads() {
                   <UserPlus className="h-8 w-8 text-info" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-muted">
+                  <h1 className="text-3xl font-semibold tracking-tight text-muted">
                     Lead Management
                   </h1>
                   <p className="text-muted text-lg">

@@ -123,9 +123,16 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
         </DialogHeader>
         <div className="space-y-4 max-h-[400px] overflow-y-auto">
           {loading ? (
-            <div className="text-center py-4">Loading...</div>
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-16 rounded-md skeleton-shimmer" />
+              ))}
+            </div>
           ) : updates.length === 0 ? (
-            <div className="text-center py-4 text-muted-foreground">No updates found</div>
+            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+              <FileText className="h-8 w-8 opacity-40" />
+              <p className="text-sm text-muted-foreground">No updates found</p>
+            </div>
           ) : (
             updates.map((update, index) => (
               <div key={update.id} className="border-l-2 border-info/20 pl-4 pb-4 relative">

@@ -38,9 +38,9 @@ export default function OvertimePage() {
   const totalOT = filtered.reduce((sum: number, r: any) => sum + (r.overtime_hours || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Overtime Records</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Overtime Records</h1>
         <p className="text-sm text-muted-foreground">Track employee overtime hours</p>
       </div>
 

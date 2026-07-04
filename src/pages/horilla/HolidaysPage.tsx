@@ -58,10 +58,10 @@ export default function HolidaysPage() {
   const upcoming = holidays.filter((h: any) => new Date(h.date) >= new Date() && h.is_active);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Holidays</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Holidays</h1>
           <p className="text-sm text-muted-foreground">Manage company holidays and observances</p>
         </div>
         <Button onClick={() => { setEditId(null); setForm({ name: "", date: "", recurring: false }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">

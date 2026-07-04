@@ -120,10 +120,10 @@ export default function LoansPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Loans & Advances</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Loans & Advances</h1>
           <p className="text-sm text-muted-foreground">Manage employee salary advances and loan EMI deductions</p>
         </div>
         <Button onClick={() => setShowCreate(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">

@@ -135,7 +135,7 @@ const InvoiceCreatorPage = () => {
 
   return (
     <PermissionGate permissions={["utility_view"]}>
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6 page-mount">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -143,7 +143,7 @@ const InvoiceCreatorPage = () => {
             <Receipt className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground tracking-tight">Swift Invoice Generator</h1>
+            <h1 className="text-lg font-semibold text-foreground tracking-tight">Swift Invoice Generator</h1>
             <p className="text-xs text-muted-foreground">Bulk CSV to PDF invoices</p>
           </div>
         </div>

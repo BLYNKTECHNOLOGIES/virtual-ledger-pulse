@@ -332,7 +332,7 @@ export default function CandidateProfilePage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-foreground">{candidate.name}</h1>
+                <h1 className="text-xl font-semibold text-foreground">{candidate.name}</h1>
                 {candidate.hired ? (
                   <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success">Hired</span>
                 ) : candidate.canceled ? (

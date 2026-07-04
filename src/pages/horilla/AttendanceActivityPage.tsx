@@ -267,11 +267,11 @@ export default function AttendanceActivityPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       {/* Header — stacks on mobile */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Clock In / Out Activity</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Clock In / Out Activity</h1>
           <p className="text-sm text-muted-foreground">Real-time attendance activity tracking</p>
         </div>
         <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] w-full sm:w-auto flex-shrink-0">

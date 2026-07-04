@@ -167,10 +167,10 @@ export default function ReportsPage() {
   const NoData = () => <p className="text-center text-muted-foreground py-8 text-sm">No data available</p>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Reports & Analytics</h1>
           <p className="text-sm text-muted-foreground">HR insights with date filters and export</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

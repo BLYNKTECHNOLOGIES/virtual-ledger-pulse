@@ -132,7 +132,7 @@ export default function SkillZonePage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Skill Zone</h1>
+          <h1 className="text-xl font-semibold text-foreground">Skill Zone</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Group and track candidates by skill categories</p>
         </div>
         <button

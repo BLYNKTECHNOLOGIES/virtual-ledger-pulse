@@ -113,7 +113,7 @@ export default function WeeklyOffPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2"><CalendarDays className="h-5 w-5" /> Weekly Off Management</h1>
+          <h1 className="text-xl font-semibold flex items-center gap-2"><CalendarDays className="h-5 w-5" /> Weekly Off Management</h1>
           <p className="text-sm text-muted-foreground">Define weekly-off patterns and assign them to employees</p>
         </div>
       </div>

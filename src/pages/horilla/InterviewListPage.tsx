@@ -151,7 +151,7 @@ export default function InterviewListPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Interviews</h1>
+          <h1 className="text-xl font-semibold text-foreground">Interviews</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Manage all scheduled interviews across recruitments</p>
         </div>
         <button

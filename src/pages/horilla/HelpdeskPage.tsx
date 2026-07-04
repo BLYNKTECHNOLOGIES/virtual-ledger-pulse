@@ -54,9 +54,9 @@ export default function HelpdeskPage() {
   const statusColor = (s: string) => s === "open" ? "bg-info/10 text-info" : s === "in_progress" ? "bg-warning/10 text-warning" : s === "resolved" ? "bg-success/10 text-success" : "bg-muted text-foreground";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-foreground">Helpdesk</h1><p className="text-sm text-muted-foreground">Manage support tickets</p></div>
+        <div><h1 className="text-2xl font-semibold text-foreground">Helpdesk</h1><p className="text-sm text-muted-foreground">Manage support tickets</p></div>
         <Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-2" /> New Ticket</Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

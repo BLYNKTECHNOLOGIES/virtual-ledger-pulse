@@ -17,9 +17,9 @@ export default function SalaryStructurePage() {
   const [tab, setTab] = useState("templates");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Salary Structure</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Salary Structure</h1>
         <p className="text-sm text-muted-foreground">Create salary structure templates and assign them to employees</p>
       </div>
 

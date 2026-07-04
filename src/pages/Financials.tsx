@@ -143,7 +143,7 @@ export default function Financials() {
     <PermissionGate
       permissions={["accounting_view"]}
       fallback={
-        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center page-mount">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -174,7 +174,7 @@ export default function Financials() {
                   <Calculator className="h-8 w-8 text-success" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-muted">
+                  <h1 className="text-3xl font-semibold tracking-tight text-muted">
                     Financial Management
                   </h1>
                   <p className="text-muted text-lg">

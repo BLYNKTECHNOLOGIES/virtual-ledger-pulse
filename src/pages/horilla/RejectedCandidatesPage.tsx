@@ -33,7 +33,7 @@ export default function RejectedCandidatesPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" />
@@ -43,7 +43,7 @@ export default function RejectedCandidatesPage() {
             <UserX className="h-5 w-5 text-destructive" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Rejected Candidates</h1>
+            <h1 className="text-xl font-semibold text-foreground">Rejected Candidates</h1>
             <p className="text-sm text-muted-foreground">{filtered.length} rejected candidate{filtered.length !== 1 ? "s" : ""}</p>
           </div>
         </div>

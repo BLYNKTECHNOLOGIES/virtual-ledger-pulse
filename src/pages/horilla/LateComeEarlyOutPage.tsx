@@ -77,9 +77,9 @@ export default function LateComeEarlyOutPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Late Come & Early Out</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Late Come & Early Out</h1>
         <p className="text-sm text-muted-foreground">Track and report late arrivals and early departures with penalty linkage</p>
       </div>
 

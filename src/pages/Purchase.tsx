@@ -412,7 +412,7 @@ export default function Purchase() {
     <PermissionGate
       permissions={["purchase_view"]}
       fallback={
-        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center page-mount">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -441,7 +441,7 @@ export default function Purchase() {
                 <ShoppingBag className="h-6 w-6 md:h-8 md:w-8 text-primary" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-xl md:text-3xl font-bold tracking-tight text-muted truncate">
+                <h1 className="text-xl md:text-3xl font-semibold tracking-tight text-muted truncate">
                   Purchase Order Management
                 </h1>
                 <p className="text-muted text-sm md:text-lg truncate">

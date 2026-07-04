@@ -28,9 +28,9 @@ export default function SalaryRevisionsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Salary Revision History</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Salary Revision History</h1>
         <p className="text-sm text-muted-foreground">Auto-tracked whenever an employee's salary is updated</p>
       </div>
 

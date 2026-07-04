@@ -37,9 +37,9 @@ export default function LeaveDashboardPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Leave Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Leave Dashboard</h1>
         <p className="text-sm text-muted-foreground">Overview of leave requests and allocations</p>
       </div>
 

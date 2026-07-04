@@ -109,7 +109,7 @@ export default function DisciplinaryActionsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2"><Gavel className="h-5 w-5" /> Disciplinary Actions</h1>
+          <h1 className="text-xl font-semibold flex items-center gap-2"><Gavel className="h-5 w-5" /> Disciplinary Actions</h1>
           <p className="text-sm text-muted-foreground">Track warnings, suspensions, and other disciplinary measures</p>
         </div>
         <Button onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" /> New Action</Button>

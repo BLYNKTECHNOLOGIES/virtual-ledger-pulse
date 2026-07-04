@@ -90,7 +90,7 @@ export default function Shortcuts() {
             <Keyboard className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Keyboard Shortcuts</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Keyboard Shortcuts</h1>
             <p className="text-sm text-muted-foreground">
               Work faster across the ERP. Shortcuts respect your permissions — actions you can't
               access are shown greyed out.

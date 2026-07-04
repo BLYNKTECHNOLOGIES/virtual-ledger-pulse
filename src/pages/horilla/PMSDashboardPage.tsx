@@ -68,10 +68,10 @@ export default function PMSDashboardPage() {
   if (loading) return <div className="flex items-center justify-center py-24 text-muted-foreground">Loading PMS data...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Performance Management</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Performance Management</h1>
           <p className="text-muted-foreground text-sm">OKRs, objectives, and 360° feedback</p>
         </div>
         <div className="flex gap-2">

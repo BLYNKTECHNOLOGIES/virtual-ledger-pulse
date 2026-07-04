@@ -72,7 +72,7 @@ export default function AttendancePunchesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold flex items-center gap-2"><Fingerprint className="h-5 w-5" /> Raw Biometric Punches</h1>
+        <h1 className="text-xl font-semibold flex items-center gap-2"><Fingerprint className="h-5 w-5" /> Raw Biometric Punches</h1>
         <p className="text-sm text-muted-foreground">View raw punch data from biometric devices</p>
       </div>
 

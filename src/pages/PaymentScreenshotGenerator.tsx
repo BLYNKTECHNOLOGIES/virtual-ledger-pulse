@@ -56,13 +56,13 @@ const PaymentScreenshotGenerator = () => {
 
   return (
     <PermissionGate permissions={["utility_view"]}>
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="p-6 max-w-6xl mx-auto space-y-6 page-mount">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/utility")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Payment Screenshot Generator</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Payment Screenshot Generator</h1>
             <p className="text-sm text-muted-foreground mt-1">Generate payment receipt screenshots for transactions</p>
           </div>
         </div>

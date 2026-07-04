@@ -49,7 +49,7 @@ export default function HRLogsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold">HR System Logs</h1>
+        <h1 className="text-xl font-semibold">HR System Logs</h1>
         <p className="text-sm text-muted-foreground">Email delivery and notification audit trail</p>
       </div>
 

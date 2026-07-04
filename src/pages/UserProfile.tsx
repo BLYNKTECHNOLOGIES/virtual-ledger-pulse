@@ -927,7 +927,7 @@ export default function UserProfile() {
             )}
           </Avatar>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-1">{displayName}</h1>
+            <h1 className="text-3xl font-semibold mb-1">{displayName}</h1>
             <p className="text-lg opacity-90">{user?.email}</p>
             {hrEmployee && (
               <div className="flex items-center gap-4 text-sm opacity-80 mt-1">

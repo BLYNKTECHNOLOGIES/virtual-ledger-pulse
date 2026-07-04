@@ -28,7 +28,7 @@ export default function HelpAssistantAdmin() {
 function AdminInner() {
   const navigate = useNavigate();
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-4">
+    <div className="p-6 max-w-7xl mx-auto space-y-4 page-mount">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => navigate("/help-assistant")}><ArrowLeft className="h-4 w-4" /> Back</Button>
         <div>

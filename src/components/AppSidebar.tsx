@@ -20,8 +20,8 @@ const reconciliationItem: SidebarGroupItem = {
   title: "Reconciliation",
   url: "/reconciliation",
   icon: ShieldCheck,
-  color: "text-rose-600",
-  bgColor: "bg-rose-100",
+  color: "text-destructive",
+  bgColor: "bg-destructive/10",
   permissions: [],
 };
 
@@ -32,8 +32,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Dashboard",
     url: "/dashboard",
     icon: Home,
-    color: "text-blue-600",
-    bgColor: "bg-blue-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["dashboard_view"]
   },
   {
@@ -41,8 +41,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "ERP Entry",
     url: "/erp-entry",
     icon: Inbox,
-    color: "text-sky-600",
-    bgColor: "bg-sky-100",
+    color: "text-info",
+    bgColor: "bg-info/10",
     permissions: ["erp_entry_view", "erp_entry_manage"]
   },
   {
@@ -50,8 +50,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Stock Management",
     url: "/stock",
     icon: Package,
-    color: "text-amber-600",
-    bgColor: "bg-amber-100",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
     permissions: ["stock_view", "stock_manage"]
   },
   {
@@ -59,8 +59,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Sales",
     url: "/sales",
     icon: TrendingUp,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100",
+    color: "text-success",
+    bgColor: "bg-success/10",
     permissions: ["sales_view", "sales_manage"]
   },
   {
@@ -68,8 +68,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Purchase",
     url: "/purchase",
     icon: ShoppingCart,
-    color: "text-purple-600",
-    bgColor: "bg-purple-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["purchase_view", "purchase_manage"]
   },
   {
@@ -77,8 +77,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "BAMS",
     url: "/bams",
     icon: Building2,
-    color: "text-orange-600",
-    bgColor: "bg-orange-100",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
     permissions: ["bams_view", "bams_manage"]
   },
   {
@@ -86,8 +86,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Clients",
     url: "/clients",
     icon: Users,
-    color: "text-cyan-600",
-    bgColor: "bg-cyan-100",
+    color: "text-info",
+    bgColor: "bg-info/10",
     permissions: ["clients_view", "clients_manage"]
   },
   {
@@ -95,8 +95,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "RA Dashboard",
     url: "/ra-dashboard",
     icon: Headset,
-    color: "text-pink-600",
-    bgColor: "bg-pink-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["ra_dashboard_view"]
   },
   {
@@ -104,8 +104,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Leads",
     url: "/leads",
     icon: UserPlus,
-    color: "text-teal-600",
-    bgColor: "bg-teal-100",
+    color: "text-success",
+    bgColor: "bg-success/10",
     permissions: ["leads_view", "leads_manage"]
   },
   {
@@ -113,8 +113,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "User Management",
     url: "/user-management",
     icon: Settings,
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["user_management_view", "user_management_manage"]
   },
   {
@@ -122,8 +122,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Compliance",
     url: "/compliance",
     icon: Scale,
-    color: "text-red-600",
-    bgColor: "bg-red-100",
+    color: "text-destructive",
+    bgColor: "bg-destructive/10",
     permissions: ["compliance_view", "compliance_manage"]
   },
   {
@@ -131,8 +131,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Risk Management",
     url: "/risk-management",
     icon: Shield,
-    color: "text-yellow-600",
-    bgColor: "bg-yellow-100",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
     permissions: ["risk_management_view", "risk_management_manage"]
   },
   {
@@ -140,8 +140,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "HRMS",
     url: "/hrms",
     icon: UserCheck,
-    color: "text-pink-600",
-    bgColor: "bg-pink-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["hrms_view", "hrms_manage"]
   },
   {
@@ -149,8 +149,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Tasks",
     url: "/tasks",
     icon: CheckSquare,
-    color: "text-violet-600",
-    bgColor: "bg-violet-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["tasks_view", "tasks_manage"]
   },
   {
@@ -158,8 +158,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "AI Help",
     url: "/help-assistant",
     icon: Sparkles,
-    color: "text-fuchsia-600",
-    bgColor: "bg-fuchsia-100",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     permissions: ["help_assistant_view", "help_assistant_manage"]
   },
   {
@@ -167,8 +167,8 @@ const standaloneItems: SidebarGroupItem[] = [
     title: "Shortcuts",
     url: "/shortcuts",
     icon: Keyboard,
-    color: "text-slate-600",
-    bgColor: "bg-slate-100",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
     permissions: [] // visible to all users
   }
 ];
@@ -179,16 +179,16 @@ const sidebarGroups: SidebarGroupConfig[] = [
     id: "finance-analytics",
     title: "Finance & Analytics",
     icon: BarChart3,
-    color: "text-green-600",
-    bgColor: "bg-green-100",
+    color: "text-success",
+    bgColor: "bg-success/10",
     children: [
       {
         id: "accounting",
         title: "Tax Management",
         url: "/accounting",
         icon: BookOpen,
-        color: "text-yellow-700",
-        bgColor: "bg-yellow-100",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
         permissions: ["accounting_view", "accounting_manage"]
       },
       {
@@ -196,8 +196,8 @@ const sidebarGroups: SidebarGroupConfig[] = [
         title: "P&L",
         url: "/profit-loss",
         icon: TrendingUp,
-        color: "text-teal-600",
-        bgColor: "bg-teal-100",
+        color: "text-success",
+        bgColor: "bg-success/10",
         permissions: ["accounting_view", "accounting_manage"]
       },
       {
@@ -205,8 +205,8 @@ const sidebarGroups: SidebarGroupConfig[] = [
         title: "Financials",
         url: "/financials",
         icon: Calculator,
-        color: "text-emerald-600",
-        bgColor: "bg-emerald-100",
+        color: "text-success",
+        bgColor: "bg-success/10",
         permissions: ["accounting_view", "accounting_manage"]
       },
       {
@@ -214,8 +214,8 @@ const sidebarGroups: SidebarGroupConfig[] = [
         title: "Statistics",
         url: "/statistics",
         icon: BarChart3,
-        color: "text-green-600",
-        bgColor: "bg-green-100",
+        color: "text-success",
+        bgColor: "bg-success/10",
         permissions: ["statistics_view", "statistics_manage"]
       }
      ]
@@ -224,16 +224,16 @@ const sidebarGroups: SidebarGroupConfig[] = [
     id: "utility",
     title: "Utility",
     icon: Wrench,
-    color: "text-gray-600",
-    bgColor: "bg-gray-100",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
     children: [
       {
         id: "utility-hub",
         title: "All Tools",
         url: "/utility",
         icon: Wrench,
-        color: "text-gray-600",
-        bgColor: "bg-gray-100",
+        color: "text-muted-foreground",
+        bgColor: "bg-muted",
         permissions: ["utility_view"]
       }
     ]
@@ -453,7 +453,7 @@ export function AppSidebar() {
           <Link to="/terminal">
             <Button
               variant="ghost"
-              className={`w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-amber-400 hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 hover:text-amber-300 border border-amber-500/30 hover:border-amber-400/50 shadow-lg hover:shadow-amber-500/10 transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
+              className={`w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-warning hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 hover:text-warning border border-amber-500/30 hover:border-amber-400/50 shadow-lg hover:shadow-amber-500/10 transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
             >
               <Megaphone className={`h-4 w-4 ${isCollapsed ? '' : 'mr-2'}`} />
               {!isCollapsed && <span className="text-xs">Terminal</span>}

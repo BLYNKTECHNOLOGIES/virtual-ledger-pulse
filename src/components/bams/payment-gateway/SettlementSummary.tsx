@@ -208,12 +208,12 @@ export function SettlementSummary() {
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Settled</p>
-                <span className="mt-2 block text-2xl font-semibold tabular-nums text-green-600">
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-success">
                   ₹{stats.totalSettled.toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                <DollarSign className="h-6 w-6 text-green-600" />
+              <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <DollarSign className="h-6 w-6 text-success" />
               </div>
             </div>
           </CardContent>
@@ -224,12 +224,12 @@ export function SettlementSummary() {
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Transactions</p>
-                <span className="mt-2 block text-2xl font-semibold tabular-nums text-blue-600">
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-info">
                   {stats.totalTransactions}
                 </span>
               </div>
-              <div className="bg-blue-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                <FileText className="h-6 w-6 text-blue-600" />
+              <div className="bg-info/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <FileText className="h-6 w-6 text-info" />
               </div>
             </div>
           </CardContent>
@@ -240,12 +240,12 @@ export function SettlementSummary() {
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total MDR Deducted</p>
-                <span className="mt-2 block text-2xl font-semibold tabular-nums text-red-600">
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-destructive">
                   ₹{stats.totalMdrDeducted.toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="bg-red-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                <TrendingUp className="h-6 w-6 text-red-600" />
+              <div className="bg-destructive/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <TrendingUp className="h-6 w-6 text-destructive" />
               </div>
             </div>
           </CardContent>
@@ -256,12 +256,12 @@ export function SettlementSummary() {
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Average Settlement</p>
-                <span className="mt-2 block text-2xl font-semibold tabular-nums text-purple-600">
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-primary">
                   ₹{stats.averageSettlementAmount.toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="bg-purple-50 p-3 rounded-lg shadow-sm flex-shrink-0">
-                <Calendar className="h-6 w-6 text-purple-600" />
+              <div className="bg-primary/10 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <Calendar className="h-6 w-6 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -299,7 +299,7 @@ export function SettlementSummary() {
                 <SelectTrigger>
                   <SelectValue placeholder="All banks" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectContent className="bg-background border shadow-sm z-50">
                   <SelectItem value="all">All banks</SelectItem>
                   {bankAccounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
@@ -356,10 +356,10 @@ export function SettlementSummary() {
                     </TableCell>
                     <TableCell>{settlement.settlement_items.length}</TableCell>
                     <TableCell>₹{settlement.total_amount.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-red-600">
+                    <TableCell className="text-destructive">
                       ₹{settlement.mdr_amount.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell className="font-semibold text-green-600">
+                    <TableCell className="font-semibold text-success">
                       ₹{settlement.net_amount.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
@@ -368,8 +368,8 @@ export function SettlementSummary() {
                     <TableCell>
                       <Badge variant="default" className={
                         settlement.status === 'REVERSED'
-                          ? "bg-orange-100 text-orange-800"
-                          : "bg-green-100 text-green-800"
+                          ? "bg-warning/10 text-warning"
+                          : "bg-success/10 text-success"
                       }>
                         {settlement.status || 'COMPLETED'}
                       </Badge>
@@ -390,7 +390,7 @@ export function SettlementSummary() {
                             size="sm" 
                             variant="outline"
                             onClick={() => handleReverseClick(settlement)}
-                            className="flex items-center gap-2 text-orange-600 border-orange-300 hover:bg-orange-50"
+                            className="flex items-center gap-2 text-warning border-warning/20 hover:bg-warning/10"
                           >
                             <Undo2 className="h-4 w-4" />
                             Reverse
@@ -416,7 +416,7 @@ export function SettlementSummary() {
       <Dialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-orange-600">
+            <DialogTitle className="flex items-center gap-2 text-warning">
               <Undo2 className="h-5 w-5" />
               Reverse Settlement
             </DialogTitle>
@@ -436,19 +436,19 @@ export function SettlementSummary() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Net Amount:</span>
-                <span className="font-medium text-green-600">₹{selectedReverseSettlement.net_amount.toLocaleString('en-IN')}</span>
+                <span className="font-medium text-success">₹{selectedReverseSettlement.net_amount.toLocaleString('en-IN')}</span>
               </div>
               {selectedReverseSettlement.mdr_amount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">MDR Expense to reverse:</span>
-                  <span className="font-medium text-red-600">₹{selectedReverseSettlement.mdr_amount.toLocaleString('en-IN')}</span>
+                  <span className="font-medium text-destructive">₹{selectedReverseSettlement.mdr_amount.toLocaleString('en-IN')}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Orders:</span>
                 <span className="font-medium">{selectedReverseSettlement.settlement_items.length}</span>
               </div>
-              <div className="bg-orange-50 border border-orange-200 rounded-md p-3 text-sm text-orange-800">
+              <div className="bg-warning/10 border border-warning/20 rounded-md p-3 text-sm text-warning">
                 <strong>Warning:</strong> The bank balance will be debited by ₹{selectedReverseSettlement.net_amount.toLocaleString('en-IN')}
                 {selectedReverseSettlement.mdr_amount > 0 && ` and MDR expense of ₹${selectedReverseSettlement.mdr_amount.toLocaleString('en-IN')} will be reversed`}.
                 All associated orders will move back to Pending Settlements.

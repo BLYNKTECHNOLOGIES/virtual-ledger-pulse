@@ -374,16 +374,16 @@ export function DirectoryTab() {
     switch (type) {
       case 'INCOME':
       case 'SALES_ORDER':
-        return <TrendingUp className="h-4 w-4 text-green-600" />;
+        return <TrendingUp className="h-4 w-4 text-success" />;
       case 'EXPENSE':
-        return <TrendingDown className="h-4 w-4 text-red-600" />;
+        return <TrendingDown className="h-4 w-4 text-destructive" />;
       case 'PURCHASE_ORDER':
-        return <TrendingDown className="h-4 w-4 text-blue-600" />;
+        return <TrendingDown className="h-4 w-4 text-info" />;
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
-        return <ArrowRightLeft className="h-4 w-4 text-blue-600" />;
+        return <ArrowRightLeft className="h-4 w-4 text-info" />;
       case 'ADJUSTMENT':
-        return <Settings className="h-4 w-4 text-amber-600" />;
+        return <Settings className="h-4 w-4 text-warning" />;
       default:
         return null;
     }
@@ -393,16 +393,16 @@ export function DirectoryTab() {
     switch (type) {
       case 'INCOME':
       case 'SALES_ORDER':
-        return 'text-green-700';
+        return 'text-success';
       case 'EXPENSE':
-        return 'text-red-700';
+        return 'text-destructive';
       case 'PURCHASE_ORDER':
-        return 'text-red-700';
+        return 'text-destructive';
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
-        return 'text-blue-700';
+        return 'text-info';
       case 'ADJUSTMENT':
-        return transaction?.adjustment_direction === 'DEPOSIT' ? 'text-green-700' : 'text-red-700';
+        return transaction?.adjustment_direction === 'DEPOSIT' ? 'text-success' : 'text-destructive';
       default:
         return 'text-foreground';
     }
@@ -622,7 +622,7 @@ export function DirectoryTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-blue-600" />
+              <Filter className="h-5 w-5 text-info" />
               Transaction Filters
             </CardTitle>
             <div className="flex items-center gap-2">
@@ -748,11 +748,11 @@ export function DirectoryTab() {
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3">
             <CardTitle className="flex items-center gap-2 flex-wrap">
-              <ArrowRightLeft className="h-5 w-5 text-blue-600 shrink-0" />
+              <ArrowRightLeft className="h-5 w-5 text-info shrink-0" />
               <span className="text-base md:text-lg">All Transactions</span>
               <Badge variant="secondary" className="text-xs">{filteredTransactions?.length || 0}</Badge>
               {hasActiveFilters && (
-                <Badge variant="outline" className="text-blue-600 text-xs">
+                <Badge variant="outline" className="text-info text-xs">
                   Filtered
                 </Badge>
               )}

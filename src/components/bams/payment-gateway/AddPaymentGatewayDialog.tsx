@@ -176,7 +176,7 @@ export function AddPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 <SelectItem value="UPI">UPI</SelectItem>
                 <SelectItem value="Bank Account">Bank Account</SelectItem>
               </SelectContent>
@@ -204,7 +204,7 @@ export function AddPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select bank account for settlement" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 {bankAccounts.map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name} ({account.account_number.slice(-4)})
@@ -226,7 +226,7 @@ export function AddPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select risk category" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 <SelectItem value="Low Risk">Low Risk</SelectItem>
                 <SelectItem value="Medium Risk">Medium Risk</SelectItem>
                 <SelectItem value="High Risk">High Risk</SelectItem>
@@ -279,7 +279,7 @@ export function AddPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select frequency" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 <SelectItem value="24 hours">24 Hours</SelectItem>
                 <SelectItem value="Daily">Daily</SelectItem>
                 <SelectItem value="48 hours">48 Hours</SelectItem>
@@ -297,7 +297,7 @@ export function AddPaymentGatewayDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select settlement cycle" />
               </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-sm z-50">
                 <SelectItem value="Instant Settlement">Instant Settlement</SelectItem>
                 <SelectItem value="T+1 Day">T+1 Day</SelectItem>
                 <SelectItem value="Custom">Custom</SelectItem>

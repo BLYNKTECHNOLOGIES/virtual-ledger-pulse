@@ -294,7 +294,7 @@ export function ImportBankAccountsDialog({ open, onOpenChange }: ImportBankAccou
           )}
 
           {importData.length > 0 && errors.length === 0 && (
-            <Alert className="border-green-500 text-green-700">
+            <Alert className="border-success/20 text-success">
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
                 {importData.length} account(s) ready to import.

@@ -199,8 +199,8 @@ export function SettlementReviewDialog({
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-blue-600" />
-                  <span className="text-lg font-bold text-blue-600">
+                  <DollarSign className="h-4 w-4 text-info" />
+                  <span className="text-lg font-bold text-info">
                     ₹{settlement.total_amount.toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -213,8 +213,8 @@ export function SettlementReviewDialog({
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-red-600" />
-                  <span className="text-lg font-bold text-red-600">
+                  <TrendingUp className="h-4 w-4 text-destructive" />
+                  <span className="text-lg font-bold text-destructive">
                     ₹{settlement.mdr_amount.toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -230,8 +230,8 @@ export function SettlementReviewDialog({
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <span className="text-lg font-bold text-green-600">
+                  <DollarSign className="h-4 w-4 text-success" />
+                  <span className="text-lg font-bold text-success">
                     ₹{settlement.net_amount.toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -244,7 +244,7 @@ export function SettlementReviewDialog({
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-purple-600" />
+                  <Calendar className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">
                     {format(new Date(settlement.settlement_date), 'MMM dd, yyyy')}
                   </span>
@@ -291,7 +291,7 @@ export function SettlementReviewDialog({
                 {settlement.status === 'REVERSED' && (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Reversed By</p>
-                    <p className="font-medium text-orange-600">
+                    <p className="font-medium text-warning">
                       {settlement.reversed_by_user?.username || '—'}
                     </p>
                   </div>
@@ -338,7 +338,7 @@ export function SettlementReviewDialog({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="default" className="bg-green-100 text-green-800">
+                        <Badge variant="default" className="bg-success/10 text-success">
                           {item.sales_orders.settlement_status || 'SETTLED'}
                         </Badge>
                       </TableCell>
@@ -364,12 +364,12 @@ export function SettlementReviewDialog({
                   <span>Total Transaction Amount:</span>
                   <span className="font-medium">₹{settlement.total_amount.toLocaleString('en-IN')}</span>
                 </div>
-                <div className="flex justify-between text-red-600">
+                <div className="flex justify-between text-destructive">
                   <span>Less: MDR Charges ({settlement.mdr_rate}%):</span>
                   <span className="font-medium">-₹{settlement.mdr_amount.toLocaleString('en-IN')}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between text-green-600 font-semibold">
+                <div className="flex justify-between text-success font-semibold">
                   <span>Net Settlement Amount:</span>
                   <span>₹{settlement.net_amount.toLocaleString('en-IN')}</span>
                 </div>

@@ -24,7 +24,7 @@ const CASE_TYPES = [
   { value: 'PAYMENT_NOT_CREDITED', label: 'Payment not Credited to Beneficiary', color: 'bg-info/10 text-info border-info/20' },
   { value: 'SETTLEMENT_NOT_RECEIVED', label: 'Settlement Not Received', color: 'bg-primary/10 text-primary border-primary/20' },
   { value: 'LIEN_RECEIVED', label: 'Lien Received', color: 'bg-accent/10 text-accent border-accent/20' },
-  { value: 'BALANCE_DISCREPANCY', label: 'Balance Discrepancy', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800' },
+  { value: 'BALANCE_DISCREPANCY', label: 'Balance Discrepancy', color: 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-purple-300 dark:border-primary/20' },
 ];
 
 const PRIORITIES = [
@@ -874,7 +874,7 @@ export function CaseGenerator() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select case type" />
                           </SelectTrigger>
-                          <SelectContent className="bg-background border shadow-lg z-50">
+                          <SelectContent className="bg-background border shadow-sm z-50">
                             {CASE_TYPES.map((type) => (
                               <SelectItem key={type.value} value={type.value}>
                                 {type.label}
@@ -893,7 +893,7 @@ export function CaseGenerator() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select bank account" />
                           </SelectTrigger>
-                          <SelectContent className="bg-background border shadow-lg z-50">
+                          <SelectContent className="bg-background border shadow-sm z-50">
                             {bankAccounts?.map((account) => (
                               <SelectItem key={account.id} value={account.id}>
                                 {account.bank_name} - {account.account_name}

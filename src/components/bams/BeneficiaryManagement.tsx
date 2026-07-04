@@ -575,7 +575,7 @@ export function BeneficiaryManagement() {
                             <div className="flex flex-wrap gap-1">
                               {addedBanks.map((bankId) => (
                                 <Badge key={bankId} variant="outline" className="text-[9px] gap-0.5">
-                                  <CheckCircle2 className="h-2.5 w-2.5 text-green-600" />
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-success" />
                                   {getBankName(bankId)}
                                 </Badge>
                               ))}

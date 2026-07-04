@@ -180,7 +180,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
           </DialogDescription>
         </DialogHeader>
 
-        <Alert className="border-amber-500 text-amber-700 bg-amber-50">
+        <Alert className="border-warning/20 text-warning bg-warning/10">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             Manual adjustments are tracked for audit purposes. A corresponding entry will be created in the Balance Adjustment Account.
@@ -263,7 +263,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
           </div>
 
           {selectedAccount && formData.amount && (
-            <div className="bg-blue-50 p-3 rounded-md text-sm text-blue-700">
+            <div className="bg-info/10 p-3 rounded-md text-sm text-info">
               <div className="flex justify-between">
                 <span>New Balance (after adjustment):</span>
                 <span className="font-medium">

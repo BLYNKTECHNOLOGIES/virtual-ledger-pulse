@@ -296,7 +296,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
             <div>
               <Label htmlFor="documents">Upload Documents (Optional)</Label>
               <div className="mt-2">
-                <label {...docsDropzone} className={cn("flex items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50", docsDragActive && "border-primary bg-primary/10")}>
+                <label {...docsDropzone} className={cn("flex items-center justify-center w-full h-32 border border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50", docsDragActive && "border-primary bg-primary/10")}>
                   <div className="flex flex-col items-center">
                     <Upload className="w-8 h-8 text-muted-foreground" />
                     <p className="mt-2 text-sm text-muted-foreground">Click to upload files</p>

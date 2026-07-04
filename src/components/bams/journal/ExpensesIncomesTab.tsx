@@ -157,22 +157,22 @@ export function ExpensesIncomesTab() {
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'INCOME':
-        return <TrendingUp className="h-4 w-4 text-green-600" />;
+        return <TrendingUp className="h-4 w-4 text-success" />;
       case 'EXPENSE':
-        return <TrendingDown className="h-4 w-4 text-red-600" />;
+        return <TrendingDown className="h-4 w-4 text-destructive" />;
       default:
-        return <ArrowRightLeft className="h-4 w-4 text-blue-600" />;
+        return <ArrowRightLeft className="h-4 w-4 text-info" />;
     }
   };
 
   const getTransactionColor = (type: string) => {
     switch (type) {
       case 'INCOME':
-        return 'text-green-700';
+        return 'text-success';
       case 'EXPENSE':
-        return 'text-red-700';
+        return 'text-destructive';
       default:
-        return 'text-blue-700';
+        return 'text-info';
     }
   };
 
@@ -199,7 +199,7 @@ export function ExpensesIncomesTab() {
         <CardHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
+              <ArrowRightLeft className="h-5 w-5 text-info" />
               Recent Expenses & Incomes
               <Badge variant="secondary">{recentTransactions.length} recent entries</Badge>
             </CardTitle>

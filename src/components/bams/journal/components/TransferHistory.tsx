@@ -107,8 +107,8 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
                   title="Click to view full transaction details"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-blue-100 rounded-full">
-                      <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                    <div className="p-2 bg-info/10 rounded-full">
+                      <ArrowRightLeft className="h-4 w-4 text-info" />
                     </div>
                     <div>
                       <div className="font-medium flex items-center gap-2">
@@ -130,7 +130,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <div className="font-semibold text-lg">₹{parseFloat(transfer.amount.toString()).toLocaleString('en-IN')}</div>
-                      <div className="flex items-center gap-1 text-green-600 text-sm">
+                      <div className="flex items-center gap-1 text-success text-sm">
                         <Check className="h-3 w-3" />
                         Completed
                       </div>

@@ -162,7 +162,7 @@ export function CreditSubLedgerDialog({
               <span
                 className={cn(
                   "font-mono font-semibold tabular-nums",
-                  total > 0 ? "text-green-600" : total < 0 ? "text-red-600" : "text-muted-foreground"
+                  total > 0 ? "text-success" : total < 0 ? "text-destructive" : "text-muted-foreground"
                 )}
               >
                 {fmt(total)}
@@ -203,7 +203,7 @@ export function CreditSubLedgerDialog({
                       <span
                         className={cn(
                           "font-mono font-semibold tabular-nums",
-                          g.net > 0 ? "text-green-600" : g.net < 0 ? "text-red-600" : "text-muted-foreground"
+                          g.net > 0 ? "text-success" : g.net < 0 ? "text-destructive" : "text-muted-foreground"
                         )}
                       >
                         {fmt(g.net)}
@@ -244,7 +244,7 @@ export function CreditSubLedgerDialog({
                               <td
                                 className={cn(
                                   "p-2 text-right font-mono tabular-nums",
-                                  signedAmount(t) >= 0 ? "text-green-600" : "text-red-600"
+                                  signedAmount(t) >= 0 ? "text-success" : "text-destructive"
                                 )}
                               >
                                 {fmt(signedAmount(t))}

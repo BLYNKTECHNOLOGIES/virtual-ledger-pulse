@@ -757,9 +757,9 @@ export default function ProfitLoss() {
                 Gross Profit - Expenses + Income
               </p>
             </div>
-            <div className="p-4 bg-pink-500/10 rounded-lg">
+            <div className="p-4 bg-primary/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Percent className="h-4 w-4 text-pink-500" />
+                <Percent className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium text-muted-foreground">Profit Margin</span>
               </div>
               <p className={`text-2xl font-bold ${(periodMetrics?.profitMargin || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>

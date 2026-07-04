@@ -465,7 +465,7 @@ export default function EmployeeListPage() {
 
   // ─── Helpers ───
   const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
-  const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500"];
+  const avatarColors = ["bg-primary/10 text-primary", "bg-info/10 text-info", "bg-success/10 text-success", "bg-warning/10 text-warning"];
   const getColor = (id: string) => avatarColors[id.charCodeAt(0) % avatarColors.length];
 
   const resetPage = () => setCurrentPage(1);

@@ -76,7 +76,7 @@ export function ClientOrderSummaryDialog({
       case 'COMPLETED':
         return <Badge className="bg-success/10 text-success border-success/20">Completed</Badge>;
       case 'PENDING':
-        return <Badge className="bg-amber-100 text-amber-800">Pending</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Pending</Badge>;
       case 'CANCELLED':
         return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Cancelled</Badge>;
       default:

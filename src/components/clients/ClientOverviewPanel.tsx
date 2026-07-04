@@ -346,7 +346,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         {/* Source of Income Details */}
         {incomeDetails && (
-          <div className="p-3 bg-amber-50 rounded-md border border-amber-200 space-y-2">
+          <div className="p-3 bg-warning/5 rounded-md border border-warning/30 space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
               <Briefcase className="h-4 w-4" />
               Source of Income

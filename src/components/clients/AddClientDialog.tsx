@@ -211,10 +211,10 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
 
         <div className="space-y-6">
           {duplicateWarning && !duplicateAcknowledged && (
-            <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <Alert variant="destructive" className="border-warning/30 bg-warning/5">
+              <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="space-y-2">
-                <p className="font-semibold text-amber-800 dark:text-amber-300">Possible duplicate client detected!</p>
+                <p className="font-semibold text-warning">Possible duplicate client detected!</p>
                 {duplicateWarning.phoneMatches.length > 0 && (
                   <div>
                     <span className="text-xs font-medium">Same phone number:</span>

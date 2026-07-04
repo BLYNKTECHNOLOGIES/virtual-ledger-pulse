@@ -570,7 +570,7 @@ export function SellerOnboardingApprovals() {
     switch (status) {
       case 'PENDING':
       case 'PENDING_APPROVAL':
-        return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+        return <Badge className="bg-warning/10 text-warning"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
       case 'VERIFIED':
         return <Badge className="bg-success/10 text-success border-success/20"><CheckCircle className="h-3 w-3 mr-1" /> Approved</Badge>;
       case 'REJECTED':
@@ -711,7 +711,7 @@ export function SellerOnboardingApprovals() {
                             </Badge>
                           )}
                           {!isSameUser && !isSameUserByVName && identityState === 'name_collision' && collision?.displayNameClient && (
-                            <Badge className="mt-1 bg-amber-100 text-amber-800 text-xs">
+                            <Badge className="mt-1 bg-warning/10 text-warning text-xs">
                               ⚠ Different person — same name as {collision.displayNameClient.name}
                             </Badge>
                           )}
@@ -722,7 +722,7 @@ export function SellerOnboardingApprovals() {
                           )}
                           {noIdentitySignal && (
                             <Badge
-                              className="mt-1 bg-amber-100 text-amber-900 text-xs border border-amber-300"
+                              className="mt-1 bg-warning/10 text-warning text-xs border border-warning/30"
                               title="No real Binance nickname and no KYC name match — verify identity manually before approving."
                             >
                               ⚠ No identity signal — review manually

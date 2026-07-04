@@ -1819,7 +1819,7 @@ export function ClientOnboardingApprovals() {
                       {!sameUserNick && !sameUserVName && state === 'name_collision' && matched && (
                         <div className="mt-1 flex flex-col gap-1">
                           <Badge
-                            className="bg-amber-100 text-amber-800 text-xs"
+                            className="bg-warning/10 text-warning text-xs"
                             title={`A client named "${matched.name}" already exists, but neither the Binance nickname nor verified name match — likely a different person.`}
                           >
                             ⚠ Different person — same name as {matched.name}
@@ -1842,7 +1842,7 @@ export function ClientOnboardingApprovals() {
                       )}
                       {noIdentitySignal && (
                         <Badge
-                          className="mt-1 bg-amber-100 text-amber-900 text-xs border border-amber-300"
+                          className="mt-1 bg-warning/10 text-warning text-xs border border-warning/30"
                           title="No real Binance nickname and no verified KYC name — verify identity manually before approving."
                         >
                           ⚠ No identity signal — review manually
@@ -2412,7 +2412,7 @@ export function ClientOnboardingApprovals() {
               </div>
 
               {/* Source of Income (Optional) */}
-              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+              <div className="bg-warning/5 p-4 rounded-lg border border-warning/30">
                 <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Source of Income (Optional)

@@ -187,8 +187,8 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
           <label className="text-sm font-medium text-muted-foreground">Compliance Notes</label>
           <div className="mt-1">
             {client.operator_notes ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-sm text-amber-800">{client.operator_notes}</p>
+              <div className="bg-warning/5 border border-warning/30 rounded-lg p-3">
+                <p className="text-sm text-warning">{client.operator_notes}</p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No compliance notes recorded during onboarding.</p>

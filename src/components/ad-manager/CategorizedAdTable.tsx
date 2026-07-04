@@ -479,7 +479,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                           {ad.advStatus === BINANCE_AD_STATUS.ONLINE ? (
                             <PowerOff className="h-3.5 w-3.5 text-trade-sell" />
                           ) : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? (
-                            <Lock className="h-3.5 w-3.5 text-amber-500" />
+                            <Lock className="h-3.5 w-3.5 text-warning" />
                           ) : (
                             <Power className="h-3.5 w-3.5 text-trade-buy" />
                           )}

@@ -10,7 +10,6 @@ import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordReset
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 import blynkIcon from '@/assets/brand/blynk-icon.svg';
-import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
 
 /** A single CSS 3D cube used in the animated backdrop. */
 function Cube({

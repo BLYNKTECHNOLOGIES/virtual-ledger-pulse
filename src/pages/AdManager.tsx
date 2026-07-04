@@ -125,8 +125,9 @@ export default function AdManager() {
             <Megaphone className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">Ads Manager</h1>
-            <p className="text-xs text-muted-foreground">Manage your Binance P2P merchant ads</p>
+            <h1 className="text-2xl font-semibold text-foreground">Ads Manager</h1>
+            <p className="text-sm text-muted-foreground">Manage your Binance P2P merchant ads</p>
+
           </div>
         </div>
         <div className="flex items-center gap-2">

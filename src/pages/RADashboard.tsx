@@ -14,11 +14,11 @@ import { RARemarkDialog } from "@/components/clients/RARemarkDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 
 const riskColors: Record<string, string> = {
-  PREMIUM: "bg-emerald-100 text-emerald-800",
-  ESTABLISHED: "bg-blue-100 text-blue-800",
-  STANDARD: "bg-yellow-100 text-yellow-800",
-  CAUTIOUS: "bg-orange-100 text-orange-800",
-  HIGH_RISK: "bg-red-100 text-red-800",
+  PREMIUM: "bg-success/10 text-success",
+  ESTABLISHED: "bg-info/10 text-info",
+  STANDARD: "bg-warning/10 text-warning",
+  CAUTIOUS: "bg-warning/10 text-warning",
+  HIGH_RISK: "bg-destructive/10 text-destructive",
 };
 
 const formatVolume = (v: number) =>

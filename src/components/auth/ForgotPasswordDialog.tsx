@@ -114,7 +114,7 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-indigo-600" />
+            <KeyRound className="h-5 w-5 text-primary" />
             Reset Password
           </DialogTitle>
           <DialogDescription>
@@ -125,7 +125,7 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
         </DialogHeader>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm">
             {error}
           </div>
         )}
@@ -229,7 +229,7 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
 
         {step === 'done' && (
           <div className="space-y-4 text-center py-2">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+            <CheckCircle className="h-12 w-12 text-success mx-auto" />
             <p className="text-sm text-muted-foreground">
               Your password has been reset successfully. You can now sign in with your new password.
             </p>

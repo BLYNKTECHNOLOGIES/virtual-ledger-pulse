@@ -185,13 +185,13 @@ export function TotalAssetValueWidget() {
   return (
     <>
       <Card
-        className="bg-indigo-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
+        className="bg-primary text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300 cursor-pointer"
         onClick={() => setShowBreakdown(true)}
       >
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
-              <p className="text-indigo-100 text-sm font-medium">Total Asset Value</p>
+              <p className="text-primary text-sm font-medium">Total Asset Value</p>
               <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
                 {fmt(total)}
               </p>
@@ -200,7 +200,7 @@ export function TotalAssetValueWidget() {
                 <span className="text-sm font-medium">Banks + POS + Stock − TDS</span>
               </div>
             </div>
-            <div className="bg-indigo-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+            <div className="bg-primary p-3 rounded-xl shadow-sm flex-shrink-0">
               <TrendingUp className="h-8 w-8" />
             </div>
           </div>
@@ -226,9 +226,9 @@ export function TotalAssetValueWidget() {
                   <div>
                     <span className="font-medium">{b.account_name}</span>
                     <span className="text-xs text-muted-foreground ml-2">({b.bank_name})</span>
-                    {b.dormant_at && <span className="text-xs text-orange-500 ml-1">[Dormant]</span>}
+                    {b.dormant_at && <span className="text-xs text-warning ml-1">[Dormant]</span>}
                   </div>
-                  <span className={`font-semibold ${b.balance < 0 ? 'text-destructive' : 'text-green-600'}`}>{fmt(b.balance)}</span>
+                  <span className={`font-semibold ${b.balance < 0 ? 'text-destructive' : 'text-success'}`}>{fmt(b.balance)}</span>
                 </div>
               ))}
             </ExpandableCategory>
@@ -246,7 +246,7 @@ export function TotalAssetValueWidget() {
                     <span className="font-medium">{g.gateway_name}</span>
                     <span className="text-xs text-muted-foreground ml-2">({g.count} txns)</span>
                   </div>
-                  <span className="font-semibold text-green-600">{fmt(g.total)}</span>
+                  <span className="font-semibold text-success">{fmt(g.total)}</span>
                 </div>
               )) : (
                 <p className="text-xs text-muted-foreground px-3">No pending settlements</p>
@@ -268,7 +268,7 @@ export function TotalAssetValueWidget() {
                       {fmtUnits(a.total_units)} units × {fmt(a.avg_cost)}
                     </span>
                   </div>
-                  <span className="font-semibold text-green-600">{fmt(a.total_value)}</span>
+                  <span className="font-semibold text-success">{fmt(a.total_value)}</span>
                 </div>
               ))}
               {(!data?.assetStocks?.length) && (
@@ -334,7 +334,7 @@ function ExpandableCategory({
               {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
             </div>
           </div>
-          <span className={negative ? "text-destructive font-semibold" : positive ? "text-green-600 font-semibold" : "font-semibold"}>
+          <span className={negative ? "text-destructive font-semibold" : positive ? "text-success font-semibold" : "font-semibold"}>
             {total}
           </span>
         </div>

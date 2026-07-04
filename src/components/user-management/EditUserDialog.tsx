@@ -347,8 +347,8 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
               <p className="text-xs text-muted-foreground">Looking up employee...</p>
             )}
             {formData.badge_id.trim() && !isCheckingBadge && linkedEmployee && (
-              <div className="flex items-center gap-2 p-2 rounded-md border border-green-200" style={{ backgroundColor: 'hsl(var(--accent))' }}>
-                <UserCheck className="h-4 w-4 text-green-600 shrink-0" />
+              <div className="flex items-center gap-2 p-2 rounded-md border border-success/20" style={{ backgroundColor: 'hsl(var(--accent))' }}>
+                <UserCheck className="h-4 w-4 text-success shrink-0" />
                 <div className="text-xs">
                   <p className="font-medium">
                     Linked: {linkedEmployee.first_name} {linkedEmployee.last_name}
@@ -357,7 +357,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
               </div>
             )}
             {formData.badge_id.trim() && !isCheckingBadge && !linkedEmployee && (
-              <p className="text-xs text-amber-600">No HRMS employee found with this Badge ID</p>
+              <p className="text-xs text-warning">No HRMS employee found with this Badge ID</p>
             )}
             <p className="text-xs text-muted-foreground">
               Enter the employee Badge ID to link this user to their HRMS profile.

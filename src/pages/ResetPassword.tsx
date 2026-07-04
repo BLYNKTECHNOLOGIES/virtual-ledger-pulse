@@ -78,10 +78,10 @@ export default function ResetPassword() {
 
   if (isValidToken === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-info to-primary p-4">
         <Card className="w-full max-w-md">
           <CardContent className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
           </CardContent>
         </Card>
       </div>
@@ -90,11 +90,11 @@ export default function ResetPassword() {
 
   if (isValidToken === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-info to-primary p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-              <AlertCircle className="h-6 w-6 text-red-500" />
+              <AlertCircle className="h-6 w-6 text-destructive" />
               Invalid Link
             </CardTitle>
             <CardDescription className="text-center">
@@ -115,11 +115,11 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-info to-primary p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-            <CheckCircle className="h-6 w-6 text-green-500" />
+            <CheckCircle className="h-6 w-6 text-success" />
             Reset Password
           </CardTitle>
           <CardDescription className="text-center">
@@ -162,7 +162,7 @@ export default function ResetPassword() {
             
             <Button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              className="w-full bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary"
               disabled={isLoading}
             >
               {isLoading ? (

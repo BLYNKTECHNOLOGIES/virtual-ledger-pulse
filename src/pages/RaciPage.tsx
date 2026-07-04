@@ -24,37 +24,37 @@ import { QueryProvider } from '@/components/QueryProvider';
 
 const RACI_COLORS: Record<string, { bg: string; text: string; border: string; label: string; description: string }> = {
   R: {
-    bg: 'bg-blue-500/10',
-    text: 'text-blue-700 dark:text-blue-300',
-    border: 'border-blue-200 dark:border-blue-800',
+    bg: 'bg-info/10',
+    text: 'text-info dark:text-info',
+    border: 'border-info/20 dark:border-info',
     label: 'Responsible',
     description: 'Executes the task. The person or role who does the work to complete the activity.',
   },
   A: {
-    bg: 'bg-red-500/10',
-    text: 'text-red-700 dark:text-red-300',
-    border: 'border-red-200 dark:border-red-800',
+    bg: 'bg-destructive/10',
+    text: 'text-destructive dark:text-destructive',
+    border: 'border-destructive/20 dark:border-destructive',
     label: 'Accountable',
     description: 'Final owner. Only one per task — the person who is ultimately answerable for the correct completion.',
   },
   'A/R': {
-    bg: 'bg-purple-500/10',
-    text: 'text-purple-700 dark:text-purple-300',
-    border: 'border-purple-200 dark:border-purple-800',
+    bg: 'bg-primary/10',
+    text: 'text-primary dark:text-primary',
+    border: 'border-primary/20 dark:border-primary',
     label: 'Accountable & Responsible',
     description: 'Both owns and executes the task. This role is the final owner and also does the work — common in lean teams.',
   },
   C: {
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-700 dark:text-amber-300',
-    border: 'border-amber-200 dark:border-amber-800',
+    bg: 'bg-warning/10',
+    text: 'text-warning dark:text-warning',
+    border: 'border-warning/20 dark:border-warning',
     label: 'Consulted',
     description: 'Must provide input before the work is done. Two-way communication — their expertise shapes the decision.',
   },
   I: {
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    border: 'border-emerald-200 dark:border-emerald-800',
+    bg: 'bg-success/10',
+    text: 'text-success dark:text-success',
+    border: 'border-success/20 dark:border-success',
     label: 'Informed',
     description: 'Kept in the loop after decisions or actions are taken. One-way communication — no input required.',
   },
@@ -491,19 +491,19 @@ function KraKpiView({
                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
                           {kpi.target && (
                             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                              <CheckCircle2 className="h-3 w-3 text-success" />
                               Target: {kpi.target}
                             </span>
                           )}
                           {kpi.measurement_method && (
                             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <Scale className="h-3 w-3 text-blue-500" />
+                              <Scale className="h-3 w-3 text-info" />
                               {kpi.measurement_method}
                             </span>
                           )}
                           {kpi.frequency && (
                             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <BarChart3 className="h-3 w-3 text-amber-500" />
+                              <BarChart3 className="h-3 w-3 text-warning" />
                               {kpi.frequency}
                             </span>
                           )}
@@ -675,19 +675,19 @@ function RoleCharterView({
                                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
                                     {kpi.target && (
                                       <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                        <CheckCircle2 className="h-3 w-3 text-success" />
                                         Target: {kpi.target}
                                       </span>
                                     )}
                                     {kpi.measurement_method && (
                                       <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                        <Scale className="h-3 w-3 text-blue-500" />
+                                        <Scale className="h-3 w-3 text-info" />
                                         {kpi.measurement_method}
                                       </span>
                                     )}
                                     {kpi.frequency && (
                                       <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                        <BarChart3 className="h-3 w-3 text-amber-500" />
+                                        <BarChart3 className="h-3 w-3 text-warning" />
                                         {kpi.frequency}
                                       </span>
                                     )}

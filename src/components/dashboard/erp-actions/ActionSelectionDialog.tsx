@@ -56,7 +56,7 @@ export function ActionSelectionDialog({ item, open, onOpenChange }: ActionSelect
               className="w-full justify-start gap-3 h-14"
               onClick={() => setSubDialog("transfer")}
             >
-              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
+              <ArrowRightLeft className="h-5 w-5 text-info" />
               <div className="text-left">
                 <div className="font-medium">Wallet Transfer</div>
                 <div className="text-xs text-muted-foreground">Internal movement between wallets</div>
@@ -69,9 +69,9 @@ export function ActionSelectionDialog({ item, open, onOpenChange }: ActionSelect
               onClick={() => setSubDialog(isDeposit ? "purchase" : "sales")}
             >
               {isDeposit ? (
-                <ShoppingCart className="h-5 w-5 text-green-600" />
+                <ShoppingCart className="h-5 w-5 text-success" />
               ) : (
-                <DollarSign className="h-5 w-5 text-amber-600" />
+                <DollarSign className="h-5 w-5 text-warning" />
               )}
               <div className="text-left">
                 <div className="font-medium">{isDeposit ? "Purchase Entry" : "Sales Entry"}</div>

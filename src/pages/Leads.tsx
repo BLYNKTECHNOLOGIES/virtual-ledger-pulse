@@ -221,13 +221,13 @@ export default function Leads() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "NEW":
-        return <Badge className="bg-green-100 text-green-800">New</Badge>;
+        return <Badge className="bg-success/10 text-success">New</Badge>;
       case "CONTACTED":
-        return <Badge className="bg-blue-100 text-blue-800">Contacted</Badge>;
+        return <Badge className="bg-info/10 text-info">Contacted</Badge>;
       case "QUALIFIED":
-        return <Badge className="bg-yellow-100 text-yellow-800">Qualified</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Qualified</Badge>;
       case "CONVERTED":
-        return <Badge className="bg-purple-100 text-purple-800">Converted</Badge>;
+        return <Badge className="bg-primary/10 text-primary">Converted</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -264,14 +264,14 @@ export default function Leads() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-50 rounded-xl shadow-sm">
-                  <UserPlus className="h-8 w-8 text-blue-600" />
+                <div className="p-3 bg-info/10 rounded-xl shadow-sm">
+                  <UserPlus className="h-8 w-8 text-info" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                  <h1 className="text-3xl font-bold tracking-tight text-muted">
                     Lead Management
                   </h1>
-                  <p className="text-slate-600 text-lg">
+                  <p className="text-muted text-lg">
                     Track and manage potential customer leads
                   </p>
                 </div>
@@ -414,7 +414,7 @@ export default function Leads() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 px-2 text-red-600 hover:text-red-700"
+                      className="h-8 px-2 text-destructive hover:text-destructive"
                       onClick={() => handleDelete(lead)}
                       disabled={deleteMutation.isPending}
                     >
@@ -424,7 +424,7 @@ export default function Leads() {
                     {lead.status !== 'CONVERTED' && lead.lead_type && (
                       <Button
                         size="sm"
-                        className="h-8 px-2 bg-green-600 hover:bg-green-700"
+                        className="h-8 px-2 bg-success hover:bg-success"
                         onClick={() => handleConvertLead(lead)}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
@@ -581,7 +581,7 @@ export default function Leads() {
                 id="edit-status"
                 value={editFormData.status}
                 onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-info"
               >
                 <option value="NEW">New</option>
                 <option value="CONTACTED">Contacted</option>

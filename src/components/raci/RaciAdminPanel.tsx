@@ -329,10 +329,10 @@ function AssignmentsEditor() {
 }
 
 const RACI_BADGE = {
-  R: { bg: 'bg-blue-500/15', text: 'text-blue-600' },
-  A: { bg: 'bg-red-500/15', text: 'text-red-600' },
-  C: { bg: 'bg-amber-500/15', text: 'text-amber-600' },
-  I: { bg: 'bg-emerald-500/15', text: 'text-emerald-600' },
+  R: { bg: 'bg-info/15', text: 'text-info' },
+  A: { bg: 'bg-destructive/15', text: 'text-destructive' },
+  C: { bg: 'bg-warning/15', text: 'text-warning' },
+  I: { bg: 'bg-success/15', text: 'text-success' },
 };
 
 function KrasEditor() {

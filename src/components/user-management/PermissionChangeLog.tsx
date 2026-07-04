@@ -99,14 +99,14 @@ export function PermissionChangeLog() {
           {logs.map((log) => (
             <div key={log.id} className="flex items-center gap-3 p-2 rounded-md border bg-muted/20 text-sm">
               {isGrant(log.change_type) ? (
-                <Plus className="h-4 w-4 text-emerald-500 shrink-0" />
+                <Plus className="h-4 w-4 text-success shrink-0" />
               ) : (
-                <Minus className="h-4 w-4 text-red-500 shrink-0" />
+                <Minus className="h-4 w-4 text-destructive shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <span className="font-medium">{log.role_name}</span>
                 {' — '}
-                <span className={isGrant(log.change_type) ? 'text-emerald-600' : 'text-red-600'}>
+                <span className={isGrant(log.change_type) ? 'text-success' : 'text-destructive'}>
                   {isGrant(log.change_type) ? 'granted' : 'revoked'}
                 </span>
                 {' '}

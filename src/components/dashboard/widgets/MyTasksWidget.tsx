@@ -15,8 +15,8 @@ import { toast } from 'sonner';
 
 const STATUS_OPTIONS = [
   { value: 'open', label: 'Open', color: 'bg-muted text-foreground' },
-  { value: 'in_progress', label: 'In Progress', color: 'bg-blue-100 text-blue-800' },
-  { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800' },
+  { value: 'in_progress', label: 'In Progress', color: 'bg-info/10 text-info' },
+  { value: 'completed', label: 'Completed', color: 'bg-success/10 text-success' },
 ];
 
 export function MyTasksWidget() {
@@ -84,12 +84,12 @@ export function MyTasksWidget() {
               <p className="text-lg font-bold">{counts?.open ?? 0}</p>
               <p className="text-[10px] text-muted-foreground">Open</p>
             </div>
-            <div className="flex-1 text-center p-2 rounded bg-blue-50">
-              <p className="text-lg font-bold text-blue-700">{counts?.in_progress ?? 0}</p>
+            <div className="flex-1 text-center p-2 rounded bg-info/10">
+              <p className="text-lg font-bold text-info">{counts?.in_progress ?? 0}</p>
               <p className="text-[10px] text-muted-foreground">In Progress</p>
             </div>
-            <div className="flex-1 text-center p-2 rounded bg-red-50">
-              <p className="text-lg font-bold text-red-700">{counts?.overdue ?? 0}</p>
+            <div className="flex-1 text-center p-2 rounded bg-destructive/10">
+              <p className="text-lg font-bold text-destructive">{counts?.overdue ?? 0}</p>
               <p className="text-[10px] text-muted-foreground">Overdue</p>
             </div>
           </div>

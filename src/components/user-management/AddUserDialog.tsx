@@ -194,7 +194,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   if (authLoading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-info"></div>
         <span className="text-sm">Loading permissions...</span>
       </div>
     );
@@ -215,7 +215,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+        <Button size="sm" className="bg-info hover:bg-info">
           <UserPlus className="h-4 w-4 mr-2" />
           New User
         </Button>
@@ -223,7 +223,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-blue-600" />
+            <Shield className="h-5 w-5 text-info" />
             Add New User
           </DialogTitle>
         </DialogHeader>
@@ -379,7 +379,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-info hover:bg-info"
             >
               {isLoading ? "Creating..." : "Create User"}
             </Button>

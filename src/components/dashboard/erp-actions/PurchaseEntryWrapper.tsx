@@ -477,7 +477,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
               <Label>Product *</Label>
               <Select value={formData.product_id} onValueChange={(value) => handleInputChange('product_id', value)}>
                 <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-                <SelectContent className="bg-popover z-[60] border border-border shadow-lg">
+                <SelectContent className="bg-popover z-[60] border border-border shadow-sm">
                   {products?.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} - {product.code} (Stock: {product.current_stock_quantity})
@@ -516,7 +516,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
               </div>
               <Select value={formData.credit_wallet_id} onValueChange={(value) => handleInputChange('credit_wallet_id', value)} disabled={!!item.wallet_id}>
                 <SelectTrigger><SelectValue placeholder="Select wallet" /></SelectTrigger>
-                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name}{wallet.chain_name ? ` — ${wallet.chain_name}` : ''}
@@ -554,7 +554,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
               {!isMultiplePayments ? (
                 <Select value={formData.deduction_bank_account_id} onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}>
                   <SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger>
-                  <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                  <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                     {bankAccounts?.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -577,7 +577,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Label className="font-medium">Payment Distribution</Label>
-                    {splitAllocation.isValid ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertCircle className="h-4 w-4 text-destructive" />}
+                    {splitAllocation.isValid ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertCircle className="h-4 w-4 text-destructive" />}
                   </div>
                 </div>
 
@@ -592,7 +592,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                   </div>
                   <div className="text-center">
                     <div className="text-muted-foreground text-xs mb-1">Remaining</div>
-                    <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                    <div className={`font-semibold ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
                       ₹{splitAllocation.remaining.toFixed(2)}
                     </div>
                   </div>
@@ -612,7 +612,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                       <div className="col-span-7">
                         <Select value={split.bank_account_id} onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}>
                           <SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
                             {bankAccounts?.map((account) => (
                               <SelectItem key={account.id} value={account.id}>
                                 {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -638,7 +638,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
           )}
 
           {/* TDS */}
-          <Card className="border-amber-200 bg-amber-50/50">
+          <Card className="border-warning/20 bg-warning/10/50">
             <CardContent className="pt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Label className="font-medium">TDS Deduction</Label>
@@ -662,11 +662,11 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                 <div className="text-sm bg-background p-2 rounded border">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">TDS Amount ({tdsCalculation.tdsRate}%):</span>
-                    <span className="font-medium text-amber-600">₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
+                    <span className="font-medium text-warning">₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between mt-1">
                     <span className="text-muted-foreground">Net Payable:</span>
-                    <span className="font-semibold text-green-600">₹{tdsCalculation.netPayable.toFixed(2)}</span>
+                    <span className="font-semibold text-success">₹{tdsCalculation.netPayable.toFixed(2)}</span>
                   </div>
                 </div>
               )}
@@ -693,11 +693,11 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                     <div className="text-sm bg-muted/50 p-2 rounded border">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Fee Amount:</span>
-                        <span className="font-medium text-orange-600">{feeCalculation.feeAmount.toFixed(4)} {item.asset}</span>
+                        <span className="font-medium text-warning">{feeCalculation.feeAmount.toFixed(4)} {item.asset}</span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-muted-foreground">Net Credit to Wallet:</span>
-                        <span className="font-semibold text-green-600">{feeCalculation.netCredit.toFixed(4)} {item.asset}</span>
+                        <span className="font-semibold text-success">{feeCalculation.netCredit.toFixed(4)} {item.asset}</span>
                       </div>
                     </div>
                   )}
@@ -712,7 +712,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
           </Card>
 
           {/* Binance Commission */}
-          <Card className="border-blue-200 bg-blue-50/30">
+          <Card className="border-info/20 bg-info/10/30">
             <CardContent className="pt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Label className="font-medium">Binance Commission</Label>
@@ -732,11 +732,11 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                     <span className="text-muted-foreground">Gross Quantity:</span>
                     <span>{parseFloat(formData.quantity).toFixed(4)} {item.asset}</span>
                   </div>
-                  <div className="flex justify-between text-orange-600">
+                  <div className="flex justify-between text-warning">
                     <span>Binance Commission:</span>
                     <span>-{binanceCommission.toFixed(4)} {item.asset}</span>
                   </div>
-                  <div className="flex justify-between font-semibold border-t pt-1 mt-1 text-green-600">
+                  <div className="flex justify-between font-semibold border-t pt-1 mt-1 text-success">
                     <span>Net Wallet Credit:</span>
                     <span>{feeCalculation.netCredit.toFixed(4)} {item.asset}</span>
                   </div>
@@ -771,7 +771,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                     <span>₹{parseFloat(formData.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                   {tdsCalculation.tdsRate > 0 && (
-                    <div className="flex justify-between text-amber-600">
+                    <div className="flex justify-between text-warning">
                       <span>TDS ({tdsCalculation.tdsRate}%):</span>
                       <span>-₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
                     </div>

@@ -9,10 +9,10 @@ import {
 
 // Governance assignment types
 const GOV_TYPES: Record<string, { label: string; color: string; bg: string; description: string }> = {
-  O: { label: 'Owner', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-500/10 border-red-200 dark:border-red-800', description: 'Ultimate control and final authority' },
-  C: { label: 'Controller', color: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-500/10 border-blue-200 dark:border-blue-800', description: 'Day-to-day authority and management' },
-  S: { label: 'Supervisor', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-500/10 border-amber-200 dark:border-amber-800', description: 'Oversight and supervisory responsibility' },
-  A: { label: 'Auditor', color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-200 dark:border-emerald-800', description: 'Independent check and verification' },
+  O: { label: 'Owner', color: 'text-destructive dark:text-destructive', bg: 'bg-destructive/10 border-destructive/20 dark:border-destructive', description: 'Ultimate control and final authority' },
+  C: { label: 'Controller', color: 'text-info dark:text-info', bg: 'bg-info/10 border-info/20 dark:border-info', description: 'Day-to-day authority and management' },
+  S: { label: 'Supervisor', color: 'text-warning dark:text-warning', bg: 'bg-warning/10 border-warning/20 dark:border-warning', description: 'Oversight and supervisory responsibility' },
+  A: { label: 'Auditor', color: 'text-success dark:text-success', bg: 'bg-success/10 border-success/20 dark:border-success', description: 'Independent check and verification' },
   '-': { label: 'None', color: 'text-muted-foreground/40', bg: '', description: 'No direct involvement' },
 };
 
@@ -126,10 +126,10 @@ const GOVERNANCE_LAYERS = [
 ];
 
 const THREE_LINE_DEFENSE = [
-  { line: 'Line 1 – Execution', roles: 'OM + Teams', desc: 'Generates revenue, executes operations', icon: <BarChart3 className="h-5 w-5" />, color: 'bg-amber-500/10 border-amber-200 text-amber-700' },
-  { line: 'Line 2 – Control', roles: 'GM + ICO', desc: 'Controls risk, compliance, funds', icon: <Shield className="h-5 w-5" />, color: 'bg-blue-500/10 border-blue-200 text-blue-700' },
-  { line: 'Line 3 – External Defense', roles: 'ECO', desc: 'Handles law enforcement, banking, recovery', icon: <Gavel className="h-5 w-5" />, color: 'bg-emerald-500/10 border-emerald-200 text-emerald-700' },
-  { line: 'Board Layer', roles: 'MD-A + MD-S', desc: 'Strategy + override authority', icon: <Layers className="h-5 w-5" />, color: 'bg-red-500/10 border-red-200 text-red-700' },
+  { line: 'Line 1 – Execution', roles: 'OM + Teams', desc: 'Generates revenue, executes operations', icon: <BarChart3 className="h-5 w-5" />, color: 'bg-warning/10 border-warning/20 text-warning' },
+  { line: 'Line 2 – Control', roles: 'GM + ICO', desc: 'Controls risk, compliance, funds', icon: <Shield className="h-5 w-5" />, color: 'bg-info/10 border-info/20 text-info' },
+  { line: 'Line 3 – External Defense', roles: 'ECO', desc: 'Handles law enforcement, banking, recovery', icon: <Gavel className="h-5 w-5" />, color: 'bg-success/10 border-success/20 text-success' },
+  { line: 'Board Layer', roles: 'MD-A + MD-S', desc: 'Strategy + override authority', icon: <Layers className="h-5 w-5" />, color: 'bg-destructive/10 border-destructive/20 text-destructive' },
 ];
 
 const POWER_DISTRIBUTION = [
@@ -304,15 +304,15 @@ export function CorporateGovernanceMatrix() {
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground min-w-[200px]">Trigger Event</th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground min-w-[200px]">
-                    <Badge variant="outline" className="text-[10px] font-normal bg-emerald-500/10 text-emerald-700 border-emerald-200">Level 1</Badge>
+                    <Badge variant="outline" className="text-[10px] font-normal bg-success/10 text-success border-success/20">Level 1</Badge>
                     <span className="ml-1.5">Initial Response</span>
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground min-w-[200px]">
-                    <Badge variant="outline" className="text-[10px] font-normal bg-amber-500/10 text-amber-700 border-amber-200">Level 2</Badge>
+                    <Badge variant="outline" className="text-[10px] font-normal bg-warning/10 text-warning border-warning/20">Level 2</Badge>
                     <span className="ml-1.5">Escalation</span>
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-muted-foreground min-w-[200px]">
-                    <Badge variant="outline" className="text-[10px] font-normal bg-red-500/10 text-red-700 border-red-200">Level 3</Badge>
+                    <Badge variant="outline" className="text-[10px] font-normal bg-destructive/10 text-destructive border-destructive/20">Level 3</Badge>
                     <span className="ml-1.5">Critical</span>
                   </th>
                 </tr>
@@ -358,12 +358,12 @@ export function CorporateGovernanceMatrix() {
       </div>
 
       {/* Risk Warning */}
-      <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-500/5 p-5">
+      <div className="rounded-lg border border-warning/20 dark:border-warning bg-warning/5 p-5">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">Critical Dependency</h4>
-            <p className="text-xs text-amber-700 dark:text-amber-400">
+            <h4 className="text-sm font-semibold text-warning dark:text-warning mb-1">Critical Dependency</h4>
+            <p className="text-xs text-warning dark:text-warning">
               This governance model depends heavily on <strong>GM + ECO integrity</strong>. If either role fails in its duties, financial and legal exposure rises immediately. 
               Recommended safeguards: Dual approval for fund release and account freeze, threshold-based escalations, and automated audit triggers.
             </p>

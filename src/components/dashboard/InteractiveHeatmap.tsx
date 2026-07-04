@@ -153,7 +153,7 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
   };
 
   return (
-    <Card className="bg-card border-2 border-border shadow-xl">
+    <Card className="bg-card border border-border shadow-sm">
       <CardHeader className="bg-secondary text-secondary-foreground rounded-t-lg">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-xl">
@@ -177,26 +177,26 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
       <CardContent className="p-8">
         {/* Metric Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <Card className="border-2 border-emerald-200 bg-emerald-50">
+          <Card className="border border-success/20 bg-success/10">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-emerald-700">Total {getMetricLabel()}</p>
-                  <p className="text-2xl font-bold text-emerald-800">{getMetricValue(chartData?.totalValue || 0)}</p>
+                  <p className="text-sm font-medium text-success">Total {getMetricLabel()}</p>
+                  <p className="text-2xl font-bold text-success">{getMetricValue(chartData?.totalValue || 0)}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-emerald-600" />
+                <TrendingUp className="h-8 w-8 text-success" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-indigo-200 bg-indigo-50">
+          <Card className="border border-primary/20 bg-primary/10">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-indigo-700">Current Period {getMetricLabel()}</p>
-                  <p className="text-2xl font-bold text-indigo-800">{getMetricValue(chartData?.currentPeriodValue || 0)}</p>
+                  <p className="text-sm font-medium text-primary">Current Period {getMetricLabel()}</p>
+                  <p className="text-2xl font-bold text-primary">{getMetricValue(chartData?.currentPeriodValue || 0)}</p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-indigo-600" />
+                <BarChart3 className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>

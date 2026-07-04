@@ -501,19 +501,19 @@ export default function Sales() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+        return <Badge className="bg-success/10 text-success">Completed</Badge>;
       case "PAYMENT_DONE":
-        return <Badge className="bg-green-100 text-green-800">Payment Done</Badge>;
+        return <Badge className="bg-success/10 text-success">Payment Done</Badge>;
       case "USER_PAYING":
-        return <Badge className="bg-blue-100 text-blue-800">User Paying</Badge>;
+        return <Badge className="bg-info/10 text-info">User Paying</Badge>;
       case "PARTIAL":
-        return <Badge className="bg-yellow-100 text-yellow-800">Partial Payment</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Partial Payment</Badge>;
       case "PENDING":
         return <Badge className="bg-muted text-foreground">Pending</Badge>;
       case "FAILED":
-        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive">Failed</Badge>;
       case "ORDER_CANCELLED":
-        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive">Cancelled</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -583,7 +583,7 @@ export default function Sales() {
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedOrderForUserPaying(order)}
-                className="bg-blue-50 hover:bg-blue-100 text-blue-700 flex-1"
+                className="bg-info/10 hover:bg-info/10 text-info flex-1"
               >
                 Take Action
               </Button>
@@ -594,7 +594,7 @@ export default function Sales() {
                 variant="ghost" 
                 size="sm"
                 onClick={() => setSelectedOrderForDetails(order)}
-                className="text-blue-600 flex-1"
+                className="text-info flex-1"
               >
                 <Eye className="h-4 w-4 mr-1" />
                 View
@@ -604,7 +604,7 @@ export default function Sales() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedOrderForEdit(order)}
-                  className="text-green-600 flex-1"
+                  className="text-success flex-1"
                 >
                   <Edit className="h-4 w-4 mr-1" />
                   Edit
@@ -615,7 +615,7 @@ export default function Sales() {
                     size="sm" 
                     onClick={() => handleDeleteOrder(order.id)}
                     disabled={deleteSalesOrderMutation.isPending}
-                    className="text-red-600"
+                    className="text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -663,7 +663,7 @@ export default function Sales() {
                 <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                 <TableCell>
                   <div
-                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    className="font-medium text-info hover:text-info hover:underline cursor-pointer"
                     onClick={() => navigateToClient(order.client_name)}
                   >
                     {order.client_name}
@@ -704,7 +704,7 @@ export default function Sales() {
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedOrderForUserPaying(order)}
-                          className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+                          className="bg-info/10 hover:bg-info/10 text-info"
                         >
                           Take Action
                         </Button>
@@ -715,7 +715,7 @@ export default function Sales() {
                           variant="ghost" 
                           size="sm"
                           onClick={() => setSelectedOrderForDetails(order)}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          className="text-info hover:text-info hover:bg-info/10"
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View
@@ -725,7 +725,7 @@ export default function Sales() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setSelectedOrderForEdit(order)}
-                            className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                            className="text-success hover:text-success hover:bg-success/10"
                           >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
@@ -788,14 +788,14 @@ export default function Sales() {
         <div className="px-4 md:px-6 py-4 md:py-8">
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 md:p-3 bg-emerald-50 rounded-xl shadow-sm">
-                <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 text-emerald-600" />
+              <div className="p-2 md:p-3 bg-success/10 rounded-xl shadow-sm">
+                <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 text-success" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
+                <h1 className="text-xl md:text-3xl font-bold tracking-tight text-muted truncate">
                   Sales Order Processing
                 </h1>
-                <p className="text-slate-600 text-sm md:text-lg truncate">
+                <p className="text-muted text-sm md:text-lg truncate">
                   Manage and process sales orders
                 </p>
               </div>
@@ -814,7 +814,7 @@ export default function Sales() {
                 </Button>
                 <Button 
                   onClick={() => setShowStepByStepFlow(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0"
+                  className="bg-info hover:bg-info text-primary-foreground flex-shrink-0"
                   size="sm"
                 >
                   <Plus className="h-4 w-4 mr-1" />

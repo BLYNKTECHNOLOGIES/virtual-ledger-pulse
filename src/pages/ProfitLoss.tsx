@@ -619,7 +619,7 @@ export default function ProfitLoss() {
       </Card>
 
       {/* Period Summary Widget */}
-      <Card className="border-2 border-primary/20">
+      <Card className="border border-primary/20">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -634,23 +634,23 @@ export default function ProfitLoss() {
         <CardContent className="space-y-6">
           {/* Row 1: Revenue, Expenses, Income */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-blue-500/10 rounded-lg">
+            <div className="p-4 bg-info/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-4 w-4 text-blue-500" />
+                <DollarSign className="h-4 w-4 text-info" />
                 <span className="text-sm font-medium text-muted-foreground">Total Revenue</span>
               </div>
               <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.totalSalesValue || 0)}</p>
             </div>
-            <div className="p-4 bg-red-500/10 rounded-lg">
+            <div className="p-4 bg-destructive/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="h-4 w-4 text-red-500" />
+                <TrendingDown className="h-4 w-4 text-destructive" />
                 <span className="text-sm font-medium text-muted-foreground">Total Expenses</span>
               </div>
               <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.totalExpenses || 0)}</p>
             </div>
-            <div className="p-4 bg-green-500/10 rounded-lg">
+            <div className="p-4 bg-success/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
+                <TrendingUp className="h-4 w-4 text-success" />
                 <span className="text-sm font-medium text-muted-foreground">Total Income</span>
               </div>
               <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.totalIncome || 0)}</p>
@@ -661,9 +661,9 @@ export default function ProfitLoss() {
 
           {/* Row 2: Avg Purchase Rate, Avg Sales Rate, NPM */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-orange-500/10 rounded-lg">
+            <div className="p-4 bg-warning/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <ShoppingCart className="h-4 w-4 text-orange-500" />
+                <ShoppingCart className="h-4 w-4 text-warning" />
                 <span className="text-sm font-medium text-muted-foreground">Avg Purchase Rate</span>
               </div>
               <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.avgPurchaseRate || 0)}</p>
@@ -674,9 +674,9 @@ export default function ProfitLoss() {
              <TooltipProvider>
                <Tooltip>
                  <TooltipTrigger asChild>
-                   <div className="p-4 bg-amber-500/10 rounded-lg cursor-help">
+                   <div className="p-4 bg-warning/10 rounded-lg cursor-help">
                      <div className="flex items-center gap-2 mb-2">
-                       <Gauge className="h-4 w-4 text-amber-600" />
+                       <Gauge className="h-4 w-4 text-warning" />
                        <span className="text-sm font-medium text-muted-foreground">Effective Purchase Rate</span>
                        <Info className="h-3 w-3 text-muted-foreground" />
                      </div>
@@ -691,8 +691,8 @@ export default function ProfitLoss() {
                        <p className="text-xl font-medium text-muted-foreground">—</p>
                      ) : (
                        <div className="flex items-center gap-2">
-                         <AlertTriangle className="h-4 w-4 text-amber-600" />
-                         <p className="text-sm font-medium text-amber-600">Fees exceed quantity</p>
+                         <AlertTriangle className="h-4 w-4 text-warning" />
+                         <p className="text-sm font-medium text-warning">Fees exceed quantity</p>
                        </div>
                      )}
                    </div>
@@ -705,9 +705,9 @@ export default function ProfitLoss() {
                  </TooltipContent>
                </Tooltip>
              </TooltipProvider>
-            <div className="p-4 bg-cyan-500/10 rounded-lg">
+            <div className="p-4 bg-info/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Wallet className="h-4 w-4 text-cyan-500" />
+                <Wallet className="h-4 w-4 text-info" />
                 <span className="text-sm font-medium text-muted-foreground">Avg Sales Rate</span>
               </div>
               <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.avgSalesRate || 0)}</p>
@@ -715,12 +715,12 @@ export default function ProfitLoss() {
                 {(periodMetrics?.totalSalesQty || 0).toFixed(2)} units sold
               </p>
             </div>
-            <div className="p-4 bg-purple-500/10 rounded-lg">
+            <div className="p-4 bg-primary/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <ArrowRightLeft className="h-4 w-4 text-purple-500" />
+                <ArrowRightLeft className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium text-muted-foreground">NPM (per unit)</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.npm || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-2xl font-bold ${(periodMetrics?.npm || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {formatCurrency(periodMetrics?.npm || 0)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -733,24 +733,24 @@ export default function ProfitLoss() {
 
           {/* Row 3: Gross Profit, Conversion P&L, Net Profit, Profit Margin */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-emerald-500/10 rounded-lg">
+            <div className="p-4 bg-success/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Target className="h-4 w-4 text-emerald-500" />
+                <Target className="h-4 w-4 text-success" />
                 <span className="text-sm font-medium text-muted-foreground">Gross Profit</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-2xl font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {formatCurrency(periodMetrics?.grossProfit || 0)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 NPM × Total Sales Qty
               </p>
             </div>
-            <div className="p-4 bg-indigo-500/10 rounded-lg">
+            <div className="p-4 bg-primary/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Calculator className="h-4 w-4 text-indigo-500" />
+                <Calculator className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium text-muted-foreground">Net Profit</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-2xl font-bold ${(periodMetrics?.netProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {formatCurrency(periodMetrics?.netProfit || 0)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -762,7 +762,7 @@ export default function ProfitLoss() {
                 <Percent className="h-4 w-4 text-pink-500" />
                 <span className="text-sm font-medium text-muted-foreground">Profit Margin</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.profitMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-2xl font-bold ${(periodMetrics?.profitMargin || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {(periodMetrics?.profitMargin || 0).toFixed(2)}%
               </p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -803,7 +803,7 @@ export default function ProfitLoss() {
           <CardContent className="p-4">
             <div className="flex flex-col">
               <p className="text-xs font-medium text-muted-foreground">Gross Profit</p>
-              <p className={`text-lg font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-lg font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {formatCurrency(periodMetrics?.grossProfit || 0)}
               </p>
             </div>
@@ -813,7 +813,7 @@ export default function ProfitLoss() {
           <CardContent className="p-4">
             <div className="flex flex-col">
               <p className="text-xs font-medium text-muted-foreground">Net Profit</p>
-              <p className={`text-lg font-bold ${(periodMetrics?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-lg font-bold ${(periodMetrics?.netProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {formatCurrency(periodMetrics?.netProfit || 0)}
               </p>
             </div>
@@ -823,7 +823,7 @@ export default function ProfitLoss() {
           <CardContent className="p-4">
             <div className="flex flex-col">
               <p className="text-xs font-medium text-muted-foreground">Margin</p>
-              <p className={`text-lg font-bold ${(periodMetrics?.profitMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-lg font-bold ${(periodMetrics?.profitMargin || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {(periodMetrics?.profitMargin || 0).toFixed(2)}%
               </p>
             </div>
@@ -927,7 +927,7 @@ export default function ProfitLoss() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={entry.type === 'Expense' ? 'text-red-600' : 'text-green-600'}>
+                        <span className={entry.type === 'Expense' ? 'text-destructive' : 'text-success'}>
                           {formatCurrency(entry.amount)}
                         </span>
                       </TableCell>

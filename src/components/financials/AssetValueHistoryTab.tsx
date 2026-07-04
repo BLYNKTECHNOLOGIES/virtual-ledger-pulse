@@ -67,11 +67,11 @@ export function AssetValueHistoryTab() {
     <div className="space-y-6">
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-0">
+        <Card className="bg-gradient-to-br from-primary to-primary text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-indigo-200 text-sm font-medium">Latest Asset Value</p>
+            <p className="text-primary text-sm font-medium">Latest Asset Value</p>
             <p className="text-2xl font-bold mt-2">{formatCurrency(latestValue)}</p>
-            <p className="text-sm mt-1 text-indigo-200">
+            <p className="text-sm mt-1 text-primary">
               {historyData?.length
                 ? format(new Date(historyData[historyData.length - 1].snapshot_date), "dd MMM yyyy")
                 : "No data yet"}
@@ -79,31 +79,31 @@ export function AssetValueHistoryTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-success to-success text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-emerald-200 text-sm font-medium">Change</p>
+            <p className="text-success text-sm font-medium">Change</p>
             <p className="text-2xl font-bold mt-2">
               {Number(changePercent) >= 0 ? "+" : ""}{changePercent}%
             </p>
-            <p className="text-sm mt-1 text-emerald-200">vs previous snapshot</p>
+            <p className="text-sm mt-1 text-success">vs previous snapshot</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-slate-600 to-gray-700 text-white border-0">
+        <Card className="bg-gradient-to-br from-muted to-muted text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-slate-200 text-sm font-medium">Total Snapshots</p>
+            <p className="text-muted text-sm font-medium">Total Snapshots</p>
             <p className="text-2xl font-bold mt-2">{historyData?.length || 0}</p>
-            <p className="text-sm mt-1 text-slate-200">Daily records</p>
+            <p className="text-sm mt-1 text-muted">Daily records</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Chart */}
-      <Card className="bg-card border-2 border-border shadow-xl">
-        <CardHeader className="bg-indigo-600 text-white rounded-t-lg">
+      <Card className="bg-card border border-border shadow-sm">
+        <CardHeader className="bg-primary text-primary-foreground rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="p-2 bg-indigo-700 rounded-lg shadow-md">
+              <div className="p-2 bg-primary rounded-lg shadow-md">
                 <BarChart3 className="h-6 w-6" />
               </div>
               Asset Value Trend
@@ -112,7 +112,7 @@ export function AssetValueHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "day" ? "secondary" : "ghost"}
-                className={viewMode === "day" ? "bg-card text-indigo-700" : "text-white hover:bg-indigo-500"}
+                className={viewMode === "day" ? "bg-card text-primary" : "text-primary-foreground hover:bg-primary"}
                 onClick={() => setViewMode("day")}
               >
                 Day
@@ -120,7 +120,7 @@ export function AssetValueHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "month" ? "secondary" : "ghost"}
-                className={viewMode === "month" ? "bg-card text-indigo-700" : "text-white hover:bg-indigo-500"}
+                className={viewMode === "month" ? "bg-card text-primary" : "text-primary-foreground hover:bg-primary"}
                 onClick={() => setViewMode("month")}
               >
                 Month

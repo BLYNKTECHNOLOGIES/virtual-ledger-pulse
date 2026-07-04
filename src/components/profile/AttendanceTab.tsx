@@ -86,11 +86,11 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'present': return 'bg-green-100 text-green-700';
-      case 'late': return 'bg-amber-100 text-amber-700';
-      case 'absent': return 'bg-red-100 text-red-700';
-      case 'half_day': return 'bg-blue-100 text-blue-700';
-      case 'on_leave': return 'bg-purple-100 text-purple-700';
+      case 'present': return 'bg-success/10 text-success';
+      case 'late': return 'bg-warning/10 text-warning';
+      case 'absent': return 'bg-destructive/10 text-destructive';
+      case 'half_day': return 'bg-info/10 text-info';
+      case 'on_leave': return 'bg-primary/10 text-primary';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -121,42 +121,42 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card>
           <CardContent className="p-4 text-center">
-            <CheckCircle className="h-5 w-5 text-green-600 mx-auto mb-1" />
+            <CheckCircle className="h-5 w-5 text-success mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{presentDays}</p>
             <p className="text-xs text-muted-foreground">Present Days</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <CalendarDays className="h-5 w-5 text-red-500 mx-auto mb-1" />
+            <CalendarDays className="h-5 w-5 text-destructive mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{absentDays}</p>
             <p className="text-xs text-muted-foreground">Absent Days</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Clock className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+            <Clock className="h-5 w-5 text-info mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{workedHrs.toFixed(1)}</p>
             <p className="text-xs text-muted-foreground">Worked Hours</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <TrendingUp className="h-5 w-5 text-purple-600 mx-auto mb-1" />
+            <TrendingUp className="h-5 w-5 text-primary mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{otHrs.toFixed(1)}</p>
             <p className="text-xs text-muted-foreground">Overtime Hours</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <AlertTriangle className="h-5 w-5 text-amber-500 mx-auto mb-1" />
+            <AlertTriangle className="h-5 w-5 text-warning mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{lateCount}</p>
             <p className="text-xs text-muted-foreground">Late Marks</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Timer className="h-5 w-5 text-orange-500 mx-auto mb-1" />
+            <Timer className="h-5 w-5 text-warning mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{earlyCount}</p>
             <p className="text-xs text-muted-foreground">Early Outs</p>
           </CardContent>
@@ -187,14 +187,14 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                       <td className="px-4 py-2">{r.attendance_date}</td>
                       <td className="px-4 py-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          r.type === 'late_come' ? 'bg-amber-100 text-amber-700' : 'bg-orange-100 text-orange-700'
+                          r.type === 'late_come' ? 'bg-warning/10 text-warning' : 'bg-warning/10 text-warning'
                         }`}>
                           {r.type === 'late_come' ? 'Late Come' : 'Early Out'}
                         </span>
                       </td>
                       <td className="px-4 py-2 font-mono text-xs">{r.expected_time?.slice(0, 5)}</td>
                       <td className="px-4 py-2 font-mono text-xs">{r.actual_time?.slice(0, 5)}</td>
-                      <td className="px-4 py-2 font-medium text-red-600">{r.difference_minutes} min</td>
+                      <td className="px-4 py-2 font-medium text-destructive">{r.difference_minutes} min</td>
                     </tr>
                   ))}
                 </tbody>
@@ -246,13 +246,13 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                         <td className="px-4 py-2">{hrs}h</td>
                         <td className="px-4 py-2">
                           {r.late_minutes > 0 
-                            ? <span className="text-amber-600 font-medium">{r.late_minutes}m</span>
+                            ? <span className="text-warning font-medium">{r.late_minutes}m</span>
                             : <span className="text-muted-foreground">—</span>
                           }
                         </td>
                         <td className="px-4 py-2">
                           {r.overtime_hours > 0
-                            ? <span className="text-purple-600 font-medium">{r.overtime_hours}h</span>
+                            ? <span className="text-primary font-medium">{r.overtime_hours}h</span>
                             : <span className="text-muted-foreground">—</span>
                           }
                         </td>

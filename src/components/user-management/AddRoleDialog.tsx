@@ -122,7 +122,7 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+        <Button size="sm" className="bg-info hover:bg-info">
           <UserPlus className="h-4 w-4 mr-2" />
           Add Role
         </Button>
@@ -188,7 +188,7 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
                   <p className="text-sm font-medium">Selected permissions ({formData.permissions.length}):</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {formData.permissions.map((perm) => (
-                      <span key={perm} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      <span key={perm} className="text-xs bg-info/10 text-info px-2 py-1 rounded">
                         {perm}
                       </span>
                     ))}

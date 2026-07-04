@@ -430,9 +430,9 @@ export function ShiftReconciliationWidget() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "approved": return <Badge className="bg-green-100 text-green-700 border-green-200">Approved</Badge>;
-      case "rejected": return <Badge className="bg-red-100 text-red-700 border-red-200">Rejected</Badge>;
-      case "pending_review": return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Pending Review</Badge>;
+      case "approved": return <Badge className="bg-success/10 text-success border-success/20">Approved</Badge>;
+      case "rejected": return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Rejected</Badge>;
+      case "pending_review": return <Badge className="bg-warning/10 text-warning border-warning/20">Pending Review</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
@@ -467,7 +467,7 @@ export function ShiftReconciliationWidget() {
                   <span className="font-semibold text-sm">{categoryLabels[cat]}</span>
                   <Badge variant="secondary" className="text-xs">{catItems.length} items</Badge>
                   {catMismatches > 0 && (
-                    <Badge className="bg-red-100 text-red-700 text-xs">{catMismatches} mismatch(es)</Badge>
+                    <Badge className="bg-destructive/10 text-destructive text-xs">{catMismatches} mismatch(es)</Badge>
                   )}
                   
                 </div>
@@ -490,7 +490,7 @@ export function ShiftReconciliationWidget() {
                       {catItems.map((item, idx) => (
                         <tr
                           key={idx}
-                          className={`border-b ${!item.within_tolerance ? "bg-red-50" : ""}`}
+                          className={`border-b ${!item.within_tolerance ? "bg-destructive/10" : ""}`}
                         >
                           <td className="p-2 font-medium">{item.name}</td>
                           <td className="p-2 text-muted-foreground text-xs max-w-[200px] truncate">{item.identifier}</td>
@@ -500,14 +500,14 @@ export function ShiftReconciliationWidget() {
                           <td className="p-2 text-right font-mono">
                             {getCurrencySymbol(cat)}{item.erp_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td className={`p-2 text-right font-mono font-semibold ${!item.within_tolerance ? "text-red-600" : "text-green-600"}`}>
+                          <td className={`p-2 text-right font-mono font-semibold ${!item.within_tolerance ? "text-destructive" : "text-success"}`}>
                             {item.difference > 0 ? "+" : ""}{getCurrencySymbol(cat)}{item.difference.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="p-2 text-center">
                             {item.within_tolerance ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-500 inline-block" />
+                              <CheckCircle2 className="h-4 w-4 text-success inline-block" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-red-500 inline-block" />
+                              <XCircle className="h-4 w-4 text-destructive inline-block" />
                             )}
                           </td>
                         </tr>
@@ -522,8 +522,8 @@ export function ShiftReconciliationWidget() {
 
         {/* Review Actions */}
         {showActions && reportData && reportData.some(i => !i.within_tolerance) && (
-          <div className="border rounded-lg p-4 bg-amber-50 space-y-3">
-            <div className="flex items-center gap-2 text-amber-700">
+          <div className="border rounded-lg p-4 bg-warning/10 space-y-3">
+            <div className="flex items-center gap-2 text-warning">
               <AlertTriangle className="h-5 w-5" />
               <span className="font-semibold">Mismatches detected — Action required</span>
             </div>
@@ -533,10 +533,10 @@ export function ShiftReconciliationWidget() {
 placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                   value={reviewNotes}
                   onChange={e => setReviewNotes(e.target.value)}
-                  className={`bg-card ${!reviewNotes.trim() ? "border-amber-400" : "border-green-400"}`}
+                  className={`bg-card ${!reviewNotes.trim() ? "border-warning" : "border-success"}`}
                 />
                 {!reviewNotes.trim() && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <p className="text-xs text-warning flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
                     Review notes are mandatory to approve with mismatches
                   </p>
@@ -544,7 +544,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                 <div className="flex gap-2">
                   <Button 
                     onClick={() => handleReview("approved")} 
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-success hover:bg-success"
                     disabled={!reviewNotes.trim()}
                   >
                     <CheckCircle2 className="h-4 w-4 mr-1" /> Approve with Notes
@@ -567,11 +567,11 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
         )}
 
         {showActions && reportData && reportData.every(i => i.within_tolerance) && (
-          <div className="border rounded-lg p-4 bg-green-50 flex items-center gap-3">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
+          <div className="border rounded-lg p-4 bg-success/10 flex items-center gap-3">
+            <CheckCircle2 className="h-6 w-6 text-success" />
             <div>
-              <p className="font-semibold text-green-700">All values match within tolerance</p>
-              <p className="text-sm text-green-600">This reconciliation has been auto-approved.</p>
+              <p className="font-semibold text-success">All values match within tolerance</p>
+              <p className="text-sm text-success">This reconciliation has been auto-approved.</p>
             </div>
           </div>
         )}
@@ -595,12 +595,12 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
         variant="outline"
         size="sm"
         onClick={() => { setMainDialogOpen(true); setActiveView("actions"); }}
-        className="bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm flex-shrink-0 relative"
+        className="bg-primary/10 border border-primary/20 text-primary hover:bg-primary/10 shadow-sm flex-shrink-0 relative"
       >
         <FileSpreadsheet className="h-4 w-4" />
         <span className="hidden sm:inline ml-2">Shift Reconciliation</span>
         {pendingCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+          <span className="absolute -top-1.5 -right-1.5 bg-destructive text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
             {pendingCount}
           </span>
         )}
@@ -611,7 +611,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
         <DialogContent className="!w-[95vw] !max-w-[95vw] !max-h-[95vh] h-[95vh] overflow-hidden flex flex-col p-0 md:!w-[95vw] md:!max-w-[95vw] md:!max-h-[95vh]">
           <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-indigo-600" />
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
               Shift Reconciliation
             </DialogTitle>
             <DialogDescription>
@@ -661,15 +661,15 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                 </div>
 
                 {/* Step 2: Download */}
-                <Card className="border-2 border-dashed border-indigo-200 bg-indigo-50/50">
+                <Card className="border border-dashed border-primary/20 bg-primary/10/50">
                   <CardContent className="p-6 text-center space-y-3">
-                    <Download className="h-10 w-10 text-indigo-500 mx-auto" />
+                    <Download className="h-10 w-10 text-primary mx-auto" />
                     <h3 className="font-semibold text-lg">Step 1: Download Template</h3>
                     <p className="text-sm text-muted-foreground">
                       Downloads an Excel file with all active Banks, USDT Wallets, and Payment Gateways.
                       Fill the "Operator Balance" column with actual values.
                     </p>
-                    <Button onClick={handleDownloadTemplate} disabled={downloading} className="bg-indigo-600 hover:bg-indigo-700">
+                    <Button onClick={handleDownloadTemplate} disabled={downloading} className="bg-primary hover:bg-primary">
                       <Download className="h-4 w-4 mr-2" />
                       {downloading ? "Generating..." : "Download Template"}
                     </Button>
@@ -678,17 +678,17 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
 
                 {/* Step 3: Upload */}
                 <Card
-                  className={`border-2 border-dashed transition-colors ${isDragActiveUpload ? "border-primary bg-primary/10" : "border-green-200 bg-green-50/50"}`}
+                  className={`border border-dashed transition-colors ${isDragActiveUpload ? "border-primary bg-primary/10" : "border-success/20 bg-success/10/50"}`}
                   {...uploadDropzoneProps}
                 >
                   <CardContent className="p-6 text-center space-y-3">
-                    <Upload className="h-10 w-10 text-green-500 mx-auto" />
+                    <Upload className="h-10 w-10 text-success mx-auto" />
                     <h3 className="font-semibold text-lg">Step 2: Upload Filled Template</h3>
                     <p className="text-sm text-muted-foreground">
                       Upload the filled Excel/CSV file. The system will compare operator values against ERP balances.
                     </p>
                     <div className="relative inline-block">
-                      <Button disabled={uploading} className="bg-green-600 hover:bg-green-700">
+                      <Button disabled={uploading} className="bg-success hover:bg-success">
                         <Upload className="h-4 w-4 mr-2" />
                         {uploading ? "Processing..." : "Upload & Compare"}
                       </Button>
@@ -712,10 +712,10 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Reconciliation Report</h3>
                   <div className="flex gap-2 text-sm">
-                    <Badge className="bg-green-100 text-green-700">
+                    <Badge className="bg-success/10 text-success">
                       {reportData.filter(i => i.within_tolerance).length} Match
                     </Badge>
-                    <Badge className="bg-red-100 text-red-700">
+                    <Badge className="bg-destructive/10 text-destructive">
                       {reportData.filter(i => !i.within_tolerance).length} Mismatch
                     </Badge>
                   </div>
@@ -761,10 +761,10 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                       <div className="flex items-center gap-3">
                         {record.has_mismatches ? (
                           <div className="text-right">
-                            <p className="text-sm font-semibold text-red-600">{record.mismatch_count} mismatch(es)</p>
+                            <p className="text-sm font-semibold text-destructive">{record.mismatch_count} mismatch(es)</p>
                           </div>
                         ) : (
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          <CheckCircle2 className="h-5 w-5 text-success" />
                         )}
                         <Eye className="h-4 w-4 text-muted-foreground" />
                       </div>
@@ -824,8 +824,8 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
 
                 {/* Approve / Reject actions for pending records */}
                 {detailRecord.status === "pending_review" && detailRecord.has_mismatches && (
-                  <div className="border rounded-lg p-4 bg-amber-50 space-y-3">
-                    <div className="flex items-center gap-2 text-amber-700">
+                  <div className="border rounded-lg p-4 bg-warning/10 space-y-3">
+                    <div className="flex items-center gap-2 text-warning">
                       <AlertTriangle className="h-5 w-5" />
                       <span className="font-semibold">Mismatches detected — Action required</span>
                     </div>
@@ -859,7 +859,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                                 toast({ title: "Error", description: err.message, variant: "destructive" });
                               }
                             }}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-success hover:bg-success"
                           >
                             <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Anyway
                           </Button>
@@ -898,11 +898,11 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
 
                 {/* Show approved/rejected status confirmation */}
                 {detailRecord.status === "approved" && (
-                  <div className="border rounded-lg p-4 bg-green-50 flex items-center gap-3">
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  <div className="border rounded-lg p-4 bg-success/10 flex items-center gap-3">
+                    <CheckCircle2 className="h-6 w-6 text-success" />
                     <div>
-                      <p className="font-semibold text-green-700">Approved</p>
-                      <p className="text-sm text-green-600">
+                      <p className="font-semibold text-success">Approved</p>
+                      <p className="text-sm text-success">
                         {detailRecord.reviewed_by && `By ${detailRecord.reviewed_by}`}
                         {detailRecord.reviewed_at && ` on ${format(new Date(detailRecord.reviewed_at), "MMM dd, yyyy HH:mm")}`}
                       </p>
@@ -910,11 +910,11 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                   </div>
                 )}
                 {detailRecord.status === "rejected" && (
-                  <div className="border rounded-lg p-4 bg-red-50 flex items-center gap-3">
-                    <XCircle className="h-6 w-6 text-red-600" />
+                  <div className="border rounded-lg p-4 bg-destructive/10 flex items-center gap-3">
+                    <XCircle className="h-6 w-6 text-destructive" />
                     <div>
-                      <p className="font-semibold text-red-700">Rejected</p>
-                      <p className="text-sm text-red-600">
+                      <p className="font-semibold text-destructive">Rejected</p>
+                      <p className="text-sm text-destructive">
                         {detailRecord.reviewed_by && `By ${detailRecord.reviewed_by}`}
                         {detailRecord.reviewed_at && ` on ${format(new Date(detailRecord.reviewed_at), "MMM dd, yyyy HH:mm")}`}
                       </p>

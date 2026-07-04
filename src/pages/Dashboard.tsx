@@ -460,19 +460,19 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Sales</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-muted">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       {(metrics?.salesGrowth ?? 0) >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                        <ArrowUpIcon className="h-4 w-4 text-success" />
                       ) : (
                         <ArrowDownIcon className="h-4 w-4 text-destructive" />
                       )}
-                      <span className={`text-sm font-medium ${(metrics?.salesGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                      <span className={`text-sm font-medium ${(metrics?.salesGrowth ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                         {(metrics?.salesGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.salesGrowth ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                  <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <DollarSign className="h-8 w-8 text-metric-sales-icon" />
                   </div>
                 </div>
@@ -489,19 +489,19 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sales Orders</p>
-                    <p className="text-2xl xl:text-3xl font-semibold tabular-nums mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
+                    <p className="text-2xl xl:text-3xl font-semibold tabular-nums mt-2 truncate text-muted">{metrics?.totalSalesOrders || 0}</p>
                     <div className="flex items-center gap-1 mt-2">
                       {(metrics?.ordersGrowth ?? 0) >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                        <ArrowUpIcon className="h-4 w-4 text-success" />
                       ) : (
                         <ArrowDownIcon className="h-4 w-4 text-destructive" />
                       )}
-                      <span className={`text-sm font-medium ${(metrics?.ordersGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                      <span className={`text-sm font-medium ${(metrics?.ordersGrowth ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                         {(metrics?.ordersGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.ordersGrowth ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </div>
-                  <div className="bg-purple-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                  <div className="bg-primary/10 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
                   </div>
                 </div>
@@ -518,13 +518,13 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Clients</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">{metrics?.totalClients || 0}</div>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-muted">{metrics?.totalClients || 0}</div>
                     <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
+                      <ArrowUpIcon className="h-4 w-4 text-info" />
+                      <span className="text-sm font-medium text-muted">Verified: {metrics?.verifiedClients || 0}</span>
                     </div>
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                  <div className="bg-info/10 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <Users className="h-8 w-8 text-metric-clients-icon" />
                   </div>
                 </div>
@@ -541,13 +541,13 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 relative z-10">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-muted">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-amber-500" />
-                      <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
+                      <ArrowUpIcon className="h-4 w-4 text-warning" />
+                      <span className="text-sm font-medium text-muted">Banks + Stock</span>
                     </div>
                   </div>
-                  <div className="bg-amber-50 p-3 rounded-lg shadow-sm flex-shrink-0 relative z-0">
+                  <div className="bg-warning/10 p-3 rounded-lg shadow-sm flex-shrink-0 relative z-0">
                     <Wallet className="h-8 w-8 text-metric-cash-icon" />
                   </div>
                 </div>
@@ -567,8 +567,8 @@ export default function Dashboard() {
 
       case 'recent-activity':
         return (
-          <Card className="bg-card border-2 border-border shadow-xl h-full">
-            <CardHeader className="bg-teal-600 text-white rounded-t-lg">
+          <Card className="bg-card border border-border shadow-sm h-full">
+            <CardHeader className="bg-teal-600 text-primary-foreground rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <div className="p-2 bg-teal-700 rounded-lg shadow-md"><Activity className="h-5 w-5" /></div>
                 Recent Activity
@@ -582,12 +582,12 @@ export default function Dashboard() {
                     if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
                     openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
                   }}
-                  className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border-2 border-border hover:shadow-md transition-all duration-200 cursor-pointer"
+                  className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-all duration-200 cursor-pointer"
                 >
 
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${activity.type === 'sale' ? 'bg-emerald-100' : 'bg-muted'}`}>
-                      {activity.type === 'sale' ? <ArrowUpIcon className="h-4 w-4 text-emerald-600" /> : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
+                    <div className={`p-2 rounded-lg ${activity.type === 'sale' ? 'bg-success/10' : 'bg-muted'}`}>
+                      {activity.type === 'sale' ? <ArrowUpIcon className="h-4 w-4 text-success" /> : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
                     </div>
                     <div>
                       <p className="font-semibold text-sm text-foreground">{activity.title}</p>
@@ -595,7 +595,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`font-bold text-sm ${activity.type === 'sale' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                    <p className={`font-bold text-sm ${activity.type === 'sale' ? 'text-success' : 'text-muted-foreground'}`}>
                       {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
                     </p>
                     <p className="text-xs text-muted-foreground">{activity.reference}</p>
@@ -693,25 +693,25 @@ export default function Dashboard() {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="p-2 md:p-3 bg-blue-50 rounded-xl shadow-sm">
-                  <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+                <div className="p-2 md:p-3 bg-info/10 rounded-xl shadow-sm">
+                  <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-info" />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-slate-800 truncate">Welcome to Dashboard</h1>
+                  <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-muted truncate">Welcome to Dashboard</h1>
                   <p className="text-muted-foreground text-sm md:text-base truncate">Monitor your business performance</p>
                 </div>
               </div>
               <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">
-                <div className="bg-card border border-blue-200 text-slate-700 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                <div className="bg-card border border-info/20 text-muted rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-500" />
+                    <Calendar className="h-4 w-4 text-info" />
                     <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
                   </div>
                 </div>
-                <div className="bg-card border border-green-200 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                <div className="bg-card border border-success/20 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-green-500" />
-                    <span className="text-xs md:text-sm font-medium text-slate-700 whitespace-nowrap">System Active</span>
+                    <Zap className="h-4 w-4 text-success" />
+                    <span className="text-xs md:text-sm font-medium text-muted whitespace-nowrap">System Active</span>
                   </div>
                 </div>
               </div>
@@ -735,8 +735,8 @@ export default function Dashboard() {
                     else setIsRearrangeMode(false);
                   }}
                   className={`flex-shrink-0 ${isEditMode ? 
-                    "bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 shadow-sm" : 
-                    "bg-card border border-border text-slate-600 hover:bg-muted/50 shadow-sm"
+                    "bg-warning/10 border border-warning text-warning hover:bg-warning/10 shadow-sm" : 
+                    "bg-card border border-border text-muted hover:bg-muted/50 shadow-sm"
                   }`}
                 >
                   <Settings className="h-4 w-4 mr-1 md:mr-2" />
@@ -753,7 +753,7 @@ export default function Dashboard() {
                       variant="outline"
                       size="sm"
                       onClick={handleResetDashboard}
-                      className="flex-shrink-0 bg-card border border-border text-slate-600 hover:bg-muted/50 shadow-sm"
+                      className="flex-shrink-0 bg-card border border-border text-muted hover:bg-muted/50 shadow-sm"
                     >
                       <RotateCcw className="h-4 w-4 mr-1" />
                       <span className="hidden sm:inline">Reset</span>
@@ -767,7 +767,7 @@ export default function Dashboard() {
                   size="sm"
                   onClick={handleUniversalSync}
                   disabled={universalSyncing || syncMutation.isPending}
-                  className="bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 shadow-sm flex-shrink-0"
+                  className="bg-info/10 border border-info/20 text-info hover:bg-info/10 shadow-sm flex-shrink-0"
                   title="Universal Sync"
                 >
                   <CloudDownload className={`h-4 w-4 ${universalSyncing ? 'animate-pulse' : ''}`} />
@@ -778,7 +778,7 @@ export default function Dashboard() {
                   size="sm"
                   onClick={handleRefreshDashboard}
                   disabled={isRefreshing}
-                  className="bg-card border border-border text-slate-600 hover:bg-muted/50 shadow-sm flex-shrink-0"
+                  className="bg-card border border-border text-muted hover:bg-muted/50 shadow-sm flex-shrink-0"
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
@@ -791,7 +791,7 @@ export default function Dashboard() {
 
       {/* Sync Indicator */}
       {universalSyncing && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 border border-blue-200 text-xs text-blue-700 mb-4">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-info/10 border border-info/20 text-xs text-info mb-4">
           <RefreshCw className="h-3 w-3 animate-spin" />
           Universal sync in progress — orders, purchases, sales, assets...
         </div>
@@ -799,14 +799,14 @@ export default function Dashboard() {
 
       {/* Edit Mode Banner */}
       {isEditMode && (
-        <div className="bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-xl p-4 md:p-6 shadow-md mb-4">
+        <div className="bg-warning/10 border border-warning text-warning rounded-xl p-4 md:p-6 shadow-md mb-4">
           <div className="flex items-start md:items-center gap-3 md:gap-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-              <Settings className="h-5 w-5 md:h-6 md:w-6 text-white" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-warning rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+              <Settings className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-base md:text-lg font-bold">🎨 Customize Mode Active</h3>
-              <p className="text-amber-700 mt-1 text-sm md:text-base">
+              <p className="text-warning mt-1 text-sm md:text-base">
                 Drag widgets to reorder • Hover & click ✕ to remove • Use "Add Widget" to add new ones
               </p>
             </div>
@@ -814,7 +814,7 @@ export default function Dashboard() {
               size="sm"
               variant="outline"
               onClick={() => { setIsEditMode(false); setIsRearrangeMode(false); }}
-              className="border-amber-400 text-amber-700 hover:bg-amber-100 flex-shrink-0"
+              className="border-warning text-warning hover:bg-warning/10 flex-shrink-0"
             >
               Done
             </Button>

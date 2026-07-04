@@ -15,13 +15,13 @@ import { openTransaction } from "@/components/transaction-detail";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const ICONS: Record<ErpEntrySource, { Icon: any; tone: string; bg: string }> = {
-  deposit: { Icon: ArrowDownToLine, tone: "text-emerald-600", bg: "bg-emerald-100" },
-  withdrawal: { Icon: ArrowUpFromLine, tone: "text-amber-600", bg: "bg-amber-100" },
-  terminal_buy: { Icon: ShoppingCart, tone: "text-blue-600", bg: "bg-blue-100" },
-  terminal_sale: { Icon: DollarSign, tone: "text-purple-600", bg: "bg-purple-100" },
-  small_buys: { Icon: Package, tone: "text-indigo-600", bg: "bg-indigo-100" },
+  deposit: { Icon: ArrowDownToLine, tone: "text-success", bg: "bg-success/10" },
+  withdrawal: { Icon: ArrowUpFromLine, tone: "text-warning", bg: "bg-warning/10" },
+  terminal_buy: { Icon: ShoppingCart, tone: "text-info", bg: "bg-info/10" },
+  terminal_sale: { Icon: DollarSign, tone: "text-primary", bg: "bg-primary/10" },
+  small_buys: { Icon: Package, tone: "text-primary", bg: "bg-primary/10" },
   small_sales: { Icon: Package, tone: "text-pink-600", bg: "bg-pink-100" },
-  conversion: { Icon: Repeat, tone: "text-cyan-600", bg: "bg-cyan-100" },
+  conversion: { Icon: Repeat, tone: "text-info", bg: "bg-info/10" },
 };
 
 interface Props {

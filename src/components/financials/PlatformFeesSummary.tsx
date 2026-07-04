@@ -173,87 +173,87 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-warning to-warning text-primary-foreground border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-100 text-sm font-medium">Total Platform Fees</p>
+                <p className="text-warning text-sm font-medium">Total Platform Fees</p>
                 <p className="text-2xl font-bold mt-2">{formatCurrency(totalFeesINR)}</p>
-                <p className="text-sm text-amber-200 mt-1">{formatUSDT(combinedTotalUSDT)}</p>
+                <p className="text-sm text-warning mt-1">{formatUSDT(combinedTotalUSDT)}</p>
               </div>
-              <div className="bg-amber-600 p-3 rounded-xl">
+              <div className="bg-warning p-3 rounded-xl">
                 <Coins className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-success to-success text-primary-foreground border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-100 text-sm font-medium">Fees from Sales</p>
+                <p className="text-success text-sm font-medium">Fees from Sales</p>
                 <p className="text-2xl font-bold mt-2">{formatCurrency(salesFeesINR)}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <ArrowUpIcon className="h-3 w-3" />
-                  <span className="text-sm text-emerald-200">{formatUSDT(salesFeesUSDT)}</span>
+                  <span className="text-sm text-success">{formatUSDT(salesFeesUSDT)}</span>
                 </div>
               </div>
-              <div className="bg-emerald-600 p-3 rounded-xl">
+              <div className="bg-success p-3 rounded-xl">
                 <TrendingUp className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-info to-primary text-primary-foreground border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">Fees from Purchases</p>
+                <p className="text-info text-sm font-medium">Fees from Purchases</p>
                 <p className="text-2xl font-bold mt-2">{formatCurrency(purchaseFeesINR)}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <ArrowDownIcon className="h-3 w-3" />
-                  <span className="text-sm text-blue-200">{formatUSDT(purchaseFeesUSDT)}</span>
+                  <span className="text-sm text-info">{formatUSDT(purchaseFeesUSDT)}</span>
                 </div>
               </div>
-              <div className="bg-blue-600 p-3 rounded-xl">
+              <div className="bg-info p-3 rounded-xl">
                 <DollarSign className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-cyan-500 to-teal-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-info to-teal-600 text-primary-foreground border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-cyan-100 text-sm font-medium">Conversion Fees</p>
+                <p className="text-info text-sm font-medium">Conversion Fees</p>
                 <p className="text-2xl font-bold mt-2">{formatUSDT(conversionFeesUSDT)}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <ArrowRightLeft className="h-3 w-3" />
-                  <span className="text-sm text-cyan-200">{conversionFeeData?.length || 0} conversions</span>
+                  <span className="text-sm text-info">{conversionFeeData?.length || 0} conversions</span>
                 </div>
               </div>
-              <div className="bg-cyan-600 p-3 rounded-xl">
+              <div className="bg-info p-3 rounded-xl">
                 <Coins className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500 to-violet-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-primary to-primary text-primary-foreground border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium">Transfer Fees</p>
+                <p className="text-primary text-sm font-medium">Transfer Fees</p>
                 <p className="text-2xl font-bold mt-2">{formatUSDT(transferFeesUSDT)}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <ArrowRightLeft className="h-3 w-3" />
-                  <span className="text-sm text-purple-200">{transferFeeData?.length || 0} transfers</span>
+                  <span className="text-sm text-primary">{transferFeeData?.length || 0} transfers</span>
                 </div>
               </div>
-              <div className="bg-purple-600 p-3 rounded-xl">
+              <div className="bg-primary p-3 rounded-xl">
                 <ArrowRightLeft className="h-6 w-6" />
               </div>
             </div>
@@ -263,15 +263,15 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
 
       {/* Avg Fee Rate Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-slate-500 to-gray-600 text-white border-0">
+        <Card className="bg-gradient-to-br from-muted to-muted text-primary-foreground border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-100 text-sm font-medium">Average Fee Rate</p>
+                <p className="text-muted text-sm font-medium">Average Fee Rate</p>
                 <p className="text-2xl font-bold mt-2">{avgFeeRate}%</p>
-                <p className="text-sm text-slate-200 mt-1">On sales/purchase orders</p>
+                <p className="text-sm text-muted mt-1">On sales/purchase orders</p>
               </div>
-              <div className="bg-slate-600 p-3 rounded-xl">
+              <div className="bg-muted p-3 rounded-xl">
                 <Percent className="h-6 w-6" />
               </div>
             </div>
@@ -280,13 +280,13 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
       </div>
 
       {/* Info Card about calculation */}
-      <Card className="border-amber-200 bg-amber-50/50">
+      <Card className="border-warning/20 bg-warning/10/50">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <Coins className="h-5 w-5 text-amber-600 mt-0.5" />
+            <Coins className="h-5 w-5 text-warning mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-amber-800">Fee Calculation Method</p>
-              <p className="text-amber-700 mt-1">
+              <p className="font-medium text-warning">Fee Calculation Method</p>
+              <p className="text-warning mt-1">
                 Platform fees are deducted in USDT from wallet balances. The INR value shown is calculated using the average buying price of USDT in the period, ensuring accurate cost accounting. Transfer fees from wallet-to-wallet transfers are tracked separately in USDT.
               </p>
             </div>
@@ -326,7 +326,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                     <TableCell className="max-w-[300px] truncate text-sm text-muted-foreground">
                       {fee.description}
                     </TableCell>
-                    <TableCell className="text-right text-amber-600 font-medium">
+                    <TableCell className="text-right text-warning font-medium">
                       {formatUSDT(Number(fee.amount || 0))}
                     </TableCell>
                   </TableRow>
@@ -375,7 +375,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                       <TableCell>{c.wallets?.wallet_name || 'N/A'}</TableCell>
                       <TableCell className="text-right">{Number(c.quantity).toFixed(6)}</TableCell>
                       <TableCell className="text-right">{Number(c.fee_amount).toFixed(6)} {c.fee_asset}</TableCell>
-                      <TableCell className="text-right text-cyan-600 font-medium">{feeUsdtEq.toFixed(4)} USDT</TableCell>
+                      <TableCell className="text-right text-info font-medium">{feeUsdtEq.toFixed(4)} USDT</TableCell>
                     </TableRow>
                   );
                 })}
@@ -400,7 +400,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                   <div>
                     <p className="font-medium">{wallet}</p>
                     <p className="text-sm text-muted-foreground">{data.count} transactions</p>
-                    <p className="text-xs text-amber-600">{formatUSDT(data.feesUSDT)}</p>
+                    <p className="text-xs text-warning">{formatUSDT(data.feesUSDT)}</p>
                   </div>
                   <Badge variant="secondary" className="text-lg px-3 py-1">
                     {formatCurrency(data.feesINR)}
@@ -448,7 +448,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                     <TableCell>{deduction.wallets?.wallet_name || 'N/A'}</TableCell>
                     <TableCell className="text-right">{formatCurrency(Number(deduction.gross_amount))}</TableCell>
                     <TableCell className="text-right">{Number(deduction.fee_percentage).toFixed(2)}%</TableCell>
-                    <TableCell className="text-right text-amber-600 font-medium">
+                    <TableCell className="text-right text-warning font-medium">
                       {formatUSDT(Number(deduction.fee_usdt_amount || 0))}
                     </TableCell>
                     <TableCell className="text-right font-medium">

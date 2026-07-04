@@ -216,17 +216,17 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      'Core Metrics': 'bg-sky-100 text-sky-700 border-sky-200',
-      'Core Sections': 'bg-violet-100 text-violet-700 border-violet-200',
-      'Sales': 'bg-green-100 text-green-700 border-green-200',
-      'Purchase': 'bg-orange-100 text-orange-700 border-orange-200',
-      'Clients': 'bg-blue-100 text-blue-700 border-blue-200',
-      'Stock': 'bg-amber-100 text-amber-700 border-amber-200',
-      'Banking': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      'PNL': 'bg-purple-100 text-purple-700 border-purple-200',
-      'Statistics': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-      'Activity': 'bg-cyan-100 text-cyan-700 border-cyan-200',
-      'Compliance': 'bg-red-100 text-red-700 border-red-200',
+      'Core Metrics': 'bg-info/10 text-info border-info/20',
+      'Core Sections': 'bg-primary/10 text-primary border-primary/20',
+      'Sales': 'bg-success/10 text-success border-success/20',
+      'Purchase': 'bg-warning/10 text-warning border-warning/20',
+      'Clients': 'bg-info/10 text-info border-info/20',
+      'Stock': 'bg-warning/10 text-warning border-warning/20',
+      'Banking': 'bg-success/10 text-success border-success/20',
+      'PNL': 'bg-primary/10 text-primary border-primary/20',
+      'Statistics': 'bg-primary/10 text-primary border-primary/20',
+      'Activity': 'bg-info/10 text-info border-info/20',
+      'Compliance': 'bg-destructive/10 text-destructive border-destructive/20',
       'HRMS': 'bg-pink-100 text-pink-700 border-pink-200',
       'Payroll': 'bg-teal-100 text-teal-700 border-teal-200',
     };
@@ -255,7 +255,7 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="flex items-center gap-2 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700">
+        <Button size="sm" className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary hover:from-primary/90 hover:to-primary">
           <Plus className="h-4 w-4" />
           Add Widget
         </Button>
@@ -311,12 +311,12 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
               return (
                 <Card 
                   key={widget.id} 
-                  className={`flex flex-col border bg-card hover:shadow-md transition-all duration-200 hover:border-primary/30 ${widget.isBuiltIn ? 'border-sky-200' : 'border-border'}`}
+                  className={`flex flex-col border bg-card hover:shadow-md transition-all duration-200 hover:border-primary/30 ${widget.isBuiltIn ? 'border-info/20' : 'border-border'}`}
                 >
                   <CardHeader className="pb-3 pt-4 px-4">
                     <div className="flex items-start gap-3">
-                      <div className={`p-2.5 rounded-lg flex-shrink-0 ${widget.isBuiltIn ? 'bg-sky-100' : 'bg-primary/10'}`}>
-                        <IconComponent className={`h-5 w-5 ${widget.isBuiltIn ? 'text-sky-600' : 'text-primary'}`} />
+                      <div className={`p-2.5 rounded-lg flex-shrink-0 ${widget.isBuiltIn ? 'bg-info/10' : 'bg-primary/10'}`}>
+                        <IconComponent className={`h-5 w-5 ${widget.isBuiltIn ? 'text-info' : 'text-primary'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-sm font-semibold text-card-foreground leading-tight mb-2">
@@ -330,7 +330,7 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
                             {widget.category}
                           </Badge>
                           {widget.isBuiltIn && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-sky-50 text-sky-700 border-sky-200">
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-info/10 text-info border-info/20">
                               Core
                             </Badge>
                           )}

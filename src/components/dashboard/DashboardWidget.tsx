@@ -153,18 +153,18 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
   const getCategoryGradient = (category: string) => {
     const gradients: Record<string, string> = {
-      'Sales': 'from-green-500 to-emerald-500',
-      'Purchase': 'from-orange-500 to-red-500',
-      'Clients': 'from-blue-500 to-indigo-500',
-      'Stock': 'from-amber-500 to-yellow-500',
-      'Banking': 'from-emerald-500 to-green-500',
-      'PNL': 'from-purple-500 to-violet-500',
-      'Statistics': 'from-indigo-500 to-blue-500',
-      'Compliance': 'from-red-500 to-rose-500',
-      'HRMS': 'from-pink-500 to-rose-500',
-      'Payroll': 'from-teal-500 to-cyan-500',
+      'Sales': 'from-success to-success',
+      'Purchase': 'from-warning to-destructive',
+      'Clients': 'from-info to-primary',
+      'Stock': 'from-warning to-warning',
+      'Banking': 'from-success to-success',
+      'PNL': 'from-primary to-primary',
+      'Statistics': 'from-primary to-info',
+      'Compliance': 'from-destructive to-destructive',
+      'HRMS': 'from-pink-500 to-destructive',
+      'Payroll': 'from-teal-500 to-info',
     };
-    return gradients[category] || 'from-gray-500 to-gray-600';
+    return gradients[category] || 'from-muted to-muted';
   };
 
   const renderWidgetContent = () => {
@@ -226,8 +226,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'total-purchases':
         return (
           <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-warning to-destructive rounded-full flex items-center justify-center mx-auto mb-4">
+              <DollarSign className="h-8 w-8 text-primary-foreground" />
             </div>
             <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalSpending || 0) / 100000).toFixed(1)}L</div>
             <p className="text-sm text-muted-foreground mt-1">Total Purchases</p>
@@ -237,12 +237,12 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'purchase-orders-count':
         return (
           <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-warning to-warning rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="h-8 w-8 text-primary-foreground" />
             </div>
             <div className="text-3xl font-bold text-foreground">{metrics?.totalPurchases || 0}</div>
             <p className="text-sm text-muted-foreground mt-1">Purchase Orders</p>
-            <Badge className="mt-3 bg-orange-100 text-orange-800 border-orange-200">Selected Period</Badge>
+            <Badge className="mt-3 bg-warning/10 text-warning border-warning/20">Selected Period</Badge>
           </div>
         );
 
@@ -253,8 +253,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'stock-value':
         return (
           <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Package className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-warning to-warning rounded-full flex items-center justify-center mx-auto mb-4">
+              <Package className="h-8 w-8 text-primary-foreground" />
             </div>
             <div className="text-3xl font-bold text-foreground">₹{((metrics?.stockValue || 0) / 100000).toFixed(2)}L</div>
             <p className="text-sm text-muted-foreground mt-1">Stock Value (INR)</p>
@@ -264,20 +264,20 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'bank-balance-total':
         return (
           <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Building className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-success to-success rounded-full flex items-center justify-center mx-auto mb-4">
+              <Building className="h-8 w-8 text-primary-foreground" />
             </div>
             <div className="text-3xl font-bold text-foreground">₹{((metrics?.bankBalance || 0) / 100000).toFixed(2)}L</div>
             <p className="text-sm text-muted-foreground mt-1">Bank Balance</p>
-            <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">Active Accounts</Badge>
+            <Badge className="mt-3 bg-success/10 text-success border-success/20">Active Accounts</Badge>
           </div>
         );
 
       case 'total-cash':
         return (
           <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Wallet className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-info to-primary rounded-full flex items-center justify-center mx-auto mb-4">
+              <Wallet className="h-8 w-8 text-primary-foreground" />
             </div>
             <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalCash || 0) / 100000).toFixed(2)}L</div>
             <p className="text-sm text-muted-foreground mt-1">Total Cash (Banks + Stock)</p>
@@ -303,11 +303,11 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       default:
         return (
           <div className="p-6 text-center">
-            <div className={`w-16 h-16 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg`}>
+            <div className={`w-16 h-16 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm`}>
               {IconComponent && typeof IconComponent === 'function' ? (
-                <IconComponent className="h-8 w-8 text-white" />
+                <IconComponent className="h-8 w-8 text-primary-foreground" />
               ) : (
-                <BarChart3 className="h-8 w-8 text-white" />
+                <BarChart3 className="h-8 w-8 text-primary-foreground" />
               )}
             </div>
             <h4 className="font-semibold text-foreground mb-2">{widget.name}</h4>
@@ -319,8 +319,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className={`h-full ${getSizeClasses(widget.size)}`}>
-      <Card className={`h-full bg-card shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-gray-100 ${isDraggable ? 'ring-2 ring-blue-200 cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-xl' : ''}`}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-gray-50 to-gray-100">
+      <Card className={`h-full bg-card shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-muted ${isDraggable ? 'ring-2 ring-info cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-sm' : ''}`}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-muted to-muted">
           <div className="flex items-center gap-2">
             {isDraggable && (
               <div {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
@@ -329,9 +329,9 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             )}
             <div className={`p-1.5 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-lg shadow-sm`}>
               {IconComponent && typeof IconComponent === 'function' ? (
-                <IconComponent className="h-4 w-4 text-white" />
+                <IconComponent className="h-4 w-4 text-primary-foreground" />
               ) : (
-                <BarChart3 className="h-4 w-4 text-white" />
+                <BarChart3 className="h-4 w-4 text-primary-foreground" />
               )}
             </div>
             <CardTitle className="text-sm font-semibold text-foreground">{widget.name}</CardTitle>
@@ -354,7 +354,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={() => onRemove(widget.id)}
-                className="text-red-600 focus:text-red-700"
+                className="text-destructive focus:text-destructive"
               >
                 <X className="h-4 w-4 mr-2" />
                 Remove Widget

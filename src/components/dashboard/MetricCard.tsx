@@ -19,7 +19,7 @@ export function MetricCard({ title, value, change, trend, icon: Icon }: MetricCa
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        <p className={`text-xs ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+        <p className={`text-xs ${trend === 'up' ? 'text-success' : 'text-destructive'}`}>
           {change} from last month
         </p>
       </CardContent>

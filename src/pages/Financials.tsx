@@ -170,14 +170,14 @@ export default function Financials() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-emerald-50 rounded-xl shadow-sm">
-                  <Calculator className="h-8 w-8 text-emerald-600" />
+                <div className="p-3 bg-success/10 rounded-xl shadow-sm">
+                  <Calculator className="h-8 w-8 text-success" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                  <h1 className="text-3xl font-bold tracking-tight text-muted">
                     Financial Management
                   </h1>
-                  <p className="text-slate-600 text-lg">
+                  <p className="text-muted text-lg">
                     Comprehensive financial overview and management
                   </p>
                 </div>
@@ -197,7 +197,7 @@ export default function Financials() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-card border-2 border-emerald-400 text-emerald-600 hover:bg-emerald-50 shadow-md"
+                  className="bg-card border border-success text-success hover:bg-success/10 shadow-md"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -205,7 +205,7 @@ export default function Financials() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-card border-2 border-emerald-400 text-emerald-600 hover:bg-emerald-50 shadow-md"
+                  className="bg-card border border-success text-success hover:bg-success/10 shadow-md"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   New Transaction
@@ -226,11 +226,11 @@ export default function Financials() {
             dateTo: endDate 
           })}
         >
-          <Card className="bg-emerald-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+          <Card className="bg-success text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
+                  <p className="text-success text-sm font-medium">Total Revenue</p>
                   <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
                     {formatCurrency(financialData?.totalRevenue || 0)}
                   </p>
@@ -239,7 +239,7 @@ export default function Financials() {
                     <span className="text-sm font-medium">Click to view sales →</span>
                   </div>
                 </div>
-                <div className="bg-emerald-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-success p-3 rounded-xl shadow-sm flex-shrink-0">
                   <DollarSign className="h-8 w-8" />
                 </div>
               </div>
@@ -252,11 +252,11 @@ export default function Financials() {
           to="/bams" 
           searchParams={{ tab: 'journal' }}
         >
-          <Card className="bg-red-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+          <Card className="bg-destructive text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-red-100 text-sm font-medium">Total Expenses</p>
+                  <p className="text-destructive text-sm font-medium">Total Expenses</p>
                   <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
                     {formatCurrency(financialData?.totalExpenses || 0)}
                   </p>
@@ -265,7 +265,7 @@ export default function Financials() {
                     <span className="text-sm font-medium">Click to view transactions →</span>
                   </div>
                 </div>
-                <div className="bg-red-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-destructive p-3 rounded-xl shadow-sm flex-shrink-0">
                   <TrendingDown className="h-8 w-8" />
                 </div>
               </div>
@@ -278,11 +278,11 @@ export default function Financials() {
 
         {/* Bank Balance - Clickable to BAMS */}
         <ClickableCard to="/bams">
-          <Card className="bg-purple-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+          <Card className="bg-primary text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-purple-100 text-sm font-medium">Bank Balance</p>
+                  <p className="text-primary text-sm font-medium">Bank Balance</p>
                   <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
                     {formatCurrency(financialData?.totalBankBalance || 0)}
                   </p>
@@ -291,7 +291,7 @@ export default function Financials() {
                     <span className="text-sm font-medium">Click to view accounts →</span>
                   </div>
                 </div>
-                <div className="bg-purple-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-primary p-3 rounded-xl shadow-sm flex-shrink-0">
                   <Wallet className="h-8 w-8" />
                 </div>
               </div>
@@ -328,10 +328,10 @@ export default function Financials() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Cash Flow Chart */}
-            <Card className="bg-card border-2 border-border shadow-xl">
-              <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
+            <Card className="bg-card border border-border shadow-sm">
+              <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
+                  <div className="p-2 bg-success rounded-lg shadow-md">
                     <BarChart3 className="h-6 w-6" />
                   </div>
                   Cash Flow Overview
@@ -356,29 +356,29 @@ export default function Financials() {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="bg-card border-2 border-border shadow-xl">
-              <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
+            <Card className="bg-card border border-border shadow-sm">
+              <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
+                  <div className="p-2 bg-success rounded-lg shadow-md">
                     <Target className="h-6 w-6" />
                   </div>
                   Quick Actions
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
+                <Button className="w-full bg-success hover:bg-success">
                   <Plus className="h-4 w-4 mr-2" />
                   Record Income
                 </Button>
-                <Button variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                <Button variant="outline" className="w-full border-success/20 text-success hover:bg-success/10">
                   <CreditCard className="h-4 w-4 mr-2" />
                   Record Expense
                 </Button>
-                <Button variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                <Button variant="outline" className="w-full border-success/20 text-success hover:bg-success/10">
                   <FileText className="h-4 w-4 mr-2" />
                   Generate Report
                 </Button>
-                <Button variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                <Button variant="outline" className="w-full border-success/20 text-success hover:bg-success/10">
                   <Calculator className="h-4 w-4 mr-2" />
                   Financial Calculator
                 </Button>
@@ -390,8 +390,8 @@ export default function Financials() {
         <TabsContent value="accounts" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {financialData?.bankAccounts.map((account, index) => (
-              <Card key={index} className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300">
-                <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+              <Card key={index} className="bg-card border border-border shadow-sm hover:shadow-sm transition-all duration-300">
+                <CardHeader className="bg-gradient-to-r from-info to-primary text-primary-foreground rounded-t-lg">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Building className="h-5 w-5" />
                     {account.account_name}
@@ -405,7 +405,7 @@ export default function Financials() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Balance</span>
-                      <span className="text-xl font-bold text-emerald-600">
+                      <span className="text-xl font-bold text-success">
                         {formatCurrency(Number(account.balance))}
                       </span>
                     </div>
@@ -429,10 +429,10 @@ export default function Financials() {
         </TabsContent>
 
         <TabsContent value="transactions" className="space-y-6">
-          <Card className="bg-card border-2 border-border shadow-xl">
-            <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
+          <Card className="bg-card border border-border shadow-sm">
+            <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
               <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
+                <div className="p-2 bg-success rounded-lg shadow-md">
                   <CreditCard className="h-6 w-6" />
                 </div>
                 Recent Transactions
@@ -444,12 +444,12 @@ export default function Financials() {
                   <div key={index} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
-                        transaction.transaction_type === 'INCOME' ? 'bg-emerald-100' : 'bg-red-100'
+                        transaction.transaction_type === 'INCOME' ? 'bg-success/10' : 'bg-destructive/10'
                       }`}>
                         {transaction.transaction_type === 'INCOME' ? (
-                          <ArrowUpIcon className="h-4 w-4 text-emerald-600" />
+                          <ArrowUpIcon className="h-4 w-4 text-success" />
                         ) : (
-                          <ArrowDownIcon className="h-4 w-4 text-red-600" />
+                          <ArrowDownIcon className="h-4 w-4 text-destructive" />
                         )}
                       </div>
                       <div>
@@ -463,7 +463,7 @@ export default function Financials() {
                     </div>
                     <div className="text-right">
                       <p className={`font-bold text-sm ${
-                        transaction.transaction_type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'
+                        transaction.transaction_type === 'INCOME' ? 'text-success' : 'text-destructive'
                       }`}>
                         {transaction.transaction_type === 'INCOME' ? '+' : '-'}
                         {formatCurrency(Number(transaction.amount))}
@@ -484,40 +484,40 @@ export default function Financials() {
 
         <TabsContent value="reports" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-sm transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-emerald-600" />
+                <div className="w-16 h-16 bg-success/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-success" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Profit & Loss</h3>
                 <p className="text-sm text-muted-foreground mb-4">Comprehensive P&L statement</p>
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                <Button size="sm" className="bg-success hover:bg-success">
                   Generate Report
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-sm transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="h-8 w-8 text-blue-600" />
+                <div className="w-16 h-16 bg-info/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="h-8 w-8 text-info" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Cash Flow</h3>
                 <p className="text-sm text-muted-foreground mb-4">Detailed cash flow analysis</p>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                <Button size="sm" className="bg-info hover:bg-info">
                   Generate Report
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-sm transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <PieChart className="h-8 w-8 text-purple-600" />
+                <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <PieChart className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Balance Sheet</h3>
                 <p className="text-sm text-muted-foreground mb-4">Assets, liabilities & equity</p>
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                <Button size="sm" className="bg-primary hover:bg-primary">
                   Generate Report
                 </Button>
               </CardContent>

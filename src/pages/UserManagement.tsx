@@ -377,7 +377,7 @@ export default function UserManagement() {
           <p className="text-muted-foreground mt-1">Loading permissions...</p>
         </div>
         <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
           <span className="ml-2">Loading permissions...</span>
         </div>
       </div>
@@ -392,14 +392,14 @@ export default function UserManagement() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-violet-50 rounded-xl shadow-sm">
-                  <Users className="h-8 w-8 text-violet-600" />
+                <div className="p-3 bg-primary/10 rounded-xl shadow-sm">
+                  <Users className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                  <h1 className="text-3xl font-bold tracking-tight text-muted">
                     User Management
                   </h1>
-                  <p className="text-slate-600 text-lg">
+                  <p className="text-muted text-lg">
                     Manage users, roles, and permissions
                   </p>
                 </div>
@@ -501,7 +501,7 @@ export default function UserManagement() {
 
               {isLoading ? (
                 <div className="flex justify-center items-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
                   <span className="ml-2">Loading users...</span>
                 </div>
               ) : (
@@ -509,7 +509,7 @@ export default function UserManagement() {
                   {filteredUsers.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredUsers.map((user: DatabaseUser) => (
-                        <Card key={user.id} className="hover:shadow-lg transition-shadow">
+                        <Card key={user.id} className="hover:shadow-sm transition-shadow">
                           <CardContent className="p-4">
                             <div className="space-y-3">
                               <div className="flex justify-between items-start">
@@ -608,7 +608,7 @@ export default function UserManagement() {
                 <CardContent>
                   {isLoadingRoles ? (
                     <div className="flex justify-center items-center h-32">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
                       <span className="ml-2">Loading roles...</span>
                     </div>
                   ) : (
@@ -641,22 +641,22 @@ export default function UserManagement() {
                               <div className="md:col-span-6">
                                 <div className="flex flex-wrap gap-1">
                                   {viewPerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20">
                                       {viewPerms.length} view
                                     </Badge>
                                   )}
                                   {managePerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                                    <Badge variant="outline" className="text-[10px] bg-info/10 text-info border-info/20">
                                       {managePerms.length} manage
                                     </Badge>
                                   )}
                                   {destructivePerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
+                                    <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20">
                                       {destructivePerms.length} destructive
                                     </Badge>
                                   )}
                                   {specialPerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                                    <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20">
                                       {specialPerms.length} special
                                     </Badge>
                                   )}
@@ -703,7 +703,7 @@ export default function UserManagement() {
                 <CardContent>
                   {isLoadingOnlineUsers ? (
                     <div className="flex justify-center items-center h-32">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
                       <span className="ml-2">Loading active users...</span>
                     </div>
                   ) : (
@@ -711,7 +711,7 @@ export default function UserManagement() {
                       {onlineUsers.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {onlineUsers.map((user) => (
-                            <Card key={user.id} className="border-green-200 bg-green-50">
+                            <Card key={user.id} className="border-success/20 bg-success/10">
                               <CardContent className="p-4">
                                 <div className="space-y-2">
                                   <div className="flex justify-between items-start">
@@ -721,7 +721,7 @@ export default function UserManagement() {
                                         : user.username
                                       }
                                     </h3>
-                                    <Badge variant="default" className="bg-green-600">
+                                    <Badge variant="default" className="bg-success">
                                       Online
                                     </Badge>
                                   </div>

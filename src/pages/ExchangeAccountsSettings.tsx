@@ -181,7 +181,7 @@ export default function ExchangeAccountsSettings() {
               {res && (
                 <div
                   className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 ${
-                    res.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                    res.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
                   }`}
                 >
                   {res.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}

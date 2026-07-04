@@ -253,6 +253,7 @@ export function useBinanceChatWebSocket(
 
         if (activeOrderRef.current === orderNo) {
           setMessages(() => deduped);
+          messageCache.set(messageCacheKey(orderNo, accountIdRef.current ?? null), deduped);
 
           // Check if any queued messages now appear in server response (delivered)
           const serverContents = new Set(deduped.filter(m => m.self).map(m => (m.content || m.message || '').trim()));

@@ -52,6 +52,8 @@ export function Layout({ children }: LayoutProps) {
                   <HelpAssistantFab />
                   {/* Global click-to-view transaction detail dialog */}
                   <TransactionDetailDialog />
+                  {/* Global command palette (Ctrl/Cmd + K) */}
+                  <CommandPalette />
                 </SidebarInset>
               </div>
               </ShortcutsProvider>

@@ -143,7 +143,7 @@ const InvoiceCreatorPage = () => {
             <Receipt className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground tracking-tight">Swift Invoice Generator</h1>
+            <h1 className="text-lg font-semibold text-foreground tracking-tight">Swift Invoice Generator</h1>
             <p className="text-xs text-muted-foreground">Bulk CSV to PDF invoices</p>
           </div>
         </div>

@@ -66,7 +66,7 @@ export default function OrganizationPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Organization</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Organization</h1>
         <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="gap-1.5">
           <Plus className="h-4 w-4" /> Add Department
         </Button>

@@ -133,7 +133,7 @@ export default function CompOffPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Comp-Off Management</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Comp-Off Management</h1>
           <p className="text-sm text-muted-foreground">Auto-credited when employees work on Sundays or holidays. Allocate as leave balance.</p>
         </div>
         <div className="flex items-center gap-3">

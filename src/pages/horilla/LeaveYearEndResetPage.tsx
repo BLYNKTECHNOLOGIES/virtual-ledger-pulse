@@ -158,7 +158,7 @@ export default function LeaveYearEndResetPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Leave Year-End Reset</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Leave Year-End Reset</h1>
           <p className="text-sm text-muted-foreground">Reset leave balances & carry forward unused leave to the next year</p>
         </div>
       </div>

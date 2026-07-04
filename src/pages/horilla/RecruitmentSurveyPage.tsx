@@ -151,7 +151,7 @@ export default function RecruitmentSurveyPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Recruitment Survey</h1>
+          <h1 className="text-xl font-semibold text-foreground">Recruitment Survey</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Create and manage survey templates for recruitment</p>
         </div>
         <button

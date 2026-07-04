@@ -270,7 +270,7 @@ export default function RecruitmentDashboardPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Recruitment</h1>
+          <h1 className="text-xl font-semibold text-foreground">Recruitment</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Manage job openings and candidate pipeline</p>
         </div>
         <button

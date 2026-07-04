@@ -78,7 +78,7 @@ export default function ShiftsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Work Shifts</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Work Shifts</h1>
           <p className="text-sm text-muted-foreground">Manage employee work shifts and schedules</p>
         </div>
         <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">

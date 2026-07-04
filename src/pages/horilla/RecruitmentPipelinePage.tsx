@@ -425,7 +425,7 @@ export default function RecruitmentPipelinePage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-foreground">{activeRec?.title || "Pipeline"}</h1>
+            <h1 className="text-xl font-semibold text-foreground">{activeRec?.title || "Pipeline"}</h1>
             <p className="text-xs text-muted-foreground">
               {activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates · Drag to move between stages` : "Select a recruitment"}
             </p>

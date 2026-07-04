@@ -268,7 +268,7 @@ export default function Leads() {
                   <UserPlus className="h-8 w-8 text-info" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-muted">
+                  <h1 className="text-3xl font-semibold tracking-tight text-muted">
                     Lead Management
                   </h1>
                   <p className="text-muted text-lg">

@@ -270,7 +270,7 @@ export default function PayslipsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Payslips</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Payslips</h1>
         <p className="text-sm text-muted-foreground">View individual employee payslips with earnings/deductions breakdown</p>
       </div>
 

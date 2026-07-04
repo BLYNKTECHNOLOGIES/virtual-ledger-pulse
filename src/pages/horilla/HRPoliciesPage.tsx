@@ -32,7 +32,7 @@ export default function HRPoliciesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">HR Policies</h1>
+        <h1 className="text-2xl font-semibold text-foreground">HR Policies</h1>
         <p className="text-sm text-muted-foreground">Company policies and guidelines</p>
       </div>
 

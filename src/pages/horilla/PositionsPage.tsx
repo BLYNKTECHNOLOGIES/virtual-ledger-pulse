@@ -91,7 +91,7 @@ export default function PositionsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Positions</h1>
+          <h1 className="text-xl font-semibold text-foreground">Positions</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{filteredPositions.length} position{filteredPositions.length !== 1 ? "s" : ""}</p>
         </div>
         <button

@@ -125,7 +125,7 @@ export default function AttendanceCalendarPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Attendance Calendar</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Attendance Calendar</h1>
           <p className="text-sm text-muted-foreground">Monthly attendance view per employee</p>
         </div>
         <Button onClick={() => { setShowBulk(true); setSelectedEmps(employees.map((e: any) => e.id)); }} className="bg-[#E8604C] hover:bg-[#d4553f]">

@@ -170,7 +170,7 @@ export default function HorillaDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Welcome back! Here's what's happening today.</p>
       </div>
 

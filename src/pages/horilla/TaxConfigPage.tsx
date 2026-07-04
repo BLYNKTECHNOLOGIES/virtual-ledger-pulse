@@ -164,7 +164,7 @@ export default function TaxConfigPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Tax Configuration</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Tax Configuration</h1>
           <p className="text-sm text-muted-foreground">Filing statuses & progressive tax brackets for payroll computation</p>
         </div>
         <Button onClick={openNewFS} className="bg-[#E8604C] hover:bg-[#d4553f]">

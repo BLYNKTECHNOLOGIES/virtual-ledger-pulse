@@ -41,7 +41,7 @@ export default function Statistics() {
               <BarChart3 className="h-8 w-8 text-slate-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Statistics & Analytics</h1>
+              <h1 className="text-3xl font-semibold text-foreground">Statistics & Analytics</h1>
               <p className="text-muted-foreground mt-1">Comprehensive business insights and analytics</p>
             </div>
           </div>

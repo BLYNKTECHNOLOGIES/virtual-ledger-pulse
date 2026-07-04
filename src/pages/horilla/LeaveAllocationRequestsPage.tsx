@@ -128,7 +128,7 @@ export default function LeaveAllocationRequestsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Leave Allocation Requests</h1>
+          <h1 className="text-xl font-semibold">Leave Allocation Requests</h1>
           <p className="text-sm text-muted-foreground">{pendingCount} pending approval{pendingCount !== 1 ? "s" : ""}</p>
         </div>
         <Button onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" /> New Request</Button>

@@ -71,7 +71,7 @@ export default function PMSDashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Performance Management</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Performance Management</h1>
           <p className="text-muted-foreground text-sm">OKRs, objectives, and 360° feedback</p>
         </div>
         <div className="flex gap-2">

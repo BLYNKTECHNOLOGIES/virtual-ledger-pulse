@@ -75,7 +75,7 @@ export default function HourAccountsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Hour Accounts</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Hour Accounts</h1>
           <p className="text-sm text-muted-foreground">Monthly worked hours, pending hours & overtime tracking</p>
         </div>
         <Button onClick={handleRefresh} disabled={refreshing} className="bg-[#E8604C] hover:bg-[#d4553f]">

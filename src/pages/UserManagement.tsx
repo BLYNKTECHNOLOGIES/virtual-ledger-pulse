@@ -373,7 +373,7 @@ export default function UserManagement() {
     return (
       <div className="space-y-6 p-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+          <h1 className="text-3xl font-semibold text-foreground">User Management</h1>
           <p className="text-muted-foreground mt-1">Loading permissions...</p>
         </div>
         <div className="flex justify-center items-center h-32">
@@ -396,7 +396,7 @@ export default function UserManagement() {
                   <Users className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-muted">
+                  <h1 className="text-3xl font-semibold tracking-tight text-muted">
                     User Management
                   </h1>
                   <p className="text-muted text-lg">

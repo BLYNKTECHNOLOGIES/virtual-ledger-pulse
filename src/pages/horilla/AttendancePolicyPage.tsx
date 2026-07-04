@@ -103,7 +103,7 @@ export default function AttendancePolicyPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Attendance Policies</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Attendance Policies</h1>
           <p className="text-sm text-muted-foreground">Configure late, half-day, LOP, and overtime rules</p>
         </div>
         <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">

@@ -129,7 +129,7 @@ export default function Feedback360Page() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">360° Feedback</h1>
+          <h1 className="text-2xl font-semibold text-foreground">360° Feedback</h1>
           <p className="text-muted-foreground text-sm">Multi-directional performance feedback</p>
         </div>
         <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>

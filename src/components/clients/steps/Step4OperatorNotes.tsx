@@ -93,15 +93,15 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
       </div>
 
       {/* Final Validation Summary */}
-      <Card className="border-green-200 bg-green-50">
+      <Card className="border-success/20 bg-success/5">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-green-800">Ready to Create Client</CardTitle>
+          <CardTitle className="text-sm font-medium text-success">Ready to Create Client</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="font-medium text-green-800 mb-2">Required Information:</p>
-              <ul className="space-y-1 text-green-700">
+              <p className="font-medium text-success mb-2">Required Information:</p>
+              <ul className="space-y-1 text-success">
                 <li>✓ Client name provided</li>
                 <li>✓ Client type selected</li>
                 <li>✓ PAN Card uploaded</li>
@@ -109,8 +109,8 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
               </ul>
             </div>
             <div>
-              <p className="font-medium text-green-800 mb-2">Additional Info:</p>
-              <ul className="space-y-1 text-green-700">
+              <p className="font-medium text-success mb-2">Additional Info:</p>
+              <ul className="space-y-1 text-success">
                 <li>{formData.email ? '✓' : '○'} Email address</li>
                 <li>{formData.phone ? '✓' : '○'} Phone number</li>
                 <li>{formData.linked_bank_accounts?.length > 0 ? '✓' : '○'} Bank accounts</li>

@@ -570,11 +570,11 @@ export function SellerOnboardingApprovals() {
     switch (status) {
       case 'PENDING':
       case 'PENDING_APPROVAL':
-        return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+        return <Badge className="bg-warning/10 text-warning"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
       case 'VERIFIED':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" /> Approved</Badge>;
+        return <Badge className="bg-success/10 text-success border-success/20"><CheckCircle className="h-3 w-3 mr-1" /> Approved</Badge>;
       case 'REJECTED':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive border-destructive/20"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -682,26 +682,26 @@ export function SellerOnboardingApprovals() {
                         <TableCell>
                           <button
                             onClick={() => handleViewOrders(seller.id)}
-                            className="font-medium text-blue-600 hover:underline flex items-center gap-1"
+                            className="font-medium text-primary hover:underline flex items-center gap-1"
                           >
                             {seller.name}
                             <Eye className="h-3 w-3" />
                           </button>
                           {isSameUser && (
-                            <Badge className="mt-1 bg-purple-100 text-purple-800 text-xs">
+                            <Badge className="mt-1 bg-primary/10 text-primary border-primary/20 text-xs">
                               ⚠ Same User — different name
                             </Badge>
                           )}
                           {isSameUserByVName && (
                             <Badge
-                              className="mt-1 bg-purple-100 text-purple-800 text-xs"
+                              className="mt-1 bg-primary/10 text-primary border-primary/20 text-xs"
                               title="Multiple pending sellers share this verified KYC name."
                             >
                               ⚠ Same User — same KYC name
                             </Badge>
                           )}
                           {!isSameUser && !isSameUserByVName && identityState === 'linked_known' && nickInfo?.existingClient && (
-                            <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                            <Badge className="mt-1 bg-info/10 text-info border-info/20 text-xs">
                               🔗 Known Client: {nickInfo.existingClient.name} · @{nickInfo.nickname}
                             </Badge>
                           )}
@@ -711,7 +711,7 @@ export function SellerOnboardingApprovals() {
                             </Badge>
                           )}
                           {!isSameUser && !isSameUserByVName && identityState === 'name_collision' && collision?.displayNameClient && (
-                            <Badge className="mt-1 bg-amber-100 text-amber-800 text-xs">
+                            <Badge className="mt-1 bg-warning/10 text-warning text-xs">
                               ⚠ Different person — same name as {collision.displayNameClient.name}
                             </Badge>
                           )}
@@ -722,7 +722,7 @@ export function SellerOnboardingApprovals() {
                           )}
                           {noIdentitySignal && (
                             <Badge
-                              className="mt-1 bg-amber-100 text-amber-900 text-xs border border-amber-300"
+                              className="mt-1 bg-warning/10 text-warning text-xs border border-warning/30"
                               title="No real Binance nickname and no KYC name match — verify identity manually before approving."
                             >
                               ⚠ No identity signal — review manually
@@ -762,7 +762,7 @@ export function SellerOnboardingApprovals() {
                               size="sm"
                               onClick={() => handleApprove(seller.id)}
                               disabled={approveMutation.isPending}
-                              className="bg-green-600 hover:bg-green-700"
+                              className="bg-success hover:bg-success/90"
                               title={
                                 identityState === 'linked_known' && nickInfo?.existingClient
                                   ? `Approve seller side on existing client: ${nickInfo.existingClient.name}`
@@ -794,7 +794,7 @@ export function SellerOnboardingApprovals() {
               </Table>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <UserCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <UserCheck className="h-12 w-12 mx-auto mb-3 text-muted-foreground/60" />
               <p>No pending seller approvals</p>
               <p className="text-sm mt-1">New sellers will appear here when created from purchase orders</p>
             </div>
@@ -810,7 +810,7 @@ export function SellerOnboardingApprovals() {
       >
         <Button
           size="sm"
-          className="bg-green-600 hover:bg-green-700"
+          className="bg-success hover:bg-success/90"
           onClick={() => setShowBulkConfirm(true)}
           disabled={bulkApproveMutation.isPending}
         >
@@ -875,7 +875,7 @@ export function SellerOnboardingApprovals() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-green-600 hover:bg-green-700" onClick={handleBulkApproveConfirm}>
+            <AlertDialogAction className="bg-success hover:bg-success/90" onClick={handleBulkApproveConfirm}>
               Approve {selectedIds.size} Seller{selectedIds.size === 1 ? '' : 's'}
             </AlertDialogAction>
           </AlertDialogFooter>

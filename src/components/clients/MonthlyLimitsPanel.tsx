@@ -63,7 +63,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-green-600" />
+            <Shield className="h-5 w-5 text-success" />
             Monthly Limits & Cosmos Alerts
           </CardTitle>
         </CardHeader>
@@ -107,7 +107,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-green-600" />
+          <Shield className="h-5 w-5 text-success" />
           Monthly Limits & Cosmos Alerts
         </CardTitle>
       </CardHeader>
@@ -115,7 +115,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
-            <p className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString('en-IN')}</p>
+            <p className="text-lg font-semibold text-success">₹{firstOrderValue.toLocaleString('en-IN')}</p>
             {firstOrder && (
               <p className="text-xs text-muted-foreground">Order #{firstOrder.order_number}</p>
             )}
@@ -141,13 +141,13 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Cosmos Triggered?</label>
-            <Badge variant="outline" className={isCosmosTriggered ? "text-red-600 border-red-200 bg-red-50" : "text-green-600 border-green-200 bg-green-50"}>
+            <Badge variant="outline" className={isCosmosTriggered ? "text-destructive border-destructive/20 bg-destructive/5" : "text-success border-success/20 bg-success/5"}>
               {isCosmosTriggered ? "⚠️ Triggered" : "✅ Not Triggered"}
             </Badge>
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Spike Detected?</label>
-            <Badge variant="outline" className={isSpikeDetected ? "text-orange-600 border-orange-200 bg-orange-50" : "text-green-600 border-green-200 bg-green-50"}>
+            <Badge variant="outline" className={isSpikeDetected ? "text-warning border-warning/20 bg-warning/5" : "text-success border-success/20 bg-success/5"}>
               {isSpikeDetected ? "⚠️ Yes" : "✅ No"}
             </Badge>
           </div>
@@ -156,13 +156,13 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Re-KYC Status</label>
-            <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+            <Badge variant="outline" className="text-primary border-info/20 bg-info/5">
               {client.kyc_status}
             </Badge>
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Risk Level</label>
-            <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">
+            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
               {client.default_risk_level || 'STANDARD'}
             </Badge>
           </div>

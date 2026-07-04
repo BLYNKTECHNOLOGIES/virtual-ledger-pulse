@@ -132,7 +132,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-indigo-600" />
+            <ArrowRightLeft className="h-5 w-5 text-primary" />
             Trading Statistics
           </CardTitle>
         </CardHeader>
@@ -146,22 +146,22 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
   }
 
   return (
-    <Card className="shadow-lg">
+    <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-indigo-600" />
+            <ArrowRightLeft className="h-5 w-5 text-primary" />
             <CardTitle>Trading Statistics</CardTitle>
             {isComposite && (
-              <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                 COMPOSITE
               </Badge>
             )}
             {isBuyer && !isSeller && (
-              <Badge className="bg-green-100 text-green-800">BUYER</Badge>
+              <Badge className="bg-success/10 text-success border-success/20">BUYER</Badge>
             )}
             {isSeller && !isBuyer && (
-              <Badge className="bg-orange-100 text-orange-800">SELLER</Badge>
+              <Badge className="bg-warning/10 text-warning border-warning/20">SELLER</Badge>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -186,28 +186,28 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
         {/* Buy and Sell Statistics Side by Side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Buy Statistics */}
-          <div className="bg-green-50 rounded-lg p-4 space-y-4">
-            <div className="flex items-center gap-2 border-b border-green-200 pb-2">
-              <ShoppingCart className="h-5 w-5 text-green-600" />
-              <h3 className="text-lg font-semibold text-green-800">Buy Statistics</h3>
+          <div className="bg-success/5 rounded-lg p-4 space-y-4">
+            <div className="flex items-center gap-2 border-b border-success/20 pb-2">
+              <ShoppingCart className="h-5 w-5 text-success" />
+              <h3 className="text-lg font-semibold text-success">Buy Statistics</h3>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-green-700">Total Orders</label>
-                <p className="text-2xl font-bold text-green-600">{buyStats.totalOrders}</p>
+                <label className="text-sm font-medium text-success">Total Orders</label>
+                <p className="text-2xl font-bold text-success tabular-nums">{buyStats.totalOrders}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-green-700">Total Volume</label>
-                <p className="text-2xl font-bold text-green-600">₹{buyStats.totalVolume.toLocaleString('en-IN')}</p>
+                <label className="text-sm font-medium text-success">Total Volume</label>
+                <p className="text-2xl font-bold text-success tabular-nums">₹{buyStats.totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-green-700">Avg Order Value</label>
-                <p className="text-lg font-semibold text-green-600">₹{buyStats.avgOrderValue.toLocaleString('en-IN')}</p>
+                <label className="text-sm font-medium text-success">Avg Order Value</label>
+                <p className="text-lg font-semibold text-success tabular-nums">₹{buyStats.avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-green-700">First Order</label>
-                <p className="text-sm text-green-600">
+                <label className="text-sm font-medium text-success">First Order</label>
+                <p className="text-sm text-success">
                   {buyStats.firstOrderDate 
                     ? new Date(buyStats.firstOrderDate).toLocaleDateString() 
                     : '-'}
@@ -217,28 +217,28 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
           </div>
 
           {/* Sell Statistics */}
-          <div className="bg-orange-50 rounded-lg p-4 space-y-4">
-            <div className="flex items-center gap-2 border-b border-orange-200 pb-2">
-              <ShoppingBag className="h-5 w-5 text-orange-600" />
-              <h3 className="text-lg font-semibold text-orange-800">Sell Statistics</h3>
+          <div className="bg-warning/5 rounded-lg p-4 space-y-4">
+            <div className="flex items-center gap-2 border-b border-warning/20 pb-2">
+              <ShoppingBag className="h-5 w-5 text-warning" />
+              <h3 className="text-lg font-semibold text-warning">Sell Statistics</h3>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-orange-700">Total Orders</label>
-                <p className="text-2xl font-bold text-orange-600">{sellStats.totalOrders}</p>
+                <label className="text-sm font-medium text-warning">Total Orders</label>
+                <p className="text-2xl font-bold text-warning tabular-nums">{sellStats.totalOrders}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-orange-700">Total Volume</label>
-                <p className="text-2xl font-bold text-orange-600">₹{sellStats.totalVolume.toLocaleString('en-IN')}</p>
+                <label className="text-sm font-medium text-warning">Total Volume</label>
+                <p className="text-2xl font-bold text-warning tabular-nums">₹{sellStats.totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-orange-700">Avg Order Value</label>
-                <p className="text-lg font-semibold text-orange-600">₹{sellStats.avgOrderValue.toLocaleString('en-IN')}</p>
+                <label className="text-sm font-medium text-warning">Avg Order Value</label>
+                <p className="text-lg font-semibold text-warning tabular-nums">₹{sellStats.avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-orange-700">First Order</label>
-                <p className="text-sm text-orange-600">
+                <label className="text-sm font-medium text-warning">First Order</label>
+                <p className="text-sm text-warning">
                   {sellStats.firstOrderDate 
                     ? new Date(sellStats.firstOrderDate).toLocaleDateString() 
                     : '-'}
@@ -249,35 +249,35 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
         </div>
 
         {/* Combined Summary */}
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2">
+        <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
+          <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
             Combined Summary
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium text-indigo-700">Total Trade Volume</label>
-              <p className="text-2xl font-bold text-indigo-600">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
+              <label className="text-sm font-medium text-primary">Total Trade Volume</label>
+              <p className="text-2xl font-bold text-primary tabular-nums">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Total Orders</label>
-              <p className="text-2xl font-bold text-indigo-600">{totalOrders}</p>
+              <label className="text-sm font-medium text-primary">Total Orders</label>
+              <p className="text-2xl font-bold text-primary tabular-nums">{totalOrders}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Avg Order Value</label>
-              <p className="text-2xl font-bold text-indigo-600">₹{avgOrderValue.toFixed(2)}</p>
+              <label className="text-sm font-medium text-primary">Avg Order Value</label>
+              <p className="text-2xl font-bold text-primary tabular-nums">₹{avgOrderValue.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">
                 Across all transactions
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Client Type</label>
-              <Badge className={
+              <label className="text-sm font-medium text-primary">Client Type</label>
+              <Badge variant="outline" className={
                 isComposite 
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white' 
+                  ? 'bg-primary/10 text-primary border-primary/20' 
                   : isBuyer 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-orange-100 text-orange-800'
+                    ? 'bg-success/10 text-success border-success/20' 
+                    : 'bg-warning/10 text-warning border-warning/20'
               }>
                 {isComposite ? 'COMPOSITE' : isBuyer ? 'BUYER' : isSeller ? 'SELLER' : 'NEW'}
               </Badge>

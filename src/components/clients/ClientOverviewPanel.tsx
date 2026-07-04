@@ -346,7 +346,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         {/* Source of Income Details */}
         {incomeDetails && (
-          <div className="p-3 bg-amber-50 rounded-md border border-amber-200 space-y-2">
+          <div className="p-3 bg-warning/5 rounded-md border border-warning/30 space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
               <Briefcase className="h-4 w-4" />
               Source of Income
@@ -389,7 +389,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         {/* Linked Binance Nicknames */}
         {binanceNicknames.length > 0 && (
-          <div className="p-3 bg-indigo-50 rounded-md border border-indigo-200 space-y-2">
+          <div className="p-3 bg-primary/5 rounded-md border border-primary/20 space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
               <Link2 className="h-4 w-4" />
               Linked Binance Nicknames

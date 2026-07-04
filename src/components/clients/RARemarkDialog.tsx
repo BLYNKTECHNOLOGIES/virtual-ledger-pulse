@@ -27,10 +27,10 @@ interface RARemarkDialogProps {
 }
 
 const outcomeColor: Record<string, string> = {
-  Connected: "bg-green-100 text-green-800",
-  "No Answer": "bg-yellow-100 text-yellow-800",
-  "Callback Requested": "bg-blue-100 text-blue-800",
-  "Not Interested": "bg-red-100 text-red-800",
+  Connected: "bg-success/10 text-success border-success/20",
+  "No Answer": "bg-warning/10 text-warning border-warning/20",
+  "Callback Requested": "bg-info/10 text-info border-info/20",
+  "Not Interested": "bg-destructive/10 text-destructive border-destructive/20",
   "Wrong Number": "bg-muted text-foreground",
   Other: "bg-muted text-foreground",
 };

@@ -74,11 +74,11 @@ export function ClientOrderSummaryDialog({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
-        return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+        return <Badge className="bg-success/10 text-success border-success/20">Completed</Badge>;
       case 'PENDING':
-        return <Badge className="bg-amber-100 text-amber-800">Pending</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Pending</Badge>;
       case 'CANCELLED':
-        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive border-destructive/20">Cancelled</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -125,7 +125,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-blue-500" />
+                <Package className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">Total Orders</span>
               </div>
               <p className="text-2xl font-bold mt-1">{summary.totalOrders}</p>
@@ -135,7 +135,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-500" />
+                <DollarSign className="h-4 w-4 text-success" />
                 <span className="text-sm text-muted-foreground">Total Value</span>
               </div>
               <p className="text-2xl font-bold mt-1">₹{summary.totalValue.toLocaleString('en-IN')}</p>
@@ -145,7 +145,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-purple-500" />
+                <TrendingUp className="h-4 w-4 text-primary" />
                 <span className="text-sm text-muted-foreground">Avg. Value</span>
               </div>
               <p className="text-2xl font-bold mt-1">₹{summary.averageValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
@@ -155,7 +155,7 @@ export function ClientOrderSummaryDialog({
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-orange-500" />
+                <Calendar className="h-4 w-4 text-warning" />
                 <span className="text-sm text-muted-foreground">First Order</span>
               </div>
               <p className="text-lg font-bold mt-1">
@@ -197,7 +197,7 @@ export function ClientOrderSummaryDialog({
                       onClick={() => openTransaction({ type: 'purchase_order', id: order.id })}
                       title="Click to view full order details"
                     >
-                      <td className="py-2 px-4 font-mono text-sm text-blue-600 hover:underline">{order.order_number}</td>
+                      <td className="py-2 px-4 font-mono text-sm text-primary hover:underline">{order.order_number}</td>
                       <td className="py-2 px-4 text-sm">
                         {order.order_date 
                           ? format(new Date(order.order_date), 'dd MMM yyyy')

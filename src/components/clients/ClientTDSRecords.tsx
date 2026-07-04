@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Receipt, FileCheck, IndianRupee, Calendar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -143,7 +144,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="animate-pulse">Loading TDS records...</div>
+          <TableSkeleton rows={5} columns={7} />
         </CardContent>
       </Card>
     );
@@ -154,7 +155,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-orange-600" />
+            <Receipt className="h-5 w-5 text-warning" />
             TDS Records (Seller)
           </CardTitle>
           <Button 
@@ -169,51 +170,51 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
       <CardContent className="space-y-4">
         {/* Stats Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
-            <div className="flex items-center gap-2 text-orange-600 mb-1">
+          <div className="bg-warning/5 rounded-lg p-3 border border-warning/20">
+            <div className="flex items-center gap-2 text-warning mb-1">
               <IndianRupee className="h-4 w-4" />
               <span className="text-xs font-medium">Total TDS Deducted</span>
             </div>
-            <p className="text-lg font-bold text-orange-700">
+            <p className="text-lg font-bold text-warning tabular-nums">
               ₹{stats.totalTdsDeducted.toLocaleString('en-IN')}
             </p>
           </div>
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-            <div className="flex items-center gap-2 text-blue-600 mb-1">
+          <div className="bg-info/5 rounded-lg p-3 border border-info/20">
+            <div className="flex items-center gap-2 text-primary mb-1">
               <Calendar className="h-4 w-4" />
               <span className="text-xs font-medium">Total Records</span>
             </div>
-            <p className="text-lg font-bold text-blue-700">{stats.totalRecords}</p>
+            <p className="text-lg font-bold text-info tabular-nums">{stats.totalRecords}</p>
           </div>
-          <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-            <div className="flex items-center gap-2 text-yellow-600 mb-1">
+          <div className="bg-warning/5 rounded-lg p-3 border border-warning/20">
+            <div className="flex items-center gap-2 text-warning mb-1">
               <Receipt className="h-4 w-4" />
               <span className="text-xs font-medium">Pending Filing</span>
             </div>
-            <p className="text-lg font-bold text-yellow-700">{stats.pendingRecords}</p>
+            <p className="text-lg font-bold text-warning tabular-nums">{stats.pendingRecords}</p>
           </div>
-          <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-            <div className="flex items-center gap-2 text-green-600 mb-1">
+          <div className="bg-success/5 rounded-lg p-3 border border-success/20">
+            <div className="flex items-center gap-2 text-success mb-1">
               <FileCheck className="h-4 w-4" />
               <span className="text-xs font-medium">Filed</span>
             </div>
-            <p className="text-lg font-bold text-green-700">{stats.filedRecords}</p>
+            <p className="text-lg font-bold text-success tabular-nums">{stats.filedRecords}</p>
           </div>
         </div>
 
         {/* TDS Records Table */}
         {tdsRecords && tdsRecords.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>PAN</TableHead>
-                  <TableHead>Total Amount</TableHead>
-                  <TableHead>TDS Deducted</TableHead>
-                  <TableHead>Net Paid</TableHead>
-                  <TableHead>Quarter</TableHead>
-                  <TableHead>Status</TableHead>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">Order #</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">PAN</TableHead>
+                  <TableHead className="text-right text-[11px] uppercase tracking-wide text-muted-foreground">Total Amount</TableHead>
+                  <TableHead className="text-right text-[11px] uppercase tracking-wide text-muted-foreground">TDS Deducted</TableHead>
+                  <TableHead className="text-right text-[11px] uppercase tracking-wide text-muted-foreground">Net Paid</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">Quarter</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,17 +227,17 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
                   >
                     <TableCell className="font-medium">{record.order_number}</TableCell>
                     <TableCell>{record.pan_number}</TableCell>
-                    <TableCell>₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-orange-600 font-medium">
+                    <TableCell className="text-right tabular-nums">₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right text-warning font-medium tabular-nums">
                       ₹{record.tds_amount?.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell>₹{record.net_payable_amount?.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right tabular-nums">₹{record.net_payable_amount?.toLocaleString('en-IN')}</TableCell>
                     <TableCell>{getFinancialQuarter(record.deduction_date)}</TableCell>
                     <TableCell>
                       {record.tds_certificate_number ? (
-                        <Badge className="bg-green-100 text-green-800">Filed</Badge>
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">Filed</Badge>
                       ) : (
-                        <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Pending</Badge>
                       )}
                     </TableCell>
                   </TableRow>
@@ -258,8 +259,9 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
             )}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            No TDS records found for this seller
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+            <Receipt className="h-8 w-8 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">No TDS records found for this seller</p>
           </div>
         )}
       </CardContent>

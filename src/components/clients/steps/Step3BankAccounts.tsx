@@ -91,7 +91,7 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-foreground">
                 Bank Account #{index + 1}
-                {account.isCustomBank && <span className="ml-2 text-xs text-blue-600">(Custom Bank)</span>}
+                {account.isCustomBank && <span className="ml-2 text-xs text-primary">(Custom Bank)</span>}
               </h4>
               <Button
                 type="button"
@@ -151,7 +151,7 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
 
         {bankAccounts.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <Building2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/60" />
             <p>No bank accounts added yet.</p>
             <p className="text-sm">Click "Add Indian Bank" or "Add Other Bank" to get started.</p>
           </div>

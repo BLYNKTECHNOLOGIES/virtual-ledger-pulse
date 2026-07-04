@@ -24,10 +24,10 @@ const typeIcons: Record<string, React.ReactNode> = {
 };
 
 const typeColors: Record<string, string> = {
-  call: "bg-blue-100 text-blue-800",
-  email: "bg-green-100 text-green-800",
-  meeting: "bg-purple-100 text-purple-800",
-  video_call: "bg-orange-100 text-orange-800",
+  call: "bg-info/10 text-info border-info/20",
+  email: "bg-success/10 text-success border-success/20",
+  meeting: "bg-primary/10 text-primary border-primary/20",
+  video_call: "bg-warning/10 text-warning border-warning/20",
   note: "bg-muted text-foreground",
 };
 

@@ -842,7 +842,7 @@ export function ClientDashboard() {
 
       {/* Sticky assignment action bar */}
       {canAssignRA && selectedClientIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border bg-background px-5 py-3 shadow-lg">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border bg-background px-5 py-3">
           <span className="text-sm font-medium">{selectedClientIds.size} selected</span>
           <Button size="sm" onClick={() => setShowAssignDialog(true)}>
             <Headset className="h-4 w-4 mr-1" />

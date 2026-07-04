@@ -602,8 +602,8 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
       };
 
 
-      const thisResult = await computeGrossProfit(thisSales, thisPurchaseOrders as any, thisUsdtFees);
-      const lastResult = await computeGrossProfit(lastSales, lastPurchaseOrders as any, lastUsdtFees);
+      const thisResult = computeGrossProfit(thisSales, thisPurchaseOrders as any, thisTotalFees);
+      const lastResult = computeGrossProfit(lastSales, lastPurchaseOrders as any, lastTotalFees);
 
       const revenueGrowth = lastResult.totalSalesValue > 0
         ? ((thisResult.totalSalesValue - lastResult.totalSalesValue) / lastResult.totalSalesValue) * 100 : 0;

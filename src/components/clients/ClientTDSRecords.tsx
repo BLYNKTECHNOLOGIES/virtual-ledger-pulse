@@ -204,17 +204,17 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
 
         {/* TDS Records Table */}
         {tdsRecords && tdsRecords.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>PAN</TableHead>
-                  <TableHead>Total Amount</TableHead>
-                  <TableHead>TDS Deducted</TableHead>
-                  <TableHead>Net Paid</TableHead>
-                  <TableHead>Quarter</TableHead>
-                  <TableHead>Status</TableHead>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">Order #</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">PAN</TableHead>
+                  <TableHead className="text-right text-[11px] uppercase tracking-wide text-muted-foreground">Total Amount</TableHead>
+                  <TableHead className="text-right text-[11px] uppercase tracking-wide text-muted-foreground">TDS Deducted</TableHead>
+                  <TableHead className="text-right text-[11px] uppercase tracking-wide text-muted-foreground">Net Paid</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">Quarter</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -227,17 +227,17 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
                   >
                     <TableCell className="font-medium">{record.order_number}</TableCell>
                     <TableCell>{record.pan_number}</TableCell>
-                    <TableCell>₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-warning font-medium">
+                    <TableCell className="text-right tabular-nums">₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right text-warning font-medium tabular-nums">
                       ₹{record.tds_amount?.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell>₹{record.net_payable_amount?.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right tabular-nums">₹{record.net_payable_amount?.toLocaleString('en-IN')}</TableCell>
                     <TableCell>{getFinancialQuarter(record.deduction_date)}</TableCell>
                     <TableCell>
                       {record.tds_certificate_number ? (
-                        <Badge className="bg-success/10 text-success border-success/20">Filed</Badge>
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">Filed</Badge>
                       ) : (
-                        <Badge className="bg-warning/10 text-warning border-warning/20">Pending</Badge>
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Pending</Badge>
                       )}
                     </TableCell>
                   </TableRow>

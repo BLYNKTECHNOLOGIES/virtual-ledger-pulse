@@ -11,6 +11,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { HelpAssistantFab } from "./HelpAssistantFab";
 import { TransactionDetailDialog } from "./transaction-detail";
 import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
+import { CommandPalette } from "./command-palette";
 
 interface LayoutProps {
   children: React.ReactNode;

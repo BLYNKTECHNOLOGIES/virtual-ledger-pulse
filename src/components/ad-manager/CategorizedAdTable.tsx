@@ -14,6 +14,19 @@ import { useState } from 'react';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
+import { useValueFlash } from '@/hooks/useValueFlash';
+
+function AdPriceCell({ ad }: { ad: BinanceAd }) {
+  const flash = useValueFlash(Number(ad.price || 0), 'value-flash');
+  return (
+    <TableCell className={`text-right font-semibold tabular-nums ${flash}`}>
+      ₹{Number(ad.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+      {ad.priceType === 2 && ad.priceFloatingRatio && (
+        <span className="text-xs text-muted-foreground ml-1">({Number(ad.priceFloatingRatio).toFixed(2)}%)</span>
+      )}
+    </TableCell>
+  );
+}
 
 function formatCommissionRate(ad: BinanceAd, identifier?: string) {
   const list = ad.tradeMethodCommissionRateVoList || [];
@@ -395,12 +408,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     <TableCell>
                       <span className="text-xs">{ad.priceType === 1 ? 'Fixed' : 'Floating'}</span>
                     </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      ₹{Number(ad.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      {ad.priceType === 2 && ad.priceFloatingRatio && (
-                        <span className="text-xs text-muted-foreground ml-1">({Number(ad.priceFloatingRatio).toFixed(2)}%)</span>
-                      )}
-                    </TableCell>
+                    <AdPriceCell ad={ad} />
                     <TableCell className="text-right tabular-nums">
                       {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}
                       <div className="text-xs text-muted-foreground">

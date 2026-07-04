@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CreditSubLedgerDialog } from "@/components/bams/subledger/CreditSubLedgerDialog";
+import { useValueFlash } from "@/hooks/useValueFlash";
 
 interface AccountSummaryData {
   id: string;
@@ -419,6 +420,7 @@ export function AccountSummary() {
   }
 
   const totalComputedBalance = accountsData?.reduce((sum, acc) => sum + acc.computed_balance, 0) || 0;
+  const totalBalanceFlash = useValueFlash(totalComputedBalance, "value-flash");
   const totalIncome = accountsData?.reduce((sum, acc) => sum + acc.total_income, 0) || 0;
   const totalExpense = accountsData?.reduce((sum, acc) => sum + acc.total_expense, 0) || 0;
 
@@ -469,7 +471,7 @@ export function AccountSummary() {
                 <div className="flex items-center justify-between">
                   <div className="min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Balance</p>
-                    <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{formatCurrency(totalComputedBalance)}</p>
+                    <p className={`text-2xl font-semibold tabular-nums text-foreground mt-2 ${totalBalanceFlash}`}>{formatCurrency(totalComputedBalance)}</p>
                   </div>
                   <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <DollarSign className="h-6 w-6 text-success" />

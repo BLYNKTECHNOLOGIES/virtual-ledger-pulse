@@ -714,9 +714,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
             )}
 
             {noSellMethods && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-                <p className="text-xs text-amber-600 dark:text-amber-400">
+              <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+                <p className="text-xs text-warning">
                   No payment methods found in existing SELL ads. Please create a SELL ad on Binance first.
                 </p>
               </div>
@@ -800,7 +800,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                         </div>
                       ) : sellAdPayMethods.length === 0 ? (
                         <div className="flex flex-col items-center gap-2 py-8">
-                          <AlertTriangle className="h-8 w-8 text-amber-500" />
+                          <AlertTriangle className="h-8 w-8 text-warning" />
                           <p className="text-sm text-muted-foreground text-center">
                             No payment methods found. Create a SELL ad on Binance first to populate available methods.
                           </p>

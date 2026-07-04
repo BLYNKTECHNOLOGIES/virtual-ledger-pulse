@@ -486,14 +486,14 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     <span>Ref: <span className="font-semibold text-foreground">₹{priceRange.referencePrice}</span></span>
                     <span className="text-muted-foreground/60">|</span>
                     <span>Range: <span className="font-medium text-foreground">{priceRange.min} – {priceRange.max}</span></span>
-                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refetchRefPrice()} title="Refresh price range">
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() = aria-label="Refresh"> refetchRefPrice()} title="Refresh price range">
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </>
                 ) : (
                   <span className="flex items-center gap-1 text-destructive">
                     <AlertTriangle className="h-3 w-3" /> Unable to fetch price range
-                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refetchRefPrice()}>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() = aria-label="Refresh"> refetchRefPrice()}>
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </span>
@@ -518,7 +518,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 <Label>Price ({form.fiatUnit})</Label>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="icon" type="button"
-                    onMouseDown={() => startHold(-priceStep)}
+                    onMouseDown={() = aria-label="Decrease"> startHold(-priceStep)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
                     onTouchStart={() => startHold(-priceStep)}
@@ -536,7 +536,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     className={cn("text-center", isPriceOutOfRange && "border-destructive focus-visible:ring-destructive")}
                   />
                   <Button variant="outline" size="icon" type="button"
-                    onMouseDown={() => startHold(priceStep)}
+                    onMouseDown={() = aria-label="Increase"> startHold(priceStep)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
                     onTouchStart={() => startHold(priceStep)}
@@ -568,7 +568,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 <Label>Floating Ratio (%)</Label>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="icon" type="button"
-                    onMouseDown={() => startFloatingRatioHold(-0.01)}
+                    onMouseDown={() = aria-label="Decrease"> startFloatingRatioHold(-0.01)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
                     onTouchStart={() => startFloatingRatioHold(-0.01)}
@@ -586,7 +586,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     className="text-center"
                   />
                   <Button variant="outline" size="icon" type="button"
-                    onMouseDown={() => startFloatingRatioHold(0.01)}
+                    onMouseDown={() = aria-label="Increase"> startFloatingRatioHold(0.01)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
                     onTouchStart={() => startFloatingRatioHold(0.01)}
@@ -704,7 +704,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                         <span className="text-sm font-bold" style={{ color: accentColor }}>{iconLabel}</span>
                         <span className="text-sm font-medium">{label}</span>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePayMethod(m)}>
+                      <Button variant="ghost" size="icon" aria-label="Remove payment method" className="h-6 w-6" onClick={() => togglePayMethod(m)}>
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>

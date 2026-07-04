@@ -456,7 +456,7 @@ export function ClientDashboard() {
   };
 
   return (
-    <div className="space-y-6 page-mount">of
+    <div className="space-y-6 page-mount">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full ${canAssignRA ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="directory">Client Directory</TabsTrigger>

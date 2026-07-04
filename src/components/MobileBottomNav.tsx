@@ -60,7 +60,7 @@ export function MobileBottomNav() {
   if (isLoading) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t-2 border-gray-200 shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t-2 border-border shadow-lg">
       <div className="flex items-center justify-around h-16 px-2">
         {visibleMainNavItems.map((item) => {
           const isActive = location.pathname === item.url;
@@ -70,11 +70,11 @@ export function MobileBottomNav() {
               to={item.url}
               className={`flex flex-col items-center justify-center flex-1 h-full px-1 py-2 transition-colors ${
                 isActive
-                  ? "text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <item.icon className={`h-5 w-5 ${isActive ? "text-blue-600" : ""}`} />
+              <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} />
               <span className={`text-xs mt-1 truncate ${isActive ? "font-semibold" : ""}`}>
                 {item.title}
               </span>
@@ -85,7 +85,7 @@ export function MobileBottomNav() {
         {/* More menu */}
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <button className="flex flex-col items-center justify-center flex-1 h-full px-1 py-2 text-gray-500 hover:text-gray-700 transition-colors">
+            <button className="flex flex-col items-center justify-center flex-1 h-full px-1 py-2 text-muted-foreground hover:text-foreground transition-colors">
               <Menu className="h-5 w-5" />
               <span className="text-xs mt-1">More</span>
             </button>
@@ -105,8 +105,8 @@ export function MobileBottomNav() {
                       onClick={() => setIsOpen(false)}
                       className={`flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${
                         isActive
-                          ? "bg-blue-50 text-blue-600 border-2 border-blue-200"
-                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-2 border-transparent"
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : "bg-muted text-foreground hover:bg-muted/70 border border-transparent"
                       }`}
                     >
                       <item.icon className="h-6 w-6 mb-2" />
@@ -123,8 +123,8 @@ export function MobileBottomNav() {
                   onClick={() => setIsOpen(false)}
                   className={`col-span-3 flex items-center justify-center gap-3 px-6 py-4 rounded-xl transition-all mt-1 ${
                     isTerminalActive
-                      ? "bg-zinc-700 text-white border-2 border-zinc-500"
-                      : "bg-zinc-900 text-white border-2 border-zinc-900 hover:bg-zinc-800"
+                      ? "bg-foreground/80 text-background border border-foreground/50"
+                      : "bg-foreground text-background border border-foreground hover:bg-foreground/90"
                   }`}
                 >
                   <Terminal className="h-5 w-5" />

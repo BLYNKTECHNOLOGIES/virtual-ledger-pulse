@@ -1433,8 +1433,9 @@ function TerminalOrdersContent() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
 
       {/* Order Assignment Dialog */}
       {assignDialogOrder && (

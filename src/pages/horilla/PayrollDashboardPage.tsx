@@ -143,11 +143,11 @@ export default function PayrollDashboardPage() {
   const statusColor = (status: string) => {
     switch (status) {
       case "draft": return "bg-muted text-foreground";
-      case "processing": return "bg-blue-100 text-blue-700";
-      case "reviewed": return "bg-indigo-100 text-indigo-700";
-      case "completed": return "bg-green-100 text-green-700";
-      case "paid": return "bg-emerald-100 text-emerald-800";
-      case "cancelled": return "bg-red-100 text-red-700";
+      case "processing": return "bg-info/10 text-info";
+      case "reviewed": return "bg-primary/10 text-primary";
+      case "completed": return "bg-success/10 text-success";
+      case "paid": return "bg-success/10 text-success";
+      case "cancelled": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-foreground";
     }
   };

@@ -150,12 +150,12 @@ export function SalesPurchasesTab() {
                           <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                           <TableCell className="text-xs">{o.order_date ? format(new Date(o.order_date), 'dd MMM yyyy') : '—'}</TableCell>
                           <TableCell>{o.supplier_name || '—'}</TableCell>
-                          <TableCell className="text-right">{o.quantity ?? '—'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.price_per_unit)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.total_amount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.fee_amount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.tds_amount)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.net_payable_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{o.quantity ?? '—'}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatCurrency(o.price_per_unit)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatCurrency(o.total_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(o.fee_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-warning">{formatCurrency(o.tds_amount)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatCurrency(o.net_payable_amount)}</TableCell>
                           <TableCell>{statusBadge(o.status)}</TableCell>
                         </ClickableRow>
                       ))}

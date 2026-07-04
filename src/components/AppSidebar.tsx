@@ -453,7 +453,7 @@ export function AppSidebar() {
           <Link to="/terminal">
             <Button
               variant="ghost"
-              className={`w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-warning hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 hover:text-warning border border-amber-500/30 hover:border-amber-400/50 shadow-lg hover:shadow-amber-500/10 transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
+              className={`w-full bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
             >
               <Megaphone className={`h-4 w-4 ${isCollapsed ? '' : 'mr-2'}`} />
               {!isCollapsed && <span className="text-xs">Terminal</span>}

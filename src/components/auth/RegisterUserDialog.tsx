@@ -23,6 +23,9 @@ const EMPTY = {
   confirmPassword: "",
 };
 
+const fieldClass =
+  "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/30";
+
 export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({ ...EMPTY });
@@ -118,25 +121,35 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-info" />
-            Register New User
-          </DialogTitle>
-          <DialogDescription>
-            Fill in your details. Your request will be sent to the Super Admin for approval.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[92vh] overflow-y-auto gap-0 border-white/10 bg-[hsl(231_45%_9%)]/95 p-0 text-white backdrop-blur-2xl">
+        {/* Gradient header band */}
+        <div className="relative overflow-hidden rounded-t-lg border-b border-white/10 bg-gradient-to-br from-[hsl(231_60%_16%)] to-[hsl(265_55%_16%)] px-6 py-6">
+          <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-[hsl(231_81%_60%)]/30 blur-3xl" />
+          <DialogHeader className="relative space-y-3 text-left">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] shadow-lg">
+              <UserPlus className="h-6 w-6 text-white" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-white">Create your account</DialogTitle>
+            <DialogDescription className="text-sm text-white/60">
+              Fill in your details — your request will be sent to the Super Admin for approval.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
+        <div className="p-6">
         {submitted ? (
-          <div className="flex flex-col items-center text-center gap-3 py-6">
-            <CheckCircle2 className="h-12 w-12 text-success" />
-            <h3 className="text-lg font-semibold text-foreground">Registration Submitted</h3>
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-400/30">
+              <CheckCircle2 className="h-9 w-9 text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white">Registration submitted</h3>
+            <p className="max-w-sm text-sm text-white/60">
               Your registration is pending Super Admin approval. You'll be able to log in once approved.
             </p>
-            <Button className="mt-2" onClick={() => handleClose(false)}>
+            <Button
+              className="mt-2 bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] text-white hover:opacity-90"
+              onClick={() => handleClose(false)}
+            >
               Back to Login
             </Button>
           </div>
@@ -144,20 +157,20 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="reg_first_name">First Name *</Label>
+                <Label htmlFor="reg_first_name" className="text-white/80">First Name *</Label>
                 <Input
                   id="reg_first_name"
-                  className="text-foreground"
+                  className={fieldClass}
                   value={formData.firstName}
                   onChange={(e) => update("firstName", e.target.value)}
                   placeholder="First name"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reg_last_name">Last Name</Label>
+                <Label htmlFor="reg_last_name" className="text-white/80">Last Name</Label>
                 <Input
                   id="reg_last_name"
-                  className="text-foreground"
+                  className={fieldClass}
                   value={formData.lastName}
                   onChange={(e) => update("lastName", e.target.value)}
                   placeholder="Last name"
@@ -166,10 +179,10 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reg_username">Username *</Label>
+              <Label htmlFor="reg_username" className="text-white/80">Username *</Label>
               <Input
                 id="reg_username"
-                className="text-foreground"
+                className={fieldClass}
                 value={formData.username}
                 onChange={(e) => update("username", e.target.value)}
                 placeholder="Choose a username"
@@ -177,46 +190,47 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reg_email">Email *</Label>
+              <Label htmlFor="reg_email" className="text-white/80">Email *</Label>
               <Input
                 id="reg_email"
                 type="email"
-                className="text-foreground"
+                className={fieldClass}
                 value={formData.email}
                 onChange={(e) => update("email", e.target.value)}
                 placeholder="you@company.com"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="reg_phone">Phone</Label>
-              <Input
-                id="reg_phone"
-                className="text-foreground"
-                value={formData.phone}
-                onChange={(e) => update("phone", e.target.value)}
-                placeholder="Phone number"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="reg_badge">Badge ID</Label>
-              <Input
-                id="reg_badge"
-                className="text-foreground"
-                value={formData.badgeId}
-                onChange={(e) => update("badgeId", e.target.value)}
-                placeholder="Badge ID"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="reg_phone" className="text-white/80">Phone</Label>
+                <Input
+                  id="reg_phone"
+                  className={fieldClass}
+                  value={formData.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  placeholder="Phone number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reg_badge" className="text-white/80">Badge ID</Label>
+                <Input
+                  id="reg_badge"
+                  className={fieldClass}
+                  value={formData.badgeId}
+                  onChange={(e) => update("badgeId", e.target.value)}
+                  placeholder="Badge ID"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="reg_password">Password *</Label>
+                <Label htmlFor="reg_password" className="text-white/80">Password *</Label>
                 <Input
                   id="reg_password"
                   type="password"
-                  className="text-foreground"
+                  className={fieldClass}
                   value={formData.password}
                   onChange={(e) => update("password", e.target.value)}
                   placeholder="Password"
@@ -224,11 +238,11 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reg_confirm">Confirm Password *</Label>
+                <Label htmlFor="reg_confirm" className="text-white/80">Confirm Password *</Label>
                 <Input
                   id="reg_confirm"
                   type="password"
-                  className="text-foreground"
+                  className={fieldClass}
                   value={formData.confirmPassword}
                   onChange={(e) => update("confirmPassword", e.target.value)}
                   placeholder="Confirm password"
@@ -236,16 +250,27 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={isLoading}>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleClose(false)}
+                disabled={isLoading}
+                className="border-white/15 bg-transparent text-white/80 hover:bg-white/10 hover:text-white"
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading} className="bg-info hover:bg-info">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-semibold text-white shadow-lg shadow-[hsl(231_81%_50%)]/30 hover:opacity-90"
+              >
                 {isLoading ? "Submitting..." : "Submit Registration"}
               </Button>
             </div>
           </form>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

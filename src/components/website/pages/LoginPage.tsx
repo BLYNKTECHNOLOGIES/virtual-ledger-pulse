@@ -10,7 +10,6 @@ import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordReset
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 import blynkIcon from '@/assets/brand/blynk-icon.svg';
-import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
 
 /** A single CSS 3D cube used in the animated backdrop. */
 function Cube({
@@ -234,8 +233,8 @@ export function LoginPage() {
                 <img src={blynkIcon} alt="Blynk" className="h-8 w-8" />
               </div>
             </div>
-            <img src={blynkLogoWhite} alt="Blynk" className="h-6 w-auto opacity-90" />
-            <p className="mt-3 text-sm text-white/55">
+            <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
+            <p className="mt-1.5 text-sm text-white/55">
               Sign in to your Blynk workspace to continue
             </p>
           </div>

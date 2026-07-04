@@ -492,13 +492,14 @@ export function ClientDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-0">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center space-x-2 max-w-sm">
-                      <Search className="h-4 w-4 text-muted-foreground" />
+                    <div className="relative w-full max-w-sm">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Search buyers by name or ID..."
                         data-page-search
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9"
                       />
                     </div>
                     <div className="flex-1" />

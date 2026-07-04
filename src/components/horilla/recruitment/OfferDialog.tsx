@@ -89,7 +89,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
   const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const STATUS_STYLES: Record<string, string> = {
-    draft: "bg-muted text-muted-foreground-foreground",
+    draft: "bg-muted text-muted-foreground",
     sent: "bg-info/10 text-info",
     accepted: "bg-success/10 text-success",
     rejected: "bg-destructive/10 text-destructive",
@@ -103,9 +103,9 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Offer Letters — {candidateName}</h2>
-            <p className="text-xs text-muted-foreground-foreground">{offers.length} offer(s)</p>
+            <p className="text-xs text-muted-foreground">{offers.length} offer(s)</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
@@ -142,7 +142,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                   className={`${inputCls} resize-none`} rows={3} placeholder="Salary expectations, special terms..." />
               </div>
               <div className="flex gap-2 pt-2">
-                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-muted-foreground-foreground rounded-lg hover:bg-muted">Cancel</button>
+                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
                 <button onClick={() => createMutation.mutate()}
                   disabled={!form.offered_salary || createMutation.isPending}
                   className="px-4 py-2 text-sm text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
@@ -158,28 +158,28 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
               </button>
 
               {isLoading ? (
-                <p className="text-sm text-muted-foreground-foreground text-center py-6">Loading...</p>
+                <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
               ) : offers.length === 0 ? (
                 <div className="text-center py-6">
                   <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground-foreground">No offers created yet</p>
+                  <p className="text-sm text-muted-foreground">No offers created yet</p>
                 </div>
               ) : offers.map(offer => (
                 <div key={offer.id} className="border border-border rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-muted-foreground-foreground" />
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <span className="text-lg font-bold text-foreground">₹{Number(offer.offered_salary).toLocaleString('en-IN')}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_STYLES[offer.status] || "bg-muted text-muted-foreground-foreground"}`}>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_STYLES[offer.status] || "bg-muted text-muted-foreground"}`}>
                           {offer.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground-foreground">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         {offer.offered_position && <span>{offer.offered_position}</span>}
                         {offer.offered_department && <span>• {offer.offered_department}</span>}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground-foreground">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         <span>Offered: {new Date(offer.offer_date).toLocaleDateString()}</span>
                         {offer.joining_date && <span>Join: {new Date(offer.joining_date).toLocaleDateString()}</span>}
                         {offer.expiry_date && <span>Expires: {new Date(offer.expiry_date).toLocaleDateString()}</span>}
@@ -215,7 +215,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                     )}
                   </div>
                   {offer.negotiation_notes && (
-                    <p className="mt-2 text-xs text-muted-foreground-foreground bg-muted/50 rounded-lg p-2">{offer.negotiation_notes}</p>
+                    <p className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">{offer.negotiation_notes}</p>
                   )}
                 </div>
               ))}

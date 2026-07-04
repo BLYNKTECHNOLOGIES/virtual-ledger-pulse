@@ -147,7 +147,7 @@ export default function CandidatesListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Candidates</h1>
-          <p className="text-xs text-muted-foreground-foreground mt-0.5">All candidates across recruitments</p>
+          <p className="text-xs text-muted-foreground mt-0.5">All candidates across recruitments</p>
         </div>
         <button
           onClick={() => { navigate("/hrms/recruitment/pipeline"); }}
@@ -161,17 +161,17 @@ export default function CandidatesListPage() {
       {/* Toolbar */}
       <div className="bg-card rounded-xl border border-border px-4 py-3 flex flex-wrap items-center gap-3">
         <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-64">
-          <Search className="h-4 w-4 text-muted-foreground-foreground mr-2 shrink-0" />
+          <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
           <input type="text" placeholder="Search candidates..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full" />
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
-          <button onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "active" ? "bg-info/10 text-info ring-1 ring-info" : "bg-muted text-muted-foreground-foreground hover:bg-muted"}`}>
+          <button onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "active" ? "bg-info/10 text-info ring-1 ring-info" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
             In Progress ({activeCount})
           </button>
-          <button onClick={() => setStatusFilter(statusFilter === "hired" ? "all" : "hired")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "hired" ? "bg-success/10 text-success ring-1 ring-success" : "bg-muted text-muted-foreground-foreground hover:bg-muted"}`}>
+          <button onClick={() => setStatusFilter(statusFilter === "hired" ? "all" : "hired")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "hired" ? "bg-success/10 text-success ring-1 ring-success" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
             <UserCheck className="h-3 w-3" /> Hired ({hiredCount})
           </button>
-          <button onClick={() => setStatusFilter(statusFilter === "canceled" ? "all" : "canceled")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "canceled" ? "bg-destructive/10 text-destructive ring-1 ring-destructive" : "bg-muted text-muted-foreground-foreground hover:bg-muted"}`}>
+          <button onClick={() => setStatusFilter(statusFilter === "canceled" ? "all" : "canceled")} className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${statusFilter === "canceled" ? "bg-destructive/10 text-destructive ring-1 ring-destructive" : "bg-muted text-muted-foreground hover:bg-muted"}`}>
             <UserX className="h-3 w-3" /> Canceled ({canceledCount})
           </button>
         </div>
@@ -179,26 +179,26 @@ export default function CandidatesListPage() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="text-center py-16 text-muted-foreground-foreground text-sm">Loading...</div>
+        <div className="text-center py-16 text-muted-foreground text-sm">Loading...</div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-            <Building2 className="h-7 w-7 text-muted-foreground-foreground" />
+            <Building2 className="h-7 w-7 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground-foreground text-sm">No candidates found</p>
+          <p className="text-muted-foreground text-sm">No candidates found</p>
         </div>
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Candidate</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Recruitment</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Stage</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Source</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Rating</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Actions</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidate</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Recruitment</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Stage</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Source</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Rating</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -211,15 +211,15 @@ export default function CandidatesListPage() {
                       </div>
                       <div>
                         <p className="font-medium text-foreground">{c.name}</p>
-                        <p className="text-[11px] text-muted-foreground-foreground">{c.email || c.mobile || ""}</p>
+                        <p className="text-[11px] text-muted-foreground">{c.email || c.mobile || ""}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-muted-foreground-foreground text-xs">{getRecTitle(c.recruitment_id)}</td>
+                  <td className="py-3 px-4 text-muted-foreground text-xs">{getRecTitle(c.recruitment_id)}</td>
                   <td className="py-3 px-4">
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-info/10 text-info">{getStageName(c.stage_id)}</span>
                   </td>
-                  <td className="py-3 px-4 text-muted-foreground-foreground text-xs">{c.source || "—"}</td>
+                  <td className="py-3 px-4 text-muted-foreground text-xs">{c.source || "—"}</td>
                   <td className="py-3 px-4">
                     {c.rating ? (
                       <div className="flex items-center gap-0.5">
@@ -240,23 +240,23 @@ export default function CandidatesListPage() {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => navigate(`/hrms/recruitment/candidates/${c.id}`)} className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-info" title="View Profile">
+                      <button onClick={() => navigate(`/hrms/recruitment/candidates/${c.id}`)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-info" title="View Profile">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => { setEditCandidate(c); setEditForm({ name: c.name, email: c.email || "", mobile: c.mobile || "", source: c.source || "" }); }} className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-foreground" title="Edit">
+                      <button onClick={() => { setEditCandidate(c); setEditForm({ name: c.name, email: c.email || "", mobile: c.mobile || "", source: c.source || "" }); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit">
                         <Edit className="h-3.5 w-3.5" />
                       </button>
                       {!c.hired && !c.canceled && (
-                        <button onClick={() => hireMutation.mutate(c.id)} className="p-1 rounded hover:bg-success/10 text-muted-foreground-foreground hover:text-success" title="Mark as Hired">
+                        <button onClick={() => hireMutation.mutate(c.id)} className="p-1 rounded hover:bg-success/10 text-muted-foreground hover:text-success" title="Mark as Hired">
                           <UserCheck className="h-3.5 w-3.5" />
                         </button>
                       )}
                       {!c.canceled && !c.hired && (
-                        <button onClick={() => cancelMutation.mutate(c.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground-foreground hover:text-destructive" title="Cancel">
+                        <button onClick={() => cancelMutation.mutate(c.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Cancel">
                           <UserX className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      <button onClick={() => setDeleteTarget({ id: c.id, name: c.name })} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground-foreground hover:text-destructive" title="Delete">
+                      <button onClick={() => setDeleteTarget({ id: c.id, name: c.name })} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Delete">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -274,7 +274,7 @@ export default function CandidatesListPage() {
           <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Candidate Details</h2>
-              <button onClick={() => setViewCandidate(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
+              <button onClick={() => setViewCandidate(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
               <div className="flex items-center gap-3">
@@ -283,22 +283,22 @@ export default function CandidatesListPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">{viewCandidate.name}</p>
-                  <p className="text-xs text-muted-foreground-foreground">{viewCandidate.email || "No email"}</p>
+                  <p className="text-xs text-muted-foreground">{viewCandidate.email || "No email"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-muted-foreground-foreground">Phone</p><p className="text-foreground">{viewCandidate.mobile || "—"}</p></div>
-                <div><p className="text-xs text-muted-foreground-foreground">Source</p><p className="text-foreground">{viewCandidate.source || "—"}</p></div>
-                <div><p className="text-xs text-muted-foreground-foreground">Recruitment</p><p className="text-foreground">{getRecTitle(viewCandidate.recruitment_id)}</p></div>
-                <div><p className="text-xs text-muted-foreground-foreground">Stage</p><p className="text-foreground">{getStageName(viewCandidate.stage_id)}</p></div>
-                <div><p className="text-xs text-muted-foreground-foreground">Gender</p><p className="text-foreground">{viewCandidate.gender || "—"}</p></div>
-                <div><p className="text-xs text-muted-foreground-foreground">DOB</p><p className="text-foreground">{viewCandidate.dob || "—"}</p></div>
-                <div><p className="text-xs text-muted-foreground-foreground">Status</p>
+                <div><p className="text-xs text-muted-foreground">Phone</p><p className="text-foreground">{viewCandidate.mobile || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Source</p><p className="text-foreground">{viewCandidate.source || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Recruitment</p><p className="text-foreground">{getRecTitle(viewCandidate.recruitment_id)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Stage</p><p className="text-foreground">{getStageName(viewCandidate.stage_id)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Gender</p><p className="text-foreground">{viewCandidate.gender || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">DOB</p><p className="text-foreground">{viewCandidate.dob || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Status</p>
                   {viewCandidate.hired ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-success/10 text-success">Hired</span>
                     : viewCandidate.canceled ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Canceled</span>
                     : <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning">In Progress</span>}
                 </div>
-                <div><p className="text-xs text-muted-foreground-foreground">Rating</p>
+                <div><p className="text-xs text-muted-foreground">Rating</p>
                   {viewCandidate.rating ? (
                     <div className="flex items-center gap-0.5">
                       {Array.from({ length: 5 }).map((_, i) => (
@@ -310,7 +310,7 @@ export default function CandidatesListPage() {
               </div>
             </div>
             <div className="flex items-center justify-end px-5 py-4 border-t border-border">
-              <button onClick={() => setViewCandidate(null)} className="px-4 py-2 text-sm font-medium text-muted-foreground-foreground rounded-lg hover:bg-muted">Close</button>
+              <button onClick={() => setViewCandidate(null)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Close</button>
             </div>
           </div>
         </div>
@@ -322,7 +322,7 @@ export default function CandidatesListPage() {
           <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Edit Candidate</h2>
-              <button onClick={() => setEditCandidate(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
+              <button onClick={() => setEditCandidate(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
@@ -353,7 +353,7 @@ export default function CandidatesListPage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-              <button onClick={() => setEditCandidate(null)} className="px-4 py-2 text-sm font-medium text-muted-foreground-foreground rounded-lg hover:bg-muted">Cancel</button>
+              <button onClick={() => setEditCandidate(null)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => updateMutation.mutate()} disabled={!editForm.name || updateMutation.isPending} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </button>

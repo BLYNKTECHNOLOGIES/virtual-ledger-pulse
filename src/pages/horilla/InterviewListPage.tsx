@@ -152,7 +152,7 @@ export default function InterviewListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Interviews</h1>
-          <p className="text-xs text-muted-foreground-foreground mt-0.5">Manage all scheduled interviews across recruitments</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage all scheduled interviews across recruitments</p>
         </div>
         <button
           onClick={() => setScheduleOpen(true)}
@@ -176,7 +176,7 @@ export default function InterviewListPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{s.value}</p>
-              <p className="text-xs text-muted-foreground-foreground">{s.label}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </div>
           </div>
         ))}
@@ -185,7 +185,7 @@ export default function InterviewListPage() {
       {/* Filters */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -209,11 +209,11 @@ export default function InterviewListPage() {
       {/* Interview List */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground-foreground text-sm">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
             <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground-foreground text-sm">No interviews found</p>
+            <p className="text-muted-foreground text-sm">No interviews found</p>
             <button onClick={() => setScheduleOpen(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
               + Schedule your first interview
             </button>
@@ -222,14 +222,14 @@ export default function InterviewListPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Candidate</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Recruitment</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Interviewer</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Date & Time</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Type</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Rating</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Actions</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidate</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Recruitment</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Interviewer</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Date & Time</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Type</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Rating</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -244,16 +244,16 @@ export default function InterviewListPage() {
                       >
                         {iv.hr_candidates?.name || "Unknown"}
                       </button>
-                      <p className="text-[10px] text-muted-foreground-foreground">{iv.hr_candidates?.email}</p>
+                      <p className="text-[10px] text-muted-foreground">{iv.hr_candidates?.email}</p>
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground-foreground text-xs">{iv.hr_recruitments?.title || "—"}</td>
-                    <td className="py-3 px-4 text-muted-foreground-foreground">{iv.interviewer_name}</td>
+                    <td className="py-3 px-4 text-muted-foreground text-xs">{iv.hr_recruitments?.title || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{iv.interviewer_name}</td>
                     <td className="py-3 px-4">
                       <p className="text-foreground text-xs font-medium">{iv.interview_date}</p>
-                      {iv.interview_time && <p className="text-[10px] text-muted-foreground-foreground">{iv.interview_time} ({iv.duration_minutes || 30}min)</p>}
+                      {iv.interview_time && <p className="text-[10px] text-muted-foreground">{iv.interview_time} ({iv.duration_minutes || 30}min)</p>}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground-foreground">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <TypeIcon className="h-3.5 w-3.5" />
                         {iv.interview_type?.replace("_", " ") || "—"}
                       </span>
@@ -270,7 +270,7 @@ export default function InterviewListPage() {
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground-foreground"}`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground"}`}>
                         {iv.status || "pending"}
                       </span>
                     </td>
@@ -293,7 +293,7 @@ export default function InterviewListPage() {
                           </>
                         )}
                         {iv.status === "completed" && iv.feedback && (
-                          <span className="text-[10px] text-muted-foreground-foreground truncate max-w-[100px]" title={iv.feedback}>
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[100px]" title={iv.feedback}>
                             "{iv.feedback}"
                           </span>
                         )}
@@ -313,7 +313,7 @@ export default function InterviewListPage() {
           <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Interview Feedback</h2>
-              <button onClick={() => setFeedbackForm(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
+              <button onClick={() => setFeedbackForm(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
@@ -338,7 +338,7 @@ export default function InterviewListPage() {
               </div>
             </div>
             <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
-              <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground-foreground hover:bg-muted rounded-lg">Cancel</button>
+              <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
               <button onClick={() => feedbackMutation.mutate()} className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]">Save Feedback</button>
             </div>
           </div>
@@ -351,7 +351,7 @@ export default function InterviewListPage() {
           <div className="bg-card rounded-xl w-full max-w-lg shadow-sm max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h2 className="text-lg font-semibold text-foreground">Schedule Interview</h2>
-              <button onClick={() => setScheduleOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
+              <button onClick={() => setScheduleOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
               {/* Recruitment filter */}
@@ -418,7 +418,7 @@ export default function InterviewListPage() {
               </div>
             </div>
             <div className="px-5 py-3 border-t border-border flex justify-end gap-2 shrink-0">
-              <button onClick={() => setScheduleOpen(false)} className="px-4 py-2 text-sm text-muted-foreground-foreground hover:bg-muted rounded-lg">Cancel</button>
+              <button onClick={() => setScheduleOpen(false)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
               <button
                 onClick={() => scheduleMutation.mutate()}
                 disabled={!scheduleForm.candidate_id || !scheduleForm.interviewer_name || !scheduleForm.interview_date || scheduleMutation.isPending}

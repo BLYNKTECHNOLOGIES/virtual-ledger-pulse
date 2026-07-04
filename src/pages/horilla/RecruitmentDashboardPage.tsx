@@ -252,7 +252,7 @@ export default function RecruitmentDashboardPage() {
     { label: "Active Recruitments", value: activeRecruitments, icon: Briefcase, color: "bg-info/10 text-info" },
     { label: "Total Candidates", value: totalCandidates, icon: Users, color: "bg-primary/10 text-primary" },
     { label: "Hired", value: totalHired, icon: CheckCircle, color: "bg-success/10 text-success" },
-    { label: "Closed", value: closedRecruitments, icon: XCircle, color: "bg-muted text-muted-foreground-foreground" },
+    { label: "Closed", value: closedRecruitments, icon: XCircle, color: "bg-muted text-muted-foreground" },
   ];
 
   const JOB_TYPES: Record<string, string> = {
@@ -271,7 +271,7 @@ export default function RecruitmentDashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Recruitment</h1>
-          <p className="text-xs text-muted-foreground-foreground mt-0.5">Manage job openings and candidate pipeline</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage job openings and candidate pipeline</p>
         </div>
         <button
           onClick={() => { closeDialog(); setCreateOpen(true); }}
@@ -291,7 +291,7 @@ export default function RecruitmentDashboardPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{s.value}</p>
-              <p className="text-xs text-muted-foreground-foreground">{s.label}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </div>
           </div>
         ))}
@@ -310,10 +310,10 @@ export default function RecruitmentDashboardPage() {
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground-foreground text-sm">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : !recruitments?.length ? (
           <div className="p-8 text-center">
-            <p className="text-muted-foreground-foreground text-sm">No recruitments yet</p>
+            <p className="text-muted-foreground text-sm">No recruitments yet</p>
             <button onClick={() => setCreateOpen(true)} className="mt-2 text-[#E8604C] text-sm font-medium hover:underline">
               + Create your first recruitment
             </button>
@@ -322,15 +322,15 @@ export default function RecruitmentDashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Title</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Department</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Type</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Vacancy</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Candidates</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Hired</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Managers</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground-foreground uppercase">Actions</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Title</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Department</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Type</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Vacancy</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidates</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Hired</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Managers</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -348,24 +348,24 @@ export default function RecruitmentDashboardPage() {
                       </button>
                       <div className="flex items-center gap-2 mt-0.5">
                         {rec.location && (
-                          <span className="text-[10px] text-muted-foreground-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{rec.location}</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{rec.location}</span>
                         )}
                         {rec.salary_min && (
-                          <span className="text-[10px] text-muted-foreground-foreground flex items-center gap-0.5">
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                             <DollarSign className="h-2.5 w-2.5" />
                             {rec.salary_min?.toLocaleString('en-IN')}{rec.salary_max ? ` - ${rec.salary_max.toLocaleString('en-IN')}` : ""}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground-foreground text-xs">{getDeptName(rec.department_id) || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground text-xs">{getDeptName(rec.department_id) || "—"}</td>
                     <td className="py-3 px-4">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-info/10 text-info">
                         {JOB_TYPES[rec.job_type] || rec.job_type || "—"}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground-foreground">{rec.vacancy || "—"}</td>
-                    <td className="py-3 px-4 text-muted-foreground-foreground">{recCandidates.length}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{rec.vacancy || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{recCandidates.length}</td>
                     <td className="py-3 px-4">
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-success/10 text-success">
                         {hired}
@@ -374,7 +374,7 @@ export default function RecruitmentDashboardPage() {
                     <td className="py-3 px-4">
                       {rec.closed ? (
                         <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: true })}
-                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground-foreground hover:bg-muted cursor-pointer">
+                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-muted cursor-pointer">
                           Closed
                         </button>
                       ) : rec.is_published ? (
@@ -398,12 +398,12 @@ export default function RecruitmentDashboardPage() {
                                 {m.hr_employees?.first_name?.[0]}{m.hr_employees?.last_name?.[0]}
                               </div>
                             ))}
-                            {getRecManagers(rec.id).length > 3 && <span className="text-[10px] text-muted-foreground-foreground ml-1">+{getRecManagers(rec.id).length - 3}</span>}
+                            {getRecManagers(rec.id).length > 3 && <span className="text-[10px] text-muted-foreground ml-1">+{getRecManagers(rec.id).length - 3}</span>}
                           </div>
                         ) : (
                           <span className="text-[10px] text-muted-foreground">No managers</span>
                         )}
-                        <button onClick={() => setManagerDialogRecId(rec.id)} className="p-0.5 rounded hover:bg-info/10 text-muted-foreground-foreground hover:text-info" title="Assign managers">
+                        <button onClick={() => setManagerDialogRecId(rec.id)} className="p-0.5 rounded hover:bg-info/10 text-muted-foreground hover:text-info" title="Assign managers">
                           <UserPlus className="h-3 w-3" />
                         </button>
                       </div>
@@ -412,23 +412,23 @@ export default function RecruitmentDashboardPage() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => navigate(`/hrms/recruitment/pipeline?id=${rec.id}`)}
-                          className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-info"
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-info"
                           title="Pipeline"
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
                         <button onClick={() => openEdit(rec)}
-                          className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-foreground" title="Edit">
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit">
                           <Edit className="h-3.5 w-3.5" />
                         </button>
                         {!rec.closed ? (
                           <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: false })}
-                            className="p-1 rounded hover:bg-muted text-muted-foreground-foreground hover:text-destructive" title="Close">
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive" title="Close">
                             <XCircle className="h-3.5 w-3.5" />
                           </button>
                         ) : (
                           <button onClick={() => setDeleteTarget({ id: rec.id, name: rec.title })}
-                            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground-foreground hover:text-destructive" title="Delete">
+                            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Delete">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -448,7 +448,7 @@ export default function RecruitmentDashboardPage() {
           <div className="bg-card rounded-xl w-full max-w-2xl shadow-sm max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h2 className="text-lg font-semibold text-foreground">{editRec ? "Edit" : "Create"} Recruitment</h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground">
+              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -540,7 +540,7 @@ export default function RecruitmentDashboardPage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
-              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-muted-foreground-foreground rounded-lg hover:bg-muted">Cancel</button>
+              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button
                 onClick={() => saveMutation.mutate()}
                 disabled={!form.title || saveMutation.isPending}
@@ -559,7 +559,7 @@ export default function RecruitmentDashboardPage() {
           <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Assign Recruitment Managers</h2>
-              <button onClick={() => setManagerDialogRecId(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground-foreground"><X className="h-5 w-5" /></button>
+              <button onClick={() => setManagerDialogRecId(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
@@ -588,7 +588,7 @@ export default function RecruitmentDashboardPage() {
               )}
             </div>
             <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
-              <button onClick={() => setManagerDialogRecId(null)} className="px-4 py-2 text-sm text-muted-foreground-foreground hover:bg-muted rounded-lg">Close</button>
+              <button onClick={() => setManagerDialogRecId(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Close</button>
               <button
                 onClick={() => addRecMgrMutation.mutate()}
                 disabled={!selectedMgrId}

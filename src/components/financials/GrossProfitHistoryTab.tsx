@@ -267,11 +267,11 @@ export function GrossProfitHistoryTab() {
         </CardHeader>
         <CardContent className="p-6">
           {isLoading ? (
-            <div className="h-72 flex items-center justify-center text-muted-foreground-foreground">
+            <div className="h-72 flex items-center justify-center text-muted-foreground">
               Loading chart data...
             </div>
           ) : chartData.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground-foreground">
+            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground">
               <TrendingUp className="h-12 w-12 mb-4 opacity-50" />
               <p className="font-medium">No historical data yet</p>
               <p className="text-sm">Daily snapshots will appear here starting from tomorrow at 12:00 AM</p>

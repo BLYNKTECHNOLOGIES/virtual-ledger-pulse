@@ -71,7 +71,7 @@ export function ExchangeAccountSwitcher() {
           >
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: acc.color || "#64748B" }} />
             <span className="flex-1 truncate">{acc.account_name}</span>
-            {!acc.is_active && <span className="text-xs text-muted-foreground-foreground">inactive</span>}
+            {!acc.is_active && <span className="text-xs text-muted-foreground">inactive</span>}
             {activeAccountId === acc.id && <Check className="h-4 w-4 text-info" />}
           </DropdownMenuItem>
         ))}

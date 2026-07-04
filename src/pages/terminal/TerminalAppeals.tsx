@@ -419,6 +419,7 @@ export default function TerminalAppeals() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEnabled]);
 
+  const openChatForCase = (caseItem: TerminalAppealCase) => {
     markOrderChatRead(caseItem.order_number);
     callBinanceAds('markOrderMessagesRead', { orderNo: caseItem.order_number }).catch((err) => {
       console.warn('Failed to mark Binance chat read:', err);

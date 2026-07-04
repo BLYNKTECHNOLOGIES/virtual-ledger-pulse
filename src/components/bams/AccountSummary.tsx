@@ -471,7 +471,7 @@ export function AccountSummary() {
                 <div className="flex items-center justify-between">
                   <div className="min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Balance</p>
-                    <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{formatCurrency(totalComputedBalance)}</p>
+                    <p className={`text-2xl font-semibold tabular-nums text-foreground mt-2 ${totalBalanceFlash}`}>{formatCurrency(totalComputedBalance)}</p>
                   </div>
                   <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <DollarSign className="h-6 w-6 text-success" />

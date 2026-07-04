@@ -30,7 +30,7 @@ interface Props {
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
-  const { data: archivedMessages = [] } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
+  const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
   const { userId, username } = useTerminalAuth();
@@ -425,12 +425,19 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           )}
 
           {/* Current order messages */}
-          {currentOrderMessages.length === 0 && isConnecting ? (
+          {currentOrderMessages.length > 0 ? (
+            <div className="space-y-2.5">
+              {currentOrderMessages.map((msg) => (
+                <ChatBubble key={msg.id} message={msg} />
+              ))}
+              <div ref={bottomRef} />
+            </div>
+          ) : (archivedLoading || isConnecting) ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
               <p className="text-xs text-muted-foreground">Loading messages...</p>
             </div>
-          ) : currentOrderMessages.length === 0 && historicalChats.length === 0 ? (
+          ) : historicalChats.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-2">
               <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
               <p className="text-xs text-muted-foreground">No messages yet</p>
@@ -438,14 +445,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
                 Messages will appear here in real-time via WebSocket
               </p>
             </div>
-          ) : (
-            <div className="space-y-2.5">
-              {currentOrderMessages.map((msg) => (
-                <ChatBubble key={msg.id} message={msg} />
-              ))}
-              <div ref={bottomRef} />
-            </div>
-          )}
+          ) : null}
       </div>
 
       {/* Quick replies bar */}

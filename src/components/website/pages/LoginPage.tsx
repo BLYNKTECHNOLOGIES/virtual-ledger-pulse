@@ -131,8 +131,12 @@ export function LoginPage() {
         return; // Don't redirect yet — force password change first
       }
 
-      setSuccess('Correct password, redirecting to Dashboard...');
-      setTimeout(() => navigate('/dashboard'), 1500);
+      setSuccess('Correct password, redirecting...');
+      // Honor a same-origin relative ?next= redirect (used by the MCP OAuth consent flow).
+      const rawNext = new URLSearchParams(window.location.search).get('next');
+      const safeNext =
+        rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard';
+      setTimeout(() => navigate(safeNext), 1500);
       
     } catch (error: unknown) {
       console.error('Login error:', error);

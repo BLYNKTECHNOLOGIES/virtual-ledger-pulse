@@ -195,15 +195,15 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-success">Total Orders</label>
-                <p className="text-2xl font-bold text-success">{buyStats.totalOrders}</p>
+                <p className="text-2xl font-bold text-success tabular-nums">{buyStats.totalOrders}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-success">Total Volume</label>
-                <p className="text-2xl font-bold text-success">₹{buyStats.totalVolume.toLocaleString('en-IN')}</p>
+                <p className="text-2xl font-bold text-success tabular-nums">₹{buyStats.totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-success">Avg Order Value</label>
-                <p className="text-lg font-semibold text-success">₹{buyStats.avgOrderValue.toLocaleString('en-IN')}</p>
+                <p className="text-lg font-semibold text-success tabular-nums">₹{buyStats.avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-success">First Order</label>
@@ -226,15 +226,15 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-warning">Total Orders</label>
-                <p className="text-2xl font-bold text-warning">{sellStats.totalOrders}</p>
+                <p className="text-2xl font-bold text-warning tabular-nums">{sellStats.totalOrders}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-warning">Total Volume</label>
-                <p className="text-2xl font-bold text-warning">₹{sellStats.totalVolume.toLocaleString('en-IN')}</p>
+                <p className="text-2xl font-bold text-warning tabular-nums">₹{sellStats.totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-warning">Avg Order Value</label>
-                <p className="text-lg font-semibold text-warning">₹{sellStats.avgOrderValue.toLocaleString('en-IN')}</p>
+                <p className="text-lg font-semibold text-warning tabular-nums">₹{sellStats.avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-warning">First Order</label>
@@ -257,15 +257,15 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <label className="text-sm font-medium text-primary">Total Trade Volume</label>
-              <p className="text-2xl font-bold text-primary">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
+              <p className="text-2xl font-bold text-primary tabular-nums">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-primary">Total Orders</label>
-              <p className="text-2xl font-bold text-primary">{totalOrders}</p>
+              <p className="text-2xl font-bold text-primary tabular-nums">{totalOrders}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-primary">Avg Order Value</label>
-              <p className="text-2xl font-bold text-primary">₹{avgOrderValue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-primary tabular-nums">₹{avgOrderValue.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">
                 Across all transactions
               </p>

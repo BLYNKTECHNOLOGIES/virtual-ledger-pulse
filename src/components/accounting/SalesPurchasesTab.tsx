@@ -2,13 +2,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { ClickableRow } from "@/components/transaction-detail";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+
 
 export function SalesPurchasesTab() {
   const { data: salesOrders, isLoading: salesLoading } = useQuery({
@@ -57,13 +59,13 @@ export function SalesPurchasesTab() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-success" />
                 Sales Transactions ({salesOrders?.length || 0})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {salesLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                <TableSkeleton rows={6} columns={10} />
               ) : !salesOrders?.length ? (
                 <div className="text-center py-8">
                   <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -92,11 +94,11 @@ export function SalesPurchasesTab() {
                           <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                           <TableCell className="text-xs">{o.order_date ? format(new Date(o.order_date), 'dd MMM yyyy') : '—'}</TableCell>
                           <TableCell>{o.client_name || '—'}</TableCell>
-                          <TableCell className="text-right">{o.quantity ?? '—'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.price_per_unit)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.total_amount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.fee_amount)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.net_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{o.quantity ?? '—'}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatCurrency(o.price_per_unit)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatCurrency(o.total_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(o.fee_amount)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums text-success">{formatCurrency(o.net_amount)}</TableCell>
                           <TableCell>{statusBadge(o.status)}</TableCell>
                           <TableCell>{statusBadge(o.payment_status)}</TableCell>
                         </ClickableRow>
@@ -113,13 +115,13 @@ export function SalesPurchasesTab() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingDown className="h-5 w-5 text-red-600" />
+                <TrendingDown className="h-5 w-5 text-destructive" />
                 Purchase Transactions ({purchaseOrders?.length || 0})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {purchaseLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                <TableSkeleton rows={6} columns={10} />
               ) : !purchaseOrders?.length ? (
                 <div className="text-center py-8">
                   <TrendingDown className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -148,12 +150,12 @@ export function SalesPurchasesTab() {
                           <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                           <TableCell className="text-xs">{o.order_date ? format(new Date(o.order_date), 'dd MMM yyyy') : '—'}</TableCell>
                           <TableCell>{o.supplier_name || '—'}</TableCell>
-                          <TableCell className="text-right">{o.quantity ?? '—'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.price_per_unit)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.total_amount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.fee_amount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.tds_amount)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.net_payable_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{o.quantity ?? '—'}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatCurrency(o.price_per_unit)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatCurrency(o.total_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(o.fee_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-warning">{formatCurrency(o.tds_amount)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatCurrency(o.net_payable_amount)}</TableCell>
                           <TableCell>{statusBadge(o.status)}</TableCell>
                         </ClickableRow>
                       ))}

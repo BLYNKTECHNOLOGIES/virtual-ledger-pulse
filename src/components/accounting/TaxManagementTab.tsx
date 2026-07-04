@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -405,7 +406,8 @@ export function TaxManagementTab() {
         <TableBody>
           {visibleRows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                <Receipt className="h-10 w-10 mx-auto mb-3 opacity-40" />
                 No TDS records for this selection
               </TableCell>
             </TableRow>
@@ -431,7 +433,7 @@ export function TaxManagementTab() {
               <TableCell className="font-mono text-xs">{r.pan_number || '-'}</TableCell>
               <TableCell>
                 {r.tds_rate != null ? (
-                  <Badge variant="outline" className={rateKey(r.tds_rate) === '20' ? 'border-red-300 text-red-700' : 'border-blue-300 text-blue-700'}>
+                  <Badge variant="outline" className={rateKey(r.tds_rate) === '20' ? 'border-destructive/20 bg-destructive/10 text-destructive' : 'border-info/20 bg-info/10 text-info'}>
                     {r.tds_rate}%
                   </Badge>
                 ) : '-'}
@@ -442,16 +444,16 @@ export function TaxManagementTab() {
                 {r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '-'}
               </TableCell>
               <TableCell className="text-right tabular-nums">{inr(Number(r.paid_amount))}</TableCell>
-              <TableCell className="text-right tabular-nums font-medium text-orange-600">
+              <TableCell className="text-right tabular-nums font-medium text-warning">
                 {inr(Number(r.allocated_tds_amount))}
               </TableCell>
               <TableCell>
                 {r.payment_status === 'PAID' ? (
-                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                  <Badge className="bg-success/10 text-success border-success/20">
                     {r.already_recorded ? 'Paid (Pre-recorded)' : 'Paid'}
                   </Badge>
                 ) : (
-                  <Badge variant="destructive">Unpaid</Badge>
+                  <Badge className="bg-destructive/10 text-destructive border-destructive/20">Unpaid</Badge>
                 )}
               </TableCell>
             </TableRow>
@@ -493,22 +495,22 @@ export function TaxManagementTab() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 stagger-children">
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><Calculator className="h-4 w-4" /><span className="text-sm">Total TDS Deducted</span></div>
-          <p className="text-2xl font-bold">{inr(totals.totalTds)}</p>
+          <p className="text-2xl font-bold tabular-nums">{inr(totals.totalTds)}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><Receipt className="h-4 w-4" /><span className="text-sm">Unpaid TDS</span></div>
-          <p className="text-2xl font-bold text-destructive">{inr(totals.unpaidTds)}</p>
+          <p className="text-2xl font-bold text-destructive tabular-nums">{inr(totals.unpaidTds)}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><CheckCircle className="h-4 w-4" /><span className="text-sm">Paid TDS</span></div>
-          <p className="text-2xl font-bold text-green-600">{inr(totals.paidTds)}</p>
+          <p className="text-2xl font-bold text-success tabular-nums">{inr(totals.paidTds)}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-2 text-muted-foreground mb-1"><IndianRupee className="h-4 w-4" /><span className="text-sm">TDS Transactions</span></div>
-          <p className="text-2xl font-bold">{allocations?.length || 0}</p>
+          <p className="text-2xl font-bold tabular-nums">{allocations?.length || 0}</p>
         </CardContent></Card>
       </div>
 
@@ -528,7 +530,7 @@ export function TaxManagementTab() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="animate-pulse py-8 text-center text-muted-foreground">Loading TDS records...</div>
+            <TableSkeleton rows={8} columns={7} />
           ) : (
             <Tabs value={activeCompany} onValueChange={setActiveCompany}>
               <TabsList className="flex flex-wrap h-auto">
@@ -539,7 +541,7 @@ export function TaxManagementTab() {
               </TabsList>
               <TabsContent value={activeCompany} className="mt-4">
                 {activeCompany === ALL_TAB && (
-                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <div className="mb-3 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
                     <span className="font-medium">To mark TDS as paid,</span> open a specific company tab above (e.g. ASEC or BLYNK), tick the transactions, then use the <span className="font-medium">Pay</span> button to choose the bank account it was deducted from (or mark it already settled). Payment isn&apos;t available on the <span className="font-medium">All</span> tab because a company bank account is required.
                   </div>
                 )}
@@ -614,7 +616,7 @@ export function TaxManagementTab() {
                 )}
               </div>
             )}
-            <div className="text-sm text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="text-sm text-muted-foreground bg-warning/10 border border-warning/20 rounded-lg p-3">
               <strong>Note:</strong>{' '}
               {alreadyRecorded
                 ? `No bank deduction will be made. The selected TDS entries are marked as paid and their liability is cleared for ${activeCompanyInfo?.firm_name || 'this company'} across all calculations.`

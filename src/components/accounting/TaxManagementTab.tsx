@@ -431,7 +431,7 @@ export function TaxManagementTab() {
               <TableCell className="font-mono text-xs">{r.pan_number || '-'}</TableCell>
               <TableCell>
                 {r.tds_rate != null ? (
-                  <Badge variant="outline" className={rateKey(r.tds_rate) === '20' ? 'border-red-300 text-red-700' : 'border-blue-300 text-blue-700'}>
+                  <Badge variant="outline" className={rateKey(r.tds_rate) === '20' ? 'border-destructive/20 bg-destructive/10 text-destructive' : 'border-info/20 bg-info/10 text-info'}>
                     {r.tds_rate}%
                   </Badge>
                 ) : '-'}

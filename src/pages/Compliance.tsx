@@ -35,7 +35,7 @@ export default function Compliance() {
         </div>
       }
     >
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background page-mount">
         {/* Executive Header */}
         <div className="border-b border-border bg-card">
           <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">

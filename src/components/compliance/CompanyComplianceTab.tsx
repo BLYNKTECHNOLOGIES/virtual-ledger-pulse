@@ -39,8 +39,8 @@ export function CompanyComplianceTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <Building2 className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Building2 className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <CardTitle>Company Compliance</CardTitle>
@@ -67,7 +67,7 @@ export function CompanyComplianceTab() {
           ) : (
             <div className="space-y-4">
               {subsidiaries.map((subsidiary) => (
-                <Card key={subsidiary.id} className="border-l-4 border-l-purple-500">
+                <Card key={subsidiary.id} className="border-l-4 border-l-primary">
                   <CardContent className="pt-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>

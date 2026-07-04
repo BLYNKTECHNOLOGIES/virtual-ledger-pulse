@@ -595,7 +595,7 @@ export function BankingCredentialsTab() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Key className="h-5 w-5 text-blue-600" />
+                    <Key className="h-5 w-5 text-info" />
                     {credential.bank_accounts?.account_name}
                   </CardTitle>
                   <Badge variant="secondary">{credential.credential_type}</Badge>

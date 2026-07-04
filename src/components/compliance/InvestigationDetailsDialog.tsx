@@ -443,12 +443,12 @@ export function InvestigationDetailsDialog({
           </DialogTitle>
           {/* Status Indicator */}
           {investigationData?.status === 'PENDING_APPROVAL' && (
-            <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <div className="mt-3 bg-warning/10 border border-warning/20 rounded-lg p-3">
               <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-orange-600" />
-                <span className="text-orange-800 font-medium">Pending for Approval</span>
+                <Clock className="h-5 w-5 text-warning" />
+                <span className="text-warning font-medium">Pending for Approval</span>
               </div>
-              <p className="text-orange-700 text-sm mt-1">
+              <p className="text-warning text-sm mt-1">
                 This investigation has been submitted and is awaiting officer approval.
               </p>
             </div>
@@ -479,9 +479,9 @@ export function InvestigationDetailsDialog({
                       <div className="flex items-center gap-3 flex-1">
                         <div className="flex items-center justify-center">
                           {isStepCompleted ? (
-                            <CheckCircle className="w-6 h-6 text-green-600" />
+                            <CheckCircle className="w-6 h-6 text-success" />
                           ) : (
-                            <Clock className="w-6 h-6 text-orange-500" />
+                            <Clock className="w-6 h-6 text-warning" />
                           )}
                         </div>
                         <div className="flex-1">
@@ -493,12 +493,12 @@ export function InvestigationDetailsDialog({
                           </div>
                           <p className="text-sm text-muted-foreground">{step.step_description}</p>
                           {isStepCompleted && step.completed_at && (
-                            <p className="text-xs text-green-600 mt-1">
+                            <p className="text-xs text-success mt-1">
                               Completed on {new Date(step.completed_at).toLocaleDateString()} by {step.completed_by}
                             </p>
                           )}
                           {!isStepCompleted && !stepCanBeCompleted && (
-                            <p className="text-xs text-orange-600 mt-1">
+                            <p className="text-xs text-warning mt-1">
                               Complete previous steps first
                             </p>
                           )}
@@ -580,7 +580,7 @@ export function InvestigationDetailsDialog({
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {selectedFiles.length > 0 ? (
-                      <span className="text-blue-600">{selectedFiles.length} file(s) selected</span>
+                      <span className="text-info">{selectedFiles.length} file(s) selected</span>
                     ) : (
                       'No files selected'
                     )}
@@ -591,7 +591,7 @@ export function InvestigationDetailsDialog({
                   onClick={handleAddUpdate} 
                   disabled={!newUpdate.trim() && selectedFiles.length === 0}
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-info hover:bg-info/90 text-primary-foreground"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Update
@@ -602,8 +602,8 @@ export function InvestigationDetailsDialog({
               {selectedFiles.length > 0 && (
                 <div className="space-y-1">
                   {selectedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-blue-50 px-2 py-1 rounded text-xs">
-                      <span className="text-blue-800 truncate">{file.name}</span>
+                    <div key={index} className="flex items-center justify-between bg-info/10 px-2 py-1 rounded text-xs">
+                      <span className="text-info truncate">{file.name}</span>
                       <Button
                         type="button"
                         variant="ghost"
@@ -612,7 +612,7 @@ export function InvestigationDetailsDialog({
                           const newFiles = selectedFiles.filter((_, i) => i !== index);
                           setSelectedFiles(newFiles);
                         }}
-                        className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                        className="h-5 w-5 p-0 text-destructive hover:text-destructive"
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -641,14 +641,14 @@ export function InvestigationDetailsDialog({
                         {update.attachment_urls.map((url: string, index: number) => {
                           const fileName = url.split('/').pop()?.split('-').slice(3).join('-') || 'Document';
                           return (
-                            <div key={index} className="flex items-center gap-2 p-2 bg-blue-50 rounded border">
-                              <FileText className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm text-blue-800 flex-1">File uploaded: {fileName}</span>
+                            <div key={index} className="flex items-center gap-2 p-2 bg-info/10 rounded border">
+                              <FileText className="h-4 w-4 text-info" />
+                              <span className="text-sm text-info flex-1">File uploaded: {fileName}</span>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => window.open(url, '_blank')}
-                                className="h-6 px-2 text-blue-600 hover:text-blue-800"
+                                className="h-6 px-2 text-info hover:text-info"
                               >
                                 <ExternalLink className="h-3 w-3 mr-1" />
                                 View File
@@ -681,14 +681,14 @@ export function InvestigationDetailsDialog({
               disabled={!canSubmitForApproval()}
               className={`px-8 py-2 rounded-lg font-medium ${
                 canSubmitForApproval() 
-                  ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                  : "bg-gray-300 text-muted-foreground cursor-not-allowed"
+                  ? "bg-info hover:bg-info/90 text-primary-foreground" 
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
               Submit for Approval
             </Button>
             {!canSubmitForApproval() && (
-              <p className="text-sm text-orange-600 mt-2">
+              <p className="text-sm text-warning mt-2">
                 {investigationData?.status === 'PENDING_APPROVAL' 
                   ? "Investigation already submitted for approval" 
                   : "Complete all 5 steps before submitting for approval"
@@ -721,7 +721,7 @@ export function InvestigationDetailsDialog({
             <div className="space-y-4 p-4">
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">
-                  Final Resolution Summary <span className="text-red-500">*</span>
+                  Final Resolution Summary <span className="text-destructive">*</span>
                 </label>
                 <Textarea
                   value={finalResolution}
@@ -734,7 +734,7 @@ export function InvestigationDetailsDialog({
 
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">
-                  Supporting Documents <span className="text-red-500">*</span>
+                  Supporting Documents <span className="text-destructive">*</span>
                 </label>
                 <div className="space-y-3">
                   <div
@@ -761,7 +761,7 @@ export function InvestigationDetailsDialog({
                     />
                     <span className="text-sm text-muted-foreground">
                       {finalResolutionFiles.length > 0 ? (
-                        <span className="text-green-600">{finalResolutionFiles.length} file(s) selected</span>
+                        <span className="text-success">{finalResolutionFiles.length} file(s) selected</span>
                       ) : (
                         'No files selected'
                       )}
@@ -771,8 +771,8 @@ export function InvestigationDetailsDialog({
                   {finalResolutionFiles.length > 0 && (
                     <div className="space-y-2">
                       {finalResolutionFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between bg-green-50 px-3 py-2 rounded border">
-                          <span className="text-green-800 text-sm">{file.name}</span>
+                        <div key={index} className="flex items-center justify-between bg-success/10 px-3 py-2 rounded border">
+                          <span className="text-success text-sm">{file.name}</span>
                           <Button
                             type="button"
                             variant="ghost"
@@ -781,7 +781,7 @@ export function InvestigationDetailsDialog({
                               const newFiles = finalResolutionFiles.filter((_, i) => i !== index);
                               setFinalResolutionFiles(newFiles);
                             }}
-                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -815,7 +815,7 @@ export function InvestigationDetailsDialog({
                     handleFinalResolutionSubmit();
                   }}
                   disabled={!finalResolution.trim() || finalResolutionFiles.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed relative z-50"
+                  className="bg-info hover:bg-info/90 text-primary-foreground disabled:bg-muted disabled:cursor-not-allowed relative z-50"
                   style={{ pointerEvents: 'auto' }}
                 >
                   Submit for Approval

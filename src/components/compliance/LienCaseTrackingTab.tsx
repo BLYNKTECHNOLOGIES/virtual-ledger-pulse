@@ -171,7 +171,7 @@ export function LienCaseTrackingTab() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             Lien Case Tracking
           </CardTitle>
           <div className="flex gap-2">
@@ -227,7 +227,7 @@ export function LienCaseTrackingTab() {
             </div>
             <Dialog open={showNewLienDialog} onOpenChange={setShowNewLienDialog}>
               <DialogTrigger asChild>
-                <Button className="bg-red-600 hover:bg-red-700">
+                <Button className="bg-destructive hover:bg-destructive/90">
                   <Plus className="h-4 w-4 mr-2" />
                   Report New Lien
                 </Button>
@@ -341,35 +341,35 @@ export function LienCaseTrackingTab() {
       <CardContent>
         <div className="space-y-4">
           {(lienCases || []).map((lien) => (
-            <div key={lien.id} className={`border rounded-lg p-4 ${lien.status === 'Resolved' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+            <div key={lien.id} className={`border rounded-lg p-4 ${lien.status === 'Resolved' ? 'border-success/20 bg-success/10' : 'border-destructive/20 bg-destructive/10'}`}>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h4 className={`font-medium ${lien.status === 'Resolved' ? 'text-green-900' : 'text-red-900'}`}>{lien.lien_number}</h4>
-                  <p className={`text-sm ${lien.status === 'Resolved' ? 'text-green-700' : 'text-red-700'}`}>
+                  <h4 className={`font-medium ${lien.status === 'Resolved' ? 'text-success' : 'text-destructive'}`}>{lien.lien_number}</h4>
+                  <p className={`text-sm ${lien.status === 'Resolved' ? 'text-success' : 'text-destructive'}`}>
                     {lien.bank_accounts?.bank_name} - {lien.bank_accounts?.account_name}
                   </p>
                 </div>
-                <Badge variant={lien.status === 'Resolved' ? 'default' : lien.status === 'Active' ? 'destructive' : 'secondary'} className={lien.status === 'Resolved' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}>
+                <Badge variant={lien.status === 'Resolved' ? 'default' : lien.status === 'Active' ? 'destructive' : 'secondary'} className={lien.status === 'Resolved' ? 'bg-success/10 text-success hover:bg-success/10' : ''}>
                   {lien.status}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {Number(lien.amount) > 0 && (
                   <div>
-                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Amount:</span> ₹{Number(lien.amount).toLocaleString('en-IN')}
+                    <span className={lien.status === 'Resolved' ? 'text-success' : 'text-destructive'}>Amount:</span> ₹{Number(lien.amount).toLocaleString('en-IN')}
                   </div>
                 )}
                 <div>
-                  <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Date:</span> {new Date(lien.date_imposed).toLocaleDateString()}
+                  <span className={lien.status === 'Resolved' ? 'text-success' : 'text-destructive'}>Date:</span> {new Date(lien.date_imposed).toLocaleDateString()}
                 </div>
                 {lien.city && (
                   <div>
-                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Location:</span> {lien.city}, {lien.state}
+                    <span className={lien.status === 'Resolved' ? 'text-success' : 'text-destructive'}>Location:</span> {lien.city}, {lien.state}
                   </div>
                 )}
                 {lien.lawyer && (
                   <div>
-                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Lawyer:</span> {lien.lawyer}
+                    <span className={lien.status === 'Resolved' ? 'text-success' : 'text-destructive'}>Lawyer:</span> {lien.lawyer}
                   </div>
                 )}
               </div>

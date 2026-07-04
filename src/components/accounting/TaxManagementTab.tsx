@@ -616,7 +616,7 @@ export function TaxManagementTab() {
                 )}
               </div>
             )}
-            <div className="text-sm text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="text-sm text-muted-foreground bg-warning/10 border border-warning/20 rounded-lg p-3">
               <strong>Note:</strong>{' '}
               {alreadyRecorded
                 ? `No bank deduction will be made. The selected TDS entries are marked as paid and their liability is cleared for ${activeCompanyInfo?.firm_name || 'this company'} across all calculations.`

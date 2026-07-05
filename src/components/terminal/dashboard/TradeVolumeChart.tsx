@@ -1,6 +1,4 @@
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
@@ -40,28 +38,24 @@ export function TradeVolumeChart({ orders, isLoading, period }: Props) {
   }, [orders]);
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            Trade Volume
-          </CardTitle>
-          {!isLoading && chartData.length > 0 && (
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] text-trade-buy flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> ₹{totalBuy.toLocaleString('en-IN')}
-              </span>
-              <span className="text-[10px] text-trade-sell flex items-center gap-1">
-                <TrendingDown className="h-3 w-3" /> ₹{totalSell.toLocaleString('en-IN')}
-              </span>
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
+    <div className="t-panel flex flex-col">
+      <div className="t-panel-head">
+        <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="t-panel-head-title">Trade Volume</span>
+        {!isLoading && chartData.length > 0 && (
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-[10px] text-trade-buy flex items-center gap-1 t-mono">
+              <TrendingUp className="h-3 w-3" /> ₹{totalBuy.toLocaleString('en-IN')}
+            </span>
+            <span className="text-[10px] text-trade-sell flex items-center gap-1 t-mono">
+              <TrendingDown className="h-3 w-3" /> ₹{totalSell.toLocaleString('en-IN')}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="p-3">
         {isLoading ? (
-          <Skeleton className="h-52 w-full" />
+          <div className="t-shimmer h-52 w-full rounded-md" />
         ) : chartData.length === 0 ? (
           <div className="h-52 flex flex-col items-center justify-center gap-2">
             <Activity className="h-8 w-8 text-muted-foreground/30" />
@@ -74,26 +68,27 @@ export function TradeVolumeChart({ orders, isLoading, period }: Props) {
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
                 <defs>
                   <linearGradient id="buyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="hsl(var(--trade-buy))" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="hsl(var(--trade-buy))" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="sellGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="hsl(var(--trade-sell))" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="hsl(var(--trade-sell))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(225, 15%, 17%)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(225, 10%, 48%)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(225, 10%, 48%)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(225, 18%, 14%)',
-                    border: '1px solid hsl(225, 12%, 20%)',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    color: 'hsl(225, 20%, 90%)',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: 'hsl(var(--foreground))',
                   }}
+                  labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                  cursor={{ fill: 'hsla(0 0% 100% / 0.03)' }}
                   formatter={(value: number, name: string) => [`₹${value.toLocaleString('en-IN')}`, name === 'buy' ? 'Buy Volume' : 'Sell Volume']}
                 />
                 <Legend
@@ -101,15 +96,15 @@ export function TradeVolumeChart({ orders, isLoading, period }: Props) {
                   height={24}
                   iconType="circle"
                   iconSize={6}
-                  formatter={(value) => <span style={{ color: 'hsl(225, 10%, 65%)', fontSize: '10px' }}>{value === 'buy' ? 'Buy' : 'Sell'}</span>}
+                  formatter={(value) => <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px' }}>{value === 'buy' ? 'Buy' : 'Sell'}</span>}
                 />
-                <Area type="monotone" dataKey="buy" stroke="hsl(142, 76%, 36%)" fill="url(#buyGrad)" strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} />
-                <Area type="monotone" dataKey="sell" stroke="hsl(0, 72%, 51%)" fill="url(#sellGrad)" strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="buy" stroke="hsl(var(--trade-buy))" fill="url(#buyGrad)" strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="sell" stroke="hsl(var(--trade-sell))" fill="url(#sellGrad)" strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

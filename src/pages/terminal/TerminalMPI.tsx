@@ -588,20 +588,19 @@ export default function TerminalMPI() {
                 className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border hover:border-primary/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/terminal/mpi/${m.userId}`)}
               >
-                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  i === 0 ? 'bg-warning/20 text-warning' :
-                  i === 1 ? 'bg-muted/20 text-muted' :
-                  'bg-warning/20 text-warning'
+                <div className={`t-mono h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold border shrink-0 ${
+                  i === 0 ? 'bg-trade-pending/15 text-trade-pending border-trade-pending/25' :
+                  'bg-secondary text-foreground border-border'
                 }`}>
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[10px] sm:text-xs font-medium text-foreground truncate">{m.displayName}</div>
-                  <div className="text-[8px] sm:text-[9px] text-muted-foreground">
+                  <div className="t-mono text-[8px] sm:text-[9px] text-muted-foreground">
                     {m.ordersHandled} orders · {fmtVol(m.totalVolume)}
                   </div>
                 </div>
-                <div className={`text-xs sm:text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
+                <div className={`t-mono text-xs sm:text-sm font-semibold ${getScoreColor(m.efficiencyScore)}`}>
                   {m.efficiencyScore}
                 </div>
               </div>

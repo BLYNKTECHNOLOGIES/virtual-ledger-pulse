@@ -267,43 +267,41 @@ export function TimePeriodFilter({ value, onChange }: Props) {
 
       {/* Shift chips — only in day mode */}
       {isDayMode && (
-        <div className="flex items-center gap-0.5 bg-secondary rounded-lg p-0.5">
+        <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
           {shiftOptions.map((s) => (
-            <Button
+            <button
               key={s.value}
-              variant={activeShift === s.value ? 'default' : 'ghost'}
-              size="sm"
+              type="button"
               className={cn(
-                'h-6 text-[10px] px-2',
+                'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
                 activeShift === s.value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  ? 'bg-card text-foreground border border-border'
                   : 'text-muted-foreground hover:text-foreground'
               )}
               onClick={() => onChange({ mode: '1d', date: selectedDate, shift: s.value })}
             >
               {s.label}
-            </Button>
+            </button>
           ))}
         </div>
       )}
 
       {/* Range presets */}
-      <div className="flex items-center gap-0.5 bg-secondary rounded-lg p-0.5">
+      <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
         {rangePeriods.map((p) => (
-          <Button
+          <button
             key={p.value}
-            variant={value.mode === p.value ? 'default' : 'ghost'}
-            size="sm"
+            type="button"
             className={cn(
-              'h-6 text-[10px] px-2.5',
+              'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
               value.mode === p.value
-                ? 'bg-primary text-primary-foreground shadow-sm'
+                ? 'bg-card text-foreground border border-border'
                 : 'text-muted-foreground hover:text-foreground'
             )}
             onClick={() => onChange({ mode: p.value })}
           >
             {p.label}
-          </Button>
+          </button>
         ))}
       </div>
     </div>

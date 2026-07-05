@@ -91,9 +91,10 @@ export function UpdatePaymentMethodDialog({ open, onOpenChange, requestId, order
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" size="sm" className="h-9" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             size="sm"
+            className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={handleSubmit}
             disabled={!upiId.trim() || resolve.isPending}
           >
@@ -101,6 +102,7 @@ export function UpdatePaymentMethodDialog({ open, onOpenChange, requestId, order
             Update & Resolve
           </Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );

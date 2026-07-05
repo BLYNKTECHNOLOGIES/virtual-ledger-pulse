@@ -68,8 +68,10 @@ export function MetricCards({
           </div>
           {isLoading ? (
             <div className="t-shimmer h-8 w-20 rounded" />
-          ) : (
+          ) : c.raw == null ? (
             <p className="text-2xl font-semibold t-mono text-foreground tracking-tight">{c.formatted}</p>
+          ) : (
+            <MetricValue raw={c.raw} formatted={c.formatted} />
           )}
         </div>
       ))}

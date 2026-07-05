@@ -13,7 +13,14 @@ import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotStrip } from './chat/CopilotStrip';
-import { useCopilotVisible, type CopilotSuggestInput } from '@/hooks/useCopilot';
+import {
+  useCopilotVisible, useCopilotPrefetch, useCopilotIsTrainer, copilotTeach,
+  type CopilotSuggestInput,
+} from '@/hooks/useCopilot';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';

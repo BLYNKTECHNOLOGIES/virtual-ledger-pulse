@@ -1,5 +1,6 @@
 
-import React, { useEffect, lazy, Suspense } from 'react';
+import React, { useEffect, Suspense } from 'react';
+import { lazyWithRetry as lazy } from './lib/lazyWithRetry';
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 // --- Eager: app shell, providers, guards, first-paint login, tiny 404 ---

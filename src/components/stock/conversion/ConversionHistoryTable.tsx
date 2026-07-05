@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useConversionHistory, ConversionFilters } from "@/hooks/useProductConversions";
 import { useStockWallets } from "@/hooks/useStockWallets";
-import { ClickableRow as _unused } from "@/components/transaction-detail";
 import { format } from "date-fns";
 import { ClickableRow } from "@/components/transaction-detail";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";

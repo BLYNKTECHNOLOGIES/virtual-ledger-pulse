@@ -15,7 +15,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
-import { Sparkles, Users, GraduationCap, ChevronDown, Play, Loader2, Database, Clock, RotateCcw } from 'lucide-react';
+import { copilotTeach } from '@/hooks/useCopilot';
+import { Sparkles, Users, GraduationCap, ChevronDown, Play, Loader2, Database, Clock, RotateCcw, Pin, Ban, Trash2, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import type { CopilotSettings as Settings } from '@/hooks/useCopilot';
@@ -86,7 +87,27 @@ export function CopilotSettings() {
   const [rebuilding, setRebuilding] = useState(false);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const { data: users = [] } = useTerminalUsersList();
-  const { accounts } = useExchangeAccount();
+  const { accounts, nameFor } = useExchangeAccount();
+  const { data: teach, refetch: refetchTeach } = useQuery({
+    queryKey: ['copilot-teach-list'],
+    queryFn: async () => {
+      const res = await copilotTeach('list');
+      return { pinned: res?.pinned || [], blacklist: res?.blacklist || [] } as {
+        pinned: any[]; blacklist: any[];
+      };
+    },
+    staleTime: 60 * 1000,
+  });
+  const removeTeach = async (kind: 'exemplar' | 'blacklist', id: string) => {
+    try {
+      await copilotTeach(kind === 'exemplar' ? 'remove_exemplar' : 'remove_blacklist', { id });
+      toast.success('Removed');
+      refetchTeach();
+      qc.invalidateQueries({ queryKey: ['copilot-settings'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to remove');
+    }
+  };
   const { data: settings, isLoading } = useQuery({
     queryKey: ['copilot-settings'],
     queryFn: async (): Promise<(Settings & { updated_at?: string }) | null> => {
@@ -279,6 +300,77 @@ export function CopilotSettings() {
               {training ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               Train Now
             </Button>
+          </div>
+        </div>
+
+        {/* Measurability — 7d suggestion metrics (item 8) */}
+        {(() => {
+          const s: any = settings.stats || {};
+          const perAcc: Record<string, any> = s.per_account_7d || {};
+          return (
+            <div className="rounded-md border border-border p-3 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5 text-primary" />
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Last 7 days</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div><p className="text-sm text-foreground tabular-nums">{s.served_7d ?? 0}</p><p className="text-[10px] text-muted-foreground">shown</p></div>
+                <div><p className="text-sm text-foreground tabular-nums">{s.accepted_7d ?? 0}</p><p className="text-[10px] text-muted-foreground">inserted</p></div>
+                <div><p className="text-sm text-foreground tabular-nums">{s.acceptance_pct_7d ?? 0}%</p><p className="text-[10px] text-muted-foreground">acceptance</p></div>
+                <div><p className="text-sm text-foreground tabular-nums">{s.other_coverage_pct ?? 0}%</p><p className="text-[10px] text-muted-foreground">‘other’ coverage</p></div>
+              </div>
+              {Object.keys(perAcc).length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {Object.entries(perAcc).map(([accId, v]: any) => (
+                    <Badge key={accId} variant="outline" className="text-[10px] font-normal">
+                      {accId === 'unknown' ? 'Unknown' : nameFor(accId)}: {v.accepted}/{v.shown}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Teach manager — pinned golden replies + blacklist (item 3) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-md border border-border p-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Pin className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Pinned golden replies ({teach?.pinned.length ?? 0})</span>
+            </div>
+            <ScrollArea className="max-h-40">
+              <div className="space-y-1">
+                {(teach?.pinned || []).map((p: any) => (
+                  <div key={p.id} className="flex items-start gap-1.5 rounded bg-secondary/40 px-2 py-1">
+                    <span className="text-[11px] text-foreground flex-1 break-words">{p.reply_text}</span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeTeach('exemplar', p.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                {(teach?.pinned || []).length === 0 && <p className="text-[10px] text-muted-foreground">None yet — pin replies from order chats.</p>}
+              </div>
+            </ScrollArea>
+          </div>
+          <div className="rounded-md border border-border p-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Ban className="h-3.5 w-3.5 text-destructive" />
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Blacklisted patterns ({teach?.blacklist.length ?? 0})</span>
+            </div>
+            <ScrollArea className="max-h-40">
+              <div className="space-y-1">
+                {(teach?.blacklist || []).map((b: any) => (
+                  <div key={b.id} className="flex items-start gap-1.5 rounded bg-secondary/40 px-2 py-1">
+                    <span className="text-[11px] text-foreground flex-1 break-words">{b.pattern_text}</span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeTeach('blacklist', b.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                {(teach?.blacklist || []).length === 0 && <p className="text-[10px] text-muted-foreground">None yet — blacklist phrases from order chats.</p>}
+              </div>
+            </ScrollArea>
           </div>
         </div>
       </CardContent>

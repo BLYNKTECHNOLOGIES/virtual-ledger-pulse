@@ -4,7 +4,7 @@
 // (2) retrieves style exemplars, (3) makes ONE Lovable-AI call for suggestions.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { classifySituation, detectLanguage, embedCopilot } from "../_shared/copilot.ts";
+import { classifySituation, detectLanguage, embedCopilot, goalForStatus } from "../_shared/copilot.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,6 +92,56 @@ Deno.serve(async (req) => {
     const cpLang = detectLanguage(lastCounterparty?.text || "");
     const exchangeAccountId: string | null = body?.exchangeAccountId || null;
     const accountLabel: string | null = body?.accountLabel || null;
+    const counterpartyNickname: string | null = body?.counterpartyNickname || null;
+    const goal = goalForStatus(order?.status);
+
+    // ---- Counterparty memory (item 4): 3 bounded, indexed queries, 150ms budget ----
+    // Indexed paths: binance_order_history(counter_part_nick_name), terminal_appeal_cases(counterparty_nickname).
+    // Median first-reply latency is intentionally SKIPPED (no index path for per-message latency).
+    let cpProfile = "";
+    if (counterpartyNickname) {
+      const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+      const withBudget = <T,>(p: Promise<T>, fb: T) =>
+        Promise.race([p, new Promise<T>((res) => setTimeout(() => res(fb), 150))]);
+      try {
+        const ohBase = () => admin.from("binance_order_history")
+          .select("order_number", { count: "exact", head: true })
+          .eq("counter_part_nick_name", counterpartyNickname)
+          .gte("create_time", since);
+        const totalQ = exchangeAccountId ? ohBase().eq("exchange_account_id", exchangeAccountId) : ohBase();
+        const compBase = () => admin.from("binance_order_history")
+          .select("order_number", { count: "exact", head: true })
+          .eq("counter_part_nick_name", counterpartyNickname)
+          .gte("create_time", since)
+          .in("order_status", ["COMPLETED", "completed", "4"]);
+        const compQ = exchangeAccountId ? compBase().eq("exchange_account_id", exchangeAccountId) : compBase();
+        const appealQ = admin.from("terminal_appeal_cases")
+          .select("id", { count: "exact", head: true })
+          .eq("counterparty_nickname", counterpartyNickname);
+        const [tot, comp, ap] = await Promise.all([
+          withBudget(totalQ as any, { count: null }),
+          withBudget(compQ as any, { count: null }),
+          withBudget(appealQ as any, { count: null }),
+        ]);
+        const total = (tot as any)?.count ?? 0;
+        const completed = (comp as any)?.count ?? 0;
+        const appeals = (ap as any)?.count ?? 0;
+        if (total > 0 || appeals > 0) {
+          const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+          cpProfile = `Counterparty: ${total} orders (90d), ${pct}% clean, ${appeals} appeal${appeals === 1 ? "" : "s"}.`;
+        }
+      } catch { cpProfile = ""; }
+    }
+
+    // ---- Blacklist patterns (account-matched or global) ----
+    let blacklist: string[] = [];
+    try {
+      const { data: bl } = await admin.from("copilot_blacklist")
+        .select("pattern_text, exchange_account_id");
+      blacklist = (bl || [])
+        .filter((b: any) => !b.exchange_account_id || b.exchange_account_id === exchangeAccountId)
+        .map((b: any) => b.pattern_text).filter(Boolean);
+    } catch { blacklist = []; }
 
     // Retrieve exemplars (embedding cosine when available; RPC falls back to
     // recency when embeddings are null). Best-effort — never fatal.
@@ -113,6 +163,7 @@ Deno.serve(async (req) => {
     // Prefer same-account exemplars; fall back to all accounts when < 3 match.
     let exemplars: any[] = exchangeAccountId ? await matchExemplars(exchangeAccountId) : [];
     if (exemplars.length < 3) exemplars = await matchExemplars(null);
+    const exemplarIds: string[] = exemplars.map((e: any) => e.id).filter(Boolean);
 
     const exemplarText = exemplars.length
       ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")
@@ -120,8 +171,9 @@ Deno.serve(async (req) => {
 
     const userMsg = `ORDER: ${JSON.stringify(order)}
 CLIENT PROFILE: ${JSON.stringify(clientProfile)}
-COUNTERPARTY LANGUAGE: ${cpLang}
+${cpProfile ? cpProfile + "\n" : ""}COUNTERPARTY LANGUAGE: ${cpLang}
 SITUATION: ${situation}
+Current goal: ${goal}
 
 RECENT MESSAGES:
 ${convoBlob || "(none)"}
@@ -178,6 +230,7 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     const lastSent = messages.filter((m) => m.isSelf && m.text).slice(-3).map((m) => m.text);
     const distinct: string[] = [];
     for (const s of suggestions) {
+      if (blacklist.some((p) => sim(s, p) >= 0.8)) continue;           // banned pattern
       if (lastSent.some((prev) => sim(s, prev) > 0.85)) continue;      // too close to what op already sent
       if (distinct.some((d) => sim(s, d) > 0.85)) continue;            // near-duplicate of another suggestion
       distinct.push(s);
@@ -186,6 +239,7 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     return json({
       situation: typeof parsed?.situation === "string" ? parsed.situation : situation,
       suggestions: distinct.slice(0, settings.suggestion_count),
+      exemplarIds,
     });
   } catch (e) {
     const msg = (e as Error)?.name === "AbortError" ? "timeout" : String((e as Error).message || e);

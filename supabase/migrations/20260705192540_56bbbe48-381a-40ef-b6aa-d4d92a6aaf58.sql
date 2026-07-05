@@ -1,0 +1,1 @@
+ALTER TABLE public.copilot_settings ADD COLUMN IF NOT EXISTS stats jsonb NOT NULL DEFAULT '{}'::jsonb;

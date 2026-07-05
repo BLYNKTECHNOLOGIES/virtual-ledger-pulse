@@ -13,7 +13,14 @@ import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotStrip } from './chat/CopilotStrip';
-import { useCopilotVisible, type CopilotSuggestInput } from '@/hooks/useCopilot';
+import {
+  useCopilotVisible, useCopilotPrefetch, useCopilotIsTrainer, copilotTeach,
+  type CopilotSuggestInput,
+} from '@/hooks/useCopilot';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
@@ -33,11 +40,13 @@ interface Props {
   tradeType?: string;
   counterpartyVerifiedName?: string;
   exchangeAccountId?: string | null;
+  /** Current order status (numeric code or text) — drives copilot goal conditioning. */
+  orderStatus?: string | null;
   /** Live order values used to fill quick-reply template tokens at insert time. */
   templateValues?: TemplateOrderValues;
 }
 
-export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, templateValues }: Props) {
+export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, templateValues }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
@@ -312,12 +321,15 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
   // AI Copilot — only visible for allowlisted operators when enabled.
   const copilotVisible = useCopilotVisible();
+  const copilotPrefetch = useCopilotPrefetch();
+  const isTrainer = useCopilotIsTrainer();
   const { nameFor } = useExchangeAccount();
   // Build the ENTIRE suggestion context client-side (no server order lookups).
   const buildCopilotInput = useCallback((): CopilotSuggestInput => ({
     order: {
       number: orderNumber,
       side: tradeType || null,
+      status: orderStatus ?? null,
       amount: templateValues?.amount ?? null,
     },
     clientProfile: {
@@ -329,11 +341,53 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       .map((m) => ({ isSelf: m.senderType === 'operator', text: m.text as string })),
     exchangeAccountId: exchangeAccountId ?? null,
     accountLabel: exchangeAccountId ? nameFor(exchangeAccountId) : null,
-  }), [orderNumber, tradeType, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, exchangeAccountId, nameFor]);
+    counterpartyNickname: counterpartyNickname || null,
+  }), [orderNumber, tradeType, orderStatus, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, exchangeAccountId, nameFor]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
   ).length;
+
+  // Teach controls (trainers only): pin a golden reply / blacklist a phrase.
+  const [blacklistTarget, setBlacklistTarget] = useState<UnifiedMessage | null>(null);
+  const buildContextFor = useCallback((msg: UnifiedMessage): string => {
+    const idx = currentOrderMessages.findIndex((m) => m.id === msg.id);
+    const preceding = (idx > 0 ? currentOrderMessages.slice(0, idx) : [])
+      .filter((m) => m.senderType !== 'system' && m.text)
+      .slice(-6);
+    return preceding.map((m) => `${m.senderType === 'operator' ? 'Operator' : 'Counterparty'}: ${m.text}`).join('\n');
+  }, [currentOrderMessages]);
+
+  const handlePin = useCallback(async (msg: UnifiedMessage) => {
+    if (!msg.text) return;
+    try {
+      await copilotTeach('pin', {
+        replyText: msg.text,
+        contextText: buildContextFor(msg),
+        side: tradeType || null,
+        orderNumber,
+        exchangeAccountId: exchangeAccountId ?? null,
+      });
+      toast.success('Pinned as golden reply');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to pin');
+    }
+  }, [buildContextFor, tradeType, orderNumber, exchangeAccountId]);
+
+  const confirmBlacklist = useCallback(async () => {
+    const msg = blacklistTarget;
+    setBlacklistTarget(null);
+    if (!msg?.text) return;
+    try {
+      await copilotTeach('blacklist', {
+        patternText: msg.text,
+        exchangeAccountId: exchangeAccountId ?? null,
+      });
+      toast.success('Pattern blacklisted');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to blacklist');
+    }
+  }, [blacklistTarget, exchangeAccountId]);
 
   return (
     <div className="flex flex-col h-full relative">
@@ -470,7 +524,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           {currentOrderMessages.length > 0 ? (
             <div className="space-y-2.5">
               {currentOrderMessages.map((msg) => (
-                <ChatBubble key={msg.id} message={msg} />
+                <ChatBubble
+                  key={msg.id}
+                  message={msg}
+                  teachEnabled={isTrainer}
+                  onPin={handlePin}
+                  onBlacklist={(m) => setBlacklistTarget(m)}
+                />
               ))}
               <div ref={bottomRef} />
             </div>
@@ -502,6 +562,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             cacheKey={`${orderNumber}:${currentOrderMessages.length}`}
             onInsert={handleQuickReply}
             buildInput={buildCopilotInput}
+            prefetch={copilotPrefetch}
+            prefetchSignal={counterpartyMsgCount}
           />
         )}
       </div>
@@ -549,6 +611,24 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           }
         </p>
       </div>
+
+      <AlertDialog open={!!blacklistTarget} onOpenChange={(o) => { if (!o) setBlacklistTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Blacklist this phrase?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The copilot will stop suggesting replies similar to:
+              <span className="mt-2 block rounded bg-secondary/60 border border-border px-2 py-1 text-xs text-foreground">
+                {blacklistTarget?.text}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBlacklist}>Blacklist</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

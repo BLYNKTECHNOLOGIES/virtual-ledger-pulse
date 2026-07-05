@@ -210,6 +210,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
       counterpartyId={order.counterparty_id}
       counterpartyNickname={order.counterparty_nickname}
       tradeType={order.trade_type}
+      orderStatus={order.order_status}
       counterpartyVerifiedName={counterpartyVerifiedName}
       exchangeAccountId={orderAccountId}
       templateValues={{

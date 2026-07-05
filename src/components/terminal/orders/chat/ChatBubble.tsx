@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
-import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2 } from 'lucide-react';
+import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2, MoreVertical, Pin, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export interface UnifiedMessage {
   id: string;
@@ -49,7 +52,15 @@ function parseSystemMessage(text: string | null): string {
   }
 }
 
-export function ChatBubble({ message }: { message: UnifiedMessage }) {
+interface ChatBubbleProps {
+  message: UnifiedMessage;
+  /** Trainer-only teach controls on operator (self) messages. */
+  teachEnabled?: boolean;
+  onPin?: (msg: UnifiedMessage) => void;
+  onBlacklist?: (msg: UnifiedMessage) => void;
+}
+
+export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBubbleProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const isOperator = message.senderType === 'operator';
@@ -74,7 +85,28 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
 
   return (
     <>
-      <div className={`flex ${isOperator ? 'justify-end' : 'justify-start'}`}>
+      <div className={`group flex items-center gap-1 ${isOperator ? 'justify-end' : 'justify-start'}`}>
+        {teachEnabled && isOperator && message.text && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost" size="icon"
+                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                title="Teach copilot"
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => onPin?.(message)}>
+                <Pin className="h-3.5 w-3.5 mr-2" /> Pin as golden reply
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onBlacklist?.(message)}>
+                <Ban className="h-3.5 w-3.5 mr-2" /> Blacklist this pattern
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <div
           className={`max-w-[75%] min-w-0 px-3 py-2 overflow-hidden ${
             isOperator

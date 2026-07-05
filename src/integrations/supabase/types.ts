@@ -2496,8 +2496,33 @@ export type Database = {
         }
         Relationships: []
       }
+      copilot_blacklist: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          exchange_account_id: string | null
+          id: string
+          pattern_text: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          pattern_text: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          pattern_text?: string
+        }
+        Relationships: []
+      }
       copilot_exemplars: {
         Row: {
+          acceptance_score: number
           context_text: string | null
           created_at: string
           embedding: string | null
@@ -2505,12 +2530,16 @@ export type Database = {
           id: string
           language: string | null
           order_meta: Json
+          outcome_weight: number
+          pinned: boolean
           reply_text: string
           side: string | null
           situation_class: string
           source_operator: string | null
+          source_order_number: string | null
         }
         Insert: {
+          acceptance_score?: number
           context_text?: string | null
           created_at?: string
           embedding?: string | null
@@ -2518,12 +2547,16 @@ export type Database = {
           id?: string
           language?: string | null
           order_meta?: Json
+          outcome_weight?: number
+          pinned?: boolean
           reply_text: string
           side?: string | null
           situation_class: string
           source_operator?: string | null
+          source_order_number?: string | null
         }
         Update: {
+          acceptance_score?: number
           context_text?: string | null
           created_at?: string
           embedding?: string | null
@@ -2531,10 +2564,13 @@ export type Database = {
           id?: string
           language?: string | null
           order_meta?: Json
+          outcome_weight?: number
+          pinned?: boolean
           reply_text?: string
           side?: string | null
           situation_class?: string
           source_operator?: string | null
+          source_order_number?: string | null
         }
         Relationships: []
       }
@@ -2547,6 +2583,7 @@ export type Database = {
           exemplar_count: number
           id: string
           operator_allowlist: string[]
+          stats: Json
           suggestion_count: number
           train_watermark: string | null
           trainer_allowlist: string[]
@@ -2560,6 +2597,7 @@ export type Database = {
           exemplar_count?: number
           id?: string
           operator_allowlist?: string[]
+          stats?: Json
           suggestion_count?: number
           train_watermark?: string | null
           trainer_allowlist?: string[]
@@ -2573,10 +2611,47 @@ export type Database = {
           exemplar_count?: number
           id?: string
           operator_allowlist?: string[]
+          stats?: Json
           suggestion_count?: number
           train_watermark?: string | null
           trainer_allowlist?: string[]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      copilot_suggestion_log: {
+        Row: {
+          created_at: string
+          exchange_account_id: string | null
+          exemplar_ids: string[]
+          id: string
+          operator_id: string | null
+          order_number: string | null
+          situation_class: string | null
+          status: string
+          suggestion_text: string
+        }
+        Insert: {
+          created_at?: string
+          exchange_account_id?: string | null
+          exemplar_ids?: string[]
+          id?: string
+          operator_id?: string | null
+          order_number?: string | null
+          situation_class?: string | null
+          status?: string
+          suggestion_text: string
+        }
+        Update: {
+          created_at?: string
+          exchange_account_id?: string | null
+          exemplar_ids?: string[]
+          id?: string
+          operator_id?: string | null
+          order_number?: string | null
+          situation_class?: string | null
+          status?: string
+          suggestion_text?: string
         }
         Relationships: []
       }
@@ -17342,42 +17417,27 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
-      match_copilot_exemplars:
-        | {
-            Args: {
-              match_count?: number
-              p_side?: string
-              p_situation_class: string
-              query_embedding: string
-            }
-            Returns: {
-              context_text: string
-              id: string
-              language: string
-              reply_text: string
-              side: string
-              similarity: number
-              situation_class: string
-            }[]
-          }
-        | {
-            Args: {
-              match_count?: number
-              p_exchange_account_id?: string
-              p_side?: string
-              p_situation_class: string
-              query_embedding: string
-            }
-            Returns: {
-              context_text: string
-              id: string
-              language: string
-              reply_text: string
-              side: string
-              similarity: number
-              situation_class: string
-            }[]
-          }
+      match_copilot_exemplars: {
+        Args: {
+          match_count?: number
+          p_exchange_account_id?: string
+          p_side?: string
+          p_situation_class: string
+          query_embedding: string
+        }
+        Returns: {
+          acceptance_score: number
+          context_text: string
+          id: string
+          language: string
+          outcome_weight: number
+          pinned: boolean
+          reply_text: string
+          side: string
+          similarity: number
+          situation_class: string
+        }[]
+      }
       match_kb: {
         Args: {
           match_count?: number

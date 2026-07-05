@@ -96,105 +96,93 @@ export default function ResetPassword() {
 
   if (isValidToken === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-info to-primary p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
-          </CardContent>
-        </Card>
-      </div>
+      <Stage>
+        <div className="flex items-center justify-center py-6">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[hsl(231_81%_60%)]"></div>
+        </div>
+      </Stage>
     );
   }
 
   if (isValidToken === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-info to-primary p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-              <AlertCircle className="h-6 w-6 text-destructive" />
-              Invalid Link
-            </CardTitle>
-            <CardDescription className="text-center">
-              This password reset link is invalid or has expired.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={() => navigate('/')}
-              className="w-full"
-            >
-              Back to Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Stage>
+        <h1 className="flex items-center justify-center gap-2 text-2xl font-semibold tracking-tight">
+          <AlertCircle className="h-6 w-6 text-destructive" />
+          Invalid Link
+        </h1>
+        <p className="mt-1.5 text-center text-sm text-white/55">
+          This password reset link is invalid or has expired.
+        </p>
+        <Button
+          onClick={() => navigate('/')}
+          className="mt-8 h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+        >
+          Back to Login
+        </Button>
+      </Stage>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-info to-primary p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-            <CheckCircle className="h-6 w-6 text-success" />
-            Reset Password
-          </CardTitle>
-          <CardDescription className="text-center">
-            Enter your new password below
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="new-password"
-                  type="password"
-                  placeholder="Enter new password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Updating Password...
-                </>
-              ) : (
-                'Update Password'
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <Stage>
+      <h1 className="flex items-center justify-center gap-2 text-2xl font-semibold tracking-tight">
+        <CheckCircle className="h-6 w-6 text-emerald-400" />
+        Reset Password
+      </h1>
+      <p className="mt-1.5 text-center text-sm text-white/55">
+        Enter your new password below
+      </p>
+      <form onSubmit={handleResetPassword} className="mt-8 space-y-5">
+        <div className="space-y-1.5">
+          <Label htmlFor="new-password" className="text-xs font-medium text-white/70">New Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3.5 h-4 w-4 text-white/50" />
+            <Input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Enter new password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="h-11 border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="confirm-password" className="text-xs font-medium text-white/70">Confirm Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3.5 h-4 w-4 text-white/50" />
+            <Input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="h-11 border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+              required
+            />
+          </div>
+        </div>
+
+        <Button
+          type="submit"
+          className="h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+              Updating Password...
+            </>
+          ) : (
+            'Update Password'
+          )}
+        </Button>
+      </form>
+    </Stage>
   );
 }

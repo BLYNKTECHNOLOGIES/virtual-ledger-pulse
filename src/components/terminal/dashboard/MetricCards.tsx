@@ -1,4 +1,13 @@
 import { ShoppingCart, Clock, TrendingUp, AlertTriangle, BarChart3, Percent, ArrowLeftRight, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
+import { useTerminalValueFlash } from '@/hooks/useTerminalValueFlash';
+
+function MetricValue({ raw, formatted }: { raw: number; formatted: string }) {
+  const flash = useTerminalValueFlash(raw);
+  return (
+    <p className={`text-2xl font-semibold t-mono text-foreground tracking-tight rounded px-1 -mx-1 ${flash}`}>{formatted}</p>
+  );
+}
+
 
 function formatVolume(v: number): string {
   if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)}Cr`;

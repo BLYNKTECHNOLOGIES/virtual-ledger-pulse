@@ -190,7 +190,7 @@ function TimingCard({ icon: Icon, label, value, subtitle, borderColor }: { icon:
           <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" style={{ color: 'inherit' }} />
           <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{label}</span>
         </div>
-        <div className="text-sm sm:text-lg font-bold text-foreground">{value}</div>
+        <div className="t-mono text-sm sm:text-lg font-semibold text-foreground">{value}</div>
         <p className="text-[8px] sm:text-[9px] text-muted-foreground">{subtitle}</p>
       </CardContent>
     </Card>
@@ -740,7 +740,7 @@ function TerminalOperatorDetailContent() {
         <div className="flex items-center gap-2 ml-11 sm:ml-0 sm:justify-end">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/20">
             <span className="text-[9px] text-muted-foreground">Score</span>
-            <span className={`text-xl font-bold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}</span>
+            <span className={`t-mono text-xl font-semibold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}</span>
           </div>
           {m.activeLoad > 0 && (
             <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px]">{m.activeLoad} active</Badge>
@@ -819,30 +819,30 @@ function TerminalOperatorDetailContent() {
                   {isPayer ? (
                     <>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{m.payerTodayPayments}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{m.payerTodayPayments}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Payments</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-success">{m.todayCompleted}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-success">{m.todayCompleted}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{fmtVol(m.payerTodayVolume || m.todayVolume)}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{fmtVol(m.payerTodayVolume || m.todayVolume)}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Volume</div>
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{m.todayHandled}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{m.todayHandled}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Handled</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-success">{m.todayCompleted}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-success">{m.todayCompleted}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{fmtVol(m.todayVolume)}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{fmtVol(m.todayVolume)}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Volume</div>
                       </div>
                     </>
@@ -868,14 +868,14 @@ function TerminalOperatorDetailContent() {
                       <ArrowDownRight className="h-3 w-3 text-success" />
                       <span className="text-[10px] text-muted-foreground">Buy Volume</span>
                     </div>
-                    <span className="text-xs font-bold text-foreground">{fmtVol(m.buyVolume)}</span>
+                    <span className="t-mono text-xs font-semibold text-foreground">{fmtVol(m.buyVolume)}</span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div className="flex items-center gap-2">
                       <ArrowUpRight className="h-3 w-3 text-warning" />
                       <span className="text-[10px] text-muted-foreground">Sell Volume</span>
                     </div>
-                    <span className="text-xs font-bold text-foreground">{fmtVol(m.sellVolume)}</span>
+                    <span className="t-mono text-xs font-semibold text-foreground">{fmtVol(m.sellVolume)}</span>
                   </div>
                   <Separator className="my-1" />
                   <div className="flex items-center justify-between">
@@ -1116,28 +1116,28 @@ function TerminalOperatorDetailContent() {
             <Card className="border-border bg-card border-l-2 border-l-blue-500">
               <CardContent className="p-2.5 text-center">
                 <UserCheck className="h-4 w-4 text-info mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">{payerAssignData.filter(a => a.is_active).length}/{payerAssignData.length}</div>
+                <div className="t-mono text-base font-semibold text-foreground">{payerAssignData.filter(a => a.is_active).length}/{payerAssignData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Payer Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-indigo-500">
               <CardContent className="p-2.5 text-center">
                 <ClipboardList className="h-4 w-4 text-primary mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">{operatorAssignData.filter(a => a.is_active).length}/{operatorAssignData.length}</div>
+                <div className="t-mono text-base font-semibold text-foreground">{operatorAssignData.filter(a => a.is_active).length}/{operatorAssignData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Operator Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-cyan-500">
               <CardContent className="p-2.5 text-center">
                 <Lock className="h-4 w-4 text-info mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}/{payerLockData.length}</div>
+                <div className="t-mono text-base font-semibold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}/{payerLockData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Payer Locks</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-emerald-500">
               <CardContent className="p-2.5 text-center">
                 <Link2 className="h-4 w-4 text-success mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">
+                <div className="t-mono text-base font-semibold text-foreground">
                   {new Set([...payerAssignData.map(a => a.ad_id), ...operatorAssignData.map(a => a.ad_id)].filter(Boolean)).size}
                 </div>
                 <div className="text-[8px] text-muted-foreground">Unique Ad IDs</div>
@@ -1303,7 +1303,7 @@ function TerminalOperatorDetailContent() {
               <Card key={label} className={`border ${bg}`}>
                 <CardContent className="p-2.5 text-center">
                   <Icon className={`h-4 w-4 ${color} mx-auto mb-1`} />
-                  <div className="text-lg font-bold text-foreground">{value}</div>
+                  <div className="t-mono text-lg font-semibold text-foreground">{value}</div>
                   <div className="text-[8px] text-muted-foreground">{label}</div>
                 </CardContent>
               </Card>
@@ -1322,7 +1322,7 @@ function TerminalOperatorDetailContent() {
                         <span className="text-[10px] sm:text-xs text-foreground truncate">{a.label}</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs font-bold text-foreground">{a.count}</span>
+                        <span className="t-mono text-xs font-semibold text-foreground">{a.count}</span>
                         {m.ordersHandled > 0 && (
                           <Badge variant="outline" className="text-[7px] sm:text-[8px]">{Math.round((a.count / m.ordersHandled) * 100)}%</Badge>
                         )}

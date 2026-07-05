@@ -96,21 +96,21 @@ export default function ErpEntryManager() {
     });
   }, [queryClient]);
 
+  // Realtime replaced by timer-driven polling: the 8 source tables were removed
+  // from the supabase_realtime publication at the DB level, so the channel
+  // received nothing. Poll every 10s while mounted (skip when tab hidden,
+  // mirroring refetchIntervalInBackground:false) using the identical
+  // invalidation path the channel handler used.
   useEffect(() => {
     if (!hasAccess) return;
 
-    const topic = `erp-entry-realtime-refresh-${crypto.randomUUID()}`;
-    const channel = ERP_ENTRY_REALTIME_TABLES.reduce(
-      (ch, table) => ch.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table },
-        refreshErpEntryCaches
-      ),
-      supabase.channel(topic)
-    ).subscribe();
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      refreshErpEntryCaches();
+    }, 10000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [hasAccess, refreshErpEntryCaches]);
 

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';

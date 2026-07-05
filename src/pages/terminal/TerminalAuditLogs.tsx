@@ -179,7 +179,7 @@ export default function TerminalAuditLogs() {
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
                         {Array.from({ length: 7 }).map((_, j) => (
-                          <TableCell key={j}><div className="h-4 bg-muted/30 rounded animate-pulse" /></TableCell>
+                          <TableCell key={j}><div className="h-4 t-shimmer rounded" /></TableCell>
                         ))}
                       </TableRow>
                     ))

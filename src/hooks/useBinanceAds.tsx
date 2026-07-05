@@ -285,18 +285,25 @@ export function useUpdateAdStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ advNos, advStatus, fromPrivate, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string }) =>
+     mutationFn: ({ advNos, advStatus, fromPrivate, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string; fromStatus?: number }) =>
       callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }, exchangeAccountId),
     onSuccess: (_data, vars) => {
       clearAdBreakDetected();
-      queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+      // Instant UI: patch advStatus on the affected rows across all caches.
+      const targets = new Set(vars.advNos);
+      const patched = patchAdsCache(queryClient, (ad) => {
+        if (!targets.has(ad.advNo)) return null;
+        if (vars.exchangeAccountId !== undefined && ad._exchangeAccountId !== vars.exchangeAccountId) return null;
+        return { ...ad, advStatus: vars.advStatus, updateTime: String(Date.now()) };
+      });
+      if (!patched) queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Status Updated', description: 'Ad status has been updated.' });
       const actionType = vars.advNos.length > 1 ? AdActionTypes.AD_BULK_STATUS_CHANGED : AdActionTypes.AD_STATUS_CHANGED;
       for (const advNo of vars.advNos) {
         logAdAction({
           actionType,
           advNo,
-          metadata: { toStatus: vars.advStatus, fromPrivate: vars.fromPrivate, advNos: vars.advNos, adsCount: vars.advNos.length },
+          metadata: { fromStatus: vars.fromStatus, toStatus: vars.advStatus, fromPrivate: vars.fromPrivate, advNos: vars.advNos, adsCount: vars.advNos.length, exchangeAccountId: vars.exchangeAccountId },
         });
       }
     },

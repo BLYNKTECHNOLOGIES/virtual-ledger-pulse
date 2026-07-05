@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     // 1) Candidate operator replies newer than watermark (ascending, batched).
     const { data: replies, error: rErr } = await admin
       .from("binance_order_chat_messages")
-      .select("id, order_number, message_text, binance_created_at, binance_create_time")
+      .select("id, order_number, message_text, binance_created_at, binance_create_time, exchange_account_id")
       .eq("sender_is_self", true)
       .eq("is_system_message", false)
       .eq("is_recall", false)

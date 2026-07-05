@@ -67,17 +67,29 @@ serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* noop */ }
     const orderId = String(body?.orderId || "").trim();
-    if (!orderId) return json({ error: "orderId is required" }, 400);
+    const orderNumber = String(body?.orderNumber || "").trim();
+    if (!orderId && !orderNumber) return json({ error: "orderId is required" }, 400);
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    // Resolve the order. `orderId` from the client is the display record id, which
+    // for LIVE (unsynced) Binance orders is the numeric Binance order number, not
+    // a UUID. Querying a uuid column with that value errors, so we look up by
+    // binance_order_number whenever we have one, and only use `id` when it is a
+    // real UUID.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const byNumber = orderNumber || (!UUID_RE.test(orderId) ? orderId : "");
+    const byId = UUID_RE.test(orderId) ? orderId : "";
+
     // 1) Order
-    const { data: order, error: orderErr } = await supabase
-      .from("p2p_order_records")
-      .select("id, binance_order_number, counterparty_id, counterparty_nickname, trade_type, asset, fiat_unit, amount, total_price, unit_price, order_status, pay_method_name, binance_create_time, synced_at, completed_at, cancelled_at, additional_kyc_verify, appeal_status, exchange_account_id")
-      .eq("id", orderId)
-      .maybeSingle();
-    if (orderErr || !order) return json({ error: "Order not found" }, 404);
+    const orderSelect = "id, binance_order_number, counterparty_id, counterparty_nickname, trade_type, asset, fiat_unit, amount, total_price, unit_price, order_status, pay_method_name, binance_create_time, synced_at, completed_at, cancelled_at, additional_kyc_verify, appeal_status, exchange_account_id";
+    const orderQuery = supabase.from("p2p_order_records").select(orderSelect);
+    const { data: order, error: orderErr } = await (
+      byNumber ? orderQuery.eq("binance_order_number", byNumber) : orderQuery.eq("id", byId)
+    ).maybeSingle();
+    if (orderErr) { console.error("order-copilot order lookup error", orderErr); return json({ error: "Order lookup failed" }, 500); }
+    if (!order) return json({ error: "Order not found" }, 404);
+
 
     // 2) Last 25 chat messages of this order
     const { data: chatRows } = await supabase

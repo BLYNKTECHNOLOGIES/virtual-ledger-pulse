@@ -41,6 +41,23 @@ export function useCopilotVisible() {
   );
 }
 
+/** True when copilot is enabled AND the current terminal user prefetches suggestions (auto_suggest). */
+export function useCopilotPrefetch() {
+  const { userId } = useTerminalAuth();
+  const { data: settings } = useCopilotSettings();
+  return Boolean(
+    settings?.enabled && settings?.auto_suggest && userId &&
+    (settings.operator_allowlist || []).includes(userId)
+  );
+}
+
+/** True when the current terminal user is a copilot trainer (teach controls). */
+export function useCopilotIsTrainer() {
+  const { userId } = useTerminalAuth();
+  const { data: settings } = useCopilotSettings();
+  return Boolean(userId && (settings?.trainer_allowlist || []).includes(userId));
+}
+
 export interface CopilotSuggestInput {
   order: {
     number?: string | null;

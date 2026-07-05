@@ -5,6 +5,7 @@ import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences";
 import { DraggableSidebarItem } from "@/components/DraggableSidebarItem";

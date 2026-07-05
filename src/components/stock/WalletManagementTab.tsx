@@ -930,51 +930,21 @@ export function WalletManagementTab() {
         onOpenChange={setShowImportDialog} 
       />
 
-      {/* Reverse Transaction Confirmation Dialog (Immutable Ledger) */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>
-                  The original entry will be preserved forever. A new opposite-sign
-                  reversal row of{' '}
-                  <strong>
-                    {(transactionToDelete?.amount ?? 0).toLocaleString('en-IN')}{' '}
-                    {transactionToDelete?.asset_code || 'USDT'}
-                  </strong>{' '}
-                  will be posted and linked back to it.
-                </p>
-                <p className="text-muted-foreground">
-                  Provide a clear reason — it is recorded in the immutable audit chain.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="wm-reversal-reason">Reason (required, min 3 chars)</Label>
-            <textarea
-              id="wm-reversal-reason"
-              value={reversalReason}
-              onChange={(e) => setReversalReason(e.target.value)}
-              placeholder="e.g. Duplicate manual credit; correcting via reversal."
-              rows={3}
-              disabled={deleteTransactionMutation.isPending}
-              className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteTransactionMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteTransaction}
-              disabled={deleteTransactionMutation.isPending || reversalReason.trim().length < 3}
-            >
-              {deleteTransactionMutation.isPending ? "Posting reversal…" : "Post Reversal"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Reverse Transaction Confirmation Dialog (shared, immutable ledger) */}
+      <ReverseTransactionDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => {
+          setShowDeleteConfirm(open);
+          if (!open) setTransactionToDelete(null);
+        }}
+        transaction={transactionToDelete}
+        onReversed={() => {
+          refetchWallets();
+          refetchTransactions();
+          setTransactionToDelete(null);
+        }}
+      />
+
 
       <AlertDialog open={!!walletToDelete} onOpenChange={(open) => !open && setWalletToDelete(null)}>
         <AlertDialogContent>

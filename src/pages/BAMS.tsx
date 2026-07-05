@@ -54,20 +54,19 @@ export default function BAMS() {
           <div className="px-6 py-8">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="space-y-2">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 bg-destructive/10 rounded-xl shadow-sm">
-                    <CreditCard className="h-8 w-8 text-destructive" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-muted-foreground">
+                <PageHeader
+                  title={
+                    <span className="flex items-center gap-3 text-muted-foreground">
+                      <span className="p-3 bg-destructive/10 rounded-xl shadow-sm">
+                        <CreditCard className="h-8 w-8 text-destructive" />
+                      </span>
                       BAMS - Banking & Payment Management
-                    </h1>
-                    <p className="text-muted-foreground text-sm">
-                      Comprehensive banking and payment system management
-                    </p>
-                  </div>
-                </div>
+                    </span>
+                  }
+                  description="Comprehensive banking and payment system management"
+                />
               </div>
+
             </div>
           </div>
         </div>

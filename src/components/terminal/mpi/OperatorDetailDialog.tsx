@@ -355,7 +355,7 @@ export function OperatorDetailDialog({
                               {a.trade_type || 'N/A'}
                             </Badge>
                           </td>
-                          <td className="py-1.5 px-2 text-right font-medium">
+                          <td className="py-1.5 px-2 text-right font-medium t-mono">
                             ₹{Number(a.total_price || 0).toLocaleString('en-IN')}
                           </td>
                           <td className="py-1.5 px-2">

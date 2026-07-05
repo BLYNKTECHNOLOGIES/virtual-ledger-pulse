@@ -465,6 +465,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           ) : null}
       </div>
 
+      {/* AI Copilot strip (advisory — inserts only, never auto-sends) */}
+      <CopilotStrip
+        orderId={orderId}
+        messageCount={allMessages.length}
+        onInsert={handleQuickReply}
+      />
+
       {/* Quick replies bar */}
       <div className="px-3 py-1 border-t border-border/50 bg-card/30">
         <QuickReplyBar

@@ -240,6 +240,8 @@ function TerminalOrdersContent() {
   } = useBinanceOrderHistory();
 
   const syncOrders = useSyncOrders();
+  const syncOrdersBatch = useSyncOrdersBatch();
+  const syncFingerprintRef = useRef<Map<string, string>>(new Map());
 
   // Fetch pending alternate UPI requests for highlighting
   const { data: pendingAltUpiRequests = [] } = useAlternateUpiRequests('pending');

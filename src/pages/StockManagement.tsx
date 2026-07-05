@@ -19,28 +19,36 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
 import { PageHeader } from "@/components/shared/PageHeader";
 
-// Roles allowed to view the immutable Ledger Integrity diagnostics tab.
-// Aligned with the role-hierarchy memory: Super Admin / Admin / COO / Auditor.
-const LEDGER_INTEGRITY_ROLES = ["super admin", "admin", "coo", "auditor"];
+// Map legacy ?tab= values (pre-restructure bookmarks) onto the new 5-tab model.
+const LEGACY_TAB_ALIASES: Record<string, string> = {
+  quickview: 'positions',
+  valuation: 'positions',
+  warehouse: 'wallets',
+  transactions: 'ledger',
+  integrity: 'positions',
+};
+
+const resolveTab = (raw: string | null): string => {
+  const value = raw || 'positions';
+  return LEGACY_TAB_ALIASES[value] || value;
+};
 
 export default function StockManagement() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { hasRole } = useAuth();
-  const canViewLedgerIntegrity = LEDGER_INTEGRITY_ROLES.some((r) => hasRole(r));
-  const initialTab = searchParams.get('tab') || 'quickview';
-  const [activeTab, setActiveTab] = useState(
-    initialTab === 'integrity' && !canViewLedgerIntegrity ? 'quickview' : initialTab
-  );
+  const { data: pendingConversions } = usePendingConversions();
+  const pendingConversionCount = pendingConversions?.length || 0;
+  const [activeTab, setActiveTab] = useState(resolveTab(searchParams.get('tab')));
 
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) {
-      setActiveTab(tab);
+      setActiveTab(resolveTab(tab));
     }
   }, [searchParams]);
 
   useDeepLinkHighlight(['txId']);
+
 
 
   return (

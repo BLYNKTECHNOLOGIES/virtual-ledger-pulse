@@ -51,6 +51,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
   const [isSplitPayment, setIsSplitPayment] = useState(false);
+  // Split payment is rarely used — its toggle lives behind a "More" disclosure,
+  // collapsed by default. Auto-expand if a split is somehow already active.
+  const [showSplitOption, setShowSplitOption] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
   // Synchronous guard to prevent rapid double-submits creating duplicate orders.
   // React state / mutation.isPending update asynchronously, leaving a window where

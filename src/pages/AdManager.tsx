@@ -396,12 +396,26 @@ export default function AdManager() {
             <CardContent>
               {isLoading ? (
                 <TableSkeleton rows={8} columns={9} />
+              ) : viewMode === 'board' ? (
+                <BoardView
+                  ads={displayAds}
+                  onEdit={handleEdit}
+                  onToggleStatus={handleToggleStatus}
+                  onHistory={handleHistory}
+                  onDuplicate={handleDuplicate}
+                  isTogglingStatus={updateStatus.isPending}
+                  selectedAdvNos={selectedAdvNos}
+                  onSelectionChange={setSelectedAdvNos}
+                  sortMode={sortMode}
+                  compact={compact}
+                />
               ) : viewMode === 'desk' ? (
                  <DeskTable
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
                   onHistory={handleHistory}
+                  onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
@@ -415,6 +429,7 @@ export default function AdManager() {
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
                   onHistory={handleHistory}
+                  onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}

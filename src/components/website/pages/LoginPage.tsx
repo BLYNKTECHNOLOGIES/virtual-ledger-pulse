@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
-import { OpsGatewayVisual } from '@/components/website/OpsGatewayVisual';
+import { LivingSettlementField } from '@/components/website/LivingSettlementField';
 import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
 
 

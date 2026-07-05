@@ -1516,7 +1516,7 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
   const urgencyClass = isExpired
     ? 'text-destructive font-semibold'
     : remaining && parseInt(remaining) <= 2
-      ? 'text-destructive animate-pulse'
+      ? 'text-destructive'
       : remaining && parseInt(remaining) <= 5
         ? 'text-warning'
         : 'text-trade-pending';

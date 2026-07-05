@@ -1,86 +1,46 @@
-# ERP-Wide UI/UX Audit & Improvement Plan
+# AD MANAGER — RECONNAISSANCE (read-only)
 
-> Scope: main ERP app shell + modules. EXCLUDED: `src/pages/terminal/**`, `src/components/terminal/**`, login/register, all Supabase/edge/hook business logic. Frontend/presentation only. **Note:** dev auth is `external_unmanaged`, so authenticated pages could not be screenshotted — findings are from static source analysis of App.tsx, the shell (Layout/AppSidebar/TopHeader/MobileBottomNav), `index.css` tokens, and representative page/component sources.
+Route: `/ad-manager` (main) + `src/pages/terminal/TerminalAdManager.tsx` (wrapper, gate `terminal_ads_view`). Both render `src/pages/AdManager.tsx`.
 
-## 1. Module-by-module
+## 1. FILES + ENDPOINTS
+Page: `src/pages/AdManager.tsx` (256). Hooks: `src/hooks/useBinanceAds.tsx` (307).
+Components (src/components/ad-manager/):
+- CategorizedAdTable.tsx (507) — main table (default render)
+- AdTable.tsx (175) — flat table (NOT imported by page; legacy/unused)
+- AdManagerFilters.tsx (113), BulkActionToolbar.tsx (93)
+- CreateEditAdDialog.tsx (1001), PaymentMethodBadge.tsx (31)
+- RestTimerBanner.tsx (155), MerchantStateCard.tsx (69)
+- Bulk*: BulkEditLimitsDialog(180), BulkFloatingPriceDialog(198), BulkHybridAdjustDialog(285), BulkStatusDialog(117), BulkRiskGuardDialog(124)
 
-| Route | Module | Grade | Top issues |
-|---|---|---|---|
-| /dashboard | Dashboard | B | `h1` = `text-xl md:text-2xl` (differs from peers); DB-persisted layout must be preserved; verify KPI cards use tinted-icon + hover-lift pattern uniformly |
-| /sales | Sales | B | `h1` = `text-xl md:text-3xl` (unique scale); dense toolbars; check TableSkeleton on all tabs |
-| /purchase | Purchase | B | mirrors Sales; header/toolbar drift vs Sales |
-| /bams | BAMS | B | verify tinted-badge + skeleton consistency; mobile 390px table overflow |
-| /clients | Clients | B | `h1` = `text-2xl` vs 3xl elsewhere; empty/skeleton coverage |
-| /clients/:id | Client Detail | B | tab-heavy; mobile tab scroll + header actions crowding |
-| /ra-dashboard | RA Dashboard | C? | confirm skeletons/empty states exist |
-| /leads | Leads | C? | confirm design-system alignment (badges, table header style) |
-| /user-management | User Management | B | dialog-heavy; focus-ring/label a11y pass |
-| /compliance | Compliance | C? | verify skeletons + empty states |
-| /stock | Stock Mgmt | B | `text-2xl` header; numeric right-align/tabular-nums audit |
-| /accounting | Accounting | B | `text-2xl` header; multi-tab loading states |
-| /statistics | Statistics | B | `text-3xl` header (outlier high); chart color tokens |
-| /profit-loss | Profit & Loss | B- | many `text-2xl font-bold` KPI values (font-weight drift); **no print stylesheet** for a report page |
-| /financials | Financials | B- | `text-3xl`; **hardcoded hex chart colors** `#059669`/`#dc2626` (lines 344-351); no print styles |
-| /risk-management | Risk Mgmt | C? | verify empty states/skeletons |
-| /ad-manager | Ad Manager | B | uses TableSkeleton; check header pattern |
-| /tasks, /erp-entry, /reconciliation | Ops | B | verify skeleton/empty parity |
-| /utility (+invoice-creator, payment-screenshot) | Utility | C? | landing hub polish; generator pages layout |
-| /profile, /shortcuts, /raci | Misc | C? | low-traffic; header consistency |
-| /hrms/** (~90 routes) | HRMS (Horilla) | B-/C | presentation-only in scope; heavy volume, inconsistent headers/skeletons across sub-pages; treat as one workstream |
-| * (404) | NotFound | C | unbranded bare page, raw `<a href="/">`, `bg-muted`, no shell/logo |
+All API via `supabase.functions.invoke('binance-ads', {action})` (`callBinanceAds`, useBinanceAds.tsx:98):
+- List fetch: `useBinanceAdsList` → action `listAds`. Combined-account fan-out (accountsToQuery), merges online/private(1)+offline(3) in parallel. staleTime 30s, `refetchOnWindowFocus:false`, **NO refetchInterval** — refresh only manual (RefreshCw / filter reset). AdManager.tsx:60-61.
+- Price update: no dedicated endpoint; goes through `updateAd` (`useUpdateAd`, :239) via CreateEditAdDialog OR bulk floating (`BulkFloatingPriceDialog`)/hybrid.
+- Status change (pause/resume/online/offline): `useUpdateAdStatus` → action `updateAdStatus` (:263). Single toggle handleToggleStatus (:99), bulk via BulkStatusDialog.
+- Create/edit: `usePostAd`→`postAd`, `useUpdateAd`→`updateAd` (:214/239).
+- Ref price: `useBinanceReferencePrice`→`getReferencePrice` (60s poll) — ONLY used inside CreateEditAdDialog, not list.
 
-## 2. Cross-cutting findings (specific)
+## 2. CURRENT UI
+Layout: RestTimerBanner + MerchantStateCard row → PageHeader (Sync icon + Create Ad) → Filters card → conditional BulkActionToolbar → Tabs [All / Block / Active / Private / Inactive] → single Card w/ CategorizedAdTable.
+CategorizedAdTable: nested collapsible groups — Category (Block / Small Buy / Small Sale / Big Buy / Big Sale) → sub-group (Fixed / Floating) → ad rows. Collapse state persisted per-user in localStorage. Category/group/row checkboxes for multi-select. Small vs Big derived from minSingleTransAmount vs small_buys/sales_config.
+Row columns: checkbox, Ad ID (last 8 + AccountBadge), Type (BUY/SELL + Block badge), Asset, Price Type, Price (flash, floating% suffix), Available Qty (surplus/init), Order Limit (min~max ₹), Payment Methods (3 badges + commission% + overflow), Status badge, Updated, Actions.
+Per-ad actions (3): automation exclude toggle (ShieldBan/Check), Edit (opens dialog), Status toggle (Power/PowerOff/Lock).
+**Price change cost today = many clicks:** Edit icon → CreateEditAdDialog (1001-line form) → change price → save. No inline price edit. Bulk floating% and hybrid adjust exist as dialogs.
+Bulk/multi-select: YES (toolbar: Edit Limits, Adjust Floating%, Hybrid Adjust, Risk Guard, Activate, Deactivate).
+Filters: Asset, Trade Type, Status, Price Type, start/end date, Reset. Sorting: fixed (asset asc, then price asc within group) — no user sort.
+Competitor/rank/book data: NONE fetched or displayed anywhere in the list.
 
-**A. No route-level code-splitting (highest bundle impact).** `src/App.tsx` statically imports ~130 page modules (0 `React.lazy`/`Suspense`). Entire HRMS + all ERP pages ship in the initial bundle. File: `src/App.tsx` (lines ~1-135 imports).
+## 3. DATA AVAILABLE per ad (BinanceAd, useBinanceAds.tsx:36)
+price, priceType(1 fixed/2 floating), priceFloatingRatio, initAmount, surplusAmount, minSingleTransAmount, maxSingleTransAmount, tradeMethods[], commission fields, advStatus(1/2/3), asset, fiatUnit, tradeType, classify(block), autoReplyMsg, remarks, createTime, updateTime, onlineNow, tags, many buyer/KYC limits, _exchangeAccountId. **No rank/book position** in payload.
 
-**B. No shared PageHeader component.** Heading scale varies per page: `text-3xl` (Statistics, Financials), `text-2xl` (Stock, Accounting, Clients, Dashboard@md), `text-xl md:text-3xl` (Sales). Weight varies `font-semibold` vs `font-bold` (ProfitLoss KPIs). No single title/description/actions primitive.
+## 4. AUTOMATION BOUNDARY (TerminalAutomation — do NOT overlap)
+Tabs: auto-reply, schedules, auto-pay, export(completed orders), small-orders config, hybrid price adjuster, auto-pricing rules, auto-screenshot. Ad-level automation exclusion toggle lives on the ad row but its engine is Automation. Ad Manager work must stay manual: list display, manual price/status edits, bulk manual actions. No repricing/scheduling logic here.
 
-**C. Hardcoded colors bypassing tokens.** `src/pages/Financials.tsx` lines 344-351 use raw hex `#059669`, `#dc2626` in Recharts fills/strokes instead of `hsl(var(--success))`/`hsl(var(--destructive))`.
-
-**D. No print stylesheet.** `rg "@media print"` → none. Report pages (ProfitLoss, Financials, statements, invoices) have no print layout.
-
-**E. Inconsistent loading/empty states.** `TableSkeleton`/`CardSkeleton` exist (`src/components/ui/skeleton.tsx`) but referenced in only ~9 non-terminal/non-HRMS files; many pages likely use ad-hoc spinners or none.
-
-**F. Sidebar shell brand + a11y.** `AppSidebar.tsx` header is a flat `bg-primary` block; loading state uses `animate-pulse`/`animate-spin`. Footer hardcodes `© 2025`. Good: correct brand logos already wired (`blynk-logo-white.svg`, `blynk-icon.svg`) — must be preserved. Opportunity for a tasteful brand moment (subtle) without gradient overload.
-
-**G. 404/fallback unbranded.** `src/pages/NotFound.tsx` is outside the app shell, uses raw anchor + `text-4xl font-bold`, no logo/CTA button.
-
-**H. Positives (preserve).** No `confirm()` usage (AlertDialog pattern holds); `.page-mount`/`.stagger-children` motion utilities present; main-ERP command palette exists (`src/components/shortcuts/CommandPalette.tsx` + `ShortcutsProvider`); token system in `index.css` is well-structured for light/dark.
-
-## 3. Prioritized phased plan (frontend-only)
-
-**Phase 1 — Route code-splitting (impact: high / effort: med).** Convert `src/App.tsx` page imports to `React.lazy` + a single `<Suspense>` fallback (branded skeleton). Keep the shell (Layout, providers, AuthCheck) eager. Preserve all route paths, guards, and the terminal/HRMS/login trees exactly. *Pure frontend; touches only App.tsx + a fallback component.*
-
-**Phase 2 — Shared PageHeader + heading scale normalization (high / low).** Add `src/components/shared/PageHeader.tsx` (title/description/actions slots, one type scale e.g. `text-2xl font-semibold tracking-tight`). Adopt across Dashboard, Sales, Purchase, Clients, Stock, Accounting, Statistics, ProfitLoss, Financials. Presentation-only swaps.
-
-**Phase 3 — Loading/empty-state consistency (med / med).** Standardize `TableSkeleton`/`CardSkeleton` + a shared `EmptyState` (icon tile + copy + optional CTA) across ERP pages lacking them. No data logic changes — only render-branch UI.
-
-**Phase 4 — Token hygiene + report print styles (med / low-med).** Replace hardcoded hex in `Financials.tsx` charts with semantic tokens; add a scoped `@media print` block in `index.css` for report/statement/invoice pages (hide nav/toolbars, black-on-white tables). Verify dark-mode completeness on flagged pages.
-
-**Phase 5 — Shell brand moments + 404 polish (low-med / low).** Subtle brand treatment in sidebar header + a branded, shell-consistent `NotFound` (logo, `Button` CTA, tokens). Restrained — no gradient overload. Preserve existing logos and DB-persisted sidebar order.
-
-**Phase 6 — HRMS presentation sweep (med / high).** Apply PageHeader + skeleton/empty primitives across `src/pages/horilla/**` in grouped passes (employee, attendance, leave, payroll, recruitment, PMS). Presentation-only; **flag review** because volume increases regression risk.
-
-*Any item that would require reading/altering a query, mutation, or hook is out of scope and must be flagged before implementation.*
-
-## 4. Quick wins (≤10)
-1. Replace `#059669`/`#dc2626` in `Financials.tsx` with success/destructive tokens.
-2. Normalize all page `h1` to one scale via PageHeader.
-3. Branded, shell-aware `NotFound` with `Button` CTA (drop raw `<a>`).
-4. Make sidebar `© 2025` a dynamic year.
-5. Swap sidebar loading `animate-pulse` for token skeleton.
-6. Ensure every table header uses `bg-muted/50` 11px uppercase pattern.
-7. Right-align + `tabular-nums` on all numeric cells (ProfitLoss/Financials/Stock).
-8. Add `@media print` to hide chrome on report pages.
-9. Add `<Suspense>` branded fallback for lazy routes.
-10. Audit focus rings/labels on User-Management dialogs.
-
-## 5. Protected zones (do not modify)
-- Terminal: `src/pages/terminal/**`, `src/components/terminal/**` (just redesigned).
-- Login/register (just rebuilt).
-- New brand logos (`src/assets/brand/*`).
-- Dashboard layout DB persistence, per-user quick replies, cross-account appeal sync — preserve exactly.
-- All Supabase/edge/hook business logic — no changes.
-
-## Deliverable note
-On approval (build mode), this audit will be written verbatim to `.lovable/erp-audit.md`, and the chat reply will be kept to ≤10 lines listing the phase titles only.
+## 5. GROUNDED OPPORTUNITIES (manual only, cheap given existing code/data)
+- Inline price quick-edit on the row → reuse `useUpdateAd`/BulkFloatingPriceDialog logic; cuts price change from ~4 clicks to 1-2 (CategorizedAdTable AdPriceCell + useUpdateAd).
+- Buy/Sell split view or side-by-side desks — data already has `tradeType`; categorizeAds already buckets buy/sell (CategorizedAdTable.tsx:125-140).
+- Summary strip (total online/private/offline, surplus per asset, count by category) above table — all derivable from `ads` already in memory (AdManager.tsx:64-69; mirror TerminalDashboard AdPerformanceWidget).
+- Denser desk-style rows / compact toggle — reuse existing columns; row already has all fields (CategorizedAdTable rows).
+- User-controlled sort (price, surplus, updated) — data present, sort is currently hardcoded (categorizeAds sortGroup :144).
+- Asset filter is hardcoded to 6 coins — derive options from live `ads` assets (AdManagerFilters.tsx:24-31).
+- Auto-refresh toggle for the list — add opt-in refetchInterval (useBinanceAdsList staleTime already 30s; memory: 30s opt-in polling).
+- Surface `remarks`/`autoReplyMsg`/payTimeLimit + stale-price age (now−updateTime) as row hints — fields already fetched, unused in list (BinanceAd:63-79).

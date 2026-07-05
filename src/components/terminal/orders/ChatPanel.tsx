@@ -556,6 +556,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             cacheKey={`${orderNumber}:${currentOrderMessages.length}`}
             onInsert={handleQuickReply}
             buildInput={buildCopilotInput}
+            prefetch={copilotPrefetch}
+            prefetchSignal={counterpartyMsgCount}
           />
         )}
       </div>

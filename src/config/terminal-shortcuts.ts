@@ -6,7 +6,7 @@ import {
 import type { ShortcutCombo } from "@/config/shortcuts";
 import type { TerminalPermission } from "@/hooks/useTerminalAuth";
 
-export type TerminalShortcutCategory = "Navigation" | "Global" | "Order Navigation";
+export type TerminalShortcutCategory = "Navigation" | "Global" | "Order Navigation" | "Queue & Chat";
 
 export interface TerminalShortcutDef {
   id: string;

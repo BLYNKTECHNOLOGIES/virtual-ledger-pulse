@@ -158,6 +158,7 @@ export function useBinanceAdsList(filters: AdFilters, options?: { refetchInterva
     },
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
+    refetchInterval: options?.refetchInterval ?? false,
   });
 }
 

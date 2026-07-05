@@ -223,12 +223,14 @@ export default function TerminalDashboard() {
       />
 
       {/* Charts row */}
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Activity</p>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <TradeVolumeChart orders={orders} isLoading={dbLoading} period={filter.mode === '1d' || filter.mode === 'range' ? '1d' : filter.mode} />
         <OrderStatusBreakdown orders={orders} isLoading={dbLoading} />
       </div>
 
       {/* Widgets row */}
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Ads &amp; Alerts</p>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AdPerformanceWidget />
         <OperationalAlerts orders={orders} isLoading={dbLoading} />

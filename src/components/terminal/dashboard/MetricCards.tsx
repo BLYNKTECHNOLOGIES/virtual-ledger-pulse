@@ -41,16 +41,16 @@ export function MetricCards({
   const completedLabel = periodLabel ? `Completed · ${periodLabel}` : 'Completed';
 
   const cards = [
-    { label: 'Active Orders', formatted: String(activeOrders || 0), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
-    { label: 'Awaiting Payment', formatted: String(awaitingPayment || 0), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
-    { label: 'Awaiting Release', formatted: String(awaitingRelease || 0), icon: Send, color: 'text-warning', bg: 'bg-warning/10' },
-    { label: completedLabel, formatted: String(completedInPeriod || 0), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
-    { label: 'Appeals', formatted: String(appeals || 0), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
-    { label: 'Buy Volume', formatted: formatVolume(totalBuyVolume || 0), icon: ArrowDownLeft, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
-    { label: 'Sell Volume', formatted: formatVolume(totalSellVolume || 0), icon: ArrowUpRight, color: 'text-trade-sell', bg: 'bg-trade-sell/10' },
-    { label: 'Avg Order Size', formatted: `₹${avg.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-primary', bg: 'bg-primary/10' },
-    { label: 'Completion Rate', formatted: `${rate.toFixed(1)}%`, icon: Percent, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
-    { label: 'Buy / Sell', formatted: ratio, icon: ArrowLeftRight, color: 'text-muted-foreground', bg: 'bg-secondary' },
+    { label: 'Active Orders', raw: activeOrders || 0, formatted: String(activeOrders || 0), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Awaiting Payment', raw: awaitingPayment || 0, formatted: String(awaitingPayment || 0), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
+    { label: 'Awaiting Release', raw: awaitingRelease || 0, formatted: String(awaitingRelease || 0), icon: Send, color: 'text-warning', bg: 'bg-warning/10' },
+    { label: completedLabel, raw: completedInPeriod || 0, formatted: String(completedInPeriod || 0), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
+    { label: 'Appeals', raw: appeals || 0, formatted: String(appeals || 0), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
+    { label: 'Buy Volume', raw: totalBuyVolume || 0, formatted: formatVolume(totalBuyVolume || 0), icon: ArrowDownLeft, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
+    { label: 'Sell Volume', raw: totalSellVolume || 0, formatted: formatVolume(totalSellVolume || 0), icon: ArrowUpRight, color: 'text-trade-sell', bg: 'bg-trade-sell/10' },
+    { label: 'Avg Order Size', raw: avg, formatted: `₹${avg.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Completion Rate', raw: rate, formatted: `${rate.toFixed(1)}%`, icon: Percent, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
+    { label: 'Buy / Sell', raw: null as number | null, formatted: ratio, icon: ArrowLeftRight, color: 'text-muted-foreground', bg: 'bg-secondary' },
   ];
 
   return (

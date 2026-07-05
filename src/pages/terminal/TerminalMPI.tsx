@@ -658,7 +658,7 @@ export default function TerminalMPI() {
                       {actionBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                     </Pie>
                     <Legend wrapperStyle={{ fontSize: 9 }} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (

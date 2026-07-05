@@ -199,6 +199,7 @@ export function CreateConversionForm() {
               <Label>Fee % (optional)</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="any"
                 min="0"
                 max="100"

@@ -15,13 +15,15 @@ interface CopilotResponse {
 
 interface Props {
   orderId: string;
+  /** Binance order number — the reliable key the copilot resolves the order by. */
+  orderNumber: string;
   /** Total number of messages in this order — used to key the response cache. */
   messageCount: number;
   /** Insert a suggestion into the chat input (same insertion path as quick replies). */
   onInsert: (text: string) => void;
 }
 
-export function CopilotStrip({ orderId, messageCount, onInsert }: Props) {
+export function CopilotStrip({ orderId, orderNumber, messageCount, onInsert }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<CopilotResponse | null>(null);

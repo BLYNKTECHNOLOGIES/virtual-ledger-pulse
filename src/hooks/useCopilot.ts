@@ -56,6 +56,8 @@ export interface CopilotSuggestInput {
     name?: string | null;
   };
   messages: Array<{ isSelf: boolean; text: string; time?: string }>;
+  exchangeAccountId?: string | null;
+  accountLabel?: string | null;
 }
 
 export interface CopilotSuggestResult {

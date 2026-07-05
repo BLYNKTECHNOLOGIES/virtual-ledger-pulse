@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
-import { OpsGatewayVisual } from '@/components/website/OpsGatewayVisual';
+import { LivingSettlementField } from '@/components/website/LivingSettlementField';
 import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
 
 
@@ -24,6 +24,19 @@ export function LoginPage() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const navigate = useNavigate();
+
+  // Boot entrance runs once per browser session; instant on repeat visits.
+  const [boot] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const seen = sessionStorage.getItem('lsf-booted');
+    if (!seen) sessionStorage.setItem('lsf-booted', '1');
+    return !seen;
+  });
+  // A focused input emits one expanding ripple ring into the field.
+  const emitRipple = () => window.dispatchEvent(new Event('field-focus-ripple'));
+  const bootItem = (delay: number): React.CSSProperties | undefined =>
+    boot ? { animationDelay: `${delay}ms` } : undefined;
+
 
   const writeCompatibilitySession = (authenticatedUser: {
     id: string;
@@ -156,28 +169,40 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-[hsl(231_45%_5%)] text-white">
-      {/* ===== LEFT — form side ===== */}
-      <div className="relative flex w-full flex-col justify-center px-6 py-12 sm:px-10 lg:w-[44%] lg:px-14">
-        {/* faint background treatment on mobile (visual side collapses) */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.35] lg:hidden"
-          style={{
-            backgroundImage: 'radial-gradient(hsl(231 60% 78% / 0.10) 1px, transparent 1px)',
-            backgroundSize: '26px 26px',
-          }}
-        />
+    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#08080C] px-6 py-12 text-white">
+      {/* ===== Living Settlement Field — full-bleed animated stage ===== */}
+      <LivingSettlementField />
 
-        <div className="login-rise relative z-10 mx-auto w-full max-w-[400px]">
-          {/* Brand logo — top-left, exact white asset */}
-          <img src={blynkLogoWhite} alt="Blynk" className="mb-10 h-7 w-auto" />
+      {/* soft brand wash + vignette for grounding */}
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/10 blur-[160px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,#08080C_100%)]" />
 
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-          <p className="mt-1.5 text-sm text-white/55">
-            Sign in to your Blynk workspace to continue
-          </p>
+      {/* Boot hairline sweep (once per session; hidden on reduced-motion) */}
+      {boot && <div className="lsf-hairline pointer-events-none absolute inset-x-0 top-0 z-20 h-px" />}
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+      {/* ===== Form card ===== */}
+      <div className="relative z-10 w-full max-w-[400px]">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/40 backdrop-blur-xl">
+          {/* Brand logo */}
+          <img
+            src={blynkLogoWhite}
+            alt="Blynk"
+            className={`mb-8 h-7 w-auto ${boot ? 'lsf-item' : ''}`}
+            style={bootItem(60)}
+          />
+
+          <h1 className={`text-2xl font-semibold tracking-tight ${boot ? 'lsf-item' : ''}`} style={bootItem(180)}>
+            Welcome back
+          </h1>
+          <div className={`mt-2 flex items-center gap-2 ${boot ? 'lsf-item' : ''}`} style={bootItem(250)}>
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            <span className="font-mono text-[11px] tracking-tight text-white/60">settlement network · online</span>
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-7 space-y-5">
             {error && (
               <div className="flex items-start gap-2 text-xs text-destructive" role="alert">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -190,7 +215,7 @@ export function LoginPage() {
               </div>
             )}
 
-            <div className="space-y-1.5">
+            <div className={`space-y-1.5 ${boot ? 'lsf-item' : ''}`} style={bootItem(320)}>
               <Label htmlFor="email" className="text-xs font-medium text-white/70">Email</Label>
               <Input
                 id="email"
@@ -199,12 +224,13 @@ export function LoginPage() {
                 placeholder="you@blynkex.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={emitRipple}
                 className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
                 required
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className={`space-y-1.5 ${boot ? 'lsf-item' : ''}`} style={bootItem(390)}>
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-xs font-medium text-white/70">Password</Label>
                 <button
@@ -223,6 +249,7 @@ export function LoginPage() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={emitRipple}
                   className="h-11 border-white/10 bg-white/5 pr-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
                   required
                 />
@@ -241,7 +268,8 @@ export function LoginPage() {
 
             <Button
               type="submit"
-              className="h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+              className={`h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-all hover:-translate-y-0.5 hover:opacity-95 hover:shadow-[hsl(231_81%_50%)]/40 active:scale-[0.98] ${boot ? 'lsf-cta' : ''}`}
+              style={bootItem(470)}
               disabled={isLoading}
             >
               {isLoading ? (
@@ -255,7 +283,7 @@ export function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8 text-center text-sm text-white/55">
+          <div className={`mt-7 text-center text-sm text-white/55 ${boot ? 'lsf-item' : ''}`} style={bootItem(560)}>
             New here?{' '}
             <button
               type="button"
@@ -267,9 +295,6 @@ export function LoginPage() {
           </div>
         </div>
       </div>
-
-      {/* ===== RIGHT — meaning side ===== */}
-      <OpsGatewayVisual />
 
       <RegisterUserDialog open={showRegister} onOpenChange={setShowRegister} />
 

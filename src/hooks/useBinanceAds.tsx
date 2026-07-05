@@ -223,12 +223,14 @@ export function usePostAd() {
       const { exchange_account_id, ...rest } = adData;
       return callBinanceAds('postAd', { adData: rest }, exchange_account_id);
     },
-    onSuccess: (_data, adData) => {
+     onSuccess: (_data, adData) => {
+      // Newly created ad isn't in any cache yet → full refetch is required.
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Posted', description: 'Your ad has been posted successfully.' });
       logAdAction({
         actionType: AdActionTypes.AD_CREATED,
         adDetails: { tradeType: adData.tradeType, asset: adData.asset, fiatUnit: adData.fiatUnit, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods },
+        metadata: { exchangeAccountId: adData.exchange_account_id },
       });
     },
     onError: (error: Error) => {

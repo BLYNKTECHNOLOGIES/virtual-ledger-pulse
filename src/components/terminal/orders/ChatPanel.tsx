@@ -498,7 +498,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             data-terminal-chat-input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) handleSend();
+              else if (e.key === 'Escape') e.currentTarget.blur();
+            }}
             placeholder="Type a message..."
             className="h-8 text-xs bg-input text-foreground border-border rounded-md placeholder:text-muted-foreground focus-visible:ring-primary"
           />

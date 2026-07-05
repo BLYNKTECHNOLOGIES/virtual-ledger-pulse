@@ -71,7 +71,7 @@ const changedString = (current: unknown, next: unknown) => String(current ?? '')
 // Priority assets shown first in the dropdown
 const PRIORITY_ASSETS = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC', 'FDUSD'];
 
-export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccountId }: CreateEditAdDialogProps) {
+export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccountId, initialValues }: CreateEditAdDialogProps) {
   const { toast } = useToast();
   const postAd = usePostAd();
   const updateAd = useUpdateAd();

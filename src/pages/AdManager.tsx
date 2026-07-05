@@ -444,7 +444,7 @@ export default function AdManager() {
         </TabsContent>
       </Tabs>
 
-      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} createAccountId={createAccountId} />
+      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} createAccountId={createAccountId} initialValues={duplicateValues} />
 
       {/* Combined-mode: pick which account a new ad belongs to */}
       <AlertDialog open={accountPickerOpen} onOpenChange={setAccountPickerOpen}>

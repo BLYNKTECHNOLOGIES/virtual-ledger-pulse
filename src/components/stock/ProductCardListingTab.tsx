@@ -239,7 +239,14 @@ export function ProductCardListingTab() {
                   </div>
                 <div className="flex flex-col items-end gap-1">
                   <StockStatusBadge currentStock={product.total_stock} />
+                  {product.total_stock > 0 && product.total_stock <= 10 && (
+                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Low stock
+                    </Badge>
+                  )}
                 </div>
+
                 </div>
               </CardHeader>
               

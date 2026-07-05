@@ -927,7 +927,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           )}
 
           {/* TDS Section */}
-          <Card className="border-warning/20 bg-warning/10/50">
+          <Card className="border-warning/20 bg-warning/10">
             <CardContent className="pt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Label className="font-medium">TDS Deduction</Label>

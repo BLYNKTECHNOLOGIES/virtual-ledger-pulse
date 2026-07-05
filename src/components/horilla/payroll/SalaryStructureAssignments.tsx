@@ -161,7 +161,7 @@ export default function SalaryStructureAssignments() {
                         <div className="space-y-1">
                           {breakdown.earnings.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                           {breakdown.earnings.map((e, i) => (
-                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${e.isVariable ? 'bg-warning/10/50' : 'bg-success/10'}`}>
+                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${e.isVariable ? 'bg-warning/10' : 'bg-success/10'}`}>
                               <span>
                                 {e.name} <span className="text-xs text-muted-foreground">({e.code})</span>
                                 {e.isVariable && <span className="ml-1.5 text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full">Variable</span>}
@@ -176,7 +176,7 @@ export default function SalaryStructureAssignments() {
                         <div className="space-y-1">
                           {breakdown.deductions.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                           {breakdown.deductions.map((d, i) => (
-                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${d.isVariable ? 'bg-warning/10/50' : 'bg-destructive/10'}`}>
+                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${d.isVariable ? 'bg-warning/10' : 'bg-destructive/10'}`}>
                               <span>
                                 {d.name} <span className="text-xs text-muted-foreground">({d.code})</span>
                                 {d.isVariable && <span className="ml-1.5 text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full">Variable</span>}

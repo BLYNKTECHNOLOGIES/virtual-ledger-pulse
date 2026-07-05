@@ -595,7 +595,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
           </div>
 
           {/* Binance Commission */}
-          <Card className="border-info/20 bg-info/10/30">
+          <Card className="border-info/20 bg-info/10">
             <CardContent className="pt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Label className="font-medium">Binance Commission</Label>

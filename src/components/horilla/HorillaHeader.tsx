@@ -127,7 +127,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
               ) : notifications.map((n: any) => (
                 <div
                   key={n.id}
-                  className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-info/10/50" : ""}`}
+                  className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-info/10" : ""}`}
                   onClick={() => {
                     if (!n.is_read) markReadMutation.mutate(n.id);
                     if (n.link) { navigate(n.link); setOpen(false); }

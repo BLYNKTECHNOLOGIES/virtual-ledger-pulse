@@ -248,7 +248,7 @@ export default function Tasks() {
                   return (
                     <TableRow
                       key={task.id}
-                      className={`cursor-pointer ${task.status === 'completed' ? 'opacity-50' : ''} ${task.is_pinned ? 'bg-warning/10/50 dark:bg-warning/10' : ''}`}
+                      className={`cursor-pointer ${task.status === 'completed' ? 'opacity-50' : ''} ${task.is_pinned ? 'bg-warning/10 dark:bg-warning/10' : ''}`}
                     >
                       <TableCell onClick={e => e.stopPropagation()}>
                         <Checkbox checked={selectedIds.has(task.id)} onCheckedChange={() => toggleSelect(task.id)} />

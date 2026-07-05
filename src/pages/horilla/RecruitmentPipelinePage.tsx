@@ -168,7 +168,7 @@ function StageColumn({ stage, children, candidateIds }: {
       <div
         ref={setNodeRef}
         className={`flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-[100px] rounded-b-xl transition-colors ${
-          isOver ? "bg-info/10/50 ring-2 ring-info ring-inset" : ""
+          isOver ? "bg-info/10 ring-2 ring-info ring-inset" : ""
         }`}
       >
         {children}

@@ -661,7 +661,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                 </div>
 
                 {/* Step 2: Download */}
-                <Card className="border border-dashed border-primary/20 bg-primary/10/50">
+                <Card className="border border-dashed border-primary/20 bg-primary/10">
                   <CardContent className="p-6 text-center space-y-3">
                     <Download className="h-10 w-10 text-primary mx-auto" />
                     <h3 className="font-semibold text-lg">Step 1: Download Template</h3>
@@ -678,7 +678,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
 
                 {/* Step 3: Upload */}
                 <Card
-                  className={`border border-dashed transition-colors ${isDragActiveUpload ? "border-primary bg-primary/10" : "border-success/20 bg-success/10/50"}`}
+                  className={`border border-dashed transition-colors ${isDragActiveUpload ? "border-primary bg-primary/10" : "border-success/20 bg-success/10"}`}
                   {...uploadDropzoneProps}
                 >
                   <CardContent className="p-6 text-center space-y-3">

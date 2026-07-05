@@ -1,6 +1,7 @@
 
 import { Users, Shield } from "lucide-react";
 import { ClientDashboard } from "@/components/clients/ClientDashboard";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

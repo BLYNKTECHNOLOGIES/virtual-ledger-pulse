@@ -223,7 +223,7 @@ export function SpotTradingPanel() {
 
           {/* Buy Confirmation Dialog */}
           <AlertDialog open={buyConfirmPending} onOpenChange={setBuyConfirmPending}>
-            <AlertDialogContent className="bg-card border-border max-w-sm">
+            <AlertDialogContent className="bg-card border-border max-w-sm t-scale-in">
               <AlertDialogHeader>
                 <AlertDialogTitle className="flex items-center gap-2 text-foreground">
                   <AlertTriangle className="h-5 w-5 text-warning" />

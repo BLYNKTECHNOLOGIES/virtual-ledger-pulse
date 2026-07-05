@@ -288,7 +288,7 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
           Release Crypto
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="max-w-md bg-popover border-border t-scale-in">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />

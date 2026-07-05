@@ -372,10 +372,8 @@ export default function UserManagement() {
   if (isLoadingPermissions) {
     return (
       <div className="space-y-6 p-6 page-mount">
-        <div>
-          <h1 className="text-3xl font-semibold text-foreground">User Management</h1>
-          <p className="text-muted-foreground mt-1">Loading permissions...</p>
-        </div>
+        <PageHeader title="User Management" description="Loading permissions..." />
+
         <div className="flex justify-center items-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
           <span className="ml-2">Loading permissions...</span>

@@ -79,11 +79,14 @@ function formatDetails(entry: AdActionLogEntry): string[] {
   const cat = getActionCategory(entry.action_type);
 
   if (cat === 'ads') {
-    if (d.tradeType) lines.push(`Type: ${d.tradeType}`);
+     if (d.tradeType) lines.push(`Type: ${d.tradeType}`);
     if (d.asset) lines.push(`Asset: ${d.asset}`);
-    if (d.price !== undefined) lines.push(`Price: ₹${d.price}`);
+    // Prefer explicit old→new when captured; fall back to plain new price for old rows.
+    if (d.oldPrice !== undefined && d.newPrice !== undefined) lines.push(`Price: ₹${d.oldPrice} → ₹${d.newPrice}`);
+    else if (d.price !== undefined) lines.push(`Price: ₹${d.price}`);
     if (d.priceType !== undefined) lines.push(`Price Mode: ${d.priceType === 1 ? 'Fixed' : 'Floating'}`);
-    if (d.priceFloatingRatio !== undefined) lines.push(`Float Ratio: ${d.priceFloatingRatio}%`);
+    if (d.oldRatio !== undefined && d.newRatio !== undefined) lines.push(`Float Ratio: ${d.oldRatio}% → ${d.newRatio}%`);
+    else if (d.priceFloatingRatio !== undefined) lines.push(`Float Ratio: ${d.priceFloatingRatio}%`);
     if (d.initAmount !== undefined) lines.push(`Quantity: ${d.initAmount}`);
     if (d.minSingleTransAmount !== undefined) lines.push(`Min: ₹${d.minSingleTransAmount}`);
     if (d.maxSingleTransAmount !== undefined) lines.push(`Max: ₹${d.maxSingleTransAmount}`);

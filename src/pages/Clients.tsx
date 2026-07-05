@@ -37,23 +37,20 @@ export default function Clients() {
       {/* Header */}
       <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Users className="h-7 w-7 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                  Client Management
-                </h1>
-                <p className="text-muted-foreground">
-                  Comprehensive client relationship management
-                </p>
-              </div>
-            </div>
-          </div>
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-3 bg-primary/10 rounded-lg">
+                  <Users className="h-7 w-7 text-primary" />
+                </span>
+                Client Management
+              </span>
+            }
+            description="Comprehensive client relationship management"
+          />
         </div>
       </div>
+
 
       <ClientDashboard />
     </div>

@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
-import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
+import { useSyncOrders, useSyncOrdersBatch, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
 import { AccountBadge } from '@/components/exchange/AccountBadge';

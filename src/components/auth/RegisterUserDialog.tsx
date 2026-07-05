@@ -121,7 +121,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="ops-rise sm:max-w-[500px] max-h-[92vh] overflow-y-auto gap-0 border-white/10 bg-[hsl(231_45%_7%)] p-0 text-white backdrop-blur-2xl">
+      <DialogContent className="sm:max-w-[500px] max-h-[92vh] overflow-y-auto gap-0 border-white/10 bg-[hsl(231_45%_7%)] p-0 text-white backdrop-blur-2xl">
         {/* Header band — dark surface, hairline border */}
         <div className="relative overflow-hidden border-b border-white/10 px-6 py-5">
           <DialogHeader className="relative space-y-2 text-left">

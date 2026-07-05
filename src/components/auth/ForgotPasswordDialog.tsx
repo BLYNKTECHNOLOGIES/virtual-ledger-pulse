@@ -116,7 +116,7 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="ops-rise sm:max-w-md border-white/10 bg-[hsl(231_45%_7%)] text-white backdrop-blur-2xl">
+      <DialogContent className="sm:max-w-md border-white/10 bg-[hsl(231_45%_7%)] text-white backdrop-blur-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-white">
             <KeyRound className="h-4 w-4 text-[hsl(231_81%_75%)]" />

@@ -2501,6 +2501,7 @@ export type Database = {
           context_text: string | null
           created_at: string
           embedding: string | null
+          exchange_account_id: string | null
           id: string
           language: string | null
           order_meta: Json
@@ -2513,6 +2514,7 @@ export type Database = {
           context_text?: string | null
           created_at?: string
           embedding?: string | null
+          exchange_account_id?: string | null
           id?: string
           language?: string | null
           order_meta?: Json
@@ -2525,6 +2527,7 @@ export type Database = {
           context_text?: string | null
           created_at?: string
           embedding?: string | null
+          exchange_account_id?: string | null
           id?: string
           language?: string | null
           order_meta?: Json
@@ -2537,6 +2540,7 @@ export type Database = {
       }
       copilot_settings: {
         Row: {
+          account_notes: Json
           auto_suggest: boolean
           created_at: string
           enabled: boolean
@@ -2549,6 +2553,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_notes?: Json
           auto_suggest?: boolean
           created_at?: string
           enabled?: boolean
@@ -2561,6 +2566,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_notes?: Json
           auto_suggest?: boolean
           created_at?: string
           enabled?: boolean
@@ -17336,23 +17342,42 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
-      match_copilot_exemplars: {
-        Args: {
-          match_count?: number
-          p_side?: string
-          p_situation_class: string
-          query_embedding: string
-        }
-        Returns: {
-          context_text: string
-          id: string
-          language: string
-          reply_text: string
-          side: string
-          similarity: number
-          situation_class: string
-        }[]
-      }
+      match_copilot_exemplars:
+        | {
+            Args: {
+              match_count?: number
+              p_side?: string
+              p_situation_class: string
+              query_embedding: string
+            }
+            Returns: {
+              context_text: string
+              id: string
+              language: string
+              reply_text: string
+              side: string
+              similarity: number
+              situation_class: string
+            }[]
+          }
+        | {
+            Args: {
+              match_count?: number
+              p_exchange_account_id?: string
+              p_side?: string
+              p_situation_class: string
+              query_embedding: string
+            }
+            Returns: {
+              context_text: string
+              id: string
+              language: string
+              reply_text: string
+              side: string
+              similarity: number
+              situation_class: string
+            }[]
+          }
       match_kb: {
         Args: {
           match_count?: number

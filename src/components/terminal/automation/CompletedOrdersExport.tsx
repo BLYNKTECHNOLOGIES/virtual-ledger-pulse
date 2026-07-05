@@ -352,7 +352,7 @@ export function CompletedOrdersExport() {
                     {format(fromDate, 'dd MMM yyyy')}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 t-scale-in" align="start">
                   <Calendar
                     mode="single"
                     selected={fromDate}
@@ -374,7 +374,7 @@ export function CompletedOrdersExport() {
                     {format(toDate, 'dd MMM yyyy')}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 t-scale-in" align="start">
                   <Calendar
                     mode="single"
                     selected={toDate}

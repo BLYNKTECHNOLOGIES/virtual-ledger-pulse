@@ -12,7 +12,7 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
   const data = balances.find((b) => b.asset === asset);
   if (!data) return null;
 
-  const color = COIN_COLORS[asset] || "#888";
+  const color = COIN_COLORS[asset] || "hsl(var(--muted-foreground))";
 
   const rows = [
     { label: "Funding – Available", value: data.funding_free, type: "available" },

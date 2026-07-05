@@ -1112,7 +1112,7 @@ function TerminalOrdersContent() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs gap-1.5"
+            className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150"
             onClick={async () => {
               await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
             }}
@@ -1306,7 +1306,7 @@ function TerminalOrdersContent() {
                               </Badge>
                             )}
                             {hasAltUpiRequest && (
-                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/10 gap-0.5 animate-pulse">
+                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/10 gap-0.5">
                                 <ArrowLeftRight className="h-2.5 w-2.5" />
                                 Alternate UPI Requested
                               </Badge>
@@ -1516,7 +1516,7 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
   const urgencyClass = isExpired
     ? 'text-destructive font-semibold'
     : remaining && parseInt(remaining) <= 2
-      ? 'text-destructive animate-pulse'
+      ? 'text-destructive'
       : remaining && parseInt(remaining) <= 5
         ? 'text-warning'
         : 'text-trade-pending';

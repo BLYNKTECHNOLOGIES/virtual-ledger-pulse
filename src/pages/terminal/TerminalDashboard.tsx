@@ -192,7 +192,7 @@ export default function TerminalDashboard() {
               disabled={isAnySyncing}
               title="Universal Sync — orders, purchases, sales, assets"
             >
-              <CloudDownload className={`h-3.5 w-3.5 ${isAnySyncing ? 'animate-pulse' : ''}`} />
+              <CloudDownload className={`h-3.5 w-3.5 ${isAnySyncing ? 'animate-spin' : ''}`} />
             </Button>
           )}
         </div>

@@ -550,7 +550,7 @@ export function TerminalOrgChart() {
                   className="h-8 pl-7 w-[160px] text-xs bg-secondary border-border"
                 />
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleFullscreen}>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150" onClick={handleFullscreen}>
                 <Maximize2 className="h-3.5 w-3.5" />
                 Exit Fullscreen
               </Button>

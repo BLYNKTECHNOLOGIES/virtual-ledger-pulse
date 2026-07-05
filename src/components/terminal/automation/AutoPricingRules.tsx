@@ -246,7 +246,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                     {asset}
                                   </button>
                                 </PopoverTrigger>
-                                <PopoverContent side="bottom" align="start" className="w-72 p-0">
+                                <PopoverContent side="bottom" align="start" className="w-72 p-0 t-scale-in">
                                   <div className="p-3 space-y-2">
                                     <div className="flex items-center justify-between">
                                       <span className="font-semibold text-sm">{asset}</span>

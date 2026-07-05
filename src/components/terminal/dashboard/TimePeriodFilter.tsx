@@ -181,7 +181,7 @@ export function TimePeriodFilter({ value, onChange }: Props) {
             {isDayMode ? format(selectedDate, 'dd MMM') : 'Date'}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 t-scale-in" align="start">
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -223,7 +223,7 @@ export function TimePeriodFilter({ value, onChange }: Props) {
               : 'Range'}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 t-scale-in" align="start">
           <Calendar
             mode="range"
             selected={draftRange}

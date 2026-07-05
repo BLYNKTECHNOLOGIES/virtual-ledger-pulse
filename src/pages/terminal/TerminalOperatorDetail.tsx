@@ -773,7 +773,7 @@ function TerminalOperatorDetailContent() {
         </ScrollArea>
 
         {/* OVERVIEW TAB */}
-        <TabsContent value="overview" className="space-y-4 mt-3">
+        <TabsContent value="overview" className="space-y-4 mt-3 t-fade">
           {/* Role-specific primary KPIs */}
           {isPayer && (
             <>
@@ -1114,7 +1114,7 @@ function TerminalOperatorDetailContent() {
         </TabsContent>
 
         {/* ASSIGNMENTS TAB */}
-        <TabsContent value="assignments" className="space-y-4 mt-3">
+        <TabsContent value="assignments" className="space-y-4 mt-3 t-fade">
           <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
             <ClipboardList className="h-4 w-4 text-primary" />
             Assignment Configuration
@@ -1295,7 +1295,7 @@ function TerminalOperatorDetailContent() {
         </TabsContent>
 
         {/* ACTIONS TAB */}
-        <TabsContent value="actions" className="space-y-4 mt-3">
+        <TabsContent value="actions" className="space-y-4 mt-3 t-fade">
           <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" /> Action Breakdown
           </h3>
@@ -1367,7 +1367,7 @@ function TerminalOperatorDetailContent() {
         </TabsContent>
 
         {/* TRENDS TAB */}
-        <TabsContent value="trends" className="space-y-4 mt-3">
+        <TabsContent value="trends" className="space-y-4 mt-3 t-fade">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" /> Trends
@@ -1460,7 +1460,7 @@ function TerminalOperatorDetailContent() {
         </TabsContent>
 
         {/* ORDERS TAB */}
-        <TabsContent value="orders" className="space-y-3 mt-3">
+        <TabsContent value="orders" className="space-y-3 mt-3 t-fade">
           {/* Payer-specific: show enriched lock orders */}
           {isPayer && payerLockData.length > 0 && (
             <Card className="border-border bg-card">

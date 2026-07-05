@@ -93,7 +93,7 @@ export function AssetOverview() {
           <div className="divide-y divide-border">
             {balanceList.map((asset) => {
               const usdtVal = getUsdtValue(asset.asset, asset.total_balance);
-              const color = COIN_COLORS[asset.asset] || "#888";
+              const color = COIN_COLORS[asset.asset] || "hsl(var(--muted-foreground))";
 
               return (
                 <button

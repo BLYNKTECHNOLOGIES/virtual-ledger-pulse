@@ -39,7 +39,7 @@ export function TerminalNotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
+      <PopoverContent align="end" className="w-80 p-0 t-scale-in">
         <div className="flex items-center justify-between px-3 py-2 border-b border-border">
           <h4 className="text-xs font-semibold">Notifications</h4>
           {unreadCount > 0 && (

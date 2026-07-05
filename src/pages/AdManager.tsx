@@ -215,6 +215,7 @@ export default function AdManager() {
   };
 
   const startCreateForAccount = (accountId: string) => {
+    setDuplicateValues(null);
     setCreateAccountId(accountId);
     setAccountPickerOpen(false);
     setDialogOpen(true);

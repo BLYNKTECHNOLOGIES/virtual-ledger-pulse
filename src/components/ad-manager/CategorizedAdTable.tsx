@@ -216,13 +216,15 @@ function categorizeAds(
   ];
 }
 
-export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange }: CategorizedAdTableProps) {
+export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current' }: CategorizedAdTableProps) {
   const { user } = useAuth();
   const { buyConfig, sellConfig } = useSmallConfigs();
   const { data: excludedAds } = useExcludedAds();
   const toggleExclusion = useToggleAdExclusion();
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);
+  const lastClickedRef = useRef<{ groupKey: string; advNo: string } | null>(null);
   const collapseStorageKey = user?.id ? `${COLLAPSE_PREF_KEY_PREFIX}${user.id}` : null;
 
   const categories = useMemo(() => categorizeAds(ads, buyConfig, sellConfig), [ads, buyConfig, sellConfig]);

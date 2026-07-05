@@ -335,7 +335,7 @@ export default function LeaveTypesPage() {
                   <Label className="text-xs">Color</Label>
                   <div className="flex items-center gap-2">
                     <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-8 h-8 rounded border border-border cursor-pointer" />
-                    <Input className="h-9" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="font-mono text-xs h-9" />
+                    <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="font-mono text-xs h-9" />
                   </div>
                 </div>
               </div>

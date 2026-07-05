@@ -84,6 +84,8 @@ export default function AdManager() {
   // When creating in combined mode we must know which account the ad belongs to.
   const [createAccountId, setCreateAccountId] = useState<string | null>(null);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  // Duplicate Ad: seeds create-mode defaults from a source ad (null = normal create).
+  const [duplicateValues, setDuplicateValues] = useState<CreateAdInitialValues | null>(null);
 
   // Bulk selection state
   const [selectedAdvNos, setSelectedAdvNos] = useState<Set<string>>(new Set());

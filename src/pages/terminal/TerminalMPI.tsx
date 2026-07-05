@@ -545,27 +545,27 @@ export default function TerminalMPI() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
+      <div className="t-stagger grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
         {[
-          { label: 'Orders', value: totalOrders, icon: Package, color: 'text-primary' },
-          { label: 'Volume', value: fmtVol(totalVolume), icon: TrendingUp, color: 'text-success' },
-          { label: 'Active', value: totalActive, icon: Activity, color: 'text-warning' },
-          { label: 'Avg Handle', value: formatDuration(overallAvgHandle), icon: Timer, color: 'text-info' },
-          { label: 'Completed', value: totalCompleted, icon: CheckCircle, color: 'text-success' },
-          { label: 'Cancelled', value: totalCancelled, icon: XCircle, color: 'text-destructive' },
-          { label: 'Payments', value: totalPayments, icon: CreditCard, color: 'text-primary' },
-          { label: 'Avg Score', value: `${avgEfficiency}%`, icon: Gauge, color: getScoreColor(avgEfficiency) },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="border-border bg-card">
-            <CardContent className="p-2 sm:p-3">
-              <div className="flex items-center justify-between mb-1">
-                <Icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${color}`} />
-                <Badge variant="outline" className="text-[7px] sm:text-[8px] px-1">{timeRange}</Badge>
+          { label: 'Orders', value: totalOrders, icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
+          { label: 'Volume', value: fmtVol(totalVolume), icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+          { label: 'Active', value: totalActive, icon: Activity, color: 'text-warning', bg: 'bg-warning/10' },
+          { label: 'Avg Handle', value: formatDuration(overallAvgHandle), icon: Timer, color: 'text-info', bg: 'bg-info/10' },
+          { label: 'Completed', value: totalCompleted, icon: CheckCircle, color: 'text-success', bg: 'bg-success/10' },
+          { label: 'Cancelled', value: totalCancelled, icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
+          { label: 'Payments', value: totalPayments, icon: CreditCard, color: 'text-primary', bg: 'bg-primary/10' },
+          { label: 'Avg Score', value: `${avgEfficiency}%`, icon: Gauge, color: getScoreColor(avgEfficiency), bg: 'bg-primary/10' },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="t-panel p-3 transition-colors hover:border-primary/30 hover:shadow-[var(--glow-primary)]">
+            <div className="flex items-center justify-between mb-2">
+              <div className={`h-8 w-8 rounded-md flex items-center justify-center ${bg}`}>
+                <Icon className={`h-4 w-4 ${color}`} />
               </div>
-              <div className="text-sm sm:text-lg font-bold text-foreground">{value}</div>
-              <div className="text-[8px] sm:text-[9px] text-muted-foreground">{label}</div>
-            </CardContent>
-          </Card>
+              <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">{timeRange}</span>
+            </div>
+            <div className="t-mono text-lg sm:text-2xl font-semibold text-foreground leading-none">{value}</div>
+            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground mt-1.5">{label}</div>
+          </div>
         ))}
       </div>
 

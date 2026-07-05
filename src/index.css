@@ -188,6 +188,55 @@
   .lsf-item, .lsf-cta { opacity: 1 !important; animation: none !important; }
 }
 
+/* ===== Aurora backdrop — calm drifting gradient fields ===== */
+.aurora-field {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.55;
+  will-change: transform, opacity;
+}
+.aurora-a {
+  top: -18%;
+  left: -10%;
+  width: 65vw;
+  height: 65vw;
+  background: radial-gradient(circle at 30% 30%, hsl(231 81% 55% / 0.9), transparent 68%);
+}
+.aurora-b {
+  bottom: -22%;
+  right: -12%;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle at 60% 40%, hsl(265 80% 58% / 0.85), transparent 68%);
+}
+.aurora-c {
+  top: 25%;
+  left: 35%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle at 50% 50%, hsl(196 80% 55% / 0.55), transparent 70%);
+}
+
+@keyframes aurora-a {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  50%     { transform: translate3d(8%,6%,0) scale(1.12); }
+}
+@keyframes aurora-b {
+  0%,100% { transform: translate3d(0,0,0) scale(1.05); }
+  50%     { transform: translate3d(-9%,-5%,0) scale(0.95); }
+}
+@keyframes aurora-c {
+  0%,100% { transform: translate3d(-50%,0,0) scale(0.95); opacity: 0.4; }
+  50%     { transform: translate3d(-42%,-8%,0) scale(1.15); opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aurora-a { animation: aurora-a 26s ease-in-out infinite; }
+  .aurora-b { animation: aurora-b 32s ease-in-out infinite; }
+  .aurora-c { animation: aurora-c 38s ease-in-out infinite; }
+}
+
 @tailwind components;
 @tailwind utilities;
 

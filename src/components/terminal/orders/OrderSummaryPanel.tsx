@@ -24,7 +24,10 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
   const { hasPermission, isTerminalAdmin } = useTerminalAuth();
   const canActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
-  const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
+  const tradeChip = order.trade_type === 'BUY'
+    ? 'bg-trade-buy/10 text-trade-buy border border-trade-buy/25'
+    : 'bg-trade-sell/10 text-trade-sell border border-trade-sell/25';
+
 
   // Finalized states from live detail outrank stale cached active states,
   // except when the caller is opening an active Appeal case and needs that status preserved.

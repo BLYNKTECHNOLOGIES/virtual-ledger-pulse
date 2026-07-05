@@ -523,12 +523,46 @@ function TerminalOrdersContent() {
 
   // Internal chat unread counts
 
-  // Background sync to local DB (fire-and-forget)
+  // Background sync to local DB (fire-and-forget) — change-detected + batched.
+  // Only orders whose full payload fingerprint is new/changed are sent, in ONE
+  // batch RPC. First mount (empty map) syncs the full list once, matching the
+  // previous behavior. Dep is [rawOrders] (array identity) not [rawOrders.length]
+  // so status changes with unchanged count are no longer missed.
   useEffect(() => {
-    if (rawOrders.length > 0 && !syncOrders.isPending) {
-      syncOrders.mutate(rawOrders.map(toSyncItem));
+    if (rawOrders.length === 0 || syncOrdersBatch.isPending) return;
+
+    const items = rawOrders.map(toSyncItem);
+    const map = syncFingerprintRef.current;
+    const changed: typeof items = [];
+    const nextFingerprints: Array<[string, string]> = [];
+
+    for (const it of items) {
+      const fp = [
+        it.orderNumber,
+        it.advNo || null,
+        it.counterPartNickName || 'Unknown',
+        it.tradeType,
+        it.asset || 'USDT',
+        it.fiatUnit || 'INR',
+        parseFloat(it.amount || '0'),
+        parseFloat(it.totalPrice || '0'),
+        parseFloat(it.unitPrice || '0'),
+        parseFloat(it.commission || '0'),
+        it.orderStatus || 'TRADING',
+        it.payMethodName || null,
+        it.createTime || 0,
+      ].join('|');
+      const key = String(it.orderNumber);
+      nextFingerprints.push([key, fp]);
+      if (map.get(key) !== fp) changed.push(it);
     }
-  }, [rawOrders.length]);
+
+    if (changed.length === 0) return;
+
+    syncOrdersBatch.mutate(changed);
+    for (const [key, fp] of nextFingerprints) map.set(key, fp);
+  }, [rawOrders]);
+
 
   // Sync recentHistory status updates to local binance_order_history table
   // This fixes stale statuses where orders completed but the local DB wasn't updated

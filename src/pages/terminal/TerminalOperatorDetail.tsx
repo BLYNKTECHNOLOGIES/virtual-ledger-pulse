@@ -963,7 +963,7 @@ function TerminalOperatorDetailContent() {
                           {tradeBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 9 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -984,7 +984,7 @@ function TerminalOperatorDetailContent() {
                           <Cell fill={COLORS[1]} /><Cell fill={COLORS[2]} /><Cell fill={COLORS[3]} />
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 9 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -1000,10 +1000,10 @@ function TerminalOperatorDetailContent() {
                 <div className="h-32 sm:h-40">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={volumeBuckets}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                       <XAxis dataKey="range" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                       <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -1336,7 +1336,7 @@ function TerminalOperatorDetailContent() {
                         {actionDetails.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Legend wrapperStyle={{ fontSize: 9 }} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -1377,10 +1377,10 @@ function TerminalOperatorDetailContent() {
               <div className="h-40 sm:h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailyTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                     {isPayer ? (
                       <>
                         <Area type="monotone" dataKey="payments" fill="hsl(262, 83%, 48%)" stroke="hsl(262, 83%, 48%)" fillOpacity={0.2} name="Payments" />
@@ -1409,10 +1409,10 @@ function TerminalOperatorDetailContent() {
               <div className="h-36 sm:h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Volume']} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Volume']} />
                     <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1430,10 +1430,10 @@ function TerminalOperatorDetailContent() {
               <div className="h-28 sm:h-36">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={hourlyActivity.filter((_, i) => i >= 6 && i <= 23)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="hour" tick={{ fontSize: 7, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                     <Bar dataKey="orders" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

@@ -12,6 +12,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Plus, Search, Clock, CheckCircle, XCircle, AlertTriangle, Upload } from "lucide-react";
 import BiometricReportUploader from "@/components/hrms/BiometricReportUploader";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function AttendanceOverviewPage() {
   const queryClient = useQueryClient();
@@ -122,21 +125,21 @@ export default function AttendanceOverviewPage() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Attendance Overview</h1>
-          <p className="text-sm text-muted-foreground">Track and manage daily attendance</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowUploader(true)}>
-            <Upload className="h-4 w-4 mr-2" /> Upload Report
-          </Button>
-          <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-            <Plus className="h-4 w-4 mr-2" /> Mark Attendance
-          </Button>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-6 page-mount">
+      <PageHeader
+        title="Attendance Overview"
+        description="Track and manage daily attendance"
+        actions={
+          <>
+            <Button variant="outline" className="h-9" onClick={() => setShowUploader(true)}>
+              <Upload className="h-4 w-4 mr-2" /> Upload Report
+            </Button>
+            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => setShowAdd(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Mark Attendance
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[
@@ -172,59 +175,60 @@ export default function AttendanceOverviewPage() {
         </Select>
       </div>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
-              ) : queryError ? (
-                <tr><td colSpan={9} className="text-center py-8 text-destructive">Error loading data. Please refresh the page.</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No attendance records for this date</td></tr>
-              ) : (
-                filtered.map((a: any) => (
-                  <tr key={a.id} className="border-b hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
-                    <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.hr_employees?.badge_id}</td>
-                    <td className="px-4 py-3 tabular-nums">{a.check_in || "—"}</td>
-                    <td className="px-4 py-3 tabular-nums">{a.check_out || "—"}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        a.attendance_status === "present" ? "bg-success/10 text-success" :
-                        a.attendance_status === "absent" ? "bg-destructive/10 text-destructive" :
-                        a.attendance_status === "late" ? "bg-warning/10 text-warning" :
-                        "bg-muted text-foreground"
-                      }`}>{a.attendance_status}</span>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{a.late_minutes ? <span className="text-warning font-medium">{a.late_minutes}m</span> : "—"}</td>
-                    <td className="px-4 py-3 tabular-nums">{a.early_leave_minutes ? <span className="text-warning font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground capitalize">{a.work_type || "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-
+      {isLoading ? (
+        <TableSkeleton rows={6} columns={9} />
+      ) : queryError ? (
+        <Card><CardContent className="py-8 text-center text-destructive text-sm">Error loading data. Please refresh the page.</CardContent></Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={9}><EmptyState icon={Clock} title="No attendance records for this date" description="Adjust the date filter or mark attendance." /></td></tr>
+                ) : (
+                  filtered.map((a: any) => (
+                    <tr key={a.id} className="border-b hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
+                      <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.hr_employees?.badge_id}</td>
+                      <td className="px-4 py-3 tabular-nums">{a.check_in || "—"}</td>
+                      <td className="px-4 py-3 tabular-nums">{a.check_out || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                          a.attendance_status === "present" ? "bg-success/10 text-success border-success/20" :
+                          a.attendance_status === "absent" ? "bg-destructive/10 text-destructive border-destructive/20" :
+                          a.attendance_status === "late" ? "bg-warning/10 text-warning border-warning/20" :
+                          "bg-muted text-foreground border-border"
+                        }`}>{a.attendance_status}</span>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{a.late_minutes ? <span className="text-warning font-medium">{a.late_minutes}m</span> : "—"}</td>
+                      <td className="px-4 py-3 tabular-nums">{a.early_leave_minutes ? <span className="text-warning font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground capitalize">{a.work_type || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Mark Attendance</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm font-semibold flex items-center gap-2"><Plus className="h-4 w-4" /> Mark Attendance</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
@@ -233,11 +237,11 @@ export default function AttendanceOverviewPage() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Date</Label><Input type="date" value={form.attendance_date} onChange={(e) => setForm({ ...form, attendance_date: e.target.value })} /></div>
+              <div><Label>Date</Label><Input type="date" className="h-9" value={form.attendance_date} onChange={(e) => setForm({ ...form, attendance_date: e.target.value })} /></div>
               <div>
                 <Label>Status</Label>
                 <Select value={form.attendance_status} onValueChange={(v) => setForm({ ...form, attendance_status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="present">Present</SelectItem>
                     <SelectItem value="absent">Absent</SelectItem>
@@ -248,13 +252,13 @@ export default function AttendanceOverviewPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Check In</Label><Input type="time" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
-              <div><Label>Check Out</Label><Input type="time" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} /></div>
+              <div><Label>Check In</Label><Input type="time" className="h-9" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
+              <div><Label>Check Out</Label><Input type="time" className="h-9" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} /></div>
             </div>
             <div>
               <Label>Work Type</Label>
               <Select value={form.work_type} onValueChange={(v) => setForm({ ...form, work_type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="office">Office</SelectItem>
                   <SelectItem value="remote">Remote</SelectItem>
@@ -263,11 +267,11 @@ export default function AttendanceOverviewPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Notes</Label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." /></div>
+            <div><Label>Notes</Label><Input className="h-9" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id} className="bg-[#E8604C] hover:bg-[#d4553f]">Save</Button>
+            <Button variant="outline" className="h-9" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => addMutation.mutate()} disabled={!form.employee_id}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

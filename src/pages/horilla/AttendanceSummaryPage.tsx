@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Users, Clock, AlertTriangle, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 const PIE_COLORS = ["#22c55e", "#ef4444", "#f59e0b", "#3b82f6", "#8b5cf6"];
 
@@ -39,7 +41,6 @@ export default function AttendanceSummaryPage() {
     },
   });
 
-  // Fetch holidays for the month to exclude from working days
   const { data: holidays = [] } = useQuery({
     queryKey: ["hr_holidays_month", month],
     queryFn: async () => {
@@ -55,7 +56,6 @@ export default function AttendanceSummaryPage() {
 
   const holidaySet = useMemo(() => new Set((holidays as any[]).map((h: any) => h.date)), [holidays]);
 
-  // Per-employee summary
   const empSummary = useMemo(() => {
     const map: Record<string, any> = {};
     attendance.forEach((a: any) => {
@@ -86,7 +86,6 @@ export default function AttendanceSummaryPage() {
     return name.includes(q) || s.employee?.badge_id?.toLowerCase().includes(q);
   });
 
-  // Overall stats — "late" counts as present (they showed up, just late)
   const overallPresent = attendance.filter((a: any) => a.attendance_status === "present" || a.attendance_status === "late").length;
   const overallAbsent = attendance.filter((a: any) => a.attendance_status === "absent").length;
   const overallLate = attendance.filter((a: any) => a.attendance_status === "late").length;
@@ -100,15 +99,11 @@ export default function AttendanceSummaryPage() {
     { name: "Half Day", value: overallHalfDay },
   ].filter(d => d.value > 0);
 
-  // Top late employees
   const topLate = [...empSummary].sort((a: any, b: any) => b.total_late_min - a.total_late_min).slice(0, 5);
 
   return (
-    <div className="space-y-6 page-mount">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Attendance Summary</h1>
-        <p className="text-sm text-muted-foreground">Monthly attendance analytics per employee</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-6 page-mount">
+      <PageHeader title="Attendance Summary" description="Monthly attendance analytics per employee" />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
@@ -121,23 +116,23 @@ export default function AttendanceSummaryPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+              <div><p className="text-2xl font-bold tabular-nums">{s.value}</p><p className="text-xs text-muted-foreground uppercase tracking-wide">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
       <div className="flex gap-3 flex-wrap">
-        <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44" />
+        <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44 h-9" />
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle className="text-sm">Status Distribution</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm font-semibold">Status Distribution</CardTitle></CardHeader>
           <CardContent>
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -148,12 +143,12 @@ export default function AttendanceSummaryPage() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <p className="text-center text-muted-foreground py-8">No data</p>}
+            ) : <p className="text-center text-muted-foreground py-8 text-sm">No data</p>}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-sm">Top Late Employees (by minutes)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm font-semibold">Top Late Employees (by minutes)</CardTitle></CardHeader>
           <CardContent>
             {topLate.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -165,57 +160,58 @@ export default function AttendanceSummaryPage() {
                   <Bar dataKey="mins" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Late Minutes" />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p className="text-center text-muted-foreground py-8">No data</p>}
+            ) : <p className="text-center text-muted-foreground py-8 text-sm">No data</p>}
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Employee", "Badge", "Present", "Absent", "Late", "Half Day", "OT Hours", "Late (min)", "Early Leave (min)", "Rate"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={10} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-8 text-muted-foreground">No records</td></tr>
-              ) : (
-                (filtered as any[]).map((s: any) => {
-                  // Rate: present + late = showed up
-                  const showedUp = s.present + s.late + s.half_day * 0.5;
-                  const rate = s.total > 0 ? ((showedUp / s.total) * 100).toFixed(0) : "0";
-                  return (
-                    <tr key={s.employee?.id} className="border-b hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium whitespace-nowrap">{s.employee?.first_name} {s.employee?.last_name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{s.employee?.badge_id}</td>
-                      <td className="px-4 py-3 text-success font-medium">{s.present}</td>
-                      <td className="px-4 py-3 text-destructive font-medium">{s.absent}</td>
-                      <td className="px-4 py-3 text-warning font-medium">{s.late}</td>
-                      <td className="px-4 py-3 text-info">{s.half_day}</td>
-                      <td className="px-4 py-3">{s.total_ot > 0 ? `${s.total_ot.toFixed(1)}h` : "—"}</td>
-                      <td className="px-4 py-3">{s.total_late_min > 0 ? `${s.total_late_min}m` : "—"}</td>
-                      <td className="px-4 py-3">{s.total_early_min > 0 ? `${s.total_early_min}m` : "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          Number(rate) >= 80 ? "bg-success/10 text-success" :
-                          Number(rate) >= 50 ? "bg-warning/10 text-warning" :
-                          "bg-destructive/10 text-destructive"
-                        }`}>{rate}%</span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <TableSkeleton rows={6} columns={10} />
+      ) : (
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Employee", "Badge", "Present", "Absent", "Late", "Half Day", "OT Hours", "Late (min)", "Early Leave (min)", "Rate"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={10}><EmptyState icon={Users} title="No records for this month" description="No attendance data found for the selected month." /></td></tr>
+                ) : (
+                  (filtered as any[]).map((s: any) => {
+                    const showedUp = s.present + s.late + s.half_day * 0.5;
+                    const rate = s.total > 0 ? ((showedUp / s.total) * 100).toFixed(0) : "0";
+                    return (
+                      <tr key={s.employee?.id} className="border-b hover:bg-muted/50">
+                        <td className="px-4 py-3 font-medium whitespace-nowrap">{s.employee?.first_name} {s.employee?.last_name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{s.employee?.badge_id}</td>
+                        <td className="px-4 py-3 text-success font-medium tabular-nums">{s.present}</td>
+                        <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.absent}</td>
+                        <td className="px-4 py-3 text-warning font-medium tabular-nums">{s.late}</td>
+                        <td className="px-4 py-3 text-info tabular-nums">{s.half_day}</td>
+                        <td className="px-4 py-3 tabular-nums">{s.total_ot > 0 ? `${s.total_ot.toFixed(1)}h` : "—"}</td>
+                        <td className="px-4 py-3 tabular-nums">{s.total_late_min > 0 ? `${s.total_late_min}m` : "—"}</td>
+                        <td className="px-4 py-3 tabular-nums">{s.total_early_min > 0 ? `${s.total_early_min}m` : "—"}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                            Number(rate) >= 80 ? "bg-success/10 text-success border-success/20" :
+                            Number(rate) >= 50 ? "bg-warning/10 text-warning border-warning/20" :
+                            "bg-destructive/10 text-destructive border-destructive/20"
+                          }`}>{rate}%</span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

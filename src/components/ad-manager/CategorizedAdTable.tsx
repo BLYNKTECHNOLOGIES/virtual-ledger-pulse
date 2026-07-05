@@ -227,7 +227,7 @@ function categorizeAds(
   ];
 }
 
-export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current' }: CategorizedAdTableProps) {
+export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', compact = false }: CategorizedAdTableProps) {
   const { user } = useAuth();
   const { buyConfig, sellConfig } = useSmallConfigs();
   const { data: excludedAds } = useExcludedAds();

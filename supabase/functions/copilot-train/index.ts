@@ -117,14 +117,22 @@ Deno.serve(async (req) => {
       byOrder.get(m.order_number)!.push(m);
     }
 
-    // 4) Order meta (best-effort) from purchase/sales sync.
-    const [{ data: buys }, { data: sells }] = await Promise.all([
+    // 4) Order meta (best-effort) from purchase/sales sync + final-state for outcome weighting.
+    const [{ data: buys }, { data: sells }, { data: histRows }, { data: appealRows }] = await Promise.all([
       admin.from("terminal_purchase_sync").select("binance_order_number, counterparty_name, order_data").in("binance_order_number", orderNumbers),
       admin.from("terminal_sales_sync").select("binance_order_number, counterparty_name, contact_number, order_data").in("binance_order_number", orderNumbers),
+      admin.from("binance_order_history").select("order_number, order_status").in("order_number", orderNumbers),
+      admin.from("terminal_appeal_cases").select("order_number").in("order_number", orderNumbers),
     ]);
     const metaMap = new Map<string, any>();
     for (const b of buys || []) metaMap.set(b.binance_order_number, { name: b.counterparty_name, ...(b.order_data && typeof b.order_data === "object" ? b.order_data : {}) });
     for (const s of sells || []) if (!metaMap.has(s.binance_order_number)) metaMap.set(s.binance_order_number, { name: s.counterparty_name, contact: s.contact_number, ...(s.order_data && typeof s.order_data === "object" ? s.order_data : {}) });
+    // Final-state → outcome_weight lookup (item 2).
+    const statusMap = new Map<string, string>();
+    for (const h of histRows || []) statusMap.set(h.order_number, h.order_status);
+    const appealSet = new Set<string>((appealRows || []).map((a: any) => a.order_number));
+    const outcomeFor = (orderNo: string) => outcomeWeight(statusMap.get(orderNo), appealSet.has(orderNo));
+
 
     // 5) Existing exemplars grouped by class for trigram dedupe.
     const existingByClass = new Map<string, Set<string>[]>();

@@ -12,6 +12,7 @@ export interface CopilotSettings {
   train_watermark: string | null;
   exemplar_count: number;
   account_notes?: Record<string, string>;
+  stats?: Record<string, any>;
 }
 
 /** Fetch the singleton copilot settings row (cached ~5min). */

@@ -25,6 +25,19 @@ export function LoginPage() {
   const [showRegister, setShowRegister] = useState(false);
   const navigate = useNavigate();
 
+  // Boot entrance runs once per browser session; instant on repeat visits.
+  const [boot] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const seen = sessionStorage.getItem('lsf-booted');
+    if (!seen) sessionStorage.setItem('lsf-booted', '1');
+    return !seen;
+  });
+  // A focused input emits one expanding ripple ring into the field.
+  const emitRipple = () => window.dispatchEvent(new Event('field-focus-ripple'));
+  const bootItem = (delay: number): React.CSSProperties | undefined =>
+    boot ? { animationDelay: `${delay}ms` } : undefined;
+
+
   const writeCompatibilitySession = (authenticatedUser: {
     id: string;
     username: string;

@@ -121,11 +121,44 @@
 .cube .f-top    { transform: rotateX(90deg)  translateZ(var(--h)); }
 .cube .f-bottom { transform: rotateX(-90deg) translateZ(var(--h)); }
 
+/* ===== E7: "Ops Gateway" auth visual (INR ↔ USDT settlement flow) ===== */
+@keyframes ops-flow    { to { stroke-dashoffset: -60; } }
+@keyframes ops-travel  {
+  0%   { offset-distance: 0%;   opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+@keyframes ops-drift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+@keyframes ops-node-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+@keyframes ops-rise {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Static-first: pulses hidden until motion is allowed */
+.ops-pulse { opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ops-stream       { animation: ops-flow 3.4s linear infinite; }
+  .ops-pulse        { animation: ops-travel 4.6s linear infinite; }
+  .ops-chip         { animation: ops-drift 9s ease-in-out infinite; }
+  .ops-node         { animation: ops-node-pulse 4.2s ease-in-out infinite; }
+  .ops-rise         { opacity: 0; animation: ops-rise 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-aurora, .animate-aurora-slow, .animate-float-y,
   .animate-grid-pan, .animate-ring-spin, .animate-twinkle,
   .floor-3d, .cube > .cube-inner, .login-rise { animation: none; opacity: 1; }
 }
+
 @tailwind components;
 @tailwind utilities;
 

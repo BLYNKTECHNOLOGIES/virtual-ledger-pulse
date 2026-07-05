@@ -24,7 +24,7 @@ const EMPTY = {
 };
 
 const fieldClass =
-  "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/30";
+  "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40";
 
 export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogProps) {
   const { toast } = useToast();
@@ -121,16 +121,17 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[92vh] overflow-y-auto gap-0 border-white/10 bg-[hsl(231_45%_9%)]/95 p-0 text-white backdrop-blur-2xl">
-        {/* Gradient header band */}
-        <div className="relative overflow-hidden rounded-t-lg border-b border-white/10 bg-gradient-to-br from-[hsl(231_60%_16%)] to-[hsl(265_55%_16%)] px-6 py-6">
-          <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-[hsl(231_81%_60%)]/30 blur-3xl" />
-          <DialogHeader className="relative space-y-3 text-left">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] shadow-lg">
-              <UserPlus className="h-6 w-6 text-white" />
+      <DialogContent className="sm:max-w-[500px] max-h-[92vh] overflow-y-auto gap-0 border-white/10 bg-[hsl(231_45%_7%)] p-0 text-white backdrop-blur-2xl">
+        {/* Header band — dark surface, hairline border */}
+        <div className="relative overflow-hidden border-b border-white/10 px-6 py-5">
+          <DialogHeader className="relative space-y-2 text-left">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] shadow-md">
+                <UserPlus className="h-4 w-4 text-white" />
+              </div>
+              <DialogTitle className="text-sm font-semibold text-white">Create your account</DialogTitle>
             </div>
-            <DialogTitle className="text-xl font-bold text-white">Create your account</DialogTitle>
-            <DialogDescription className="text-sm text-white/60">
+            <DialogDescription className="text-xs text-white/55">
               Fill in your details — your request will be sent to the Super Admin for approval.
             </DialogDescription>
           </DialogHeader>
@@ -157,7 +158,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="reg_first_name" className="text-white/80">First Name *</Label>
+                <Label htmlFor="reg_first_name" className="text-xs font-medium text-white/70">First Name *</Label>
                 <Input
                   id="reg_first_name"
                   className={fieldClass}
@@ -167,7 +168,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reg_last_name" className="text-white/80">Last Name</Label>
+                <Label htmlFor="reg_last_name" className="text-xs font-medium text-white/70">Last Name</Label>
                 <Input
                   id="reg_last_name"
                   className={fieldClass}
@@ -179,7 +180,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reg_username" className="text-white/80">Username *</Label>
+              <Label htmlFor="reg_username" className="text-xs font-medium text-white/70">Username *</Label>
               <Input
                 id="reg_username"
                 className={fieldClass}
@@ -190,7 +191,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reg_email" className="text-white/80">Email *</Label>
+              <Label htmlFor="reg_email" className="text-xs font-medium text-white/70">Email *</Label>
               <Input
                 id="reg_email"
                 type="email"
@@ -203,7 +204,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="reg_phone" className="text-white/80">Phone</Label>
+                <Label htmlFor="reg_phone" className="text-xs font-medium text-white/70">Phone</Label>
                 <Input
                   id="reg_phone"
                   className={fieldClass}
@@ -213,7 +214,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reg_badge" className="text-white/80">Badge ID</Label>
+                <Label htmlFor="reg_badge" className="text-xs font-medium text-white/70">Badge ID</Label>
                 <Input
                   id="reg_badge"
                   className={fieldClass}
@@ -226,7 +227,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="reg_password" className="text-white/80">Password *</Label>
+                <Label htmlFor="reg_password" className="text-xs font-medium text-white/70">Password *</Label>
                 <Input
                   id="reg_password"
                   type="password"
@@ -238,7 +239,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reg_confirm" className="text-white/80">Confirm Password *</Label>
+                <Label htmlFor="reg_confirm" className="text-xs font-medium text-white/70">Confirm Password *</Label>
                 <Input
                   id="reg_confirm"
                   type="password"
@@ -263,7 +264,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-semibold text-white shadow-lg shadow-[hsl(231_81%_50%)]/30 hover:opacity-90"
+                className="h-11 bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
               >
                 {isLoading ? "Submitting..." : "Submit Registration"}
               </Button>

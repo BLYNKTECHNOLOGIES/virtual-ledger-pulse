@@ -90,6 +90,8 @@ Deno.serve(async (req) => {
     const situation = classifySituation(lastCounterparty?.text || messages[messages.length - 1]?.text);
     const side = order?.side ? String(order.side).toUpperCase() : null;
     const cpLang = detectLanguage(lastCounterparty?.text || "");
+    const exchangeAccountId: string | null = body?.exchangeAccountId || null;
+    const accountLabel: string | null = body?.accountLabel || null;
 
     // Retrieve exemplars (embedding cosine when available; RPC falls back to
     // recency when embeddings are null). Best-effort — never fatal.

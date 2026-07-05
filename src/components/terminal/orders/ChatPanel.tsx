@@ -327,7 +327,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     order: {
       number: orderNumber,
       side: tradeType || null,
-      status: templateValues?.status ?? null,
+      status: orderStatus ?? null,
       amount: templateValues?.amount ?? null,
     },
     clientProfile: {

@@ -770,6 +770,15 @@ export function WalletManagementTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setMovementsWallet(wallet)}
+                          className="h-7 w-7 p-0"
+                          title="Recent movements"
+                        >
+                          <History className="h-3 w-3" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 

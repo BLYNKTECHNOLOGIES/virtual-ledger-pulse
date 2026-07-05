@@ -237,7 +237,16 @@ export function StockReportsTab() {
     );
   }
 
-  return (
+  // Filter by asset (parity with the Ledger tab)
+  if (assetFilter !== 'all') {
+    filteredMovements = filteredMovements.filter((m: any) => m.products?.code === assetFilter);
+  }
+
+  // Unique asset codes present in the current movement set (for the asset filter)
+  const assetOptions = Array.from(
+    new Set(normalizedMovements.map((m: any) => m.products?.code).filter(Boolean))
+  ).sort();
+
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

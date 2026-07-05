@@ -90,21 +90,29 @@ Deno.serve(async (req) => {
     const situation = classifySituation(lastCounterparty?.text || messages[messages.length - 1]?.text);
     const side = order?.side ? String(order.side).toUpperCase() : null;
     const cpLang = detectLanguage(lastCounterparty?.text || "");
+    const exchangeAccountId: string | null = body?.exchangeAccountId || null;
+    const accountLabel: string | null = body?.accountLabel || null;
 
     // Retrieve exemplars (embedding cosine when available; RPC falls back to
     // recency when embeddings are null). Best-effort — never fatal.
     const convoBlob = messages.map((m) => `${m.isSelf ? "Operator" : "Counterparty"}: ${m.text}`).join("\n");
     const qEmbed = await embedCopilot(convoBlob || situation);
-    let exemplars: any[] = [];
-    try {
-      const { data: ex } = await admin.rpc("match_copilot_exemplars", {
-        query_embedding: qEmbed ? `[${qEmbed.join(",")}]` : null,
-        p_situation_class: situation,
-        p_side: side,
-        match_count: 5,
-      });
-      exemplars = ex || [];
-    } catch { exemplars = []; }
+    const queryEmbedding = qEmbed ? `[${qEmbed.join(",")}]` : null;
+    const matchExemplars = async (accountId: string | null) => {
+      try {
+        const { data: ex } = await admin.rpc("match_copilot_exemplars", {
+          query_embedding: queryEmbedding,
+          p_situation_class: situation,
+          p_side: side,
+          match_count: 5,
+          p_exchange_account_id: accountId,
+        });
+        return ex || [];
+      } catch { return []; }
+    };
+    // Prefer same-account exemplars; fall back to all accounts when < 3 match.
+    let exemplars: any[] = exchangeAccountId ? await matchExemplars(exchangeAccountId) : [];
+    if (exemplars.length < 3) exemplars = await matchExemplars(null);
 
     const exemplarText = exemplars.length
       ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")
@@ -126,6 +134,15 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     const key = Deno.env.get("LOVABLE_API_KEY");
     if (!key) return json({ error: "AI unavailable" }, 500);
 
+    // Per-account handling context appended to the system prompt.
+    const accountNotes = (settings.account_notes && typeof settings.account_notes === "object")
+      ? settings.account_notes[exchangeAccountId || ""] : null;
+    const accountLines = [
+      accountLabel ? `You are replying from the ${accountLabel} account.` : "",
+      accountNotes ? `Account handling notes: ${accountNotes}` : "",
+    ].filter(Boolean).join("\n");
+    const systemContent = accountLines ? `${SYSTEM_PROMPT}\n\n${accountLines}` : SYSTEM_PROMPT;
+
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       signal: controller.signal,
@@ -139,7 +156,7 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
         temperature: 0.3,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemContent },
           { role: "user", content: userMsg },
         ],
       }),

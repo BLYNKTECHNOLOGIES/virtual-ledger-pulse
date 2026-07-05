@@ -9,7 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Users, GraduationCap, ChevronDown, Play, Loader2, Database, Clock } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+import { Sparkles, Users, GraduationCap, ChevronDown, Play, Loader2, Database, Clock, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import type { CopilotSettings as Settings } from '@/hooks/useCopilot';
@@ -77,7 +83,10 @@ function MultiUserSelect({
 export function CopilotSettings() {
   const qc = useQueryClient();
   const [training, setTraining] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const { data: users = [] } = useTerminalUsersList();
+  const { accounts } = useExchangeAccount();
   const { data: settings, isLoading } = useQuery({
     queryKey: ['copilot-settings'],
     queryFn: async (): Promise<(Settings & { updated_at?: string }) | null> => {
@@ -110,6 +119,27 @@ export function CopilotSettings() {
     } finally {
       setTraining(false);
     }
+  };
+
+  const rebuildBank = async () => {
+    setRebuilding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('copilot-train', { body: { rebuild: true } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Rebuilt: ${data?.inserted ?? 0} exemplars (${data?.exemplar_count ?? 0} total)`);
+      qc.invalidateQueries({ queryKey: ['copilot-settings'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Rebuild failed');
+    } finally {
+      setRebuilding(false);
+    }
+  };
+
+  const notes: Record<string, string> = (settings?.account_notes as any) || {};
+  const saveNote = (accountId: string) => {
+    const next = { ...notes, [accountId]: noteDrafts[accountId] ?? '' };
+    save.mutate({ account_notes: next } as any);
   };
 
   if (isLoading || !settings) {
@@ -172,6 +202,38 @@ export function CopilotSettings() {
           </Select>
         </div>
 
+        {/* Per-account handling notes */}
+        <div className="space-y-2">
+          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Per-account handling notes</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {accounts.map((acc) => {
+              const draft = noteDrafts[acc.id] ?? notes[acc.id] ?? '';
+              const dirty = draft !== (notes[acc.id] ?? '');
+              return (
+                <div key={acc.id} className="space-y-1 rounded-md border border-border p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">{acc.account_name}</span>
+                    {dirty && (
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => saveNote(acc.id)}>
+                        Save
+                      </Button>
+                    )}
+                  </div>
+                  <Textarea
+                    value={draft}
+                    onChange={(e) => setNoteDrafts((p) => ({ ...p, [acc.id]: e.target.value }))}
+                    placeholder="Tone, rules, phrasing…"
+                    className="min-h-[60px] text-xs text-foreground"
+                  />
+                  <p className="text-[10px] text-muted-foreground">How chats on this account should be handled (tone, rules, phrasing)</p>
+                </div>
+              );
+            })}
+            {accounts.length === 0 && <p className="text-[10px] text-muted-foreground">No exchange accounts configured.</p>}
+          </div>
+        </div>
+
+
         <div className="flex flex-wrap items-center gap-4 rounded-md bg-secondary/40 border border-border p-3">
           <div className="flex items-center gap-1.5">
             <Database className="h-3.5 w-3.5 text-primary" />
@@ -191,10 +253,33 @@ export function CopilotSettings() {
               {settings.train_watermark ? format(new Date(settings.train_watermark), 'dd MMM HH:mm') : '—'}
             </span>
           </div>
-          <Button size="sm" className="ml-auto h-8 gap-1.5" onClick={trainNow} disabled={training}>
-            {training ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            Train Now
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5" disabled={rebuilding}>
+                  {rebuilding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                  Rebuild exemplar bank
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Rebuild exemplar bank?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This clears all learned exemplars and re-learns them from scratch so each is re-tagged
+                    with its exchange account. Exemplars are derived data — this is safe but may take a moment.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={rebuildBank}>Rebuild</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button size="sm" className="h-8 gap-1.5" onClick={trainNow} disabled={training}>
+              {training ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              Train Now
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

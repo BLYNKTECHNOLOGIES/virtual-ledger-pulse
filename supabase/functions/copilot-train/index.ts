@@ -61,12 +61,22 @@ Deno.serve(async (req) => {
     const trainers: string[] = settings.trainer_allowlist || [];
     if (trainers.length === 0) return json({ processed: 0, skipped: 0, inserted: 0, note: "no trainers configured" });
 
+    // Optional rebuild: exemplars are derived data — safe to truncate and re-tag.
+    const reqBody = await req.json().catch(() => ({}));
+    if (reqBody?.rebuild === true) {
+      const { error: delErr } = await admin.from("copilot_exemplars").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (delErr) throw delErr;
+      await admin.from("copilot_settings")
+        .update({ train_watermark: "1970-01-01T00:00:00Z", exemplar_count: 0 }).eq("id", settings.id);
+      settings.train_watermark = "1970-01-01T00:00:00Z";
+    }
+
     const watermark: string = settings.train_watermark || "1970-01-01T00:00:00Z";
 
     // 1) Candidate operator replies newer than watermark (ascending, batched).
     const { data: replies, error: rErr } = await admin
       .from("binance_order_chat_messages")
-      .select("id, order_number, message_text, binance_created_at, binance_create_time")
+      .select("id, order_number, message_text, binance_created_at, binance_create_time, exchange_account_id")
       .eq("sender_is_self", true)
       .eq("is_system_message", false)
       .eq("is_recall", false)
@@ -178,6 +188,7 @@ Deno.serve(async (req) => {
         language,
         order_meta: metaMap.get(r.order_number) || {},
         source_operator: info.op,
+        exchange_account_id: r.exchange_account_id || null,
         embedding: embedding ? toPgVector(embedding) : null,
       });
       inserted++;

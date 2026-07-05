@@ -14,6 +14,7 @@ import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotStrip } from './chat/CopilotStrip';
 import { useCopilotVisible, type CopilotSuggestInput } from '@/hooks/useCopilot';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';
@@ -311,6 +312,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
   // AI Copilot — only visible for allowlisted operators when enabled.
   const copilotVisible = useCopilotVisible();
+  const { nameFor } = useExchangeAccount();
   // Build the ENTIRE suggestion context client-side (no server order lookups).
   const buildCopilotInput = useCallback((): CopilotSuggestInput => ({
     order: {
@@ -325,7 +327,9 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       .filter((m) => m.senderType !== 'system' && m.text)
       .slice(-10)
       .map((m) => ({ isSelf: m.senderType === 'operator', text: m.text as string })),
-  }), [orderNumber, tradeType, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages]);
+    exchangeAccountId: exchangeAccountId ?? null,
+    accountLabel: exchangeAccountId ? nameFor(exchangeAccountId) : null,
+  }), [orderNumber, tradeType, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, exchangeAccountId, nameFor]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'

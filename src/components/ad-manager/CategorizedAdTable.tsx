@@ -68,8 +68,9 @@ const COLLAPSE_PREF_KEY_PREFIX = 'terminal_ad_group_collapse_';
 
 interface CategorizedAdTableProps {
   ads: BinanceAd[];
-  onEdit: (ad: BinanceAd) => void;
+   onEdit: (ad: BinanceAd) => void;
   onToggleStatus: (advNo: string, currentStatus: number) => void;
+  onHistory?: (advNo: string) => void;
   isTogglingStatus: boolean;
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;

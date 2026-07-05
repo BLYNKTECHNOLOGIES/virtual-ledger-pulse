@@ -188,6 +188,7 @@
   .lsf-item, .lsf-cta { opacity: 1 !important; animation: none !important; }
 }
 
+@tailwind components;
 @tailwind utilities;
 
 @layer base {

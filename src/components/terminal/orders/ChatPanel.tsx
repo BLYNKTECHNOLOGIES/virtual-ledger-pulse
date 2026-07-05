@@ -312,6 +312,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
   // AI Copilot — only visible for allowlisted operators when enabled.
   const copilotVisible = useCopilotVisible();
+  const { nameFor } = useExchangeAccount();
   // Build the ENTIRE suggestion context client-side (no server order lookups).
   const buildCopilotInput = useCallback((): CopilotSuggestInput => ({
     order: {

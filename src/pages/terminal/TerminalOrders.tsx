@@ -117,6 +117,7 @@ function TerminalOrdersContent() {
   const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
+  const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandledRef = useRef(false);
 

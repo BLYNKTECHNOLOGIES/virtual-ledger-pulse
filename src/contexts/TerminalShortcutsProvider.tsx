@@ -1,20 +1,28 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
+import { useNotificationMute } from "@/hooks/useNotificationMute";
 import { TerminalCommandPalette } from "@/components/terminal/TerminalCommandPalette";
+import { TerminalShortcutsOverlay } from "@/components/terminal/TerminalShortcutsOverlay";
 import { focusPageSearch } from "@/lib/focus-page-search";
 import { matchesCombo } from "@/config/shortcuts";
 import {
-  TERMINAL_NAVIGATION_SHORTCUTS, TERMINAL_GLOBAL_SHORTCUTS,
+  TERMINAL_NAVIGATION_SHORTCUTS, TERMINAL_GOTO_SHORTCUTS, TERMINAL_SYSTEM_SHORTCUTS,
 } from "@/config/terminal-shortcuts";
+import {
+  dispatchTerminalContextKey, type TerminalContextKey,
+} from "@/hooks/useTerminalHotkeys";
 
 interface TerminalShortcutsContextValue {
   openPalette: () => void;
+  openShortcutsHelp: () => void;
   focusPageSearch: () => boolean;
 }
 
 const TerminalShortcutsContext = createContext<TerminalShortcutsContextValue>({
   openPalette: () => {},
+  openShortcutsHelp: () => {},
   focusPageSearch: () => false,
 });
 
@@ -29,46 +37,97 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return false;
 }
 
+/** True while any Radix dialog / sheet / alert-dialog / popover is open. */
+function isOverlayOpen(): boolean {
+  return !!document.querySelector(
+    '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],[data-radix-popper-content-wrapper]',
+  );
+}
+
+const sys = (id: string) => TERMINAL_SYSTEM_SHORTCUTS.find((s) => s.id === id)!.combo!;
+
 export function TerminalShortcutsProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { hasAnyPermission } = useTerminalAuth();
+  const { isMuted, toggleMute } = useNotificationMute();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  // Latest mute state for the keydown handler without re-binding the listener.
+  const muteRef = useRef({ isMuted, toggleMute });
+  muteRef.current = { isMuted, toggleMute };
+  // "g" go-to sequence buffer.
+  const gotoTimerRef = useRef<number | null>(null);
+  const gotoActiveRef = useRef(false);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const openShortcutsHelp = useCallback(() => setHelpOpen(true), []);
 
   useEffect(() => {
+    const clearGoto = () => {
+      gotoActiveRef.current = false;
+      if (gotoTimerRef.current) { window.clearTimeout(gotoTimerRef.current); gotoTimerRef.current = null; }
+    };
+
     const handler = (e: KeyboardEvent) => {
-      // Command palette works everywhere, even inside inputs.
-      const palette = TERMINAL_GLOBAL_SHORTCUTS.find((s) => s.id === "t-global-palette")!;
-      if (matchesCombo(e, palette.combo)) {
+      // Command palette works everywhere, even inside inputs (existing behaviour).
+      if (matchesCombo(e, sys("t-sys-palette"))) {
         e.preventDefault();
         setPaletteOpen((o) => !o);
         return;
       }
 
-      // Everything else is ignored while typing so it never disrupts data entry.
-      if (isTypingTarget(e.target)) return;
+      // Esc is the ONLY key allowed while typing or while an overlay is open.
+      if (e.key === "Escape") {
+        if (helpOpen) { setHelpOpen(false); return; }
+        clearGoto();
+        return;
+      }
 
-      // Focus the current page's search box ("/")
-      const pageSearch = TERMINAL_GLOBAL_SHORTCUTS.find((s) => s.id === "t-global-page-search")!;
-      if (matchesCombo(e, pageSearch.combo)) {
+      // Everything else is ignored while typing so it never disrupts data entry.
+      if (isTypingTarget(e.target)) { clearGoto(); return; }
+
+      // Suspend ALL non-Esc shortcuts while a dialog/sheet/popover is open.
+      if (isOverlayOpen()) { clearGoto(); return; }
+
+      // "?" toggles the help overlay (Shift+/).
+      if (matchesCombo(e, sys("t-sys-help"))) {
+        e.preventDefault();
+        setHelpOpen((o) => !o);
+        return;
+      }
+
+      // Shift+D — toggle the notification master mute (non-destructive).
+      if (matchesCombo(e, sys("t-sys-mute"))) {
+        e.preventDefault();
+        muteRef.current.toggleMute();
+        toast(muteRef.current.isMuted ? "Notifications unmuted" : "Notifications muted");
+        return;
+      }
+
+      // "/" focuses the current page's search box.
+      if (matchesCombo(e, sys("t-sys-page-search"))) {
         if (focusPageSearch()) e.preventDefault();
         return;
       }
 
-      // Help
-      const help = TERMINAL_GLOBAL_SHORTCUTS.find((s) => s.id === "t-global-help")!;
-      if (matchesCombo(e, help.combo)) {
-        e.preventDefault();
-        navigate("/terminal/shortcuts");
+      // Go-to sequences: "g" then a letter within 600ms.
+      if (gotoActiveRef.current) {
+        const target = TERMINAL_GOTO_SHORTCUTS.find((s) => s.goToKey === e.key.toLowerCase());
+        clearGoto();
+        if (target?.url) { e.preventDefault(); navigate(target.url); }
+        return;
+      }
+      if (e.key === "g" || e.key === "G") {
+        gotoActiveRef.current = true;
+        gotoTimerRef.current = window.setTimeout(clearGoto, 600);
         return;
       }
 
       // Navigation shortcuts — permission gated, identical to sidebar rules.
       for (const s of TERMINAL_NAVIGATION_SHORTCUTS) {
         if (
-          matchesCombo(e, s.combo) &&
-          s.url &&
+          s.combo && matchesCombo(e, s.combo) && s.url &&
           (s.permissions.length === 0 || hasAnyPermission(s.permissions))
         ) {
           e.preventDefault();
@@ -76,16 +135,46 @@ export function TerminalShortcutsProvider({ children }: { children: React.ReactN
           return;
         }
       }
+
+      // Page-scoped context keys — dispatched onto the context bus; the mounted
+      // orders list / order detail component decides whether it applies.
+      const ctx = matchContextKey(e);
+      if (ctx) { e.preventDefault(); dispatchTerminalContextKey(ctx); }
     };
 
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [navigate, hasAnyPermission]);
+    return () => { window.removeEventListener("keydown", handler); clearGoto(); };
+  }, [navigate, hasAnyPermission, helpOpen]);
 
   return (
-    <TerminalShortcutsContext.Provider value={{ openPalette, focusPageSearch }}>
+    <TerminalShortcutsContext.Provider value={{ openPalette, openShortcutsHelp, focusPageSearch }}>
       {children}
       <TerminalCommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <TerminalShortcutsOverlay open={helpOpen} onOpenChange={setHelpOpen} />
     </TerminalShortcutsContext.Provider>
   );
+}
+
+/** Map a plain keypress to a page-scoped context key (no modifiers except Shift+C). */
+function matchContextKey(e: KeyboardEvent): TerminalContextKey | null {
+  if (e.ctrlKey || e.metaKey || e.altKey) return null;
+  if (e.shiftKey) {
+    if (e.code === "KeyC") return "detail-copy-fiat";
+    return null;
+  }
+  switch (e.key) {
+    case "j": case "J": return "orders-down";
+    case "k": case "K": return "orders-up";
+    case "o": case "O": return "orders-open";
+    case "Enter": return "orders-open";
+    case "[": return "orders-prev-tab";
+    case "]": return "orders-next-tab";
+    case "f": case "F": return "orders-search";
+    case "r": case "R": return "orders-refresh";
+    case "u": case "U": return "orders-back";
+    case "c": case "C": return "detail-copy-order";
+    case "i": case "I": return "detail-internal-chat";
+    case "a": case "A": return "detail-actions";
+    default: return null;
+  }
 }

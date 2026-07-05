@@ -670,6 +670,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             <div>
               <Label>Order Number *</Label>
               <Input
+                autoFocus
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
                 placeholder={isGeneratingOrderNumber ? "Generating..." : isOffMarket ? "Auto-generated" : "Enter order number"}

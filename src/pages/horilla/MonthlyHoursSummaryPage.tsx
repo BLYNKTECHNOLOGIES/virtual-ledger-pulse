@@ -97,6 +97,12 @@ export default function MonthlyHoursSummaryPage() {
       <PageHeader
         title="Monthly Hours Summary"
         description="Aggregated attendance metrics per employee per month"
+        actions={
+          <Button onClick={handleRefresh} disabled={refreshing} variant="outline" className="h-9">
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

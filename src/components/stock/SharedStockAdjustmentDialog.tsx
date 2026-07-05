@@ -309,6 +309,7 @@ export function SharedStockAdjustmentDialog({ open, onOpenChange }: SharedStockA
               </Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="any"
                 min="0"
                 placeholder="Enter fee amount (optional)"

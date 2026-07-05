@@ -1306,7 +1306,7 @@ function TerminalOrdersContent() {
                               </Badge>
                             )}
                             {hasAltUpiRequest && (
-                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/10 gap-0.5 animate-pulse">
+                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/10 gap-0.5">
                                 <ArrowLeftRight className="h-2.5 w-2.5" />
                                 Alternate UPI Requested
                               </Badge>

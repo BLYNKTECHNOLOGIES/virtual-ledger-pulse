@@ -95,6 +95,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.copilot-suggest]
     verify_jwt = true
+  [functions.copilot-teach]
+    verify_jwt = true
 
 
 

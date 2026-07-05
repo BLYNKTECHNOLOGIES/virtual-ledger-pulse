@@ -248,6 +248,7 @@ export function CreateConversionForm() {
                   <Label className="text-xs">Market Rate Snapshot (USDT)</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     step="any"
                     min="0"
                     placeholder="e.g. 67044"

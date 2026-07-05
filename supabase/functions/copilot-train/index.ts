@@ -198,7 +198,9 @@ Deno.serve(async (req) => {
         language,
         order_meta: metaMap.get(r.order_number) || {},
         source_operator: info.op,
+        source_order_number: r.order_number,
         exchange_account_id: r.exchange_account_id || null,
+        outcome_weight: outcomeFor(r.order_number),
         embedding: embedding ? toPgVector(embedding) : null,
       });
       inserted++;
@@ -212,12 +214,19 @@ Deno.serve(async (req) => {
     const { count } = await admin
       .from("copilot_exemplars").select("id", { count: "exact", head: true });
 
+    // ---- Feedback reconciliation (item 1) ----
+    const feedback = await reconcileFeedback(admin);
+
+    // ---- Coverage stats (item 8) ----
+    const stats = await buildStats(admin);
+
     await admin.from("copilot_settings").update({
       train_watermark: newWatermark,
       exemplar_count: count ?? (settings.exemplar_count + inserted),
+      stats,
     }).eq("id", settings.id);
 
-    return json({ processed, skipped, inserted, watermark: newWatermark, exemplar_count: count });
+    return json({ processed, skipped, inserted, watermark: newWatermark, exemplar_count: count, feedback, stats });
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);
   }

@@ -224,6 +224,7 @@ export function CreateConversionForm() {
                   <Label className="text-xs">Local Price (INR)</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     step="any"
                     min="0"
                     placeholder="e.g. 6100000"

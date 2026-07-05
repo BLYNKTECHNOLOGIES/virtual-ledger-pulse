@@ -299,6 +299,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
+  // Number-key (1–9) hotkey → insert the matching per-user quick reply.
+  const { data: hotkeyReplies = [] } = useQuickReplies(null, tradeType);
+  useEffect(() => subscribeQuickReplyHotkey((idx) => {
+    const reply = (hotkeyReplies as any[])[idx];
+    if (reply?.message_text) handleQuickReply(reply.message_text);
+  }), [hotkeyReplies, templateValues]);
+
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
   ).length;

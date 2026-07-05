@@ -15,7 +15,8 @@ import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { AdSummaryStrip } from '@/components/ad-manager/AdSummaryStrip';
 import { CategorizedAdTable, AdSortMode } from '@/components/ad-manager/CategorizedAdTable';
 import { DeskTable } from '@/components/ad-manager/AdTable';
-import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
+import { BoardView } from '@/components/ad-manager/BoardView';
+import { CreateEditAdDialog, CreateAdInitialValues } from '@/components/ad-manager/CreateEditAdDialog';
 import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
 import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPriceDialog';
@@ -83,6 +84,8 @@ export default function AdManager() {
   // When creating in combined mode we must know which account the ad belongs to.
   const [createAccountId, setCreateAccountId] = useState<string | null>(null);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  // Duplicate Ad: seeds create-mode defaults from a source ad (null = normal create).
+  const [duplicateValues, setDuplicateValues] = useState<CreateAdInitialValues | null>(null);
 
   // Bulk selection state
   const [selectedAdvNos, setSelectedAdvNos] = useState<Set<string>>(new Set());
@@ -96,7 +99,7 @@ export default function AdManager() {
   // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
    const [sortMode, setSortMode] = useState<AdSortMode>(() => (searchParams.get('sort') as AdSortMode) || (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
   const [autoRefresh, setAutoRefresh] = useState<boolean>(() => searchParams.has('auto') ? searchParams.get('auto') === '1' : localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
-  const [viewMode, setViewMode] = useState<'categorized' | 'desk'>(() => (searchParams.get('view') as 'categorized' | 'desk') || (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk') || 'categorized');
+  const [viewMode, setViewMode] = useState<'categorized' | 'desk' | 'board'>(() => (searchParams.get('view') as 'categorized' | 'desk' | 'board') || (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk' | 'board') || 'board');
   const [compact, setCompact] = useState<boolean>(() => searchParams.has('density') ? searchParams.get('density') === '1' : localStorage.getItem(DENSITY_PREF_KEY) === '1');
   const [statusChips, setStatusChips] = useState<Set<number>>(() => {
     const s = searchParams.get('status');
@@ -116,7 +119,7 @@ export default function AdManager() {
     if (activeTab !== 'all') p.set('tab', activeTab);
     if (statusChips.size) p.set('status', Array.from(statusChips).join(','));
     if (sortMode !== 'current') p.set('sort', sortMode);
-    if (viewMode !== 'categorized') p.set('view', viewMode);
+    if (viewMode !== 'board') p.set('view', viewMode);
     if (compact) p.set('density', '1');
     if (autoRefresh) p.set('auto', '1');
     if (filters.asset) p.set('asset', filters.asset);
@@ -170,9 +173,10 @@ export default function AdManager() {
     setStatusChips(prev => { const next = new Set(prev); next.has(value) ? next.delete(value) : next.add(value); return next; });
   };
 
-  const handleEdit = (ad: BinanceAd) => { setEditingAd(ad); setDialogOpen(true); };
+  const handleEdit = (ad: BinanceAd) => { setDuplicateValues(null); setEditingAd(ad); setDialogOpen(true); };
   const handleCreate = () => {
     setEditingAd(null);
+    setDuplicateValues(null);
     // In combined mode we don't know which account to post to — ask first.
     if (isAllAccounts && visibleAccounts.length > 1) {
       setCreateAccountId(null);
@@ -183,7 +187,35 @@ export default function AdManager() {
     setDialogOpen(true);
   };
 
+  // Duplicate: open Create dialog prefilled from source ad (advNo/identifiers excluded),
+  // routed to the same account. Reuses the existing dialog's create/submit flow.
+  const handleDuplicate = (ad: BinanceAd) => {
+    setEditingAd(null);
+    setCreateAccountId(ad._exchangeAccountId || null);
+    setDuplicateValues({
+      tradeType: ad.tradeType,
+      asset: ad.asset,
+      fiatUnit: ad.fiatUnit,
+      priceType: (ad.priceType || 1) as 1 | 2,
+      price: String(ad.price || ''),
+      priceFloatingRatio: String(ad.priceFloatingRatio || ''),
+      initAmount: String(ad.initAmount || ''),
+      minSingleTransAmount: String(ad.minSingleTransAmount || ''),
+      maxSingleTransAmount: String(ad.maxSingleTransAmount || ''),
+      autoReplyMsg: ad.autoReplyMsg || '',
+      remarks: ad.remarks || '',
+      payTimeLimit: ad.payTimeLimit || 15,
+      advStatus: ad.advStatus || BINANCE_AD_STATUS.ONLINE,
+      buyerRegDaysLimit: Number.isFinite(Number(ad.buyerRegDaysLimit)) ? Number(ad.buyerRegDaysLimit) : -1,
+      buyerBtcPositionLimit: Number.isFinite(Number(ad.buyerBtcPositionLimit)) ? Number(ad.buyerBtcPositionLimit) : -1,
+      takerAdditionalKycRequired: ad.takerAdditionalKycRequired || 0,
+      selectedPayMethods: ad.tradeMethods || [],
+    });
+    setDialogOpen(true);
+  };
+
   const startCreateForAccount = (accountId: string) => {
+    setDuplicateValues(null);
     setCreateAccountId(accountId);
     setAccountPickerOpen(false);
     setDialogOpen(true);
@@ -331,8 +363,9 @@ export default function AdManager() {
                 <span className="flex flex-wrap items-center gap-3 text-sm font-normal text-muted-foreground">
                   {/* View toggle */}
                   <span className="inline-flex overflow-hidden rounded-md border border-border">
-                    <button onClick={() => setViewMode('categorized')} className={cn('px-2.5 py-1 text-xs', viewMode === 'categorized' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Categorized</button>
+                    <button onClick={() => setViewMode('board')} className={cn('px-2.5 py-1 text-xs', viewMode === 'board' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Board</button>
                     <button onClick={() => setViewMode('desk')} className={cn('border-l border-border px-2.5 py-1 text-xs', viewMode === 'desk' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Desk</button>
+                    <button onClick={() => setViewMode('categorized')} className={cn('border-l border-border px-2.5 py-1 text-xs', viewMode === 'categorized' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Categorized</button>
                   </span>
                   {/* Density toggle */}
                   <button
@@ -363,12 +396,26 @@ export default function AdManager() {
             <CardContent>
               {isLoading ? (
                 <TableSkeleton rows={8} columns={9} />
+              ) : viewMode === 'board' ? (
+                <BoardView
+                  ads={displayAds}
+                  onEdit={handleEdit}
+                  onToggleStatus={handleToggleStatus}
+                  onHistory={handleHistory}
+                  onDuplicate={handleDuplicate}
+                  isTogglingStatus={updateStatus.isPending}
+                  selectedAdvNos={selectedAdvNos}
+                  onSelectionChange={setSelectedAdvNos}
+                  sortMode={sortMode}
+                  compact={compact}
+                />
               ) : viewMode === 'desk' ? (
                  <DeskTable
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
                   onHistory={handleHistory}
+                  onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
@@ -382,6 +429,7 @@ export default function AdManager() {
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
                   onHistory={handleHistory}
+                  onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
@@ -396,7 +444,7 @@ export default function AdManager() {
         </TabsContent>
       </Tabs>
 
-      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} createAccountId={createAccountId} />
+      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} createAccountId={createAccountId} initialValues={duplicateValues} />
 
       {/* Combined-mode: pick which account a new ad belongs to */}
       <AlertDialog open={accountPickerOpen} onOpenChange={setAccountPickerOpen}>

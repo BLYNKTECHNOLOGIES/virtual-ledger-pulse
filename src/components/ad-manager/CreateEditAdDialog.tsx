@@ -14,12 +14,35 @@ import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { cn } from '@/lib/utils';
 
+/** Create-mode seed shape (subset of the internal form). Used by "Duplicate Ad". */
+export type CreateAdInitialValues = Partial<{
+  tradeType: string;
+  asset: string;
+  fiatUnit: string;
+  priceType: 1 | 2;
+  price: string;
+  priceFloatingRatio: string;
+  initAmount: string;
+  minSingleTransAmount: string;
+  maxSingleTransAmount: string;
+  autoReplyMsg: string;
+  remarks: string;
+  payTimeLimit: number;
+  advStatus: number;
+  buyerRegDaysLimit: number;
+  buyerBtcPositionLimit: number;
+  takerAdditionalKycRequired: number;
+  selectedPayMethods: Array<{ payId?: number; payType: string; identifier: string; tradeMethodName?: string }>;
+}>;
+
 interface CreateEditAdDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingAd?: BinanceAd | null;
   /** Account to create the ad on (combined "All accounts" mode). */
   createAccountId?: string | null;
+  /** Seeds create-mode defaults only (Duplicate Ad). Ignored when editingAd is set. */
+  initialValues?: CreateAdInitialValues | null;
 }
 
 const PAYMENT_TIME_OPTIONS = [
@@ -48,7 +71,7 @@ const changedString = (current: unknown, next: unknown) => String(current ?? '')
 // Priority assets shown first in the dropdown
 const PRIORITY_ASSETS = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC', 'FDUSD'];
 
-export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccountId }: CreateEditAdDialogProps) {
+export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccountId, initialValues }: CreateEditAdDialogProps) {
   const { toast } = useToast();
   const postAd = usePostAd();
   const updateAd = useUpdateAd();
@@ -178,11 +201,13 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
         buyerBtcPositionLimit: -1,
         takerAdditionalKycRequired: 0,
         selectedPayMethods: [],
+        // Duplicate Ad: seed create-mode defaults from the source ad.
+        ...(initialValues || {}),
       });
     }
     setShowPayMethodPicker(false);
     setPayMethodSearch('');
-  }, [editingAd, open]);
+  }, [editingAd, open, initialValues]);
 
   // ─── Available balance from surplus across all ads ────────────
   const availableBalance = useMemo(() => {

@@ -3,10 +3,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ShieldBan, ShieldCheck, Megaphone, ArrowUp, ArrowDown, History } from 'lucide-react';
+import { Edit, Power, PowerOff, Lock, ShieldBan, ShieldCheck, Megaphone, ArrowUp, ArrowDown, History, Copy, Zap } from 'lucide-react';
 import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
+import { QuickEditPopover } from './QuickEditPopover';
 import { AdSortMode, applyAdSort, stalePriceLabel } from './CategorizedAdTable';
 import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { format } from 'date-fns';
@@ -42,6 +43,7 @@ interface DeskTableProps {
    onEdit: (ad: BinanceAd) => void;
   onToggleStatus: (advNo: string, currentStatus: number) => void;
   onHistory?: (advNo: string) => void;
+  onDuplicate?: (ad: BinanceAd) => void;
   isTogglingStatus: boolean;
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;
@@ -61,7 +63,7 @@ function SortHeader({ label, active, dir, onClick, className }: { label: string;
   );
 }
 
-export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', onSortModeChange, compact = false }: DeskTableProps) {
+export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', onSortModeChange, compact = false }: DeskTableProps) {
   const { data: excludedAds } = useExcludedAds();
   const toggleExclusion = useToggleAdExclusion();
   const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);
@@ -244,6 +246,16 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, isTogglingSt
                      <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
                       <Edit className="h-3.5 w-3.5" />
                     </Button>
+                    <QuickEditPopover ad={ad}>
+                      <Button variant="ghost" size="icon" aria-label="Quick edit" className="h-8 w-8" title="Quick Edit">
+                        <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </QuickEditPopover>
+                    {onDuplicate && (
+                      <Button variant="ghost" size="icon" aria-label="Duplicate" className="h-8 w-8" onClick={() => onDuplicate(ad)} title="Duplicate ad">
+                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    )}
                     {onHistory && (
                       <Button variant="ghost" size="icon" aria-label="History" className="h-8 w-8" onClick={() => onHistory(ad.advNo)} title="View change history">
                         <History className="h-3.5 w-3.5 text-muted-foreground" />

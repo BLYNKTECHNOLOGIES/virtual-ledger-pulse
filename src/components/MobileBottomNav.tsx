@@ -60,7 +60,7 @@ export function MobileBottomNav() {
   if (isLoading) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t-2 border-border shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t-2 border-border shadow-lg print:hidden">
       <div className="flex items-center justify-around h-16 px-2">
         {visibleMainNavItems.map((item) => {
           const isActive = location.pathname === item.url;

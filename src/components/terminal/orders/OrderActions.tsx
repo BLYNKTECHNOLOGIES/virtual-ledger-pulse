@@ -168,7 +168,7 @@ function MarkAsPaidAction({ orderNumber, exchangeAccountId }: { orderNumber: str
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
-          className="w-full h-8 text-xs gap-1.5 bg-trade-buy hover:bg-trade-buy/90 text-white"
+          className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150"
           disabled={markPaid.isPending}
         >
           {markPaid.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}

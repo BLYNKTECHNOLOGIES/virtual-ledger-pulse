@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { ClientOverviewPanel } from "@/components/clients/ClientOverviewPanel";
 import { MonthlyLimitsPanel } from "@/components/clients/MonthlyLimitsPanel";
 import { ClientValueScore } from "@/components/clients/ClientValueScore";

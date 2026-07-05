@@ -1,6 +1,7 @@
 import { FileText, ExternalLink, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PermissionGate } from "@/components/PermissionGate";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const tools = [
   {

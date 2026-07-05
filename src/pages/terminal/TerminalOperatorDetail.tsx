@@ -660,12 +660,20 @@ function TerminalOperatorDetailContent() {
   if (isLoading || !metric) {
     return (
       <div className="p-3 sm:p-4 md:p-6 space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/terminal/mpi')} className="mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/terminal/mpi')} className="mb-2 h-8">
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to MPI
         </Button>
-        <div className="grid grid-cols-2 gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="border-border bg-card animate-pulse"><CardContent className="p-3 h-16" /></Card>
+        <div className="t-panel p-4">
+          <div className="t-shimmer h-16 w-full rounded-md" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="t-panel p-4"><div className="t-shimmer h-12 rounded-md" /></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="t-panel p-4"><div className="t-shimmer h-52 rounded-md" /></div>
           ))}
         </div>
       </div>

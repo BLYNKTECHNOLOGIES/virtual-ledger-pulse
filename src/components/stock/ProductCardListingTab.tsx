@@ -134,6 +134,16 @@ export function ProductCardListingTab() {
     )
     .sort((a, b) => b.total_stock - a.total_stock);
 
+  // Valuation summary (merged from the former Valuation tab) — computed from the
+  // same useProductStockWithCost hook so the figures are byte-identical.
+  const valuationProducts = productsWithStock || [];
+  const activeValuationProducts = valuationProducts.filter((p) => p.total_stock > 0);
+  const totalInventoryValue = activeValuationProducts.reduce((sum, p) => sum + p.total_value, 0);
+  const totalValuationUnits = activeValuationProducts.reduce((sum, p) => sum + p.total_stock, 0);
+  const lowStockItems = activeValuationProducts.filter((p) => p.total_stock <= 10 && p.total_stock > 0).length;
+  const zeroStockItems = valuationProducts.length - activeValuationProducts.length;
+
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">

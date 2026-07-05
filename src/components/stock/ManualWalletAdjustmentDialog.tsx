@@ -278,6 +278,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
             <Label>Amount</Label>
             <Input
               type="number"
+              inputMode="decimal"
               min="0.01"
               step="0.01"
               value={formData.amount}

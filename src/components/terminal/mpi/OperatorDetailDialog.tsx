@@ -250,7 +250,7 @@ export function OperatorDetailDialog({
                           {tradeBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 10 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -274,7 +274,7 @@ export function OperatorDetailDialog({
                           <Cell fill={COLORS[3]} />
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 10 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -294,7 +294,7 @@ export function OperatorDetailDialog({
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -316,7 +316,7 @@ export function OperatorDetailDialog({
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="hour" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       <Bar dataKey="orders" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>

@@ -939,7 +939,7 @@ export default function TerminalAnalytics() {
                 disabled={syncMutation.isPending}
                 title="Refresh Analytics Orders"
               >
-                <CloudDownload className={`h-3.5 w-3.5 ${syncMutation.isPending ? 'animate-pulse' : ''}`} />
+                <CloudDownload className={`h-3.5 w-3.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
               </Button>
             )}
           </div>

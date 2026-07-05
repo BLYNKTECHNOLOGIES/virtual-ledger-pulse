@@ -197,7 +197,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
     <>
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-6 px-4 text-center">
         <div className="relative cursor-pointer select-none" onClick={handleSecretTap}>
-          <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse scale-150" />
+          <div className="absolute inset-0 rounded-full bg-primary/10 t-pulse scale-150" />
           <div className="relative bg-card border border-border rounded-full p-6 shadow-lg">
             <Fingerprint className="h-16 w-16 text-primary" />
           </div>

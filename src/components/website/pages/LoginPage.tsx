@@ -156,165 +156,128 @@ export function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[hsl(231_45%_6%)] text-white">
-      {/* ===== 3D animated backdrop ===== */}
-      <div className="scene-3d pointer-events-none absolute inset-0 overflow-hidden">
-        {/* base wash */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(231_50%_9%)] via-[hsl(231_45%_6%)] to-[hsl(255_50%_8%)]" />
-        {/* aurora glow */}
-        <div className="absolute -top-40 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/25 blur-[140px] animate-aurora" />
-        <div className="absolute bottom-0 -right-40 h-[32rem] w-[32rem] rounded-full bg-[hsl(265_80%_60%)]/20 blur-[130px] animate-aurora-slow" />
-
-        {/* 3D perspective floor */}
-        <div className="floor-3d" />
-
-        {/* Floating 3D cubes */}
-        <Cube size={90} duration={18} style={{ top: '14%', left: '12%' }} className="animate-float-y" />
-        <Cube size={56} duration={13} style={{ top: '22%', right: '14%', animationDelay: '-2s' }} className="animate-float-y" />
-        <Cube size={120} duration={26} style={{ bottom: '16%', left: '8%', animationDelay: '-4s' }} className="animate-float-y" />
-        <Cube size={70} duration={16} style={{ bottom: '22%', right: '10%', animationDelay: '-1s' }} className="animate-float-y" />
-        <Cube size={44} duration={11} style={{ top: '46%', left: '26%', animationDelay: '-3s' }} className="animate-float-y" />
-
-        {/* twinkles */}
-        {[
-          { top: '18%', left: '40%', d: '0s' },
-          { top: '30%', left: '72%', d: '1.2s' },
-          { top: '68%', left: '34%', d: '2.1s' },
-          { top: '58%', left: '64%', d: '0.6s' },
-        ].map((s, i) => (
-          <span
-            key={i}
-            className="absolute h-1 w-1 rounded-full bg-white animate-twinkle"
-            style={{ top: s.top, left: s.left, animationDelay: s.d }}
-          />
-        ))}
-
-        {/* vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,hsl(231_45%_4%)_100%)]" />
-      </div>
-
-      {/* ===== Centered login form ===== */}
-      <div className="relative z-10 flex min-h-screen items-center justify-center p-5 sm:p-8">
+    <div className="flex min-h-screen w-full bg-[hsl(231_45%_5%)] text-white">
+      {/* ===== LEFT — form side ===== */}
+      <div className="relative flex w-full flex-col justify-center px-6 py-12 sm:px-10 lg:w-[44%] lg:px-14">
+        {/* faint background treatment on mobile (visual side collapses) */}
         <div
-          className="login-rise w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-7 sm:p-9 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
-          style={{ animationDelay: '0.1s' }}
-        >
-          {/* Brand + rotating ring */}
-          <div className="mb-7 flex flex-col items-center text-center">
-            <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
-              <span className="absolute inset-0 rounded-full border border-dashed border-white/20 animate-ring-spin" />
-              <span className="absolute inset-1.5 rounded-full bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] blur-[2px] opacity-70 animate-float-y" />
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] shadow-xl animate-float-y">
-                <img src={blynkIcon} alt="Blynk" className="h-8 w-8" />
+          className="pointer-events-none absolute inset-0 opacity-[0.35] lg:hidden"
+          style={{
+            backgroundImage: 'radial-gradient(hsl(231 60% 78% / 0.10) 1px, transparent 1px)',
+            backgroundSize: '26px 26px',
+          }}
+        />
+
+        <div className="login-rise relative z-10 mx-auto w-full max-w-[400px]">
+          {/* Brand logo — top-left, exact white asset */}
+          <img src={blynkLogoWhite} alt="Blynk" className="mb-10 h-7 w-auto" />
+
+          <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+          <p className="mt-1.5 text-sm text-white/55">
+            Sign in to your Blynk workspace to continue
+          </p>
+
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            {error && (
+              <div className="flex items-start gap-2 text-xs text-destructive" role="alert">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            {success && (
+              <div className="flex items-start gap-2 text-xs text-emerald-400" role="status">
+                <span>{success}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs font-medium text-white/70">Email</Label>
+              <Input
+                id="email"
+                type="text"
+                autoComplete="username"
+                placeholder="you@blynkex.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-xs font-medium text-white/70">Password</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="rounded-sm text-xs font-medium text-[hsl(231_81%_78%)] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(231_81%_60%)]/50"
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 border-white/10 bg-white/5 pr-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-0 top-0 h-full px-3 py-2 text-white/60 hover:bg-transparent hover:text-white"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
-            <p className="mt-1.5 text-sm text-white/55">
-              Sign in to your Blynk workspace to continue
-            </p>
-          </div>
 
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="animate-fade-in rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm text-red-200">
-                  {error}
-                </div>
+            <Button
+              type="submit"
+              className="h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
               )}
-              {success && (
-                <div className="animate-fade-in rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-sm text-emerald-200">
-                  {success}
-                </div>
-              )}
+            </Button>
+          </form>
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-white/80">Email</Label>
-                <div className="group relative">
-                  <Mail className="absolute left-3 top-3.5 h-4 w-4 text-white/50 transition-colors group-focus-within:text-[hsl(231_81%_72%)]" />
-                  <Input
-                    id="email"
-                    type="text"
-                    placeholder="you@blynkex.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-12 border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/30"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-white/80">Password</Label>
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotPassword(true)}
-                    className="text-xs font-medium text-[hsl(231_81%_75%)] transition-colors hover:text-white"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-                <div className="group relative">
-                  <Lock className="absolute left-3 top-3.5 h-4 w-4 text-white/50 transition-colors group-focus-within:text-[hsl(231_81%_72%)]" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="h-12 border-white/10 bg-white/5 pl-10 pr-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/30"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 text-white/60 hover:bg-transparent hover:text-white"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="shimmer-btn h-12 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] text-base font-semibold text-white shadow-lg shadow-[hsl(231_81%_50%)]/30 transition-transform hover:scale-[1.015] hover:from-[hsl(231_81%_54%)] hover:to-[hsl(265_80%_56%)] active:scale-[0.99]"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-6 border-t border-white/10 pt-5 text-center text-sm text-white/55">
-              New here?{' '}
-              <button
-                type="button"
-                onClick={() => setShowRegister(true)}
-                className="font-semibold text-[hsl(231_81%_75%)] transition-colors hover:text-white"
-              >
-                Register
-              </button>
-            </div>
+          <div className="mt-8 text-center text-sm text-white/55">
+            New here?{' '}
+            <button
+              type="button"
+              onClick={() => setShowRegister(true)}
+              className="rounded-sm font-medium text-[hsl(231_81%_78%)] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(231_81%_60%)]/50"
+            >
+              Register
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* ===== RIGHT — meaning side ===== */}
+      <OpsGatewayVisual />
 
       <RegisterUserDialog open={showRegister} onOpenChange={setShowRegister} />
-
 
       <ForgotPasswordDialog
         open={showForgotPassword}
         onOpenChange={setShowForgotPassword}
         defaultEmail={email.includes('@') ? email.trim().toLowerCase() : ''}
       />
-
 
       <ForcedPasswordResetDialog
         open={showForcedReset}

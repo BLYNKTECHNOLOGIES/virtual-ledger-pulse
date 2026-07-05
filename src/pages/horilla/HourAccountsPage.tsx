@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Clock, RefreshCw, Search, Timer, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -72,22 +75,22 @@ export default function HourAccountsPage() {
   const totalOvertime = filtered.reduce((s: number, a: any) => s + (a.overtime_second || 0), 0);
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Hour Accounts</h1>
-          <p className="text-sm text-muted-foreground">Monthly worked hours, pending hours & overtime tracking</p>
-        </div>
-        <Button onClick={handleRefresh} disabled={refreshing} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "Refreshing..." : "Refresh Data"}
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Hour Accounts"
+        description="Monthly worked hours, pending hours & overtime tracking"
+        actions={
+          <Button onClick={handleRefresh} disabled={refreshing} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing..." : "Refresh Data"}
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {MONTHS.map((m) => (
               <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
@@ -95,7 +98,7 @@ export default function HourAccountsPage() {
           </SelectContent>
         </Select>
         <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-          <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-28 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {[year - 1, year, year + 1].map((y) => (
               <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -104,7 +107,7 @@ export default function HourAccountsPage() {
         </Select>
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
 
@@ -115,7 +118,7 @@ export default function HourAccountsPage() {
             <div className="p-2 bg-success/10 rounded-lg"><Clock className="h-5 w-5 text-success" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Total Worked</p>
-              <p className="text-xl font-bold text-success">{formatHHMM(totalWorked)}</p>
+              <p className="text-xl font-bold text-success tabular-nums">{formatHHMM(totalWorked)}</p>
             </div>
           </CardContent>
         </Card>
@@ -124,7 +127,7 @@ export default function HourAccountsPage() {
             <div className="p-2 bg-warning/10 rounded-lg"><AlertTriangle className="h-5 w-5 text-warning" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Total Pending</p>
-              <p className="text-xl font-bold text-warning">{formatHHMM(totalPending)}</p>
+              <p className="text-xl font-bold text-warning tabular-nums">{formatHHMM(totalPending)}</p>
             </div>
           </CardContent>
         </Card>
@@ -133,7 +136,7 @@ export default function HourAccountsPage() {
             <div className="p-2 bg-info/10 rounded-lg"><Timer className="h-5 w-5 text-info" /></div>
             <div>
               <p className="text-sm text-muted-foreground">Total Overtime</p>
-              <p className="text-xl font-bold text-info">{formatHHMM(totalOvertime)}</p>
+              <p className="text-xl font-bold text-info tabular-nums">{formatHHMM(totalOvertime)}</p>
             </div>
           </CardContent>
         </Card>
@@ -147,23 +150,27 @@ export default function HourAccountsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Employee", "Badge ID", "Worked Hours", "Pending Hours", "Overtime", "Status"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No hour account data. Click "Refresh Data" to compute from attendance records.
-                </td></tr>
-              ) : (
-                filtered.map((a: any) => {
+          {isLoading ? (
+            <div className="p-4">
+              <TableSkeleton rows={6} columns={6} />
+            </div>
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={Clock}
+              title="No hour account data"
+              description='Click "Refresh Data" to compute from attendance records.'
+            />
+          ) : (
+            <table className="w-full text-sm min-w-[700px]">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Employee", "Badge ID", "Worked Hours", "Pending Hours", "Overtime", "Status"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a: any) => {
                   const hasPending = (a.hour_pending_second || 0) > 0;
                   const hasOT = (a.overtime_second || 0) > 0;
                   return (
@@ -172,32 +179,32 @@ export default function HourAccountsPage() {
                         {a.hr_employees?.first_name} {a.hr_employees?.last_name}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.badge_id}</td>
-                      <td className="px-4 py-3 font-medium text-success">{a.worked_hours || "00:00"}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 font-medium text-success tabular-nums">{a.worked_hours || "00:00"}</td>
+                      <td className="px-4 py-3 tabular-nums">
                         <span className={hasPending ? "text-warning font-medium" : "text-muted-foreground"}>
                           {a.pending_hours || "00:00"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 tabular-nums">
                         <span className={hasOT ? "text-info font-medium" : "text-muted-foreground"}>
                           {a.overtime || "00:00"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {hasPending ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">Deficit</span>
+                          <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium">Deficit</span>
                         ) : hasOT ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-info/10 text-info">Overtime</span>
+                          <span className="bg-info/10 text-info border border-info/20 rounded-full px-2 py-0.5 text-[10px] font-medium">Overtime</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">On Track</span>
+                          <span className="bg-success/10 text-success border border-success/20 rounded-full px-2 py-0.5 text-[10px] font-medium">On Track</span>
                         )}
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          )}
         </CardContent>
       </Card>
     </div>

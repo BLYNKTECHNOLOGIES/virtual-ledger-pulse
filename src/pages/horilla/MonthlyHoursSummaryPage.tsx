@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { format } from "date-fns";
 import { Search, Clock, CalendarDays, AlertTriangle, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -67,38 +70,38 @@ export default function MonthlyHoursSummaryPage() {
   });
 
   return (
-    <div className="space-y-6 page-mount">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Monthly Hours Summary</h1>
-        <p className="text-sm text-muted-foreground">Aggregated attendance metrics per employee per month</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Monthly Hours Summary"
+        description="Aggregated attendance metrics per employee per month"
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total Worked Hours</div>
-          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><Clock className="h-5 w-5 text-primary" />{totals.totalWorked.toFixed(1)}</div>
+          <div className="text-2xl font-bold text-foreground flex items-center gap-2 tabular-nums"><Clock className="h-5 w-5 text-primary" />{totals.totalWorked.toFixed(1)}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total Overtime</div>
-          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><TrendingUp className="h-5 w-5 text-success" />{totals.totalOvertime.toFixed(1)}h</div>
+          <div className="text-2xl font-bold text-foreground flex items-center gap-2 tabular-nums"><TrendingUp className="h-5 w-5 text-success" />{totals.totalOvertime.toFixed(1)}h</div>
         </CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total Late Arrivals</div>
-          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" />{totals.totalLate}</div>
+          <div className="text-2xl font-bold text-foreground flex items-center gap-2 tabular-nums"><AlertTriangle className="h-5 w-5 text-warning" />{totals.totalLate}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total Absent Days</div>
-          <div className="text-2xl font-bold text-foreground flex items-center gap-2"><CalendarDays className="h-5 w-5 text-destructive" />{totals.totalAbsent}</div>
+          <div className="text-2xl font-bold text-foreground flex items-center gap-2 tabular-nums"><CalendarDays className="h-5 w-5 text-destructive" />{totals.totalAbsent}</div>
         </CardContent></Card>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={month} onValueChange={setMonth}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select month" /></SelectTrigger>
+          <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Select month" /></SelectTrigger>
           <SelectContent>{months.map((m) => <SelectItem key={m} value={m}>{formatMonthLabel(m)}</SelectItem>)}</SelectContent>
         </Select>
       </div>
@@ -124,42 +127,48 @@ export default function MonthlyHoursSummaryPage() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left p-3 font-medium">Employee</th>
-                  <th className="text-center p-3 font-medium">Present</th>
-                  <th className="text-center p-3 font-medium">Absent</th>
-                  <th className="text-center p-3 font-medium">Worked (h)</th>
-                  <th className="text-center p-3 font-medium">Overtime (h)</th>
-                  <th className="text-center p-3 font-medium">Late</th>
-                  <th className="text-center p-3 font-medium">Early Out</th>
-                  <th className="text-center p-3 font-medium">Late Min</th>
-                  <th className="text-center p-3 font-medium">Early Min</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
-                ) : enriched.length === 0 ? (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No data for {monthLabel}</td></tr>
-                ) : (
-                  enriched.map((s: any, i: number) => (
+            {isLoading ? (
+              <div className="p-4">
+                <TableSkeleton rows={6} columns={9} />
+              </div>
+            ) : enriched.length === 0 ? (
+              <EmptyState
+                icon={Clock}
+                title={`No data for ${monthLabel}`}
+                description="No monthly hours summary found for the selected period."
+              />
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Present</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Absent</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Worked (h)</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Overtime (h)</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Late</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Early Out</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Late Min</th>
+                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Early Min</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enriched.map((s: any, i: number) => (
                     <tr key={i} className="border-b hover:bg-muted/30">
                       <td className="p-3 font-medium">{s.employee_name}<div className="text-xs text-muted-foreground">{s.badge_id}</div></td>
-                      <td className="text-center p-3">{s.present_days ?? 0}</td>
-                      <td className="text-center p-3 text-destructive">{s.absent_days ?? 0}</td>
-                      <td className="text-center p-3">{(s.total_worked_hours ?? 0).toFixed(1)}</td>
-                      <td className="text-center p-3 text-success">{(s.total_overtime_hours ?? 0).toFixed(1)}</td>
-                      <td className="text-center p-3 text-warning">{s.late_count ?? 0}</td>
-                      <td className="text-center p-3 text-warning">{s.early_out_count ?? 0}</td>
-                      <td className="text-center p-3">{s.total_late_minutes ?? 0}</td>
-                      <td className="text-center p-3">{s.total_early_minutes ?? 0}</td>
+                      <td className="text-center p-3 tabular-nums">{s.present_days ?? 0}</td>
+                      <td className="text-center p-3 text-destructive tabular-nums">{s.absent_days ?? 0}</td>
+                      <td className="text-center p-3 tabular-nums">{(s.total_worked_hours ?? 0).toFixed(1)}</td>
+                      <td className="text-center p-3 text-success tabular-nums">{(s.total_overtime_hours ?? 0).toFixed(1)}</td>
+                      <td className="text-center p-3 text-warning tabular-nums">{s.late_count ?? 0}</td>
+                      <td className="text-center p-3 text-warning tabular-nums">{s.early_out_count ?? 0}</td>
+                      <td className="text-center p-3 tabular-nums">{s.total_late_minutes ?? 0}</td>
+                      <td className="text-center p-3 tabular-nums">{s.total_early_minutes ?? 0}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </CardContent>
       </Card>

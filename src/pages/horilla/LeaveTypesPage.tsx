@@ -8,6 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { toast } from "sonner";
 import {
   Plus, Pencil, Trash2, Calendar, Shield, ArrowRightLeft,
@@ -154,46 +157,48 @@ export default function LeaveTypesPage() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Leave Types</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Configure leave policies, carry-forward rules & entitlements</p>
-        </div>
-        <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} size="sm">
-          <Plus className="h-4 w-4 mr-1.5" /> New Leave Type
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Leave Types"
+        description="Configure leave policies, carry-forward rules & entitlements"
+        actions={
+          <Button className="h-9" onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} size="sm">
+            <Plus className="h-4 w-4 mr-1.5" /> New Leave Type
+          </Button>
+        }
+      />
 
       {/* Table */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left font-medium text-muted-foreground px-4 py-3">Leave Type</th>
-              <th className="text-center font-medium text-muted-foreground px-4 py-3 hidden sm:table-cell">Quota / Qtr</th>
-              <th className="text-center font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Carry Forward</th>
-              <th className="text-left font-medium text-muted-foreground px-4 py-3 hidden lg:table-cell">Properties</th>
-              <th className="text-center font-medium text-muted-foreground px-4 py-3">Status</th>
-              <th className="text-right font-medium text-muted-foreground px-4 py-3 w-12"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-16">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
-                </td>
+        {isLoading ? (
+          <div className="p-4">
+            <TableSkeleton rows={5} columns={6} />
+          </div>
+        ) : types.length === 0 ? (
+          <EmptyState
+            icon={Calendar}
+            title="No leave types configured"
+            description='Click "New Leave Type" to get started.'
+            action={
+              <Button className="h-9" onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} size="sm">
+                <Plus className="h-4 w-4 mr-1.5" /> New Leave Type
+              </Button>
+            }
+          />
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left text-[11px] uppercase tracking-wide text-muted-foreground font-medium px-4 py-3">Leave Type</th>
+                <th className="text-center text-[11px] uppercase tracking-wide text-muted-foreground font-medium px-4 py-3 hidden sm:table-cell">Quota / Qtr</th>
+                <th className="text-center text-[11px] uppercase tracking-wide text-muted-foreground font-medium px-4 py-3 hidden md:table-cell">Carry Forward</th>
+                <th className="text-left text-[11px] uppercase tracking-wide text-muted-foreground font-medium px-4 py-3 hidden lg:table-cell">Properties</th>
+                <th className="text-center text-[11px] uppercase tracking-wide text-muted-foreground font-medium px-4 py-3">Status</th>
+                <th className="text-right text-[11px] uppercase tracking-wide text-muted-foreground font-medium px-4 py-3 w-12"></th>
               </tr>
-            ) : types.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-16 text-muted-foreground">
-                  No leave types configured. Click "New Leave Type" to get started.
-                </td>
-              </tr>
-            ) : (
-              types.map((t: any) => (
+            </thead>
+            <tbody className="divide-y divide-border">
+              {types.map((t: any) => (
                 <tr key={t.id} className={`hover:bg-muted/30 transition-colors ${!t.is_active ? "opacity-50" : ""}`}>
                   {/* Name + Code */}
                   <td className="px-4 py-3.5">
@@ -215,7 +220,7 @@ export default function LeaveTypesPage() {
 
                   {/* Quota */}
                   <td className="px-4 py-3.5 text-center hidden sm:table-cell">
-                    <div className="inline-flex items-center gap-1.5 text-foreground">
+                    <div className="inline-flex items-center gap-1.5 text-foreground tabular-nums">
                       <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="font-medium">{t.max_days_per_year}</span>
                       <span className="text-muted-foreground text-xs">days</span>
@@ -274,25 +279,25 @@ export default function LeaveTypesPage() {
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Leave Type</AlertDialogTitle>
+            <AlertDialogTitle className="text-sm font-semibold flex items-center gap-2"><Trash2 className="h-4 w-4 text-destructive" /> Delete Leave Type</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete this leave type. Any existing allocations or requests using this type may be affected. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-9 bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
             >
               Delete
@@ -305,7 +310,7 @@ export default function LeaveTypesPage() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editId ? "Edit Leave Type" : "New Leave Type"}</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">{editId ? "Edit Leave Type" : "New Leave Type"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
             {/* Basic Info */}
@@ -314,23 +319,23 @@ export default function LeaveTypesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Name</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Casual Leave" />
+                  <Input className="h-9" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Casual Leave" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Code</Label>
-                  <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. CL" />
+                  <Input className="h-9" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. CL" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Max Days / Quarter</Label>
-                  <Input type="number" value={form.max_days_per_year} onChange={(e) => setForm({ ...form, max_days_per_year: parseInt(e.target.value) || 0 })} />
+                  <Input className="h-9" type="number" value={form.max_days_per_year} onChange={(e) => setForm({ ...form, max_days_per_year: parseInt(e.target.value) || 0 })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Color</Label>
                   <div className="flex items-center gap-2">
                     <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-8 h-8 rounded border border-border cursor-pointer" />
-                    <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="font-mono text-xs" />
+                    <Input className="h-9" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="font-mono text-xs h-9" />
                   </div>
                 </div>
               </div>
@@ -361,7 +366,7 @@ export default function LeaveTypesPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Type</Label>
                 <Select value={form.carryforward_type} onValueChange={(v) => setForm({ ...form, carryforward_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CARRYFORWARD_TYPES.map((cf) => <SelectItem key={cf.value} value={cf.value}>{cf.label}</SelectItem>)}
                   </SelectContent>
@@ -371,12 +376,12 @@ export default function LeaveTypesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Expire In</Label>
-                    <Input type="number" value={form.carryforward_expire_in ?? ""} onChange={(e) => setForm({ ...form, carryforward_expire_in: parseInt(e.target.value) || null })} placeholder="e.g. 3" />
+                    <Input className="h-9" type="number" value={form.carryforward_expire_in ?? ""} onChange={(e) => setForm({ ...form, carryforward_expire_in: parseInt(e.target.value) || null })} placeholder="e.g. 3" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Period</Label>
                     <Select value={form.carryforward_expire_period} onValueChange={(v) => setForm({ ...form, carryforward_expire_period: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
                         {EXPIRE_PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                       </SelectContent>
@@ -398,7 +403,7 @@ export default function LeaveTypesPage() {
                   <div className="space-y-1.5">
                     <Label className="text-xs">Reset Period</Label>
                     <Select value={form.reset_based} onValueChange={(v) => setForm({ ...form, reset_based: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select period" /></SelectTrigger>
                       <SelectContent>
                         {RESET_PERIODS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                       </SelectContent>
@@ -408,7 +413,7 @@ export default function LeaveTypesPage() {
                     <div className="space-y-1.5">
                       <Label className="text-xs">Reset Month</Label>
                       <Select value={form.reset_month} onValueChange={(v) => setForm({ ...form, reset_month: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select month" /></SelectTrigger>
                         <SelectContent>
                           {MONTHS_LIST.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                         </SelectContent>
@@ -418,7 +423,7 @@ export default function LeaveTypesPage() {
                   {(form.reset_based === "yearly" || form.reset_based === "monthly") && (
                     <div className="space-y-1.5">
                       <Label className="text-xs">Reset Day</Label>
-                      <Input value={form.reset_day} onChange={(e) => setForm({ ...form, reset_day: e.target.value })} placeholder="e.g. 1, 15, or 'last day'" />
+                      <Input className="h-9" value={form.reset_day} onChange={(e) => setForm({ ...form, reset_day: e.target.value })} placeholder="e.g. 1, 15, or 'last day'" />
                     </div>
                   )}
                 </div>
@@ -449,8 +454,8 @@ export default function LeaveTypesPage() {
             </div>
           </div>
           <DialogFooter className="mt-2">
-            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending}>
+            <Button variant="outline" className="h-9" onClick={() => setShowDialog(false)}>Cancel</Button>
+            <Button className="h-9" onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending}>
               {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
               {editId ? "Update" : "Create"}
             </Button>

@@ -11,9 +11,9 @@ interface PaymentMethodBadgeProps {
 export function PaymentMethodBadge({ identifier, payType, size = 'sm', className }: PaymentMethodBadgeProps) {
   const config = resolvePaymentMethod(identifier) || resolvePaymentMethod(payType || '');
 
-  const label = config?.label || payType || identifier;
+  const label = config?.label || payType || identifier || 'N/A';
   const accentColor = config ? `hsl(${config.colorAccent})` : 'hsl(var(--muted-foreground))';
-  const iconLabel = config?.iconLabel || label.slice(0, 3).toUpperCase();
+  const iconLabel = config?.iconLabel || String(label).slice(0, 3).toUpperCase();
 
   return (
     <div

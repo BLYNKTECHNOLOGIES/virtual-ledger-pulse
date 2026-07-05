@@ -1,5 +1,6 @@
 
 import { BarChart3, Shield } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { StatisticsTab } from "@/components/hrms/StatisticsTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";

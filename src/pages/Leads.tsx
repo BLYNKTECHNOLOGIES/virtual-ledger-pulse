@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AddLeadDialog } from "@/components/leads/AddLeadDialog";
 import { useNavigate } from "react-router-dom";
 import { PermissionGate } from "@/components/PermissionGate";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function Leads() {
   const navigate = useNavigate();

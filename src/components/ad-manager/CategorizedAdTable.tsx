@@ -63,6 +63,7 @@ interface CategorizedAdTableProps {
   isTogglingStatus: boolean;
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;
+  sortMode?: AdSortMode;
 }
 
 interface AdGroup {

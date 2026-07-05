@@ -308,6 +308,26 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
     onSelectionChange(next);
   };
 
+  // Row click with shift-range support within a rendered group's ordered list.
+  const handleRowSelect = (e: React.MouseEvent, advNo: string, groupKey: string, orderedAds: BinanceAd[]) => {
+    const last = lastClickedRef.current;
+    if (e.shiftKey && last && last.groupKey === groupKey) {
+      const ids = orderedAds.map(a => a.advNo);
+      const start = ids.indexOf(last.advNo);
+      const end = ids.indexOf(advNo);
+      if (start !== -1 && end !== -1) {
+        const [lo, hi] = start < end ? [start, end] : [end, start];
+        const next = new Set(selectedAdvNos);
+        for (let i = lo; i <= hi; i++) next.add(ids[i]);
+        onSelectionChange(next);
+        lastClickedRef.current = { groupKey, advNo };
+        return;
+      }
+    }
+    toggleOne(advNo);
+    lastClickedRef.current = { groupKey, advNo };
+  };
+
   const nonEmptyCategories = categories.filter(c => c.groups.some(g => g.ads.length > 0));
 
   return (

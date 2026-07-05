@@ -61,7 +61,7 @@ export default function AdManager() {
   const isTerminalContext = location.pathname.startsWith('/terminal');
   const { isAllAccounts, visibleAccounts, activeAccountId, colorFor, nameFor } = useExchangeAccount();
   const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 50, fetchAll: true });
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<string>(() => localStorage.getItem(TAB_PREF_KEY) || 'all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BinanceAd | null>(null);
   // When creating in combined mode we must know which account the ad belongs to.
@@ -77,19 +77,23 @@ export default function AdManager() {
   const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
-  // Sort + auto-refresh prefs (persisted in localStorage).
+  // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
   const [sortMode, setSortMode] = useState<AdSortMode>(() => (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
   const [autoRefresh, setAutoRefresh] = useState<boolean>(() => localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
+  const [viewMode, setViewMode] = useState<'categorized' | 'desk'>(() => (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk') || 'categorized');
+  const [compact, setCompact] = useState<boolean>(() => localStorage.getItem(DENSITY_PREF_KEY) === '1');
+  const [statusChips, setStatusChips] = useState<Set<number>>(() => {
+    try { const raw = localStorage.getItem(STATUS_CHIPS_PREF_KEY); return new Set(raw ? JSON.parse(raw) : []); } catch { return new Set(); }
+  });
   useEffect(() => { try { localStorage.setItem(SORT_PREF_KEY, sortMode); } catch { /* ignore */ } }, [sortMode]);
   useEffect(() => { try { localStorage.setItem(AUTOREFRESH_PREF_KEY, autoRefresh ? '1' : '0'); } catch { /* ignore */ } }, [autoRefresh]);
+  useEffect(() => { try { localStorage.setItem(VIEW_PREF_KEY, viewMode); } catch { /* ignore */ } }, [viewMode]);
+  useEffect(() => { try { localStorage.setItem(DENSITY_PREF_KEY, compact ? '1' : '0'); } catch { /* ignore */ } }, [compact]);
+  useEffect(() => { try { localStorage.setItem(TAB_PREF_KEY, activeTab); } catch { /* ignore */ } }, [activeTab]);
+  useEffect(() => { try { localStorage.setItem(STATUS_CHIPS_PREF_KEY, JSON.stringify(Array.from(statusChips))); } catch { /* ignore */ } }, [statusChips]);
 
-  const effectiveFilters: AdFilters = {
-    ...filters,
-    advStatus: activeTab === 'active' ? BINANCE_AD_STATUS.ONLINE
-      : activeTab === 'inactive' ? BINANCE_AD_STATUS.OFFLINE
-      : activeTab === 'private' ? BINANCE_AD_STATUS.PRIVATE
-      : filters.advStatus,
-  };
+  // Status is now a client-side chip dimension, so always fetch all statuses.
+  const effectiveFilters: AdFilters = { ...filters };
 
   const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters, { refetchInterval: autoRefresh ? 30000 : false });
   const { data: restAdsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
@@ -97,13 +101,28 @@ export default function AdManager() {
 
   const ads: BinanceAd[] = data?.data || [];
   const restAds: BinanceAd[] = restAdsData?.data || [];
-  const displayAds = useMemo(() => activeTab === 'block' ? ads.filter(isBlockAd) : ads.filter(ad => !isBlockAd(ad)), [ads, activeTab]);
+  const displayAds = useMemo(() => {
+    let list: BinanceAd[];
+    if (activeTab === 'block') list = ads.filter(isBlockAd);
+    else {
+      list = ads.filter(ad => !isBlockAd(ad));
+      if (activeTab === 'buy') list = list.filter(ad => ad.tradeType === 'BUY');
+      else if (activeTab === 'sell') list = list.filter(ad => ad.tradeType === 'SELL');
+    }
+    if (statusChips.size > 0) list = list.filter(ad => statusChips.has(ad.advStatus));
+    return list;
+  }, [ads, activeTab, statusChips]);
   const total = displayAds.length;
   const assetOptions = useMemo(() => Array.from(new Set(ads.map(a => a.asset).filter(Boolean))) as string[], [ads]);
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
   const activeAds = useMemo(() => restAds.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE || ad.advStatus === BINANCE_AD_STATUS.PRIVATE), [restAds]);
 
   const selectedAds = useMemo(() => displayAds.filter(ad => selectedAdvNos.has(ad.advNo)), [displayAds, selectedAdvNos]);
+
+  const toggleStatusChip = (value: number) => {
+    setSelectedAdvNos(new Set());
+    setStatusChips(prev => { const next = new Set(prev); next.has(value) ? next.delete(value) : next.add(value); return next; });
+  };
 
   const handleEdit = (ad: BinanceAd) => { setEditingAd(ad); setDialogOpen(true); };
   const handleCreate = () => {

@@ -364,10 +364,11 @@ export default function AdManager() {
               {isLoading ? (
                 <TableSkeleton rows={8} columns={9} />
               ) : viewMode === 'desk' ? (
-                <DeskTable
+                 <DeskTable
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
+                  onHistory={handleHistory}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
@@ -380,6 +381,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
+                  onHistory={handleHistory}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}

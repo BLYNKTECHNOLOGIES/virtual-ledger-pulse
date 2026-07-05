@@ -445,7 +445,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     <TableCell>
                       <span className="text-xs">{ad.priceType === 1 ? 'Fixed' : 'Floating'}</span>
                     </TableCell>
-                    <AdPriceCell ad={ad} />
+                    <AdPriceCell
+                      ad={ad}
+                      isEditing={editingPriceAdvNo === ad.advNo}
+                      onRequestEdit={() => setEditingPriceAdvNo(ad.advNo)}
+                      onClose={() => setEditingPriceAdvNo(prev => (prev === ad.advNo ? null : prev))}
+                    />
                     <TableCell className="text-right tabular-nums">
                       {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}
                       <div className="text-xs text-muted-foreground">

@@ -1,138 +1,135 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
-import TerminalPayer from './pages/terminal/TerminalPayer';
-import TerminalSmallPayments from './pages/terminal/TerminalSmallPayments';
-import TerminalAppeals from './pages/terminal/TerminalAppeals';
-import TerminalMPI from './pages/terminal/TerminalMPI';
-import TerminalAuditLogs from './pages/terminal/TerminalAuditLogs';
-import TerminalOperatorDetail from './pages/terminal/TerminalOperatorDetail';
+// --- Eager: app shell, providers, guards, first-paint login, tiny 404 ---
 import { TerminalLayout } from './components/terminal/TerminalLayout';
-import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
-import PaymentScreenshotGenerator from './pages/PaymentScreenshotGenerator';
-import UtilityHub from './pages/UtilityHub';
-import Tasks from './pages/Tasks';
-import ErpEntryManager from './pages/ErpEntryManager';
-import Reconciliation from './pages/Reconciliation';
-import Unsubscribe from './pages/Unsubscribe';
-import RaciPage from './pages/RaciPage';
 import { LoginPage } from './components/website/pages/LoginPage';
-import Dashboard from './pages/Dashboard';
-import Sales from './pages/Sales';
-import Purchase from './pages/Purchase';
-import BAMS from './pages/BAMS';
-import Clients from './pages/Clients';
-import ClientDetail from './pages/ClientDetail';
-import RADashboard from './pages/RADashboard';
-import Leads from './pages/Leads';
-import UserManagement from './pages/UserManagement';
-
-
-import Compliance from './pages/Compliance';
-import HelpAssistant from './pages/HelpAssistant';
-import HelpAssistantAdmin from './pages/HelpAssistantAdmin';
-import StockManagement from './pages/StockManagement';
-import Accounting from './pages/Accounting';
-import Statistics from './pages/Statistics';
-import ProfitLoss from './pages/ProfitLoss';
-import Financials from './pages/Financials';
-
-import UserProfile from './pages/UserProfile';
-import Shortcuts from './pages/Shortcuts';
-
-import RiskManagement from './pages/RiskManagement';
-import AdManager from './pages/AdManager';
-import TerminalAdManager from './pages/terminal/TerminalAdManager';
-import TerminalDashboard from './pages/terminal/TerminalDashboard';
-import TerminalOrders from './pages/terminal/TerminalOrders';
-import TerminalAutomation from './pages/terminal/TerminalAutomation';
-import TerminalUsers from './pages/terminal/TerminalUsers';
-import TerminalAnalytics from './pages/terminal/TerminalAnalytics';
-import TerminalSettings from './pages/terminal/TerminalSettings';
-import TerminalAssets from './pages/terminal/TerminalAssets';
-import TerminalLogs from './pages/terminal/TerminalLogs';
-import TerminalShortcuts from './pages/terminal/TerminalShortcuts';
-
 import NotFound from './pages/NotFound';
-import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
-import HorillaDashboard from './pages/horilla/HorillaDashboard';
-
-import HRPoliciesPage from './pages/horilla/HRPoliciesPage';
-import EmployeeListPage from './pages/horilla/EmployeeListPage';
-import EmployeeProfilePage from './pages/horilla/EmployeeProfilePage';
-import DepartmentsPage from './pages/horilla/DepartmentsPage';
-import PositionsPage from './pages/horilla/PositionsPage';
-import AttendanceOverviewPage from './pages/horilla/AttendanceOverviewPage';
-import ShiftsPage from './pages/horilla/ShiftsPage';
-import OvertimePage from './pages/horilla/OvertimePage';
-import HourAccountsPage from './pages/horilla/HourAccountsPage';
-import LateComeEarlyOutPage from './pages/horilla/LateComeEarlyOutPage';
-import LeaveDashboardPage from './pages/horilla/LeaveDashboardPage';
-import LeaveAccrualPlansPage from './pages/horilla/LeaveAccrualPlansPage';
-import TaxConfigPage from './pages/horilla/TaxConfigPage';
-import LeaveRequestsPage from './pages/horilla/LeaveRequestsPage';
-import LeaveTypesPage from './pages/horilla/LeaveTypesPage';
-import HolidaysPage from './pages/horilla/HolidaysPage';
-import LeaveAllocationsPage from './pages/horilla/LeaveAllocationsPage';
-import AttendanceCalendarPage from './pages/horilla/AttendanceCalendarPage';
-import AttendanceActivityPage from './pages/horilla/AttendanceActivityPage';
-import AttendanceSummaryPage from './pages/horilla/AttendanceSummaryPage';
-import BiometricDevicesPage from './pages/horilla/BiometricDevicesPage';
-import PayrollDashboardPage from './pages/horilla/PayrollDashboardPage';
-import PayslipsPage from './pages/horilla/PayslipsPage';
-import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
-import SalaryStructurePage from './pages/horilla/SalaryStructurePage';
-import PenaltyManagementPage from './pages/horilla/PenaltyManagementPage';
-import CompOffPage from './pages/horilla/CompOffPage';
-import DepositManagementPage from './pages/horilla/DepositManagementPage';
-import LoansPage from './pages/horilla/LoansPage';
-import LeaveYearEndResetPage from './pages/horilla/LeaveYearEndResetPage';
-import AttendancePolicyPage from './pages/horilla/AttendancePolicyPage';
-import FnFSettlementPage from './pages/horilla/FnFSettlementPage';
-import EmployeeDocumentsPage from './pages/horilla/EmployeeDocumentsPage';
-import SeparationPage from './pages/horilla/SeparationPage';
-import SalaryRevisionsPage from './pages/horilla/SalaryRevisionsPage';
-import PenaltyAutoCalcPage from './pages/horilla/PenaltyAutoCalcPage';
-import AssetPage from './pages/horilla/AssetPage';
-import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
-import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';
-import HelpdeskPage from './pages/horilla/HelpdeskPage';
-// OffboardingPage removed — merged into ResignationTab (Separation)
-import OrganizationPage from './pages/horilla/OrganizationPage';
-import DocumentsPage from './pages/horilla/DocumentsPage';
-import AnnouncementsPage from './pages/horilla/AnnouncementsPage';
-import ReportsPage from './pages/horilla/ReportsPage';
-import PMSDashboardPage from './pages/horilla/PMSDashboardPage';
-import ObjectivesPage from './pages/horilla/ObjectivesPage';
-import Feedback360Page from './pages/horilla/Feedback360Page';
-import MPIPage from './pages/horilla/MPIPage';
-import EmployeeOnboardingPipelinePage from './pages/horilla/EmployeeOnboardingPipelinePage';
-import DisciplinaryActionsPage from './pages/horilla/DisciplinaryActionsPage';
-
-import WeeklyOffPage from './pages/horilla/WeeklyOffPage';
-import LeaveAllocationRequestsPage from './pages/horilla/LeaveAllocationRequestsPage';
-import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
-import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
-import CandidatesListPage from './pages/horilla/CandidatesListPage';
-import CandidateProfilePage from './pages/horilla/CandidateProfilePage';
-import InterviewListPage from './pages/horilla/InterviewListPage';
-import StagesPage from './pages/horilla/StagesPage';
-import SkillZonePage from './pages/horilla/SkillZonePage';
-import RecruitmentSurveyPage from './pages/horilla/RecruitmentSurveyPage';
-import RejectedCandidatesPage from './pages/horilla/RejectedCandidatesPage';
-import HRLogsPage from './pages/horilla/HRLogsPage';
-import AttendancePunchesPage from './pages/horilla/AttendancePunchesPage';
-import MonthlyHoursSummaryPage from './pages/horilla/MonthlyHoursSummaryPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
-import ExchangeAccountsSettings from './pages/ExchangeAccountsSettings';
-import OAuthConsent from './pages/OAuthConsent';
+import { RouteFallback } from './components/shared/RouteFallback';
+
+// --- Lazy: all route page modules (all default exports) ---
+const TerminalComingSoon = lazy(() => import('./pages/terminal/TerminalComingSoon'));
+const TerminalPayer = lazy(() => import('./pages/terminal/TerminalPayer'));
+const TerminalSmallPayments = lazy(() => import('./pages/terminal/TerminalSmallPayments'));
+const TerminalAppeals = lazy(() => import('./pages/terminal/TerminalAppeals'));
+const TerminalMPI = lazy(() => import('./pages/terminal/TerminalMPI'));
+const TerminalAuditLogs = lazy(() => import('./pages/terminal/TerminalAuditLogs'));
+const TerminalOperatorDetail = lazy(() => import('./pages/terminal/TerminalOperatorDetail'));
+const InvoiceCreatorPage = lazy(() => import('./pages/InvoiceCreatorPage'));
+const PaymentScreenshotGenerator = lazy(() => import('./pages/PaymentScreenshotGenerator'));
+const UtilityHub = lazy(() => import('./pages/UtilityHub'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const ErpEntryManager = lazy(() => import('./pages/ErpEntryManager'));
+const Reconciliation = lazy(() => import('./pages/Reconciliation'));
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
+const RaciPage = lazy(() => import('./pages/RaciPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Sales = lazy(() => import('./pages/Sales'));
+const Purchase = lazy(() => import('./pages/Purchase'));
+const BAMS = lazy(() => import('./pages/BAMS'));
+const Clients = lazy(() => import('./pages/Clients'));
+const ClientDetail = lazy(() => import('./pages/ClientDetail'));
+const RADashboard = lazy(() => import('./pages/RADashboard'));
+const Leads = lazy(() => import('./pages/Leads'));
+const UserManagement = lazy(() => import('./pages/UserManagement'));
+const Compliance = lazy(() => import('./pages/Compliance'));
+const HelpAssistant = lazy(() => import('./pages/HelpAssistant'));
+const HelpAssistantAdmin = lazy(() => import('./pages/HelpAssistantAdmin'));
+const StockManagement = lazy(() => import('./pages/StockManagement'));
+const Accounting = lazy(() => import('./pages/Accounting'));
+const Statistics = lazy(() => import('./pages/Statistics'));
+const ProfitLoss = lazy(() => import('./pages/ProfitLoss'));
+const Financials = lazy(() => import('./pages/Financials'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
+const Shortcuts = lazy(() => import('./pages/Shortcuts'));
+const RiskManagement = lazy(() => import('./pages/RiskManagement'));
+const AdManager = lazy(() => import('./pages/AdManager'));
+const TerminalAdManager = lazy(() => import('./pages/terminal/TerminalAdManager'));
+const TerminalDashboard = lazy(() => import('./pages/terminal/TerminalDashboard'));
+const TerminalOrders = lazy(() => import('./pages/terminal/TerminalOrders'));
+const TerminalAutomation = lazy(() => import('./pages/terminal/TerminalAutomation'));
+const TerminalUsers = lazy(() => import('./pages/terminal/TerminalUsers'));
+const TerminalAnalytics = lazy(() => import('./pages/terminal/TerminalAnalytics'));
+const TerminalSettings = lazy(() => import('./pages/terminal/TerminalSettings'));
+const TerminalAssets = lazy(() => import('./pages/terminal/TerminalAssets'));
+const TerminalLogs = lazy(() => import('./pages/terminal/TerminalLogs'));
+const TerminalShortcuts = lazy(() => import('./pages/terminal/TerminalShortcuts'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const HorillaDashboard = lazy(() => import('./pages/horilla/HorillaDashboard'));
+const HRPoliciesPage = lazy(() => import('./pages/horilla/HRPoliciesPage'));
+const EmployeeListPage = lazy(() => import('./pages/horilla/EmployeeListPage'));
+const EmployeeProfilePage = lazy(() => import('./pages/horilla/EmployeeProfilePage'));
+const DepartmentsPage = lazy(() => import('./pages/horilla/DepartmentsPage'));
+const PositionsPage = lazy(() => import('./pages/horilla/PositionsPage'));
+const AttendanceOverviewPage = lazy(() => import('./pages/horilla/AttendanceOverviewPage'));
+const ShiftsPage = lazy(() => import('./pages/horilla/ShiftsPage'));
+const OvertimePage = lazy(() => import('./pages/horilla/OvertimePage'));
+const HourAccountsPage = lazy(() => import('./pages/horilla/HourAccountsPage'));
+const LateComeEarlyOutPage = lazy(() => import('./pages/horilla/LateComeEarlyOutPage'));
+const LeaveDashboardPage = lazy(() => import('./pages/horilla/LeaveDashboardPage'));
+const LeaveAccrualPlansPage = lazy(() => import('./pages/horilla/LeaveAccrualPlansPage'));
+const TaxConfigPage = lazy(() => import('./pages/horilla/TaxConfigPage'));
+const LeaveRequestsPage = lazy(() => import('./pages/horilla/LeaveRequestsPage'));
+const LeaveTypesPage = lazy(() => import('./pages/horilla/LeaveTypesPage'));
+const HolidaysPage = lazy(() => import('./pages/horilla/HolidaysPage'));
+const LeaveAllocationsPage = lazy(() => import('./pages/horilla/LeaveAllocationsPage'));
+const AttendanceCalendarPage = lazy(() => import('./pages/horilla/AttendanceCalendarPage'));
+const AttendanceActivityPage = lazy(() => import('./pages/horilla/AttendanceActivityPage'));
+const AttendanceSummaryPage = lazy(() => import('./pages/horilla/AttendanceSummaryPage'));
+const BiometricDevicesPage = lazy(() => import('./pages/horilla/BiometricDevicesPage'));
+const PayrollDashboardPage = lazy(() => import('./pages/horilla/PayrollDashboardPage'));
+const PayslipsPage = lazy(() => import('./pages/horilla/PayslipsPage'));
+const SalaryComponentsPage = lazy(() => import('./pages/horilla/SalaryComponentsPage'));
+const SalaryStructurePage = lazy(() => import('./pages/horilla/SalaryStructurePage'));
+const PenaltyManagementPage = lazy(() => import('./pages/horilla/PenaltyManagementPage'));
+const CompOffPage = lazy(() => import('./pages/horilla/CompOffPage'));
+const DepositManagementPage = lazy(() => import('./pages/horilla/DepositManagementPage'));
+const LoansPage = lazy(() => import('./pages/horilla/LoansPage'));
+const LeaveYearEndResetPage = lazy(() => import('./pages/horilla/LeaveYearEndResetPage'));
+const AttendancePolicyPage = lazy(() => import('./pages/horilla/AttendancePolicyPage'));
+const FnFSettlementPage = lazy(() => import('./pages/horilla/FnFSettlementPage'));
+const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumentsPage'));
+const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
+const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPage'));
+const PenaltyAutoCalcPage = lazy(() => import('./pages/horilla/PenaltyAutoCalcPage'));
+const AssetPage = lazy(() => import('./pages/horilla/AssetPage'));
+const AssetDashboardPage = lazy(() => import('./pages/horilla/AssetDashboardPage'));
+const AssetAssignmentsPage = lazy(() => import('./pages/horilla/AssetAssignmentsPage'));
+const HelpdeskPage = lazy(() => import('./pages/horilla/HelpdeskPage'));
+const OrganizationPage = lazy(() => import('./pages/horilla/OrganizationPage'));
+const DocumentsPage = lazy(() => import('./pages/horilla/DocumentsPage'));
+const AnnouncementsPage = lazy(() => import('./pages/horilla/AnnouncementsPage'));
+const ReportsPage = lazy(() => import('./pages/horilla/ReportsPage'));
+const PMSDashboardPage = lazy(() => import('./pages/horilla/PMSDashboardPage'));
+const ObjectivesPage = lazy(() => import('./pages/horilla/ObjectivesPage'));
+const Feedback360Page = lazy(() => import('./pages/horilla/Feedback360Page'));
+const MPIPage = lazy(() => import('./pages/horilla/MPIPage'));
+const EmployeeOnboardingPipelinePage = lazy(() => import('./pages/horilla/EmployeeOnboardingPipelinePage'));
+const DisciplinaryActionsPage = lazy(() => import('./pages/horilla/DisciplinaryActionsPage'));
+const WeeklyOffPage = lazy(() => import('./pages/horilla/WeeklyOffPage'));
+const LeaveAllocationRequestsPage = lazy(() => import('./pages/horilla/LeaveAllocationRequestsPage'));
+const RecruitmentDashboardPage = lazy(() => import('./pages/horilla/RecruitmentDashboardPage'));
+const RecruitmentPipelinePage = lazy(() => import('./pages/horilla/RecruitmentPipelinePage'));
+const CandidatesListPage = lazy(() => import('./pages/horilla/CandidatesListPage'));
+const CandidateProfilePage = lazy(() => import('./pages/horilla/CandidateProfilePage'));
+const InterviewListPage = lazy(() => import('./pages/horilla/InterviewListPage'));
+const StagesPage = lazy(() => import('./pages/horilla/StagesPage'));
+const SkillZonePage = lazy(() => import('./pages/horilla/SkillZonePage'));
+const RecruitmentSurveyPage = lazy(() => import('./pages/horilla/RecruitmentSurveyPage'));
+const RejectedCandidatesPage = lazy(() => import('./pages/horilla/RejectedCandidatesPage'));
+const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
+const AttendancePunchesPage = lazy(() => import('./pages/horilla/AttendancePunchesPage'));
+const MonthlyHoursSummaryPage = lazy(() => import('./pages/horilla/MonthlyHoursSummaryPage'));
+const ExchangeAccountsSettings = lazy(() => import('./pages/ExchangeAccountsSettings'));
+const OAuthConsent = lazy(() => import('./pages/OAuthConsent'));
+
 
 const router = createBrowserRouter([
   // Login — the only public route
@@ -811,7 +808,9 @@ function App() {
   return (
     <React.StrictMode>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<RouteFallback />}>
+          <RouterProvider router={router} />
+        </Suspense>
         <Toaster />
       </AuthProvider>
     </React.StrictMode>

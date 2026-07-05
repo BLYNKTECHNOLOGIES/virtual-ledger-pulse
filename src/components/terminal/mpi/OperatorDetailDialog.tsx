@@ -183,9 +183,9 @@ export function OperatorDetailDialog({
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Icon className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[10px] text-muted-foreground">{label}</span>
+                    <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{label}</span>
                   </div>
-                  <div className="text-lg font-bold text-foreground">
+                  <div className="t-mono text-lg font-semibold text-foreground">
                     {compute(m, recentAssignments)}
                   </div>
                 </CardContent>

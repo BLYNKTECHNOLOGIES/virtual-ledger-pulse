@@ -426,7 +426,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
 
                 // Ad rows
                 ...(!isGroupCollapsed ? applyAdSort(group.ads, sortMode).map((ad, adIdx, orderedAds) => (
-                  <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined}>
+                  <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined} className={compact ? 'text-xs [&>td]:py-1.5' : undefined}>
                     <TableCell className="pl-12">
                       <Checkbox
                         checked={selectedAdvNos.has(ad.advNo)}

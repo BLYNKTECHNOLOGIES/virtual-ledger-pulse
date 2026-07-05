@@ -636,9 +636,7 @@ export default function Sales() {
       <div className="md:hidden space-y-3">
         {orders.map((order) => renderMobileOrderCard(order, isCompleted))}
         {orders.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            No orders found for this category.
-          </div>
+          <EmptyState icon={ShoppingCart} title="No orders found for this category." />
         )}
       </div>
       

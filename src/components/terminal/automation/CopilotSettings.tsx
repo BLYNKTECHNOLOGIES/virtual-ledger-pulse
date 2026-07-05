@@ -253,10 +253,33 @@ export function CopilotSettings() {
               {settings.train_watermark ? format(new Date(settings.train_watermark), 'dd MMM HH:mm') : '—'}
             </span>
           </div>
-          <Button size="sm" className="ml-auto h-8 gap-1.5" onClick={trainNow} disabled={training}>
-            {training ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            Train Now
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5" disabled={rebuilding}>
+                  {rebuilding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                  Rebuild exemplar bank
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Rebuild exemplar bank?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This clears all learned exemplars and re-learns them from scratch so each is re-tagged
+                    with its exchange account. Exemplars are derived data — this is safe but may take a moment.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={rebuildBank}>Rebuild</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button size="sm" className="h-8 gap-1.5" onClick={trainNow} disabled={training}>
+              {training ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              Train Now
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

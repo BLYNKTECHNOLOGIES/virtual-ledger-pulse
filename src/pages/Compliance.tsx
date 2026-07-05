@@ -39,35 +39,36 @@ export default function Compliance() {
         {/* Executive Header */}
         <div className="border-b border-border bg-card">
           <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
-            <div className="flex items-start justify-between gap-6 flex-wrap">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-md border border-border bg-muted/40 flex items-center justify-center">
-                  <Shield className="h-6 w-6 text-foreground" strokeWidth={1.5} />
+            <PageHeader
+              title={
+                <span className="flex items-center gap-4">
+                  <span className="h-12 w-12 rounded-md border border-border bg-muted/40 flex items-center justify-center">
+                    <Shield className="h-6 w-6 text-foreground" strokeWidth={1.5} />
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
+                      Governance · Risk · Compliance
+                    </span>
+                    <span>Compliance Management</span>
+                  </span>
+                </span>
+              }
+              description="Centralized oversight for legal, regulatory, and statutory obligations"
+              actions={
+                <div className="hidden md:flex items-center gap-6 text-right">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Jurisdiction</p>
+                    <p className="text-sm font-medium text-foreground mt-0.5">India · RBI / FIU-IND</p>
+                  </div>
+                  <div className="h-10 w-px bg-border" />
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Reporting Cycle</p>
+                    <p className="text-sm font-medium text-foreground mt-0.5">FY 2025-26</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
-                    Governance · Risk · Compliance
-                  </p>
-                  <h1 className="text-2xl md:text-3xl font-semibold text-foreground tracking-tight mt-1">
-                    Compliance Management
-                  </h1>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Centralized oversight for legal, regulatory, and statutory obligations
-                  </p>
-                </div>
-              </div>
-              <div className="hidden md:flex items-center gap-6 text-right">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Jurisdiction</p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">India · RBI / FIU-IND</p>
-                </div>
-                <div className="h-10 w-px bg-border" />
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Reporting Cycle</p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">FY 2025-26</p>
-                </div>
-              </div>
-            </div>
+              }
+            />
+
           </div>
         </div>
 

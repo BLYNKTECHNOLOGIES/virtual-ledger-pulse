@@ -120,7 +120,7 @@ export default function PositionsPage() {
 
       {isLoading ? (
         <div className="bg-card rounded-xl border border-border overflow-hidden p-4">
-          <TableSkeleton rows={5} cols={5} />
+          <TableSkeleton rows={5} columns={5} />
         </div>
       ) : filteredPositions.length === 0 ? (
         <EmptyState

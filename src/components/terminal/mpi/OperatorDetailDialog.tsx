@@ -219,7 +219,7 @@ export function OperatorDetailDialog({
                 <span className="text-muted-foreground flex items-center gap-1">
                   <CheckCircle className="h-3 w-3 text-success" /> Completion Rate
                 </span>
-                <span className="font-semibold text-success">{completionRate}%</span>
+                <span className="t-mono font-semibold text-success">{completionRate}%</span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                 <div className="h-full rounded-full bg-success" style={{ width: `${completionRate}%` }} />

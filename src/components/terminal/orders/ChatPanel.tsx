@@ -524,7 +524,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           {currentOrderMessages.length > 0 ? (
             <div className="space-y-2.5">
               {currentOrderMessages.map((msg) => (
-                <ChatBubble key={msg.id} message={msg} />
+                <ChatBubble
+                  key={msg.id}
+                  message={msg}
+                  teachEnabled={isTrainer}
+                  onPin={handlePin}
+                  onBlacklist={(m) => setBlacklistTarget(m)}
+                />
               ))}
               <div ref={bottomRef} />
             </div>

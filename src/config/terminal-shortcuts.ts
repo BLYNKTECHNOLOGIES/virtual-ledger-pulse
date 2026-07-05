@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Megaphone, ShoppingCart, Bot, Wallet, Activity,
   BarChart3, CreditCard, FileWarning, ReceiptText, ScrollText, Users,
-  Settings, Command, Search, Keyboard, ArrowLeftRight, type LucideIcon,
+  Settings, Command, Search, Keyboard, ArrowLeftRight, ListChecks, MessageSquare, Zap, type LucideIcon,
 } from "lucide-react";
 import type { ShortcutCombo } from "@/config/shortcuts";
 import type { TerminalPermission } from "@/hooks/useTerminalAuth";

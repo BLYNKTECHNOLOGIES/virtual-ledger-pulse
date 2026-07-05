@@ -930,6 +930,29 @@ function TerminalOrdersContent() {
 
   const visibleOrders = useMemo(() => displayOrders.slice(0, visibleCount), [displayOrders, visibleCount]);
 
+  // Actionable / appeal order IDs (derived from already-computed displayOrders) —
+  // feed the tab-scoped alert engine. Reuses the same "active" predicate as the
+  // Active status tab (op is not Completed/Cancelled/Expired).
+  const actionableOrderIds = useMemo(
+    () => displayOrders
+      .filter((o) => {
+        const op = mapToOperationalStatus((o as any)._resolvedStatus || o.order_status, o.trade_type);
+        return !['Completed', 'Cancelled', 'Expired'].includes(op);
+      })
+      .map((o) => o.binance_order_number),
+    [displayOrders],
+  );
+  const appealOrderIds = useMemo(
+    () => displayOrders
+      .filter((o) => {
+        const s = (o.order_status || '').toUpperCase();
+        return s.includes('APPEAL') || s.includes('DISPUTE');
+      })
+      .map((o) => o.binance_order_number),
+    [displayOrders],
+  );
+  useTerminalAlerts({ actionableOrderIds, appealOrderIds, unreadMessageCount: totalUnread });
+
   // Deep-link: when arriving with ?order=<orderNumber> (e.g. from the dashboard
   // Operational Alerts), auto-open that order's workspace once it's loaded.
   useEffect(() => {

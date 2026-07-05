@@ -758,102 +758,102 @@ export default function Dashboard() {
       {/* Header */}
       <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
         <div className="px-4 md:px-6 py-4 md:py-8">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="p-2 md:p-3 bg-info/10 rounded-xl shadow-sm">
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-2 md:p-3 bg-info/10 rounded-xl shadow-sm">
                   <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-info" />
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground truncate">Welcome to Dashboard</h1>
-                  <p className="text-muted-foreground text-sm md:text-base truncate">Monitor your business performance</p>
-                </div>
-              </div>
-              <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">
-                <div className="bg-card border border-info/20 text-foreground rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-info" />
-                    <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
+                </span>
+                Welcome to Dashboard
+              </span>
+            }
+            description="Monitor your business performance"
+            actions={
+              <div className="flex flex-col items-start md:items-end gap-3 flex-shrink-0">
+                <div className="flex gap-2 md:gap-4 overflow-x-auto pb-1 md:flex-wrap">
+                  <div className="bg-card border border-info/20 text-foreground rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-info" />
+                      <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
+                    </div>
+                  </div>
+                  <div className="bg-card border border-success/20 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-success" />
+                      <span className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">System Active</span>
+                    </div>
                   </div>
                 </div>
-                <div className="bg-card border border-success/20 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-success" />
-                    <span className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">System Active</span>
-                  </div>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onDateRangeChange={setDateRange}
+                  preset={datePreset}
+                  onPresetChange={setDatePreset}
+                  className="w-full md:w-auto md:min-w-[200px]"
+                />
+                <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pt-2 pb-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditMode(!isEditMode);
+                      if (!isEditMode) setIsRearrangeMode(true);
+                      else setIsRearrangeMode(false);
+                    }}
+                    className={`flex-shrink-0 ${isEditMode ? 
+                      "bg-warning/10 border border-warning text-warning hover:bg-warning/10 shadow-sm" : 
+                      "bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
+                    }`}
+                  >
+                    <Settings className="h-4 w-4 mr-1 md:mr-2" />
+                    <span className="whitespace-nowrap">{isEditMode ? 'Done' : 'Customize'}</span>
+                  </Button>
+                  
+                  {isEditMode && (
+                    <>
+                      <AddWidgetDialog 
+                        onAddWidget={handleAddWidget}
+                        existingWidgets={activeWidgetIds}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResetDashboard}
+                        className="flex-shrink-0 bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Reset</span>
+                      </Button>
+                    </>
+                  )}
+
+                  <ShiftReconciliationWidget />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUniversalSync}
+                    disabled={universalSyncing || syncMutation.isPending}
+                    className="bg-info/10 border border-info/20 text-info hover:bg-info/10 shadow-sm flex-shrink-0"
+                    title="Universal Sync"
+                  >
+                    <CloudDownload className={`h-4 w-4 ${universalSyncing ? 'animate-pulse' : ''}`} />
+                    <span className="hidden sm:inline ml-2">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshDashboard}
+                    disabled={isRefreshing}
+                    className="bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm flex-shrink-0"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                  </Button>
                 </div>
               </div>
-            </div>
+            }
+          />
 
-            <div className="flex flex-col items-start md:items-end gap-3 flex-shrink-0">
-              <DateRangePicker
-                dateRange={dateRange}
-                onDateRangeChange={setDateRange}
-                preset={datePreset}
-                onPresetChange={setDatePreset}
-                className="w-full md:w-auto md:min-w-[200px]"
-              />
-              <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pt-2 pb-1 -mx-4 px-4 md:mx-0 md:px-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsEditMode(!isEditMode);
-                    if (!isEditMode) setIsRearrangeMode(true);
-                    else setIsRearrangeMode(false);
-                  }}
-                  className={`flex-shrink-0 ${isEditMode ? 
-                    "bg-warning/10 border border-warning text-warning hover:bg-warning/10 shadow-sm" : 
-                    "bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
-                  }`}
-                >
-                  <Settings className="h-4 w-4 mr-1 md:mr-2" />
-                  <span className="whitespace-nowrap">{isEditMode ? 'Done' : 'Customize'}</span>
-                </Button>
-                
-                {isEditMode && (
-                  <>
-                    <AddWidgetDialog 
-                      onAddWidget={handleAddWidget}
-                      existingWidgets={activeWidgetIds}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleResetDashboard}
-                      className="flex-shrink-0 bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
-                    >
-                      <RotateCcw className="h-4 w-4 mr-1" />
-                      <span className="hidden sm:inline">Reset</span>
-                    </Button>
-                  </>
-                )}
-
-                <ShiftReconciliationWidget />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleUniversalSync}
-                  disabled={universalSyncing || syncMutation.isPending}
-                  className="bg-info/10 border border-info/20 text-info hover:bg-info/10 shadow-sm flex-shrink-0"
-                  title="Universal Sync"
-                >
-                  <CloudDownload className={`h-4 w-4 ${universalSyncing ? 'animate-pulse' : ''}`} />
-                  <span className="hidden sm:inline ml-2">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefreshDashboard}
-                  disabled={isRefreshing}
-                  className="bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm flex-shrink-0"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

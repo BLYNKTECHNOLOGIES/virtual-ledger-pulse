@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 // Roles allowed to view the immutable Ledger Integrity diagnostics tab.
 // Aligned with the role-hierarchy memory: Super Admin / Admin / COO / Auditor.

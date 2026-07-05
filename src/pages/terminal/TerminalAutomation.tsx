@@ -390,6 +390,11 @@ export default function TerminalAutomation() {
         <TabsContent value="auto-screenshot" className="mt-4">
           <AutoScreenshotConfig canManage={canManagePricing} />
         </TabsContent>
+
+        {/* ═══ AI COPILOT ═══ */}
+        <TabsContent value="ai-copilot" className="mt-4">
+          <CopilotSettings />
+        </TabsContent>
       </Tabs>
 
       {/* Dialogs */}

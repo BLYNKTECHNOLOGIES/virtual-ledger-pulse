@@ -1425,7 +1425,7 @@ function TerminalOrdersContent() {
                     return (
                       <TableRow
                         key={order.id}
-                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${order.trade_type === 'BUY' ? 'shadow-[inset_2px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_2px_0_0_hsl(var(--trade-sell))]'} ${hasAltUpiRequest ? 'bg-warning/5' : ''}`}
+                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${order.trade_type === 'BUY' ? 'shadow-[inset_2px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_2px_0_0_hsl(var(--trade-sell))]'} ${hasAltUpiRequest ? 'bg-warning/5' : ''} ${focusedOrderId === String(order.id) ? 'ring-2 ring-inset ring-primary bg-secondary/40' : ''}`}
                         onClick={() => setSelectedOrder(order)}>
 
                         {/* Type/Date */}

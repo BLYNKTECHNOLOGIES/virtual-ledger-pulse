@@ -42,6 +42,8 @@ import {
   Crosshair,
   Image as ImageIcon,
   Sparkles,
+  ChevronDown,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   useAutoReplyRules,

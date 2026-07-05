@@ -72,6 +72,7 @@ export function TerminalHeader() {
           </Button>
         )}
         <ExchangeAccountSwitcher />
+        <TerminalAlertsSettings />
         <TerminalNotificationBell />
 
 

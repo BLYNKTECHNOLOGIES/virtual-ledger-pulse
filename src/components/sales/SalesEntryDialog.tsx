@@ -51,6 +51,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
   const [isSplitPayment, setIsSplitPayment] = useState(false);
+  // Split payment is rarely used — its toggle lives behind a "More" disclosure,
+  // collapsed by default. Auto-expand if a split is somehow already active.
+  const [showSplitOption, setShowSplitOption] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
   // Synchronous guard to prevent rapid double-submits creating duplicate orders.
   // React state / mutation.isPending update asynchronously, leaving a window where
@@ -488,6 +491,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       setSelectedClientId(undefined);
       setIsNewClient(false);
       setIsSplitPayment(false);
+      setShowSplitOption(false);
       setPaymentSplits([{ payment_method_id: '', amount: '' }]);
     },
     onError: (error: any) => {
@@ -670,6 +674,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             <div>
               <Label>Order Number *</Label>
               <Input
+                autoFocus
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
                 placeholder={isGeneratingOrderNumber ? "Generating..." : isOffMarket ? "Auto-generated" : "Enter order number"}
@@ -782,6 +787,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Label>Total Amount</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={formData.total_amount}
                 onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
                 min="0"
@@ -794,6 +800,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Label>Price Per Unit *</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={formData.price_per_unit}
                 onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
                 required
@@ -807,6 +814,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Label>Quantity *</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange('quantity', e.target.value)}
                 required
@@ -905,24 +913,34 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             <div>
               <div className="flex items-center justify-between h-6">
                 <Label>Payment Method</Label>
-                <div className="flex items-center gap-1.5">
-                  <Checkbox
-                    id="split-sales-payment-manual"
-                    checked={isSplitPayment}
-                    onCheckedChange={(checked) => {
-                      setIsSplitPayment(!!checked);
-                      if (checked) {
-                        const total = parseFloat(formData.total_amount) || 0;
-                        setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
-                      } else {
-                        setPaymentSplits([{ payment_method_id: '', amount: '' }]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="split-sales-payment-manual" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-                    Split Payment
-                  </Label>
-                </div>
+                {(showSplitOption || isSplitPayment) ? (
+                  <div className="flex items-center gap-1.5">
+                    <Checkbox
+                      id="split-sales-payment-manual"
+                      checked={isSplitPayment}
+                      onCheckedChange={(checked) => {
+                        setIsSplitPayment(!!checked);
+                        if (checked) {
+                          const total = parseFloat(formData.total_amount) || 0;
+                          setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
+                        } else {
+                          setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="split-sales-payment-manual" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                      Split Payment
+                    </Label>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowSplitOption(true)}
+                    className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline whitespace-nowrap"
+                  >
+                    More options
+                  </button>
+                )}
               </div>
               {!isSplitPayment ? (
                 <Select
@@ -1010,6 +1028,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                       <div className="col-span-4">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.01"
                           min="0"
                           value={split.amount}

@@ -167,6 +167,7 @@ export function CreateConversionForm() {
               <Label>Quantity</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="any"
                 min="0"
                 placeholder="0.00"
@@ -184,6 +185,7 @@ export function CreateConversionForm() {
               </Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="any"
                 min="0"
                 placeholder="0.00"
@@ -197,6 +199,7 @@ export function CreateConversionForm() {
               <Label>Fee % (optional)</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="any"
                 min="0"
                 max="100"
@@ -221,6 +224,7 @@ export function CreateConversionForm() {
                   <Label className="text-xs">Local Price (INR)</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     step="any"
                     min="0"
                     placeholder="e.g. 6100000"
@@ -232,6 +236,7 @@ export function CreateConversionForm() {
                   <Label className="text-xs">FX Rate (INR per USDT)</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     step="any"
                     min="0"
                     placeholder="e.g. 96.50"
@@ -243,6 +248,7 @@ export function CreateConversionForm() {
                   <Label className="text-xs">Market Rate Snapshot (USDT)</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     step="any"
                     min="0"
                     placeholder="e.g. 67044"

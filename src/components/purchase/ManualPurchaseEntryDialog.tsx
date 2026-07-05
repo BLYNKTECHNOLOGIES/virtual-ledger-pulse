@@ -625,6 +625,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Label htmlFor="order_number">Order Number</Label>
               <Input
                 id="order_number"
+                autoFocus
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
                 placeholder={isGeneratingOrderNumber ? "Generating..." : formData.is_off_market ? "Auto-generated" : "Auto-generated if empty"}
@@ -707,6 +708,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Input
                 id="total_amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 value={formData.total_amount}
                 onChange={(e) => handleInputChange('total_amount', e.target.value)}
@@ -719,6 +721,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Input
                 id="price_per_unit"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 value={formData.price_per_unit}
                 onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
@@ -732,6 +735,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Input
                 id="quantity"
                 type="number"
+                inputMode="decimal"
                 step="any"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange('quantity', e.target.value)}
@@ -872,6 +876,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                       <div className="col-span-4">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.01"
                           min="0"
                           value={split.amount}
@@ -1017,6 +1022,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                     <Input
                       id="fee_percentage"
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
                       min="0"
                       max="100"

@@ -253,6 +253,7 @@ export default function AdManager() {
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
+                  sortMode={sortMode}
                 />
               )}
 

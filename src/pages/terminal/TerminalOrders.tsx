@@ -36,6 +36,8 @@ import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 import { isOrderChatRead, markOrderChatRead, subscribeToChatReadState } from '@/lib/chat-read-state';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTerminalAlerts } from '@/hooks/useTerminalAlerts';
+import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
+import { focusPageSearch } from '@/lib/focus-page-search';
 
 
 /** Convert numeric orderStatus to string */

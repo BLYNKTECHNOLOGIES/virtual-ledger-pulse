@@ -111,6 +111,7 @@ async function reconcileFeedback(admin: any) {
 // 7d suggestion served/inserted counts with per-account split.
 async function buildStats(admin: any) {
   const dist: Record<string, number> = {};
+  for (const c of SITUATION_CLASSES) dist[c] = 0;
   let total = 0;
   {
     let from = 0;

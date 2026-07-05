@@ -230,6 +230,7 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     const lastSent = messages.filter((m) => m.isSelf && m.text).slice(-3).map((m) => m.text);
     const distinct: string[] = [];
     for (const s of suggestions) {
+      if (blacklist.some((p) => sim(s, p) >= 0.8)) continue;           // banned pattern
       if (lastSent.some((prev) => sim(s, prev) > 0.85)) continue;      // too close to what op already sent
       if (distinct.some((d) => sim(s, d) > 0.85)) continue;            // near-duplicate of another suggestion
       distinct.push(s);
@@ -238,6 +239,7 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     return json({
       situation: typeof parsed?.situation === "string" ? parsed.situation : situation,
       suggestions: distinct.slice(0, settings.suggestion_count),
+      exemplarIds,
     });
   } catch (e) {
     const msg = (e as Error)?.name === "AbortError" ? "timeout" : String((e as Error).message || e);

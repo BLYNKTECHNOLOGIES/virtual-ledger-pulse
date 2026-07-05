@@ -281,7 +281,7 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
-          className="w-full h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90"
+          className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150"
           disabled={releaseCoin.isPending}
         >
           {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}

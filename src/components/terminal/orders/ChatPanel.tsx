@@ -469,6 +469,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       {/* AI Copilot strip (advisory — inserts only, never auto-sends) */}
       <CopilotStrip
         orderId={orderId}
+        orderNumber={orderNumber}
         messageCount={allMessages.length}
         onInsert={handleQuickReply}
       />

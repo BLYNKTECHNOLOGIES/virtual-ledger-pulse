@@ -77,7 +77,7 @@ export default function AdManager() {
     const endDate = searchParams.get('endDate'); if (endDate) f.endDate = endDate;
     return f;
   });
-  const [activeTab, setActiveTab] = useState<string>(() => localStorage.getItem(TAB_PREF_KEY) || 'all');
+  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('tab') || localStorage.getItem(TAB_PREF_KEY) || 'all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BinanceAd | null>(null);
   // When creating in combined mode we must know which account the ad belongs to.

@@ -101,18 +101,16 @@ export default function StockManagement() {
       <div className="p-4 md:p-6">
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 md:grid" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
-          <TabsTrigger value="quickview" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
+        <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 md:grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+          <TabsTrigger value="positions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <Grid className="h-4 w-4" />
-            <span className="hidden sm:inline">Quick View</span>
-            <span className="sm:hidden">View</span>
+            Positions
           </TabsTrigger>
-          <TabsTrigger value="transactions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
+          <TabsTrigger value="ledger" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <TrendingUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Transactions</span>
-            <span className="sm:hidden">Trans.</span>
+            Ledger
           </TabsTrigger>
-          <TabsTrigger value="warehouse" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
+          <TabsTrigger value="wallets" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <Building className="h-4 w-4" />
             Wallets
           </TabsTrigger>
@@ -120,34 +118,27 @@ export default function StockManagement() {
             <ArrowLeftRight className="h-4 w-4" />
             <span className="hidden sm:inline">Conversions</span>
             <span className="sm:hidden">Conv.</span>
-          </TabsTrigger>
-          <TabsTrigger value="valuation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
-            <BarChart className="h-4 w-4" />
-            <span className="hidden sm:inline">Valuation</span>
-            <span className="sm:hidden">Value</span>
+            {pendingConversionCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-[10px]">
+                {pendingConversionCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <FileText className="h-4 w-4" />
             Reports
           </TabsTrigger>
-          {canViewLedgerIntegrity && (
-            <TabsTrigger value="integrity" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
-              <ShieldCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Ledger Integrity</span>
-              <span className="sm:hidden">Chain</span>
-            </TabsTrigger>
-          )}
         </TabsList>
 
-        <TabsContent value="quickview">
+        <TabsContent value="positions">
           <ProductCardListingTab />
         </TabsContent>
 
-        <TabsContent value="transactions">
+        <TabsContent value="ledger">
           <StockTransactionsTab />
         </TabsContent>
 
-        <TabsContent value="warehouse">
+        <TabsContent value="wallets">
           <WalletManagementTab />
         </TabsContent>
 
@@ -155,20 +146,11 @@ export default function StockManagement() {
           <InterProductConversionTab />
         </TabsContent>
 
-        <TabsContent value="valuation">
-          <InventoryValuationTab />
-        </TabsContent>
-
         <TabsContent value="reports">
           <StockReportsTab />
         </TabsContent>
-
-        {canViewLedgerIntegrity && (
-          <TabsContent value="integrity">
-            <LedgerIntegrityTab />
-          </TabsContent>
-        )}
       </Tabs>
+
       </div>
     </div>
     </PermissionGate>

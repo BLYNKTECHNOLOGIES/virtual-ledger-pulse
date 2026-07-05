@@ -35,10 +35,10 @@ import { AutoPricingLogs } from './AutoPricingLogs';
 import { formatDistanceToNow } from 'date-fns';
 
 const ALERT_STYLES: Record<string, string> = {
-  merchant_missing: 'border-warning ring-2 ring-warning/30 animate-pulse',
-  deviation: 'border-warning ring-2 ring-warning/30 animate-pulse',
-  error: 'border-destructive ring-2 ring-destructive/30 animate-pulse',
-  auto_paused: 'border-destructive ring-2 ring-destructive/40 animate-pulse',
+  merchant_missing: 'border-warning ring-2 ring-warning/30',
+  deviation: 'border-warning ring-2 ring-warning/30',
+  error: 'border-destructive ring-2 ring-destructive/30',
+  auto_paused: 'border-destructive ring-2 ring-destructive/40',
 };
 
 const ALERT_BADGE_STYLES: Record<string, string> = {
@@ -108,7 +108,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
           <Badge className="bg-success/20 text-success">{activeCount} Active</Badge>
           {pausedCount > 0 && <Badge variant="destructive">{pausedCount} Paused</Badge>}
           {alertCount > 0 && (
-            <Badge className="bg-warning/20 text-warning border-warning/40 animate-pulse">
+            <Badge className="bg-warning/20 text-warning border-warning/40 t-pulse">
               <Bell className="h-3 w-3 mr-1" /> {alertCount} Alert{alertCount > 1 ? 's' : ''}
             </Badge>
           )}
@@ -232,9 +232,9 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                             if (isApplied) {
                               statusClass = 'bg-success/15 text-success border-success/30';
                             } else if (isSkipped) {
-                              statusClass = 'bg-warning/15 text-warning border-warning/40 animate-pulse';
+                              statusClass = 'bg-warning/15 text-warning border-warning/40';
                             } else if (isError) {
-                              statusClass = 'bg-destructive/15 text-destructive border-destructive/40 animate-pulse';
+                              statusClass = 'bg-destructive/15 text-destructive border-destructive/40';
                             }
 
                             return (

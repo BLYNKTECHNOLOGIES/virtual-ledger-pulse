@@ -163,6 +163,7 @@ Deno.serve(async (req) => {
     // Prefer same-account exemplars; fall back to all accounts when < 3 match.
     let exemplars: any[] = exchangeAccountId ? await matchExemplars(exchangeAccountId) : [];
     if (exemplars.length < 3) exemplars = await matchExemplars(null);
+    const exemplarIds: string[] = exemplars.map((e: any) => e.id).filter(Boolean);
 
     const exemplarText = exemplars.length
       ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")
@@ -170,8 +171,9 @@ Deno.serve(async (req) => {
 
     const userMsg = `ORDER: ${JSON.stringify(order)}
 CLIENT PROFILE: ${JSON.stringify(clientProfile)}
-COUNTERPARTY LANGUAGE: ${cpLang}
+${cpProfile ? cpProfile + "\n" : ""}COUNTERPARTY LANGUAGE: ${cpLang}
 SITUATION: ${situation}
+Current goal: ${goal}
 
 RECENT MESSAGES:
 ${convoBlob || "(none)"}

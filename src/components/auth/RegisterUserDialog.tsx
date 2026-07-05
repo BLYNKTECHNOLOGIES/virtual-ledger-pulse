@@ -121,16 +121,17 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[92vh] overflow-y-auto gap-0 border-white/10 bg-[hsl(231_45%_9%)]/95 p-0 text-white backdrop-blur-2xl">
-        {/* Gradient header band */}
-        <div className="relative overflow-hidden rounded-t-lg border-b border-white/10 bg-gradient-to-br from-[hsl(231_60%_16%)] to-[hsl(265_55%_16%)] px-6 py-6">
-          <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-[hsl(231_81%_60%)]/30 blur-3xl" />
-          <DialogHeader className="relative space-y-3 text-left">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(231_81%_60%)] to-[hsl(265_80%_60%)] shadow-lg">
-              <UserPlus className="h-6 w-6 text-white" />
+      <DialogContent className="ops-rise sm:max-w-[500px] max-h-[92vh] overflow-y-auto gap-0 border-white/10 bg-[hsl(231_45%_7%)] p-0 text-white backdrop-blur-2xl">
+        {/* Header band — dark surface, hairline border */}
+        <div className="relative overflow-hidden border-b border-white/10 px-6 py-5">
+          <DialogHeader className="relative space-y-2 text-left">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] shadow-md">
+                <UserPlus className="h-4 w-4 text-white" />
+              </div>
+              <DialogTitle className="text-sm font-semibold text-white">Create your account</DialogTitle>
             </div>
-            <DialogTitle className="text-xl font-bold text-white">Create your account</DialogTitle>
-            <DialogDescription className="text-sm text-white/60">
+            <DialogDescription className="text-xs text-white/55">
               Fill in your details — your request will be sent to the Super Admin for approval.
             </DialogDescription>
           </DialogHeader>

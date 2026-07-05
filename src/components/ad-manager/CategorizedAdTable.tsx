@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck, Megaphone } from 'lucide-react';
 import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
+import { InlinePriceEditor } from './InlinePriceEditor';
 import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { format } from 'date-fns';
 import { useState } from 'react';
@@ -16,17 +17,30 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useAuth } from '@/hooks/useAuth';
 import { useValueFlash } from '@/hooks/useValueFlash';
 
-function AdPriceCell({ ad }: { ad: BinanceAd }) {
+export type AdSortMode = 'current' | 'price-asc' | 'price-desc' | 'avail-asc' | 'avail-desc' | 'updated-desc';
+
+function applyAdSort(list: BinanceAd[], mode: AdSortMode): BinanceAd[] {
+  if (mode === 'current') return list;
+  const arr = [...list];
+  switch (mode) {
+    case 'price-asc': return arr.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    case 'price-desc': return arr.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    case 'avail-asc': return arr.sort((a, b) => Number(a.surplusAmount || 0) - Number(b.surplusAmount || 0));
+    case 'avail-desc': return arr.sort((a, b) => Number(b.surplusAmount || 0) - Number(a.surplusAmount || 0));
+    case 'updated-desc': return arr.sort((a, b) => new Date(b.updateTime || 0).getTime() - new Date(a.updateTime || 0).getTime());
+    default: return arr;
+  }
+}
+
+function AdPriceCell({ ad, isEditing, onRequestEdit, onClose }: { ad: BinanceAd; isEditing: boolean; onRequestEdit: () => void; onClose: () => void }) {
   const flash = useValueFlash(Number(ad.price || 0), 'value-flash');
   return (
     <TableCell className={`text-right font-semibold tabular-nums ${flash}`}>
-      ₹{Number(ad.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-      {ad.priceType === 2 && ad.priceFloatingRatio && (
-        <span className="text-xs text-muted-foreground ml-1">({Number(ad.priceFloatingRatio).toFixed(2)}%)</span>
-      )}
+      <InlinePriceEditor ad={ad} isEditing={isEditing} onRequestEdit={onRequestEdit} onClose={onClose} />
     </TableCell>
   );
 }
+
 
 function formatCommissionRate(ad: BinanceAd, identifier?: string) {
   const list = ad.tradeMethodCommissionRateVoList || [];

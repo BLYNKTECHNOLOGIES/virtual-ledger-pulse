@@ -179,7 +179,7 @@ export default function Financials() {
             }
             description="Comprehensive financial overview and management"
             actions={
-              <>
+              <div className="flex flex-wrap items-center gap-2 print:hidden">
                 <DateRangePicker
                   dateRange={dateRange}
                   onDateRangeChange={setDateRange}
@@ -203,7 +203,7 @@ export default function Financials() {
                   <Plus className="h-4 w-4 mr-2" />
                   New Transaction
                 </Button>
-              </>
+              </div>
             }
           />
 
@@ -296,7 +296,7 @@ export default function Financials() {
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6 print:hidden">
           <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
           <TabsTrigger value="accounts" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <span className="hidden sm:inline">Bank Accounts</span>

@@ -119,8 +119,8 @@ export default function TerminalShortcuts() {
         />
 
         <p className="text-center text-xs text-muted-foreground">
-          Tip: press <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">{isMac ? "⌘" : "Ctrl"}</kbd>{" "}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">K</kbd> anytime to open the command palette.
+          Tip: press <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">{isMac ? "⌘" : "Ctrl"}</kbd>{" "}
+          <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">K</kbd> anytime to open the command palette.
         </p>
       </div>
     </div>

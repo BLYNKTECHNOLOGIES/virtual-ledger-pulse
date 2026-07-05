@@ -123,7 +123,7 @@ function VerifyOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
-          className="w-full h-8 text-xs gap-1.5 bg-trade-buy hover:bg-trade-buy/90 text-white"
+          className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-success/10 text-success border border-success/25 hover:bg-success/15 active:scale-[0.98] transition-transform duration-150"
           disabled={verifyOrder.isPending}
         >
           {verifyOrder.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}

@@ -349,22 +349,31 @@ export function AppSidebar() {
   if (isLoading) {
     return (
       <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm">
-        <SidebarHeader className="p-4 border-b border-sidebar-border bg-primary">
-          <div className="flex items-center justify-center">
-            <div className="w-8 h-8 bg-primary-foreground/20 rounded-lg animate-pulse"></div>
+        <SidebarHeader className="relative p-4 border-b border-sidebar-border bg-primary overflow-hidden">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary-foreground/40 to-transparent"
+          />
+          <div className="flex items-center justify-center min-h-[60px]">
+            <Skeleton className="h-8 w-8 rounded-lg bg-primary-foreground/20" />
           </div>
         </SidebarHeader>
-        
+
         <SidebarContent className="bg-sidebar">
           <SidebarGroup>
             <SidebarGroupContent>
-              <div className="flex justify-center items-center h-20">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <div className="space-y-2 px-2 py-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-2 py-2">
+                    <Skeleton className="h-6 w-6 rounded-md" />
+                    <Skeleton className="h-4 flex-1 rounded" />
+                  </div>
+                ))}
               </div>
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        
+
         <SidebarFooter className="p-4 border-t border-sidebar-border bg-sidebar-accent">
           <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ml-auto rounded-lg">
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}

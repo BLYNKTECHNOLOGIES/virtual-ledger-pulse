@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
@@ -9,6 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +42,8 @@ import {
   Crosshair,
   Image as ImageIcon,
   Sparkles,
+  ChevronDown,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -86,11 +92,52 @@ const ACTION_LABELS: Record<string, string> = {
   take_rest: 'Take Rest',
 };
 
+const AUTOMATION_TABS: { value: string; label: string; icon: LucideIcon }[] = [
+  { value: 'auto-reply', label: 'Auto-Reply Rules', icon: MessageSquare },
+  { value: 'schedules', label: 'Merchant Schedule', icon: Calendar },
+  { value: 'auto-pay', label: 'Auto-Pay', icon: Timer },
+  { value: 'export', label: 'Export Orders', icon: FileDown },
+  { value: 'small-orders', label: 'Small Orders', icon: Package },
+  { value: 'hybrid', label: 'Hybrid Pricing', icon: Blend },
+  { value: 'auto-pricing', label: 'Auto Pricing', icon: Crosshair },
+  { value: 'auto-screenshot', label: 'Auto Screenshot', icon: ImageIcon },
+  { value: 'ai-copilot', label: 'AI Copilot', icon: Sparkles },
+];
+
 export default function TerminalAutomation() {
   const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'automation', { activeTab: 'auto-reply' as string });
   const activeTab = prefs.activeTab;
   const setActiveTab = (v: string) => setPref('activeTab', v);
+  const isMobile = useIsMobile();
+  const [tabMenuOpen, setTabMenuOpen] = useState(false);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  // Mobile gesture: swipe right opens the tab-selection menu; swipe left/right also
+  // steps between tabs so the whole tab set is reachable on a phone.
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!isMobile || !touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > 45) return;
+    if (dx > 0) {
+      // Swipe right → reveal the tab-selection menu.
+      setTabMenuOpen(true);
+    } else {
+      // Swipe left → advance to the next tab.
+      const idx = AUTOMATION_TABS.findIndex((tb) => tb.value === activeTab);
+      const next = AUTOMATION_TABS[(idx + 1) % AUTOMATION_TABS.length];
+      setActiveTab(next.value);
+    }
+  };
+
+
 
   // Granular permission checks
   const canManageAutoReply = hasPermission('terminal_autoreply_manage') || isTerminalAdmin;
@@ -142,45 +189,48 @@ export default function TerminalAutomation() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="auto-reply" className="gap-1.5">
-            <MessageSquare className="h-3.5 w-3.5" />
-            Auto-Reply Rules
-          </TabsTrigger>
-          <TabsTrigger value="schedules" className="gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            Merchant Schedule
-          </TabsTrigger>
-          <TabsTrigger value="auto-pay" className="gap-1.5">
-            <Timer className="h-3.5 w-3.5" />
-            Auto-Pay
-          </TabsTrigger>
-          <TabsTrigger value="export" className="gap-1.5">
-            <FileDown className="h-3.5 w-3.5" />
-            Export Orders
-          </TabsTrigger>
-          <TabsTrigger value="small-orders" className="gap-1.5">
-            <Package className="h-3.5 w-3.5" />
-            Small Orders
-          </TabsTrigger>
-          <TabsTrigger value="hybrid" className="gap-1.5">
-            <Blend className="h-3.5 w-3.5" />
-            Hybrid Pricing
-          </TabsTrigger>
-          <TabsTrigger value="auto-pricing" className="gap-1.5">
-            <Crosshair className="h-3.5 w-3.5" />
-            Auto Pricing
-          </TabsTrigger>
-          <TabsTrigger value="auto-screenshot" className="gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5" />
-            Auto Screenshot
-          </TabsTrigger>
-          <TabsTrigger value="ai-copilot" className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Copilot
-          </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* Desktop / tablet: full horizontal tab bar */}
+        <TabsList className="hidden md:flex flex-wrap h-auto">
+          {AUTOMATION_TABS.map(({ value, label, icon: Icon }) => (
+            <TabsTrigger key={value} value={value} className="gap-1.5">
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
+
+        {/* Mobile: a single dropdown selector — tap or swipe right to open,
+            picking a tab opens it and closes the menu. */}
+        <div className="md:hidden">
+          <DropdownMenu open={tabMenuOpen} onOpenChange={setTabMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between h-10">
+                <span className="flex items-center gap-2">
+                  {(() => {
+                    const cur = AUTOMATION_TABS.find((t) => t.value === activeTab) ?? AUTOMATION_TABS[0];
+                    const Icon = cur.icon;
+                    return (<><Icon className="h-4 w-4 text-primary" />{cur.label}</>);
+                  })()}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-h-[60vh] overflow-y-auto">
+              {AUTOMATION_TABS.map(({ value, label, icon: Icon }) => (
+                <DropdownMenuItem
+                  key={value}
+                  onSelect={() => { setActiveTab(value); setTabMenuOpen(false); }}
+                  className={value === activeTab ? 'bg-secondary/60' : ''}
+                >
+                  <Icon className="h-4 w-4 mr-2 text-primary" />
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
 
         {/* ═══ AUTO-REPLY RULES ═══ */}
         <TabsContent value="auto-reply" className="mt-4 space-y-4">

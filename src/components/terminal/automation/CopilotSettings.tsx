@@ -61,22 +61,24 @@ function MultiUserSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">
-        <ScrollArea className="max-h-64">
-          <div className="p-1">
-            {users.map((u) => (
-              <button
-                key={u.id}
-                onClick={() => toggle(u.id)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-secondary/80 text-left"
-              >
-                <input type="checkbox" readOnly checked={selected.includes(u.id)} className="accent-primary" />
-                <span className="text-xs text-foreground truncate">{userLabel(u)}</span>
-              </button>
-            ))}
-            {users.length === 0 && <p className="text-[10px] text-muted-foreground p-2">No users.</p>}
-          </div>
-        </ScrollArea>
+        <div
+          className="max-h-[50vh] overflow-y-auto overscroll-contain p-1"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
+          {users.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => toggle(u.id)}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded hover:bg-secondary/80 text-left"
+            >
+              <input type="checkbox" readOnly checked={selected.includes(u.id)} className="accent-primary" />
+              <span className="text-xs text-foreground truncate">{userLabel(u)}</span>
+            </button>
+          ))}
+          {users.length === 0 && <p className="text-[10px] text-muted-foreground p-2">No users.</p>}
+        </div>
       </PopoverContent>
+
     </Popover>
   );
 }

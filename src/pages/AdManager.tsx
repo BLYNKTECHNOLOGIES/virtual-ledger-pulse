@@ -108,7 +108,35 @@ export default function AdManager() {
   useEffect(() => { try { localStorage.setItem(VIEW_PREF_KEY, viewMode); } catch { /* ignore */ } }, [viewMode]);
   useEffect(() => { try { localStorage.setItem(DENSITY_PREF_KEY, compact ? '1' : '0'); } catch { /* ignore */ } }, [compact]);
   useEffect(() => { try { localStorage.setItem(TAB_PREF_KEY, activeTab); } catch { /* ignore */ } }, [activeTab]);
-  useEffect(() => { try { localStorage.setItem(STATUS_CHIPS_PREF_KEY, JSON.stringify(Array.from(statusChips))); } catch { /* ignore */ } }, [statusChips]);
+   useEffect(() => { try { localStorage.setItem(STATUS_CHIPS_PREF_KEY, JSON.stringify(Array.from(statusChips))); } catch { /* ignore */ } }, [statusChips]);
+
+  // Mirror view state to the URL (replace, not push) so it's shareable.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (activeTab !== 'all') p.set('tab', activeTab);
+    if (statusChips.size) p.set('status', Array.from(statusChips).join(','));
+    if (sortMode !== 'current') p.set('sort', sortMode);
+    if (viewMode !== 'categorized') p.set('view', viewMode);
+    if (compact) p.set('density', '1');
+    if (autoRefresh) p.set('auto', '1');
+    if (filters.asset) p.set('asset', filters.asset);
+    if (filters.tradeType) p.set('tradeType', filters.tradeType);
+    if (filters.advStatus !== undefined && filters.advStatus !== null) p.set('advStatus', String(filters.advStatus));
+    if (filters.priceType !== undefined && filters.priceType !== null) p.set('priceType', String(filters.priceType));
+    if (filters.startDate) p.set('startDate', filters.startDate);
+    if (filters.endDate) p.set('endDate', filters.endDate);
+    setSearchParams(p, { replace: true });
+  }, [activeTab, statusChips, sortMode, viewMode, compact, autoRefresh, filters, setSearchParams]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => toast({ title: 'Link copied', description: 'Shareable view URL copied to clipboard.' }))
+      .catch(() => toast({ title: 'Copy failed', description: 'Could not access clipboard.', variant: 'destructive' }));
+  };
+
+  // Per-ad history → pre-filtered logs page (reuses TerminalLogs search).
+  const handleHistory = (advNo: string) => navigate(`/terminal/logs?adv=${encodeURIComponent(advNo)}`);
+
 
   // Status is now a client-side chip dimension, so always fetch all statuses.
   const effectiveFilters: AdFilters = { ...filters };

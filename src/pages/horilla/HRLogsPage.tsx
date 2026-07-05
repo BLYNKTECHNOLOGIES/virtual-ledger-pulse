@@ -8,6 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Search, Mail, Bell } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function HRLogsPage() {
   const [tab, setTab] = useState("emails");
@@ -16,10 +19,7 @@ export default function HRLogsPage() {
   const { data: emailLogs = [], isLoading: emailLoading } = useQuery({
     queryKey: ["hr_email_send_log"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_email_send_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const { data } = await (supabase as any).from("hr_email_send_log").select("*").order("created_at", { ascending: false }).limit(200);
       return data || [];
     },
   });
@@ -27,10 +27,7 @@ export default function HRLogsPage() {
   const { data: notifLogs = [], isLoading: notifLoading } = useQuery({
     queryKey: ["hr_notification_log"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_notification_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const { data } = await (supabase as any).from("hr_notification_log").select("*").order("created_at", { ascending: false }).limit(200);
       return data || [];
     },
   });
@@ -47,15 +44,12 @@ export default function HRLogsPage() {
   );
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">HR System Logs</h1>
-        <p className="text-sm text-muted-foreground">Email delivery and notification audit trail</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader title="HR System Logs" description="Email delivery and notification audit trail" />
 
       <div className="relative">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search logs..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search logs..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -68,31 +62,28 @@ export default function HRLogsPage() {
           <Card>
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Recipient</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Template</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Error</TableHead>
+                    {["Time", "Recipient", "Subject", "Template", "Status", "Error"].map(h => (
+                      <TableHead key={h} className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{h}</TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {emailLoading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="p-4"><TableSkeleton rows={5} columns={6} /></TableCell></TableRow>
                   ) : filteredEmails.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No email logs found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6}><EmptyState icon={Mail} title="No email logs found" /></TableCell></TableRow>
                   ) : filteredEmails.map((e: any) => (
                     <TableRow key={e.id}>
-                      <TableCell className="text-xs">{format(new Date(e.created_at), "dd MMM HH:mm")}</TableCell>
+                      <TableCell className="text-xs tabular-nums">{format(new Date(e.created_at), "dd MMM HH:mm")}</TableCell>
                       <TableCell className="text-sm">{e.recipient_email}</TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{e.subject || "—"}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs">{e.template_name}</Badge></TableCell>
+                      <TableCell><Badge variant="outline" className="text-[10px]">{e.template_name}</Badge></TableCell>
                       <TableCell>
-                        <Badge className={e.status === "sent" ? "bg-success/10 text-success" : e.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${e.status === "sent" ? "bg-success/10 text-success border-success/20" : e.status === "failed" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-warning/10 text-warning border-warning/20"}`}>
                           {e.status}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-xs text-destructive max-w-[150px] truncate">{e.error_message || "—"}</TableCell>
                     </TableRow>
@@ -107,25 +98,22 @@ export default function HRLogsPage() {
           <Card>
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Message</TableHead>
-                    <TableHead>Channel</TableHead>
-                    <TableHead>Read</TableHead>
+                    {["Time", "Type", "Title", "Message", "Channel", "Read"].map(h => (
+                      <TableHead key={h} className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{h}</TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {notifLoading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="p-4"><TableSkeleton rows={5} columns={6} /></TableCell></TableRow>
                   ) : filteredNotifs.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No notification logs found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6}><EmptyState icon={Bell} title="No notification logs found" /></TableCell></TableRow>
                   ) : filteredNotifs.map((n: any) => (
                     <TableRow key={n.id}>
-                      <TableCell className="text-xs">{n.created_at ? format(new Date(n.created_at), "dd MMM HH:mm") : "—"}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs">{n.notification_type}</Badge></TableCell>
+                      <TableCell className="text-xs tabular-nums">{n.created_at ? format(new Date(n.created_at), "dd MMM HH:mm") : "—"}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-[10px]">{n.notification_type}</Badge></TableCell>
                       <TableCell className="text-sm font-medium">{n.title}</TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{n.message || "—"}</TableCell>
                       <TableCell className="text-xs">{n.channel || "in-app"}</TableCell>

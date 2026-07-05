@@ -810,11 +810,28 @@ export function WalletManagementTab() {
       {/* Terminal Wallet Links - compact */}
       <WalletLinkingSection />
 
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle>Recent Transactions</CardTitle>
+      {/* Per-wallet Recent Movements drawer (full history lives in the Ledger tab) */}
+      <Sheet open={!!movementsWallet} onOpenChange={(open) => !open && setMovementsWallet(null)}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Recent Movements — {movementsWallet?.wallet_name}
+            </SheetTitle>
+            <SheetDescription>
+              Latest wallet transactions for this wallet. Full history is in the Ledger tab.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex items-center justify-between gap-4 mt-4 mb-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchParams({ tab: 'ledger', wallet: movementsWallet?.wallet_name || '' })}
+            >
+              <ArrowUpRight className="h-4 w-4 mr-1" />
+              View all in Ledger
+            </Button>
             <div className="flex items-center gap-2">
               <PrefLabel htmlFor="hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
                 Hide reversal noise
@@ -826,45 +843,20 @@ export function WalletManagementTab() {
               />
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
+
           {transactionsLoading ? (
             <div className="text-center py-4">Loading transactions...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Wallet</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Balance After</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(transactions || [])
-                  .filter((t: any) =>
-                    hideReversalNoise
-                      ? !t.is_reversed && !t.reverses_transaction_id
-                      : true
-                  )
-                  .slice(0, 50)
-                  .map((transaction: any) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{format(new Date(transaction.created_at), 'MMM dd, yyyy')}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(transaction.created_at), 'HH:mm:ss')}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{transaction.wallets?.wallet_name}</TableCell>
-                    <TableCell>
+            <div className="space-y-2">
+              {(transactions || [])
+                .filter((t: any) => t.wallet_id === movementsWallet?.id)
+                .filter((t: any) =>
+                  hideReversalNoise ? !t.is_reversed && !t.reverses_transaction_id : true
+                )
+                .slice(0, 50)
+                .map((transaction: any) => (
+                  <div key={transaction.id} className="rounded-md border p-3 text-sm">
+                    <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center">
                         <Badge variant={transaction.transaction_type === 'CREDIT' ? "default" : "destructive"}>
                           {transaction.transaction_type === 'CREDIT' ? (
@@ -880,47 +872,47 @@ export function WalletManagementTab() {
                           description={transaction.description}
                         />
                       </div>
-                    </TableCell>
-                    <TableCell>{(transaction.amount ?? 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{transaction.reference_type}</Badge>
-                    </TableCell>
-                    <TableCell>{transaction.description}</TableCell>
-                    <TableCell>{(transaction.balance_after ?? 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell>
-                      {(transaction as any).created_by_user && (transaction as any).created_by_user.username ? (
-                        <ClickableUser
-                          userId={(transaction as any).created_by}
-                          username={(transaction as any).created_by_user.username}
-                          firstName={(transaction as any).created_by_user.first_name}
-                          lastName={(transaction as any).created_by_user.last_name}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
+                      <span className="font-medium tabular-nums">
+                        {(transaction.amount ?? 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>{format(new Date(transaction.created_at), 'MMM dd, yyyy HH:mm:ss')}</span>
+                      <Badge variant="outline" className="text-[10px]">{transaction.reference_type}</Badge>
+                    </div>
+                    {transaction.description && (
+                      <p className="mt-1 text-xs">{transaction.description}</p>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">
+                        Bal after: {(transaction.balance_after ?? 0).toLocaleString('en-IN')}
+                      </span>
                       {isDeletable(transaction.reference_type, transaction) && (
                         <PermissionGate permissions={["stock_destructive"]} showFallback={false}>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => handleDeleteTransaction(transaction)}
-                            disabled={deleteTransactionMutation.isPending}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Reverse
                           </Button>
                         </PermissionGate>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              {(transactions || []).filter((t: any) => t.wallet_id === movementsWallet?.id).length === 0 && (
+                <p className="text-center text-muted-foreground py-8 text-sm">
+                  No movements for this wallet yet.
+                </p>
+              )}
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </SheetContent>
+      </Sheet>
+
 
       <AddWalletDialog />
       <AddTransactionDialog />

@@ -183,21 +183,29 @@ function AdCard({
   );
 }
 
-function Zone({
-  label, tintClass, ads, sortMode, ...cardProps
-}: {
+interface ZoneProps {
   label: string;
   tintClass: string;
   ads: BinanceAd[];
   sortMode: AdSortMode;
-} & Omit<Parameters<typeof AdCard>[0], 'ad' | 'selected' | 'onToggleSelect' | 'excluded' | 'onToggleExclusion' | 'exclusionPending'> & {
+  onEdit: (ad: BinanceAd) => void;
+  onToggleStatus: (advNo: string, currentStatus: number) => void;
+  onHistory?: (advNo: string) => void;
+  onDuplicate: (ad: BinanceAd) => void;
+  isTogglingStatus: boolean;
+  compact?: boolean;
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;
   excludedAds?: Set<string>;
   onToggleExclusion: (ad: BinanceAd) => void;
   exclusionPending: boolean;
-}) {
-  const { selectedAdvNos, onSelectionChange, excludedAds, onToggleExclusion, exclusionPending, ...rest } = cardProps as any;
+}
+
+function Zone({
+  label, tintClass, ads, sortMode,
+  selectedAdvNos, onSelectionChange, excludedAds, onToggleExclusion, exclusionPending,
+  onEdit, onToggleStatus, onHistory, onDuplicate, isTogglingStatus, compact,
+}: ZoneProps) {
   const sorted = useMemo(() => applyAdSort(ads, sortMode), [ads, sortMode]);
   const totalSurplus = useMemo(() => ads.reduce((s, a) => s + Number(a.surplusAmount || 0), 0), [ads]);
 
@@ -226,7 +234,12 @@ function Zone({
               excluded={!!excludedAds?.has(ad.advNo)}
               onToggleExclusion={() => onToggleExclusion(ad)}
               exclusionPending={exclusionPending}
-              {...rest}
+              onEdit={onEdit}
+              onToggleStatus={onToggleStatus}
+              onHistory={onHistory}
+              onDuplicate={onDuplicate}
+              isTogglingStatus={isTogglingStatus}
+              compact={compact}
             />
           ))}
         </div>

@@ -117,7 +117,7 @@ export default function AdManager() {
     if (activeTab !== 'all') p.set('tab', activeTab);
     if (statusChips.size) p.set('status', Array.from(statusChips).join(','));
     if (sortMode !== 'current') p.set('sort', sortMode);
-    if (viewMode !== 'categorized') p.set('view', viewMode);
+    if (viewMode !== 'board') p.set('view', viewMode);
     if (compact) p.set('density', '1');
     if (autoRefresh) p.set('auto', '1');
     if (filters.asset) p.set('asset', filters.asset);

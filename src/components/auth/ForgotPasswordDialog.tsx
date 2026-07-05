@@ -109,15 +109,20 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
     }
   };
 
+  const fieldClass =
+    "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40";
+  const primaryBtn =
+    "h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]";
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="ops-rise sm:max-w-md border-white/10 bg-[hsl(231_45%_7%)] text-white backdrop-blur-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-white">
+            <KeyRound className="h-4 w-4 text-[hsl(231_81%_75%)]" />
             Reset Password
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs text-white/55">
             {step === 'email' && 'Enter your registered ERP email to receive a verification code.'}
             {step === 'verify' && `Enter the 6-digit code sent to ${email} and set a new password.`}
             {step === 'done' && 'Your password has been reset.'}
@@ -125,29 +130,30 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
         </DialogHeader>
 
         {error && (
-          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm">
-            {error}
+          <div className="flex items-start gap-2 text-xs text-destructive" role="alert">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
         {step === 'email' && (
           <form onSubmit={sendOtp} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fp-email">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="fp-email" className="text-xs font-medium text-white/70">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-3.5 h-4 w-4 text-white/50" />
                 <Input
                   id="fp-email"
                   type="email"
                   placeholder="Enter your registered email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 text-foreground"
+                  className={`${fieldClass} pl-10`}
                   required
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className={primaryBtn} disabled={isLoading}>
               {isLoading ? 'Sending…' : 'Send Verification Code'}
             </Button>
           </form>
@@ -155,8 +161,8 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
 
         {step === 'verify' && (
           <form onSubmit={verifyOtp} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fp-otp">Verification Code</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="fp-otp" className="text-xs font-medium text-white/70">Verification Code</Label>
               <Input
                 id="fp-otp"
                 inputMode="numeric"
@@ -164,22 +170,22 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
                 placeholder="6-digit code"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="text-foreground tracking-[0.5em] text-center text-lg"
+                className={`${fieldClass} text-center text-lg tracking-[0.5em]`}
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fp-new">New Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="fp-new" className="text-xs font-medium text-white/70">New Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-3.5 h-4 w-4 text-white/50" />
                 <Input
                   id="fp-new"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter new password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="pl-10 pr-10 text-foreground"
+                  className={`${fieldClass} pl-10 pr-10`}
                   required
                   minLength={8}
                 />
@@ -187,38 +193,39 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-0 top-0 h-full px-3 text-white/60 hover:bg-transparent hover:text-white"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fp-confirm">Confirm New Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="fp-confirm" className="text-xs font-medium text-white/70">Confirm New Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-3.5 h-4 w-4 text-white/50" />
                 <Input
                   id="fp-confirm"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10 text-foreground"
+                  className={`${fieldClass} pl-10`}
                   required
                   minLength={8}
                 />
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className={primaryBtn} disabled={isLoading}>
               {isLoading ? 'Resetting…' : 'Reset Password'}
             </Button>
             <Button
               type="button"
               variant="ghost"
-              className="w-full"
+              className="w-full text-white/70 hover:bg-white/5 hover:text-white"
               disabled={isLoading}
               onClick={() => sendOtp()}
             >
@@ -228,12 +235,12 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
         )}
 
         {step === 'done' && (
-          <div className="space-y-4 text-center py-2">
-            <CheckCircle className="h-12 w-12 text-success mx-auto" />
-            <p className="text-sm text-muted-foreground">
+          <div className="space-y-4 py-2 text-center">
+            <CheckCircle className="mx-auto h-12 w-12 text-emerald-400" />
+            <p className="text-sm text-white/60">
               Your password has been reset successfully. You can now sign in with your new password.
             </p>
-            <Button className="w-full" onClick={() => handleClose(false)}>
+            <Button className={primaryBtn} onClick={() => handleClose(false)}>
               Back to Login
             </Button>
           </div>

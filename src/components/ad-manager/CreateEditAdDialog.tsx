@@ -201,6 +201,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
         buyerBtcPositionLimit: -1,
         takerAdditionalKycRequired: 0,
         selectedPayMethods: [],
+        // Duplicate Ad: seed create-mode defaults from the source ad.
+        ...(initialValues || {}),
       });
     }
     setShowPayMethodPicker(false);

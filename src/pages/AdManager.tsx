@@ -152,12 +152,12 @@ export default function AdManager() {
     return m;
   }, [ads]);
 
-  const handleToggleStatus = (advNo: string, currentStatus: number) => {
+   const handleToggleStatus = (advNo: string, currentStatus: number) => {
     const isCurrentlyPrivate = currentStatus === BINANCE_AD_STATUS.PRIVATE;
     const newStatus = currentStatus === BINANCE_AD_STATUS.ONLINE || isCurrentlyPrivate
       ? BINANCE_AD_STATUS.OFFLINE 
       : BINANCE_AD_STATUS.ONLINE;
-    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate, exchangeAccountId: accountForAdv.get(advNo) });
+    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate, fromStatus: currentStatus, exchangeAccountId: accountForAdv.get(advNo) });
   };
 
   const handleBulkComplete = () => { setSelectedAdvNos(new Set()); refetch(); };

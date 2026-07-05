@@ -1165,6 +1165,24 @@ serve(async (req) => {
       }
     }
 
+    // Copilot block — fully guarded; never blocks the send (item 8).
+    try {
+      const { data: cs } = await supabase.from("copilot_settings").select("stats").limit(1).maybeSingle();
+      const stats: any = cs?.stats || {};
+      const perAcc: Record<string, any> = stats.per_account_7d || {};
+      report.copilot = {
+        served7d: stats.served_7d ?? 0,
+        accepted7d: stats.accepted_7d ?? 0,
+        acceptancePct7d: stats.acceptance_pct_7d ?? 0,
+        otherCoveragePct: stats.other_coverage_pct ?? 0,
+        perAccount: Object.entries(perAcc).map(([id, v]: any) => ({
+          account: id, shown: v.shown, accepted: v.accepted,
+        })),
+      };
+    } catch (cErr) {
+      console.error("copilot report block skipped:", (cErr as Error).message);
+    }
+
     // Dry-run: return the built payload + narrative WITHOUT sending any email.
     if (body?.dryRun === true) {
       return new Response(JSON.stringify({

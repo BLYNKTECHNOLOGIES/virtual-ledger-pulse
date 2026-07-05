@@ -9,7 +9,9 @@ import {
   classifySituation,
   detectLanguage,
   embedCopilot,
+  outcomeWeight,
   toPgVector,
+  SITUATION_CLASSES,
 } from "../_shared/copilot.ts";
 
 const corsHeaders = {

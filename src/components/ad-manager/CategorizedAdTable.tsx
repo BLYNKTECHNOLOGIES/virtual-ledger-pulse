@@ -19,7 +19,7 @@ import { useValueFlash } from '@/hooks/useValueFlash';
 
 export type AdSortMode = 'current' | 'price-asc' | 'price-desc' | 'avail-asc' | 'avail-desc' | 'updated-desc';
 
-function applyAdSort(list: BinanceAd[], mode: AdSortMode): BinanceAd[] {
+export function applyAdSort(list: BinanceAd[], mode: AdSortMode): BinanceAd[] {
   if (mode === 'current') return list;
   const arr = [...list];
   switch (mode) {
@@ -40,6 +40,16 @@ function AdPriceCell({ ad, isEditing, onRequestEdit, onClose }: { ad: BinanceAd;
     </TableCell>
   );
 }
+
+/** Amber "Xh ago" label when an ad's price is older than 30 min, else null. */
+export function stalePriceLabel(updateTime?: string): string | null {
+  if (!updateTime) return null;
+  const mins = Math.floor((Date.now() - new Date(updateTime).getTime()) / 60000);
+  if (mins <= 30) return null;
+  return mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
+}
+
+
 
 
 function formatCommissionRate(ad: BinanceAd, identifier?: string) {
@@ -64,6 +74,7 @@ interface CategorizedAdTableProps {
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;
   sortMode?: AdSortMode;
+  compact?: boolean;
 }
 
 interface AdGroup {
@@ -216,7 +227,7 @@ function categorizeAds(
   ];
 }
 
-export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current' }: CategorizedAdTableProps) {
+export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', compact = false }: CategorizedAdTableProps) {
   const { user } = useAuth();
   const { buyConfig, sellConfig } = useSmallConfigs();
   const { data: excludedAds } = useExcludedAds();
@@ -415,7 +426,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
 
                 // Ad rows
                 ...(!isGroupCollapsed ? applyAdSort(group.ads, sortMode).map((ad, adIdx, orderedAds) => (
-                  <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined}>
+                  <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined} className={compact ? 'text-xs [&>td]:py-1.5' : undefined}>
                     <TableCell className="pl-12">
                       <Checkbox
                         checked={selectedAdvNos.has(ad.advNo)}

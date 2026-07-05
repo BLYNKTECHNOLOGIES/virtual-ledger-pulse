@@ -30,7 +30,7 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
   return (
     <div className="pt-3 border-t border-border space-y-3">
       {payMethods.map((method, idx) => (
-        <div key={idx}>
+        <div key={idx} className="t-panel p-3">
           <div className="flex items-center gap-1.5 mb-2">
             <CreditCard className="h-3 w-3 text-primary" />
             <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
@@ -40,9 +40,9 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
 
           <div className="bg-primary/5 border border-primary/20 rounded-md px-3 py-2 mb-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">You Pay</span>
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">You Pay</span>
               <span
-                className="text-sm font-bold text-primary tabular-nums cursor-pointer hover:opacity-80 transition-opacity"
+                className="text-sm font-semibold text-primary t-mono cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => {
                   const intAmount = Math.floor(Number(totalPrice)).toString();
                   copyToClipboard(intAmount, 'Amount');
@@ -54,6 +54,7 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
             </div>
           </div>
 
+
           {/* Payment fields */}
           {method.fields?.filter(f => f.fieldValue).map((field, fIdx) => {
             const fieldNameLower = (field.fieldName || '').toLowerCase();
@@ -61,15 +62,16 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
             const shouldShowCopy = field.isCopyable || isNameField;
             return (
               <div key={fIdx} className="flex items-start justify-between py-1.5 border-b border-border/50 last:border-0">
-                <span className="text-[10px] text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
                 <span
-                  className={`text-[11px] text-foreground font-medium text-right break-all ${shouldShowCopy ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                  className={`text-xs text-foreground t-mono bg-secondary px-1.5 py-0.5 rounded text-right break-all ${shouldShowCopy ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
                   onClick={shouldShowCopy ? () => copyToClipboard(field.fieldValue, field.fieldName) : undefined}
                   title={shouldShowCopy ? `Click to copy ${field.fieldName}` : undefined}
                 >
                   {field.fieldValue}
                 </span>
               </div>
+
             );
           })}
         </div>

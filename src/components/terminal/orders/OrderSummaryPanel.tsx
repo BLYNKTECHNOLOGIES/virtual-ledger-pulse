@@ -24,7 +24,10 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
   const { hasPermission, isTerminalAdmin } = useTerminalAuth();
   const canActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
-  const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
+  const tradeChip = order.trade_type === 'BUY'
+    ? 'bg-trade-buy/10 text-trade-buy border border-trade-buy/25'
+    : 'bg-trade-sell/10 text-trade-sell border border-trade-sell/25';
+
 
   // Finalized states from live detail outrank stale cached active states,
   // except when the caller is opening an active Appeal case and needs that status preserved.
@@ -58,7 +61,7 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
     <div className="flex flex-col h-full">
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
-          <Badge className={`${tradeBg} ${tradeColor} border-0 text-xs font-semibold`}>
+          <Badge className={`${tradeChip} text-[10px] font-bold uppercase tracking-wide t-mono rounded`}>
             {order.trade_type}
           </Badge>
           <CounterpartyBadge
@@ -67,12 +70,13 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
             tradeType={order.trade_type}
           />
         </div>
-        <h2 className="text-lg font-bold text-foreground tabular-nums">
+        <h2 className="text-lg font-semibold text-foreground t-mono">
           ₹{Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-xs text-muted-foreground mt-0.5 t-mono">
           {Number(order.amount).toFixed(4)} {order.asset} @ ₹{Number(order.unit_price).toLocaleString('en-IN')}
         </p>
+
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
@@ -236,21 +240,22 @@ function CountdownTimer({ expiryTime, payTimeLimitMinutes }: { expiryTime: numbe
     : 'text-foreground';
 
   return (
-    <div className="flex items-start gap-2.5">
-      {urgency === 'critical' ? (
-        <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0 animate-pulse" />
-      ) : (
-        <Timer className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-      )}
-      <div className="min-w-0">
-        <p className="text-[10px] text-muted-foreground">
-          {isExpired ? 'Payment Window' : `Time Remaining${payTimeLimitMinutes ? ` (${payTimeLimitMinutes}min window)` : ''}`}
+    <div className="rounded-md bg-trade-pending/10 border border-trade-pending/20 px-3 py-2">
+      <div className="flex items-center gap-1.5 mb-1">
+        {urgency === 'critical' ? (
+          <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
+        ) : (
+          <Timer className="h-3 w-3 text-muted-foreground shrink-0" />
+        )}
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {isExpired ? 'Payment Window' : `Time Remaining${payTimeLimitMinutes ? ` · ${payTimeLimitMinutes}min` : ''}`}
         </p>
-        <p className={`text-xs font-medium tabular-nums ${colorClass}`}>{remaining}</p>
       </div>
+      <p className={`t-mono text-lg font-semibold ${urgency === 'normal' ? 'text-trade-pending' : colorClass}`}>{remaining}</p>
     </div>
   );
 }
+
 
 /** Fallback: Live elapsed timer when payTimeLimit is not available */
 function ElapsedTimer({ createTime }: { createTime: number }) {
@@ -285,9 +290,10 @@ function InfoRow({ icon: Icon, label, value, mono }: { icon: any; label: string;
     <div className="flex items-start gap-2.5">
       <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0">
-        <p className="text-[10px] text-muted-foreground">{label}</p>
-        <p className={`text-xs text-foreground ${mono ? 'font-mono' : ''} break-all`}>{value}</p>
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className={`text-xs text-foreground t-mono ${mono ? '' : ''} break-all`}>{value}</p>
       </div>
     </div>
   );
+
 }

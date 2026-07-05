@@ -81,13 +81,14 @@ export function OrderAssignmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto t-scale-in border-border bg-popover">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4" />
+          <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+            <UserPlus className="h-4 w-4 text-primary" />
             Assign Order
           </DialogTitle>
         </DialogHeader>
+
 
         <div className="space-y-1 text-xs text-muted-foreground pb-2 border-b border-border">
           <div>Order: <span className="font-mono text-foreground">{orderNumber}</span></div>
@@ -162,8 +163,9 @@ export function OrderAssignmentDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" size="sm" className="h-9" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );

@@ -196,7 +196,7 @@ export function QuickReceiveDialog({
           Quick Receive
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="max-w-md t-scale-in border-border bg-popover">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-warning" />

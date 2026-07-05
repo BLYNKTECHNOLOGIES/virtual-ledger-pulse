@@ -473,16 +473,17 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type a message..."
-            className="h-8 text-xs bg-background text-foreground border-border placeholder:text-muted-foreground"
+            className="h-8 text-xs bg-input text-foreground border-border rounded-md placeholder:text-muted-foreground focus-visible:ring-primary"
           />
           <Button
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-8 w-8 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => handleSend()}
             disabled={!text.trim() || isSending}
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
+
         </div>
         <p className="text-[8px] text-muted-foreground/50 mt-1 px-1">
           {!isConnected 

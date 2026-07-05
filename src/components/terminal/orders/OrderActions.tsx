@@ -123,7 +123,7 @@ function VerifyOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
-          className="w-full h-8 text-xs gap-1.5 bg-trade-buy hover:bg-trade-buy/90 text-white"
+          className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-success/10 text-success border border-success/25 hover:bg-success/15 active:scale-[0.98] transition-transform duration-150"
           disabled={verifyOrder.isPending}
         >
           {verifyOrder.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
@@ -168,7 +168,7 @@ function MarkAsPaidAction({ orderNumber, exchangeAccountId }: { orderNumber: str
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
-          className="w-full h-8 text-xs gap-1.5 bg-trade-buy hover:bg-trade-buy/90 text-white"
+          className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150"
           disabled={markPaid.isPending}
         >
           {markPaid.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
@@ -281,7 +281,7 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
-          className="w-full h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90"
+          className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150"
           disabled={releaseCoin.isPending}
         >
           {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
@@ -388,7 +388,7 @@ function CancelOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
       <Button
         variant="outline"
         size="sm"
-        className="w-full h-8 text-xs gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5"
+        className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-destructive/10 text-destructive border border-destructive/25 hover:bg-destructive/15 active:scale-[0.98] transition-transform duration-150"
         disabled={cancelOrder.isPending}
         onClick={() => setStep(1)}
       >

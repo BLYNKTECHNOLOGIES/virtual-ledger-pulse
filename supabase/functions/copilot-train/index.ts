@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
     const newWatermark = replies[replies.length - 1].binance_created_at;
     const orderNumbers = [...new Set(replies.map((r) => r.order_number))];
 
-    // 2) Assignments → keep only orders handled by a trainer operator.
+    // 2) Assignments → order-level operator (best-effort; used for SIDE + fallback attribution).
     const { data: assigns } = await admin
       .from("terminal_order_assignments")
       .select("order_number, assigned_to, trade_type")
@@ -215,6 +215,32 @@ Deno.serve(async (req) => {
       }
     }
     const trainerSet = new Set(trainers);
+
+    // 2b) PRIMARY per-message attribution → chat_message_senders maps the exact
+    // (order_number + message_content) to the operator user_id who actually sent it.
+    // This is the accurate source; terminal_order_assignments is sparse and only
+    // yields an order-level guess (used just for SIDE and as a fallback).
+    const normKey = (order: string, text: string) =>
+      `${order}\u0001${(text || "").trim().toLowerCase()}`;
+    const senderMap = new Map<string, string>(); // key -> user_id
+    {
+      let from = 0;
+      while (true) {
+        const { data: senders } = await admin
+          .from("chat_message_senders")
+          .select("order_number, message_content, user_id")
+          .in("order_number", orderNumbers)
+          .range(from, from + 999);
+        if (!senders || senders.length === 0) break;
+        for (const s of senders) {
+          if (!s.user_id || s.user_id === "DELETED" || !s.message_content) continue;
+          const k = normKey(s.order_number, s.message_content);
+          if (!senderMap.has(k)) senderMap.set(k, s.user_id);
+        }
+        if (senders.length < 1000) break;
+        from += 1000;
+      }
+    }
 
     // 3) All messages for these orders (for role-tagged context).
     const { data: allMsgs } = await admin

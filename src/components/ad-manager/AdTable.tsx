@@ -63,7 +63,7 @@ function SortHeader({ label, active, dir, onClick, className }: { label: string;
   );
 }
 
-export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', onSortModeChange, compact = false }: DeskTableProps) {
+export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', onSortModeChange, compact = false }: DeskTableProps) {
   const { data: excludedAds } = useExcludedAds();
   const toggleExclusion = useToggleAdExclusion();
   const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);

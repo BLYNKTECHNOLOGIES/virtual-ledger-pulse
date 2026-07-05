@@ -155,13 +155,14 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
   const { isDragActive, dropzoneProps } = useFileDropzone({ onFiles: handleDropFiles, disabled: uploading, multiple: false });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-warning/[0.04] shadow-[inset_2px_0_0_hsl(var(--warning))]">
       {/* Header */}
-      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 bg-card/50">
-        <Users className="h-3.5 w-3.5 text-primary" />
-        <span className="text-xs font-medium text-foreground">Internal Chat</span>
-        <span className="text-[10px] text-muted-foreground">— Order #{orderNumber.slice(-8)}</span>
+      <div className="t-panel-head">
+        <Users className="h-3.5 w-3.5 text-warning" />
+        <span className="t-panel-head-title">Internal</span>
+        <span className="text-[10px] text-muted-foreground ml-auto t-mono">#{orderNumber.slice(-8)}</span>
       </div>
+
 
       {/* Assignment Info Banner */}
       {assignmentInfo && (assignmentInfo.payers.length > 0 || assignmentInfo.operators.length > 0) && (

@@ -14,6 +14,7 @@ import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotStrip } from './chat/CopilotStrip';
 import { useCopilotVisible, type CopilotSuggestInput } from '@/hooks/useCopilot';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';

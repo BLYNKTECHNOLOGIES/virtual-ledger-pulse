@@ -248,13 +248,30 @@ export function useUpdateAd() {
       const { exchange_account_id, ...rest } = adData;
       return callBinanceAds('updateAd', { adData: rest }, exchange_account_id);
     },
-    onSuccess: (_data, adData) => {
-      queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+     onSuccess: (_data, adData) => {
+      // Instant UI: patch the changed row(s) across every cached accounts/filters
+      // permutation instead of a blanket refetch. Matches by advNo (+ account).
+      const patched = patchAdsCache(queryClient, (ad) => {
+        if (ad.advNo !== adData.advNo) return null;
+        if (adData.exchange_account_id !== undefined && ad._exchangeAccountId !== adData.exchange_account_id) return null;
+        const next: any = { ...ad, updateTime: String(Date.now()) };
+        if (adData.price !== undefined) next.price = Number(adData.price);
+        if (adData.priceFloatingRatio !== undefined) next.priceFloatingRatio = adData.priceFloatingRatio;
+        return next;
+      });
+      // Edge case: row not in any cache → reconcile that query only.
+      if (!patched) queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Updated', description: 'Your ad has been updated successfully.' });
+      const isFloating = adData.priceFloatingRatio !== undefined;
       logAdAction({
         actionType: AdActionTypes.AD_UPDATED,
         advNo: adData.advNo,
-        adDetails: { tradeType: adData.tradeType, asset: adData.asset, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods },
+        adDetails: {
+          tradeType: adData.tradeType, asset: adData.asset, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods,
+          ...(adData.oldPrice !== undefined ? { oldPrice: adData.oldPrice, newPrice: adData.price } : {}),
+          ...(isFloating && adData.oldRatio !== undefined ? { oldRatio: adData.oldRatio, newRatio: adData.priceFloatingRatio } : {}),
+        },
+        metadata: { exchangeAccountId: adData.exchange_account_id },
       });
     },
     onError: (error: Error) => {

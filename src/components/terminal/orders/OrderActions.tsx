@@ -388,7 +388,7 @@ function CancelOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
       <Button
         variant="outline"
         size="sm"
-        className="w-full h-8 text-xs gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5"
+        className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-destructive/10 text-destructive border border-destructive/25 hover:bg-destructive/15 active:scale-[0.98] transition-transform duration-150"
         disabled={cancelOrder.isPending}
         onClick={() => setStep(1)}
       >

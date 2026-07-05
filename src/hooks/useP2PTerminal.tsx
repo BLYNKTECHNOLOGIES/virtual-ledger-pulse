@@ -113,6 +113,39 @@ export function useSyncOrders() {
   });
 }
 
+// ---- Batch sync (one RPC for the whole subset; server loops sync_p2p_order) ----
+export function useSyncOrdersBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orders: C2COrderHistoryItem[]) => {
+      const p_orders = orders.map((o) => ({
+        order_number: o.orderNumber,
+        adv_no: o.advNo || null,
+        nickname: o.counterPartNickName || 'Unknown',
+        trade_type: o.tradeType,
+        asset: o.asset || 'USDT',
+        fiat: o.fiatUnit || 'INR',
+        amount: parseFloat(o.amount || '0'),
+        total_price: parseFloat(o.totalPrice || '0'),
+        unit_price: parseFloat(o.unitPrice || '0'),
+        commission: parseFloat(o.commission || '0'),
+        status: o.orderStatus || 'TRADING',
+        pay_method: o.payMethodName || null,
+        create_time: o.createTime || 0,
+      }));
+      const { data, error } = await supabase.rpc('sync_p2p_orders_batch' as any, { p_orders });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['p2p-counterparties'] });
+    },
+  });
+}
+
+
 // ---- Local order records ----
 export function useP2POrders(filters?: { tradeType?: string; status?: string; search?: string }) {
   return useQuery({

@@ -17521,6 +17521,7 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_p2p_orders_batch: { Args: { p_orders: Json }; Returns: number }
       sync_usdt_stock: { Args: never; Returns: undefined }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
       terminal_order_final_appeal_status: {

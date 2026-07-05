@@ -21,20 +21,11 @@ export function StockReportsTab() {
   const [dateTo, setDateTo] = useState<Date>(new Date());
   const [reportType, setReportType] = useState<string>("all");
   const [walletFilter, setWalletFilter] = useState<string>("all");
+  const [assetFilter, setAssetFilter] = useState<string>("all");
   const { data: averageCosts } = useAverageCost();
 
-  const { data: wallets } = useQuery({
-    queryKey: ['wallets_for_reports'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('id, wallet_name, wallet_type')
-        .eq('is_active', true)
-        .order('wallet_name');
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Shared active-wallets query (deduped with the Conversion subtables).
+  const { data: wallets } = useStockWallets();
 
   const { data: stockTransactions, isLoading: reportsLoading } = useQuery({
     queryKey: ['stock_transactions_for_reports', dateFrom, dateTo],

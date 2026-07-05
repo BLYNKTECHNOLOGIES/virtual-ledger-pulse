@@ -293,6 +293,7 @@ export function SharedStockAdjustmentDialog({ open, onOpenChange }: SharedStockA
             <Label>Amount *</Label>
             <Input
               type="number"
+              inputMode="decimal"
               step="0.01"
               placeholder="Enter amount"
               value={adjustmentData.amount}

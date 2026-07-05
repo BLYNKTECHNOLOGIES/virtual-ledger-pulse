@@ -17,8 +17,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent, Settings } from "lucide-react";
-import { ManualWalletAdjustmentDialog } from "./ManualWalletAdjustmentDialog";
+import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent, Settings, History, ArrowUpRight } from "lucide-react";
+import { SharedStockAdjustmentDialog } from "./SharedStockAdjustmentDialog";
+import { ReverseTransactionDialog } from "./ReverseTransactionDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { useSearchParams } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { WalletLinkingSection } from "./WalletLinkingSection";
@@ -78,8 +81,9 @@ export function WalletManagementTab() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [reversalReason, setReversalReason] = useState("");
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
+  const [movementsWallet, setMovementsWallet] = useState<WalletType | null>(null);
+  const [, setSearchParams] = useSearchParams();
 
   // Per-user "Hide reversal noise" preference (defaults OFF for full audit view)
   const _userIdForPrefs = getCurUserIdForPrefs();
@@ -303,47 +307,6 @@ export function WalletManagementTab() {
     }
   });
 
-  // Reverse wallet transaction (immutable ledger — posts an opposite-sign row)
-  const deleteTransactionMutation = useMutation({
-    mutationFn: async ({ transactionId, reason }: { transactionId: string; reason: string }) => {
-      const rawUserId = getCurrentUserId();
-      const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
-      const reversedBy = isValidUuid ? rawUserId : null;
-
-      const { data, error } = await supabase.rpc('reverse_wallet_transaction', {
-        p_tx_id: transactionId,
-        p_reason: reason,
-        p_reversed_by: reversedBy,
-      });
-
-      if (error) throw error;
-      return data as string;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Transaction Reversed",
-        description: "An opposite-sign reversal entry was posted. The original record is preserved.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_transactions_live'] });
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_stock_transactions'] });
-      refetchWallets();
-      refetchTransactions();
-      setShowDeleteConfirm(false);
-      setTransactionToDelete(null);
-      setReversalReason("");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Reversal failed",
-        description: error?.message || "Failed to post reversal",
-        variant: "destructive",
-      });
-    }
-  });
-
   // Reversible only for manual entries (and never a reversal of a reversal)
   const isDeletable = (referenceType: string, transaction?: any) => {
     if (referenceType === 'REVERSAL') return false;
@@ -353,17 +316,7 @@ export function WalletManagementTab() {
 
   const handleDeleteTransaction = (transaction: any) => {
     setTransactionToDelete(transaction);
-    setReversalReason("");
     setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteTransaction = () => {
-    if (transactionToDelete && reversalReason.trim().length >= 3) {
-      deleteTransactionMutation.mutate({
-        transactionId: transactionToDelete.id,
-        reason: reversalReason.trim(),
-      });
-    }
   };
 
   // Copy address to clipboard
@@ -677,6 +630,14 @@ export function WalletManagementTab() {
               Manual Adjustment
             </Button>
           </PermissionGate>
+          <Button
+            onClick={() => setSearchParams({ tab: 'ledger' })}
+            variant="outline"
+            size="sm"
+          >
+            <History className="h-4 w-4 mr-1" />
+            View all in Ledger
+          </Button>
           <Button onClick={() => setShowAddWalletDialog(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" />
             Add Wallet
@@ -684,10 +645,11 @@ export function WalletManagementTab() {
         </div>
       </div>
 
-      <ManualWalletAdjustmentDialog
+      <SharedStockAdjustmentDialog
         open={showAdjustmentDialog}
         onOpenChange={setShowAdjustmentDialog}
       />
+
 
 
       {/* Summary Cards */}
@@ -808,6 +770,15 @@ export function WalletManagementTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setMovementsWallet(wallet)}
+                          className="h-7 w-7 p-0"
+                          title="Recent movements"
+                        >
+                          <History className="h-3 w-3" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -839,11 +810,28 @@ export function WalletManagementTab() {
       {/* Terminal Wallet Links - compact */}
       <WalletLinkingSection />
 
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle>Recent Transactions</CardTitle>
+      {/* Per-wallet Recent Movements drawer (full history lives in the Ledger tab) */}
+      <Sheet open={!!movementsWallet} onOpenChange={(open) => !open && setMovementsWallet(null)}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Recent Movements — {movementsWallet?.wallet_name}
+            </SheetTitle>
+            <SheetDescription>
+              Latest wallet transactions for this wallet. Full history is in the Ledger tab.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex items-center justify-between gap-4 mt-4 mb-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchParams({ tab: 'ledger', wallet: movementsWallet?.wallet_name || '' })}
+            >
+              <ArrowUpRight className="h-4 w-4 mr-1" />
+              View all in Ledger
+            </Button>
             <div className="flex items-center gap-2">
               <PrefLabel htmlFor="hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
                 Hide reversal noise
@@ -855,45 +843,20 @@ export function WalletManagementTab() {
               />
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
+
           {transactionsLoading ? (
             <div className="text-center py-4">Loading transactions...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Wallet</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Balance After</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(transactions || [])
-                  .filter((t: any) =>
-                    hideReversalNoise
-                      ? !t.is_reversed && !t.reverses_transaction_id
-                      : true
-                  )
-                  .slice(0, 50)
-                  .map((transaction: any) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{format(new Date(transaction.created_at), 'MMM dd, yyyy')}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(transaction.created_at), 'HH:mm:ss')}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{transaction.wallets?.wallet_name}</TableCell>
-                    <TableCell>
+            <div className="space-y-2">
+              {(transactions || [])
+                .filter((t: any) => t.wallet_id === movementsWallet?.id)
+                .filter((t: any) =>
+                  hideReversalNoise ? !t.is_reversed && !t.reverses_transaction_id : true
+                )
+                .slice(0, 50)
+                .map((transaction: any) => (
+                  <div key={transaction.id} className="rounded-md border p-3 text-sm">
+                    <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center">
                         <Badge variant={transaction.transaction_type === 'CREDIT' ? "default" : "destructive"}>
                           {transaction.transaction_type === 'CREDIT' ? (
@@ -909,47 +872,47 @@ export function WalletManagementTab() {
                           description={transaction.description}
                         />
                       </div>
-                    </TableCell>
-                    <TableCell>{(transaction.amount ?? 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{transaction.reference_type}</Badge>
-                    </TableCell>
-                    <TableCell>{transaction.description}</TableCell>
-                    <TableCell>{(transaction.balance_after ?? 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell>
-                      {(transaction as any).created_by_user && (transaction as any).created_by_user.username ? (
-                        <ClickableUser
-                          userId={(transaction as any).created_by}
-                          username={(transaction as any).created_by_user.username}
-                          firstName={(transaction as any).created_by_user.first_name}
-                          lastName={(transaction as any).created_by_user.last_name}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
+                      <span className="font-medium tabular-nums">
+                        {(transaction.amount ?? 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>{format(new Date(transaction.created_at), 'MMM dd, yyyy HH:mm:ss')}</span>
+                      <Badge variant="outline" className="text-[10px]">{transaction.reference_type}</Badge>
+                    </div>
+                    {transaction.description && (
+                      <p className="mt-1 text-xs">{transaction.description}</p>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">
+                        Bal after: {(transaction.balance_after ?? 0).toLocaleString('en-IN')}
+                      </span>
                       {isDeletable(transaction.reference_type, transaction) && (
                         <PermissionGate permissions={["stock_destructive"]} showFallback={false}>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => handleDeleteTransaction(transaction)}
-                            disabled={deleteTransactionMutation.isPending}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Reverse
                           </Button>
                         </PermissionGate>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              {(transactions || []).filter((t: any) => t.wallet_id === movementsWallet?.id).length === 0 && (
+                <p className="text-center text-muted-foreground py-8 text-sm">
+                  No movements for this wallet yet.
+                </p>
+              )}
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </SheetContent>
+      </Sheet>
+
 
       <AddWalletDialog />
       <AddTransactionDialog />
@@ -967,51 +930,21 @@ export function WalletManagementTab() {
         onOpenChange={setShowImportDialog} 
       />
 
-      {/* Reverse Transaction Confirmation Dialog (Immutable Ledger) */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>
-                  The original entry will be preserved forever. A new opposite-sign
-                  reversal row of{' '}
-                  <strong>
-                    {(transactionToDelete?.amount ?? 0).toLocaleString('en-IN')}{' '}
-                    {transactionToDelete?.asset_code || 'USDT'}
-                  </strong>{' '}
-                  will be posted and linked back to it.
-                </p>
-                <p className="text-muted-foreground">
-                  Provide a clear reason — it is recorded in the immutable audit chain.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="wm-reversal-reason">Reason (required, min 3 chars)</Label>
-            <textarea
-              id="wm-reversal-reason"
-              value={reversalReason}
-              onChange={(e) => setReversalReason(e.target.value)}
-              placeholder="e.g. Duplicate manual credit; correcting via reversal."
-              rows={3}
-              disabled={deleteTransactionMutation.isPending}
-              className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteTransactionMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteTransaction}
-              disabled={deleteTransactionMutation.isPending || reversalReason.trim().length < 3}
-            >
-              {deleteTransactionMutation.isPending ? "Posting reversal…" : "Post Reversal"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Reverse Transaction Confirmation Dialog (shared, immutable ledger) */}
+      <ReverseTransactionDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => {
+          setShowDeleteConfirm(open);
+          if (!open) setTransactionToDelete(null);
+        }}
+        transaction={transactionToDelete}
+        onReversed={() => {
+          refetchWallets();
+          refetchTransactions();
+          setTransactionToDelete(null);
+        }}
+      />
+
 
       <AlertDialog open={!!walletToDelete} onOpenChange={(open) => !open && setWalletToDelete(null)}>
         <AlertDialogContent>

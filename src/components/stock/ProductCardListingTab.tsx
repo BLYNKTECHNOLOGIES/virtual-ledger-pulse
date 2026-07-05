@@ -134,6 +134,16 @@ export function ProductCardListingTab() {
     )
     .sort((a, b) => b.total_stock - a.total_stock);
 
+  // Valuation summary (merged from the former Valuation tab) — computed from the
+  // same useProductStockWithCost hook so the figures are byte-identical.
+  const valuationProducts = productsWithStock || [];
+  const activeValuationProducts = valuationProducts.filter((p) => p.total_stock > 0);
+  const totalInventoryValue = activeValuationProducts.reduce((sum, p) => sum + p.total_value, 0);
+  const totalValuationUnits = activeValuationProducts.reduce((sum, p) => sum + p.total_stock, 0);
+  const lowStockItems = activeValuationProducts.filter((p) => p.total_stock <= 10 && p.total_stock > 0).length;
+  const zeroStockItems = valuationProducts.length - activeValuationProducts.length;
+
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -154,6 +164,43 @@ export function ProductCardListingTab() {
           Add New Asset
         </Button>
       </div>
+
+      {/* Valuation summary cards (merged from the former Valuation tab) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Inventory Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">₹{totalInventoryValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            <p className="text-xs text-muted-foreground">Based on average buying price</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{valuationProducts.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {totalValuationUnits.toLocaleString(undefined, { maximumFractionDigits: 4 })} total units across {activeValuationProducts.length} active
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Stock Alerts</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{zeroStockItems}</div>
+            <p className="text-xs text-muted-foreground">{lowStockItems} low stock items</p>
+          </CardContent>
+        </Card>
+      </div>
+
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -192,7 +239,14 @@ export function ProductCardListingTab() {
                   </div>
                 <div className="flex flex-col items-end gap-1">
                   <StockStatusBadge currentStock={product.total_stock} />
+                  {product.total_stock > 0 && product.total_stock <= 10 && (
+                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Low stock
+                    </Badge>
+                  )}
                 </div>
+
                 </div>
               </CardHeader>
               
@@ -302,12 +356,22 @@ export function ProductCardListingTab() {
                     variant="outline" 
                     size="sm" 
                     className="flex-1"
-                    onClick={() => setSearchParams({ tab: 'warehouse' })}
+                    onClick={() => setSearchParams({ tab: 'wallets' })}
+                  >
+                    <Building className="h-3 w-3 mr-1" />
+                    View in Wallets
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setSearchParams({ tab: 'ledger', asset: product.code })}
                   >
                     <TrendingUp className="h-3 w-3 mr-1" />
-                    View Details
+                    View movements
                   </Button>
                 </div>
+
               </CardContent>
             </Card>
           ))

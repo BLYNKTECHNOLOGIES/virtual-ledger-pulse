@@ -13,6 +13,7 @@ import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAverageCost } from "@/hooks/useAverageCost";
+import { useStockWallets } from "@/hooks/useStockWallets";
 import { openTransaction } from "@/components/transaction-detail";
 
 export function StockReportsTab() {
@@ -20,20 +21,11 @@ export function StockReportsTab() {
   const [dateTo, setDateTo] = useState<Date>(new Date());
   const [reportType, setReportType] = useState<string>("all");
   const [walletFilter, setWalletFilter] = useState<string>("all");
+  const [assetFilter, setAssetFilter] = useState<string>("all");
   const { data: averageCosts } = useAverageCost();
 
-  const { data: wallets } = useQuery({
-    queryKey: ['wallets_for_reports'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('id, wallet_name, wallet_type')
-        .eq('is_active', true)
-        .order('wallet_name');
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Shared active-wallets query (deduped with the Conversion subtables).
+  const { data: wallets } = useStockWallets();
 
   const { data: stockTransactions, isLoading: reportsLoading } = useQuery({
     queryKey: ['stock_transactions_for_reports', dateFrom, dateTo],
@@ -245,8 +237,19 @@ export function StockReportsTab() {
     );
   }
 
+  // Filter by asset (parity with the Ledger tab)
+  if (assetFilter !== 'all') {
+    filteredMovements = filteredMovements.filter((m: any) => m.products?.code === assetFilter);
+  }
+
+  // Unique asset codes present in the current movement set (for the asset filter)
+  const assetOptions = Array.from(
+    new Set(normalizedMovements.map((m: any) => m.products?.code).filter(Boolean))
+  ).sort();
+
   return (
     <div className="space-y-6">
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
@@ -300,7 +303,7 @@ export function StockReportsTab() {
           <CardTitle>Report Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">From Date</label>
               <Popover>
@@ -378,6 +381,23 @@ export function StockReportsTab() {
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Asset</label>
+              <Select value={assetFilter} onValueChange={setAssetFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Assets" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assets</SelectItem>
+                  {assetOptions.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
                     </SelectItem>
                   ))}
                 </SelectContent>

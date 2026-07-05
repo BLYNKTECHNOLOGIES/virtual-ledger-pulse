@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useStockWallets } from "@/hooks/useStockWallets";
 import { useCreateConversion } from "@/hooks/useProductConversions";
 import { useAssetPosition } from "@/hooks/useWalletAssetPositions";
 import { ArrowRightLeft, Calculator, Info } from "lucide-react";
@@ -41,18 +40,7 @@ export function CreateConversionForm() {
 
   const createMutation = useCreateConversion();
 
-  const { data: wallets = [] } = useQuery({
-    queryKey: ['wallets-active'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('id, wallet_name')
-        .eq('is_active', true)
-        .order('wallet_name');
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  const { data: wallets = [] } = useStockWallets();
 
   // WAC position for selected wallet+asset
   const { data: position } = useAssetPosition(walletId || undefined, assetCode || undefined);

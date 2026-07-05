@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useConversionHistory, ConversionFilters } from "@/hooks/useProductConversions";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useStockWallets } from "@/hooks/useStockWallets";
 import { format } from "date-fns";
 import { ClickableRow } from "@/components/transaction-detail";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
@@ -24,13 +23,7 @@ export function ConversionHistoryTable() {
   const [filters, setFilters] = useState<ConversionFilters>({});
   const { data: conversions = [], isLoading } = useConversionHistory(filters);
 
-  const { data: wallets = [] } = useQuery({
-    queryKey: ['wallets-active'],
-    queryFn: async () => {
-      const { data } = await supabase.from('wallets').select('id, wallet_name').eq('is_active', true).order('wallet_name');
-      return data || [];
-    },
-  });
+  const { data: wallets = [] } = useStockWallets();
 
   return (
     <Card>

@@ -75,6 +75,14 @@ export default function AttendancePunchesPage() {
         description="View raw punch data from biometric devices"
       />
 
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Raw device punches (diagnostic). Attendance records are created via biometric report import.
+        </AlertDescription>
+      </Alert>
+
+
       <div className="flex gap-3 flex-wrap">
         <Card className="flex-1 min-w-[100px]">
           <CardContent className="p-3 text-center">

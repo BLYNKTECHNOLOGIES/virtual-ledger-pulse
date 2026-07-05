@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Keyboard } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/usePermissions";

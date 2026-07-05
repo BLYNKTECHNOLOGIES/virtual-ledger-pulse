@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Megaphone, RefreshCw, ArrowDownUp } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw, ArrowDownUp, Link2 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { AdSummaryStrip } from '@/components/ad-manager/AdSummaryStrip';

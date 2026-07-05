@@ -307,47 +307,6 @@ export function WalletManagementTab() {
     }
   });
 
-  // Reverse wallet transaction (immutable ledger — posts an opposite-sign row)
-  const deleteTransactionMutation = useMutation({
-    mutationFn: async ({ transactionId, reason }: { transactionId: string; reason: string }) => {
-      const rawUserId = getCurrentUserId();
-      const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
-      const reversedBy = isValidUuid ? rawUserId : null;
-
-      const { data, error } = await supabase.rpc('reverse_wallet_transaction', {
-        p_tx_id: transactionId,
-        p_reason: reason,
-        p_reversed_by: reversedBy,
-      });
-
-      if (error) throw error;
-      return data as string;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Transaction Reversed",
-        description: "An opposite-sign reversal entry was posted. The original record is preserved.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_transactions_live'] });
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_stock_transactions'] });
-      refetchWallets();
-      refetchTransactions();
-      setShowDeleteConfirm(false);
-      setTransactionToDelete(null);
-      setReversalReason("");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Reversal failed",
-        description: error?.message || "Failed to post reversal",
-        variant: "destructive",
-      });
-    }
-  });
-
   // Reversible only for manual entries (and never a reversal of a reversal)
   const isDeletable = (referenceType: string, transaction?: any) => {
     if (referenceType === 'REVERSAL') return false;
@@ -357,17 +316,7 @@ export function WalletManagementTab() {
 
   const handleDeleteTransaction = (transaction: any) => {
     setTransactionToDelete(transaction);
-    setReversalReason("");
     setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteTransaction = () => {
-    if (transactionToDelete && reversalReason.trim().length >= 3) {
-      deleteTransactionMutation.mutate({
-        transactionId: transactionToDelete.id,
-        reason: reversalReason.trim(),
-      });
-    }
   };
 
   // Copy address to clipboard

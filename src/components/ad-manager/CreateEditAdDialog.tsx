@@ -207,7 +207,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     }
     setShowPayMethodPicker(false);
     setPayMethodSearch('');
-  }, [editingAd, open]);
+  }, [editingAd, open, initialValues]);
 
   // ─── Available balance from surplus across all ads ────────────
   const availableBalance = useMemo(() => {

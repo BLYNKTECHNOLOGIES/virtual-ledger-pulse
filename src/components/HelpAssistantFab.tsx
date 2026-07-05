@@ -18,7 +18,7 @@ export function HelpAssistantFab() {
   if (!hasPermission("help_assistant_view") && !hasPermission("help_assistant_manage")) return null;
 
   return (
-    <div className="fixed z-50 bottom-20 right-4 md:bottom-6 md:right-6 flex flex-col items-end gap-2 select-none">
+    <div className="fixed z-50 bottom-20 right-4 md:bottom-6 md:right-6 flex flex-col items-end gap-2 select-none print:hidden">
       {/* Speech bubble tooltip on hover */}
       <div
         className={cn(

@@ -86,7 +86,7 @@ export function TopHeader() {
 
 
   return (
-    <header className="h-14 md:h-16 bg-card border-b-2 border-border flex items-center justify-between px-3 md:px-6 shadow-sm">
+    <header className="h-14 md:h-16 bg-card border-b-2 border-border flex items-center justify-between px-3 md:px-6 shadow-sm print:hidden">
       <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
         <SidebarTrigger
           className="hidden md:inline-flex h-9 w-9 flex-shrink-0 text-muted-foreground hover:bg-primary/10 hover:text-primary border border-border rounded-lg"

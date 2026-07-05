@@ -40,8 +40,8 @@ export default function Statistics() {
           <PageHeader
             title={
               <span className="flex items-center gap-3">
-                <span className="p-3 bg-slate-50 rounded-xl shadow-sm">
-                  <BarChart3 className="h-8 w-8 text-slate-600" />
+                <span className="p-3 bg-muted rounded-xl shadow-sm">
+                  <BarChart3 className="h-8 w-8 text-muted-foreground" />
                 </span>
                 Statistics & Analytics
               </span>

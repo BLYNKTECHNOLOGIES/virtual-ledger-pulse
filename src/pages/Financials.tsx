@@ -179,7 +179,7 @@ export default function Financials() {
             }
             description="Comprehensive financial overview and management"
             actions={
-              <>
+              <div className="flex flex-wrap items-center gap-2 print:hidden">
                 <DateRangePicker
                   dateRange={dateRange}
                   onDateRangeChange={setDateRange}
@@ -203,7 +203,7 @@ export default function Financials() {
                   <Plus className="h-4 w-4 mr-2" />
                   New Transaction
                 </Button>
-              </>
+              </div>
             }
           />
 
@@ -296,7 +296,7 @@ export default function Financials() {
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6 print:hidden">
           <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
           <TabsTrigger value="accounts" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <span className="hidden sm:inline">Bank Accounts</span>
@@ -335,14 +335,14 @@ export default function Financials() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={[
-                      { name: 'Revenue', value: financialData?.totalRevenue || 0, fill: '#059669' },
-                      { name: 'Expenses', value: financialData?.totalExpenses || 0, fill: '#dc2626' }
+                      { name: 'Revenue', value: financialData?.totalRevenue || 0, fill: 'hsl(var(--success))' },
+                      { name: 'Expenses', value: financialData?.totalExpenses || 0, fill: 'hsl(var(--destructive))' }
                     ]}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis tickFormatter={(value) => `₹${(value / 1000)}K`} />
                       <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Amount']} />
-                      <Area type="monotone" dataKey="value" stroke="#059669" fill="#059669" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="value" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.6} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

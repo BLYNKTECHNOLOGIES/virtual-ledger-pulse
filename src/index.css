@@ -876,3 +876,71 @@ html {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
+
+/* ============================================================
+   Print stylesheet — clean black-on-white ERP reports
+   (excludes .terminal chrome; forces light rendering even in dark mode)
+   ============================================================ */
+@media print {
+  /* Hide app chrome & interactive elements */
+  [data-sidebar],
+  [data-sidebar="sidebar"],
+  header,
+  nav,
+  [data-mobile-bottom-nav],
+  [data-sonner-toaster],
+  [role="toaster"],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Force light background + dark text regardless of theme */
+  html,
+  html.dark,
+  body,
+  html.dark body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+
+  html.dark *,
+  * {
+    color: #111111 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Main content spans full width with sane margins */
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  @page {
+    margin: 12mm;
+  }
+
+  /* Tables: hairline borders, transparent header, avoid row breaks */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  th,
+  td {
+    border: 1px solid #999 !important;
+    background: transparent !important;
+  }
+  thead th {
+    background: transparent !important;
+  }
+  tr {
+    break-inside: avoid;
+  }
+
+  /* KPI cards / charts keep layout, drop shadows & hover artifacts */
+  .shadow-xs,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+}

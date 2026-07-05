@@ -17,13 +17,34 @@ const toMonthValue = (date: Date) => `${date.getFullYear()}-${String(date.getMon
 const formatMonthLabel = (monthValue: string) => format(new Date(`${monthValue}T00:00:00`), "MMM yyyy");
 
 export default function MonthlyHoursSummaryPage() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return toMonthValue(d);
   });
 
   const monthLabel = useMemo(() => formatMonthLabel(month), [month]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const d = new Date(`${month}T00:00:00`);
+      const { error } = await (supabase as any).rpc("refresh_hour_accounts", {
+        p_year: d.getFullYear(),
+        p_month: d.getMonth() + 1,
+      });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["hr_monthly_hours_summary"] });
+      toast.success(`Monthly hours refreshed for ${formatMonthLabel(month)}`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
 
   const { data: summaries = [], isLoading } = useQuery({
     queryKey: ["hr_monthly_hours_summary", month],

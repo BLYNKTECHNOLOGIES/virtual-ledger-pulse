@@ -112,6 +112,7 @@ function TerminalOrdersContent() {
   const [datePreset, setDatePreset] = useState<DateRangePreset>('allTime');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
+  const [queueMode, setQueueMode] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
   const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);

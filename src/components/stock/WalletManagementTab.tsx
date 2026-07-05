@@ -81,8 +81,9 @@ export function WalletManagementTab() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [reversalReason, setReversalReason] = useState("");
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
+  const [movementsWallet, setMovementsWallet] = useState<WalletType | null>(null);
+  const [, setSearchParams] = useSearchParams();
 
   // Per-user "Hide reversal noise" preference (defaults OFF for full audit view)
   const _userIdForPrefs = getCurUserIdForPrefs();

@@ -390,7 +390,11 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm" collapsible="icon">
-      <SidebarHeader className={`border-b border-sidebar-border bg-primary ${isCollapsed ? 'p-2' : 'p-4'}`}>
+      <SidebarHeader className={`relative overflow-hidden border-b border-sidebar-border bg-primary ${isCollapsed ? 'p-2' : 'p-4'}`}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary-foreground/40 to-transparent"
+        />
         <div className={`flex items-center justify-center min-h-[60px] ${isCollapsed ? 'min-h-[56px]' : 'min-h-[60px]'}`}>
           {isCollapsed ? (
             <img

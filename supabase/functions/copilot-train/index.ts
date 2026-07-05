@@ -336,7 +336,7 @@ Deno.serve(async (req) => {
         reply_text: reply,
         language,
         order_meta: metaMap.get(r.order_number) || {},
-        source_operator: info.op,
+        source_operator: op,
         source_order_number: r.order_number,
         exchange_account_id: r.exchange_account_id || null,
         outcome_weight: outcomeFor(r.order_number),

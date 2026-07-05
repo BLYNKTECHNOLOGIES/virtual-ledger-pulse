@@ -912,24 +912,34 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             <div>
               <div className="flex items-center justify-between h-6">
                 <Label>Payment Method</Label>
-                <div className="flex items-center gap-1.5">
-                  <Checkbox
-                    id="split-sales-payment-manual"
-                    checked={isSplitPayment}
-                    onCheckedChange={(checked) => {
-                      setIsSplitPayment(!!checked);
-                      if (checked) {
-                        const total = parseFloat(formData.total_amount) || 0;
-                        setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
-                      } else {
-                        setPaymentSplits([{ payment_method_id: '', amount: '' }]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="split-sales-payment-manual" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-                    Split Payment
-                  </Label>
-                </div>
+                {(showSplitOption || isSplitPayment) ? (
+                  <div className="flex items-center gap-1.5">
+                    <Checkbox
+                      id="split-sales-payment-manual"
+                      checked={isSplitPayment}
+                      onCheckedChange={(checked) => {
+                        setIsSplitPayment(!!checked);
+                        if (checked) {
+                          const total = parseFloat(formData.total_amount) || 0;
+                          setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
+                        } else {
+                          setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="split-sales-payment-manual" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                      Split Payment
+                    </Label>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowSplitOption(true)}
+                    className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline whitespace-nowrap"
+                  >
+                    More options
+                  </button>
+                )}
               </div>
               {!isSplitPayment ? (
                 <Select

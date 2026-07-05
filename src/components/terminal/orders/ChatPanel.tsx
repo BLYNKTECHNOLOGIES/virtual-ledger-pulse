@@ -12,11 +12,14 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
+import { useQuickReplies } from '@/hooks/useP2PTerminal';
+import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';
 import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { markOrderChatRead } from '@/lib/chat-read-state';
+import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 
 interface Props {
   orderId: string;
@@ -26,9 +29,11 @@ interface Props {
   tradeType?: string;
   counterpartyVerifiedName?: string;
   exchangeAccountId?: string | null;
+  /** Live order values used to fill quick-reply template tokens at insert time. */
+  templateValues?: TemplateOrderValues;
 }
 
-export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId }: Props) {
+export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, templateValues }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
@@ -40,6 +45,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     return saved !== 'false';
   });
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
   const prevBinanceIdsRef = useRef<Set<number>>(new Set());
@@ -285,9 +291,20 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     }
   };
 
+  // Insert (not send) the quick reply into the input with template tokens filled,
+  // so the operator can review/adjust before sending. Tap-shaving per T1.
   const handleQuickReply = (replyText: string) => {
-    handleSend(replyText);
+    const filled = fillTemplate(replyText, templateValues || {});
+    setText((prev) => (prev.trim() ? `${prev.trim()} ${filled}` : filled));
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
+
+  // Number-key (1–9) hotkey → insert the matching per-user quick reply.
+  const { data: hotkeyReplies = [] } = useQuickReplies(null, tradeType);
+  useEffect(() => subscribeQuickReplyHotkey((idx) => {
+    const reply = (hotkeyReplies as any[])[idx];
+    if (reply?.message_text) handleQuickReply(reply.message_text);
+  }), [hotkeyReplies, templateValues]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
@@ -469,6 +486,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             }}
           />
           <Input
+            ref={inputRef}
+            data-terminal-chat-input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}

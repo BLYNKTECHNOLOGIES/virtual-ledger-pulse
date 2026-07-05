@@ -1,12 +1,12 @@
 import {
   LayoutDashboard, Megaphone, ShoppingCart, Bot, Wallet, Activity,
   BarChart3, CreditCard, FileWarning, ReceiptText, ScrollText, Users,
-  Settings, Command, Search, Keyboard, ArrowLeftRight, type LucideIcon,
+  Settings, Command, Search, Keyboard, ArrowLeftRight, ListChecks, MessageSquare, Zap, type LucideIcon,
 } from "lucide-react";
 import type { ShortcutCombo } from "@/config/shortcuts";
 import type { TerminalPermission } from "@/hooks/useTerminalAuth";
 
-export type TerminalShortcutCategory = "Navigation" | "Global" | "Order Navigation";
+export type TerminalShortcutCategory = "Navigation" | "Global" | "Order Navigation" | "Queue & Chat";
 
 export interface TerminalShortcutDef {
   id: string;
@@ -63,8 +63,21 @@ export const TERMINAL_ORDER_NAV_SHORTCUTS: TerminalShortcutDef[] = [
   { id: "t-order-prev", category: "Order Navigation", label: "Previous Order Chat", description: "While an order/appeal is open, jump to the previous one in the current list and open its chat", combo: { shift: true, code: "ArrowLeft" }, icon: ArrowLeftRight, permissions: [] },
 ];
 
+/**
+ * Queue Mode & chat hotkeys — handled locally by the Orders/Queue pages
+ * (documented here, not dispatched from the registry). Never bound to
+ * money-moving actions.
+ */
+export const TERMINAL_QUEUE_SHORTCUTS: TerminalShortcutDef[] = [
+  { id: "t-queue-next", category: "Queue & Chat", label: "Next Order", description: "In Queue Mode, move to the next actionable order (also →)", combo: { code: "KeyJ" }, icon: ListChecks, permissions: [] },
+  { id: "t-queue-prev", category: "Queue & Chat", label: "Previous Order", description: "In Queue Mode, move to the previous actionable order (also ←)", combo: { code: "KeyK" }, icon: ListChecks, permissions: [] },
+  { id: "t-chat-focus", category: "Queue & Chat", label: "Focus Chat Input", description: "Jump straight to the chat message box", combo: { code: "Slash" }, icon: MessageSquare, permissions: [] },
+  { id: "t-quick-reply", category: "Queue & Chat", label: "Insert Quick Reply", description: "Press 1–9 to insert your matching quick reply into the chat box (never auto-sends)", combo: { code: "Digit1" }, icon: Zap, permissions: [] },
+];
+
 export const ALL_TERMINAL_SHORTCUTS: TerminalShortcutDef[] = [
   ...TERMINAL_GLOBAL_SHORTCUTS,
   ...TERMINAL_NAVIGATION_SHORTCUTS,
   ...TERMINAL_ORDER_NAV_SHORTCUTS,
+  ...TERMINAL_QUEUE_SHORTCUTS,
 ];

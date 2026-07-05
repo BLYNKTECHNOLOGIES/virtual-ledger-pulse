@@ -5,7 +5,7 @@ import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { comboToDisplay } from "@/config/shortcuts";
 import {
   TERMINAL_GLOBAL_SHORTCUTS, TERMINAL_NAVIGATION_SHORTCUTS,
-  TERMINAL_ORDER_NAV_SHORTCUTS, type TerminalShortcutDef,
+  TERMINAL_ORDER_NAV_SHORTCUTS, TERMINAL_QUEUE_SHORTCUTS, type TerminalShortcutDef,
 } from "@/config/terminal-shortcuts";
 
 
@@ -109,6 +109,12 @@ export default function TerminalShortcuts() {
           title="Order Navigation"
           description="While an order or appeal is open, hold Shift and use the arrow keys to move through the list you entered from — the next/previous order's chat opens automatically."
           items={TERMINAL_ORDER_NAV_SHORTCUTS}
+          canUse={canUse}
+        />
+        <Section
+          title="Queue & Chat"
+          description="Speed keys for Queue Mode and the order chat. J/K (or ←/→) step through actionable orders, / focuses the chat box, and 1–9 insert your quick replies without sending."
+          items={TERMINAL_QUEUE_SHORTCUTS}
           canUse={canUse}
         />
         <Section

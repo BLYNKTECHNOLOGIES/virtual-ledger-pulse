@@ -723,7 +723,7 @@ export default function TerminalMPI() {
                   </div>
 
                   {/* Primary Stats */}
-                  <div className="grid grid-cols-4 gap-1 sm:gap-1.5 text-center mb-2 sm:mb-3">
+                  <div className="grid grid-cols-5 gap-1 sm:gap-1.5 text-center mb-2 sm:mb-3">
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
                       <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{m.ordersHandled}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Handled</div>
@@ -735,6 +735,10 @@ export default function TerminalMPI() {
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
                       <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{formatDuration(m.avgHandleTimeMin)}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Avg Time</div>
+                    </div>
+                    <div className="p-1 sm:p-1.5 rounded bg-muted/20">
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{formatDuration(m.avgReleaseTimeMin)}</div>
+                      <div className="text-[7px] sm:text-[8px] text-muted-foreground">Avg Release</div>
                     </div>
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
                       <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{m.completionRate}%</div>

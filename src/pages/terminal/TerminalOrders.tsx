@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -18,6 +18,7 @@ import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { ChatInbox, ChatConversation } from '@/components/terminal/orders/ChatInbox';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
+import { QueueMode } from '@/components/terminal/orders/QueueMode';
 import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignmentDialog';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
@@ -34,6 +35,7 @@ import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 import { isOrderChatRead, markOrderChatRead, subscribeToChatReadState } from '@/lib/chat-read-state';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTerminalAlerts } from '@/hooks/useTerminalAlerts';
 
 
 /** Convert numeric orderStatus to string */
@@ -110,6 +112,7 @@ function TerminalOrdersContent() {
   const [datePreset, setDatePreset] = useState<DateRangePreset>('allTime');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
+  const [queueMode, setQueueMode] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
   const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
@@ -929,6 +932,29 @@ function TerminalOrdersContent() {
 
   const visibleOrders = useMemo(() => displayOrders.slice(0, visibleCount), [displayOrders, visibleCount]);
 
+  // Actionable / appeal order IDs (derived from already-computed displayOrders) —
+  // feed the tab-scoped alert engine. Reuses the same "active" predicate as the
+  // Active status tab (op is not Completed/Cancelled/Expired).
+  const actionableOrderIds = useMemo(
+    () => displayOrders
+      .filter((o) => {
+        const op = mapToOperationalStatus((o as any)._resolvedStatus || o.order_status, o.trade_type);
+        return !['Completed', 'Cancelled', 'Expired'].includes(op);
+      })
+      .map((o) => o.binance_order_number),
+    [displayOrders],
+  );
+  const appealOrderIds = useMemo(
+    () => displayOrders
+      .filter((o) => {
+        const s = (o.order_status || '').toUpperCase();
+        return s.includes('APPEAL') || s.includes('DISPUTE');
+      })
+      .map((o) => o.binance_order_number),
+    [displayOrders],
+  );
+  useTerminalAlerts({ actionableOrderIds, appealOrderIds, unreadMessageCount: totalUnread });
+
   // Deep-link: when arriving with ?order=<orderNumber> (e.g. from the dashboard
   // Operational Alerts), auto-open that order's workspace once it's loaded.
   useEffect(() => {
@@ -1053,6 +1079,14 @@ function TerminalOrdersContent() {
     );
   }
 
+  if (queueMode) {
+    return (
+      <div className="h-[calc(100vh-48px)]">
+        <QueueMode orders={displayOrders} onClose={() => setQueueMode(false)} />
+      </div>
+    );
+  }
+
   if (selectedOrder) {
     return (
       <div className="h-[calc(100vh-48px)]">
@@ -1093,6 +1127,21 @@ function TerminalOrdersContent() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5 relative"
+            onClick={() => setQueueMode(true)}
+            title="Step through actionable orders one at a time"
+          >
+            <ListChecks className="h-3.5 w-3.5" />
+            Queue
+            {actionableOrderIds.length > 0 && (
+              <span className="inline-flex items-center h-4 min-w-[16px] rounded-full bg-primary/15 text-primary text-[9px] font-bold px-1">
+                {actionableOrderIds.length}
+              </span>
+            )}
+          </Button>
           {canChat && (
             <Button
               variant="outline"

@@ -2,6 +2,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Coffee, LogOut, Shield, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TerminalNotificationBell } from './TerminalNotificationBell';
+import { TerminalAlertsSettings } from './TerminalAlertsSettings';
 import { Separator } from '@/components/ui/separator';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useAuth } from '@/hooks/useAuth';
@@ -71,6 +72,7 @@ export function TerminalHeader() {
           </Button>
         )}
         <ExchangeAccountSwitcher />
+        <TerminalAlertsSettings />
         <TerminalNotificationBell />
 
 

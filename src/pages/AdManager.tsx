@@ -1,14 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { PermissionGate } from '@/components/PermissionGate';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Megaphone, RefreshCw } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw, ArrowDownUp } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
-import { CategorizedAdTable } from '@/components/ad-manager/CategorizedAdTable';
+import { AdSummaryStrip } from '@/components/ad-manager/AdSummaryStrip';
+import { CategorizedAdTable, AdSortMode } from '@/components/ad-manager/CategorizedAdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
 import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
@@ -23,6 +27,19 @@ import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+
+const SORT_PREF_KEY = 'terminal_ad_sort_mode';
+const AUTOREFRESH_PREF_KEY = 'terminal_ad_auto_refresh';
+
+const SORT_OPTIONS: { value: AdSortMode; label: string }[] = [
+  { value: 'current', label: 'Current' },
+  { value: 'price-asc', label: 'Price ↑' },
+  { value: 'price-desc', label: 'Price ↓' },
+  { value: 'avail-desc', label: 'Available ↓' },
+  { value: 'avail-asc', label: 'Available ↑' },
+  { value: 'updated-desc', label: 'Updated ↓' },
+];
+
 
 function isBlockAd(ad: BinanceAd) {
   return String(ad.classify || '').toLowerCase() === 'block';
@@ -49,6 +66,12 @@ export default function AdManager() {
   const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
+  // Sort + auto-refresh prefs (persisted in localStorage).
+  const [sortMode, setSortMode] = useState<AdSortMode>(() => (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(() => localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
+  useEffect(() => { try { localStorage.setItem(SORT_PREF_KEY, sortMode); } catch { /* ignore */ } }, [sortMode]);
+  useEffect(() => { try { localStorage.setItem(AUTOREFRESH_PREF_KEY, autoRefresh ? '1' : '0'); } catch { /* ignore */ } }, [autoRefresh]);
+
   const effectiveFilters: AdFilters = {
     ...filters,
     advStatus: activeTab === 'active' ? BINANCE_AD_STATUS.ONLINE
@@ -57,7 +80,7 @@ export default function AdManager() {
       : filters.advStatus,
   };
 
-  const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters);
+  const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters, { refetchInterval: autoRefresh ? 30000 : false });
   const { data: restAdsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
   const updateStatus = useUpdateAdStatus();
 
@@ -65,6 +88,7 @@ export default function AdManager() {
   const restAds: BinanceAd[] = restAdsData?.data || [];
   const displayAds = useMemo(() => activeTab === 'block' ? ads.filter(isBlockAd) : ads.filter(ad => !isBlockAd(ad)), [ads, activeTab]);
   const total = displayAds.length;
+  const assetOptions = useMemo(() => Array.from(new Set(ads.map(a => a.asset).filter(Boolean))) as string[], [ads]);
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
   const activeAds = useMemo(() => restAds.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE || ad.advStatus === BINANCE_AD_STATUS.PRIVATE), [restAds]);
 
@@ -133,6 +157,10 @@ export default function AdManager() {
         description="Manage your Binance P2P merchant ads"
         actions={
           <>
+            <div className="flex items-center gap-1.5 mr-1">
+              <Switch id="ad-auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+              <Label htmlFor="ad-auto-refresh" className="text-xs text-muted-foreground cursor-pointer">Auto 30s</Label>
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -151,11 +179,15 @@ export default function AdManager() {
         }
       />
 
+      {/* Summary strip */}
+      <AdSummaryStrip ads={ads} />
+
+
 
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <AdManagerFilters filters={filters} onFiltersChange={setFilters} onRefresh={() => refetch()} isRefreshing={isFetching} />
+          <AdManagerFilters filters={filters} onFiltersChange={setFilters} onRefresh={() => refetch()} isRefreshing={isFetching} assetOptions={assetOptions} />
         </CardContent>
       </Card>
 
@@ -170,6 +202,8 @@ export default function AdManager() {
           onBulkRiskGuard={() => setBulkRiskGuardOpen(true)}
           onBulkActivate={handleBulkActivate}
           onBulkDeactivate={handleBulkDeactivate}
+          totalAds={displayAds.length}
+          onSelectAll={() => setSelectedAdvNos(new Set(displayAds.map(ad => ad.advNo)))}
         />
       )}
 
@@ -190,8 +224,21 @@ export default function AdManager() {
                 <span>
                   {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : activeTab === 'block' ? 'Block' : 'All'} Ads
                 </span>
-                <span className="text-sm font-normal text-muted-foreground">
-                  {total} ad{total !== 1 ? 's' : ''} found
+                <span className="flex items-center gap-3 text-sm font-normal text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                    <Select value={sortMode} onValueChange={(v) => setSortMode(v as AdSortMode)}>
+                      <SelectTrigger className="h-8 w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SORT_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </span>
+                  <span>{total} ad{total !== 1 ? 's' : ''} found</span>
                 </span>
               </CardTitle>
             </CardHeader>
@@ -206,6 +253,7 @@ export default function AdManager() {
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
+                  sortMode={sortMode}
                 />
               )}
 

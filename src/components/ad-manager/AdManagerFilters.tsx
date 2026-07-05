@@ -9,9 +9,13 @@ interface AdManagerFiltersProps {
   onFiltersChange: (filters: AdFilters) => void;
   onRefresh: () => void;
   isRefreshing: boolean;
+  assetOptions?: string[];
 }
 
-export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefreshing }: AdManagerFiltersProps) {
+const DEFAULT_ASSETS = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC'];
+
+export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefreshing, assetOptions }: AdManagerFiltersProps) {
+  const assets = Array.from(new Set([...DEFAULT_ASSETS, ...(assetOptions || [])])).sort();
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Select
@@ -23,13 +27,12 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Coins</SelectItem>
-          <SelectItem value="USDT">USDT</SelectItem>
-          <SelectItem value="BTC">BTC</SelectItem>
-          <SelectItem value="ETH">ETH</SelectItem>
-          <SelectItem value="BNB">BNB</SelectItem>
-          <SelectItem value="USDC">USDC</SelectItem>
+          {assets.map((a) => (
+            <SelectItem key={a} value={a}>{a}</SelectItem>
+          ))}
         </SelectContent>
       </Select>
+
 
       <Select
         value={filters.tradeType || 'all'}

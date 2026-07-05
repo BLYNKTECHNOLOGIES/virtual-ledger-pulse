@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format, differenceInMinutes, parseISO } from "date-fns";
-import { Clock, LogIn, LogOut, Search, Plus, Timer } from "lucide-react";
+import { Clock, LogIn, LogOut, Search, Plus, Timer, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -38,6 +38,26 @@ export default function AttendanceActivityPage() {
   const [showClockIn, setShowClockIn] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState("");
   const [clockNote, setClockNote] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefreshHours = async () => {
+    setRefreshing(true);
+    try {
+      const d = new Date(`${dateFilter}T00:00:00`);
+      const { error } = await (supabase as any).rpc("refresh_hour_accounts", {
+        p_year: d.getFullYear(),
+        p_month: d.getMonth() + 1,
+      });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["hr_attendance_activity"] });
+      await qc.invalidateQueries({ queryKey: ["hr_attendance_daily_punches"] });
+      toast.success("Attendance data refreshed");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const { data: activities = [], isLoading, error: queryError } = useQuery({
     queryKey: ["hr_attendance_activity", dateFilter],
@@ -277,9 +297,15 @@ export default function AttendanceActivityPage() {
         title="Clock In / Out Activity"
         description="Real-time attendance activity tracking"
         actions={
-          <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
-            <Plus className="h-4 w-4 mr-2" /> Clock In
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleRefreshHours} disabled={refreshing} variant="outline" className="h-9">
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+            <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+              <Plus className="h-4 w-4 mr-2" /> Clock In
+            </Button>
+          </div>
         }
       />
 

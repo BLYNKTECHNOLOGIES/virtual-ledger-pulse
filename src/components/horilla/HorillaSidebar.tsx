@@ -70,6 +70,7 @@ const navGroups: NavGroup[] = [
           { label: "Dashboard", path: "/hrms/recruitment" },
           { label: "Pipeline", path: "/hrms/recruitment/pipeline" },
           { label: "Candidates", path: "/hrms/recruitment/candidates" },
+          { label: "Rejected Candidates", path: "/hrms/recruitment/rejected" },
           { label: "Interviews", path: "/hrms/recruitment/interviews" },
           { label: "Stages", path: "/hrms/recruitment/stages" },
           { label: "Skill Zones", path: "/hrms/recruitment/skill-zones" },

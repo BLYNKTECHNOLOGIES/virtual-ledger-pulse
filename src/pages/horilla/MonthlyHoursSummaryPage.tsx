@@ -1,27 +1,50 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { toast } from "sonner";
 import { format } from "date-fns";
-import { Search, Clock, CalendarDays, AlertTriangle, TrendingUp } from "lucide-react";
+import { Search, Clock, CalendarDays, AlertTriangle, TrendingUp, RefreshCw } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const toMonthValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
 const formatMonthLabel = (monthValue: string) => format(new Date(`${monthValue}T00:00:00`), "MMM yyyy");
 
 export default function MonthlyHoursSummaryPage() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return toMonthValue(d);
   });
 
   const monthLabel = useMemo(() => formatMonthLabel(month), [month]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const d = new Date(`${month}T00:00:00`);
+      const { error } = await (supabase as any).rpc("refresh_hour_accounts", {
+        p_year: d.getFullYear(),
+        p_month: d.getMonth() + 1,
+      });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["hr_monthly_hours_summary"] });
+      toast.success(`Monthly hours refreshed for ${formatMonthLabel(month)}`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
 
   const { data: summaries = [], isLoading } = useQuery({
     queryKey: ["hr_monthly_hours_summary", month],
@@ -74,6 +97,12 @@ export default function MonthlyHoursSummaryPage() {
       <PageHeader
         title="Monthly Hours Summary"
         description="Aggregated attendance metrics per employee per month"
+        actions={
+          <Button onClick={handleRefresh} disabled={refreshing} variant="outline" className="h-9">
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

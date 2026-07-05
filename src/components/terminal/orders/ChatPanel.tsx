@@ -319,12 +319,15 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
   // AI Copilot — only visible for allowlisted operators when enabled.
   const copilotVisible = useCopilotVisible();
+  const copilotPrefetch = useCopilotPrefetch();
+  const isTrainer = useCopilotIsTrainer();
   const { nameFor } = useExchangeAccount();
   // Build the ENTIRE suggestion context client-side (no server order lookups).
   const buildCopilotInput = useCallback((): CopilotSuggestInput => ({
     order: {
       number: orderNumber,
       side: tradeType || null,
+      status: templateValues?.status ?? null,
       amount: templateValues?.amount ?? null,
     },
     clientProfile: {
@@ -336,11 +339,53 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       .map((m) => ({ isSelf: m.senderType === 'operator', text: m.text as string })),
     exchangeAccountId: exchangeAccountId ?? null,
     accountLabel: exchangeAccountId ? nameFor(exchangeAccountId) : null,
+    counterpartyNickname: counterpartyNickname || null,
   }), [orderNumber, tradeType, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, exchangeAccountId, nameFor]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
   ).length;
+
+  // Teach controls (trainers only): pin a golden reply / blacklist a phrase.
+  const [blacklistTarget, setBlacklistTarget] = useState<UnifiedMessage | null>(null);
+  const buildContextFor = useCallback((msg: UnifiedMessage): string => {
+    const idx = currentOrderMessages.findIndex((m) => m.id === msg.id);
+    const preceding = (idx > 0 ? currentOrderMessages.slice(0, idx) : [])
+      .filter((m) => m.senderType !== 'system' && m.text)
+      .slice(-6);
+    return preceding.map((m) => `${m.senderType === 'operator' ? 'Operator' : 'Counterparty'}: ${m.text}`).join('\n');
+  }, [currentOrderMessages]);
+
+  const handlePin = useCallback(async (msg: UnifiedMessage) => {
+    if (!msg.text) return;
+    try {
+      await copilotTeach('pin', {
+        replyText: msg.text,
+        contextText: buildContextFor(msg),
+        side: tradeType || null,
+        orderNumber,
+        exchangeAccountId: exchangeAccountId ?? null,
+      });
+      toast.success('Pinned as golden reply');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to pin');
+    }
+  }, [buildContextFor, tradeType, orderNumber, exchangeAccountId]);
+
+  const confirmBlacklist = useCallback(async () => {
+    const msg = blacklistTarget;
+    setBlacklistTarget(null);
+    if (!msg?.text) return;
+    try {
+      await copilotTeach('blacklist', {
+        patternText: msg.text,
+        exchangeAccountId: exchangeAccountId ?? null,
+      });
+      toast.success('Pattern blacklisted');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to blacklist');
+    }
+  }, [blacklistTarget, exchangeAccountId]);
 
   return (
     <div className="flex flex-col h-full relative">

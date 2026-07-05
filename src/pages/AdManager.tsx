@@ -6,6 +6,7 @@ import { PermissionGate } from '@/components/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Megaphone, RefreshCw } from 'lucide-react';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { CategorizedAdTable } from '@/components/ad-manager/CategorizedAdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';

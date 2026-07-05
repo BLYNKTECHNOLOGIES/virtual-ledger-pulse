@@ -43,6 +43,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     return saved !== 'false';
   });
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
   const prevBinanceIdsRef = useRef<Set<number>>(new Set());

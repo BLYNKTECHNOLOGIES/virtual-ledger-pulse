@@ -236,6 +236,7 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
             )}
           </Button>
           <Input
+            data-terminal-internal-chat-input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}

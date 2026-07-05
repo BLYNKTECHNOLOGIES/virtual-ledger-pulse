@@ -72,7 +72,7 @@ export function OrderActions({
     && isQuickReceiveEligible(totalPrice, quickConfirmAmountUpLimit);
 
   return (
-    <div className="pt-3 border-t border-border space-y-2">
+    <div data-order-actions className="pt-3 border-t border-border space-y-2">
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
 
       {needsVerification && opStatus === 'Pending Payment' && (

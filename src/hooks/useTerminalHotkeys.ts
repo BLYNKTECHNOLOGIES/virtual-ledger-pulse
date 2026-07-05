@@ -21,6 +21,35 @@ export function subscribeQuickReplyHotkey(cb: (index: number) => void): () => vo
   return () => window.removeEventListener(QUICK_REPLY_EVENT, handler);
 }
 
+/* ------------------------------------------------------------------ *
+ * Context-key bus — the central TerminalShortcutsProvider listener      *
+ * dispatches page-scoped context keys through this bus so page          *
+ * components (orders list / order detail / chat) can react WITHOUT      *
+ * registering their own parallel window keydown listeners.              *
+ * ------------------------------------------------------------------ */
+const CONTEXT_KEY_EVENT = 'terminal-hotkey-context';
+
+export type TerminalContextKey =
+  | 'orders-down' | 'orders-up' | 'orders-open' | 'orders-prev-tab'
+  | 'orders-next-tab' | 'orders-search' | 'orders-refresh' | 'orders-back'
+  | 'detail-copy-order' | 'detail-copy-fiat' | 'detail-internal-chat'
+  | 'detail-actions' | 'detail-esc';
+
+/** Dispatch a context key. Returns nothing; consumers decide relevance. */
+export function dispatchTerminalContextKey(key: TerminalContextKey) {
+  window.dispatchEvent(new CustomEvent<TerminalContextKey>(CONTEXT_KEY_EVENT, { detail: key }));
+}
+
+/** Subscribe to context keys (used by page components that own the state). */
+export function subscribeTerminalContextKey(cb: (key: TerminalContextKey) => void): () => void {
+  const handler = (e: Event) => {
+    const key = (e as CustomEvent<TerminalContextKey>).detail;
+    if (key) cb(key);
+  };
+  window.addEventListener(CONTEXT_KEY_EVENT, handler);
+  return () => window.removeEventListener(CONTEXT_KEY_EVENT, handler);
+}
+
 /**
  * Terminal keyboard shortcuts (never bound to money-moving actions):
  *   J / ArrowRight → next     K / ArrowLeft → previous

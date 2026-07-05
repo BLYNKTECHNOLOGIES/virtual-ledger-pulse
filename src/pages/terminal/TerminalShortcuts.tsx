@@ -1,87 +1,50 @@
-import { useMemo } from "react";
 import { Keyboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
-import { comboToDisplay } from "@/config/shortcuts";
 import {
-  TERMINAL_GLOBAL_SHORTCUTS, TERMINAL_NAVIGATION_SHORTCUTS,
-  TERMINAL_ORDER_NAV_SHORTCUTS, TERMINAL_QUEUE_SHORTCUTS, type TerminalShortcutDef,
+  groupTerminalShortcuts, type TerminalShortcutDef,
 } from "@/config/terminal-shortcuts";
-
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
-function KeyCombo({ shortcut }: { shortcut: TerminalShortcutDef }) {
-  const keys = comboToDisplay(shortcut.combo, isMac);
+function KeyCombo({ keys }: { keys: string[] }) {
   return (
     <span className="flex items-center gap-1">
-      {keys.map((k, i) => (
-        <span key={i} className="flex items-center gap-1">
-          {i > 0 && <span className="text-[10px] text-muted-foreground">+</span>}
-          <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px] font-semibold text-foreground">
-            {k}
+      {keys.map((k, i) => {
+        const label = k === "Ctrl" && isMac ? "⌘" : k === "Alt" && isMac ? "⌥" : k === "Shift" && isMac ? "⇧" : k;
+        if (k === "then" || k === "–" || k === "/") {
+          return (
+            <span key={i} className="text-[10px] text-muted-foreground px-0.5">
+              {k === "/" ? "or" : k}
+            </span>
+          );
+        }
+        return (
+          <kbd
+            key={i}
+            className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px] font-semibold text-foreground"
+          >
+            {label}
           </kbd>
-        </span>
-      ))}
+        );
+      })}
     </span>
   );
 }
 
-function Section({
-  title, description, items, canUse,
-}: {
-  title: string;
-  description: string;
-  items: TerminalShortcutDef[];
-  canUse: (s: TerminalShortcutDef) => boolean;
-}) {
-  if (items.length === 0) return null;
-  return (
-    <div className="t-panel overflow-hidden">
-      <div className="t-panel-head">
-        <span className="t-panel-head-title">{title}</span>
-      </div>
-      <p className="px-3 pt-2 text-xs text-muted-foreground">{description}</p>
-      <div className="p-2 divide-y divide-border">
-        {items.map((s) => {
-          const allowed = canUse(s);
-          return (
-            <div
-              key={s.id}
-              className={`flex items-center justify-between gap-4 px-1 py-2 ${
-                allowed ? "" : "opacity-50"
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{s.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{s.description}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {!allowed && (
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                    No access
-                  </Badge>
-                )}
-                <KeyCombo shortcut={s} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const CATEGORY_BLURB: Record<string, string> = {
+  Navigation: "Jump to any terminal module (Alt+Shift combos) or use G-sequences.",
+  Orders: "Move through the orders list, open orders, and switch status tabs.",
+  "Order Detail": "Copy, focus, and navigate within an open order.",
+  Chat: "Speed keys for the order chat and composer.",
+  System: "Available everywhere in the terminal.",
+};
 
 export default function TerminalShortcuts() {
   const { hasAnyPermission } = useTerminalAuth();
-
-  const canUse = useMemo(
-    () => (s: TerminalShortcutDef) => s.permissions.length === 0 || hasAnyPermission(s.permissions),
-    [hasAnyPermission],
-  );
+  const groups = groupTerminalShortcuts();
+  const canUse = (s: TerminalShortcutDef) =>
+    s.permissions.length === 0 || hasAnyPermission(s.permissions);
 
   return (
     <div className="min-h-full bg-background p-4 md:p-6">
@@ -93,39 +56,52 @@ export default function TerminalShortcuts() {
           <div>
             <h1 className="text-lg font-semibold text-foreground tracking-tight">Terminal Shortcuts</h1>
             <p className="text-xs text-muted-foreground">
-              Work faster across the trading terminal. Shortcuts respect your permissions —
-              modules you can't access are shown greyed out.
+              Work faster across the trading terminal. Press{" "}
+              <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">?</kbd>{" "}
+              anywhere to open this reference. Shortcuts respect your permissions.
             </p>
           </div>
         </div>
 
-        <Section
-          title="Global"
-          description="Available everywhere in the terminal."
-          items={TERMINAL_GLOBAL_SHORTCUTS}
-          canUse={canUse}
-        />
-        <Section
-          title="Order Navigation"
-          description="While an order or appeal is open, hold Shift and use the arrow keys to move through the list you entered from — the next/previous order's chat opens automatically."
-          items={TERMINAL_ORDER_NAV_SHORTCUTS}
-          canUse={canUse}
-        />
-        <Section
-          title="Queue & Chat"
-          description="Speed keys for Queue Mode and the order chat. J/K (or ←/→) step through actionable orders, / focuses the chat box, and 1–9 insert your quick replies without sending."
-          items={TERMINAL_QUEUE_SHORTCUTS}
-          canUse={canUse}
-        />
-        <Section
-          title="Navigation"
-          description="Jump straight to any terminal module you have access to."
-          items={TERMINAL_NAVIGATION_SHORTCUTS}
-          canUse={canUse}
-        />
+        {groups.map(({ category, items }) => (
+          <div key={category} className="t-panel overflow-hidden">
+            <div className="t-panel-head">
+              <span className="t-panel-head-title">{category}</span>
+            </div>
+            <p className="px-3 pt-2 text-xs text-muted-foreground">{CATEGORY_BLURB[category]}</p>
+            <div className="p-2 divide-y divide-border">
+              {items.map((s) => {
+                const allowed = canUse(s);
+                return (
+                  <div
+                    key={s.id}
+                    className={`flex items-center justify-between gap-4 px-1 py-2 ${allowed ? "" : "opacity-50"}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{s.label}</p>
+                        <p className="text-xs text-muted-foreground truncate">{s.description} · {s.scope}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!allowed && (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          No access
+                        </Badge>
+                      )}
+                      <KeyCombo keys={s.keys} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
 
         <p className="text-center text-xs text-muted-foreground">
-          Tip: press <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">{isMac ? "⌘" : "Ctrl"}</kbd>{" "}
+          Tip: press{" "}
+          <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">{isMac ? "⌘" : "Ctrl"}</kbd>{" "}
           <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">K</kbd> anytime to open the command palette.
         </p>
       </div>

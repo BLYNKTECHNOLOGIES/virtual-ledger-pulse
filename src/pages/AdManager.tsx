@@ -224,8 +224,21 @@ export default function AdManager() {
                 <span>
                   {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : activeTab === 'block' ? 'Block' : 'All'} Ads
                 </span>
-                <span className="text-sm font-normal text-muted-foreground">
-                  {total} ad{total !== 1 ? 's' : ''} found
+                <span className="flex items-center gap-3 text-sm font-normal text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                    <Select value={sortMode} onValueChange={(v) => setSortMode(v as AdSortMode)}>
+                      <SelectTrigger className="h-8 w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SORT_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </span>
+                  <span>{total} ad{total !== 1 ? 's' : ''} found</span>
                 </span>
               </CardTitle>
             </CardHeader>

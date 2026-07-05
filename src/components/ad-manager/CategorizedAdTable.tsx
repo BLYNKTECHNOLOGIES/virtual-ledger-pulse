@@ -41,6 +41,16 @@ function AdPriceCell({ ad, isEditing, onRequestEdit, onClose }: { ad: BinanceAd;
   );
 }
 
+/** Amber "Xh ago" label when an ad's price is older than 30 min, else null. */
+export function stalePriceLabel(updateTime?: string): string | null {
+  if (!updateTime) return null;
+  const mins = Math.floor((Date.now() - new Date(updateTime).getTime()) / 60000);
+  if (mins <= 30) return null;
+  return mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
+}
+
+
+
 
 function formatCommissionRate(ad: BinanceAd, identifier?: string) {
   const list = ad.tradeMethodCommissionRateVoList || [];

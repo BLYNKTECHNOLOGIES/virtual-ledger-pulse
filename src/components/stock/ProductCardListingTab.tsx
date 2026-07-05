@@ -356,12 +356,22 @@ export function ProductCardListingTab() {
                     variant="outline" 
                     size="sm" 
                     className="flex-1"
-                    onClick={() => setSearchParams({ tab: 'warehouse' })}
+                    onClick={() => setSearchParams({ tab: 'wallets' })}
+                  >
+                    <Building className="h-3 w-3 mr-1" />
+                    View in Wallets
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setSearchParams({ tab: 'ledger', asset: product.code })}
                   >
                     <TrendingUp className="h-3 w-3 mr-1" />
-                    View Details
+                    View movements
                   </Button>
                 </div>
+
               </CardContent>
             </Card>
           ))

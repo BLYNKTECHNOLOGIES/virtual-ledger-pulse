@@ -94,11 +94,13 @@ export default function AdManager() {
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
   // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
-  const [sortMode, setSortMode] = useState<AdSortMode>(() => (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
-  const [autoRefresh, setAutoRefresh] = useState<boolean>(() => localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
-  const [viewMode, setViewMode] = useState<'categorized' | 'desk'>(() => (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk') || 'categorized');
-  const [compact, setCompact] = useState<boolean>(() => localStorage.getItem(DENSITY_PREF_KEY) === '1');
+   const [sortMode, setSortMode] = useState<AdSortMode>(() => (searchParams.get('sort') as AdSortMode) || (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(() => searchParams.has('auto') ? searchParams.get('auto') === '1' : localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
+  const [viewMode, setViewMode] = useState<'categorized' | 'desk'>(() => (searchParams.get('view') as 'categorized' | 'desk') || (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk') || 'categorized');
+  const [compact, setCompact] = useState<boolean>(() => searchParams.has('density') ? searchParams.get('density') === '1' : localStorage.getItem(DENSITY_PREF_KEY) === '1');
   const [statusChips, setStatusChips] = useState<Set<number>>(() => {
+    const s = searchParams.get('status');
+    if (s !== null) return new Set(s ? s.split(',').map(Number).filter((n) => !isNaN(n)) : []);
     try { const raw = localStorage.getItem(STATUS_CHIPS_PREF_KEY); return new Set(raw ? JSON.parse(raw) : []); } catch { return new Set(); }
   });
   useEffect(() => { try { localStorage.setItem(SORT_PREF_KEY, sortMode); } catch { /* ignore */ } }, [sortMode]);

@@ -1003,6 +1003,55 @@ function metricsFromReport(r: any) {
   };
 }
 
+// Lightweight comparison-window metrics — mirrors buildReport's core P&L formulas
+// but only queries the two order tables + fee ledger (no charts/assets/KYC), so it
+// stays fast enough to run inside the narrative's 8s cap. Used for prev-day + 7d avg.
+async function fetchWindowMetrics(supabase: any, startDate: string, endDate: string) {
+  const [salesRaw, purchasesRaw, feeRows] = await Promise.all([
+    fetchAll(supabase, "sales_orders", "quantity, price_per_unit, total_amount, status, effective_usdt_qty, effective_usdt_rate", startDate, endDate),
+    fetchAll(supabase, "purchase_orders", "total_amount, status, effective_usdt_qty", startDate, endDate),
+    fetchAllRows(() => supabase.from("wallet_transactions")
+      .select("amount, reference_type").eq("transaction_type", "DEBIT")
+      .in("reference_type", ["PLATFORM_FEE", "TRANSFER_FEE", "SALES_ORDER_FEE", "PURCHASE_ORDER_FEE"])
+      .gte("created_at", startDate + "T00:00:00").lte("created_at", endDate + "T23:59:59")),
+  ]);
+
+  const salesDone = salesRaw.filter((o: any) => o.status === "COMPLETED");
+  const purchDone = purchasesRaw.filter((o: any) => o.status === "COMPLETED");
+
+  let totalSalesQty = 0, totalSalesValue = 0;
+  for (const o of salesDone) {
+    const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
+    const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
+    totalSalesQty += qty;
+    totalSalesValue += Number(o.total_amount) || qty * rate;
+  }
+  let totalPurchaseQty = 0, totalPurchaseValue = 0;
+  for (const o of purchDone) {
+    const effQty = Number(o.effective_usdt_qty) || 0;
+    if (effQty > 0) { totalPurchaseQty += effQty; totalPurchaseValue += Number(o.total_amount) || 0; }
+  }
+  const totalFees = (feeRows || []).reduce((s: number, f: any) => s + (Number(f.amount) || 0), 0);
+
+  const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
+  const netPurchaseQty = totalPurchaseQty - totalFees;
+  let effPurchaseRate = 0;
+  if (totalPurchaseQty > 0 && netPurchaseQty > 0) effPurchaseRate = totalPurchaseValue / netPurchaseQty;
+  else if (totalPurchaseQty > 0) effPurchaseRate = totalPurchaseValue / totalPurchaseQty;
+  const gp = (avgSalesRate - effPurchaseRate) * totalSalesQty;
+
+  return {
+    revenue: totalSalesValue,
+    gp,
+    marginPct: totalSalesValue > 0 ? (gp / totalSalesValue) * 100 : 0,
+    volume: totalSalesQty,
+    orders: salesDone.length + purchDone.length,
+    avgSellRate: avgSalesRate,
+    effPurchaseRate,
+    fees: totalFees,
+  };
+}
+
 // Builds the metrics payload + one AI narrative sentence-block. Returns
 // { payload, narrative } (narrative may be null). Fully guarded with an 8s cap.
 async function buildDailyNarrative(supabase: any, todayReport: any, startDate: string) {
@@ -1014,14 +1063,12 @@ async function buildDailyNarrative(supabase: any, todayReport: any, startDate: s
     const win7Start = shiftDate(startDate, -7);
     const win7End = shiftDate(startDate, -1);
 
-    const [prevReport, win7Report] = await Promise.all([
-      buildReport(supabase, prevDate, prevDate),
-      buildReport(supabase, win7Start, win7End),
+    const [prev, w7] = await Promise.all([
+      fetchWindowMetrics(supabase, prevDate, prevDate),
+      fetchWindowMetrics(supabase, win7Start, win7End),
     ]);
 
     const today = metricsFromReport(todayReport);
-    const prev = metricsFromReport(prevReport);
-    const w7 = metricsFromReport(win7Report);
     // Trailing-7-day average (rates already window-averaged; totals /7).
     const avg7 = {
       revenue: w7.revenue / 7,

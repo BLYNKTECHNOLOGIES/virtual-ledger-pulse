@@ -386,6 +386,23 @@ export function StockReportsTab() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Asset</label>
+              <Select value={assetFilter} onValueChange={setAssetFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Assets" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assets</SelectItem>
+                  {assetOptions.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>

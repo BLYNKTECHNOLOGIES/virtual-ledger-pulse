@@ -205,8 +205,8 @@ export function OperatorDetailDialog({
               <div key={label} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border border-border">
                 <Icon className={`h-4 w-4 ${color}`} />
                 <div>
-                  <div className="text-xs font-semibold text-foreground">{value}</div>
-                  <div className="text-[9px] text-muted-foreground">{label}</div>
+                  <div className="t-mono text-xs font-semibold text-foreground">{value}</div>
+                  <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
                 </div>
               </div>
             ))}

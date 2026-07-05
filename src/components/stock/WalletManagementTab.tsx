@@ -630,6 +630,14 @@ export function WalletManagementTab() {
               Manual Adjustment
             </Button>
           </PermissionGate>
+          <Button
+            onClick={() => setSearchParams({ tab: 'ledger' })}
+            variant="outline"
+            size="sm"
+          >
+            <History className="h-4 w-4 mr-1" />
+            View all in Ledger
+          </Button>
           <Button onClick={() => setShowAddWalletDialog(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" />
             Add Wallet
@@ -637,10 +645,11 @@ export function WalletManagementTab() {
         </div>
       </div>
 
-      <ManualWalletAdjustmentDialog
+      <SharedStockAdjustmentDialog
         open={showAdjustmentDialog}
         onOpenChange={setShowAdjustmentDialog}
       />
+
 
 
       {/* Summary Cards */}

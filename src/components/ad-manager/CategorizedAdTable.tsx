@@ -414,12 +414,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                 </TableRow>,
 
                 // Ad rows
-                ...(!isGroupCollapsed ? group.ads.map(ad => (
+                ...(!isGroupCollapsed ? applyAdSort(group.ads, sortMode).map((ad, adIdx, orderedAds) => (
                   <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined}>
                     <TableCell className="pl-12">
                       <Checkbox
                         checked={selectedAdvNos.has(ad.advNo)}
-                        onCheckedChange={() => toggleOne(ad.advNo)}
+                        onClick={(e) => handleRowSelect(e, ad.advNo, group.key, orderedAds)}
                         aria-label={`Select ad ${ad.advNo}`}
                       />
                     </TableCell>

@@ -8,12 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Gift, Calendar, CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function CompOffPage() {
   const qc = useQueryClient();
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
 
-  // Fetch comp-off credits
   const { data: credits = [], isLoading } = useQuery({
     queryKey: ["hr_compoff_credits", yearFilter],
     queryFn: async () => {
@@ -30,31 +32,16 @@ export default function CompOffPage() {
     },
   });
 
-  // Allocate comp-off as leave
   const allocateMutation = useMutation({
     mutationFn: async (credit: any) => {
-      // Find or create "Comp-Off" leave type
       let { data: compOffType } = await (supabase as any)
-        .from("hr_leave_types")
-        .select("id")
-        .eq("code", "CO")
-        .maybeSingle();
+        .from("hr_leave_types").select("id").eq("code", "CO").maybeSingle();
 
       if (!compOffType) {
         const { data: newType, error: typeErr } = await (supabase as any)
           .from("hr_leave_types")
-          .insert({
-            name: "Comp-Off",
-            code: "CO",
-            max_days_per_year: 365,
-            is_paid: true,
-            requires_approval: false,
-            color: "#10b981",
-            carry_forward: true,
-            is_active: true,
-          })
-          .select("id")
-          .single();
+          .insert({ name: "Comp-Off", code: "CO", max_days_per_year: 365, is_paid: true, requires_approval: false, color: "#10b981", carry_forward: true, is_active: true })
+          .select("id").single();
         if (typeErr) throw typeErr;
         compOffType = newType;
       }
@@ -62,43 +49,24 @@ export default function CompOffPage() {
       const quarter = Math.ceil((new Date(credit.credit_date).getMonth() + 1) / 3);
       const year = new Date(credit.credit_date).getFullYear();
 
-      // Check if allocation exists for this employee+type+quarter
       const { data: existing } = await (supabase as any)
-        .from("hr_leave_allocations")
-        .select("id, allocated_days")
-        .eq("employee_id", credit.employee_id)
-        .eq("leave_type_id", compOffType.id)
-        .eq("year", year)
-        .eq("quarter", quarter)
-        .maybeSingle();
+        .from("hr_leave_allocations").select("id, allocated_days")
+        .eq("employee_id", credit.employee_id).eq("leave_type_id", compOffType.id)
+        .eq("year", year).eq("quarter", quarter).maybeSingle();
 
       if (existing) {
-        // Increment existing allocation
-        await (supabase as any)
-          .from("hr_leave_allocations")
-          .update({ allocated_days: existing.allocated_days + Number(credit.credit_days) })
-          .eq("id", existing.id);
+        await (supabase as any).from("hr_leave_allocations")
+          .update({ allocated_days: existing.allocated_days + Number(credit.credit_days) }).eq("id", existing.id);
       } else {
-        // Create new allocation
-        const { error: allocErr } = await (supabase as any)
-          .from("hr_leave_allocations")
-          .insert({
-            employee_id: credit.employee_id,
-            leave_type_id: compOffType.id,
-            year,
-            quarter,
-            allocated_days: Number(credit.credit_days),
-            carry_forward_days: 0,
-            used_days: 0,
-          });
+        const { error: allocErr } = await (supabase as any).from("hr_leave_allocations").insert({
+          employee_id: credit.employee_id, leave_type_id: compOffType.id, year, quarter,
+          allocated_days: Number(credit.credit_days), carry_forward_days: 0, used_days: 0,
+        });
         if (allocErr) throw allocErr;
       }
 
-      // Mark credit as allocated
-      await (supabase as any)
-        .from("hr_compoff_credits")
-        .update({ is_allocated: true, allocated_at: new Date().toISOString() })
-        .eq("id", credit.id);
+      await (supabase as any).from("hr_compoff_credits")
+        .update({ is_allocated: true, allocated_at: new Date().toISOString() }).eq("id", credit.id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_compoff_credits"] });
@@ -108,7 +76,6 @@ export default function CompOffPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Bulk allocate all pending
   const bulkAllocateMutation = useMutation({
     mutationFn: async () => {
       const pending = credits.filter((c: any) => !c.is_allocated);
@@ -117,9 +84,7 @@ export default function CompOffPage() {
       }
       return pending.length;
     },
-    onSuccess: (count) => {
-      toast.success(`Allocated ${count} comp-off credits as leave`);
-    },
+    onSuccess: (count) => { toast.success(`Allocated ${count} comp-off credits as leave`); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -130,23 +95,22 @@ export default function CompOffPage() {
   const holidayCount = credits.filter((c: any) => c.credit_type === "holiday").length;
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Comp-Off Management</h1>
-          <p className="text-sm text-muted-foreground">Auto-credited when employees work on Sundays or holidays. Allocate as leave balance.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24" min="2020" max="2030" />
-          {pending.length > 0 && (
-            <Button onClick={() => bulkAllocateMutation.mutate()} disabled={bulkAllocateMutation.isPending} className="bg-success hover:bg-success">
-              <Gift className="h-4 w-4 mr-1" /> Allocate All ({pending.length})
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Comp-Off Management"
+        description="Auto-credited when employees work on Sundays or holidays. Allocate as leave balance."
+        actions={
+          <div className="flex items-center gap-3">
+            <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24 h-9" min="2020" max="2030" />
+            {pending.length > 0 && (
+              <Button onClick={() => bulkAllocateMutation.mutate()} disabled={bulkAllocateMutation.isPending} className="bg-success hover:bg-success h-9">
+                <Gift className="h-4 w-4 mr-1" /> Allocate All ({pending.length})
+              </Button>
+            )}
+          </div>
+        }
+      />
 
-      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Credits", value: `${totalCredits} days`, icon: Gift, color: "text-success", bg: "bg-success/10" },
@@ -157,54 +121,61 @@ export default function CompOffPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+              <div><p className="text-xl font-bold tabular-nums">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Credits Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Date Worked</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Credit</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
-              ) : credits.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No comp-off credits for {yearFilter}. Credits are auto-generated when employees clock in on Sundays or holidays.</TableCell></TableRow>
-              ) : (
-                credits.map((c: any) => (
+      {isLoading ? (
+        <TableSkeleton rows={5} columns={7} />
+      ) : credits.length === 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={Gift}
+              title={`No comp-off credits for ${yearFilter}`}
+              description="Credits are auto-generated when employees clock in on Sundays or holidays."
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Date Worked</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Type</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Credit</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Expires</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {credits.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">
                       {c.hr_employees?.first_name} {c.hr_employees?.last_name}
                       <span className="text-xs text-muted-foreground ml-1">({c.hr_employees?.badge_id})</span>
                     </TableCell>
-                    <TableCell>{c.credit_date}</TableCell>
+                    <TableCell className="tabular-nums">{c.credit_date}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        c.credit_type === "sunday" ? "bg-info/10 text-info" : "bg-warning/10 text-warning"
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                        c.credit_type === "sunday" ? "bg-info/10 text-info border-info/20" : "bg-warning/10 text-warning border-warning/20"
                       }`}>
                         {c.credit_type === "sunday" ? "Sunday" : "Holiday"}
                       </span>
                     </TableCell>
-                    <TableCell className="font-medium text-success">{c.credit_days} day{c.credit_days > 1 ? "s" : ""}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{c.expires_at || "Year-end"}</TableCell>
+                    <TableCell className="font-medium text-success tabular-nums">{c.credit_days} day{c.credit_days > 1 ? "s" : ""}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground tabular-nums">{c.expires_at || "Year-end"}</TableCell>
                     <TableCell>
                       {c.is_allocated ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Allocated</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-success/10 text-success border-success/20">Allocated</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Pending</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">Pending</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -215,12 +186,12 @@ export default function CompOffPage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { comboToDisplay } from "@/config/shortcuts";
 import {
   TERMINAL_GLOBAL_SHORTCUTS, TERMINAL_NAVIGATION_SHORTCUTS,
-  TERMINAL_ORDER_NAV_SHORTCUTS, type TerminalShortcutDef,
+  TERMINAL_ORDER_NAV_SHORTCUTS, TERMINAL_QUEUE_SHORTCUTS, type TerminalShortcutDef,
 } from "@/config/terminal-shortcuts";
 
 

@@ -538,9 +538,14 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, isT
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
+                         <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
                           <Edit className="h-3.5 w-3.5" />
                         </Button>
+                        {onHistory && (
+                          <Button variant="ghost" size="icon" aria-label="History" className="h-8 w-8" onClick={() => onHistory(ad.advNo)} title="View change history">
+                            <History className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon" aria-label="Disable / Locked"

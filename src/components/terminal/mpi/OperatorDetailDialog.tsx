@@ -221,7 +221,9 @@ export function OperatorDetailDialog({
                 </span>
                 <span className="font-semibold text-success">{completionRate}%</span>
               </div>
-              <Progress value={completionRate} className="h-2" />
+              <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                <div className="h-full rounded-full bg-success" style={{ width: `${completionRate}%` }} />
+              </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">

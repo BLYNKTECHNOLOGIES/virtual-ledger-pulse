@@ -663,7 +663,7 @@ export function TerminalOrgChart() {
 
       {/* Link to reporting manager dialog */}
       <Dialog open={!!linkTarget} onOpenChange={(open) => { if (!open) setLinkTarget(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="t-scale-in max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm flex items-center gap-2">
               <Link2 className="h-4 w-4" />

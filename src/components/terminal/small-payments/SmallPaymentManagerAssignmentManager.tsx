@@ -70,7 +70,7 @@ export function SmallPaymentManagerAssignmentManager() {
           <Badge variant="outline" className="text-[10px]">{summary.active}/{summary.total} active</Badge>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild><Button size="sm" className="h-8 text-xs gap-1.5"><Plus className="h-3.5 w-3.5" /> Add Assignment</Button></DialogTrigger>
-            <DialogContent>
+            <DialogContent className="t-scale-in">
               <DialogHeader><DialogTitle>Create Small Payments Assignment</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2"><Label className="text-xs">Manager</Label><Select value={selectedManager} onValueChange={setSelectedManager}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select manager..." /></SelectTrigger><SelectContent>{managerUsers.map((u: any) => <SelectItem key={u.id} value={u.id} className="text-xs">{getUserName(u)} ({u.username})</SelectItem>)}</SelectContent></Select></div>

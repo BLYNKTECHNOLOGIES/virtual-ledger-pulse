@@ -315,7 +315,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="t-scale-in max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{editingRule ? 'Edit' : 'Create'} Auto-Pricing Rule</DialogTitle>
         </DialogHeader>

@@ -24,7 +24,7 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-card border-border max-w-md">
+      <DialogContent className="t-scale-in bg-card border-border max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div

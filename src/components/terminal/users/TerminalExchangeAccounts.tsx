@@ -174,7 +174,7 @@ export function TerminalExchangeAccounts() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="t-scale-in sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Exchange Account" : "Add Exchange Account"}</DialogTitle>
           </DialogHeader>

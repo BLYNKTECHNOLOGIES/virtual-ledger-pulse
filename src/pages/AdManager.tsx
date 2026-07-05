@@ -157,6 +157,10 @@ export default function AdManager() {
         description="Manage your Binance P2P merchant ads"
         actions={
           <>
+            <div className="flex items-center gap-1.5 mr-1">
+              <Switch id="ad-auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+              <Label htmlFor="ad-auto-refresh" className="text-xs text-muted-foreground cursor-pointer">Auto 30s</Label>
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -174,6 +178,10 @@ export default function AdManager() {
           </>
         }
       />
+
+      {/* Summary strip */}
+      <AdSummaryStrip ads={ads} />
+
 
 
       {/* Filters */}

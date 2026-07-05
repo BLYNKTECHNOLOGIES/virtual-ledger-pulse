@@ -37,6 +37,7 @@ import {
   Blend,
   Crosshair,
   Image as ImageIcon,
+  Sparkles,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -60,6 +61,7 @@ import { SmallOrdersConfig } from '@/components/terminal/automation/SmallOrdersC
 import { HybridPriceAdjuster } from '@/components/terminal/automation/HybridPriceAdjuster';
 import { AutoPricingRules } from '@/components/terminal/automation/AutoPricingRules';
 import { AutoScreenshotConfig } from '@/components/terminal/automation/AutoScreenshotConfig';
+import { CopilotSettings } from '@/components/terminal/automation/CopilotSettings';
 
 
 
@@ -173,6 +175,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="auto-screenshot" className="gap-1.5">
             <ImageIcon className="h-3.5 w-3.5" />
             Auto Screenshot
+          </TabsTrigger>
+          <TabsTrigger value="ai-copilot" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Copilot
           </TabsTrigger>
         </TabsList>
 
@@ -383,6 +389,11 @@ export default function TerminalAutomation() {
         {/* ═══ AUTO SCREENSHOT ═══ */}
         <TabsContent value="auto-screenshot" className="mt-4">
           <AutoScreenshotConfig canManage={canManagePricing} />
+        </TabsContent>
+
+        {/* ═══ AI COPILOT ═══ */}
+        <TabsContent value="ai-copilot" className="mt-4">
+          <CopilotSettings />
         </TabsContent>
       </Tabs>
 

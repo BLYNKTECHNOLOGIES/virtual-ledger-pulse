@@ -12,6 +12,8 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
+import { CopilotStrip } from './chat/CopilotStrip';
+import { useCopilotVisible, type CopilotSuggestInput } from '@/hooks/useCopilot';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';
@@ -307,6 +309,24 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     if (reply?.message_text) handleQuickReply(reply.message_text);
   }), [hotkeyReplies, templateValues]);
 
+  // AI Copilot — only visible for allowlisted operators when enabled.
+  const copilotVisible = useCopilotVisible();
+  // Build the ENTIRE suggestion context client-side (no server order lookups).
+  const buildCopilotInput = useCallback((): CopilotSuggestInput => ({
+    order: {
+      number: orderNumber,
+      side: tradeType || null,
+      amount: templateValues?.amount ?? null,
+    },
+    clientProfile: {
+      name: counterpartyVerifiedName || counterpartyNickname || null,
+    },
+    messages: currentOrderMessages
+      .filter((m) => m.senderType !== 'system' && m.text)
+      .slice(-10)
+      .map((m) => ({ isSelf: m.senderType === 'operator', text: m.text as string })),
+  }), [orderNumber, tradeType, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages]);
+
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
   ).length;
@@ -467,12 +487,19 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       </div>
 
 
-      {/* Quick replies bar */}
-      <div className="px-3 py-1 border-t border-border/50 bg-card/30">
+      {/* Quick replies + AI Copilot bar (coexist) */}
+      <div className="px-3 py-1 border-t border-border/50 bg-card/30 flex items-start gap-2">
         <QuickReplyBar
           tradeType={tradeType}
           onSelect={handleQuickReply}
         />
+        {copilotVisible && (
+          <CopilotStrip
+            cacheKey={`${orderNumber}:${currentOrderMessages.length}`}
+            onInsert={handleQuickReply}
+            buildInput={buildCopilotInput}
+          />
+        )}
       </div>
 
       {/* Input area */}

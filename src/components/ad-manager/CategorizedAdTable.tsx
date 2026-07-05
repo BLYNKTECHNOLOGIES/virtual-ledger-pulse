@@ -74,6 +74,7 @@ interface CategorizedAdTableProps {
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;
   sortMode?: AdSortMode;
+  compact?: boolean;
 }
 
 interface AdGroup {

@@ -478,6 +478,9 @@
   .terminal .t-flash-down {
     animation: t-flash-down 600ms ease-out;
   }
+  .terminal .t-fade {
+    animation: t-fade 150ms ease-out both;
+  }
   .terminal .t-shimmer {
     animation: t-shimmer 1.4s ease-in-out infinite;
   }

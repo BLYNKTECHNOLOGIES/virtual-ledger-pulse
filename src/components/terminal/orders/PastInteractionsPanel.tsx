@@ -58,12 +58,12 @@ function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () 
   return (
     <button
       onClick={onClick}
-      className="w-full text-left p-3 rounded-md bg-secondary/50 hover:bg-secondary transition-colors group"
+      className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors duration-150 group"
     >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-semibold ${tradeColor}`}>{order.trade_type}</span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className={`text-[10px] font-semibold t-mono uppercase ${tradeColor}`}>{order.trade_type}</span>
+          <span className="text-[10px] text-muted-foreground t-mono">
             #{order.binance_order_number.slice(-8)}
           </span>
         </div>
@@ -71,7 +71,7 @@ function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () 
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-foreground tabular-nums">
+        <span className="text-xs font-medium text-foreground t-mono">
           ₹{Number(order.total_price).toLocaleString('en-IN')}
         </span>
         <Badge variant="outline" className={`text-[9px] ${style.badgeClass}`}>
@@ -80,10 +80,10 @@ function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () 
       </div>
 
       <div className="flex items-center justify-between mt-1.5">
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[10px] text-muted-foreground t-mono">
           {order.amount} {order.asset}
         </span>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[10px] text-muted-foreground t-mono">
           {order.binance_create_time
             ? format(new Date(order.binance_create_time), 'dd MMM yy')
             : '—'}
@@ -92,3 +92,4 @@ function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () 
     </button>
   );
 }
+

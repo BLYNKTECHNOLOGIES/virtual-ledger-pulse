@@ -342,7 +342,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     exchangeAccountId: exchangeAccountId ?? null,
     accountLabel: exchangeAccountId ? nameFor(exchangeAccountId) : null,
     counterpartyNickname: counterpartyNickname || null,
-  }), [orderNumber, tradeType, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, exchangeAccountId, nameFor]);
+  }), [orderNumber, tradeType, orderStatus, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, exchangeAccountId, nameFor]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'

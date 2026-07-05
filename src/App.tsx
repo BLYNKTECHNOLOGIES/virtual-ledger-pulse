@@ -808,7 +808,9 @@ function App() {
   return (
     <React.StrictMode>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<RouteFallback />}>
+          <RouterProvider router={router} />
+        </Suspense>
         <Toaster />
       </AuthProvider>
     </React.StrictMode>

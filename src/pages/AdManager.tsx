@@ -363,8 +363,9 @@ export default function AdManager() {
                 <span className="flex flex-wrap items-center gap-3 text-sm font-normal text-muted-foreground">
                   {/* View toggle */}
                   <span className="inline-flex overflow-hidden rounded-md border border-border">
-                    <button onClick={() => setViewMode('categorized')} className={cn('px-2.5 py-1 text-xs', viewMode === 'categorized' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Categorized</button>
+                    <button onClick={() => setViewMode('board')} className={cn('px-2.5 py-1 text-xs', viewMode === 'board' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Board</button>
                     <button onClick={() => setViewMode('desk')} className={cn('border-l border-border px-2.5 py-1 text-xs', viewMode === 'desk' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Desk</button>
+                    <button onClick={() => setViewMode('categorized')} className={cn('border-l border-border px-2.5 py-1 text-xs', viewMode === 'categorized' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Categorized</button>
                   </span>
                   {/* Density toggle */}
                   <button

@@ -112,6 +112,12 @@ export default function TerminalShortcuts() {
           canUse={canUse}
         />
         <Section
+          title="Queue & Chat"
+          description="Speed keys for Queue Mode and the order chat. J/K (or ←/→) step through actionable orders, / focuses the chat box, and 1–9 insert your quick replies without sending."
+          items={TERMINAL_QUEUE_SHORTCUTS}
+          canUse={canUse}
+        />
+        <Section
           title="Navigation"
           description="Jump straight to any terminal module you have access to."
           items={TERMINAL_NAVIGATION_SHORTCUTS}

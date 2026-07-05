@@ -4,7 +4,7 @@
 // (2) retrieves style exemplars, (3) makes ONE Lovable-AI call for suggestions.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { classifySituation, detectLanguage, embedCopilot } from "../_shared/copilot.ts";
+import { classifySituation, detectLanguage, embedCopilot, goalForStatus } from "../_shared/copilot.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

@@ -45,11 +45,11 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-accent/10 rounded-lg p-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Available</p>
-              <p className="text-sm font-semibold text-trade-buy tabular-nums">{data.total_free.toFixed(8)}</p>
+              <p className="text-sm font-semibold text-trade-buy t-mono">{data.total_free.toFixed(8)}</p>
             </div>
             <div className="bg-accent/10 rounded-lg p-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Frozen / Locked</p>
-              <p className="text-sm font-semibold text-warning tabular-nums">
+              <p className="text-sm font-semibold text-warning t-mono">
                 {data.total_locked > 0 ? data.total_locked.toFixed(8) : "0.00000000"}
               </p>
             </div>
@@ -74,7 +74,7 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
                   />
                   <span className="text-xs text-muted-foreground">{row.label}</span>
                 </div>
-                <span className="text-xs font-medium text-foreground tabular-nums">
+                <span className="text-xs font-medium text-foreground t-mono">
                   {row.value.toFixed(8)}
                 </span>
               </div>
@@ -94,7 +94,7 @@ export function AssetDetailPanel({ asset, balances, onClose }: AssetDetailPanelP
           {/* Total */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <span className="text-xs font-medium text-muted-foreground">Total Balance</span>
-            <span className="text-sm font-bold text-foreground tabular-nums">
+            <span className="text-sm font-bold text-foreground t-mono">
               {data.total_balance.toFixed(8)} {asset}
             </span>
           </div>

@@ -147,7 +147,7 @@ export function TradeHistory() {
                   : new Date(trade.created_at);
                 return (
                   <tr key={trade.id} className="border-b border-border/50 hover:bg-accent/5">
-                    <td className="py-2 px-3 text-muted-foreground tabular-nums">
+                    <td className="py-2 px-3 text-muted-foreground t-mono">
                       {format(tradeDate, "dd MMM HH:mm")}
                     </td>
                     <td className="py-2 px-3 font-medium text-foreground">{trade.symbol}</td>
@@ -162,20 +162,20 @@ export function TradeHistory() {
                         {trade.side}
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-right text-foreground tabular-nums">
+                    <td className="py-2 px-3 text-right text-foreground t-mono">
                       {parseFloat(trade.quantity || 0).toFixed(8)}
                     </td>
-                    <td className="py-2 px-3 text-right text-foreground tabular-nums">
+                    <td className="py-2 px-3 text-right text-foreground t-mono">
                       {trade.executed_price
                         ? parseFloat(trade.executed_price).toLocaleString("en-US", { maximumFractionDigits: 4 })
                         : "—"}
                     </td>
-                    <td className="py-2 px-3 text-right text-foreground tabular-nums">
+                    <td className="py-2 px-3 text-right text-foreground t-mono">
                       {trade.quote_quantity
                         ? parseFloat(trade.quote_quantity).toFixed(2)
                         : "—"}
                     </td>
-                    <td className="py-2 px-3 text-right text-muted-foreground tabular-nums">
+                    <td className="py-2 px-3 text-right text-muted-foreground t-mono">
                       {trade.commission
                         ? `${parseFloat(trade.commission).toFixed(8)} ${trade.commission_asset || ""}`
                         : "—"}

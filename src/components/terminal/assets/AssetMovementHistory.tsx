@@ -315,7 +315,7 @@ export function AssetMovementHistory() {
             <tbody>
               {filtered.map((m) => (
                 <tr key={m.id} className="border-b border-border/50 hover:bg-accent/5">
-                  <td className="py-2 px-3 text-muted-foreground tabular-nums whitespace-nowrap">
+                  <td className="py-2 px-3 text-muted-foreground t-mono whitespace-nowrap">
                     {m.timestamp > 0 ? format(new Date(m.timestamp), "dd MMM yy HH:mm") : "—"}
                   </td>
                   <td className="py-2 px-3 text-center">
@@ -325,7 +325,7 @@ export function AssetMovementHistory() {
                     </div>
                   </td>
                   <td className="py-2 px-3 font-medium text-foreground">{m.asset}</td>
-                  <td className="py-2 px-3 text-right tabular-nums">
+                  <td className="py-2 px-3 text-right t-mono">
                     <span className={m.type === "deposit" || (m.type === "p2p" && m.details.includes("BUY")) ? "text-trade-buy" : m.type === "withdrawal" ? "text-trade-sell" : "text-foreground"}>
                       {m.type === "deposit" ? "+" : m.type === "withdrawal" ? "−" : ""}
                       {m.amount.toLocaleString("en-US", { maximumFractionDigits: 8 })}
@@ -359,7 +359,7 @@ export function AssetMovementHistory() {
                       </div>
                     )}
                   </td>
-                  <td className="py-2 px-3 text-right text-muted-foreground tabular-nums">
+                  <td className="py-2 px-3 text-right text-muted-foreground t-mono">
                     {m.fee ? `${m.fee}` : "—"}
                   </td>
                   <td className="py-2 px-3 text-center">

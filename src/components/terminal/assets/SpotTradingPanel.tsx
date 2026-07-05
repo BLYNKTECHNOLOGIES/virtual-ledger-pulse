@@ -132,7 +132,7 @@ export function SpotTradingPanel() {
           {/* Market Price */}
           <div className="bg-background rounded-lg p-3">
             <p className="text-[10px] text-muted-foreground mb-1">Market Price</p>
-            <p className="text-lg font-bold text-foreground tabular-nums">
+            <p className="text-lg font-bold text-foreground t-mono">
               {priceValue > 0
                 ? priceValue.toLocaleString("en-US", { maximumFractionDigits: 8 })
                 : "Loading..."}
@@ -155,7 +155,7 @@ export function SpotTradingPanel() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="h-10 text-sm bg-background border-border pr-16 tabular-nums"
+                className="h-10 text-sm bg-background border-border pr-16 t-mono"
               />
               <button
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-primary hover:text-primary/80"
@@ -185,7 +185,7 @@ export function SpotTradingPanel() {
               <span className="text-xs text-muted-foreground">
                 Est. {side === "BUY" ? pair.base : pair.quote}
               </span>
-              <span className="text-sm font-medium text-foreground tabular-nums">
+              <span className="text-sm font-medium text-foreground t-mono">
                 ≈ {estimatedResult.toFixed(side === "BUY" ? 8 : 2)} {side === "BUY" ? pair.base : pair.quote}
               </span>
             </div>
@@ -290,7 +290,7 @@ export function SpotTradingPanel() {
                     </div>
                     <span className="text-xs text-foreground">{p.base}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-foreground t-mono">
                     {bal ? bal.total_free.toFixed(4) : "0.0000"}
                   </span>
                 </div>
@@ -304,7 +304,7 @@ export function SpotTradingPanel() {
                 </div>
                 <span className="text-xs text-foreground font-medium">USDT</span>
               </div>
-              <span className="text-xs text-foreground font-medium tabular-nums">
+              <span className="text-xs text-foreground font-medium t-mono">
                 {balanceList.find((b) => b.asset === "USDT")?.total_free.toFixed(4) || "0.0000"}
               </span>
             </div>

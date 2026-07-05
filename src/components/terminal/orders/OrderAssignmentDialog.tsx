@@ -163,8 +163,9 @@ export function OrderAssignmentDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" size="sm" className="h-9" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );

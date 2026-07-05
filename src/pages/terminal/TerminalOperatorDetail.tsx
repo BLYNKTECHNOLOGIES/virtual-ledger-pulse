@@ -755,12 +755,12 @@ function TerminalOperatorDetailContent() {
       {/* Tabs - scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollArea className="w-full">
-          <TabsList className="h-8 w-max">
-            <TabsTrigger value="overview" className="text-[10px] sm:text-xs h-7">Overview</TabsTrigger>
-            <TabsTrigger value="assignments" className="text-[10px] sm:text-xs h-7">Assignments</TabsTrigger>
-            <TabsTrigger value="actions" className="text-[10px] sm:text-xs h-7">Actions</TabsTrigger>
-            <TabsTrigger value="trends" className="text-[10px] sm:text-xs h-7">Trends</TabsTrigger>
-            <TabsTrigger value="orders" className="text-[10px] sm:text-xs h-7">Orders</TabsTrigger>
+          <TabsList className="h-9 w-max bg-secondary p-0.5 rounded-lg border border-border">
+            <TabsTrigger value="overview" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Overview</TabsTrigger>
+            <TabsTrigger value="assignments" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Assignments</TabsTrigger>
+            <TabsTrigger value="actions" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Actions</TabsTrigger>
+            <TabsTrigger value="trends" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Trends</TabsTrigger>
+            <TabsTrigger value="orders" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Orders</TabsTrigger>
           </TabsList>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>

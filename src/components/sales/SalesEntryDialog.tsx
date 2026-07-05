@@ -1028,6 +1028,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                       <div className="col-span-4">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.01"
                           min="0"
                           value={split.amount}

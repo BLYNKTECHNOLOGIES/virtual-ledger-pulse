@@ -876,6 +876,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                       <div className="col-span-4">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.01"
                           min="0"
                           value={split.amount}
@@ -1021,6 +1022,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                     <Input
                       id="fee_percentage"
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
                       min="0"
                       max="100"

@@ -188,6 +188,7 @@ Deno.serve(async (req) => {
         language,
         order_meta: metaMap.get(r.order_number) || {},
         source_operator: info.op,
+        exchange_account_id: r.exchange_account_id || null,
         embedding: embedding ? toPgVector(embedding) : null,
       });
       inserted++;

@@ -87,7 +87,27 @@ export function CopilotSettings() {
   const [rebuilding, setRebuilding] = useState(false);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const { data: users = [] } = useTerminalUsersList();
-  const { accounts } = useExchangeAccount();
+  const { accounts, nameFor } = useExchangeAccount();
+  const { data: teach, refetch: refetchTeach } = useQuery({
+    queryKey: ['copilot-teach-list'],
+    queryFn: async () => {
+      const res = await copilotTeach('list');
+      return { pinned: res?.pinned || [], blacklist: res?.blacklist || [] } as {
+        pinned: any[]; blacklist: any[];
+      };
+    },
+    staleTime: 60 * 1000,
+  });
+  const removeTeach = async (kind: 'exemplar' | 'blacklist', id: string) => {
+    try {
+      await copilotTeach(kind === 'exemplar' ? 'remove_exemplar' : 'remove_blacklist', { id });
+      toast.success('Removed');
+      refetchTeach();
+      qc.invalidateQueries({ queryKey: ['copilot-settings'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to remove');
+    }
+  };
   const { data: settings, isLoading } = useQuery({
     queryKey: ['copilot-settings'],
     queryFn: async (): Promise<(Settings & { updated_at?: string }) | null> => {

@@ -38,6 +38,26 @@ export default function AttendanceActivityPage() {
   const [showClockIn, setShowClockIn] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState("");
   const [clockNote, setClockNote] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefreshHours = async () => {
+    setRefreshing(true);
+    try {
+      const d = new Date(`${dateFilter}T00:00:00`);
+      const { error } = await (supabase as any).rpc("refresh_hour_accounts", {
+        p_year: d.getFullYear(),
+        p_month: d.getMonth() + 1,
+      });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["hr_attendance_activity"] });
+      await qc.invalidateQueries({ queryKey: ["hr_attendance_daily_punches"] });
+      toast.success("Attendance data refreshed");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const { data: activities = [], isLoading, error: queryError } = useQuery({
     queryKey: ["hr_attendance_activity", dateFilter],

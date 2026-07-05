@@ -13,6 +13,9 @@ import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDial
 import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 // ─── Types ───
 interface HrEmployee {
@@ -489,11 +492,12 @@ export default function EmployeeListPage() {
   };
 
   return (
-    <div className="space-y-0 page-mount">
+    <div className="p-4 md:p-6 space-y-4 page-mount">
       {/* ─── Page Header ─── */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold text-foreground">Employees</h1>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Employees"
+        actions={
+          <div className="flex items-center gap-2">
           {/* Search */}
           <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-52">
             <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
@@ -595,8 +599,9 @@ export default function EmployeeListPage() {
             <Plus className="h-4 w-4" />
             Create
           </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* ─── Filter Panel ─── */}
       {filterPanelOpen && (
@@ -715,17 +720,18 @@ export default function EmployeeListPage() {
 
       {/* ─── Content ─── */}
       {isLoading ? (
-        <div className="text-center py-16 text-muted-foreground text-sm">Loading employees...</div>
+        <TableSkeleton rows={8} columns={6} />
       ) : sorted.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-            <Building2 className="h-7 w-7 text-muted-foreground" />
-          </div>
-          <p className="text-muted-foreground text-sm">No employees found</p>
-          <button onClick={() => setAddOpen(true)} className="mt-3 text-[#00bcd4] text-sm font-medium hover:underline">
-            + Add your first employee
-          </button>
-        </div>
+        <EmptyState
+          icon={Building2}
+          title="No employees found"
+          description="Try adjusting filters or add your first employee"
+          action={
+            <button onClick={() => setAddOpen(true)} className="flex items-center gap-1.5 bg-[#00bcd4] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#00a5bb] transition-colors">
+              <Plus className="h-4 w-4" /> Add your first employee
+            </button>
+          }
+        />
       ) : viewMode === "list" ? (
         /* ─── TABLE VIEW ─── */
         <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -743,7 +749,7 @@ export default function EmployeeListPage() {
                 {ALL_TABLE_COLS.filter(c => isColVisible(c.key)).map(col => (
                   <th
                     key={col.key}
-                    className={`text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider ${col.sortable ? "cursor-pointer select-none hover:text-foreground" : ""}`}
+                    className={`text-left py-3 px-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide ${col.sortable ? "cursor-pointer select-none hover:text-foreground" : ""}`}
                     onClick={() => col.sortable && handleSort(col.key)}
                   >
                     <span className="inline-flex items-center">
@@ -810,10 +816,14 @@ export default function EmployeeListPage() {
                       <td className="py-3 px-3 text-muted-foreground">{getShiftName(wi?.shift_id || null)}</td>
                     )}
                     {isColVisible("work_type") && (
-                      <td className="py-3 px-3 text-muted-foreground">{wi?.work_type || "None"}</td>
+                      <td className="py-3 px-3">
+                        {wi?.work_type ? <span className="bg-info/10 text-info border border-info/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{wi.work_type}</span> : <span className="text-muted-foreground text-xs">None</span>}
+                      </td>
                     )}
                     {isColVisible("type") && (
-                      <td className="py-3 px-3 text-muted-foreground">{wi?.employee_type || "None"}</td>
+                      <td className="py-3 px-3">
+                        {wi?.employee_type ? <span className="bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{wi.employee_type}</span> : <span className="text-muted-foreground text-xs">None</span>}
+                      </td>
                     )}
 
                     {isColVisible("actions") && (

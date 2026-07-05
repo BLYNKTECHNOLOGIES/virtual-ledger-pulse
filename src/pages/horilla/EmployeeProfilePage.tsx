@@ -13,6 +13,7 @@ import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
 import { EmployeeSalaryStructure } from "@/components/hrms/EmployeeSalaryStructure";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
 import { Progress } from "@/components/ui/progress";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 // ─── Tabs matching Horilla ───
 const TABS = [
@@ -513,7 +514,14 @@ export default function EmployeeProfilePage() {
   const getLeaveTypeColor = (typeId: string) => leaveTypes?.find(t => t.id === typeId)?.color || "#666";
 
   if (!emp) {
-    return <div className="text-center py-16 text-muted-foreground">Loading...</div>;
+    return (
+      <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    );
   }
 
   const colors = ["bg-primary", "bg-info", "bg-success", "bg-warning", "bg-destructive"];
@@ -540,7 +548,7 @@ export default function EmployeeProfilePage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="p-4 md:p-6 space-y-4">
       {/* ─── Breadcrumb ─── */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <button onClick={() => navigate("/hrms")} className="hover:text-foreground">Horilla</button>

@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
 
@@ -168,11 +169,11 @@ export default function HorillaDashboard() {
   ];
 
   return (
-    <div className="space-y-6 page-mount">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Welcome back! Here's what's happening today.</p>
-      </div>
+    <div className="space-y-4 page-mount">
+      <PageHeader
+        title="Dashboard"
+        description="Welcome back! Here's what's happening today."
+      />
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -180,7 +181,7 @@ export default function HorillaDashboard() {
           <div key={c.label} className="bg-card rounded-xl border border-border p-5 flex items-start justify-between">
             <div>
               <p className="text-xs text-muted-foreground">{c.label}</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{c.value}</p>
+              <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">{c.value}</p>
               <p className="text-[11px] mt-1 text-muted-foreground">{c.sub}</p>
             </div>
             <div className={`w-10 h-10 rounded-xl ${c.iconBg} flex items-center justify-center shrink-0`}>
@@ -191,7 +192,7 @@ export default function HorillaDashboard() {
       </div>
 
       {/* M7: Actionable Widgets Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Pending Leave Requests - Actionable */}
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-3">
@@ -283,7 +284,7 @@ export default function HorillaDashboard() {
             <Button
               size="sm"
               variant="outline"
-              className="w-full h-8 text-xs gap-1 mt-2"
+              className="w-full h-9 text-xs gap-1 mt-2"
               onClick={() => autoGeneratePenalties.mutate()}
               disabled={autoGeneratePenalties.isPending}
             >
@@ -295,7 +296,7 @@ export default function HorillaDashboard() {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-card rounded-xl border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Department Distribution</h3>
           {deptDistribution.length === 0 ? (
@@ -331,7 +332,7 @@ export default function HorillaDashboard() {
                   <div key={d.name} className="flex items-center gap-2 text-sm">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
                     <span className="text-muted-foreground">{d.name}</span>
-                    <span className="font-semibold text-foreground">{d.value}</span>
+                    <span className="font-semibold tabular-nums text-foreground">{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -357,7 +358,7 @@ export default function HorillaDashboard() {
                   <div key={d.name} className="flex items-center gap-2 text-sm">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                     <span className="text-muted-foreground">{d.name}</span>
-                    <span className="font-semibold text-foreground">{d.value}</span>
+                    <span className="font-semibold tabular-nums text-foreground">{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -367,7 +368,7 @@ export default function HorillaDashboard() {
       </div>
 
       {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-card rounded-xl border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Leave Summary</h3>
           <div className="grid grid-cols-3 gap-3">
@@ -378,7 +379,7 @@ export default function HorillaDashboard() {
             ].map(s => (
               <div key={s.label} className={`${s.bg} rounded-lg p-3 text-center`}>
                 <s.icon className={`h-5 w-5 ${s.color} mx-auto mb-1`} />
-                <p className="text-lg font-bold text-foreground">{s.value}</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">{s.value}</p>
                 <p className="text-[10px] text-muted-foreground">{s.label}</p>
               </div>
             ))}
@@ -398,11 +399,11 @@ export default function HorillaDashboard() {
                     <p className="text-xs text-muted-foreground">{r.employee_count || 0} employees</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-foreground">₹{(r.total_net || 0).toLocaleString('en-IN')}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                      r.status === "completed" ? "bg-success/10 text-success" :
-                      r.status === "processing" ? "bg-info/10 text-info" :
-                      "bg-muted text-muted-foreground"
+                    <p className="text-sm font-semibold tabular-nums text-foreground">₹{(r.total_net || 0).toLocaleString('en-IN')}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+                      r.status === "completed" ? "bg-success/10 text-success border-success/20" :
+                      r.status === "processing" ? "bg-info/10 text-info border-info/20" :
+                      "bg-muted text-muted-foreground border-border"
                     }`}>{r.status}</span>
                   </div>
                 </div>

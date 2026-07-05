@@ -62,6 +62,7 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
           counterpartyId={null}
           counterpartyNickname={c.counterpartyNickname}
           tradeType={c.tradeType}
+          orderStatus={rawStatus}
         />
       </div>
     </div>

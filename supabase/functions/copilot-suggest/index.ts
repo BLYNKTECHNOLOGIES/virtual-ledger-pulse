@@ -97,16 +97,22 @@ Deno.serve(async (req) => {
     // recency when embeddings are null). Best-effort — never fatal.
     const convoBlob = messages.map((m) => `${m.isSelf ? "Operator" : "Counterparty"}: ${m.text}`).join("\n");
     const qEmbed = await embedCopilot(convoBlob || situation);
-    let exemplars: any[] = [];
-    try {
-      const { data: ex } = await admin.rpc("match_copilot_exemplars", {
-        query_embedding: qEmbed ? `[${qEmbed.join(",")}]` : null,
-        p_situation_class: situation,
-        p_side: side,
-        match_count: 5,
-      });
-      exemplars = ex || [];
-    } catch { exemplars = []; }
+    const queryEmbedding = qEmbed ? `[${qEmbed.join(",")}]` : null;
+    const matchExemplars = async (accountId: string | null) => {
+      try {
+        const { data: ex } = await admin.rpc("match_copilot_exemplars", {
+          query_embedding: queryEmbedding,
+          p_situation_class: situation,
+          p_side: side,
+          match_count: 5,
+          p_exchange_account_id: accountId,
+        });
+        return ex || [];
+      } catch { return []; }
+    };
+    // Prefer same-account exemplars; fall back to all accounts when < 3 match.
+    let exemplars: any[] = exchangeAccountId ? await matchExemplars(exchangeAccountId) : [];
+    if (exemplars.length < 3) exemplars = await matchExemplars(null);
 
     const exemplarText = exemplars.length
       ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")

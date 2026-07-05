@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck, Megaphone } from 'lucide-react';
+import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck, Megaphone, History } from 'lucide-react';
 import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
@@ -68,8 +68,9 @@ const COLLAPSE_PREF_KEY_PREFIX = 'terminal_ad_group_collapse_';
 
 interface CategorizedAdTableProps {
   ads: BinanceAd[];
-  onEdit: (ad: BinanceAd) => void;
+   onEdit: (ad: BinanceAd) => void;
   onToggleStatus: (advNo: string, currentStatus: number) => void;
+  onHistory?: (advNo: string) => void;
   isTogglingStatus: boolean;
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;
@@ -227,7 +228,7 @@ function categorizeAds(
   ];
 }
 
-export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', compact = false }: CategorizedAdTableProps) {
+export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', compact = false }: CategorizedAdTableProps) {
   const { user } = useAuth();
   const { buyConfig, sellConfig } = useSmallConfigs();
   const { data: excludedAds } = useExcludedAds();
@@ -537,9 +538,14 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
+                         <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
                           <Edit className="h-3.5 w-3.5" />
                         </Button>
+                        {onHistory && (
+                          <Button variant="ghost" size="icon" aria-label="History" className="h-8 w-8" onClick={() => onHistory(ad.advNo)} title="View change history">
+                            <History className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon" aria-label="Disable / Locked"

@@ -124,18 +124,31 @@ export async function logAdAction(params: {
   adDetails?: Record<string, any>;
   metadata?: Record<string, any>;
 }): Promise<void> {
+  // Best-effort identity resolution — an audit row must ALWAYS be written.
+  let userId: string;
+  let userName: string;
   const session = getUserSession();
-  if (!session) {
-    console.warn('[ActionLog] No user session, skipping log');
-    return;
+  if (session) {
+    userId = session.userId;
+    userName = session.userName;
+  } else {
+    console.warn('[ActionLog] No cached session — falling back to Supabase auth identity');
+    try {
+      const { data } = await supabase.auth.getUser();
+      userId = data?.user?.id || 'unknown';
+      userName = (data?.user?.email as string) || (data?.user?.user_metadata?.username as string) || 'unknown';
+    } catch {
+      userId = 'unknown';
+      userName = 'unknown';
+    }
   }
 
   try {
     const { error } = await supabase
       .from('ad_action_logs' as any)
       .insert({
-        user_id: session.userId,
-        user_name: session.userName,
+        user_id: userId,
+        user_name: userName,
         action_type: params.actionType,
         adv_no: params.advNo || null,
         ad_details: params.adDetails || {},

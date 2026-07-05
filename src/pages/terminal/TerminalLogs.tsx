@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
@@ -79,11 +80,14 @@ function formatDetails(entry: AdActionLogEntry): string[] {
   const cat = getActionCategory(entry.action_type);
 
   if (cat === 'ads') {
-    if (d.tradeType) lines.push(`Type: ${d.tradeType}`);
+     if (d.tradeType) lines.push(`Type: ${d.tradeType}`);
     if (d.asset) lines.push(`Asset: ${d.asset}`);
-    if (d.price !== undefined) lines.push(`Price: ₹${d.price}`);
+    // Prefer explicit old→new when captured; fall back to plain new price for old rows.
+    if (d.oldPrice !== undefined && d.newPrice !== undefined) lines.push(`Price: ₹${d.oldPrice} → ₹${d.newPrice}`);
+    else if (d.price !== undefined) lines.push(`Price: ₹${d.price}`);
     if (d.priceType !== undefined) lines.push(`Price Mode: ${d.priceType === 1 ? 'Fixed' : 'Floating'}`);
-    if (d.priceFloatingRatio !== undefined) lines.push(`Float Ratio: ${d.priceFloatingRatio}%`);
+    if (d.oldRatio !== undefined && d.newRatio !== undefined) lines.push(`Float Ratio: ${d.oldRatio}% → ${d.newRatio}%`);
+    else if (d.priceFloatingRatio !== undefined) lines.push(`Float Ratio: ${d.priceFloatingRatio}%`);
     if (d.initAmount !== undefined) lines.push(`Quantity: ${d.initAmount}`);
     if (d.minSingleTransAmount !== undefined) lines.push(`Min: ₹${d.minSingleTransAmount}`);
     if (d.maxSingleTransAmount !== undefined) lines.push(`Max: ₹${d.maxSingleTransAmount}`);
@@ -96,9 +100,10 @@ function formatDetails(entry: AdActionLogEntry): string[] {
     if (m.advNos) lines.push(`Ads: ${Array.isArray(m.advNos) ? m.advNos.join(', ') : m.advNos}`);
     if (m.adsCount) lines.push(`${m.adsCount} ads affected`);
     if (m.deactivatedCount !== undefined) lines.push(`${m.deactivatedCount} ads deactivated`);
-    if (d.tradeMethods && Array.isArray(d.tradeMethods)) {
+     if (d.tradeMethods && Array.isArray(d.tradeMethods)) {
       lines.push(`Pay Methods: ${d.tradeMethods.map((pm: any) => pm.tradeMethodName || pm.identifier).join(', ')}`);
     }
+    if (m.exchangeAccountId) lines.push(`Account: …${String(m.exchangeAccountId).slice(-6)}`);
   } else if (cat === 'orders') {
     if (d.orderNumber) lines.push(`Order: …${String(d.orderNumber).slice(-8)}`);
     if (m.authType) lines.push(`Auth: ${m.authType}`);
@@ -127,7 +132,9 @@ function formatDetails(entry: AdActionLogEntry): string[] {
 }
 
 export default function TerminalLogs() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [urlParams] = useSearchParams();
+  // Pre-filter when deep-linked from the Ad Manager (?adv=<advNo>).
+  const [searchQuery, setSearchQuery] = useState(() => urlParams.get('adv') || '');
   const { userId } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'logs', { categoryFilter: 'all' as string, actionFilter: 'all' as string });
   const categoryFilter = prefs.categoryFilter;

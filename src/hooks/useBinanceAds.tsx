@@ -107,6 +107,35 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {},
   return data.data;
 }
 
+/**
+ * Optimistically patch cached ad rows across EVERY ['binance-ads', ...] query
+ * (all accounts/filters permutations). `mapAd` returns a replacement row, or
+ * null to leave the row untouched. Returns true if at least one row was patched.
+ * Reconciliation still happens via manual RefreshCw / opt-in auto-refresh.
+ */
+function patchAdsCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  mapAd: (ad: any) => any | null,
+): boolean {
+  let patched = false;
+  queryClient.setQueriesData<any>(
+    { predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'binance-ads' },
+    (old: any) => {
+      if (!old?.data || !Array.isArray(old.data)) return old;
+      let hit = false;
+      const data = old.data.map((ad: any) => {
+        const next = mapAd(ad);
+        if (next) { hit = true; return next; }
+        return ad;
+      });
+      if (hit) patched = true;
+      return hit ? { ...old, data } : old;
+    },
+  );
+  return patched;
+}
+
+
 export function useBinanceAdsList(filters: AdFilters, options?: { refetchInterval?: number | false }) {
   const isAllStatuses = filters.advStatus === undefined || filters.advStatus === null;
   const isPrivateFilter = filters.advStatus === BINANCE_AD_STATUS.PRIVATE;
@@ -223,12 +252,14 @@ export function usePostAd() {
       const { exchange_account_id, ...rest } = adData;
       return callBinanceAds('postAd', { adData: rest }, exchange_account_id);
     },
-    onSuccess: (_data, adData) => {
+     onSuccess: (_data, adData) => {
+      // Newly created ad isn't in any cache yet → full refetch is required.
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Posted', description: 'Your ad has been posted successfully.' });
       logAdAction({
         actionType: AdActionTypes.AD_CREATED,
         adDetails: { tradeType: adData.tradeType, asset: adData.asset, fiatUnit: adData.fiatUnit, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods },
+        metadata: { exchangeAccountId: adData.exchange_account_id },
       });
     },
     onError: (error: Error) => {
@@ -246,13 +277,30 @@ export function useUpdateAd() {
       const { exchange_account_id, ...rest } = adData;
       return callBinanceAds('updateAd', { adData: rest }, exchange_account_id);
     },
-    onSuccess: (_data, adData) => {
-      queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+     onSuccess: (_data, adData) => {
+      // Instant UI: patch the changed row(s) across every cached accounts/filters
+      // permutation instead of a blanket refetch. Matches by advNo (+ account).
+      const patched = patchAdsCache(queryClient, (ad) => {
+        if (ad.advNo !== adData.advNo) return null;
+        if (adData.exchange_account_id !== undefined && ad._exchangeAccountId !== adData.exchange_account_id) return null;
+        const next: any = { ...ad, updateTime: String(Date.now()) };
+        if (adData.price !== undefined) next.price = Number(adData.price);
+        if (adData.priceFloatingRatio !== undefined) next.priceFloatingRatio = adData.priceFloatingRatio;
+        return next;
+      });
+      // Edge case: row not in any cache → reconcile that query only.
+      if (!patched) queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Updated', description: 'Your ad has been updated successfully.' });
+      const isFloating = adData.priceFloatingRatio !== undefined;
       logAdAction({
         actionType: AdActionTypes.AD_UPDATED,
         advNo: adData.advNo,
-        adDetails: { tradeType: adData.tradeType, asset: adData.asset, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods },
+        adDetails: {
+          tradeType: adData.tradeType, asset: adData.asset, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods,
+          ...(adData.oldPrice !== undefined ? { oldPrice: adData.oldPrice, newPrice: adData.price } : {}),
+          ...(isFloating && adData.oldRatio !== undefined ? { oldRatio: adData.oldRatio, newRatio: adData.priceFloatingRatio } : {}),
+        },
+        metadata: { exchangeAccountId: adData.exchange_account_id },
       });
     },
     onError: (error: Error) => {
@@ -266,18 +314,25 @@ export function useUpdateAdStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ advNos, advStatus, fromPrivate, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string }) =>
+     mutationFn: ({ advNos, advStatus, fromPrivate, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string; fromStatus?: number }) =>
       callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }, exchangeAccountId),
     onSuccess: (_data, vars) => {
       clearAdBreakDetected();
-      queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+      // Instant UI: patch advStatus on the affected rows across all caches.
+      const targets = new Set(vars.advNos);
+      const patched = patchAdsCache(queryClient, (ad) => {
+        if (!targets.has(ad.advNo)) return null;
+        if (vars.exchangeAccountId !== undefined && ad._exchangeAccountId !== vars.exchangeAccountId) return null;
+        return { ...ad, advStatus: vars.advStatus, updateTime: String(Date.now()) };
+      });
+      if (!patched) queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Status Updated', description: 'Ad status has been updated.' });
       const actionType = vars.advNos.length > 1 ? AdActionTypes.AD_BULK_STATUS_CHANGED : AdActionTypes.AD_STATUS_CHANGED;
       for (const advNo of vars.advNos) {
         logAdAction({
           actionType,
           advNo,
-          metadata: { toStatus: vars.advStatus, fromPrivate: vars.fromPrivate, advNos: vars.advNos, adsCount: vars.advNos.length },
+          metadata: { fromStatus: vars.fromStatus, toStatus: vars.advStatus, fromPrivate: vars.fromPrivate, advNos: vars.advNos, adsCount: vars.advNos.length, exchangeAccountId: vars.exchangeAccountId },
         });
       }
     },

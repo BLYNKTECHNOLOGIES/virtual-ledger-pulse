@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -8,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Megaphone, RefreshCw, ArrowDownUp } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw, ArrowDownUp, Link2 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { AdSummaryStrip } from '@/components/ad-manager/AdSummaryStrip';
@@ -59,11 +60,24 @@ function isBlockAd(ad: BinanceAd) {
 }
 
 export default function AdManager() {
-  const location = useLocation();
+   const location = useLocation();
   const isTerminalContext = location.pathname.startsWith('/terminal');
   const { isAllAccounts, visibleAccounts, activeAccountId, colorFor, nameFor } = useExchangeAccount();
-  const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 50, fetchAll: true });
-  const [activeTab, setActiveTab] = useState<string>(() => localStorage.getItem(TAB_PREF_KEY) || 'all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  // URL params SEED state (shareable views win); localStorage is the personal fallback.
+  const [filters, setFilters] = useState<AdFilters>(() => {
+    const f: AdFilters = { page: 1, rows: 50, fetchAll: true };
+    const asset = searchParams.get('asset'); if (asset) f.asset = asset;
+    const tradeType = searchParams.get('tradeType'); if (tradeType) f.tradeType = tradeType;
+    const advStatus = searchParams.get('advStatus'); if (advStatus !== null && advStatus !== '') f.advStatus = Number(advStatus);
+    const priceType = searchParams.get('priceType'); if (priceType !== null && priceType !== '') f.priceType = Number(priceType);
+    const startDate = searchParams.get('startDate'); if (startDate) f.startDate = startDate;
+    const endDate = searchParams.get('endDate'); if (endDate) f.endDate = endDate;
+    return f;
+  });
+  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('tab') || localStorage.getItem(TAB_PREF_KEY) || 'all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BinanceAd | null>(null);
   // When creating in combined mode we must know which account the ad belongs to.
@@ -80,11 +94,13 @@ export default function AdManager() {
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
   // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
-  const [sortMode, setSortMode] = useState<AdSortMode>(() => (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
-  const [autoRefresh, setAutoRefresh] = useState<boolean>(() => localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
-  const [viewMode, setViewMode] = useState<'categorized' | 'desk'>(() => (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk') || 'categorized');
-  const [compact, setCompact] = useState<boolean>(() => localStorage.getItem(DENSITY_PREF_KEY) === '1');
+   const [sortMode, setSortMode] = useState<AdSortMode>(() => (searchParams.get('sort') as AdSortMode) || (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(() => searchParams.has('auto') ? searchParams.get('auto') === '1' : localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
+  const [viewMode, setViewMode] = useState<'categorized' | 'desk'>(() => (searchParams.get('view') as 'categorized' | 'desk') || (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk') || 'categorized');
+  const [compact, setCompact] = useState<boolean>(() => searchParams.has('density') ? searchParams.get('density') === '1' : localStorage.getItem(DENSITY_PREF_KEY) === '1');
   const [statusChips, setStatusChips] = useState<Set<number>>(() => {
+    const s = searchParams.get('status');
+    if (s !== null) return new Set(s ? s.split(',').map(Number).filter((n) => !isNaN(n)) : []);
     try { const raw = localStorage.getItem(STATUS_CHIPS_PREF_KEY); return new Set(raw ? JSON.parse(raw) : []); } catch { return new Set(); }
   });
   useEffect(() => { try { localStorage.setItem(SORT_PREF_KEY, sortMode); } catch { /* ignore */ } }, [sortMode]);
@@ -92,7 +108,35 @@ export default function AdManager() {
   useEffect(() => { try { localStorage.setItem(VIEW_PREF_KEY, viewMode); } catch { /* ignore */ } }, [viewMode]);
   useEffect(() => { try { localStorage.setItem(DENSITY_PREF_KEY, compact ? '1' : '0'); } catch { /* ignore */ } }, [compact]);
   useEffect(() => { try { localStorage.setItem(TAB_PREF_KEY, activeTab); } catch { /* ignore */ } }, [activeTab]);
-  useEffect(() => { try { localStorage.setItem(STATUS_CHIPS_PREF_KEY, JSON.stringify(Array.from(statusChips))); } catch { /* ignore */ } }, [statusChips]);
+   useEffect(() => { try { localStorage.setItem(STATUS_CHIPS_PREF_KEY, JSON.stringify(Array.from(statusChips))); } catch { /* ignore */ } }, [statusChips]);
+
+  // Mirror view state to the URL (replace, not push) so it's shareable.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (activeTab !== 'all') p.set('tab', activeTab);
+    if (statusChips.size) p.set('status', Array.from(statusChips).join(','));
+    if (sortMode !== 'current') p.set('sort', sortMode);
+    if (viewMode !== 'categorized') p.set('view', viewMode);
+    if (compact) p.set('density', '1');
+    if (autoRefresh) p.set('auto', '1');
+    if (filters.asset) p.set('asset', filters.asset);
+    if (filters.tradeType) p.set('tradeType', filters.tradeType);
+    if (filters.advStatus !== undefined && filters.advStatus !== null) p.set('advStatus', String(filters.advStatus));
+    if (filters.priceType !== undefined && filters.priceType !== null) p.set('priceType', String(filters.priceType));
+    if (filters.startDate) p.set('startDate', filters.startDate);
+    if (filters.endDate) p.set('endDate', filters.endDate);
+    setSearchParams(p, { replace: true });
+  }, [activeTab, statusChips, sortMode, viewMode, compact, autoRefresh, filters, setSearchParams]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => toast({ title: 'Link copied', description: 'Shareable view URL copied to clipboard.' }))
+      .catch(() => toast({ title: 'Copy failed', description: 'Could not access clipboard.', variant: 'destructive' }));
+  };
+
+  // Per-ad history → pre-filtered logs page (reuses TerminalLogs search).
+  const handleHistory = (advNo: string) => navigate(`/terminal/logs?adv=${encodeURIComponent(advNo)}`);
+
 
   // Status is now a client-side chip dimension, so always fetch all statuses.
   const effectiveFilters: AdFilters = { ...filters };
@@ -152,12 +196,12 @@ export default function AdManager() {
     return m;
   }, [ads]);
 
-  const handleToggleStatus = (advNo: string, currentStatus: number) => {
+   const handleToggleStatus = (advNo: string, currentStatus: number) => {
     const isCurrentlyPrivate = currentStatus === BINANCE_AD_STATUS.PRIVATE;
     const newStatus = currentStatus === BINANCE_AD_STATUS.ONLINE || isCurrentlyPrivate
       ? BINANCE_AD_STATUS.OFFLINE 
       : BINANCE_AD_STATUS.ONLINE;
-    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate, exchangeAccountId: accountForAdv.get(advNo) });
+    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate, fromStatus: currentStatus, exchangeAccountId: accountForAdv.get(advNo) });
   };
 
   const handleBulkComplete = () => { setSelectedAdvNos(new Set()); refetch(); };
@@ -196,6 +240,15 @@ export default function AdManager() {
               title="Sync ads from Binance"
             >
               <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={handleCopyLink}
+              title="Copy shareable link to this view"
+            >
+              <Link2 className="h-4 w-4" />
             </Button>
             <Button size="sm" onClick={handleCreate}>
               <Plus className="h-4 w-4 mr-1.5" />
@@ -311,10 +364,11 @@ export default function AdManager() {
               {isLoading ? (
                 <TableSkeleton rows={8} columns={9} />
               ) : viewMode === 'desk' ? (
-                <DeskTable
+                 <DeskTable
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
+                  onHistory={handleHistory}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
@@ -327,6 +381,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
+                  onHistory={handleHistory}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}

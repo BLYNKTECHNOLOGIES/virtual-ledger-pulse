@@ -59,7 +59,13 @@ export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose }: Inl
     const payload: Record<string, any> = {
       advNo: ad.advNo,
       exchange_account_id: ad._exchangeAccountId,
-      ...(isFloating ? { priceFloatingRatio: num } : { price: num }),
+      // Richer log payload so an inline edit audits like a dialog edit.
+      asset: ad.asset,
+      tradeType: ad.tradeType,
+      priceType: ad.priceType,
+      ...(isFloating
+        ? { priceFloatingRatio: num, oldRatio: round2(original) }
+        : { price: num, oldPrice: round2(original) }),
     };
     updateAd.mutate(payload, {
       onSuccess: () => { setCommitting(false); onClose(); },

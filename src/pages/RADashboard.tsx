@@ -168,7 +168,7 @@ export default function RADashboard() {
               </tbody>
             </table>
             {!aLoading && rows.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">No clients assigned to you yet.</div>
+              <EmptyState icon={Headset} title="No clients assigned to you yet." description="Clients assigned to you will appear here." />
             )}
           </div>
         </CardContent>

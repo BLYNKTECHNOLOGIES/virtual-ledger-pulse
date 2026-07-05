@@ -611,6 +611,24 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           }
         </p>
       </div>
+
+      <AlertDialog open={!!blacklistTarget} onOpenChange={(o) => { if (!o) setBlacklistTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Blacklist this phrase?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The copilot will stop suggesting replies similar to:
+              <span className="mt-2 block rounded bg-secondary/60 border border-border px-2 py-1 text-xs text-foreground">
+                {blacklistTarget?.text}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBlacklist}>Blacklist</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -29,7 +29,7 @@ export function OpsGatewayVisual() {
   return (
     <div
       aria-hidden="true"
-      className="relative hidden h-full w-full overflow-hidden bg-[hsl(231_45%_5%)] lg:block"
+      className="relative hidden w-full self-stretch overflow-hidden bg-[hsl(231_45%_5%)] lg:block"
     >
       {/* Ultra-subtle dot grid */}
       <div

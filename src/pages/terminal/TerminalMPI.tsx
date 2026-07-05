@@ -718,19 +718,19 @@ export default function TerminalMPI() {
                   {/* Primary Stats */}
                   <div className="grid grid-cols-4 gap-1 sm:gap-1.5 text-center mb-2 sm:mb-3">
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{m.ordersHandled}</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{m.ordersHandled}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Handled</div>
                     </div>
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{fmtVol(m.totalVolume)}</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{fmtVol(m.totalVolume)}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Volume</div>
                     </div>
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{formatDuration(m.avgHandleTimeMin)}</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{formatDuration(m.avgHandleTimeMin)}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Avg Time</div>
                     </div>
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{m.completionRate}%</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{m.completionRate}%</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Rate</div>
                     </div>
                   </div>

@@ -505,7 +505,7 @@ export default function TerminalMPI() {
         <div className="flex items-center gap-1.5 flex-wrap">
           {canViewAll && (
             <Select value={viewLevel} onValueChange={setViewLevel}>
-              <SelectTrigger className="h-7 text-[10px] sm:text-xs w-24 sm:w-28">
+              <SelectTrigger className="h-8 text-[10px] sm:text-xs w-24 sm:w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -517,7 +517,7 @@ export default function TerminalMPI() {
             </Select>
           )}
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
+            <SelectTrigger className="h-8 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -528,7 +528,7 @@ export default function TerminalMPI() {
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
+            <SelectTrigger className="h-8 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -538,7 +538,7 @@ export default function TerminalMPI() {
               <SelectItem value="speed">By Speed</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="h-7 text-[10px] sm:text-xs px-2" onClick={fetchMetrics}>
+          <Button variant="outline" size="sm" className="h-8 text-[10px] sm:text-xs px-2" onClick={fetchMetrics}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
           </Button>
         </div>

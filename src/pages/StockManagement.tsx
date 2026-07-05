@@ -2,11 +2,10 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, TrendingUp, FileText, BarChart, Building, Grid, Shield, ArrowLeftRight } from "lucide-react";
+import { Package, TrendingUp, FileText, Building, Grid, Shield, ArrowLeftRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab";
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
-import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
 import { StockReportsTab } from "@/components/stock/StockReportsTab";
 import { WalletManagementTab } from "@/components/stock/WalletManagementTab";
 import { InterProductConversionTab } from "@/components/stock/InterProductConversionTab";
@@ -15,7 +14,6 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
 import { PageHeader } from "@/components/shared/PageHeader";
 

@@ -1097,6 +1097,85 @@ function TerminalOrdersContent() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedOrder, stepSelectedOrder]);
 
+  // Central terminal context-key bus (from TerminalShortcutsProvider). No parallel
+  // keydown listener — we react to already-filtered, page-scoped context keys.
+  // Every handler only navigates, focuses, copies, or fires an existing
+  // non-destructive click. Nothing money-moving is bound here.
+  useEffect(() => subscribeTerminalContextKey((key) => {
+    // Order-detail scope (an order is open).
+    if (selectedOrder) {
+      switch (key) {
+        case 'detail-copy-order':
+          navigator.clipboard.writeText(String(selectedOrder.binance_order_number));
+          toast.success('Order number copied');
+          return;
+        case 'detail-copy-fiat':
+          navigator.clipboard.writeText(String(selectedOrder.total_price));
+          toast.success('Fiat amount copied');
+          return;
+        case 'detail-internal-chat': {
+          const el = document.querySelector('[data-terminal-internal-chat-input]') as HTMLElement | null;
+          el?.focus();
+          return;
+        }
+        case 'detail-actions': {
+          const btn = document.querySelector('[data-order-actions] button:not([disabled])') as HTMLElement | null;
+          if (btn) { btn.scrollIntoView({ block: 'center', behavior: 'smooth' }); btn.focus(); }
+          return;
+        }
+        case 'orders-back':
+          setSelectedOrder(null);
+          return;
+        default:
+          return;
+      }
+    }
+
+    // Orders-list scope (no order open, not in queue/inbox views).
+    if (queueMode || showChatInbox || activeChatConv) return;
+    const list = visibleOrders;
+    switch (key) {
+      case 'orders-down': {
+        if (list.length === 0) return;
+        const i = list.findIndex(o => String(o.id) === focusedOrderId);
+        const next = list[Math.min(i + 1, list.length - 1)] ?? list[0];
+        setFocusedOrderId(String(next.id));
+        return;
+      }
+      case 'orders-up': {
+        if (list.length === 0) return;
+        const i = list.findIndex(o => String(o.id) === focusedOrderId);
+        const prev = list[Math.max(i - 1, 0)] ?? list[0];
+        setFocusedOrderId(String(prev.id));
+        return;
+      }
+      case 'orders-open': {
+        const target = list.find(o => String(o.id) === focusedOrderId);
+        if (target) setSelectedOrder(target);
+        return;
+      }
+      case 'orders-prev-tab':
+      case 'orders-next-tab': {
+        const tabs = ['all', 'active', 'completed', 'cancelled'];
+        const i = tabs.indexOf(statusFilter);
+        const dir = key === 'orders-next-tab' ? 1 : -1;
+        setStatusFilter(tabs[(i + dir + tabs.length) % tabs.length]);
+        return;
+      }
+      case 'orders-search':
+        focusPageSearch();
+        return;
+      case 'orders-refresh':
+        Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
+        return;
+      case 'orders-back':
+        setSelectedOrder(null);
+        return;
+      default:
+        return;
+    }
+  }), [selectedOrder, queueMode, showChatInbox, activeChatConv, visibleOrders, focusedOrderId, statusFilter, refetchActive, refetchHistory, refetchRecent]);
+
 
   // ---- View routing ----
   if (activeChatConv) {

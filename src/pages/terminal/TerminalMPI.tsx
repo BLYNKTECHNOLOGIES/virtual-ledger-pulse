@@ -705,11 +705,11 @@ export default function TerminalMPI() {
                     <div className="flex items-center gap-1.5">
                       {m.activeLoad > 0 && (
                         <div className="flex items-center gap-1">
-                          <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                          <span className="text-[9px] text-muted-foreground">{m.activeLoad}</span>
+                          <div className="h-1.5 w-1.5 rounded-full bg-success" />
+                          <span className="t-mono text-[9px] text-muted-foreground">{m.activeLoad}</span>
                         </div>
                       )}
-                      <div className={`text-xs sm:text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
+                      <div className={`t-mono text-xs sm:text-sm font-semibold ${getScoreColor(m.efficiencyScore)}`}>
                         {m.efficiencyScore}
                       </div>
                     </div>

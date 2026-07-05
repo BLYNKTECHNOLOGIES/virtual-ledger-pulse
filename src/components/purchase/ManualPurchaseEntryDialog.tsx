@@ -708,6 +708,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Input
                 id="total_amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 value={formData.total_amount}
                 onChange={(e) => handleInputChange('total_amount', e.target.value)}

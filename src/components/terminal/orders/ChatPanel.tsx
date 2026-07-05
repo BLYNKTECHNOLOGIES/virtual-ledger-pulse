@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { markOrderChatRead } from '@/lib/chat-read-state';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
+import { CopilotStrip } from './CopilotStrip';
 
 interface Props {
   orderId: string;
@@ -464,6 +465,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             </div>
           ) : null}
       </div>
+
+      {/* AI Copilot strip (advisory — inserts only, never auto-sends) */}
+      <CopilotStrip
+        orderId={orderId}
+        messageCount={allMessages.length}
+        onInsert={handleQuickReply}
+      />
 
       {/* Quick replies bar */}
       <div className="px-3 py-1 border-t border-border/50 bg-card/30">

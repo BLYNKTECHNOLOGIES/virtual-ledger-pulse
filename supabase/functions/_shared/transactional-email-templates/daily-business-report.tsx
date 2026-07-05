@@ -48,6 +48,7 @@ interface DailyReportProps {
   kyc?: { newClients: number; approvedToday: number; pendingTotal: number }
   rejected?: { count: number; rows: { type: string; label: string; amount: string; counterparty: string; reason: string; rejectedBy: string; rejectedAt: string }[] }
   erpDiff?: { count: number; capturedAt: string | null; rows: { account: string; erp: string; terminal: string; difference: string; hasDrift: boolean; status: string }[] }
+  narrative?: string
 
 
 
@@ -57,7 +58,7 @@ interface DailyReportProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, periodEnd, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected, erpDiff }: DailyReportProps) => {
+const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, periodEnd, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected, erpDiff, narrative }: DailyReportProps) => {
   const reportKind = isMonthly ? 'Monthly Business Report' : 'Daily Business Report'
   const periodTitle = isMonthly ? (periodLabel || formatDate(periodStart)) : formatDate(date)
   const introText = isMonthly
@@ -93,6 +94,18 @@ const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, period
               </div>
             </Section>
           )}
+
+          {/* AI Daily Narrative */}
+          {narrative && (
+            <Section>
+              <div style={narrativeCard}>
+                <Text style={narrativeLabel}>Daily Narrative</Text>
+                <Text style={narrativeText}>{narrative}</Text>
+              </div>
+            </Section>
+          )}
+
+
 
           {/* Total Asset Value (from Financials tab) */}
           {assetValue && (
@@ -552,6 +565,9 @@ const text = { fontSize: '13px', color: '#55575d', lineHeight: '1.5', margin: '0
 const kpiRow = { display: 'table', width: '100%', borderSpacing: '8px 0', tableLayout: 'fixed' as const }
 const kpiCard = { display: 'table-cell', width: '50%', backgroundColor: '#fdf6ef', border: '2px solid #B87333', borderRadius: '8px', padding: '14px', textAlign: 'center' as const }
 const kpiLabel = { fontSize: '12px', color: '#8a6a4a', margin: '0 0 6px', textTransform: 'uppercase' as const }
+const narrativeCard = { backgroundColor: '#fbfaf8', borderLeft: '4px solid #B87333', borderRadius: '4px', padding: '12px 16px', margin: '8px 0' }
+const narrativeLabel = { fontSize: '11px', color: '#8a6a4a', margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px', fontWeight: 700 }
+const narrativeText = { fontSize: '13px', color: '#3a3a3a', margin: 0, lineHeight: '1.6' }
 const kpiValue = { fontSize: '20px', fontWeight: 'bold' as const, color: '#8C5A2B', margin: '0' }
 const card = { backgroundColor: '#fdfaf6', border: '1px solid #ecddca', borderRadius: '8px', padding: '16px', margin: '18px 0' }
 const sectionTitle = { fontSize: '15px', fontWeight: 'bold' as const, color: '#8C5A2B', margin: '0 0 12px', borderBottom: '2px solid #B87333', paddingBottom: '6px' }

@@ -980,6 +980,139 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
   };
 }
 
+// ---------- AI Daily Narrative (additive; failure never blocks the email) ----------
+const parseNum = (s: string | undefined | null): number => {
+  if (s == null) return 0;
+  const n = parseFloat(String(s).replace(/,/g, ""));
+  return isNaN(n) ? 0 : n;
+};
+
+// Extract the comparable metric set from a buildReport() output object.
+function metricsFromReport(r: any) {
+  const revenue = parseNum(r?.sales?.totalValue);
+  const gp = parseNum(r?.pnl?.grossProfit);
+  return {
+    revenue,
+    gp,
+    marginPct: revenue > 0 ? (gp / revenue) * 100 : 0,
+    volume: parseNum(r?.sales?.totalQty),
+    orders: (r?.sales?.orderCount || 0) + (r?.purchases?.orderCount || 0),
+    avgSellRate: parseNum(r?.pnl?.avgSalesRate),
+    effPurchaseRate: parseNum(r?.pnl?.effectivePurchaseRate),
+    fees: parseNum(r?.pnl?.totalFees),
+  };
+}
+
+// Lightweight comparison-window metrics — mirrors buildReport's core P&L formulas
+// but only queries the two order tables + fee ledger (no charts/assets/KYC), so it
+// stays fast enough to run inside the narrative's 8s cap. Used for prev-day + 7d avg.
+async function fetchWindowMetrics(supabase: any, startDate: string, endDate: string) {
+  const [salesRaw, purchasesRaw, feeRows] = await Promise.all([
+    fetchAll(supabase, "sales_orders", "quantity, price_per_unit, total_amount, status, effective_usdt_qty, effective_usdt_rate", startDate, endDate),
+    fetchAll(supabase, "purchase_orders", "total_amount, status, effective_usdt_qty", startDate, endDate),
+    fetchAllRows(() => supabase.from("wallet_transactions")
+      .select("amount, reference_type").eq("transaction_type", "DEBIT")
+      .in("reference_type", ["PLATFORM_FEE", "TRANSFER_FEE", "SALES_ORDER_FEE", "PURCHASE_ORDER_FEE"])
+      .gte("created_at", startDate + "T00:00:00").lte("created_at", endDate + "T23:59:59")),
+  ]);
+
+  const salesDone = salesRaw.filter((o: any) => o.status === "COMPLETED");
+  const purchDone = purchasesRaw.filter((o: any) => o.status === "COMPLETED");
+
+  let totalSalesQty = 0, totalSalesValue = 0;
+  for (const o of salesDone) {
+    const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
+    const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
+    totalSalesQty += qty;
+    totalSalesValue += Number(o.total_amount) || qty * rate;
+  }
+  let totalPurchaseQty = 0, totalPurchaseValue = 0;
+  for (const o of purchDone) {
+    const effQty = Number(o.effective_usdt_qty) || 0;
+    if (effQty > 0) { totalPurchaseQty += effQty; totalPurchaseValue += Number(o.total_amount) || 0; }
+  }
+  const totalFees = (feeRows || []).reduce((s: number, f: any) => s + (Number(f.amount) || 0), 0);
+
+  const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
+  const netPurchaseQty = totalPurchaseQty - totalFees;
+  let effPurchaseRate = 0;
+  if (totalPurchaseQty > 0 && netPurchaseQty > 0) effPurchaseRate = totalPurchaseValue / netPurchaseQty;
+  else if (totalPurchaseQty > 0) effPurchaseRate = totalPurchaseValue / totalPurchaseQty;
+  const gp = (avgSalesRate - effPurchaseRate) * totalSalesQty;
+
+  return {
+    revenue: totalSalesValue,
+    gp,
+    marginPct: totalSalesValue > 0 ? (gp / totalSalesValue) * 100 : 0,
+    volume: totalSalesQty,
+    orders: salesDone.length + purchDone.length,
+    avgSellRate: avgSalesRate,
+    effPurchaseRate,
+    fees: totalFees,
+  };
+}
+
+// Builds the metrics payload + one AI narrative sentence-block. Returns
+// { payload, narrative } (narrative may be null). Fully guarded with an 8s cap.
+async function buildDailyNarrative(supabase: any, todayReport: any, startDate: string) {
+  const withTimeout = <T>(p: Promise<T>, ms: number) =>
+    Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("narrative timeout")), ms))]);
+
+  return await withTimeout((async () => {
+    const prevDate = shiftDate(startDate, -1);
+    const win7Start = shiftDate(startDate, -7);
+    const win7End = shiftDate(startDate, -1);
+
+    const [prev, w7] = await Promise.all([
+      fetchWindowMetrics(supabase, prevDate, prevDate),
+      fetchWindowMetrics(supabase, win7Start, win7End),
+    ]);
+
+    const today = metricsFromReport(todayReport);
+    // Trailing-7-day average (rates already window-averaged; totals /7).
+    const avg7 = {
+      revenue: w7.revenue / 7,
+      gp: w7.gp / 7,
+      marginPct: w7.marginPct,
+      volume: w7.volume / 7,
+      orders: w7.orders / 7,
+      avgSellRate: w7.avgSellRate,
+      effPurchaseRate: w7.effPurchaseRate,
+      fees: w7.fees / 7,
+    };
+
+    const payload = { today, previousDay: prev, trailing7dAvg: avg7 };
+
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableKey) return { payload, narrative: null };
+
+    const sys = "You are writing 3-5 plain sentences for the owner of a P2P crypto desk. Explain what changed and WHY, attributing movements to the provided drivers only (e.g. 'Gross profit rose 12% as average sell rate improved 0.4% while purchase cost was flat; fees stayed at 0.11% of volume'). Give rupee figures in lakhs with the ₹ symbol, percentages to 1 decimal. No advice, no speculation beyond the provided numbers, no markdown, no headers.";
+    const usr = `TODAY vs PREVIOUS DAY vs TRAILING-7-DAY AVERAGE (all INR values are raw rupees):\n${JSON.stringify(payload, null, 2)}`;
+
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        temperature: 0.2,
+        messages: [{ role: "system", content: sys }, { role: "user", content: usr }],
+      }),
+    });
+    if (!aiResp.ok) {
+      console.error("daily narrative AI error", aiResp.status, await aiResp.text());
+      return { payload, narrative: null };
+    }
+    const aiJson = await aiResp.json();
+    let text = String(aiJson?.choices?.[0]?.message?.content || "").trim();
+    if (text.length > 500) {
+      const cut = text.slice(0, 500);
+      const lastStop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("। "));
+      text = (lastStop > 100 ? cut.slice(0, lastStop + 1) : cut).trim();
+    }
+    return { payload, narrative: text || null };
+  })(), 8000);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -1019,7 +1152,32 @@ serve(async (req) => {
     report.isMonthly = isMonthly;
     report.periodLabel = periodLabel;
 
+    // AI Daily Narrative — fully guarded; on ANY failure the email sends exactly
+    // as it does today with the narrative section simply omitted.
+    let narrativePayload: any = null;
+    if (!isMonthly) {
+      try {
+        const nr = await buildDailyNarrative(supabase, report, startDate);
+        narrativePayload = nr;
+        if (nr?.narrative) report.narrative = nr.narrative;
+      } catch (nErr) {
+        console.error("daily narrative skipped:", (nErr as Error).message);
+      }
+    }
+
+    // Dry-run: return the built payload + narrative WITHOUT sending any email.
+    if (body?.dryRun === true) {
+      return new Response(JSON.stringify({
+        success: true,
+        dryRun: true,
+        date: startDate,
+        narrative: report.narrative || null,
+        narrativeMetrics: narrativePayload?.payload || null,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${startDate}`;
+
 
     const results: { recipient: string; success: boolean; error?: string }[] = [];
     for (const recipient of recipients) {

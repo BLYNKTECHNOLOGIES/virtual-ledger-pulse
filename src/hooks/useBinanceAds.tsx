@@ -107,7 +107,7 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {},
   return data.data;
 }
 
-export function useBinanceAdsList(filters: AdFilters) {
+export function useBinanceAdsList(filters: AdFilters, options?: { refetchInterval?: number | false }) {
   const isAllStatuses = filters.advStatus === undefined || filters.advStatus === null;
   const isPrivateFilter = filters.advStatus === BINANCE_AD_STATUS.PRIVATE;
   const { accountsToQuery } = useExchangeAccount();

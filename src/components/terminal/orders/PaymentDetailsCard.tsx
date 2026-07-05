@@ -62,15 +62,16 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
             const shouldShowCopy = field.isCopyable || isNameField;
             return (
               <div key={fIdx} className="flex items-start justify-between py-1.5 border-b border-border/50 last:border-0">
-                <span className="text-[10px] text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
                 <span
-                  className={`text-[11px] text-foreground font-medium text-right break-all ${shouldShowCopy ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                  className={`text-xs text-foreground t-mono bg-secondary px-1.5 py-0.5 rounded text-right break-all ${shouldShowCopy ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
                   onClick={shouldShowCopy ? () => copyToClipboard(field.fieldValue, field.fieldName) : undefined}
                   title={shouldShowCopy ? `Click to copy ${field.fieldName}` : undefined}
                 >
                   {field.fieldValue}
                 </span>
               </div>
+
             );
           })}
         </div>

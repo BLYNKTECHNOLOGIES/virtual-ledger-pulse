@@ -335,14 +335,14 @@ export default function Financials() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={[
-                      { name: 'Revenue', value: financialData?.totalRevenue || 0, fill: '#059669' },
-                      { name: 'Expenses', value: financialData?.totalExpenses || 0, fill: '#dc2626' }
+                      { name: 'Revenue', value: financialData?.totalRevenue || 0, fill: 'hsl(var(--success))' },
+                      { name: 'Expenses', value: financialData?.totalExpenses || 0, fill: 'hsl(var(--destructive))' }
                     ]}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis tickFormatter={(value) => `₹${(value / 1000)}K`} />
                       <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Amount']} />
-                      <Area type="monotone" dataKey="value" stroke="#059669" fill="#059669" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="value" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.6} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

@@ -786,43 +786,40 @@ export default function Sales() {
       {/* Header */}
       <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
         <div className="px-4 md:px-6 py-4 md:py-8">
-          <div className="flex flex-col gap-4 md:gap-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 md:p-3 bg-success/10 rounded-xl shadow-sm">
-                <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 text-success" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-xl md:text-3xl font-semibold tracking-tight text-foreground truncate">
-                  Sales Order Processing
-                </h1>
-                <p className="text-muted-foreground text-sm md:text-lg truncate">
-                  Manage and process sales orders
-                </p>
-              </div>
-            </div>
-            
-            {/* Action buttons - scrollable on mobile */}
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:justify-end">
-              <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0">
-                <Download className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-              <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                <Button variant="outline" onClick={() => setShowManualSalesEntry(true)} size="sm" className="flex-shrink-0">
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="whitespace-nowrap">Manual Entry</span>
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-2 md:p-3 bg-success/10 rounded-xl shadow-sm">
+                  <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 text-success" />
+                </span>
+                Sales Order Processing
+              </span>
+            }
+            description="Manage and process sales orders"
+            actions={
+              <>
+                <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0">
+                  <Download className="h-4 w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Export</span>
                 </Button>
-                <Button 
-                  onClick={() => setShowStepByStepFlow(true)}
-                  className="bg-info hover:bg-info text-primary-foreground flex-shrink-0"
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="whitespace-nowrap">New Order</span>
-                </Button>
-              </PermissionGate>
-            </div>
-          </div>
+                <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+                  <Button variant="outline" onClick={() => setShowManualSalesEntry(true)} size="sm" className="flex-shrink-0">
+                    <Plus className="h-4 w-4 mr-1" />
+                    <span className="whitespace-nowrap">Manual Entry</span>
+                  </Button>
+                  <Button 
+                    onClick={() => setShowStepByStepFlow(true)}
+                    className="bg-info hover:bg-info text-primary-foreground flex-shrink-0"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    <span className="whitespace-nowrap">New Order</span>
+                  </Button>
+                </PermissionGate>
+              </>
+            }
+          />
+
         </div>
       </div>
 

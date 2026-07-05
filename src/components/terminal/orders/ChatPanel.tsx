@@ -12,6 +12,8 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
+import { useQuickReplies } from '@/hooks/useP2PTerminal';
+import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';
 import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';

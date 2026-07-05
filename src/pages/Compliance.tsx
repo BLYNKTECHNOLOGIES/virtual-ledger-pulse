@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Scale, Receipt, Shield, Building } from "lucide-react";
 import { BankingComplianceTab } from "@/components/compliance/BankingComplianceTab";

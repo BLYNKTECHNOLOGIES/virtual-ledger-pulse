@@ -1127,6 +1127,21 @@ function TerminalOrdersContent() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5 relative"
+            onClick={() => setQueueMode(true)}
+            title="Step through actionable orders one at a time"
+          >
+            <ListChecks className="h-3.5 w-3.5" />
+            Queue
+            {actionableOrderIds.length > 0 && (
+              <span className="inline-flex items-center h-4 min-w-[16px] rounded-full bg-primary/15 text-primary text-[9px] font-bold px-1">
+                {actionableOrderIds.length}
+              </span>
+            )}
+          </Button>
           {canChat && (
             <Button
               variant="outline"

@@ -15,7 +15,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
-import { Sparkles, Users, GraduationCap, ChevronDown, Play, Loader2, Database, Clock, RotateCcw } from 'lucide-react';
+import { copilotTeach } from '@/hooks/useCopilot';
+import { Sparkles, Users, GraduationCap, ChevronDown, Play, Loader2, Database, Clock, RotateCcw, Pin, Ban, Trash2, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import type { CopilotSettings as Settings } from '@/hooks/useCopilot';

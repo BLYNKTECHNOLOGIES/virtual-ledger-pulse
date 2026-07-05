@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Wallet, Search, CheckCircle, XCircle, Clock, IndianRupee, TrendingDown } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
 export default function LoansPage() {
@@ -120,7 +123,7 @@ export default function LoansPage() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
+    <div className="p-4 md:p-6 space-y-4 page-mount">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Loans & Advances</h1>
@@ -150,10 +153,10 @@ export default function LoansPage() {
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
@@ -170,23 +173,23 @@ export default function LoansPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Type", "Amount", "EMI", "Outstanding", "Tenure", "Start EMI", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className={`px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap ${["Amount","EMI","Outstanding"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No loans found</td></tr>
+                <tr><td colSpan={9}><EmptyState icon={Wallet} title="No loans found" description="Create a loan or advance for an employee." /></td></tr>
               ) : (
                 filtered.map((l: any) => (
                   <tr key={l.id} className="border-b hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedLoan(l)}>
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{l.hr_employees?.first_name} {l.hr_employees?.last_name}</td>
                     <td className="px-4 py-3 capitalize">{l.loan_type?.replace(/_/g, " ")}</td>
-                    <td className="px-4 py-3 font-medium">₹{Number(l.amount).toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3">₹{Number(l.emi_amount).toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3 font-semibold text-destructive">₹{Number(l.outstanding_balance).toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 font-medium text-right tabular-nums">₹{Number(l.amount).toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">₹{Number(l.emi_amount).toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 font-semibold text-destructive text-right tabular-nums">₹{Number(l.outstanding_balance).toLocaleString("en-IN")}</td>
                     <td className="px-4 py-3">{l.tenure_months} mo</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.start_emi_date}</td>
                     <td className="px-4 py-3">

@@ -14,6 +14,9 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Plus, Wallet, Eye, Edit2, CheckCircle, Clock, ArrowUpDown, BadgeIndianRupee, Shield, Pause, Play } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function DepositManagementPage() {
   const qc = useQueryClient();
@@ -315,16 +318,12 @@ export default function DepositManagementPage() {
   );
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Deposit Management</h1>
-          <p className="text-sm text-muted-foreground">Track employee security deposits, collections, and settlements</p>
-        </div>
-        <Button onClick={() => { setForm({ employee_id: "", total_deposit_amount: "", deduction_mode: "fixed_installment", deduction_value: "", deduction_start_month: format(new Date(), "yyyy-MM") }); setShowAdd(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-1" /> Add Deposit
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Deposit Management"
+        description="Track employee security deposits, collections, and settlements"
+        actions={<Button onClick={() => { setForm({ employee_id: "", total_deposit_amount: "", deduction_mode: "fixed_installment", deduction_value: "", deduction_start_month: format(new Date(), "yyyy-MM") }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add Deposit</Button>}
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -363,9 +362,9 @@ export default function DepositManagementPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="p-0"><TableSkeleton rows={4} columns={9} /></TableCell></TableRow>
               ) : deposits.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No deposits configured</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9}><EmptyState icon={Wallet} title="No deposits configured" description="Add a security deposit for an employee." /></TableCell></TableRow>
               ) : (
                 deposits.map((d: any) => {
                   const progress = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
@@ -375,9 +374,9 @@ export default function DepositManagementPage() {
                         {d.hr_employees?.first_name} {d.hr_employees?.last_name}
                         <span className="text-xs text-muted-foreground ml-1">({d.hr_employees?.badge_id})</span>
                       </TableCell>
-                      <TableCell className="font-medium">₹{Number(d.total_deposit_amount).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-success">₹{Number(d.collected_amount).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-primary font-medium">₹{Number(d.current_balance).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="font-medium text-right tabular-nums">₹{Number(d.total_deposit_amount).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-success text-right tabular-nums">₹{Number(d.collected_amount).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-primary font-medium text-right tabular-nums">₹{Number(d.current_balance).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Progress value={progress} className="h-2 w-20" />

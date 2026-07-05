@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Calculator, AlertTriangle, CheckCircle } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { format } from "date-fns";
 
 export default function PenaltyAutoCalcPage() {
@@ -100,11 +102,8 @@ export default function PenaltyAutoCalcPage() {
   });
 
   return (
-    <div className="space-y-6 page-mount">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Late Penalty Auto-Calculation</h1>
-        <p className="text-sm text-muted-foreground">Calculate penalties based on monthly late attendance counts</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader title="Late Penalty Auto-Calculation" description="Calculate penalties based on monthly late attendance counts" />
 
       <Card>
         <CardContent className="p-4">
@@ -154,32 +153,29 @@ export default function PenaltyAutoCalcPage() {
           </CardHeader>
           <CardContent>
             {results.length === 0 ? (
-              <div className="text-center py-6">
-                <CheckCircle className="h-8 w-8 mx-auto text-success mb-2" />
-                <p className="text-muted-foreground">No penalties to apply — all employees within limits</p>
-              </div>
+              <EmptyState icon={CheckCircle} title="No penalties to apply" description="All employees are within the attendance limits." />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 border-b">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Employee</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Late Count</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Rule Applied</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Penalty Days</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Deduction (₹)</th>
+                      <th className="text-left px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</th>
+                      <th className="text-right px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Late Count</th>
+                      <th className="text-left px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Rule Applied</th>
+                      <th className="text-right px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Penalty Days</th>
+                      <th className="text-right px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Deduction (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {results.map((r, i) => (
                       <tr key={i} className="border-b hover:bg-muted/30">
                         <td className="px-4 py-2 font-medium">{r.employee_name} <span className="text-muted-foreground text-xs">({r.badge_id})</span></td>
-                        <td className="px-4 py-2">
+                        <td className="px-4 py-2 text-right tabular-nums">
                           <span className="text-warning font-semibold">{r.late_count}</span>
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">{r.rule_name}</td>
-                        <td className="px-4 py-2">{r.penalty_days}</td>
-                        <td className="px-4 py-2 text-destructive font-semibold">₹{r.deduction_amount.toLocaleString("en-IN")}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{r.penalty_days}</td>
+                        <td className="px-4 py-2 text-right text-destructive font-semibold tabular-nums">₹{r.deduction_amount.toLocaleString("en-IN")}</td>
                       </tr>
                     ))}
                   </tbody>

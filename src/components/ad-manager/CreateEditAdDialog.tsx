@@ -14,12 +14,35 @@ import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { cn } from '@/lib/utils';
 
+/** Create-mode seed shape (subset of the internal form). Used by "Duplicate Ad". */
+export type CreateAdInitialValues = Partial<{
+  tradeType: string;
+  asset: string;
+  fiatUnit: string;
+  priceType: 1 | 2;
+  price: string;
+  priceFloatingRatio: string;
+  initAmount: string;
+  minSingleTransAmount: string;
+  maxSingleTransAmount: string;
+  autoReplyMsg: string;
+  remarks: string;
+  payTimeLimit: number;
+  advStatus: number;
+  buyerRegDaysLimit: number;
+  buyerBtcPositionLimit: number;
+  takerAdditionalKycRequired: number;
+  selectedPayMethods: Array<{ payId?: number; payType: string; identifier: string; tradeMethodName?: string }>;
+}>;
+
 interface CreateEditAdDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingAd?: BinanceAd | null;
   /** Account to create the ad on (combined "All accounts" mode). */
   createAccountId?: string | null;
+  /** Seeds create-mode defaults only (Duplicate Ad). Ignored when editingAd is set. */
+  initialValues?: CreateAdInitialValues | null;
 }
 
 const PAYMENT_TIME_OPTIONS = [

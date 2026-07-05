@@ -107,6 +107,35 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {},
   return data.data;
 }
 
+/**
+ * Optimistically patch cached ad rows across EVERY ['binance-ads', ...] query
+ * (all accounts/filters permutations). `mapAd` returns a replacement row, or
+ * null to leave the row untouched. Returns true if at least one row was patched.
+ * Reconciliation still happens via manual RefreshCw / opt-in auto-refresh.
+ */
+function patchAdsCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  mapAd: (ad: any) => any | null,
+): boolean {
+  let patched = false;
+  queryClient.setQueriesData<any>(
+    { predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'binance-ads' },
+    (old: any) => {
+      if (!old?.data || !Array.isArray(old.data)) return old;
+      let hit = false;
+      const data = old.data.map((ad: any) => {
+        const next = mapAd(ad);
+        if (next) { hit = true; return next; }
+        return ad;
+      });
+      if (hit) patched = true;
+      return hit ? { ...old, data } : old;
+    },
+  );
+  return patched;
+}
+
+
 export function useBinanceAdsList(filters: AdFilters, options?: { refetchInterval?: number | false }) {
   const isAllStatuses = filters.advStatus === undefined || filters.advStatus === null;
   const isPrivateFilter = filters.advStatus === BINANCE_AD_STATUS.PRIVATE;

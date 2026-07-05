@@ -783,6 +783,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Label>Total Amount</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={formData.total_amount}
                 onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
                 min="0"
@@ -795,6 +796,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Label>Price Per Unit *</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={formData.price_per_unit}
                 onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
                 required
@@ -808,6 +810,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Label>Quantity *</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange('quantity', e.target.value)}
                 required

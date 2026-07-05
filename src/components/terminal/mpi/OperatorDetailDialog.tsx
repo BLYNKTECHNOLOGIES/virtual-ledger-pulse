@@ -230,9 +230,11 @@ export function OperatorDetailDialog({
                 <span className="text-muted-foreground flex items-center gap-1">
                   <XCircle className="h-3 w-3 text-destructive" /> Cancellation Rate
                 </span>
-                <span className="font-semibold text-destructive">{cancellationRate}%</span>
+                <span className="t-mono font-semibold text-destructive">{cancellationRate}%</span>
               </div>
-              <Progress value={cancellationRate} className="h-2 [&>div]:bg-destructive" />
+              <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                <div className="h-full rounded-full bg-destructive" style={{ width: `${cancellationRate}%` }} />
+              </div>
             </div>
           </div>
 

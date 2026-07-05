@@ -92,11 +92,52 @@ const ACTION_LABELS: Record<string, string> = {
   take_rest: 'Take Rest',
 };
 
+const AUTOMATION_TABS: { value: string; label: string; icon: LucideIcon }[] = [
+  { value: 'auto-reply', label: 'Auto-Reply Rules', icon: MessageSquare },
+  { value: 'schedules', label: 'Merchant Schedule', icon: Calendar },
+  { value: 'auto-pay', label: 'Auto-Pay', icon: Timer },
+  { value: 'export', label: 'Export Orders', icon: FileDown },
+  { value: 'small-orders', label: 'Small Orders', icon: Package },
+  { value: 'hybrid', label: 'Hybrid Pricing', icon: Blend },
+  { value: 'auto-pricing', label: 'Auto Pricing', icon: Crosshair },
+  { value: 'auto-screenshot', label: 'Auto Screenshot', icon: ImageIcon },
+  { value: 'ai-copilot', label: 'AI Copilot', icon: Sparkles },
+];
+
 export default function TerminalAutomation() {
   const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'automation', { activeTab: 'auto-reply' as string });
   const activeTab = prefs.activeTab;
   const setActiveTab = (v: string) => setPref('activeTab', v);
+  const isMobile = useIsMobile();
+  const [tabMenuOpen, setTabMenuOpen] = useState(false);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  // Mobile gesture: swipe right opens the tab-selection menu; swipe left/right also
+  // steps between tabs so the whole tab set is reachable on a phone.
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!isMobile || !touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > 45) return;
+    if (dx > 0) {
+      // Swipe right → reveal the tab-selection menu.
+      setTabMenuOpen(true);
+    } else {
+      // Swipe left → advance to the next tab.
+      const idx = AUTOMATION_TABS.findIndex((tb) => tb.value === activeTab);
+      const next = AUTOMATION_TABS[(idx + 1) % AUTOMATION_TABS.length];
+      setActiveTab(next.value);
+    }
+  };
+
+
 
   // Granular permission checks
   const canManageAutoReply = hasPermission('terminal_autoreply_manage') || isTerminalAdmin;

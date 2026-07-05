@@ -11,6 +11,7 @@ export interface CopilotSettings {
   auto_suggest: boolean;
   train_watermark: string | null;
   exemplar_count: number;
+  account_notes?: Record<string, string>;
 }
 
 /** Fetch the singleton copilot settings row (cached ~5min). */

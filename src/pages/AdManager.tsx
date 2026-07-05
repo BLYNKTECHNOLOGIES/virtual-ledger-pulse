@@ -240,6 +240,15 @@ export default function AdManager() {
               title="Sync ads from Binance"
             >
               <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={handleCopyLink}
+              title="Copy shareable link to this view"
+            >
+              <Link2 className="h-4 w-4" />
             </Button>
             <Button size="sm" onClick={handleCreate}>
               <Plus className="h-4 w-4 mr-1.5" />

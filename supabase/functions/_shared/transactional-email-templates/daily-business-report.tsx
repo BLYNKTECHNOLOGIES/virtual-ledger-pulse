@@ -58,7 +58,7 @@ interface DailyReportProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, periodEnd, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected, erpDiff }: DailyReportProps) => {
+const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, periodEnd, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected, erpDiff, narrative }: DailyReportProps) => {
   const reportKind = isMonthly ? 'Monthly Business Report' : 'Daily Business Report'
   const periodTitle = isMonthly ? (periodLabel || formatDate(periodStart)) : formatDate(date)
   const introText = isMonthly

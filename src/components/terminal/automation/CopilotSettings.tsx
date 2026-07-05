@@ -178,7 +178,7 @@ export function CopilotSettings() {
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-3 sm:px-6">
         <div className="flex items-center justify-between rounded-md border border-border p-3">
           <div>
             <p className="text-xs font-medium text-foreground">Enable AI Copilot</p>

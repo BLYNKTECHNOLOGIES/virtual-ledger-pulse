@@ -202,6 +202,38 @@ export function CopilotSettings() {
           </Select>
         </div>
 
+        {/* Per-account handling notes */}
+        <div className="space-y-2">
+          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Per-account handling notes</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {accounts.map((acc) => {
+              const draft = noteDrafts[acc.id] ?? notes[acc.id] ?? '';
+              const dirty = draft !== (notes[acc.id] ?? '');
+              return (
+                <div key={acc.id} className="space-y-1 rounded-md border border-border p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">{acc.account_name}</span>
+                    {dirty && (
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => saveNote(acc.id)}>
+                        Save
+                      </Button>
+                    )}
+                  </div>
+                  <Textarea
+                    value={draft}
+                    onChange={(e) => setNoteDrafts((p) => ({ ...p, [acc.id]: e.target.value }))}
+                    placeholder="Tone, rules, phrasing…"
+                    className="min-h-[60px] text-xs text-foreground"
+                  />
+                  <p className="text-[10px] text-muted-foreground">How chats on this account should be handled (tone, rules, phrasing)</p>
+                </div>
+              );
+            })}
+            {accounts.length === 0 && <p className="text-[10px] text-muted-foreground">No exchange accounts configured.</p>}
+          </div>
+        </div>
+
+
         <div className="flex flex-wrap items-center gap-4 rounded-md bg-secondary/40 border border-border p-3">
           <div className="flex items-center gap-1.5">
             <Database className="h-3.5 w-3.5 text-primary" />

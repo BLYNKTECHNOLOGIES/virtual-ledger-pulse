@@ -24,13 +24,7 @@ export function ConversionHistoryTable() {
   const [filters, setFilters] = useState<ConversionFilters>({});
   const { data: conversions = [], isLoading } = useConversionHistory(filters);
 
-  const { data: wallets = [] } = useQuery({
-    queryKey: ['wallets-active'],
-    queryFn: async () => {
-      const { data } = await supabase.from('wallets').select('id, wallet_name').eq('is_active', true).order('wallet_name');
-      return data || [];
-    },
-  });
+  const { data: wallets = [] } = useStockWallets();
 
   return (
     <Card>

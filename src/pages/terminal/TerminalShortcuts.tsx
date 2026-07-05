@@ -19,7 +19,7 @@ function KeyCombo({ shortcut }: { shortcut: TerminalShortcutDef }) {
       {keys.map((k, i) => (
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <span className="text-[10px] text-muted-foreground">+</span>}
-          <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted px-2 text-xs font-semibold text-foreground shadow-sm">
+          <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px] font-semibold text-foreground">
             {k}
           </kbd>
         </span>

@@ -7,6 +7,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 interface Candidate {
   id: string;
@@ -143,24 +146,24 @@ export default function CandidatesListPage() {
   const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Candidates</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">All candidates across recruitments</p>
-        </div>
-        <button
-          onClick={() => { navigate("/hrms/recruitment/pipeline"); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          Add Candidate
-        </button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        title="Candidates"
+        description="All candidates across recruitments"
+        actions={
+          <button
+            onClick={() => { navigate("/hrms/recruitment/pipeline"); }}
+            className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 h-9 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Add Candidate
+          </button>
+        }
+      />
 
       {/* Toolbar */}
       <div className="bg-card rounded-xl border border-border px-4 py-3 flex flex-wrap items-center gap-3">
-        <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-64">
+        <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 h-9 w-64">
           <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
           <input type="text" placeholder="Search candidates..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full" />
         </div>
@@ -179,26 +182,23 @@ export default function CandidatesListPage() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="text-center py-16 text-muted-foreground text-sm">Loading...</div>
+        <TableSkeleton rows={6} columns={7} />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-            <Building2 className="h-7 w-7 text-muted-foreground" />
-          </div>
-          <p className="text-muted-foreground text-sm">No candidates found</p>
+        <div className="py-8">
+          <EmptyState icon={Building2} title="No candidates found" description="Candidates will appear here once added to a recruitment pipeline" />
         </div>
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidate</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Recruitment</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Stage</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Source</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Rating</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Candidate</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Recruitment</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Stage</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Source</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Rating</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -217,7 +217,7 @@ export default function CandidatesListPage() {
                   </td>
                   <td className="py-3 px-4 text-muted-foreground text-xs">{getRecTitle(c.recruitment_id)}</td>
                   <td className="py-3 px-4">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-info/10 text-info">{getStageName(c.stage_id)}</span>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-info/10 text-info border border-info/20">{getStageName(c.stage_id)}</span>
                   </td>
                   <td className="py-3 px-4 text-muted-foreground text-xs">{c.source || "—"}</td>
                   <td className="py-3 px-4">

@@ -4,6 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layers, Plus, Edit, Trash2, X, GripVertical, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 export default function StagesPage() {
   const queryClient = useQueryClient();
@@ -179,23 +182,23 @@ export default function StagesPage() {
   const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Stages</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage recruitment pipeline stages across all positions</p>
-        </div>
-        <button
-          onClick={() => { closeDialog(); setCreateOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4" /> Add Stage
-        </button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        title="Stages"
+        description="Manage recruitment pipeline stages across all positions"
+        actions={
+          <button
+            onClick={() => { closeDialog(); setCreateOpen(true); }}
+            className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 h-9 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" /> Add Stage
+          </button>
+        }
+      />
 
       {/* Filter */}
       <div className="flex items-center gap-3">
-        <select value={filterRec} onChange={e => setFilterRec(e.target.value)} className={inputCls + " max-w-xs"}>
+        <select value={filterRec} onChange={e => setFilterRec(e.target.value)} className={inputCls + " max-w-xs h-9"}>
           <option value="all">All Recruitments</option>
           {recruitments.map((r: any) => (
             <option key={r.id} value={r.id}>{r.title} {r.closed ? "(Closed)" : ""}</option>
@@ -206,10 +209,10 @@ export default function StagesPage() {
 
       {/* Stages grouped by recruitment */}
       {isLoading ? (
-        <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
+        <div className="grid gap-4"><CardSkeleton /><CardSkeleton /><CardSkeleton /></div>
       ) : Object.keys(grouped).length === 0 ? (
-        <div className="bg-card rounded-xl border border-border p-8 text-center text-muted-foreground text-sm">
-          No stages found. Create one to get started.
+        <div className="bg-card rounded-xl border border-border p-8">
+          <EmptyState icon={Layers} title="No stages found" description="Create a stage to start managing your recruitment pipeline" action={<button onClick={() => { closeDialog(); setCreateOpen(true); }} className="flex items-center gap-1.5 px-3 h-9 text-sm font-medium bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]"><Plus className="h-4 w-4" /> Add Stage</button>} />
         </div>
       ) : (
         Object.entries(grouped).map(([recId, recStages]) => {

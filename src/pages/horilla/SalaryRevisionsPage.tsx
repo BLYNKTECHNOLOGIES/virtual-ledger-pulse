@@ -4,6 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Search } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { format } from "date-fns";
 
@@ -28,25 +31,21 @@ export default function SalaryRevisionsPage() {
   });
 
   return (
-    <div className="space-y-6 page-mount">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Salary Revision History</h1>
-        <p className="text-sm text-muted-foreground">Auto-tracked whenever an employee's salary is updated</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Salary Revision History"
+        description="Auto-tracked whenever an employee's salary is updated"
+      />
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
       </div>
 
       {isLoading ? (
-        <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        <TableSkeleton rows={4} columns={4} />
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="p-8 text-center">
-          <TrendingUp className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <p className="text-muted-foreground">No salary revisions recorded yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Revisions are auto-created when you update an employee's salary</p>
-        </CardContent></Card>
+        <EmptyState icon={TrendingUp} title="No salary revisions recorded yet" description="Revisions are auto-created when you update an employee's salary" />
       ) : (
         <div className="space-y-3">
           {filtered.map((r: any) => {
@@ -70,8 +69,8 @@ export default function SalaryRevisionsPage() {
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground line-through">₹{Number(r.previous_total || 0).toLocaleString("en-IN")}</span>
-                      <span className="text-foreground font-semibold">→ ₹{Number(r.new_total || 0).toLocaleString("en-IN")}</span>
+                      <span className="text-muted-foreground line-through tabular-nums">₹{Number(r.previous_total || 0).toLocaleString("en-IN")}</span>
+                      <span className="text-foreground font-semibold tabular-nums">→ ₹{Number(r.new_total || 0).toLocaleString("en-IN")}</span>
                     </div>
                     <Badge variant={isIncrease ? "default" : "destructive"} className="text-xs mt-1">
                       {isIncrease ? "+" : ""}₹{diff.toLocaleString("en-IN")} · {r.revision_type}

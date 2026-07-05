@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2, Lock, Unlock, RefreshCw, ShieldCheck } from "lucide-react";
 import { StatutoryReportsPanel } from "@/components/hrms/StatutoryReportsPanel";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function PayrollDashboardPage() {
@@ -168,16 +171,16 @@ export default function PayrollDashboardPage() {
   });
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Payroll Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Manage payroll runs, generate payslips and process payments</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> New Payroll Run
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Payroll Dashboard"
+        description="Manage payroll runs, generate payslips and process payments"
+        actions={
+          <Button onClick={() => setShowCreate(true)} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
+            <Plus className="h-4 w-4 mr-2" /> New Payroll Run
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[
@@ -208,9 +211,9 @@ export default function PayrollDashboardPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
               ) : runs.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No payroll runs yet</td></tr>
+                <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" /></td></tr>
               ) : (
                 runs.map((r: any) => (
                   <tr key={r.id} className="border-b hover:bg-muted/50">

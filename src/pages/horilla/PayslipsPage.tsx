@@ -8,7 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Search, Eye, CheckCircle, Wallet, Download } from "lucide-react";
+import { Search, Eye, CheckCircle, Wallet, Download, FileText } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -268,19 +271,19 @@ export default function PayslipsPage() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Payslips</h1>
-        <p className="text-sm text-muted-foreground">View individual employee payslips with earnings/deductions breakdown</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Payslips"
+        description="View individual employee payslips with earnings/deductions breakdown"
+      />
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={runFilter} onValueChange={setRunFilter}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="All Payroll Runs" /></SelectTrigger>
+          <SelectTrigger className="w-56 h-9"><SelectValue placeholder="All Payroll Runs" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Payroll Runs</SelectItem>
             {runs.map((r: any) => <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>)}
@@ -294,27 +297,27 @@ export default function PayslipsPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Badge ID", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className={`px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap ${["Gross","Deductions","Net Salary","Days"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No payslips found. Generate payslips from a payroll run first.</td></tr>
+                <tr><td colSpan={9}><EmptyState icon={FileText} title="No payslips found" description="Generate payslips from a payroll run first." /></td></tr>
               ) : (
                 filtered.map((p: any) => (
                   <tr key={p.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3 text-xs">{p.hr_payroll_runs?.title}</td>
-                    <td className="px-4 py-3 text-success font-medium">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-destructive">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 font-semibold">₹{p.net_salary?.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3">{p.present_days || 0}/{p.working_days || 0}</td>
+                    <td className="px-4 py-3 text-success font-medium text-right tabular-nums">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-destructive text-right tabular-nums">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 font-semibold text-right tabular-nums">₹{p.net_salary?.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{p.present_days || 0}/{p.working_days || 0}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(p.status || "draft")}`}>{p.status || "draft"}</span>
+                      <span className={`inline-flex items-center bg-x/10 border rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(p.status || "draft")}`}>{p.status || "draft"}</span>
                     </td>
                     <td className="px-4 py-3">
                       <Button size="sm" variant="ghost" className="h-7" onClick={() => { setDetail(p); setPayRef(""); }}>

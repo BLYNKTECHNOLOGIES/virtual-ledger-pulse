@@ -8,7 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Search, RotateCcw } from "lucide-react";
+import { Plus, Search, RotateCcw, Laptop } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function AssetAssignmentsPage() {
   const qc = useQueryClient();
@@ -59,8 +62,6 @@ export default function AssetAssignmentsPage() {
         notes: form.notes || null,
       });
       if (aErr) throw aErr;
-      // Update asset status
-      const emp = employees.find((e: any) => e.id === form.employee_id);
       const { error: uErr } = await (supabase as any).from("hr_assets").update({
         status: "assigned",
         assigned_to: form.employee_id,
@@ -110,24 +111,24 @@ export default function AssetAssignmentsPage() {
   );
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Asset Assignments</h1>
-          <p className="text-sm text-muted-foreground">Track asset assignments and returns</p>
-        </div>
-        <Button onClick={() => setShowAssign(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> Assign Asset
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Asset Assignments"
+        description="Track asset assignments and returns"
+        actions={
+          <Button onClick={() => setShowAssign(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Plus className="h-4 w-4 mr-2" /> Assign Asset
+          </Button>
+        }
+      />
 
       <div className="flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by asset or employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search by asset or employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="active">Active</SelectItem>
@@ -142,30 +143,32 @@ export default function AssetAssignmentsPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Asset", "Type", "Employee", "Assigned Date", "Return Date", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={7} className="p-4"><TableSkeleton rows={5} columns={7} /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No assignments found</td></tr>
+                <tr><td colSpan={7}>
+                  <EmptyState icon={Laptop} title="No assignments found" description="Assign an asset to an employee to get started." action={<Button onClick={() => setShowAssign(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9"><Plus className="h-4 w-4 mr-2" />Assign Asset</Button>} />
+                </td></tr>
               ) : filtered.map((a: any) => (
                 <tr key={a.id} className="border-b hover:bg-muted/50">
                   <td className="px-4 py-3 font-medium">{a.hr_assets?.name || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground capitalize">{a.hr_assets?.asset_type || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.employee_name || "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{a.assigned_date}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{a.return_date || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.assigned_date}</td>
+                  <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.return_date || "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-success/10 text-success" : "bg-muted text-foreground"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${a.status === "active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-foreground border-border"}`}>
                       {a.status}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     {a.status === "active" && (
-                      <Button size="sm" variant="outline" onClick={() => setShowReturn(a.id)}>
+                      <Button size="sm" variant="outline" className="h-7" onClick={() => setShowReturn(a.id)}>
                         <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
                       </Button>
                     )}
@@ -180,12 +183,12 @@ export default function AssetAssignmentsPage() {
       {/* Assign Dialog */}
       <Dialog open={showAssign} onOpenChange={setShowAssign}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Assign Asset</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm font-semibold flex items-center gap-2"><Plus className="h-4 w-4 text-[#E8604C]" />Assign Asset</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Asset</Label>
               <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select available asset" /></SelectTrigger>
+                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select available asset" /></SelectTrigger>
                 <SelectContent>
                   {availableAssets.map((a: any) => (
                     <SelectItem key={a.id} value={a.id}>{a.name} {a.serial_number ? `(${a.serial_number})` : ""}</SelectItem>
@@ -196,7 +199,7 @@ export default function AssetAssignmentsPage() {
             <div>
               <Label>Employee</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>{e.employee_name} ({e.employee_id})</SelectItem>
@@ -206,12 +209,12 @@ export default function AssetAssignmentsPage() {
             </div>
             <div>
               <Label>Notes</Label>
-              <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." />
+              <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." className="h-9 mt-1" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAssign(false)}>Cancel</Button>
-            <Button onClick={() => assignMutation.mutate()} disabled={!form.asset_id || !form.employee_id} className="bg-[#E8604C] hover:bg-[#d4553f]">Assign</Button>
+            <Button variant="outline" onClick={() => setShowAssign(false)} className="h-9">Cancel</Button>
+            <Button onClick={() => assignMutation.mutate()} disabled={!form.asset_id || !form.employee_id} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Assign</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -219,16 +222,16 @@ export default function AssetAssignmentsPage() {
       {/* Return Dialog */}
       <Dialog open={!!showReturn} onOpenChange={() => setShowReturn(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Return Asset</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm font-semibold flex items-center gap-2"><RotateCcw className="h-4 w-4 text-[#E8604C]" />Return Asset</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Return Reason</Label>
-              <Input value={returnReason} onChange={(e) => setReturnReason(e.target.value)} placeholder="e.g. Employee resignation, upgrade..." />
+              <Input value={returnReason} onChange={(e) => setReturnReason(e.target.value)} placeholder="e.g. Employee resignation, upgrade..." className="h-9 mt-1" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReturn(null)}>Cancel</Button>
-            <Button onClick={() => showReturn && returnMutation.mutate(showReturn)} className="bg-[#E8604C] hover:bg-[#d4553f]">Confirm Return</Button>
+            <Button variant="outline" onClick={() => setShowReturn(null)} className="h-9">Cancel</Button>
+            <Button onClick={() => showReturn && returnMutation.mutate(showReturn)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Confirm Return</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

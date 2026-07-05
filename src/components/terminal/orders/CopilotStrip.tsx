@@ -65,7 +65,7 @@ export function CopilotStrip({ orderId, orderNumber, messageCount, onInsert }: P
       inFlightRef.current = false;
       setLoading(false);
     }
-  }, [orderId, messageCount]);
+  }, [orderId, orderNumber, messageCount]);
 
   if (!expanded) {
     return (

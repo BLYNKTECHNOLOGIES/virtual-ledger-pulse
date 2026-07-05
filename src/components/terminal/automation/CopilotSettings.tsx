@@ -255,29 +255,31 @@ export function CopilotSettings() {
         </div>
 
 
-        <div className="flex flex-wrap items-center gap-4 rounded-md bg-secondary/40 border border-border p-3">
-          <div className="flex items-center gap-1.5">
-            <Database className="h-3.5 w-3.5 text-primary" />
-            <span className="text-xs text-foreground tabular-nums">{settings.exemplar_count ?? 0}</span>
-            <span className="text-[10px] text-muted-foreground">exemplars</span>
+        <div className="flex flex-col gap-3 rounded-md bg-secondary/40 border border-border p-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-1.5">
+              <Database className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs text-foreground tabular-nums">{settings.exemplar_count ?? 0}</span>
+              <span className="text-[10px] text-muted-foreground">exemplars</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">Last trained:</span>
+              <span className="text-[10px] text-foreground">
+                {settings.updated_at ? format(new Date(settings.updated_at), 'dd MMM HH:mm') : '—'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground">Watermark:</span>
+              <span className="text-[10px] text-foreground">
+                {settings.train_watermark ? format(new Date(settings.train_watermark), 'dd MMM HH:mm') : '—'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Last trained:</span>
-            <span className="text-[10px] text-foreground">
-              {settings.updated_at ? format(new Date(settings.updated_at), 'dd MMM HH:mm') : '—'}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground">Watermark:</span>
-            <span className="text-[10px] text-foreground">
-              {settings.train_watermark ? format(new Date(settings.train_watermark), 'dd MMM HH:mm') : '—'}
-            </span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 gap-1.5" disabled={rebuilding}>
+                <Button size="sm" variant="outline" className="h-8 w-full gap-1.5 sm:w-auto" disabled={rebuilding}>
                   {rebuilding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
                   Rebuild exemplar bank
                 </Button>
@@ -296,12 +298,13 @@ export function CopilotSettings() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button size="sm" className="h-8 gap-1.5" onClick={trainNow} disabled={training}>
+            <Button size="sm" className="h-8 w-full gap-1.5 sm:w-auto" onClick={trainNow} disabled={training}>
               {training ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               Train Now
             </Button>
           </div>
         </div>
+
 
         {/* Measurability — 7d suggestion metrics (item 8) */}
         {(() => {

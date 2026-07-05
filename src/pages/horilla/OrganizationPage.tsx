@@ -82,7 +82,7 @@ export default function OrganizationPage() {
         <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Departments</CardTitle></CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-4"><TableSkeleton rows={4} cols={6} /></div>
+            <div className="p-4"><TableSkeleton rows={4} columns={6} /></div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">

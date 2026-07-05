@@ -899,7 +899,18 @@ export default function TerminalAnalytics() {
   }, [filteredAdRows, selectedAdKey]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="flex w-full flex-col gap-4 p-4 md:p-6">
+        <div className="t-shimmer h-8 w-48 rounded-md" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {[0, 1, 2, 3, 4].map((i) => <div key={i} className="t-shimmer h-20 rounded-md" />)}
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-4">
+          <div className="t-shimmer h-80 rounded-md" />
+          <div className="t-shimmer h-80 rounded-md" />
+        </div>
+      </div>
+    );
   }
 
   return (

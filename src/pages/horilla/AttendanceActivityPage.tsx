@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format, differenceInMinutes, parseISO } from "date-fns";
-import { Clock, LogIn, LogOut, Search, Plus, Timer } from "lucide-react";
+import { Clock, LogIn, LogOut, Search, Plus, Timer, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";

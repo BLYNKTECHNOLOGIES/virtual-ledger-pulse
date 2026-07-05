@@ -1,4 +1,4 @@
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PayMethodField {

@@ -136,7 +136,7 @@ export function OperatorDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 t-scale-in bg-popover border-border">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">

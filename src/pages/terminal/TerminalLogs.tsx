@@ -132,7 +132,9 @@ function formatDetails(entry: AdActionLogEntry): string[] {
 }
 
 export default function TerminalLogs() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [urlParams] = useSearchParams();
+  // Pre-filter when deep-linked from the Ad Manager (?adv=<advNo>).
+  const [searchQuery, setSearchQuery] = useState(() => urlParams.get('adv') || '');
   const { userId } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'logs', { categoryFilter: 'all' as string, actionFilter: 'all' as string });
   const categoryFilter = prefs.categoryFilter;

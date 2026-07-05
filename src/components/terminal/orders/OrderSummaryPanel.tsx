@@ -61,7 +61,7 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
     <div className="flex flex-col h-full">
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
-          <Badge className={`${tradeBg} ${tradeColor} border-0 text-xs font-semibold`}>
+          <Badge className={`${tradeChip} text-[10px] font-bold uppercase tracking-wide t-mono rounded`}>
             {order.trade_type}
           </Badge>
           <CounterpartyBadge
@@ -70,12 +70,13 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
             tradeType={order.trade_type}
           />
         </div>
-        <h2 className="text-lg font-bold text-foreground tabular-nums">
+        <h2 className="text-lg font-semibold text-foreground t-mono">
           ₹{Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-xs text-muted-foreground mt-0.5 t-mono">
           {Number(order.amount).toFixed(4)} {order.asset} @ ₹{Number(order.unit_price).toLocaleString('en-IN')}
         </p>
+
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-4">

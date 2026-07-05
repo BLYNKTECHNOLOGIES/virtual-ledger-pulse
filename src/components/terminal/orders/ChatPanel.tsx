@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { markOrderChatRead } from '@/lib/chat-read-state';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
-import { CopilotStrip } from './CopilotStrip';
+
 
 interface Props {
   orderId: string;

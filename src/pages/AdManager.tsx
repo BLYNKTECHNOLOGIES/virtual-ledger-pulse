@@ -173,9 +173,10 @@ export default function AdManager() {
     setStatusChips(prev => { const next = new Set(prev); next.has(value) ? next.delete(value) : next.add(value); return next; });
   };
 
-  const handleEdit = (ad: BinanceAd) => { setEditingAd(ad); setDialogOpen(true); };
+  const handleEdit = (ad: BinanceAd) => { setDuplicateValues(null); setEditingAd(ad); setDialogOpen(true); };
   const handleCreate = () => {
     setEditingAd(null);
+    setDuplicateValues(null);
     // In combined mode we don't know which account to post to — ask first.
     if (isAllAccounts && visibleAccounts.length > 1) {
       setCreateAccountId(null);
@@ -183,6 +184,33 @@ export default function AdManager() {
       return;
     }
     setCreateAccountId(null);
+    setDialogOpen(true);
+  };
+
+  // Duplicate: open Create dialog prefilled from source ad (advNo/identifiers excluded),
+  // routed to the same account. Reuses the existing dialog's create/submit flow.
+  const handleDuplicate = (ad: BinanceAd) => {
+    setEditingAd(null);
+    setCreateAccountId(ad._exchangeAccountId || null);
+    setDuplicateValues({
+      tradeType: ad.tradeType,
+      asset: ad.asset,
+      fiatUnit: ad.fiatUnit,
+      priceType: (ad.priceType || 1) as 1 | 2,
+      price: String(ad.price || ''),
+      priceFloatingRatio: String(ad.priceFloatingRatio || ''),
+      initAmount: String(ad.initAmount || ''),
+      minSingleTransAmount: String(ad.minSingleTransAmount || ''),
+      maxSingleTransAmount: String(ad.maxSingleTransAmount || ''),
+      autoReplyMsg: ad.autoReplyMsg || '',
+      remarks: ad.remarks || '',
+      payTimeLimit: ad.payTimeLimit || 15,
+      advStatus: ad.advStatus || BINANCE_AD_STATUS.ONLINE,
+      buyerRegDaysLimit: Number.isFinite(Number(ad.buyerRegDaysLimit)) ? Number(ad.buyerRegDaysLimit) : -1,
+      buyerBtcPositionLimit: Number.isFinite(Number(ad.buyerBtcPositionLimit)) ? Number(ad.buyerBtcPositionLimit) : -1,
+      takerAdditionalKycRequired: ad.takerAdditionalKycRequired || 0,
+      selectedPayMethods: ad.tradeMethods || [],
+    });
     setDialogOpen(true);
   };
 

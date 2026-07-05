@@ -33,7 +33,7 @@ export function CopilotStrip({ orderId, orderNumber, messageCount, onInsert }: P
 
   const run = useCallback(async (force = false) => {
     if (inFlightRef.current) return;
-    const key = `${orderId}:${messageCount}`;
+    const key = `${orderNumber || orderId}:${messageCount}`;
     if (!force && cacheRef.current?.key === key) {
       setData(cacheRef.current.value);
       setExpanded(true);
@@ -49,7 +49,7 @@ export function CopilotStrip({ orderId, orderNumber, messageCount, onInsert }: P
 
     try {
       const { data: resp, error } = await supabase.functions.invoke('order-copilot', {
-        body: { orderId },
+        body: { orderId, orderNumber },
       });
       if (error) throw error;
       if ((resp as any)?.error) throw new Error((resp as any).error);

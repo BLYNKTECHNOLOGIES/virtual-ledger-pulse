@@ -297,9 +297,15 @@ export default function AttendanceActivityPage() {
         title="Clock In / Out Activity"
         description="Real-time attendance activity tracking"
         actions={
-          <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
-            <Plus className="h-4 w-4 mr-2" /> Clock In
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleRefreshHours} disabled={refreshing} variant="outline" className="h-9">
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+            <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+              <Plus className="h-4 w-4 mr-2" /> Clock In
+            </Button>
+          </div>
         }
       />
 

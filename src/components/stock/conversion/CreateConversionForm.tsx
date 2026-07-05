@@ -167,6 +167,7 @@ export function CreateConversionForm() {
               <Label>Quantity</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="any"
                 min="0"
                 placeholder="0.00"

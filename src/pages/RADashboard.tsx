@@ -12,6 +12,8 @@ import { useMyRAAssignments, useAllRARemarks } from "@/hooks/useRA";
 import { useClientTypeFromOrders } from "@/hooks/useClientTypeFromOrders";
 import { RARemarkDialog } from "@/components/clients/RARemarkDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const riskColors: Record<string, string> = {
   PREMIUM: "bg-success/10 text-success",

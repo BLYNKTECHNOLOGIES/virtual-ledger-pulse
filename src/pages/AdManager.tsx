@@ -202,6 +202,8 @@ export default function AdManager() {
           onBulkRiskGuard={() => setBulkRiskGuardOpen(true)}
           onBulkActivate={handleBulkActivate}
           onBulkDeactivate={handleBulkDeactivate}
+          totalAds={displayAds.length}
+          onSelectAll={() => setSelectedAdvNos(new Set(displayAds.map(ad => ad.advNo)))}
         />
       )}
 

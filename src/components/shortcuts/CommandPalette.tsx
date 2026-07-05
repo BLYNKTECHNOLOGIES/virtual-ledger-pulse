@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Users, ShoppingCart, TrendingUp, UsersRound } from "lucide-react";
+import {
+  Users, ShoppingCart, TrendingUp, UsersRound, Clock, UserPlus, Scale,
+  Megaphone, Wrench, FileText, Image as ImageIcon, Layers, HelpCircle,
+  User, Terminal as TerminalIcon, type LucideIcon,
+} from "lucide-react";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput,
   CommandItem, CommandList, CommandSeparator,
@@ -9,6 +13,7 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
+import { getRecents, pushRecent } from "@/lib/paletteRecents";
 import {
   NAVIGATION_SHORTCUTS, QUICK_CREATE_SHORTCUTS, comboToDisplay, type ShortcutDef,
 } from "@/config/shortcuts";
@@ -20,8 +25,16 @@ interface Props {
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
+interface ClientResult {
+  id: string;
+  name: string | null;
+  client_id: string | null;
+  kyc_status: string | null;
+  risk_appetite: string | null;
+}
+
 interface EntityResults {
-  clients: { id: string; name: string | null; phone: string | null }[];
+  clients: ClientResult[];
   sales: { id: string; order_number: string | null; client_name: string | null }[];
   purchases: { id: string; order_number: string | null; supplier_name: string | null }[];
   employees: { id: string; first_name: string | null; last_name: string | null; badge_id: string | null }[];
@@ -29,19 +42,37 @@ interface EntityResults {
 
 const emptyResults: EntityResults = { clients: [], sales: [], purchases: [], employees: [] };
 
+// Supplemental "Go to" targets that aren't covered by NAVIGATION_SHORTCUTS.
+// Rendered only when not already present in the permission-filtered nav list.
+interface NavExtra { label: string; path: string; icon: LucideIcon; keywords: string }
+const EXTRA_ERP_NAV: NavExtra[] = [
+  { label: "RA Dashboard", path: "/ra-dashboard", icon: UsersRound, keywords: "relationship assistant" },
+  { label: "Leads", path: "/leads", icon: UserPlus, keywords: "prospects" },
+  { label: "Reconciliation", path: "/reconciliation", icon: Scale, keywords: "recon shift" },
+  { label: "Profit & Loss", path: "/profit-loss", icon: TrendingUp, keywords: "pnl p&l gross profit" },
+  { label: "Ad Manager", path: "/ad-manager", icon: Megaphone, keywords: "ads p2p binance" },
+  { label: "Utility Hub", path: "/utility", icon: Wrench, keywords: "tools" },
+  { label: "Invoice Creator", path: "/utility/invoice-creator", icon: FileText, keywords: "invoice" },
+  { label: "Payment Screenshot", path: "/utility/payment-screenshot", icon: ImageIcon, keywords: "screenshot receipt" },
+  { label: "Exchange Accounts", path: "/settings/exchange-accounts", icon: Layers, keywords: "binance accounts settings" },
+  { label: "Help Assistant", path: "/help-assistant", icon: HelpCircle, keywords: "help docs" },
+  { label: "My Profile", path: "/profile", icon: User, keywords: "account" },
+  { label: "Open Terminal", path: "/terminal", icon: TerminalIcon, keywords: "p2p trading terminal cockpit" },
+];
+
 /**
  * Read-only entity lookup. Uses the existing supabase client so RLS + auth
- * apply automatically. Small column lists, hard limit of 5 per table.
+ * apply automatically. Small column lists, hard limits per table.
  */
 async function fetchEntities(term: string): Promise<EntityResults> {
   const like = `%${term}%`;
   const [clientsRes, salesRes, purchasesRes, employeesRes] = await Promise.all([
     supabase
       .from("clients")
-      .select("id, name, phone")
+      .select("id, name, client_id, kyc_status, risk_appetite")
       .eq("is_deleted", false)
-      .or(`name.ilike.${like},phone.ilike.${like}`)
-      .limit(5),
+      .or(`name.ilike.${like},client_id.ilike.${like}`)
+      .limit(8),
     supabase
       .from("sales_orders")
       .select("id, order_number, client_name")
@@ -59,7 +90,7 @@ async function fetchEntities(term: string): Promise<EntityResults> {
       .limit(5),
   ]);
   return {
-    clients: clientsRes.data ?? [],
+    clients: (clientsRes.data as ClientResult[]) ?? [],
     sales: salesRes.data ?? [],
     purchases: purchasesRes.data ?? [],
     employees: employeesRes.data ?? [],
@@ -86,12 +117,16 @@ export function CommandPalette({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const { hasAnyPermission } = usePermissions();
   const [search, setSearch] = useState("");
-  const debounced = useDebounce(search.trim(), 300);
+  const [recents, setRecents] = useState(getRecents());
+  const debounced = useDebounce(search.trim(), 250);
   const shouldSearch = open && debounced.length >= 2;
+  const isEmpty = search.trim().length === 0;
 
   // Clear the query whenever the palette closes so it opens fresh.
+  // Refresh recents whenever it opens.
   useEffect(() => {
     if (!open) setSearch("");
+    else setRecents(getRecents());
   }, [open]);
 
   const navItems = useMemo(
@@ -103,6 +138,11 @@ export function CommandPalette({ open, onOpenChange }: Props) {
     [hasAnyPermission],
   );
 
+  const extraNav = useMemo(() => {
+    const covered = new Set(navItems.map((s) => s.url));
+    return EXTRA_ERP_NAV.filter((x) => !covered.has(x.path));
+  }, [navItems]);
+
   const { data: results = emptyResults, isFetching } = useQuery({
     queryKey: ["command-palette-entities", debounced],
     queryFn: () => fetchEntities(debounced),
@@ -111,15 +151,22 @@ export function CommandPalette({ open, onOpenChange }: Props) {
     gcTime: 60_000,
   });
 
+  const remember = (label: string, path: string) => {
+    pushRecent({ label, path });
+    setRecents(getRecents());
+  };
+
   const run = (s: ShortcutDef) => {
     onOpenChange(false);
     if (!s.url) return;
+    remember(s.label, s.url);
     const qs = s.quickAction ? `?quickAction=${s.quickAction}` : "";
     navigate(`${s.url}${qs}`);
   };
 
-  const go = (path: string) => {
+  const go = (path: string, label?: string) => {
     onOpenChange(false);
+    if (label) remember(label, path);
     navigate(path);
   };
 
@@ -139,6 +186,21 @@ export function CommandPalette({ open, onOpenChange }: Props) {
       />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
+
+        {isEmpty && recents.length > 0 && (
+          <CommandGroup heading="Recent">
+            {recents.map((r) => (
+              <CommandItem
+                key={`recent-${r.path}`}
+                value={r.label}
+                onSelect={() => go(r.path, r.label)}
+              >
+                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="truncate">{r.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
 
         {actionItems.length > 0 && (
           <CommandGroup heading="Actions">
@@ -166,6 +228,24 @@ export function CommandPalette({ open, onOpenChange }: Props) {
           </CommandGroup>
         )}
 
+        {extraNav.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Go to">
+              {extraNav.map((x) => (
+                <CommandItem
+                  key={`extra-${x.path}`}
+                  value={`${x.label} ${x.keywords}`}
+                  onSelect={() => go(x.path, x.label)}
+                >
+                  <x.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>{x.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+
         {shouldSearch && isFetching && (
           <div className="space-y-1 px-2 py-2" aria-label="Searching">
             {[...Array(3)].map((_, i) => (
@@ -174,23 +254,30 @@ export function CommandPalette({ open, onOpenChange }: Props) {
           </div>
         )}
 
-        {shouldSearch && results.clients.length > 0 && (
+        {shouldSearch && !isFetching && (
           <>
             <CommandSeparator />
             <CommandGroup heading="Clients">
-              {results.clients.map((c) => (
-                <CommandItem
-                  key={`client-${c.id}`}
-                  value={`client ${c.name ?? ""} ${c.phone ?? ""} ${t}`}
-                  onSelect={() => go(`/clients/${c.id}`)}
-                >
-                  <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="truncate">{c.name || "Unnamed client"}</span>
-                  {c.phone && (
-                    <span className="ml-auto text-xs tabular-nums text-muted-foreground">{c.phone}</span>
-                  )}
-                </CommandItem>
-              ))}
+              {results.clients.length === 0 ? (
+                <div className="px-2 py-2 text-sm text-muted-foreground">No clients found</div>
+              ) : (
+                results.clients.map((c) => (
+                  <CommandItem
+                    key={`client-${c.id}`}
+                    value={`client ${c.name ?? ""} ${c.client_id ?? ""} ${t}`}
+                    onSelect={() => go(`/clients/${c.id}`, c.name || "Client")}
+                  >
+                    <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span className="truncate font-medium">{c.name || "Unnamed client"}</span>
+                    {c.client_id && (
+                      <span className="ml-2 font-mono text-xs text-muted-foreground">{c.client_id}</span>
+                    )}
+                    {c.kyc_status && (
+                      <span className="ml-auto text-xs capitalize text-muted-foreground">{c.kyc_status}</span>
+                    )}
+                  </CommandItem>
+                ))
+              )}
             </CommandGroup>
           </>
         )}

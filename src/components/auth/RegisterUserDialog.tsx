@@ -264,7 +264,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-semibold text-white shadow-lg shadow-[hsl(231_81%_50%)]/30 hover:opacity-90"
+                className="h-11 bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
               >
                 {isLoading ? "Submitting..." : "Submit Registration"}
               </Button>

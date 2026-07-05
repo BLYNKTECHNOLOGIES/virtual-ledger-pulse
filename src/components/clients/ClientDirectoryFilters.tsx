@@ -9,7 +9,7 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
-  ChevronRight,
+  
   X,
   RotateCcw,
   TrendingUp,
@@ -164,6 +164,7 @@ function MultiSelectFilter({
   renderOption?: (option: { value: string; label: string; icon?: any; color?: string }) => React.ReactNode;
 }) {
   const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
 
   const toggleOption = (value: string) => {
     if (selected.includes(value)) {
@@ -192,7 +193,7 @@ function MultiSelectFilter({
   }, [options, search, showSearch]);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -201,7 +202,7 @@ function MultiSelectFilter({
           <span className={cn('truncate', selected.length === 0 && 'text-muted-foreground')}>
             {triggerText}
           </span>
-          <ChevronRight className="h-3.5 w-3.5 ml-1 shrink-0 opacity-50" />
+          <ChevronDown className="h-3.5 w-3.5 ml-1 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[240px] p-2" align="start">

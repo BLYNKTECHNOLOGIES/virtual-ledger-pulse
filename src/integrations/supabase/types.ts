@@ -2583,6 +2583,7 @@ export type Database = {
           exemplar_count: number
           id: string
           operator_allowlist: string[]
+          stats: Json
           suggestion_count: number
           train_watermark: string | null
           trainer_allowlist: string[]
@@ -2596,6 +2597,7 @@ export type Database = {
           exemplar_count?: number
           id?: string
           operator_allowlist?: string[]
+          stats?: Json
           suggestion_count?: number
           train_watermark?: string | null
           trainer_allowlist?: string[]
@@ -2609,6 +2611,7 @@ export type Database = {
           exemplar_count?: number
           id?: string
           operator_allowlist?: string[]
+          stats?: Json
           suggestion_count?: number
           train_watermark?: string | null
           trainer_allowlist?: string[]

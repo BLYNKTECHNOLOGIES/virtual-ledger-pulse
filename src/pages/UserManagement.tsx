@@ -40,6 +40,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 interface Role {
   id: string;

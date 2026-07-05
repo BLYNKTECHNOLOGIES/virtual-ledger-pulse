@@ -30,6 +30,10 @@ import {
 
 const SORT_PREF_KEY = 'terminal_ad_sort_mode';
 const AUTOREFRESH_PREF_KEY = 'terminal_ad_auto_refresh';
+const TAB_PREF_KEY = 'terminal_ad_side_tab';
+const STATUS_CHIPS_PREF_KEY = 'terminal_ad_status_chips';
+const VIEW_PREF_KEY = 'terminal_ad_view_mode';
+const DENSITY_PREF_KEY = 'terminal_ad_density';
 
 const SORT_OPTIONS: { value: AdSortMode; label: string }[] = [
   { value: 'current', label: 'Current' },
@@ -39,6 +43,13 @@ const SORT_OPTIONS: { value: AdSortMode; label: string }[] = [
   { value: 'avail-asc', label: 'Available ↑' },
   { value: 'updated-desc', label: 'Updated ↓' },
 ];
+
+const STATUS_CHIP_OPTIONS: { value: number; label: string; cls: string }[] = [
+  { value: BINANCE_AD_STATUS.ONLINE, label: 'Active', cls: 'bg-success/10 text-success border-success/30 data-[on=true]:bg-success/20' },
+  { value: BINANCE_AD_STATUS.PRIVATE, label: 'Private', cls: 'bg-warning/10 text-warning border-warning/30 data-[on=true]:bg-warning/20' },
+  { value: BINANCE_AD_STATUS.OFFLINE, label: 'Inactive', cls: 'bg-muted text-muted-foreground border-border data-[on=true]:bg-muted-foreground/20' },
+];
+
 
 
 function isBlockAd(ad: BinanceAd) {

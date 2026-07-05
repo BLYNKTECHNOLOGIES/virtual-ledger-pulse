@@ -17,11 +17,11 @@ export function PastInteractionsPanel({ counterpartyId, currentOrderId, onSelect
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-        <History className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">Past Interactions</span>
-        <Badge variant="outline" className="text-[9px] ml-auto">
-          {pastOrders.length} orders
+      <div className="t-panel-head">
+        <History className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="t-panel-head-title">Past Interactions</span>
+        <Badge variant="outline" className="text-[9px] ml-auto t-mono bg-primary/10 text-primary border-primary/25">
+          {pastOrders.length}
         </Badge>
       </div>
 
@@ -34,7 +34,7 @@ export function PastInteractionsPanel({ counterpartyId, currentOrderId, onSelect
             <p className="text-xs text-muted-foreground">No previous interactions</p>
           </div>
         ) : (
-          <div className="p-2 space-y-1.5">
+          <div className="divide-y divide-border">
             {pastOrders.map((order) => (
               <PastOrderCard
                 key={order.id}
@@ -48,6 +48,7 @@ export function PastInteractionsPanel({ counterpartyId, currentOrderId, onSelect
     </div>
   );
 }
+
 
 function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () => void }) {
   const op = mapToOperationalStatus(order.order_status, order.trade_type);

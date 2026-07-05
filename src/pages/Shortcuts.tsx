@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Keyboard } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -85,18 +86,18 @@ export default function Shortcuts() {
   return (
     <div className="min-h-screen bg-muted/50 p-4 md:p-6">
       <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
-            <Keyboard className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Keyboard Shortcuts</h1>
-            <p className="text-sm text-muted-foreground">
-              Work faster across the ERP. Shortcuts respect your permissions — actions you can't
-              access are shown greyed out.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title={
+            <span className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                <Keyboard className="h-6 w-6 text-primary" />
+              </span>
+              Keyboard Shortcuts
+            </span>
+          }
+          description="Work faster across the ERP. Shortcuts respect your permissions — actions you can't access are shown greyed out."
+        />
+
 
         <Section
           title="Global"

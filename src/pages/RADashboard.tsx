@@ -12,6 +12,8 @@ import { useMyRAAssignments, useAllRARemarks } from "@/hooks/useRA";
 import { useClientTypeFromOrders } from "@/hooks/useClientTypeFromOrders";
 import { RARemarkDialog } from "@/components/clients/RARemarkDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const riskColors: Record<string, string> = {
   PREMIUM: "bg-success/10 text-success",
@@ -83,10 +85,14 @@ export default function RADashboard() {
 
   return (
     <div className="space-y-6 p-4">
-      <div className="flex items-center gap-2">
-        <Headset className="h-6 w-6" />
-        <h1 className="text-2xl font-semibold">My Assigned Clients</h1>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Headset className="h-6 w-6" /> My Assigned Clients
+          </span>
+        }
+      />
+
 
       <Card>
         <CardHeader className="pb-3">
@@ -168,7 +174,7 @@ export default function RADashboard() {
               </tbody>
             </table>
             {!aLoading && rows.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">No clients assigned to you yet.</div>
+              <EmptyState icon={Headset} title="No clients assigned to you yet." description="Clients assigned to you will appear here." />
             )}
           </div>
         </CardContent>

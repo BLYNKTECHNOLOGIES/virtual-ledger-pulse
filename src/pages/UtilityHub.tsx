@@ -1,6 +1,7 @@
 import { FileText, ExternalLink, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PermissionGate } from "@/components/PermissionGate";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const tools = [
   {
@@ -31,10 +32,8 @@ const UtilityHub = () => {
   return (
     <PermissionGate permissions={["utility_view"]}>
     <div className="p-6 max-w-5xl mx-auto space-y-6 page-mount">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Utility Tools</h1>
-        <p className="text-sm text-muted-foreground mt-1">Quick access to all tools and utilities</p>
-      </div>
+      <PageHeader title="Utility Tools" description="Quick access to all tools and utilities" />
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tools.map((tool) => {

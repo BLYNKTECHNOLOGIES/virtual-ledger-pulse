@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, Calculator, Shield } from "lucide-react";
 import { SalesPurchasesTab } from "@/components/accounting/SalesPurchasesTab";
@@ -41,17 +42,18 @@ export default function Accounting() {
     >
     <div className="p-4 md:p-6 page-mount space-y-6">
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/10 rounded-xl shadow-sm">
-              <Calculator className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground">Tax Management</h1>
-              <p className="text-muted-foreground mt-1">Tax and financial management</p>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title={
+            <span className="flex items-center gap-3">
+              <span className="p-3 bg-primary/10 rounded-xl shadow-sm">
+                <Calculator className="h-8 w-8 text-primary" />
+              </span>
+              Tax Management
+            </span>
+          }
+          description="Tax and financial management"
+        />
+
 
       <Tabs defaultValue="sales-purchases" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">

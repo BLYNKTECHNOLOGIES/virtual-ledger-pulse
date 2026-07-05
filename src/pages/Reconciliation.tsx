@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function Reconciliation() {
   const { hasAccess, isLoading: accessLoading } = useErpReconciliationAccess();
@@ -61,33 +62,34 @@ export default function Reconciliation() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 page-mount">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Reconciliation &amp; Exception Cockpit</h1>
-            <p className="text-sm text-muted-foreground">
-              Every data-integrity anomaly across the ledger in one place.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={runSnapshot} disabled={snapshotting}>
-            {snapshotting ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <PlayCircle className="mr-1.5 h-4 w-4" />
-            )}
-            Run Snapshot
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw className={`mr-1.5 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+              <ShieldCheck className="h-6 w-6" />
+            </span>
+            Reconciliation &amp; Exception Cockpit
+          </span>
+        }
+        description="Every data-integrity anomaly across the ledger in one place."
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={runSnapshot} disabled={snapshotting}>
+              {snapshotting ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <PlayCircle className="mr-1.5 h-4 w-4" />
+              )}
+              Run Snapshot
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={`mr-1.5 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </>
+        }
+      />
+
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 stagger-children">
         <Card>

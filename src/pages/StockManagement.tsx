@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 // Roles allowed to view the immutable Ledger Integrity diagnostics tab.
 // Aligned with the role-hierarchy memory: Super Admin / Admin / COO / Auditor.
@@ -71,20 +72,19 @@ export default function StockManagement() {
         <div className="px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-primary/10 rounded-xl shadow-sm">
-                  <Package className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              <PageHeader
+                title={
+                  <span className="flex items-center gap-3">
+                    <span className="p-3 bg-primary/10 rounded-xl shadow-sm">
+                      <Package className="h-8 w-8 text-primary" />
+                    </span>
                     Stock Management
-                  </h1>
-                  <p className="text-muted-foreground">
-                    Inventory, warehouse, and stock control system
-                  </p>
-                </div>
-              </div>
+                  </span>
+                }
+                description="Inventory, warehouse, and stock control system"
+              />
             </div>
+
           </div>
         </div>
       </div>

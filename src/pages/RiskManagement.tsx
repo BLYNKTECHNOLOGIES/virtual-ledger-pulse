@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,18 +77,17 @@ export default function RiskManagement() {
       }
     >
     <div className="flex-1 space-y-6 p-8 pt-6 page-mount">
-      <div className="flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Risk Management</h2>
-          <p className="text-muted-foreground">
-            Monitor and manage user risk assessments and ReKYC processes
-          </p>
-        </div>
-        <Button onClick={runRiskDetection} className="flex items-center gap-2">
-          <Shield className="h-4 w-4" />
-          Run Risk Detection
-        </Button>
-      </div>
+      <PageHeader
+        title="Risk Management"
+        description="Monitor and manage user risk assessments and ReKYC processes"
+        actions={
+          <Button onClick={runRiskDetection} className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Run Risk Detection
+          </Button>
+        }
+      />
+
 
       {/* Risk Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-4">

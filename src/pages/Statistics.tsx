@@ -1,5 +1,6 @@
 
 import { BarChart3, Shield } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { StatisticsTab } from "@/components/hrms/StatisticsTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,16 +37,19 @@ export default function Statistics() {
     <div className="p-4 md:p-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-slate-50 rounded-xl shadow-sm">
-              <BarChart3 className="h-8 w-8 text-slate-600" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground">Statistics & Analytics</h1>
-              <p className="text-muted-foreground mt-1">Comprehensive business insights and analytics</p>
-            </div>
-          </div>
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-3 bg-slate-50 rounded-xl shadow-sm">
+                  <BarChart3 className="h-8 w-8 text-slate-600" />
+                </span>
+                Statistics & Analytics
+              </span>
+            }
+            description="Comprehensive business insights and analytics"
+          />
         </div>
+
         
         <StatisticsTab />
     </div>

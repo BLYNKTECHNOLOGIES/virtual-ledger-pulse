@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, ShoppingBag, Filter, Search, Link2, Package } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { format } from "date-fns";
 import { TerminalSyncTab } from "@/components/purchase/TerminalSyncTab";
 import { SmallBuysSyncTab } from "@/components/purchase/SmallBuysSyncTab";
@@ -435,32 +436,29 @@ export default function Purchase() {
     <div className="min-h-screen bg-muted/50 p-3 md:p-6">
       <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
         <div className="px-4 md:px-6 py-4 md:py-8">
-          <div className="flex flex-col gap-4 md:gap-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 md:p-3 bg-primary/10 rounded-xl shadow-sm">
-                <ShoppingBag className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-xl md:text-3xl font-semibold tracking-tight text-foreground truncate">
-                  Purchase Order Management
-                </h1>
-                <p className="text-muted-foreground text-sm md:text-lg truncate">
-                  Manage purchases and orders
-                </p>
-              </div>
-            </div>
-            
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-2 pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:justify-end">
-              <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0 whitespace-nowrap">
-                <Download className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Export CSV</span>
-              </Button>
-              <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
-                <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-              </PermissionGate>
-            </div>
-          </div>
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-2 md:p-3 bg-primary/10 rounded-xl shadow-sm">
+                  <ShoppingBag className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+                </span>
+                Purchase Order Management
+              </span>
+            }
+            description="Manage purchases and orders"
+            actions={
+              <>
+                <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0 whitespace-nowrap">
+                  <Download className="h-4 w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                </Button>
+                <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
+                  <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
+                </PermissionGate>
+              </>
+            }
+          />
+
         </div>
       </div>
 

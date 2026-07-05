@@ -40,6 +40,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 interface Role {
   id: string;
@@ -372,10 +373,8 @@ export default function UserManagement() {
   if (isLoadingPermissions) {
     return (
       <div className="space-y-6 p-6 page-mount">
-        <div>
-          <h1 className="text-3xl font-semibold text-foreground">User Management</h1>
-          <p className="text-muted-foreground mt-1">Loading permissions...</p>
-        </div>
+        <PageHeader title="User Management" description="Loading permissions..." />
+
         <div className="flex justify-center items-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
           <span className="ml-2">Loading permissions...</span>
@@ -389,23 +388,18 @@ export default function UserManagement() {
       {/* Header */}
       <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-primary/10 rounded-xl shadow-sm">
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-3 bg-primary/10 rounded-xl shadow-sm">
                   <Users className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                    User Management
-                  </h1>
-                  <p className="text-muted-foreground text-lg">
-                    Manage users, roles, and permissions
-                  </p>
-                </div>
-              </div>
-            </div>
-        </div>
+                </span>
+                User Management
+              </span>
+            }
+            description="Manage users, roles, and permissions"
+          />
+
       </div>
     </div>
 

@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { PermissionGate } from '@/components/PermissionGate';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -187,12 +190,15 @@ export default function Tasks() {
   return (
     <PermissionGate permissions={["tasks_view"]}>
     <div className="p-4 md:p-6 space-y-4 page-mount">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Task Management</h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Task
-        </Button>
-      </div>
+      <PageHeader
+        title="Task Management"
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> New Task
+          </Button>
+        }
+      />
+
 
       <TaskBulkActions selectedTasks={selectedTasks} onClearSelection={() => setSelectedIds(new Set())} />
 
@@ -208,11 +214,12 @@ export default function Tasks() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="p-4">
+              <TableSkeleton rows={6} columns={7} />
             </div>
           ) : !sortedTasks.length ? (
-            <div className="text-center py-12 text-muted-foreground">No tasks found</div>
+            <EmptyState icon={Clock} title="No tasks found" description="Tasks you create or that are assigned to you will appear here." />
+
           ) : (
             <Table>
               <TableHeader>

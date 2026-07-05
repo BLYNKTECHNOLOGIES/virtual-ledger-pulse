@@ -6,6 +6,7 @@ import { PermissionGate } from '@/components/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Megaphone, RefreshCw } from 'lucide-react';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { CategorizedAdTable } from '@/components/ad-manager/CategorizedAdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
@@ -120,34 +121,36 @@ export default function AdManager() {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Megaphone className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Ads Manager</h1>
-            <p className="text-sm text-muted-foreground">Manage your Binance P2P merchant ads</p>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <span className="p-2 bg-primary/10 rounded-lg">
+              <Megaphone className="h-5 w-5 text-primary" />
+            </span>
+            Ads Manager
+          </span>
+        }
+        description="Manage your Binance P2P merchant ads"
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              title="Sync ads from Binance"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button size="sm" onClick={handleCreate}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Create Ad
+            </Button>
+          </>
+        }
+      />
 
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            title="Sync ads from Binance"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button size="sm" onClick={handleCreate}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Create Ad
-          </Button>
-        </div>
-      </div>
 
       {/* Filters */}
       <Card>

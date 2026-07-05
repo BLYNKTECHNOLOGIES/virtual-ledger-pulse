@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { ClientOverviewPanel } from "@/components/clients/ClientOverviewPanel";
 import { MonthlyLimitsPanel } from "@/components/clients/MonthlyLimitsPanel";
 import { ClientValueScore } from "@/components/clients/ClientValueScore";
@@ -82,13 +83,16 @@ export default function ClientDetail() {
 
   return (
     <div className="space-y-6 p-6 page-mount">
-      <div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Client Details</h1>
-          <ClientExchangeBadge clientId={clientId} clientName={client?.name} />
-        </div>
-        <p className="text-muted-foreground mt-1">Comprehensive view of client information and trading activity</p>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            Client Details
+            <ClientExchangeBadge clientId={clientId} clientName={client?.name} />
+          </span>
+        }
+        description="Comprehensive view of client information and trading activity"
+      />
+
 
       {/* Row 1: Client Overview and Monthly Limits (only for buyers/composite) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

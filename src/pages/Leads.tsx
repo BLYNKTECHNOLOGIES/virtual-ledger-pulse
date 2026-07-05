@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AddLeadDialog } from "@/components/leads/AddLeadDialog";
 import { useNavigate } from "react-router-dom";
 import { PermissionGate } from "@/components/PermissionGate";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function Leads() {
   const navigate = useNavigate();
@@ -261,25 +262,20 @@ export default function Leads() {
       {/* Header */}
       <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-info/10 rounded-xl shadow-sm">
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-3 bg-info/10 rounded-xl shadow-sm">
                   <UserPlus className="h-8 w-8 text-info" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                    Lead Management
-                  </h1>
-                  <p className="text-muted-foreground text-lg">
-                    Track and manage potential customer leads
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+                </span>
+                Lead Management
+              </span>
+            }
+            description="Track and manage potential customer leads"
+          />
         </div>
       </div>
+
 
       <div className="space-y-6 p-6">
       {/* Header Controls */}

@@ -1,46 +1,77 @@
-# AD MANAGER — RECONNAISSANCE (read-only)
+# AD MANAGER DEEP RECON (zero edits)
 
-Route: `/ad-manager` (main) + `src/pages/terminal/TerminalAdManager.tsx` (wrapper, gate `terminal_ads_view`). Both render `src/pages/AdManager.tsx`.
+## TARGET 1 — AD PRICE/CHANGE HISTORY LOG (exists)
 
-## 1. FILES + ENDPOINTS
-Page: `src/pages/AdManager.tsx` (256). Hooks: `src/hooks/useBinanceAds.tsx` (307).
-Components (src/components/ad-manager/):
-- CategorizedAdTable.tsx (507) — main table (default render)
-- AdTable.tsx (175) — flat table (NOT imported by page; legacy/unused)
-- AdManagerFilters.tsx (113), BulkActionToolbar.tsx (93)
-- CreateEditAdDialog.tsx (1001), PaymentMethodBadge.tsx (31)
-- RestTimerBanner.tsx (155), MerchantStateCard.tsx (69)
-- Bulk*: BulkEditLimitsDialog(180), BulkFloatingPriceDialog(198), BulkHybridAdjustDialog(285), BulkStatusDialog(117), BulkRiskGuardDialog(124)
+### Storage
+- Table: `public.ad_action_logs` — cols: `id uuid`, `user_id text`, `user_name text`,
+  `action_type text`, `adv_no text`, `ad_details jsonb`, `metadata jsonb`, `created_at timestamptz`.
+- NO dedicated old→new price columns; everything lives in `ad_details`/`metadata`.
 
-All API via `supabase.functions.invoke('binance-ads', {action})` (`callBinanceAds`, useBinanceAds.tsx:98):
-- List fetch: `useBinanceAdsList` → action `listAds`. Combined-account fan-out (accountsToQuery), merges online/private(1)+offline(3) in parallel. staleTime 30s, `refetchOnWindowFocus:false`, **NO refetchInterval** — refresh only manual (RefreshCw / filter reset). AdManager.tsx:60-61.
-- Price update: no dedicated endpoint; goes through `updateAd` (`useUpdateAd`, :239) via CreateEditAdDialog OR bulk floating (`BulkFloatingPriceDialog`)/hybrid.
-- Status change (pause/resume/online/offline): `useUpdateAdStatus` → action `updateAdStatus` (:263). Single toggle handleToggleStatus (:99), bulk via BulkStatusDialog.
-- Create/edit: `usePostAd`→`postAd`, `useUpdateAd`→`updateAd` (:214/239).
-- Ref price: `useBinanceReferencePrice`→`getReferencePrice` (60s poll) — ONLY used inside CreateEditAdDialog, not list.
+### Write path (all CLIENT-side; edge fn does NOT log)
+- Core helper `logAdAction()` — `src/hooks/useAdActionLog.ts:126` inserts into `ad_action_logs`.
+  User identity from `getSessionUser()` / localStorage `userSession` (`:97`).
+- Ad create: `usePostAd.onSuccess` `src/hooks/useBinanceAds.tsx:229` (AD_CREATED, new price only).
+- Ad edit:   `useUpdateAd.onSuccess` `src/hooks/useBinanceAds.tsx:252` (AD_UPDATED, new price only).
+- Status:    `useUpdateAdStatus.onSuccess` `src/hooks/useBinanceAds.tsx:277` (metadata.toStatus only).
+- Inline edit reuses `useUpdateAd` (InlinePriceEditor) → logs AD_UPDATED but payload only
+  {advNo, exchange_account_id, price/ratio} so asset/tradeType absent in ad_details.
+- binance-ads edge fn (`supabase/functions/binance-ads/index.ts`): NO ad_action_logs writes.
+- Auto/engine changes log to a SEPARATE table `ad_pricing_logs` (auto-price-engine), not here.
 
-## 2. CURRENT UI
-Layout: RestTimerBanner + MerchantStateCard row → PageHeader (Sync icon + Create Ad) → Filters card → conditional BulkActionToolbar → Tabs [All / Block / Active / Private / Inactive] → single Card w/ CategorizedAdTable.
-CategorizedAdTable: nested collapsible groups — Category (Block / Small Buy / Small Sale / Big Buy / Big Sale) → sub-group (Fixed / Floating) → ad rows. Collapse state persisted per-user in localStorage. Category/group/row checkboxes for multi-select. Small vs Big derived from minSingleTransAmount vs small_buys/sales_config.
-Row columns: checkbox, Ad ID (last 8 + AccountBadge), Type (BUY/SELL + Block badge), Asset, Price Type, Price (flash, floating% suffix), Available Qty (surplus/init), Order Limit (min~max ₹), Payment Methods (3 badges + commission% + overflow), Status badge, Updated, Actions.
-Per-ad actions (3): automation exclude toggle (ShieldBan/Check), Edit (opens dialog), Status toggle (Power/PowerOff/Lock).
-**Price change cost today = many clicks:** Edit icon → CreateEditAdDialog (1001-line form) → change price → save. No inline price edit. Bulk floating% and hybrid adjust exist as dialogs.
-Bulk/multi-select: YES (toolbar: Edit Limits, Adjust Floating%, Hybrid Adjust, Risk Guard, Activate, Deactivate).
-Filters: Asset, Trade Type, Status, Price Type, start/end date, Reset. Sorting: fixed (asset asc, then price asc within group) — no user sort.
-Competitor/rank/book data: NONE fetched or displayed anywhere in the list.
+### Display path
+- `src/pages/terminal/TerminalLogs.tsx` (page, permission `terminal_logs_view`).
+- Fetch: `useAdActionLogs({limit:500})` `useAdActionLog.ts` useQuery, order created_at desc.
+- Render: `formatDetails()` `TerminalLogs.tsx:74`; filters by category/action/search only.
+- Fields shown for ads: type, asset, price, priceMode, floatRatio, qty, min/max, autoReply,
+  remarks, status transition, pay methods.
+- NOT opened from Ad Manager — no link/button in AdManager.tsx or any ad-manager component
+  (grep found zero refs). Only reachable via terminal Logs nav.
 
-## 3. DATA AVAILABLE per ad (BinanceAd, useBinanceAds.tsx:36)
-price, priceType(1 fixed/2 floating), priceFloatingRatio, initAmount, surplusAmount, minSingleTransAmount, maxSingleTransAmount, tradeMethods[], commission fields, advStatus(1/2/3), asset, fiatUnit, tradeType, classify(block), autoReplyMsg, remarks, createTime, updateTime, onlineNow, tags, many buyer/KYC limits, _exchangeAccountId. **No rank/book position** in payload.
+### BUGS (concrete)
+1. NO old→new price captured. Write path stores only the NEW price (`useBinanceAds.tsx:255`);
+   display can never show before-value. Fix: capture prior ad snapshot in mutation vars and
+   store `ad_details.oldPrice`/`newPrice`.
+2. Status transition never renders. `formatDetails` reads `m.fromStatus`+`m.toStatus`
+   (`TerminalLogs.tsx:93`) but `useUpdateAdStatus` only writes `metadata.toStatus`
+   (`useBinanceAds.tsx:281`) — `fromStatus` is undefined so the "X → Y" line is dead.
+   Fix: pass current advStatus into the mutation and log `fromStatus`.
+3. NO account attribution. `exchange_account_id` is known in every mutation
+   (`useBinanceAds.tsx:222/247/266`) but never written to the log; in combined multi-account
+   mode you cannot tell which Binance account was edited. Fix: add
+   `metadata.exchangeAccountId` to logAdAction calls.
+4. Silent skip when session missing: `logAdAction` returns early with console.warn
+   (`useAdActionLog.ts:135`) → edits by users w/o cached session leave NO audit row.
+   Fix: fall back to a server-derived identity or hard-warn.
+5. Inline-edit rows produce sparse logs (missing asset/tradeType) because InlinePriceEditor
+   sends a minimal payload; display shows almost nothing. Fix: include asset/tradeType in
+   the inline payload passed to useUpdateAd.
+6. No timezone bug found in write (created_at = DB now(), tz-aware). Verify TerminalLogs
+   formatting uses local tz (not audited here) — likely fine.
 
-## 4. AUTOMATION BOUNDARY (TerminalAutomation — do NOT overlap)
-Tabs: auto-reply, schedules, auto-pay, export(completed orders), small-orders config, hybrid price adjuster, auto-pricing rules, auto-screenshot. Ad-level automation exclusion toggle lives on the ad row but its engine is Automation. Ad Manager work must stay manual: list display, manual price/status edits, bulk manual actions. No repricing/scheduling logic here.
+## TARGET 2 — CACHE-PATCH FEASIBILITY
 
-## 5. GROUNDED OPPORTUNITIES (manual only, cheap given existing code/data)
-- Inline price quick-edit on the row → reuse `useUpdateAd`/BulkFloatingPriceDialog logic; cuts price change from ~4 clicks to 1-2 (CategorizedAdTable AdPriceCell + useUpdateAd).
-- Buy/Sell split view or side-by-side desks — data already has `tradeType`; categorizeAds already buckets buy/sell (CategorizedAdTable.tsx:125-140).
-- Summary strip (total online/private/offline, surplus per asset, count by category) above table — all derivable from `ads` already in memory (AdManager.tsx:64-69; mirror TerminalDashboard AdPerformanceWidget).
-- Denser desk-style rows / compact toggle — reuse existing columns; row already has all fields (CategorizedAdTable rows).
-- User-controlled sort (price, surplus, updated) — data present, sort is currently hardcoded (categorizeAds sortGroup :144).
-- Asset filter is hardcoded to 6 coins — derive options from live `ads` assets (AdManagerFilters.tsx:24-31).
-- Auto-refresh toggle for the list — add opt-in refetchInterval (useBinanceAdsList staleTime already 30s; memory: 30s opt-in polling).
-- Surface `remarks`/`autoReplyMsg`/payTimeLimit + stale-price age (now−updateTime) as row hints — fields already fetched, unused in list (BinanceAd:63-79).
+- `useUpdateAd`/`useUpdateAdStatus` onSuccess call
+  `queryClient.invalidateQueries({queryKey:['binance-ads']})` (`useBinanceAds.tsx:250/276`)
+  → full refetch today; no setQueryData patch.
+- List queryKey: `['binance-ads', accountsToQuery.join(','), filters]`
+  (`useBinanceAdsList` `:117`). `accountsToQuery` from `useExchangeAccount()`; `filters` is the
+  raw AdFilters object → a precise patch must match the SAME accounts string + filters ref.
+- Mutation response (`callBinanceAds` returns `data.data`) is the Binance updateAd result —
+  does NOT return a full normalized ad object; only success/echo. To patch a cached row locally
+  you'd rely on mutation VARS (advNo, new price/ratio, exchange_account_id), not the response.
+- Feasible: setQueriesData with a predicate on queryKey[0]==='binance-ads', map `.data[]`,
+  match by advNo (+ _exchangeAccountId), splice new price. Keep invalidate as reconcile.
+
+## TARGET 3 — URL-STATE FEASIBILITY (AdManager.tsx)
+
+- View state a shareable link would encode (all `useState`, localStorage-persisted):
+  activeTab (`:66` TAB_PREF_KEY), statusChips Set<number> (`:87` STATUS_CHIPS_PREF_KEY),
+  sortMode (`:83` SORT_PREF_KEY), viewMode categorized/desk (`:85` VIEW_PREF_KEY),
+  compact density (`:86` DENSITY_PREF_KEY), autoRefresh (`:84`), and `filters` AdFilters
+  (`:65`) = {asset, tradeType, advStatus, priceType, startDate, endDate, page, rows}
+  edited via AdManagerFilters.
+- `useSearchParams` is NOT imported in AdManager.tsx nor any ad-manager component. Precedent
+  exists elsewhere (TerminalOrders.tsx:120, StockManagement.tsx:27) but Ad Manager syncs
+  NOTHING to the URL today — pure localStorage/useState.
+- Feasible: mirror the above into useSearchParams (read on mount → seed state, write on change);
+  localStorage stays as the personal default when no query params present.

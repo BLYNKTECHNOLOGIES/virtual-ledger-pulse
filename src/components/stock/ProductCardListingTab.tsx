@@ -165,6 +165,43 @@ export function ProductCardListingTab() {
         </Button>
       </div>
 
+      {/* Valuation summary cards (merged from the former Valuation tab) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Inventory Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">₹{totalInventoryValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            <p className="text-xs text-muted-foreground">Based on average buying price</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{valuationProducts.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {totalValuationUnits.toLocaleString(undefined, { maximumFractionDigits: 4 })} total units across {activeValuationProducts.length} active
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Stock Alerts</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{zeroStockItems}</div>
+            <p className="text-xs text-muted-foreground">{lowStockItems} low stock items</p>
+          </CardContent>
+        </Card>
+      </div>
+
+
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input

@@ -490,7 +490,17 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {ad.updateTime ? format(new Date(ad.updateTime), 'dd MMM yyyy HH:mm') : '—'}
+                      {ad.updateTime ? (
+                        <div className="flex flex-col">
+                          <span>{format(new Date(ad.updateTime), 'dd MMM yyyy HH:mm')}</span>
+                          {(() => {
+                            const mins = Math.floor((Date.now() - new Date(ad.updateTime).getTime()) / 60000);
+                            if (mins <= 30) return null;
+                            const label = mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
+                            return <span className="text-warning">{label}</span>;
+                          })()}
+                        </div>
+                      ) : '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

@@ -280,7 +280,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
       </div>
 
       {/* Info Card about calculation */}
-      <Card className="border-warning/20 bg-warning/10/50">
+      <Card className="border-warning/20 bg-warning/10">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <Coins className="h-5 w-5 text-warning mt-0.5" />

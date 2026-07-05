@@ -712,7 +712,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           </Card>
 
           {/* Client Mapping */}
-          <Card className="border-info/20 bg-info/10/30">
+          <Card className="border-info/20 bg-info/10">
             <CardContent className="p-4 space-y-2">
               <Label className="text-xs font-semibold">Client Mapping</Label>
               {linkedClientId ? (

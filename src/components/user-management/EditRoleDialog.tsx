@@ -478,7 +478,7 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
                 return (
                   <div key={key} className={cn(
                     "border-b last:border-b-0",
-                    key === 'destructive' && "bg-destructive/10/30"
+                    key === 'destructive' && "bg-destructive/10"
                   )}>
                     <button
                       type="button"

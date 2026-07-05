@@ -20,7 +20,7 @@ export function DataConflictBanner({ conflicts }: Props) {
   if (conflicts.length === 0) return null;
 
   return (
-    <div className="rounded-md border border-warning/20 bg-warning/10/50 p-3 space-y-2">
+    <div className="rounded-md border border-warning/20 bg-warning/10 p-3 space-y-2">
       <div className="flex items-center gap-1.5 text-warning">
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
         <span className="text-[11px] font-semibold">Data Conflict — Choose Which Value to Use</span>

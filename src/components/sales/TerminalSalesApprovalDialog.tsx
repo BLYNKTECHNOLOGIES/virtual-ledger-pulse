@@ -852,7 +852,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           </Card>
 
           {/* Client Mapping - Intelligent Search */}
-          <Card className="border-info/20 bg-info/10/30 dark:border-info dark:bg-info/20">
+          <Card className="border-info/20 bg-info/10 dark:border-info dark:bg-info/20">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold">Client Mapping</Label>

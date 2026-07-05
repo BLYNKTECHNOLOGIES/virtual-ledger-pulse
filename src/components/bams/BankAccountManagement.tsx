@@ -903,7 +903,7 @@ export function BankAccountManagement() {
 
         {/* Dormant Accounts Tab */}
         <TabsContent value="dormant">
-          <Card className="border-warning/20 bg-warning/10/30">
+          <Card className="border-warning/20 bg-warning/10">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <Moon className="h-5 w-5 text-warning" />
@@ -935,7 +935,7 @@ export function BankAccountManagement() {
                   </TableHeader>
                   <TableBody>
                     {dormantAccounts?.map((account) => (
-                      <TableRow key={account.id} className="bg-warning/10/50">
+                      <TableRow key={account.id} className="bg-warning/10">
                         <TableCell className="font-medium">{account.account_name}</TableCell>
                         <TableCell>{account.bank_name}</TableCell>
                         <TableCell>{account.account_number}</TableCell>

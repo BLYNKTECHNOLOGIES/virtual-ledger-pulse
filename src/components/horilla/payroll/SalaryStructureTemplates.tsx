@@ -337,7 +337,7 @@ export default function SalaryStructureTemplates() {
                 {items.map((item, idx) => {
                   const comp = getComponent(item.component_id);
                   return (
-                    <div key={idx} className={`p-3 rounded-lg border ${comp?.component_type === "deduction" ? "bg-destructive/10/50 border-destructive/20" : "bg-success/10/50 border-success/20"}`}>
+                    <div key={idx} className={`p-3 rounded-lg border ${comp?.component_type === "deduction" ? "bg-destructive/10 border-destructive/20" : "bg-success/10 border-success/20"}`}>
                       <div className="grid grid-cols-12 gap-2 items-end">
                         <div className="col-span-4">
                           <Label className="text-xs">Component</Label>

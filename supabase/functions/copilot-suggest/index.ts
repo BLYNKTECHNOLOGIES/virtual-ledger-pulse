@@ -134,6 +134,15 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     const key = Deno.env.get("LOVABLE_API_KEY");
     if (!key) return json({ error: "AI unavailable" }, 500);
 
+    // Per-account handling context appended to the system prompt.
+    const accountNotes = (settings.account_notes && typeof settings.account_notes === "object")
+      ? settings.account_notes[exchangeAccountId || ""] : null;
+    const accountLines = [
+      accountLabel ? `You are replying from the ${accountLabel} account.` : "",
+      accountNotes ? `Account handling notes: ${accountNotes}` : "",
+    ].filter(Boolean).join("\n");
+    const systemContent = accountLines ? `${SYSTEM_PROMPT}\n\n${accountLines}` : SYSTEM_PROMPT;
+
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       signal: controller.signal,

@@ -66,6 +66,12 @@ export default function AdManager() {
   const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
+  // Sort + auto-refresh prefs (persisted in localStorage).
+  const [sortMode, setSortMode] = useState<AdSortMode>(() => (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(() => localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
+  useEffect(() => { try { localStorage.setItem(SORT_PREF_KEY, sortMode); } catch { /* ignore */ } }, [sortMode]);
+  useEffect(() => { try { localStorage.setItem(AUTOREFRESH_PREF_KEY, autoRefresh ? '1' : '0'); } catch { /* ignore */ } }, [autoRefresh]);
+
   const effectiveFilters: AdFilters = {
     ...filters,
     advStatus: activeTab === 'active' ? BINANCE_AD_STATUS.ONLINE
@@ -74,7 +80,7 @@ export default function AdManager() {
       : filters.advStatus,
   };
 
-  const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters);
+  const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters, { refetchInterval: autoRefresh ? 30000 : false });
   const { data: restAdsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
   const updateStatus = useUpdateAdStatus();
 
@@ -82,6 +88,7 @@ export default function AdManager() {
   const restAds: BinanceAd[] = restAdsData?.data || [];
   const displayAds = useMemo(() => activeTab === 'block' ? ads.filter(isBlockAd) : ads.filter(ad => !isBlockAd(ad)), [ads, activeTab]);
   const total = displayAds.length;
+  const assetOptions = useMemo(() => Array.from(new Set(ads.map(a => a.asset).filter(Boolean))) as string[], [ads]);
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
   const activeAds = useMemo(() => restAds.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE || ad.advStatus === BINANCE_AD_STATUS.PRIVATE), [restAds]);
 

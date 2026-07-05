@@ -72,6 +72,7 @@ interface CategorizedAdTableProps {
    onEdit: (ad: BinanceAd) => void;
   onToggleStatus: (advNo: string, currentStatus: number) => void;
   onHistory?: (advNo: string) => void;
+  onDuplicate?: (ad: BinanceAd) => void;
   isTogglingStatus: boolean;
   selectedAdvNos: Set<string>;
   onSelectionChange: (advNos: Set<string>) => void;

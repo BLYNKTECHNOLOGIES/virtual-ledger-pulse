@@ -3,10 +3,28 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
+
+const Stage = ({ children }: { children: React.ReactNode }) => (
+  <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[hsl(231_45%_5%)] px-6 py-12 text-white">
+    <div
+      className="pointer-events-none absolute inset-0 opacity-[0.35]"
+      style={{
+        backgroundImage: 'radial-gradient(hsl(231 60% 78% / 0.10) 1px, transparent 1px)',
+        backgroundSize: '26px 26px',
+      }}
+    />
+    <div className="pointer-events-none absolute -top-32 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/12 blur-[150px]" />
+    <div className="login-rise relative z-10 w-full max-w-[400px]">
+      <img src={blynkLogoWhite} alt="Blynk" className="mx-auto mb-8 h-7 w-auto" />
+      {children}
+    </div>
+  </div>
+);
+
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();

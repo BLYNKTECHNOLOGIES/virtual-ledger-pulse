@@ -189,45 +189,48 @@ export default function TerminalAutomation() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="auto-reply" className="gap-1.5">
-            <MessageSquare className="h-3.5 w-3.5" />
-            Auto-Reply Rules
-          </TabsTrigger>
-          <TabsTrigger value="schedules" className="gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            Merchant Schedule
-          </TabsTrigger>
-          <TabsTrigger value="auto-pay" className="gap-1.5">
-            <Timer className="h-3.5 w-3.5" />
-            Auto-Pay
-          </TabsTrigger>
-          <TabsTrigger value="export" className="gap-1.5">
-            <FileDown className="h-3.5 w-3.5" />
-            Export Orders
-          </TabsTrigger>
-          <TabsTrigger value="small-orders" className="gap-1.5">
-            <Package className="h-3.5 w-3.5" />
-            Small Orders
-          </TabsTrigger>
-          <TabsTrigger value="hybrid" className="gap-1.5">
-            <Blend className="h-3.5 w-3.5" />
-            Hybrid Pricing
-          </TabsTrigger>
-          <TabsTrigger value="auto-pricing" className="gap-1.5">
-            <Crosshair className="h-3.5 w-3.5" />
-            Auto Pricing
-          </TabsTrigger>
-          <TabsTrigger value="auto-screenshot" className="gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5" />
-            Auto Screenshot
-          </TabsTrigger>
-          <TabsTrigger value="ai-copilot" className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Copilot
-          </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* Desktop / tablet: full horizontal tab bar */}
+        <TabsList className="hidden md:flex flex-wrap h-auto">
+          {AUTOMATION_TABS.map(({ value, label, icon: Icon }) => (
+            <TabsTrigger key={value} value={value} className="gap-1.5">
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
+
+        {/* Mobile: a single dropdown selector — tap or swipe right to open,
+            picking a tab opens it and closes the menu. */}
+        <div className="md:hidden">
+          <DropdownMenu open={tabMenuOpen} onOpenChange={setTabMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between h-10">
+                <span className="flex items-center gap-2">
+                  {(() => {
+                    const cur = AUTOMATION_TABS.find((t) => t.value === activeTab) ?? AUTOMATION_TABS[0];
+                    const Icon = cur.icon;
+                    return (<><Icon className="h-4 w-4 text-primary" />{cur.label}</>);
+                  })()}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-h-[60vh] overflow-y-auto">
+              {AUTOMATION_TABS.map(({ value, label, icon: Icon }) => (
+                <DropdownMenuItem
+                  key={value}
+                  onSelect={() => { setActiveTab(value); setTabMenuOpen(false); }}
+                  className={value === activeTab ? 'bg-secondary/60' : ''}
+                >
+                  <Icon className="h-4 w-4 mr-2 text-primary" />
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
 
         {/* ═══ AUTO-REPLY RULES ═══ */}
         <TabsContent value="auto-reply" className="mt-4 space-y-4">

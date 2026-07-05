@@ -99,9 +99,10 @@ function formatDetails(entry: AdActionLogEntry): string[] {
     if (m.advNos) lines.push(`Ads: ${Array.isArray(m.advNos) ? m.advNos.join(', ') : m.advNos}`);
     if (m.adsCount) lines.push(`${m.adsCount} ads affected`);
     if (m.deactivatedCount !== undefined) lines.push(`${m.deactivatedCount} ads deactivated`);
-    if (d.tradeMethods && Array.isArray(d.tradeMethods)) {
+     if (d.tradeMethods && Array.isArray(d.tradeMethods)) {
       lines.push(`Pay Methods: ${d.tradeMethods.map((pm: any) => pm.tradeMethodName || pm.identifier).join(', ')}`);
     }
+    if (m.exchangeAccountId) lines.push(`Account: …${String(m.exchangeAccountId).slice(-6)}`);
   } else if (cat === 'orders') {
     if (d.orderNumber) lines.push(`Order: …${String(d.orderNumber).slice(-8)}`);
     if (m.authType) lines.push(`Auth: ${m.authType}`);

@@ -13,6 +13,7 @@ import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAverageCost } from "@/hooks/useAverageCost";
+import { useStockWallets } from "@/hooks/useStockWallets";
 import { openTransaction } from "@/components/transaction-detail";
 
 export function StockReportsTab() {

@@ -85,14 +85,14 @@ export default function TerminalShortcuts() {
 
   return (
     <div className="min-h-full bg-background p-4 md:p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
-            <Keyboard className="h-6 w-6 text-primary" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+            <Keyboard className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Terminal Shortcuts</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-lg font-semibold text-foreground tracking-tight">Terminal Shortcuts</h1>
+            <p className="text-xs text-muted-foreground">
               Work faster across the trading terminal. Shortcuts respect your permissions —
               modules you can't access are shown greyed out.
             </p>

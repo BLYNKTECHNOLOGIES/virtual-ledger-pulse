@@ -297,8 +297,10 @@ Deno.serve(async (req) => {
     for (const r of replies) {
       const reply = (r.message_text || "").trim();
       if (!reply) { skipped++; continue; }
-      const info = orderOperator.get(r.order_number);
-      if (!info || !trainerSet.has(info.op)) { skipped++; continue; }
+      const orderInfo = orderOperator.get(r.order_number);
+      // Attribution: prefer exact per-message sender, fall back to order-level assignment.
+      const op = senderMap.get(normKey(r.order_number, reply)) || orderInfo?.op;
+      if (!op || !trainerSet.has(op)) { skipped++; continue; }
       processed++;
 
       // context = previous <=6 non-system messages before this reply.
@@ -314,7 +316,7 @@ Deno.serve(async (req) => {
 
       const situation_class = classifySituation(lastCounterparty?.message_text || reply);
       const language = detectLanguage(reply);
-      const side = info.side;
+      const side = orderInfo?.side ?? null;
       const rTri = trigrams(reply);
 
       // Dedupe vs existing + within-run.

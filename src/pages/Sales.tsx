@@ -750,9 +750,7 @@ export default function Sales() {
           </TableBody>
         </Table>
         {orders.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            No orders found for this category.
-          </div>
+          <EmptyState icon={ShoppingCart} title="No orders found for this category." />
         )}
       </div>
     </>

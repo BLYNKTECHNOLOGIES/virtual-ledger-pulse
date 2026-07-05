@@ -212,6 +212,11 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
       tradeType={order.trade_type}
       counterpartyVerifiedName={counterpartyVerifiedName}
       exchangeAccountId={orderAccountId}
+      templateValues={{
+        amount: order.total_price,
+        orderNo: order.binance_order_number,
+        name: counterpartyVerifiedName || order.counterparty_nickname,
+      }}
     />
   );
 

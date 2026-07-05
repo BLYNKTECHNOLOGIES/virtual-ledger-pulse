@@ -43,7 +43,7 @@ export function StockTransactionsTab() {
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
-  const [filterWallet, setFilterWallet] = useState<string>("all");
+  const [filterWallet, setFilterWallet] = useState<string>(searchParams.get("wallet") || "all");
   // Seed asset filter from deep-link (e.g. Positions "View movements" → ?asset=BTC)
   const [filterProduct, setFilterProduct] = useState<string>(searchParams.get("asset") || "all");
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);

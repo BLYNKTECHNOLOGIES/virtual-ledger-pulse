@@ -491,6 +491,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       setSelectedClientId(undefined);
       setIsNewClient(false);
       setIsSplitPayment(false);
+      setShowSplitOption(false);
       setPaymentSplits([{ payment_method_id: '', amount: '' }]);
     },
     onError: (error: any) => {

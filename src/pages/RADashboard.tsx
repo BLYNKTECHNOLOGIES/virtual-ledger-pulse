@@ -85,10 +85,14 @@ export default function RADashboard() {
 
   return (
     <div className="space-y-6 p-4">
-      <div className="flex items-center gap-2">
-        <Headset className="h-6 w-6" />
-        <h1 className="text-2xl font-semibold">My Assigned Clients</h1>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Headset className="h-6 w-6" /> My Assigned Clients
+          </span>
+        }
+      />
+
 
       <Card>
         <CardHeader className="pb-3">

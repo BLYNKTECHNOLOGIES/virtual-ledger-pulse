@@ -19,7 +19,7 @@ import { useValueFlash } from '@/hooks/useValueFlash';
 
 export type AdSortMode = 'current' | 'price-asc' | 'price-desc' | 'avail-asc' | 'avail-desc' | 'updated-desc';
 
-function applyAdSort(list: BinanceAd[], mode: AdSortMode): BinanceAd[] {
+export function applyAdSort(list: BinanceAd[], mode: AdSortMode): BinanceAd[] {
   if (mode === 'current') return list;
   const arr = [...list];
   switch (mode) {

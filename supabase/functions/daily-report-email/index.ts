@@ -1066,7 +1066,7 @@ async function buildDailyNarrative(supabase: any, todayReport: any, startDate: s
   })(), 8000);
 }
 
-
+serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

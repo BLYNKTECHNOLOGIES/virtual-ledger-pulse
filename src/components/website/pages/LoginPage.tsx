@@ -170,8 +170,8 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#08080C] px-6 py-12 text-white">
-      {/* ===== Living Settlement Field — full-bleed animated stage ===== */}
-      <LivingSettlementField />
+      {/* ===== Aurora backdrop — calm drifting gradient ===== */}
+      <AuroraBackdrop />
 
       {/* soft brand wash + vignette for grounding */}
       <div className="pointer-events-none absolute -top-24 left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/10 blur-[160px]" />

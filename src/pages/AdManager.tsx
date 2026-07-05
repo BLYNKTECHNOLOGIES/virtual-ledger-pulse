@@ -170,12 +170,6 @@ export default function AdManager() {
 
   const content = (
     <div className="page-mount space-y-6 p-4 md:p-6">
-      {/* Rest controls — uses all ads, independent of current tab/filter */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
-        <MerchantStateCard />
-      </div>
-
       {/* Header */}
       <PageHeader
         title={
@@ -211,15 +205,41 @@ export default function AdManager() {
         }
       />
 
+      {/* Condensed command strip — rest timer + merchant state in one slim row */}
+      <AdCommandStrip onlineAds={onlineAds} activeAds={activeAds} />
+
       {/* Summary strip */}
       <AdSummaryStrip ads={ads} />
 
-
-
-      {/* Filters */}
+      {/* Filters + status chips */}
       <Card>
-        <CardContent className="pt-4 pb-4">
+        <CardContent className="pt-4 pb-4 space-y-3">
           <AdManagerFilters filters={filters} onFiltersChange={setFilters} onRefresh={() => refetch()} isRefreshing={isFetching} assetOptions={assetOptions} />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Status:</span>
+            {STATUS_CHIP_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                data-on={statusChips.has(opt.value)}
+                onClick={() => toggleStatusChip(opt.value)}
+                className={cn(
+                  'rounded-full border px-2.5 py-0.5 text-xs transition-all',
+                  opt.cls,
+                  statusChips.has(opt.value) ? 'ring-1 ring-inset ring-current' : 'opacity-60 hover:opacity-100',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {statusChips.size > 0 && (
+              <button
+                onClick={() => { setStatusChips(new Set()); setSelectedAdvNos(new Set()); }}
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -239,24 +259,37 @@ export default function AdManager() {
         />
       )}
 
-      {/* Tabs & Table */}
+      {/* Side-first Tabs & Table */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
-          <TabsTrigger value="all">All Ads</TabsTrigger>
-          <TabsTrigger value="block">Block Ads</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="private">Private</TabsTrigger>
-          <TabsTrigger value="inactive">Inactive</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="buy">Buy</TabsTrigger>
+          <TabsTrigger value="sell">Sell</TabsTrigger>
+          <TabsTrigger value="block">Block</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center justify-between">
+              <CardTitle className="text-lg flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : activeTab === 'block' ? 'Block' : 'All'} Ads
+                  {activeTab === 'buy' ? 'Buy' : activeTab === 'sell' ? 'Sell' : activeTab === 'block' ? 'Block' : 'All'} Ads
                 </span>
-                <span className="flex items-center gap-3 text-sm font-normal text-muted-foreground">
+                <span className="flex flex-wrap items-center gap-3 text-sm font-normal text-muted-foreground">
+                  {/* View toggle */}
+                  <span className="inline-flex overflow-hidden rounded-md border border-border">
+                    <button onClick={() => setViewMode('categorized')} className={cn('px-2.5 py-1 text-xs', viewMode === 'categorized' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Categorized</button>
+                    <button onClick={() => setViewMode('desk')} className={cn('border-l border-border px-2.5 py-1 text-xs', viewMode === 'desk' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>Desk</button>
+                  </span>
+                  {/* Density toggle */}
+                  <button
+                    onClick={() => setCompact((c) => !c)}
+                    className={cn('rounded-md border border-border px-2.5 py-1 text-xs', compact ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}
+                    title="Toggle row density"
+                  >
+                    {compact ? 'Compact' : 'Comfortable'}
+                  </button>
+                  {/* Sort */}
                   <span className="flex items-center gap-1.5">
                     <ArrowDownUp className="h-3.5 w-3.5" />
                     <Select value={sortMode} onValueChange={(v) => setSortMode(v as AdSortMode)}>
@@ -277,6 +310,18 @@ export default function AdManager() {
             <CardContent>
               {isLoading ? (
                 <TableSkeleton rows={8} columns={9} />
+              ) : viewMode === 'desk' ? (
+                <DeskTable
+                  ads={displayAds}
+                  onEdit={handleEdit}
+                  onToggleStatus={handleToggleStatus}
+                  isTogglingStatus={updateStatus.isPending}
+                  selectedAdvNos={selectedAdvNos}
+                  onSelectionChange={setSelectedAdvNos}
+                  sortMode={sortMode}
+                  onSortModeChange={setSortMode}
+                  compact={compact}
+                />
               ) : (
                 <CategorizedAdTable
                   ads={displayAds}
@@ -286,8 +331,10 @@ export default function AdManager() {
                   selectedAdvNos={selectedAdvNos}
                   onSelectionChange={setSelectedAdvNos}
                   sortMode={sortMode}
+                  compact={compact}
                 />
               )}
+
 
             </CardContent>
           </Card>

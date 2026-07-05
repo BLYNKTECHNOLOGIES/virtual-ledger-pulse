@@ -46,13 +46,17 @@ export function UpdatePaymentMethodDialog({ open, onOpenChange, requestId, order
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md t-scale-in border-border bg-popover">
         <DialogHeader>
-          <DialogTitle>Update Payment Method</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+            <CreditCard className="h-4 w-4 text-primary" />
+            Update Payment Method
+          </DialogTitle>
           <DialogDescription>
-            Provide the alternate UPI details for order <strong className="text-foreground font-mono">{orderNumber}</strong>
+            Provide the alternate UPI details for order <strong className="text-foreground t-mono">{orderNumber}</strong>
           </DialogDescription>
         </DialogHeader>
+
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label className="text-xs">Payment Method</Label>

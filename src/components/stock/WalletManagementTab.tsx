@@ -17,8 +17,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent, Settings } from "lucide-react";
-import { ManualWalletAdjustmentDialog } from "./ManualWalletAdjustmentDialog";
+import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent, Settings, History, ArrowUpRight } from "lucide-react";
+import { SharedStockAdjustmentDialog } from "./SharedStockAdjustmentDialog";
+import { ReverseTransactionDialog } from "./ReverseTransactionDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { useSearchParams } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { WalletLinkingSection } from "./WalletLinkingSection";

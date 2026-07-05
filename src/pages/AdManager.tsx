@@ -60,10 +60,23 @@ function isBlockAd(ad: BinanceAd) {
 }
 
 export default function AdManager() {
-  const location = useLocation();
+   const location = useLocation();
   const isTerminalContext = location.pathname.startsWith('/terminal');
   const { isAllAccounts, visibleAccounts, activeAccountId, colorFor, nameFor } = useExchangeAccount();
-  const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 50, fetchAll: true });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  // URL params SEED state (shareable views win); localStorage is the personal fallback.
+  const [filters, setFilters] = useState<AdFilters>(() => {
+    const f: AdFilters = { page: 1, rows: 50, fetchAll: true };
+    const asset = searchParams.get('asset'); if (asset) f.asset = asset;
+    const tradeType = searchParams.get('tradeType'); if (tradeType) f.tradeType = tradeType;
+    const advStatus = searchParams.get('advStatus'); if (advStatus !== null && advStatus !== '') f.advStatus = Number(advStatus);
+    const priceType = searchParams.get('priceType'); if (priceType !== null && priceType !== '') f.priceType = Number(priceType);
+    const startDate = searchParams.get('startDate'); if (startDate) f.startDate = startDate;
+    const endDate = searchParams.get('endDate'); if (endDate) f.endDate = endDate;
+    return f;
+  });
   const [activeTab, setActiveTab] = useState<string>(() => localStorage.getItem(TAB_PREF_KEY) || 'all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BinanceAd | null>(null);

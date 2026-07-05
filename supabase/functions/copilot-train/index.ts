@@ -47,6 +47,116 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Feedback reconciliation (item 1): for each recent 'inserted' suggestion, look at
+// operator messages sent in that order within 10 min → classify sent_asis /
+// sent_edited / not_sent, then nudge the used exemplars' acceptance_score.
+async function reconcileFeedback(admin: any) {
+  const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
+  const { data: logs } = await admin
+    .from("copilot_suggestion_log")
+    .select("id, order_number, suggestion_text, exemplar_ids, created_at")
+    .eq("status", "inserted")
+    .gte("created_at", since)
+    .limit(500);
+  if (!logs || logs.length === 0) return { reconciled: 0 };
+
+  // Aggregate exemplar deltas so we update each exemplar once.
+  const deltaByExemplar = new Map<string, number>();
+  let sentAsis = 0, sentEdited = 0, notSent = 0;
+
+  for (const log of logs) {
+    if (!log.order_number || !log.suggestion_text) continue;
+    const winEnd = new Date(new Date(log.created_at).getTime() + 10 * 60 * 1000).toISOString();
+    const { data: sent } = await admin
+      .from("binance_order_chat_messages")
+      .select("message_text, binance_created_at")
+      .eq("order_number", log.order_number)
+      .eq("sender_is_self", true)
+      .eq("is_system_message", false)
+      .not("message_text", "is", null)
+      .gte("binance_created_at", log.created_at)
+      .lte("binance_created_at", winEnd);
+    const sTri = trigrams(log.suggestion_text);
+    let best = 0;
+    for (const m of sent || []) best = Math.max(best, trgmSimilarity(sTri, trigrams(m.message_text || "")));
+
+    let status: string, delta: number;
+    if (best >= 0.95) { status = "sent_asis"; delta = 0.05; sentAsis++; }
+    else if (best >= 0.5) { status = "sent_edited"; delta = 0.02; sentEdited++; }
+    else { status = "not_sent"; delta = -0.03; notSent++; }
+
+    await admin.from("copilot_suggestion_log").update({ status }).eq("id", log.id);
+    for (const exId of (log.exemplar_ids || [])) {
+      deltaByExemplar.set(exId, (deltaByExemplar.get(exId) || 0) + delta);
+    }
+  }
+
+  // Apply score nudges (clamp 0.3–2.0; pinned never drop below 1.0).
+  if (deltaByExemplar.size > 0) {
+    const ids = [...deltaByExemplar.keys()];
+    const { data: exs } = await admin
+      .from("copilot_exemplars").select("id, acceptance_score, pinned").in("id", ids);
+    for (const ex of exs || []) {
+      let next = (ex.acceptance_score ?? 1.0) + (deltaByExemplar.get(ex.id) || 0);
+      next = Math.max(0.3, Math.min(2.0, next));
+      if (ex.pinned && next < 1.0) next = 1.0;
+      await admin.from("copilot_exemplars").update({ acceptance_score: next }).eq("id", ex.id);
+    }
+  }
+
+  return { reconciled: logs.length, sent_asis: sentAsis, sent_edited: sentEdited, not_sent: notSent };
+}
+
+// Coverage stats (item 8): situation_class distribution + 'other' share, and
+// 7d suggestion served/inserted counts with per-account split.
+async function buildStats(admin: any) {
+  const dist: Record<string, number> = {};
+  let total = 0;
+  {
+    let from = 0;
+    while (true) {
+      const { data: ex } = await admin.from("copilot_exemplars").select("situation_class").range(from, from + 999);
+      if (!ex || ex.length === 0) break;
+      for (const e of ex) { dist[e.situation_class] = (dist[e.situation_class] || 0) + 1; total++; }
+      if (ex.length < 1000) break;
+      from += 1000;
+    }
+  }
+  const otherShare = total > 0 ? Math.round(((dist["other"] || 0) / total) * 1000) / 10 : 0;
+
+  const since7 = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const { data: recent } = await admin
+    .from("copilot_suggestion_log")
+    .select("status, exchange_account_id")
+    .gte("created_at", since7)
+    .limit(20000);
+  let shown = 0, accepted = 0;
+  const perAccount: Record<string, { shown: number; accepted: number }> = {};
+  for (const r of recent || []) {
+    shown++;
+    const acc = String(r.exchange_account_id || "unknown");
+    perAccount[acc] = perAccount[acc] || { shown: 0, accepted: 0 };
+    perAccount[acc].shown++;
+    if (r.status === "inserted" || r.status === "sent_asis" || r.status === "sent_edited") {
+      accepted++; perAccount[acc].accepted++;
+    }
+  }
+  const acceptancePct = shown > 0 ? Math.round((accepted / shown) * 1000) / 10 : 0;
+
+  return {
+    updated_at: new Date().toISOString(),
+    situation_distribution: dist,
+    exemplar_total: total,
+    other_coverage_pct: otherShare,
+    served_7d: shown,
+    accepted_7d: accepted,
+    acceptance_pct_7d: acceptancePct,
+    per_account_7d: perAccount,
+  };
+}
+
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 

@@ -121,6 +121,27 @@ export function CopilotSettings() {
     }
   };
 
+  const rebuildBank = async () => {
+    setRebuilding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('copilot-train', { body: { rebuild: true } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Rebuilt: ${data?.inserted ?? 0} exemplars (${data?.exemplar_count ?? 0} total)`);
+      qc.invalidateQueries({ queryKey: ['copilot-settings'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Rebuild failed');
+    } finally {
+      setRebuilding(false);
+    }
+  };
+
+  const notes: Record<string, string> = (settings?.account_notes as any) || {};
+  const saveNote = (accountId: string) => {
+    const next = { ...notes, [accountId]: noteDrafts[accountId] ?? '' };
+    save.mutate({ account_notes: next } as any);
+  };
+
   if (isLoading || !settings) {
     return <Card><CardContent className="p-6 text-xs text-muted-foreground">Loading copilot settings…</CardContent></Card>;
   }

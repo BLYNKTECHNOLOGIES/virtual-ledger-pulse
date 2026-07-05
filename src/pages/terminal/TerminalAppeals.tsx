@@ -340,9 +340,18 @@ export default function TerminalAppeals() {
       for (const row of historyAppealRows) {
         const orderNumber = String(row.order_number);
         if (!orderNumber || appealOrders.some((o: any) => String(o.orderNumber || o.orderNo) === orderNumber)) continue;
+        // Attempt a live confirmation. This call is scoped to the operator's
+        // ACTIVE exchange account, so appeals owned by another account return
+        // null/unreachable — in that case trust the stored DB evidence (already
+        // validated by hasActiveHistoryAppealEvidence) instead of skipping.
         const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber }).catch(() => null);
         const detail = detailResp?.data || detailResp;
-        if (!hasActiveBinanceComplaint(detail)) continue;
+        if (detail) {
+          // Live detail reachable: only skip when it clearly shows the complaint
+          // is no longer active and the order is now final.
+          const liveStatus = detail?.orderStatus ?? detail?.status;
+          if (!hasActiveBinanceComplaint(detail) && isFinalStatus(liveStatus)) continue;
+        }
         await upsertAppeal.mutateAsync({
           orderNumber,
           source: 'binance_status',

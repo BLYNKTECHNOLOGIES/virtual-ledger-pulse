@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function Reconciliation() {
   const { hasAccess, isLoading: accessLoading } = useErpReconciliationAccess();

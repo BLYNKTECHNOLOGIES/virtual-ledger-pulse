@@ -278,7 +278,7 @@ export function SpotTradingPanel() {
           <div className="divide-y divide-border">
             {TRADING_PAIRS.map((p) => {
               const bal = balanceList.find((b) => b.asset === p.base);
-              const color = COIN_COLORS[p.base] || "#888";
+              const color = COIN_COLORS[p.base] || "hsl(var(--muted-foreground))";
               return (
                 <div key={p.base} className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
@@ -299,7 +299,7 @@ export function SpotTradingPanel() {
             {/* USDT balance */}
             <div className="flex items-center justify-between px-4 py-2.5 bg-accent/5">
               <div className="flex items-center gap-2">
-                <div className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-primary-foreground bg-[#26A17B]">
+                <div className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-primary-foreground bg-success">
                   US
                 </div>
                 <span className="text-xs text-foreground font-medium">USDT</span>

@@ -52,7 +52,15 @@ function parseSystemMessage(text: string | null): string {
   }
 }
 
-export function ChatBubble({ message }: { message: UnifiedMessage }) {
+interface ChatBubbleProps {
+  message: UnifiedMessage;
+  /** Trainer-only teach controls on operator (self) messages. */
+  teachEnabled?: boolean;
+  onPin?: (msg: UnifiedMessage) => void;
+  onBlacklist?: (msg: UnifiedMessage) => void;
+}
+
+export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBubbleProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const isOperator = message.senderType === 'operator';

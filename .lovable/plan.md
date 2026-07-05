@@ -1,115 +1,86 @@
-# Terminal Module — Redesign Reconnaissance (Discovery Only)
+# ERP-Wide UI/UX Audit & Improvement Plan
 
-This is an inventory, not an implementation plan. Zero code was changed. The Terminal is already ~99% token-clean (only 4 hex literals total), so a redesign should work primarily through the `.terminal` CSS token block + shadcn primitives, not per-component color edits.
+> Scope: main ERP app shell + modules. EXCLUDED: `src/pages/terminal/**`, `src/components/terminal/**`, login/register, all Supabase/edge/hook business logic. Frontend/presentation only. **Note:** dev auth is `external_unmanaged`, so authenticated pages could not be screenshotted — findings are from static source analysis of App.tsx, the shell (Layout/AppSidebar/TopHeader/MobileBottomNav), `index.css` tokens, and representative page/component sources.
 
-## 1. FILES
+## 1. Module-by-module
 
-### Routing / Shell
-- `src/App.tsx` — mounts 17 terminal routes, each wrapped in `<TerminalLayout>` (standalone shell, NOT the main ERP `<Layout>`). ~660 lines total.
-- `src/components/terminal/TerminalLayout.tsx` (~85) — root shell. Applies `.terminal` class, nests auth/biometric gates, ExchangeAccount + Shortcuts providers, sidebar + header + `<main>`.
-- `src/components/terminal/TerminalSidebar.tsx` (~200) — left nav (Operations group, badges for active/pending counts, "Soon" tags, ERP Dashboard footer button).
-- `src/components/terminal/TerminalHeader.tsx` (~130) — 40px top bar: sidebar trigger, Connected pulse, break badge, exchange switcher, notification bell, user dropdown.
-- `src/components/terminal/TerminalPermissionGate.tsx`, `BiometricAuthGate.tsx`, `BiometricRegistrationDialog.tsx`, `DataConflictBanner.tsx`, `TerminalPresenceAndAlerts.tsx`, `TerminalNotificationBell.tsx`, `TerminalCommandPalette.tsx`.
+| Route | Module | Grade | Top issues |
+|---|---|---|---|
+| /dashboard | Dashboard | B | `h1` = `text-xl md:text-2xl` (differs from peers); DB-persisted layout must be preserved; verify KPI cards use tinted-icon + hover-lift pattern uniformly |
+| /sales | Sales | B | `h1` = `text-xl md:text-3xl` (unique scale); dense toolbars; check TableSkeleton on all tabs |
+| /purchase | Purchase | B | mirrors Sales; header/toolbar drift vs Sales |
+| /bams | BAMS | B | verify tinted-badge + skeleton consistency; mobile 390px table overflow |
+| /clients | Clients | B | `h1` = `text-2xl` vs 3xl elsewhere; empty/skeleton coverage |
+| /clients/:id | Client Detail | B | tab-heavy; mobile tab scroll + header actions crowding |
+| /ra-dashboard | RA Dashboard | C? | confirm skeletons/empty states exist |
+| /leads | Leads | C? | confirm design-system alignment (badges, table header style) |
+| /user-management | User Management | B | dialog-heavy; focus-ring/label a11y pass |
+| /compliance | Compliance | C? | verify skeletons + empty states |
+| /stock | Stock Mgmt | B | `text-2xl` header; numeric right-align/tabular-nums audit |
+| /accounting | Accounting | B | `text-2xl` header; multi-tab loading states |
+| /statistics | Statistics | B | `text-3xl` header (outlier high); chart color tokens |
+| /profit-loss | Profit & Loss | B- | many `text-2xl font-bold` KPI values (font-weight drift); **no print stylesheet** for a report page |
+| /financials | Financials | B- | `text-3xl`; **hardcoded hex chart colors** `#059669`/`#dc2626` (lines 344-351); no print styles |
+| /risk-management | Risk Mgmt | C? | verify empty states/skeletons |
+| /ad-manager | Ad Manager | B | uses TableSkeleton; check header pattern |
+| /tasks, /erp-entry, /reconciliation | Ops | B | verify skeleton/empty parity |
+| /utility (+invoice-creator, payment-screenshot) | Utility | C? | landing hub polish; generator pages layout |
+| /profile, /shortcuts, /raci | Misc | C? | low-traffic; header consistency |
+| /hrms/** (~90 routes) | HRMS (Horilla) | B-/C | presentation-only in scope; heavy volume, inconsistent headers/skeletons across sub-pages; treat as one workstream |
+| * (404) | NotFound | C | unbranded bare page, raw `<a href="/">`, `bg-muted`, no shell/logo |
 
-### Pages (`src/pages/terminal/`, by size)
-- `TerminalOperatorDetail.tsx` (1577) — per-operator deep-dive.
-- `TerminalOrders.tsx` (1492) — main operator screen: order list + chat inbox/thread + detail workspace.
-- `TerminalAnalytics.tsx` (1058) — charts/volume analytics.
-- `TerminalMPI.tsx` (875) — operator performance index.
-- `TerminalSettings.tsx` (562), `TerminalAppeals.tsx` (544), `TerminalAutomation.tsx` (409), `TerminalLogs.tsx` (310), `TerminalDashboard.tsx` (272), `TerminalAuditLogs.tsx` (215), `TerminalPayer.tsx` (205), `TerminalSmallPayments.tsx` (200), `TerminalShortcuts.tsx` (129), `TerminalUsers.tsx` (80), `TerminalAssets.tsx` (76), `TerminalComingSoon.tsx` (31), `TerminalAdManager.tsx` (10 — thin wrapper around ERP `AdManager`).
+## 2. Cross-cutting findings (specific)
 
-### Components (`src/components/terminal/**`, ~16.7k lines total) — grouped
-- `assets/` — AssetOverview, AssetDetailPanel, AssetMovementHistory, SpotTradingPanel, TradeHistory.
-- `automation/` — Auto{Assignment,Pay,PayWithLog,PricingLogs,PricingRuleDialog,PricingRules,ReplyExecutionLog,ScreenshotConfig}, HybridPriceAdjuster, Small{Buys,Orders,Sales}Config, CompletedOrdersExport.
-- `dashboard/` — MetricCards, AdPerformanceWidget, OperationalAlerts, OrderStatusBreakdown, TradeVolumeChart, TimePeriodFilter.
-- `orders/` — OrderDetailWorkspace, OrderSummaryPanel, ChatPanel, ChatInbox, ChatThreadView, InternalChatPanel, OrderActions, OrderAssignmentDialog, PaymentDetailsCard, PastInteractionsPanel, QuickReceiveDialog, UpdatePaymentMethodDialog, Counterparty{Badge,ContactInput,PanInput}; `orders/chat/` — ChatBubble, ChatImageLightbox, ChatImageUpload, OrderChatSeparator, QuickReplyBar.
-- `payer/` — PayerAssignmentManager, PayerMyAssignments, PayerOrderRow.
-- `users/` — TerminalUsersList (553), UserConfigDialog (572), TerminalRolesList (731), TerminalSizeRanges, TerminalHierarchyView, TerminalOrgChart, TerminalRoleComparison, OperatorAssignmentManager, TerminalExchangeAccounts, BiometricManagementDialog.
-- `mpi/OperatorDetailDialog.tsx`, `settings/PlatformDisplayCard.tsx`, `small-payments/SmallPaymentManagerAssignmentManager.tsx`.
+**A. No route-level code-splitting (highest bundle impact).** `src/App.tsx` statically imports ~130 page modules (0 `React.lazy`/`Suspense`). Entire HRMS + all ERP pages ship in the initial bundle. File: `src/App.tsx` (lines ~1-135 imports).
 
-### Terminal-specific hooks/contexts
-- Contexts: `ExchangeAccountContext.tsx` (active Binance account switcher), `TerminalShortcutsProvider.tsx` (Ctrl+K + nav shortcuts).
-- Hooks: `useTerminalAuth`, `useTerminalPresence`, `useTerminalNotifications`, `useTerminalAppeals`, `useTerminalBiometricSession`, `useTerminalJurisdiction`, `useTerminalUserPrefs` (per-user tab persistence), `useTerminalPurchaseSync`, `useTerminalSalesSync`; Binance: `useBinanceActions`, `useBinanceAds`, `useBinanceAssets`, `useBinanceOrders`, `useBinanceOrderSync`, `useBinanceChatWebSocket`; plus `useP2PTerminal`, `usePayerModule`, `useErpActionQueue`, `useOrderActors`, `useInternalChat`, `useCounterpartyChatHistory`, `useCounterpartyLinkedClient`, `useAdRestTimer`, `useAutoAssignment`, `useAutoPricingRules`, `useHybridPriceAdjuster`, `useAuto{Screenshot,MarkSmallSalesRead}`, `useSmall{Buys,Sales}Sync`, `useSpotTrade*`, `useWalletAssetPositions`.
-- Config: `src/config/terminal-shortcuts.ts`, `src/config/shortcuts.ts`.
+**B. No shared PageHeader component.** Heading scale varies per page: `text-3xl` (Statistics, Financials), `text-2xl` (Stock, Accounting, Clients, Dashboard@md), `text-xl md:text-3xl` (Sales). Weight varies `font-semibold` vs `font-bold` (ProfitLoss KPIs). No single title/description/actions primitive.
 
-## 2. THEME
+**C. Hardcoded colors bypassing tokens.** `src/pages/Financials.tsx` lines 344-351 use raw hex `#059669`, `#dc2626` in Recharts fills/strokes instead of `hsl(var(--success))`/`hsl(var(--destructive))`.
 
-The `.terminal` token block lives in `src/index.css` **lines 126–186**, plus scoped component overrides at **lines 232–285**. Full block:
+**D. No print stylesheet.** `rg "@media print"` → none. Report pages (ProfitLoss, Financials, statements, invoices) have no print layout.
 
-```text
-.terminal {
-  --background: 225 22% 7%;   /* #0F1115 */   --foreground: 225 25% 91%; /* #E6EAF2 */
-  --card: 225 20% 9%;         --card-foreground: 225 25% 91%;
-  --popover: 225 18% 13%;     --popover-foreground: 225 25% 91%;
-  --primary: 217 91% 60%;     --primary-foreground: 0 0% 100%;   /* finance blue #3B82F6 */
-  --secondary: 225 18% 14%;   --secondary-foreground: 225 18% 90%;
-  --muted: 225 16% 15%;       --muted-foreground: 225 10% 72%;   /* #A8AEBB */
-  --accent: 225 18% 16%;      --accent-foreground: 225 25% 93%;
-  --destructive: 0 84% 60%;   --destructive-foreground: 0 0% 100%;
-  --success: 142 71% 45%;     --warning: 38 92% 50%;   --info: 199 89% 48%;
-  --border: 225 14% 17%;      --input: 225 18% 11%;    --ring: 217 91% 60%;
-  --trade-buy: 142 64% 40%;   --trade-sell: 0 72% 51%; --trade-pending: 45 93% 47%;
-  --chart-1..5: blue/green/amber/violet/red;
-  --sidebar-background: 225 25% 5%;  --sidebar-foreground: 225 12% 52%;  (+ sidebar accent/border/ring)
-  --shadow-xs..lg: deep hsl(225 40% 2%) exchange-grade shadows;
-}
-```
+**E. Inconsistent loading/empty states.** `TableSkeleton`/`CardSkeleton` exist (`src/components/ui/skeleton.tsx`) but referenced in only ~9 non-terminal/non-HRMS files; many pages likely use ad-hoc spinners or none.
 
-Scoped overrides (lines 232–285): custom 6px scrollbars; dense tables — `thead th` 10px uppercase 0.05em tracking, 8px padding; `tbody td` 12px, 8px padding, hover `rgba(255,255,255,.045)`, selected `primary/.08`; `.tabular-nums` feature settings.
+**F. Sidebar shell brand + a11y.** `AppSidebar.tsx` header is a flat `bg-primary` block; loading state uses `animate-pulse`/`animate-spin`. Footer hardcodes `© 2025`. Good: correct brand logos already wired (`blynk-logo-white.svg`, `blynk-icon.svg`) — must be preserved. Opportunity for a tasteful brand moment (subtle) without gradient overload.
 
-**Where `.terminal` is applied:** `TerminalLayout.tsx` root — `<div className="terminal">` wrapping the entire provider tree. Everything inside inherits the dark token overrides; nothing leaks outside because tokens are re-declared, not global.
+**G. 404/fallback unbranded.** `src/pages/NotFound.tsx` is outside the app shell, uses raw anchor + `text-4xl font-bold`, no logo/CTA button.
 
-## 3. LAYOUT (screen structure)
+**H. Positives (preserve).** No `confirm()` usage (AlertDialog pattern holds); `.page-mount`/`.stagger-children` motion utilities present; main-ERP command palette exists (`src/components/shortcuts/CommandPalette.tsx` + `ShortcutsProvider`); token system in `index.css` is well-structured for light/dark.
 
-**Shell (all pages):**
-```text
-<div.terminal>
-  TerminalAuthProvider → AccessGate → BiometricAuthGate
-    ExchangeAccountProvider → TerminalShortcutsProvider
-      SidebarProvider
-        [hidden md:block] TerminalSidebar (Operations nav + badges)
-        SidebarInset
-          TerminalHeader (h-10: trigger | Connected pulse ‖ break badge, exchange switcher, bell, user menu)
-          <main overflow-auto> {page} </main>
-```
+## 3. Prioritized phased plan (frontend-only)
 
-**TerminalOrders (primary operator screen):** header row (title chip + chat/inbox buttons) → Tabs (order categories) → order list (dense table rows). Full-screen takeovers when a chat is open: `ChatInbox` list view, or `ChatThreadView` (`h-[calc(100vh-48px)]`).
+**Phase 1 — Route code-splitting (impact: high / effort: med).** Convert `src/App.tsx` page imports to `React.lazy` + a single `<Suspense>` fallback (branded skeleton). Keep the shell (Layout, providers, AuthCheck) eager. Preserve all route paths, guards, and the terminal/HRMS/login trees exactly. *Pure frontend; touches only App.tsx + a fallback component.*
 
-**OrderDetailWorkspace (3-pane operator cockpit):**
-```text
-[ 280px left: OrderSummaryPanel ] [ center: ChatPanel + OrderActions ] [ 280px right: InternalChatPanel / PaymentDetails ]
-```
-Fixed 280px side rails (`border-r`/`border-l`, `bg-card`), scrollable center. Sub-panels: OrderSummaryPanel, ChatPanel (chat/ChatBubble/QuickReplyBar/ChatImageUpload), OrderActions (2-col action grid), PaymentDetailsCard, PastInteractionsPanel. Dialogs: OrderAssignment, QuickReceive, UpdatePaymentMethod.
+**Phase 2 — Shared PageHeader + heading scale normalization (high / low).** Add `src/components/shared/PageHeader.tsx` (title/description/actions slots, one type scale e.g. `text-2xl font-semibold tracking-tight`). Adopt across Dashboard, Sales, Purchase, Clients, Stock, Accounting, Statistics, ProfitLoss, Financials. Presentation-only swaps.
 
-**Dashboard:** MetricCards row → TradeVolumeChart / OrderStatusBreakdown / AdPerformanceWidget / OperationalAlerts, with TimePeriodFilter.
+**Phase 3 — Loading/empty-state consistency (med / med).** Standardize `TableSkeleton`/`CardSkeleton` + a shared `EmptyState` (icon tile + copy + optional CTA) across ERP pages lacking them. No data logic changes — only render-branch UI.
 
-## 4. STYLING PATTERNS
-- **Hardcoded colors:** essentially none — only 4 hex literals across the whole module: `#888` ×3 and `#26A17B` ×1 (USDT green). **Zero** tailwind palette classes (no `bg-gray-*`, `text-red-*`, etc.). Redesign is token-driven.
-- **Tables vs cards:** dense exchange tables dominate (order lists, logs, users, appeals) styled via the `.terminal thead/tbody` overrides; cards (`Card`/`CardContent`) used for dashboards, panels, dialogs. Uses shadcn `Tabs` heavily; `useTerminalUserPrefs` persists active tab.
-- **Fonts:** global Inter (forced `!important` in base layer). Weight usage: `font-medium` ×264, `font-semibold` ×131, `font-bold` ×59, `font-mono` ×43 (mono reserved for numeric/IDs). No terminal-specific font family.
-- **Spacing:** page padding `p-4 md:p-6 space-y-4/5`; header `h-10`; side rails `w-[280px]`; badges 18px pills; micro type (`text-[9px]/[10px]/[11px]` uppercase tracking labels).
-- **Icons:** lucide throughout (3.5–4 size in nav/header).
-- **Animations/transitions:** `animate-spin` ×79 (loaders), `transition-colors` ×51, `animate-pulse` ×22 (Connected dot, live badges), `transition-all` ×6, `transition-opacity` ×5, `transition-transform` ×4, `duration-200/300` ×2. Table rows use CSS `transition: background-color .1s`.
+**Phase 4 — Token hygiene + report print styles (med / low-med).** Replace hardcoded hex in `Financials.tsx` charts with semantic tokens; add a scoped `@media print` block in `index.css` for report/statement/invoice pages (hide nav/toolbars, black-on-white tables). Verify dark-mode completeness on flagged pages.
 
-## 5. REAL-TIME & PERF
-**Polling (react-query `refetchInterval`):**
-- `useBinanceActions`: active orders 5s (background), order status 20s, 30s, 120s; chat 10s; 15s.
-- `useBinanceAds`: 60s. `useBinanceAssets`: 30s/20s/15min. `useTerminalAppeals`: 10s/15s. `useTerminalNotifications`: 30s. `usePayerModule`: 5s. `useErpActionQueue`: 30s.
-- **WebSocket:** `useBinanceChatWebSocket` — live order chat via relay, ping keepalive interval, reconnect logic (account-scoped).
-- **Intervals/timers:** `useTerminalPresence` heartbeat; `useTerminalBiometricSession` revalidation; `useBinanceOrderSync` periodic sync; countdown/expiry timers in `OrderSummaryPanel`, `AutoPaySettings`, `BiometricAuthGate`, `TerminalOrders`.
+**Phase 5 — Shell brand moments + 404 polish (low-med / low).** Subtle brand treatment in sidebar header + a branded, shell-consistent `NotFound` (logo, `Button` CTA, tokens). Restrained — no gradient overload. Preserve existing logos and DB-persisted sidebar order.
 
-**Large lists (must stay per-row animation-free):** order list in TerminalOrders (5s refresh), logs/audit logs, appeals, users, MPI, analytics tables, chat message lists. Redesign must avoid per-row flash/transition on these — the existing `.terminal tbody tr` only animates background on hover, which is safe. Any live-value micro-interaction should be confined to single KPI cells, not table rows.
+**Phase 6 — HRMS presentation sweep (med / high).** Apply PageHeader + skeleton/empty primitives across `src/pages/horilla/**` in grouped passes (employee, attendance, leave, payroll, recruitment, PMS). Presentation-only; **flag review** because volume increases regression risk.
 
-## 6. BOUNDARIES (what a `.terminal`-scoped redesign must respect)
-- **Standalone shell:** terminal pages render inside `TerminalLayout`, NOT the ERP `Layout`. The two shells are fully independent.
-- **Shared with ERP:** all shadcn primitives (`@/components/ui/*` — Card, Tabs, Button, Dialog, Badge, Command, Sidebar, etc.) and the semantic token names. These primitives are theme-agnostic; they render dark only because `.terminal` redeclares tokens. **Editing a shadcn primitive would affect the whole ERP** — keep redesign in `.terminal` token values + terminal-owned components only.
-- **`TerminalAdManager` reuses the ERP `AdManager` page** — restyling shared AdManager internals leaks into the main app; treat with care.
-- **Do not touch:** the main `:root`/`.dark` token blocks, ERP `Layout`, login/OAuth screens, and global base layer (fonts/overflow). Confine changes to lines 126–285 of `index.css` and files under `src/pages/terminal/**` + `src/components/terminal/**`.
-- **Logic untouchable:** all polling hooks, WebSocket, Binance actions, auth/biometric gates, permission gates — presentation-only changes.
+*Any item that would require reading/altering a query, mutation, or hook is out of scope and must be flagged before implementation.*
 
-### Redesign leverage points (for the future build pass)
-1. `.terminal` token block (126–186) — palette/contrast/accent overhaul with one edit, app-wide within terminal.
-2. `.terminal` table/scrollbar overrides (232–285) — density, row rhythm, header treatment.
-3. `TerminalLayout` / `TerminalHeader` / `TerminalSidebar` — shell chrome.
-4. `OrderDetailWorkspace` + panels — the cockpit that operators live in.
-5. `dashboard/*` widgets — KPI/card visual system.
+## 4. Quick wins (≤10)
+1. Replace `#059669`/`#dc2626` in `Financials.tsx` with success/destructive tokens.
+2. Normalize all page `h1` to one scale via PageHeader.
+3. Branded, shell-aware `NotFound` with `Button` CTA (drop raw `<a>`).
+4. Make sidebar `© 2025` a dynamic year.
+5. Swap sidebar loading `animate-pulse` for token skeleton.
+6. Ensure every table header uses `bg-muted/50` 11px uppercase pattern.
+7. Right-align + `tabular-nums` on all numeric cells (ProfitLoss/Financials/Stock).
+8. Add `@media print` to hide chrome on report pages.
+9. Add `<Suspense>` branded fallback for lazy routes.
+10. Audit focus rings/labels on User-Management dialogs.
+
+## 5. Protected zones (do not modify)
+- Terminal: `src/pages/terminal/**`, `src/components/terminal/**` (just redesigned).
+- Login/register (just rebuilt).
+- New brand logos (`src/assets/brand/*`).
+- Dashboard layout DB persistence, per-user quick replies, cross-account appeal sync — preserve exactly.
+- All Supabase/edge/hook business logic — no changes.
+
+## Deliverable note
+On approval (build mode), this audit will be written verbatim to `.lovable/erp-audit.md`, and the chat reply will be kept to ≤10 lines listing the phase titles only.

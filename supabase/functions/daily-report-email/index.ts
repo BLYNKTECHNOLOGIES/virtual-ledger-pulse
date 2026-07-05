@@ -1105,7 +1105,32 @@ async function buildDailyNarrative(supabase: any, todayReport: any, startDate: s
     report.isMonthly = isMonthly;
     report.periodLabel = periodLabel;
 
+    // AI Daily Narrative — fully guarded; on ANY failure the email sends exactly
+    // as it does today with the narrative section simply omitted.
+    let narrativePayload: any = null;
+    if (!isMonthly) {
+      try {
+        const nr = await buildDailyNarrative(supabase, report, startDate);
+        narrativePayload = nr;
+        if (nr?.narrative) report.narrative = nr.narrative;
+      } catch (nErr) {
+        console.error("daily narrative skipped:", (nErr as Error).message);
+      }
+    }
+
+    // Dry-run: return the built payload + narrative WITHOUT sending any email.
+    if (body?.dryRun === true) {
+      return new Response(JSON.stringify({
+        success: true,
+        dryRun: true,
+        date: startDate,
+        narrative: report.narrative || null,
+        narrativeMetrics: narrativePayload?.payload || null,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${startDate}`;
+
 
     const results: { recipient: string; success: boolean; error?: string }[] = [];
     for (const recipient of recipients) {

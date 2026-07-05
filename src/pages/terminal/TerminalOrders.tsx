@@ -1097,6 +1097,18 @@ function TerminalOrdersContent() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedOrder, stepSelectedOrder]);
 
+  // Honor the ?view=queue param (used by the "g q" go-to sequence) to open Queue Mode.
+  useEffect(() => {
+    if (searchParams.get('view') === 'queue') {
+      setQueueMode(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('view');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+
+
   // Central terminal context-key bus (from TerminalShortcutsProvider). No parallel
   // keydown listener — we react to already-filtered, page-scoped context keys.
   // Every handler only navigates, focuses, copies, or fires an existing

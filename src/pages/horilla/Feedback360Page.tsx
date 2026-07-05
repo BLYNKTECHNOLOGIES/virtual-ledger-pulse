@@ -2,17 +2,19 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Star, Trash2 } from "lucide-react";
+import { Plus, Search, Star, Trash2, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { CardSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface Feedback {
   id: string;
@@ -37,10 +39,10 @@ interface Employee {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  self: "bg-primary/10 text-primary",
-  peer: "bg-info/10 text-info",
-  manager: "bg-warning/10 text-warning",
-  subordinate: "bg-success/10 text-success",
+  self: "bg-primary/10 text-primary border border-primary/20",
+  peer: "bg-info/10 text-info border border-info/20",
+  manager: "bg-warning/10 text-warning border border-warning/20",
+  subordinate: "bg-success/10 text-success border border-success/20",
 };
 
 const emptyForm = {
@@ -123,27 +125,35 @@ export default function Feedback360Page() {
     );
   }
 
-  if (loading) return <div className="flex items-center justify-center py-24 text-muted-foreground">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">360° Feedback</h1>
-          <p className="text-muted-foreground text-sm">Multi-directional performance feedback</p>
-        </div>
-        <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> New Feedback
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="360° Feedback"
+        description="Multi-directional performance feedback"
+        actions={
+          <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> New Feedback
+          </Button>
+        }
+      />
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative w-64">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name or cycle..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search by name or cycle..." className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="self">Self</SelectItem>
@@ -155,7 +165,7 @@ export default function Feedback360Page() {
       </div>
 
       {filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No feedback records found</CardContent></Card>
+        <EmptyState icon={MessageSquare} title="No feedback records found" description="Adjust filters or submit the first feedback." action={<Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => { setForm(emptyForm); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-1" />New Feedback</Button>} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((fb) => (
@@ -164,17 +174,17 @@ export default function Feedback360Page() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-semibold text-foreground">{empMap[fb.employee_id] || "Unknown"}</p>
-                    <p className="text-xs text-muted-foreground">{fb.review_cycle}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{fb.review_cycle}</p>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(fb.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={TYPE_COLORS[fb.feedback_type]}>{fb.feedback_type}</Badge>
-                  <Badge variant="outline" className={fb.status === "submitted" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${TYPE_COLORS[fb.feedback_type]}`}>{fb.feedback_type}</span>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${fb.status === "submitted" ? "bg-success/10 text-success border border-success/20" : "bg-muted text-muted-foreground border border-muted-foreground/20"}`}>
                     {fb.status}
-                  </Badge>
+                  </span>
                 </div>
                 {renderStars(fb.rating)}
                 {fb.reviewer_id && empMap[fb.reviewer_id] && (
@@ -190,31 +200,36 @@ export default function Feedback360Page() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>New 360° Feedback</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <MessageSquare className="h-4 w-4 text-[#E8604C]" />
+              New 360° Feedback
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Employee *</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Reviewer</Label>
               <Select value={form.reviewer_id} onValueChange={(v) => setForm({ ...form, reviewer_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
+                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select reviewer" /></SelectTrigger>
                 <SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Review Cycle *</Label><Input placeholder="e.g. Q1-2026" value={form.review_cycle} onChange={(e) => setForm({ ...form, review_cycle: e.target.value })} /></div>
-              <div><Label>Feedback Type</Label><Select value={form.feedback_type} onValueChange={(v) => setForm({ ...form, feedback_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="self">Self</SelectItem><SelectItem value="peer">Peer</SelectItem><SelectItem value="manager">Manager</SelectItem><SelectItem value="subordinate">Subordinate</SelectItem></SelectContent></Select></div>
+              <div><Label>Review Cycle *</Label><Input className="h-9 mt-1" placeholder="e.g. Q1-2026" value={form.review_cycle} onChange={(e) => setForm({ ...form, review_cycle: e.target.value })} /></div>
+              <div><Label>Feedback Type</Label><Select value={form.feedback_type} onValueChange={(v) => setForm({ ...form, feedback_type: v })}><SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="self">Self</SelectItem><SelectItem value="peer">Peer</SelectItem><SelectItem value="manager">Manager</SelectItem><SelectItem value="subordinate">Subordinate</SelectItem></SelectContent></Select></div>
             </div>
-            <div><Label>Rating (1–5)</Label><Input type="number" min={1} max={5} value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} /></div>
-            <div><Label>Strengths</Label><Textarea value={form.strengths} onChange={(e) => setForm({ ...form, strengths: e.target.value })} rows={2} /></div>
-            <div><Label>Areas for Improvement</Label><Textarea value={form.improvements} onChange={(e) => setForm({ ...form, improvements: e.target.value })} rows={2} /></div>
-            <div><Label>Comments</Label><Textarea value={form.comments} onChange={(e) => setForm({ ...form, comments: e.target.value })} rows={2} /></div>
-            <Button className="w-full bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={handleCreate}>Submit Feedback</Button>
+            <div><Label>Rating (1–5)</Label><Input className="h-9 mt-1" type="number" min={1} max={5} value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} /></div>
+            <div><Label>Strengths</Label><Textarea className="mt-1" value={form.strengths} onChange={(e) => setForm({ ...form, strengths: e.target.value })} rows={2} /></div>
+            <div><Label>Areas for Improvement</Label><Textarea className="mt-1" value={form.improvements} onChange={(e) => setForm({ ...form, improvements: e.target.value })} rows={2} /></div>
+            <div><Label>Comments</Label><Textarea className="mt-1" value={form.comments} onChange={(e) => setForm({ ...form, comments: e.target.value })} rows={2} /></div>
+            <Button className="w-full h-9 bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={handleCreate}>Submit Feedback</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -225,8 +240,8 @@ export default function Feedback360Page() {
             <AlertDialogDescription>Delete this feedback? This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteTarget) handleDelete(deleteTarget); }}>Delete</AlertDialogAction>
+            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="h-9" onClick={() => { if (deleteTarget) handleDelete(deleteTarget); }}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

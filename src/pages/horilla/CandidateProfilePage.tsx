@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "tasks" | "history";
 
@@ -284,7 +285,12 @@ export default function CandidateProfilePage() {
   });
 
   if (isLoading || !candidate) {
-    return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Loading...</div>;
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    );
   }
 
   const initials = candidate.name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
@@ -317,7 +323,7 @@ export default function CandidateProfilePage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex items-start gap-4">
         <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground mt-1">
@@ -334,11 +340,11 @@ export default function CandidateProfilePage() {
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-semibold text-foreground">{candidate.name}</h1>
                 {candidate.hired ? (
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success">Hired</span>
+                  <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-success/10 text-success border border-success/20">Hired</span>
                 ) : candidate.canceled ? (
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-destructive/10 text-destructive">Rejected</span>
+                  <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20">Rejected</span>
                 ) : (
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning">In Progress</span>
+                  <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning border border-warning/20">In Progress</span>
                 )}
               </div>
               <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">

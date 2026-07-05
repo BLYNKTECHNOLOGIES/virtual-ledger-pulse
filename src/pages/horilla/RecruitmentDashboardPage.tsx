@@ -9,6 +9,9 @@ import {
   MapPin, DollarSign, UserPlus
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function RecruitmentDashboardPage() {
   const navigate = useNavigate();
@@ -267,20 +270,20 @@ export default function RecruitmentDashboardPage() {
   const getDeptName = (id: string) => departments?.find(d => d.id === id)?.name || "";
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Recruitment</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage job openings and candidate pipeline</p>
-        </div>
-        <button
-          onClick={() => { closeDialog(); setCreateOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          Create Recruitment
-        </button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        title="Recruitment"
+        description="Manage job openings and candidate pipeline"
+        actions={
+          <button
+            onClick={() => { closeDialog(); setCreateOpen(true); }}
+            className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 h-9 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Create Recruitment
+          </button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -310,27 +313,33 @@ export default function RecruitmentDashboardPage() {
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
+          <TableSkeleton rows={5} columns={9} />
         ) : !recruitments?.length ? (
-          <div className="p-8 text-center">
-            <p className="text-muted-foreground text-sm">No recruitments yet</p>
-            <button onClick={() => setCreateOpen(true)} className="mt-2 text-[#E8604C] text-sm font-medium hover:underline">
-              + Create your first recruitment
-            </button>
+          <div className="p-8">
+            <EmptyState
+              icon={Briefcase}
+              title="No recruitments yet"
+              description="Create your first recruitment to start building your pipeline"
+              action={
+                <button onClick={() => setCreateOpen(true)} className="flex items-center gap-1.5 px-3 h-9 text-sm font-medium bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]">
+                  <Plus className="h-4 w-4" /> Create Recruitment
+                </button>
+              }
+            />
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Title</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Department</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Type</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Vacancy</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidates</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Hired</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Managers</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Title</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Department</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Type</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Vacancy</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Candidates</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Hired</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Managers</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -360,7 +369,7 @@ export default function RecruitmentDashboardPage() {
                     </td>
                     <td className="py-3 px-4 text-muted-foreground text-xs">{getDeptName(rec.department_id) || "—"}</td>
                     <td className="py-3 px-4">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-info/10 text-info">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/10 text-info border border-info/20 font-medium">
                         {JOB_TYPES[rec.job_type] || rec.job_type || "—"}
                       </span>
                     </td>

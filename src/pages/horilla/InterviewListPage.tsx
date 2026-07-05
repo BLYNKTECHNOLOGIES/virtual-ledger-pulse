@@ -5,6 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, Clock, User, Star, Search, Filter, Video, MapPin, CheckCircle, XCircle, AlertCircle, MessageSquare, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-info/10 text-info",
@@ -148,19 +151,19 @@ export default function InterviewListPage() {
     : candidates;
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Interviews</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage all scheduled interviews across recruitments</p>
-        </div>
-        <button
-          onClick={() => setScheduleOpen(true)}
-          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4" /> Schedule Interview
-        </button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        title="Interviews"
+        description="Manage all scheduled interviews across recruitments"
+        actions={
+          <button
+            onClick={() => setScheduleOpen(true)}
+            className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 h-9 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" /> Schedule Interview
+          </button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -190,13 +193,13 @@ export default function InterviewListPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search interviews..."
-            className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20"
+            className="w-full pl-9 pr-3 h-9 border border-border rounded-lg text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20"
           />
         </div>
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+          className="border border-border rounded-lg px-3 h-9 text-sm outline-none focus:border-[#E8604C]"
         >
           <option value="all">All Status</option>
           <option value="scheduled">Scheduled</option>
@@ -209,27 +212,32 @@ export default function InterviewListPage() {
       {/* Interview List */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
+          <TableSkeleton rows={5} columns={8} />
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground text-sm">No interviews found</p>
-            <button onClick={() => setScheduleOpen(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
-              + Schedule your first interview
-            </button>
+          <div className="p-8">
+            <EmptyState
+              icon={Calendar}
+              title="No interviews found"
+              description="Schedule your first interview to get started"
+              action={
+                <button onClick={() => setScheduleOpen(true)} className="flex items-center gap-1.5 px-3 h-9 text-sm font-medium bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]">
+                  <Plus className="h-4 w-4" /> Schedule Interview
+                </button>
+              }
+            />
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidate</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Recruitment</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Interviewer</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Date & Time</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Type</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Rating</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Candidate</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Recruitment</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Interviewer</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Date & Time</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Type</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Rating</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>

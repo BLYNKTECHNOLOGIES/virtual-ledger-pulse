@@ -2,18 +2,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Target, TrendingUp, Users, Star, Plus } from "lucide-react";
+import { Target, TrendingUp, Users, Star, Plus, BarChart2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useMemo } from "react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { CardSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-muted text-foreground",
-  active: "bg-info/10 text-info",
-  completed: "bg-success/10 text-success",
-  cancelled: "bg-destructive/10 text-destructive",
+  draft: "bg-muted text-foreground border border-muted-foreground/20",
+  active: "bg-info/10 text-info border border-info/20",
+  completed: "bg-success/10 text-success border border-success/20",
+  cancelled: "bg-destructive/10 text-destructive border border-destructive/20",
 };
 
 const PIE_COLORS = ["#6366f1", "#3b82f6", "#22c55e", "#ef4444"];
@@ -65,29 +68,41 @@ export default function PMSDashboardPage() {
     { label: "Avg Rating", value: safeStats.avgRating || "–", icon: Star, color: "text-warning", bg: "bg-warning/10" },
   ];
 
-  if (loading) return <div className="flex items-center justify-center py-24 text-muted-foreground">Loading PMS data...</div>;
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CardSkeleton /><CardSkeleton />
+        </div>
+        <CardSkeleton />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Performance Management</h1>
-          <p className="text-muted-foreground text-sm">OKRs, objectives, and 360° feedback</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/hrms/pms/feedback")}>360° Feedback</Button>
-          <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => navigate("/hrms/pms/objectives")}>
-            <Plus className="h-4 w-4 mr-1" /> Manage Objectives
-          </Button>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Performance Management"
+        description="OKRs, objectives, and 360° feedback"
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" className="h-9" onClick={() => navigate("/hrms/pms/feedback")}>360° Feedback</Button>
+            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground" onClick={() => navigate("/hrms/pms/objectives")}>
+              <Plus className="h-4 w-4 mr-1" /> Manage Objectives
+            </Button>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2.5 rounded-xl ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold text-foreground">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+              <div><p className="text-2xl font-bold text-foreground tabular-nums">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -95,7 +110,7 @@ export default function PMSDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle className="text-sm">Objectives by Status</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm font-semibold">Objectives by Status</CardTitle></CardHeader>
           <CardContent>
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -107,12 +122,12 @@ export default function PMSDashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-muted-foreground text-center py-12">No objectives yet</p>
+              <EmptyState icon={BarChart2} title="No objectives yet" className="py-8" />
             )}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm">Objectives by Type</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm font-semibold">Objectives by Type</CardTitle></CardHeader>
           <CardContent>
             {barData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -125,7 +140,7 @@ export default function PMSDashboardPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-muted-foreground text-center py-12">No objectives yet</p>
+              <EmptyState icon={BarChart2} title="No objectives yet" className="py-8" />
             )}
           </CardContent>
         </Card>
@@ -133,12 +148,12 @@ export default function PMSDashboardPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">Recent Objectives</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/hrms/pms/objectives")}>View All</Button>
+          <CardTitle className="text-sm font-semibold">Recent Objectives</CardTitle>
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate("/hrms/pms/objectives")}>View All</Button>
         </CardHeader>
         <CardContent>
           {objectives.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No objectives created yet</p>
+            <EmptyState icon={Target} title="No objectives created yet" description="Create your first objective to get started." className="py-8" />
           ) : (
             <div className="space-y-3">
               {objectives.slice(0, 5).map((obj: any) => (
@@ -146,7 +161,7 @@ export default function PMSDashboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-foreground truncate">{obj.title}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className={STATUS_COLORS[obj.status]}>{obj.status}</Badge>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${STATUS_COLORS[obj.status]}`}>{obj.status}</span>
                       <span className="text-xs text-muted-foreground capitalize">{obj.objective_type}</span>
                       {obj.review_cycle && <span className="text-xs text-muted-foreground">{obj.review_cycle}</span>}
                     </div>
@@ -154,7 +169,7 @@ export default function PMSDashboardPage() {
                   <div className="w-32 ml-4">
                     <div className="flex items-center gap-2">
                       <Progress value={obj.progress} className="h-2" />
-                      <span className="text-xs font-medium text-muted-foreground w-8">{obj.progress}%</span>
+                      <span className="text-xs font-medium text-muted-foreground tabular-nums w-8">{obj.progress}%</span>
                     </div>
                   </div>
                 </div>

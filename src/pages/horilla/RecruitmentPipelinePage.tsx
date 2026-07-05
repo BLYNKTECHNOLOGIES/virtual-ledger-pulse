@@ -15,6 +15,7 @@ import {
   Calendar, FileText, Search, Filter, Upload
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
 import { OfferDialog } from "@/components/horilla/recruitment/OfferDialog";
 
@@ -83,7 +84,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
 
   return (
     <div ref={setNodeRef} style={style}
-      className="bg-card rounded-lg border border-border p-3 hover:shadow-sm hover:border-border transition-all group">
+      className="bg-card rounded-lg border border-border p-3 hover:shadow-md hover:border-[#E8604C]/30 transition-all group">
       <div className="flex items-start gap-2.5">
         <div {...attributes} {...listeners} className="mt-1 text-muted-foreground hover:text-muted-foreground cursor-grab active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
@@ -167,7 +168,7 @@ function StageColumn({ stage, children, candidateIds }: {
     <SortableContext items={candidateIds} strategy={verticalListSortingStrategy}>
       <div
         ref={setNodeRef}
-        className={`flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-[100px] rounded-b-xl transition-colors ${
+        className={`flex-1 overflow-y-auto px-3 pb-3 space-y-2.5 min-h-[100px] rounded-b-xl transition-colors ${
           isOver ? "bg-info/10 ring-2 ring-info ring-inset" : ""
         }`}
       >
@@ -419,33 +420,35 @@ export default function RecruitmentPipelinePage() {
   return (
     <div className="space-y-4 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/hrms/recruitment")} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">{activeRec?.title || "Pipeline"}</h1>
-            <p className="text-xs text-muted-foreground">
-              {activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates · Drag to move between stages` : "Select a recruitment"}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {recruitments && recruitments.length > 1 && (
-            <select value={activeRec?.id || ""}
-              onChange={e => navigate(`/hrms/recruitment/pipeline?id=${e.target.value}`)}
-              className="text-sm border border-border rounded-lg px-3 py-1.5 text-foreground bg-card">
-              {recruitments.map(r => (
-                <option key={r.id} value={r.id}>{r.title}</option>
-              ))}
-            </select>
-          )}
-          <button onClick={() => setAddStageOpen(true)}
-            className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground bg-card hover:bg-muted/50">
-            <Plus className="h-3.5 w-3.5" /> Add Stage
-          </button>
-        </div>
+      <div className="shrink-0">
+        <PageHeader
+          title={
+            <span className="flex items-center gap-2">
+              <button onClick={() => navigate("/hrms/recruitment")} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              {activeRec?.title || "Pipeline"}
+            </span>
+          }
+          description={activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates · Drag to move between stages` : "Select a recruitment"}
+          actions={
+            <div className="flex items-center gap-2">
+              {recruitments && recruitments.length > 1 && (
+                <select value={activeRec?.id || ""}
+                  onChange={e => navigate(`/hrms/recruitment/pipeline?id=${e.target.value}`)}
+                  className="text-sm border border-border rounded-lg px-3 h-9 text-foreground bg-card">
+                  {recruitments.map(r => (
+                    <option key={r.id} value={r.id}>{r.title}</option>
+                  ))}
+                </select>
+              )}
+              <button onClick={() => setAddStageOpen(true)}
+                className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 h-9 text-foreground bg-card hover:bg-muted/50">
+                <Plus className="h-3.5 w-3.5" /> Add Stage
+              </button>
+            </div>
+          }
+        />
       </div>
 
       {/* Search & Filter Bar */}
@@ -509,11 +512,11 @@ export default function RecruitmentPipelinePage() {
                 const stageCandidates = getCandidatesForStage(stage.id);
                 return (
                   <div key={stage.id}
-                    className={`w-72 shrink-0 bg-muted/50 rounded-xl border border-border border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}>
+                    className={`w-72 shrink-0 bg-muted/30 rounded-xl border border-border/60 border-t-4 ${stageColor(stage.stage_type)} flex flex-col shadow-sm`}>
                     {/* Stage header */}
                     <div className="px-3 py-3 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-foreground">{stage.stage_name}</h3>
+                        <h3 className="text-sm font-semibold text-foreground truncate max-w-[140px]">{stage.stage_name}</h3>
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                           {stageCandidates.length}
                         </span>

@@ -15,6 +15,9 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { AlertTriangle, Plus, Settings, FileText, Gavel, Clock, Trash2, Edit2 } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function PenaltyManagementPage() {
   const qc = useQueryClient();
@@ -241,13 +244,8 @@ export default function PenaltyManagementPage() {
   const appliedCount = penalties.filter((p: any) => p.is_applied).length;
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Penalty Management</h1>
-          <p className="text-sm text-muted-foreground">Configure penalty rules, auto-calculate from attendance, or add manual penalties</p>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader title="Penalty Management" description="Configure penalty rules, auto-calculate from attendance, or add manual penalties" />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -301,9 +299,9 @@ export default function PenaltyManagementPage() {
                 </TableHeader>
                 <TableBody>
                   {penaltiesLoading ? (
-                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="p-0"><TableSkeleton rows={4} columns={8} /></TableCell></TableRow>
                   ) : penalties.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No penalties for {monthFilter}</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8}><EmptyState icon={AlertTriangle} title={`No penalties for ${monthFilter}`} description="Run auto-calculation or add a manual penalty." /></TableCell></TableRow>
                   ) : (
                     penalties.map((p: any) => (
                       <TableRow key={p.id}>
@@ -323,7 +321,7 @@ export default function PenaltyManagementPage() {
                         <TableCell className="max-w-[200px] truncate text-sm">{p.penalty_reason}</TableCell>
                         <TableCell>{p.late_count || "—"}</TableCell>
                         <TableCell className="text-warning font-medium">{p.penalty_days > 0 ? `${p.penalty_days} day${p.penalty_days > 1 ? "s" : ""}` : "—"}</TableCell>
-                        <TableCell className="text-destructive font-medium">{p.penalty_amount > 0 ? `₹${Number(p.penalty_amount).toLocaleString('en-IN')}` : "—"}</TableCell>
+                        <TableCell className="text-right text-destructive font-medium tabular-nums">{p.penalty_amount > 0 ? `₹${Number(p.penalty_amount).toLocaleString('en-IN')}` : "—"}</TableCell>
                         <TableCell>
                           {p.is_applied ? (
                             <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Applied</span>
@@ -374,9 +372,9 @@ export default function PenaltyManagementPage() {
                 </TableHeader>
                 <TableBody>
                   {rulesLoading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="p-0"><TableSkeleton rows={4} columns={6} /></TableCell></TableRow>
                   ) : rules.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No rules configured</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6}><EmptyState icon={Settings} title="No rules configured" description="Add a penalty rule to enable auto-calculation." /></TableCell></TableRow>
                   ) : (
                     rules.map((r: any) => (
                       <TableRow key={r.id}>

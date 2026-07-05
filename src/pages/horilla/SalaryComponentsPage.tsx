@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 const defaultForm = { name: "", code: "", component_type: "allowance", is_taxable: false, is_fixed: true, calculation_type: "fixed", default_amount: 0, percentage_of: "" as string };
 
@@ -74,16 +77,16 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
   };
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{label}</h1>
-          <p className="text-sm text-muted-foreground">Manage salary {label.toLowerCase()} components</p>
-        </div>
-        <Button onClick={() => { setEditId(null); setForm({ ...defaultForm, component_type: componentType }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> Add {componentType === "allowance" ? "Allowance" : "Deduction"}
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title={label}
+        description={`Manage salary ${label.toLowerCase()} components`}
+        actions={
+          <Button onClick={() => { setEditId(null); setForm({ ...defaultForm, component_type: componentType }); setShowDialog(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
+            <Plus className="h-4 w-4 mr-2" /> Add {componentType === "allowance" ? "Allowance" : "Deduction"}
+          </Button>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">
@@ -91,15 +94,15 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Name", "Code", "Taxable", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={5} className="p-0"><TableSkeleton rows={5} columns={5} /></td></tr>
               ) : components.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No {label.toLowerCase()} configured</td></tr>
+                <tr><td colSpan={5}><EmptyState icon={Plus} title={`No ${label.toLowerCase()} configured`} description="Add your first component using the button above." /></td></tr>
               ) : (
                 components.map((c: any) => (
                   <tr key={c.id} className={`border-b hover:bg-muted/50 ${!c.is_active ? "opacity-50" : ""}`}>

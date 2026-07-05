@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Calculator, Star } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function TaxConfigPage() {
   const qc = useQueryClient();
@@ -161,7 +164,7 @@ export default function TaxConfigPage() {
   const formatINR = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
   return (
-    <div className="space-y-6 page-mount">
+    <div className="p-4 md:p-6 space-y-4 page-mount">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Tax Configuration</h1>
@@ -180,9 +183,9 @@ export default function TaxConfigPage() {
 
         <TabsContent value="regimes">
           {isLoading ? (
-            <p className="text-center text-muted-foreground py-12">Loading...</p>
+            <TableSkeleton rows={3} columns={5} />
           ) : filingStatuses.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">No filing statuses configured.</CardContent></Card>
+            <EmptyState icon={Calculator} title="No filing statuses configured" description="Add a filing status to define tax brackets." />
           ) : (
             <div className="space-y-4">
               {filingStatuses.map((fs: any) => (
@@ -210,7 +213,7 @@ export default function TaxConfigPage() {
                       <thead className="bg-muted/50 border-b">
                         <tr>
                           {["Slab", "Min Income", "Max Income", "Tax Rate", "Description", ""].map(h => (
-                            <th key={h} className="text-left px-4 py-2 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                            <th key={h} className="text-left px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -221,8 +224,8 @@ export default function TaxConfigPage() {
                           (bracketsByFS[fs.id] || []).map((b: any, idx: number) => (
                             <tr key={b.id} className="border-b hover:bg-muted/30">
                               <td className="px-4 py-2 font-medium">{idx + 1}</td>
-                              <td className="px-4 py-2">{formatINR(b.min_income)}</td>
-                              <td className="px-4 py-2">{b.max_income ? formatINR(b.max_income) : "∞"}</td>
+                              <td className="px-4 py-2 tabular-nums text-right">{formatINR(b.min_income)}</td>
+                              <td className="px-4 py-2 tabular-nums text-right">{b.max_income ? formatINR(b.max_income) : "∞"}</td>
                               <td className="px-4 py-2">
                                 <Badge className={b.tax_rate === 0 ? "bg-success/10 text-success" : "bg-info/10 text-info"}>
                                   {b.tax_rate}%

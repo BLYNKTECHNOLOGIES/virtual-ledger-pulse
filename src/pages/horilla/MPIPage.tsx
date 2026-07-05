@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Award, TrendingUp, AlertTriangle, ShieldAlert, Trophy, ClipboardList, Settings, Users, Activity } from "lucide-react";
+import { Award, TrendingUp, AlertTriangle, ShieldAlert, Trophy, ClipboardList, Settings, Users, Activity, Target, MessageSquare } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 type Grade = "S" | "A+" | "A" | "B" | "C" | "D";
 const GRADE_COLORS: Record<Grade, string> = {
@@ -97,17 +98,17 @@ export default function MPIPage() {
   const topPerformers = [...results].sort((a, b) => Number(b.total_score) - Number(a.total_score)).slice(0, 10);
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">MPI — Performance Index</h1>
-          <p className="text-sm text-muted-foreground">Enterprise KPI / KRA / behavioral scoring for the entire organisation</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Period</span>
-          <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="w-40 text-foreground" />
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="MPI — Performance Index"
+        description="Enterprise KPI / KRA / behavioral scoring for the entire organisation"
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Period</span>
+            <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="w-40 h-9 text-foreground" />
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={Users} label="Scored Employees" value={results.length} tone="bg-primary/10 text-primary" />
@@ -132,7 +133,7 @@ export default function MPIPage() {
         <TabsContent value="dashboard" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
-              <CardHeader><CardTitle className="text-sm">Grade Distribution</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm font-semibold">Grade Distribution</CardTitle></CardHeader>
               <CardContent>
                 {results.length ? (
                   <ResponsiveContainer width="100%" height={260}>
@@ -143,11 +144,11 @@ export default function MPIPage() {
                       <Tooltip /><Legend />
                     </PieChart>
                   </ResponsiveContainer>
-                ) : <EmptyState label="No scored employees for this period yet" />}
+                ) : <MpiEmptyState label="No scored employees for this period yet" />}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-sm">Score Distribution</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm font-semibold">Score Distribution</CardTitle></CardHeader>
               <CardContent>
                 {results.length ? (
                   <ResponsiveContainer width="100%" height={260}>
@@ -159,7 +160,7 @@ export default function MPIPage() {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                ) : <EmptyState label="No data" />}
+                ) : <MpiEmptyState label="No data" />}
               </CardContent>
             </Card>
           </div>
@@ -205,12 +206,12 @@ function StatCard({ icon: Icon, label, value, tone }: any) {
   return (
     <Card><CardContent className="p-4 flex items-center gap-3">
       <div className={`p-2.5 rounded-xl ${tone}`}><Icon className="h-5 w-5" /></div>
-      <div><p className="text-2xl font-bold text-foreground">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>
+      <div><p className="text-2xl font-bold text-foreground tabular-nums">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>
     </CardContent></Card>
   );
 }
 
-function EmptyState({ label }: { label: string }) {
+function MpiEmptyState({ label }: { label: string }) {
   return <div className="py-12 text-center text-sm text-muted-foreground">{label}</div>;
 }
 
@@ -218,23 +219,32 @@ function GradeBadge({ grade }: { grade: Grade }) {
   return <Badge style={{ backgroundColor: GRADE_COLORS[grade], color: "white" }}>{grade}</Badge>;
 }
 
+const TH = "px-4 py-2.5 text-left text-[11px] uppercase tracking-wide text-muted-foreground font-medium";
+const TD = "px-4 py-2.5 text-sm";
+
 function ScorecardsTab({ results, templates }: any) {
-  if (!results.length) return <Card><CardContent className="p-6"><EmptyState label="Run a scoring cycle to see employee scorecards" /></CardContent></Card>;
+  if (!results.length) return <Card><CardContent className="p-6"><MpiEmptyState label="Run a scoring cycle to see employee scorecards" /></CardContent></Card>;
   const tplName = (id: string) => templates.find((t: any) => t.id === id)?.name ?? "—";
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-          <tr><th className="px-4 py-2 text-left">Employee</th><th className="text-left">Template</th><th className="text-left">Score</th><th className="text-left">Grade</th><th className="text-left">Status</th></tr>
+        <thead className="bg-muted/50">
+          <tr>
+            <th className={TH}>Employee</th>
+            <th className={TH}>Template</th>
+            <th className={TH}>Score</th>
+            <th className={TH}>Grade</th>
+            <th className={TH}>Status</th>
+          </tr>
         </thead>
         <tbody>
           {results.map((r: any) => (
-            <tr key={r.id} className="border-t">
-              <td className="px-4 py-2 font-mono text-xs">{r.employee_id.slice(0, 8)}</td>
-              <td>{tplName(r.template_id)}</td>
-              <td className="w-48"><div className="flex items-center gap-2"><Progress value={Number(r.total_score)} className="h-2" /><span className="text-xs font-medium w-10">{Number(r.total_score).toFixed(1)}</span></div></td>
-              <td><GradeBadge grade={r.grade} /></td>
-              <td className="text-xs">{r.grade_capped ? <span className="text-destructive">Capped: {r.cap_reason}</span> : "Normal"}</td>
+            <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
+              <td className={`${TD} font-mono text-xs`}>{r.employee_id.slice(0, 8)}</td>
+              <td className={TD}>{tplName(r.template_id)}</td>
+              <td className={`${TD} w-48`}><div className="flex items-center gap-2"><Progress value={Number(r.total_score)} className="h-2" /><span className="text-xs font-medium tabular-nums w-10">{Number(r.total_score).toFixed(1)}</span></div></td>
+              <td className={TD}><GradeBadge grade={r.grade} /></td>
+              <td className={`${TD} text-xs`}>{r.grade_capped ? <span className="text-destructive">Capped: {r.cap_reason}</span> : "Normal"}</td>
             </tr>
           ))}
         </tbody>
@@ -248,12 +258,13 @@ function IncentivesTab({ results }: any) {
     g, bonus: GRADE_BONUS[g], count: results.filter((r: any) => r.grade === g).length,
   }));
   return (
-    <Card><CardHeader><CardTitle className="text-sm">Incentive Preview (Phase 1 — read-only)</CardTitle></CardHeader>
+    <Card>
+      <CardHeader><CardTitle className="text-sm font-semibold">Incentive Preview (Phase 1 — read-only)</CardTitle></CardHeader>
       <CardContent className="space-y-2">
         <p className="text-xs text-muted-foreground">No payroll writes occur in Phase 1. Use this for visibility only.</p>
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-3 py-2 text-left">Grade</th><th className="text-left">Bonus</th><th className="text-left">Employees</th></tr></thead>
-          <tbody>{rows.map(r => <tr key={r.g} className="border-t"><td className="px-3 py-2"><GradeBadge grade={r.g} /></td><td>{r.bonus}</td><td>{r.count}</td></tr>)}</tbody>
+          <thead className="bg-muted/50"><tr><th className={TH}>Grade</th><th className={TH}>Bonus</th><th className={TH}>Employees</th></tr></thead>
+          <tbody>{rows.map(r => <tr key={r.g} className="border-t hover:bg-muted/30 transition-colors"><td className={TD}><GradeBadge grade={r.g} /></td><td className={TD}>{r.bonus}</td><td className={`${TD} tabular-nums`}>{r.count}</td></tr>)}</tbody>
         </table>
       </CardContent>
     </Card>
@@ -262,13 +273,18 @@ function IncentivesTab({ results }: any) {
 
 function WarningsTab({ results }: any) {
   const flagged = results.filter((r: any) => ["C", "D"].includes(r.grade) || r.grade_capped);
-  if (!flagged.length) return <Card><CardContent className="p-6"><EmptyState label="No employees at risk this period" /></CardContent></Card>;
+  if (!flagged.length) return <Card><CardContent className="p-6"><MpiEmptyState label="No employees at risk this period" /></CardContent></Card>;
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-2 text-left">Employee</th><th className="text-left">Score</th><th className="text-left">Grade</th><th className="text-left">Reason</th></tr></thead>
+        <thead className="bg-muted/50"><tr><th className={TH}>Employee</th><th className={TH}>Score</th><th className={TH}>Grade</th><th className={TH}>Reason</th></tr></thead>
         <tbody>{flagged.map((r: any) => (
-          <tr key={r.id} className="border-t"><td className="px-4 py-2 font-mono text-xs">{r.employee_id.slice(0, 8)}</td><td>{Number(r.total_score).toFixed(1)}</td><td><GradeBadge grade={r.grade} /></td><td className="text-xs">{r.grade_capped ? r.cap_reason : `Below threshold`}</td></tr>
+          <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
+            <td className={`${TD} font-mono text-xs`}>{r.employee_id.slice(0, 8)}</td>
+            <td className={`${TD} tabular-nums`}>{Number(r.total_score).toFixed(1)}</td>
+            <td className={TD}><GradeBadge grade={r.grade} /></td>
+            <td className={`${TD} text-xs`}>{r.grade_capped ? r.cap_reason : `Below threshold`}</td>
+          </tr>
         ))}</tbody>
       </table>
     </CardContent></Card>
@@ -276,29 +292,35 @@ function WarningsTab({ results }: any) {
 }
 
 function PipTab({ pips }: any) {
-  if (!pips.length) return <Card><CardContent className="p-6"><EmptyState label="No active PIPs" /></CardContent></Card>;
+  if (!pips.length) return <Card><CardContent className="p-6"><MpiEmptyState label="No active PIPs" /></CardContent></Card>;
   return (
     <div className="space-y-2">{pips.map((p: any) => (
       <Card key={p.id}><CardContent className="p-4 flex items-center justify-between">
-        <div><p className="font-medium text-sm font-mono">{p.employee_id.slice(0, 8)}</p><p className="text-xs text-muted-foreground">{p.start_date} → {p.end_date} · triggered at grade {p.triggering_grade ?? "—"}</p></div>
-        <Badge variant="outline">{p.status}</Badge>
+        <div><p className="font-medium text-sm font-mono">{p.employee_id.slice(0, 8)}</p><p className="text-xs text-muted-foreground tabular-nums">{p.start_date} → {p.end_date} · triggered at grade {p.triggering_grade ?? "—"}</p></div>
+        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-muted-foreground/20">{p.status}</span>
       </CardContent></Card>
     ))}</div>
   );
 }
 
 function PromotionTab() {
-  return <Card><CardContent className="p-6"><EmptyState label="Promotion eligibility requires 3+ months of scoring history. Continue scoring to populate." /></CardContent></Card>;
+  return <Card><CardContent className="p-6"><MpiEmptyState label="Promotion eligibility requires 3+ months of scoring history. Continue scoring to populate." /></CardContent></Card>;
 }
 
 function ViolationsTab({ violations }: any) {
-  if (!violations.length) return <Card><CardContent className="p-6"><EmptyState label="No critical violations logged" /></CardContent></Card>;
+  if (!violations.length) return <Card><CardContent className="p-6"><MpiEmptyState label="No critical violations logged" /></CardContent></Card>;
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-2 text-left">Date</th><th className="text-left">Employee</th><th className="text-left">Type</th><th className="text-left">Severity</th><th className="text-left">Description</th></tr></thead>
+        <thead className="bg-muted/50"><tr><th className={TH}>Date</th><th className={TH}>Employee</th><th className={TH}>Type</th><th className={TH}>Severity</th><th className={TH}>Description</th></tr></thead>
         <tbody>{violations.map((v: any) => (
-          <tr key={v.id} className="border-t"><td className="px-4 py-2 text-xs">{new Date(v.reported_at).toLocaleDateString()}</td><td className="font-mono text-xs">{v.employee_id.slice(0, 8)}</td><td>{v.violation_type}</td><td><Badge variant={v.severity === "critical" ? "destructive" : "outline"}>{v.severity}</Badge></td><td className="text-xs">{v.description}</td></tr>
+          <tr key={v.id} className="border-t hover:bg-muted/30 transition-colors">
+            <td className={`${TD} tabular-nums text-xs`}>{new Date(v.reported_at).toLocaleDateString()}</td>
+            <td className={`${TD} font-mono text-xs`}>{v.employee_id.slice(0, 8)}</td>
+            <td className={TD}>{v.violation_type}</td>
+            <td className={TD}><Badge variant={v.severity === "critical" ? "destructive" : "outline"}>{v.severity}</Badge></td>
+            <td className={`${TD} text-xs`}>{v.description}</td>
+          </tr>
         ))}</tbody>
       </table>
     </CardContent></Card>
@@ -306,13 +328,18 @@ function ViolationsTab({ violations }: any) {
 }
 
 function LeaderboardTab({ top }: any) {
-  if (!top.length) return <Card><CardContent className="p-6"><EmptyState label="Leaderboard appears once scoring is run" /></CardContent></Card>;
+  if (!top.length) return <Card><CardContent className="p-6"><MpiEmptyState label="Leaderboard appears once scoring is run" /></CardContent></Card>;
   return (
     <Card><CardContent className="p-0">
       <table className="w-full text-sm">
-        <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-2 text-left">Rank</th><th className="text-left">Employee</th><th className="text-left">Score</th><th className="text-left">Grade</th></tr></thead>
+        <thead className="bg-muted/50"><tr><th className={TH}>Rank</th><th className={TH}>Employee</th><th className={TH}>Score</th><th className={TH}>Grade</th></tr></thead>
         <tbody>{top.map((r: any, i: number) => (
-          <tr key={r.id} className="border-t"><td className="px-4 py-2 font-bold text-warning">#{i + 1}</td><td className="font-mono text-xs">{r.employee_id.slice(0, 8)}</td><td>{Number(r.total_score).toFixed(1)}</td><td><GradeBadge grade={r.grade} /></td></tr>
+          <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
+            <td className={`${TD} font-bold text-warning tabular-nums`}>#{i + 1}</td>
+            <td className={`${TD} font-mono text-xs`}>{r.employee_id.slice(0, 8)}</td>
+            <td className={`${TD} tabular-nums`}>{Number(r.total_score).toFixed(1)}</td>
+            <td className={TD}><GradeBadge grade={r.grade} /></td>
+          </tr>
         ))}</tbody>
       </table>
     </CardContent></Card>
@@ -324,20 +351,26 @@ function TemplatesTab({ templates, kpis }: any) {
   const tplKpis = useMemo(() => kpis.filter((k: any) => k.template_id === selected), [kpis, selected]);
   const total = tplKpis.reduce((s: number, k: any) => s + Number(k.weight), 0);
   return (
-    <Card><CardHeader className="flex flex-row items-center justify-between">
-      <CardTitle className="text-sm">Scorecard Templates</CardTitle>
-      <Select value={selected} onValueChange={setSelected}>
-        <SelectTrigger className="w-72 text-foreground"><SelectValue placeholder="Select template" /></SelectTrigger>
-        <SelectContent>{templates.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.department.toUpperCase()} — {t.name}</SelectItem>)}</SelectContent>
-      </Select>
-    </CardHeader>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Scorecard Templates</CardTitle>
+        <Select value={selected} onValueChange={setSelected}>
+          <SelectTrigger className="w-72 h-9 text-foreground"><SelectValue placeholder="Select template" /></SelectTrigger>
+          <SelectContent>{templates.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.department.toUpperCase()} — {t.name}</SelectItem>)}</SelectContent>
+        </Select>
+      </CardHeader>
       <CardContent>
-        <div className="text-xs text-muted-foreground mb-2">Total weight: <span className={total === 100 ? "text-success" : "text-destructive"}>{total}%</span> (templates are weight-locked; only Super Admin can edit)</div>
-        {tplKpis.length === 0 ? <EmptyState label="Select a template" /> : (
+        <div className="text-xs text-muted-foreground mb-3">Total weight: <span className={total === 100 ? "text-success" : "text-destructive"}>{total}%</span> (templates are weight-locked; only Super Admin can edit)</div>
+        {tplKpis.length === 0 ? <MpiEmptyState label="Select a template" /> : (
           <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground"><tr><th className="px-3 py-2 text-left">Category</th><th className="text-left">KPI</th><th className="text-left">Weight</th><th className="text-left">Source</th></tr></thead>
+            <thead className="bg-muted/50"><tr><th className={TH}>Category</th><th className={TH}>KPI</th><th className={TH}>Weight</th><th className={TH}>Source</th></tr></thead>
             <tbody>{tplKpis.map((k: any) => (
-              <tr key={k.id} className="border-t"><td className="px-3 py-2 capitalize">{k.category}</td><td>{k.name}</td><td>{k.weight}%</td><td><Badge variant="outline">{k.data_source}</Badge></td></tr>
+              <tr key={k.id} className="border-t hover:bg-muted/30 transition-colors">
+                <td className={`${TD} capitalize`}>{k.category}</td>
+                <td className={TD}>{k.name}</td>
+                <td className={`${TD} tabular-nums`}>{k.weight}%</td>
+                <td className={TD}><Badge variant="outline">{k.data_source}</Badge></td>
+              </tr>
             ))}</tbody>
           </table>
         )}

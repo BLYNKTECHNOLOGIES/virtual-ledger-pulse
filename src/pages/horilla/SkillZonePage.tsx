@@ -4,6 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Target, Plus, Edit, Trash2, X, Users, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 export default function SkillZonePage() {
   const queryClient = useQueryClient();
@@ -129,19 +132,19 @@ export default function SkillZonePage() {
   const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Skill Zone</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Group and track candidates by skill categories</p>
-        </div>
-        <button
-          onClick={() => { closeDialog(); setCreateOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4" /> Create Skill Zone
-        </button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        title="Skill Zone"
+        description="Group and track candidates by skill categories"
+        actions={
+          <button
+            onClick={() => { closeDialog(); setCreateOpen(true); }}
+            className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 h-9 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" /> Create Skill Zone
+          </button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -164,10 +167,14 @@ export default function SkillZonePage() {
 
       {/* Zone list */}
       {isLoading ? (
-        <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
+        <div className="grid gap-3">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
       ) : zones.length === 0 ? (
-        <div className="bg-card rounded-xl border border-border p-8 text-center text-muted-foreground text-sm">
-          No skill zones yet. Create one to categorize candidates by skills.
+        <div className="bg-card rounded-xl border border-border p-8">
+          <EmptyState icon={Target} title="No skill zones yet" description="Create a skill zone to categorize candidates by skills" action={<button onClick={() => { closeDialog(); setCreateOpen(true); }} className="flex items-center gap-1.5 px-3 h-9 text-sm font-medium bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]"><Plus className="h-4 w-4" /> Create Skill Zone</button>} />
         </div>
       ) : (
         <div className="space-y-3">

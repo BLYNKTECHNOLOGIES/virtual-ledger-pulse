@@ -236,6 +236,7 @@ export function CreateConversionForm() {
                   <Label className="text-xs">FX Rate (INR per USDT)</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     step="any"
                     min="0"
                     placeholder="e.g. 96.50"

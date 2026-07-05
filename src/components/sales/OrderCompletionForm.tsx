@@ -334,6 +334,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   <Label>Quantity</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     value={formData.quantity}
                     onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value) || 1})}
                     min="0.01"
@@ -344,6 +345,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   <Label>Price per Unit</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     value={formData.price}
                     onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
                     min="0"

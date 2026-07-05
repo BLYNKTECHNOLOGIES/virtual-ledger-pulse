@@ -37,23 +37,15 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export function StockTransactionsTab() {
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterWallet, setFilterWallet] = useState<string>("all");
-  const [filterProduct, setFilterProduct] = useState<string>("all");
+  // Seed asset filter from deep-link (e.g. Positions "View movements" → ?asset=BTC)
+  const [filterProduct, setFilterProduct] = useState<string>(searchParams.get("asset") || "all");
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
-  const [adjustmentData, setAdjustmentData] = useState({
-    fromWallet: "",
-    toWallet: "",
-    amount: "",
-    description: "",
-    transactionType: "TRANSFER",
-    transferFee: "",
-    assetCode: "USDT"
-  });
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [reversalReason, setReversalReason] = useState("");
   // Cap the number of table rows rendered at once. Rendering every entry
   // (thousands of rows) builds a huge DOM that exhausts mobile browser memory
   // and crashes the tab (black screen) on any re-render — e.g. opening the

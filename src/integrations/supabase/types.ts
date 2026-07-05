@@ -2496,6 +2496,84 @@ export type Database = {
         }
         Relationships: []
       }
+      copilot_exemplars: {
+        Row: {
+          context_text: string | null
+          created_at: string
+          embedding: string | null
+          id: string
+          language: string | null
+          order_meta: Json
+          reply_text: string
+          side: string | null
+          situation_class: string
+          source_operator: string | null
+        }
+        Insert: {
+          context_text?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          language?: string | null
+          order_meta?: Json
+          reply_text: string
+          side?: string | null
+          situation_class: string
+          source_operator?: string | null
+        }
+        Update: {
+          context_text?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          language?: string | null
+          order_meta?: Json
+          reply_text?: string
+          side?: string | null
+          situation_class?: string
+          source_operator?: string | null
+        }
+        Relationships: []
+      }
+      copilot_settings: {
+        Row: {
+          auto_suggest: boolean
+          created_at: string
+          enabled: boolean
+          exemplar_count: number
+          id: string
+          operator_allowlist: string[]
+          suggestion_count: number
+          train_watermark: string | null
+          trainer_allowlist: string[]
+          updated_at: string
+        }
+        Insert: {
+          auto_suggest?: boolean
+          created_at?: string
+          enabled?: boolean
+          exemplar_count?: number
+          id?: string
+          operator_allowlist?: string[]
+          suggestion_count?: number
+          train_watermark?: string | null
+          trainer_allowlist?: string[]
+          updated_at?: string
+        }
+        Update: {
+          auto_suggest?: boolean
+          created_at?: string
+          enabled?: boolean
+          exemplar_count?: number
+          id?: string
+          operator_allowlist?: string[]
+          suggestion_count?: number
+          train_watermark?: string | null
+          trainer_allowlist?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       counterparty_contact_records: {
         Row: {
           collected_by: string | null
@@ -17258,6 +17336,23 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      match_copilot_exemplars: {
+        Args: {
+          match_count?: number
+          p_side?: string
+          p_situation_class: string
+          query_embedding: string
+        }
+        Returns: {
+          context_text: string
+          id: string
+          language: string
+          reply_text: string
+          side: string
+          similarity: number
+          situation_class: string
+        }[]
+      }
       match_kb: {
         Args: {
           match_count?: number
@@ -17485,6 +17580,8 @@ export type Database = {
         Args: { p_status: string; p_user_id: string }
         Returns: Json
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       snapshot_ledger_anchor: { Args: never; Returns: number }
       store_webauthn_challenge: {
         Args: { p_challenge: string; p_type: string; p_user_id: string }

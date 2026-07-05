@@ -91,6 +91,12 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.mcp]
     verify_jwt = false
+  [functions.copilot-train]
+    verify_jwt = false
+  [functions.copilot-suggest]
+    verify_jwt = true
+
+
 
 
 

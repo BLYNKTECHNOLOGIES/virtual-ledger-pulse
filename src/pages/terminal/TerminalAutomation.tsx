@@ -37,6 +37,7 @@ import {
   Blend,
   Crosshair,
   Image as ImageIcon,
+  Sparkles,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -173,6 +174,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="auto-screenshot" className="gap-1.5">
             <ImageIcon className="h-3.5 w-3.5" />
             Auto Screenshot
+          </TabsTrigger>
+          <TabsTrigger value="ai-copilot" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Copilot
           </TabsTrigger>
         </TabsList>
 

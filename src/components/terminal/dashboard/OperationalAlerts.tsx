@@ -1,8 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 
 interface Props {
@@ -84,11 +82,18 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
     return items;
   }, [orders]);
 
-  const severityStyles: Record<Severity, string> = {
-    error: 'border-l-destructive bg-destructive/5',
-    warning: 'border-l-trade-pending bg-trade-pending/5',
-    info: 'border-l-primary bg-primary/5',
-    success: 'border-l-trade-buy bg-trade-buy/5',
+  const dotStyles: Record<Severity, string> = {
+    error: 'bg-destructive',
+    warning: 'bg-trade-pending',
+    info: 'bg-primary',
+    success: 'bg-trade-buy',
+  };
+
+  const badgeStyles: Record<Severity, string> = {
+    error: 'bg-destructive/10 text-destructive',
+    warning: 'bg-trade-pending/10 text-trade-pending',
+    info: 'bg-primary/10 text-primary',
+    success: 'bg-trade-buy/10 text-trade-buy',
   };
 
   const iconStyles: Record<Severity, string> = {
@@ -98,29 +103,35 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
     success: 'text-trade-buy',
   };
 
+  const isEmptyState = alerts.length === 1 && alerts[0].severity === 'success';
+
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-trade-pending" />
-          Operational Alerts
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="t-panel flex flex-col">
+      <div className="t-panel-head">
+        <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="t-panel-head-title">Operational Alerts</span>
+      </div>
+      <div>
         {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+          <div className="space-y-2 p-3">
+            {[1, 2].map(i => <div key={i} className="t-shimmer h-12 w-full rounded-md" />)}
+          </div>
+        ) : isEmptyState ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-10">
+            <CheckCircle2 className="h-8 w-8 text-trade-buy/50" />
+            <p className="text-xs text-muted-foreground">All clear — operations running normally</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-border">
             {alerts.map((a, i) => (
-              <div
-                key={i}
-                className={`flex items-start gap-3 p-3 rounded-md border-l-2 ${severityStyles[a.severity]}`}
-              >
-                <a.icon className={`h-4 w-4 mt-0.5 shrink-0 ${iconStyles[a.severity]}`} />
+              <div key={i} className="flex items-start gap-3 py-2 px-3">
+                <span className={`mt-1 h-2 w-2 rounded-full shrink-0 ${dotStyles[a.severity]}`} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-foreground">{a.label}</p>
+                  <div className="flex items-center gap-2">
+                    <a.icon className={`h-3.5 w-3.5 shrink-0 ${iconStyles[a.severity]}`} />
+                    <span className={`text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded ${badgeStyles[a.severity]}`}>{a.severity}</span>
+                    <p className="text-xs font-medium text-foreground truncate">{a.label}</p>
+                  </div>
                   {a.orderNumbers.length > 0 ? (
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-muted-foreground">{a.detailLabel}</span>
@@ -128,7 +139,7 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
                         <Link
                           key={num}
                           to={`/terminal/orders?order=${encodeURIComponent(num)}`}
-                          className="text-[11px] font-medium text-primary hover:underline tabular-nums"
+                          className="text-[11px] font-medium text-primary hover:underline t-mono"
                           title={`Open order ${num}`}
                         >
                           {num}
@@ -143,7 +154,7 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

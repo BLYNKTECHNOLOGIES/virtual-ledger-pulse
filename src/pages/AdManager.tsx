@@ -187,7 +187,7 @@ export default function AdManager() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <AdManagerFilters filters={filters} onFiltersChange={setFilters} onRefresh={() => refetch()} isRefreshing={isFetching} />
+          <AdManagerFilters filters={filters} onFiltersChange={setFilters} onRefresh={() => refetch()} isRefreshing={isFetching} assetOptions={assetOptions} />
         </CardContent>
       </Card>
 

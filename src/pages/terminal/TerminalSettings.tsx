@@ -400,7 +400,7 @@ export default function TerminalSettings() {
               <CardTitle className="text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-primary" /> Quick Reply Templates
               </CardTitle>
-              <CardDescription className="text-[11px]">Manage chat quick reply templates for all operators</CardDescription>
+              <CardDescription className="text-[11px]">Your personal chat quick reply templates — private to your account and available on any device you log in from</CardDescription>
             </div>
             <Button
               size="sm"

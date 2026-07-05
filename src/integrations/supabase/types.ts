@@ -10046,6 +10046,7 @@ export type Database = {
           order_type: string | null
           sort_order: number
           trade_type: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -10056,6 +10057,7 @@ export type Database = {
           order_type?: string | null
           sort_order?: number
           trade_type?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -10066,6 +10068,7 @@ export type Database = {
           order_type?: string | null
           sort_order?: number
           trade_type?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

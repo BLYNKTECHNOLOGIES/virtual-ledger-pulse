@@ -83,7 +83,10 @@ function MultiUserSelect({
 export function CopilotSettings() {
   const qc = useQueryClient();
   const [training, setTraining] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const { data: users = [] } = useTerminalUsersList();
+  const { accounts } = useExchangeAccount();
   const { data: settings, isLoading } = useQuery({
     queryKey: ['copilot-settings'],
     queryFn: async (): Promise<(Settings & { updated_at?: string }) | null> => {

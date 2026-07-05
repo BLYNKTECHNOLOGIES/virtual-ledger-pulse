@@ -313,7 +313,7 @@ export function TerminalUsersList() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-mono">
+          <Badge variant="outline" className="text-xs t-mono">
             {assignments.length} user{assignments.length !== 1 ? "s" : ""}
           </Badge>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchData}>

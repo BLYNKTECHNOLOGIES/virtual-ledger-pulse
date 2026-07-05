@@ -93,7 +93,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                     </TableCell>
                     <TableCell className="text-xs font-medium">{ruleMap[log.rule_id] || '—'}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{log.asset || '—'}</Badge></TableCell>
-                    <TableCell className="font-mono text-xs">{log.ad_number ? `…${log.ad_number.slice(-6)}` : '—'}</TableCell>
+                    <TableCell className="t-mono text-xs">{log.ad_number ? `…${log.ad_number.slice(-6)}` : '—'}</TableCell>
                     <TableCell className="text-xs">{log.competitor_merchant || '—'}</TableCell>
                     <TableCell className="text-xs">{log.competitor_price ? `₹${Number(log.competitor_price).toLocaleString('en-IN')}` : '—'}</TableCell>
                     <TableCell className="text-xs">{log.market_reference_price ? `₹${Number(log.market_reference_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}</TableCell>

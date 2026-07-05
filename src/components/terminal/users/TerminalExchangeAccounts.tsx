@@ -143,7 +143,7 @@ export function TerminalExchangeAccounts() {
               {accounts.map(acc => (
                 <TableRow key={acc.id} className="border-border">
                   <TableCell className="text-sm font-medium">{acc.account_name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground font-mono">{acc.account_identifier}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground t-mono">{acc.account_identifier}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={acc.is_active
                       ? "bg-success/20 text-success border-success/30 text-xs"

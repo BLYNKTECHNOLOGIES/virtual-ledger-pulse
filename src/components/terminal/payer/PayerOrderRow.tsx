@@ -326,7 +326,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
       <TableCell className="py-3">
         <div className="flex items-center gap-1.5">
           <span
-            className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2 cursor-pointer hover:text-primary transition-colors"
+            className="text-xs text-foreground t-mono underline decoration-muted-foreground/30 underline-offset-2 cursor-pointer hover:text-primary transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               navigator.clipboard.writeText(order.orderNumber);

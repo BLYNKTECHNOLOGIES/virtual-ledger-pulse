@@ -221,7 +221,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                 <TableBody>
                   {releaseLogs.map((log: any) => (
                     <TableRow key={log.id}>
-                      <TableCell className="font-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
+                      <TableCell className="t-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-xs ${getReleaseStatusClass(log.status)}`}>
                           {log.status}
@@ -282,7 +282,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                       <TableCell>
                         {getLogIcon(log.status)}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
+                      <TableCell className="t-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
                       <TableCell>
                         {log.minutes_remaining != null ? (
                           <Badge variant="outline" className="text-xs">

@@ -516,7 +516,7 @@ export function TerminalRolesList() {
                         {role.name}
                       </Badge>
                       {role.hierarchy_level !== null && (
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted-foreground/30 font-mono">
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted-foreground/30 t-mono">
                           L{role.hierarchy_level}
                         </Badge>
                       )}

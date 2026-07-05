@@ -195,7 +195,7 @@ export default function TerminalAuditLogs() {
                         <TableCell className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {format(new Date(log.created_at), 'MMM dd, HH:mm:ss')}
                         </TableCell>
-                        <TableCell className="font-mono text-[10px]">{(log.order_reference || '').slice(-8)}</TableCell>
+                        <TableCell className="t-mono text-[10px]">{(log.order_reference || '').slice(-8)}</TableCell>
                         <TableCell>{getActionBadge(log.action_type)}</TableCell>
                         <TableCell className="text-xs">{log.performed_by_name}</TableCell>
                         <TableCell className="text-xs">{log.target_user_name || '—'}</TableCell>

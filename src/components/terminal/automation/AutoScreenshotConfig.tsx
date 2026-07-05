@@ -183,11 +183,11 @@ export function AutoScreenshotConfig({ canManage }: Props) {
                 {logs.map(l => (
                   <TableRow key={l.id}>
                     <TableCell className="text-xs whitespace-nowrap">{format(new Date(l.created_at), 'dd MMM HH:mm:ss')}</TableCell>
-                    <TableCell className="font-mono text-xs">{l.order_number}</TableCell>
+                    <TableCell className="t-mono text-xs">{l.order_number}</TableCell>
                     <TableCell className="text-xs">{l.payer_name || '—'}</TableCell>
                     <TableCell className="text-xs">{l.amount_used != null ? `₹${l.amount_used}` : '—'}</TableCell>
-                    <TableCell className="text-xs font-mono max-w-[160px] truncate">{l.to_upi_id || '—'}</TableCell>
-                    <TableCell className="text-xs font-mono">{l.upi_txn_id || '—'}</TableCell>
+                    <TableCell className="text-xs t-mono max-w-[160px] truncate">{l.to_upi_id || '—'}</TableCell>
+                    <TableCell className="text-xs t-mono">{l.upi_txn_id || '—'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[l.status] || ''}`}>
                         {l.status.replace(/_/g, ' ')}

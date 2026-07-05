@@ -519,7 +519,7 @@ export function CompletedOrdersExport() {
                 <TableBody>
                   {orders.slice(0, 200).map((o) => (
                     <TableRow key={o.order_number}>
-                      <TableCell className="font-mono text-xs">…{o.order_number.slice(-10)}</TableCell>
+                      <TableCell className="t-mono text-xs">…{o.order_number.slice(-10)}</TableCell>
                       <TableCell className="text-xs">
                         {o.verified_name ? (
                           <span className="text-foreground">{o.verified_name}</span>

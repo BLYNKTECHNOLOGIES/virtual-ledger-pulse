@@ -324,7 +324,7 @@ export default function TerminalAutomation() {
                         <TableCell>
                           <Badge variant="outline">{DAY_LABELS[s.day_of_week]}</Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">
+                        <TableCell className="t-mono text-xs">
                           {s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}
                         </TableCell>
                         <TableCell>

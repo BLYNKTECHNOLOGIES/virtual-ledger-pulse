@@ -1,14 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { PermissionGate } from '@/components/PermissionGate';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Megaphone, RefreshCw } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw, ArrowDownUp } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
-import { CategorizedAdTable } from '@/components/ad-manager/CategorizedAdTable';
+import { AdSummaryStrip } from '@/components/ad-manager/AdSummaryStrip';
+import { CategorizedAdTable, AdSortMode } from '@/components/ad-manager/CategorizedAdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
 import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
@@ -23,6 +27,19 @@ import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+
+const SORT_PREF_KEY = 'terminal_ad_sort_mode';
+const AUTOREFRESH_PREF_KEY = 'terminal_ad_auto_refresh';
+
+const SORT_OPTIONS: { value: AdSortMode; label: string }[] = [
+  { value: 'current', label: 'Current' },
+  { value: 'price-asc', label: 'Price ↑' },
+  { value: 'price-desc', label: 'Price ↓' },
+  { value: 'avail-desc', label: 'Available ↓' },
+  { value: 'avail-asc', label: 'Available ↑' },
+  { value: 'updated-desc', label: 'Updated ↓' },
+];
+
 
 function isBlockAd(ad: BinanceAd) {
   return String(ad.classify || '').toLowerCase() === 'block';

@@ -38,19 +38,19 @@ function Section({
 }) {
   if (items.length === 0) return null;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardHeader>
-      <CardContent className="space-y-1">
+    <div className="t-panel overflow-hidden">
+      <div className="t-panel-head">
+        <span className="t-panel-head-title">{title}</span>
+      </div>
+      <p className="px-3 pt-2 text-xs text-muted-foreground">{description}</p>
+      <div className="p-2 divide-y divide-border">
         {items.map((s) => {
           const allowed = canUse(s);
           return (
             <div
               key={s.id}
-              className={`flex items-center justify-between gap-4 rounded-lg px-3 py-2.5 ${
-                allowed ? "hover:bg-muted/50" : "opacity-50"
+              className={`flex items-center justify-between gap-4 px-1 py-2 ${
+                allowed ? "" : "opacity-50"
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -71,8 +71,8 @@ function Section({
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

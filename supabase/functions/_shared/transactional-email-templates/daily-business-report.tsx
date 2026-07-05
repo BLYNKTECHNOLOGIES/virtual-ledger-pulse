@@ -94,6 +94,18 @@ const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, period
             </Section>
           )}
 
+          {/* AI Daily Narrative */}
+          {narrative && (
+            <Section>
+              <div style={narrativeCard}>
+                <Text style={narrativeLabel}>Daily Narrative</Text>
+                <Text style={narrativeText}>{narrative}</Text>
+              </div>
+            </Section>
+          )}
+
+
+
           {/* Total Asset Value (from Financials tab) */}
           {assetValue && (
             <Section>

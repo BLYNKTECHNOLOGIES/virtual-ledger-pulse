@@ -77,11 +77,13 @@ export interface CopilotSuggestInput {
   messages: Array<{ isSelf: boolean; text: string; time?: string }>;
   exchangeAccountId?: string | null;
   accountLabel?: string | null;
+  counterpartyNickname?: string | null;
 }
 
 export interface CopilotSuggestResult {
   situation: string;
   suggestions: string[];
+  exemplarIds: string[];
 }
 
 /** Calls copilot-suggest. ALL context is passed in by the client (no server lookups). */
@@ -96,5 +98,56 @@ export async function fetchCopilotSuggestions(
   return {
     situation: data?.situation || 'other',
     suggestions: Array.isArray(data?.suggestions) ? data.suggestions : [],
+    exemplarIds: Array.isArray(data?.exemplarIds) ? data.exemplarIds : [],
   };
+}
+
+/** Fire-and-forget: log shown suggestions; returns per-suggestion log row ids. */
+export async function logSuggestionsShown(params: {
+  orderNumber?: string | null;
+  exchangeAccountId?: string | null;
+  operatorId?: string | null;
+  situation: string;
+  suggestions: string[];
+  exemplarIds: string[];
+}): Promise<string[]> {
+  try {
+    const rows = params.suggestions.map((s) => ({
+      order_number: params.orderNumber ?? null,
+      exchange_account_id: params.exchangeAccountId ?? null,
+      operator_id: params.operatorId ?? null,
+      situation_class: params.situation,
+      suggestion_text: s,
+      exemplar_ids: params.exemplarIds,
+      status: 'shown',
+    }));
+    if (rows.length === 0) return [];
+    const { data, error } = await supabase.from('copilot_suggestion_log').insert(rows).select('id');
+    if (error) return [];
+    return (data || []).map((r: any) => r.id);
+  } catch { return []; }
+}
+
+/** Fire-and-forget: mark a shown suggestion as inserted when the operator clicks it. */
+export async function markSuggestionInserted(logId: string): Promise<void> {
+  try { await supabase.from('copilot_suggestion_log').update({ status: 'inserted' }).eq('id', logId); }
+  catch { /* non-fatal */ }
+}
+
+export interface CopilotTeachItem {
+  id: string;
+  reply_text?: string;
+  pattern_text?: string;
+  situation_class?: string;
+  exchange_account_id?: string | null;
+}
+
+/** Trainer teach controls via copilot-teach edge function. */
+export async function copilotTeach(action: string, payload: Record<string, any> = {}) {
+  const { data, error } = await supabase.functions.invoke('copilot-teach', {
+    body: { action, ...payload },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
 }

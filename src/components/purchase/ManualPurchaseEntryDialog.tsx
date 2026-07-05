@@ -625,6 +625,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Label htmlFor="order_number">Order Number</Label>
               <Input
                 id="order_number"
+                autoFocus
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
                 placeholder={isGeneratingOrderNumber ? "Generating..." : formData.is_off_market ? "Auto-generated" : "Auto-generated if empty"}

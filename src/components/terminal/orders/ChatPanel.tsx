@@ -477,6 +477,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             }}
           />
           <Input
+            ref={inputRef}
+            data-terminal-chat-input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}

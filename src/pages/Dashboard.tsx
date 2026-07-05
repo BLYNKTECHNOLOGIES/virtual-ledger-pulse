@@ -13,6 +13,7 @@ import type { WidgetSize } from "@/components/dashboard/DraggableDashboardSectio
 import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/dashboard/AddWidgetDialog";
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { ShiftReconciliationWidget } from "@/components/dashboard/ShiftReconciliationWidget";
 import { ActionRequiredWidget } from "@/components/dashboard/ActionRequiredWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";

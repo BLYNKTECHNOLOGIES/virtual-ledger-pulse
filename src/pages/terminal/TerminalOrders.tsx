@@ -18,6 +18,7 @@ import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { ChatInbox, ChatConversation } from '@/components/terminal/orders/ChatInbox';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
+import { QueueMode } from '@/components/terminal/orders/QueueMode';
 import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignmentDialog';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';

@@ -753,7 +753,7 @@ function TerminalOperatorDetailContent() {
           {m.activeLoad > 0 && (
             <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px]">{m.activeLoad} active</Badge>
           )}
-          <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={fetchData}>
+          <Button variant="outline" size="sm" className="h-8 text-[10px] px-2" onClick={fetchData}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
           </Button>
         </div>

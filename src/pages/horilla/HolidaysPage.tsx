@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function HolidaysPage() {
   const qc = useQueryClient();
@@ -58,16 +61,16 @@ export default function HolidaysPage() {
   const upcoming = holidays.filter((h: any) => new Date(h.date) >= new Date() && h.is_active);
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Holidays</h1>
-          <p className="text-sm text-muted-foreground">Manage company holidays and observances</p>
-        </div>
-        <Button onClick={() => { setEditId(null); setForm({ name: "", date: "", recurring: false }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> Add Holiday
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Holidays"
+        description="Manage company holidays and observances"
+        actions={
+          <Button onClick={() => { setEditId(null); setForm({ name: "", date: "", recurring: false }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Plus className="h-4 w-4 mr-2" /> Add Holiday
+          </Button>
+        }
+      />
 
       {upcoming.length > 0 && (
         <Card className="border-[#E8604C]/20 bg-[#E8604C]/5">
@@ -77,7 +80,7 @@ export default function HolidaysPage() {
               {upcoming.slice(0, 5).map((h: any) => (
                 <div key={h.id} className="bg-card rounded-lg px-3 py-2 text-sm border">
                   <p className="font-medium">{h.name}</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date(h.date), "MMM dd, yyyy")}</p>
+                  <p className="text-xs text-muted-foreground tabular-nums">{format(new Date(h.date), "MMM dd, yyyy")}</p>
                 </div>
               ))}
             </div>
@@ -85,65 +88,89 @@ export default function HolidaysPage() {
         </Card>
       )}
 
-      <Card>
-        <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Holiday", "Date", "Day", "Recurring", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
-              ) : holidays.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No holidays configured</td></tr>
-              ) : (
-                holidays.map((h: any) => (
+      {isLoading ? (
+        <TableSkeleton rows={5} columns={6} />
+      ) : holidays.length === 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={CalendarDays}
+              title="No holidays configured"
+              description="Add company holidays and observances to keep employees informed."
+              action={
+                <Button onClick={() => { setEditId(null); setForm({ name: "", date: "", recurring: false }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+                  <Plus className="h-4 w-4 mr-2" /> Add Holiday
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Holiday", "Date", "Day", "Recurring", "Status", "Actions"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {holidays.map((h: any) => (
                   <tr key={h.id} className={`border-b hover:bg-muted/50 ${!h.is_active ? "opacity-50" : ""}`}>
-                    <td className="px-4 py-3 font-medium flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4 text-[#E8604C]" />
-                      {h.name}
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-[#E8604C]" />
+                        {h.name}
+                      </div>
                     </td>
-                    <td className="px-4 py-3">{format(new Date(h.date), "MMM dd, yyyy")}</td>
+                    <td className="px-4 py-3 tabular-nums">{format(new Date(h.date), "MMM dd, yyyy")}</td>
                     <td className="px-4 py-3 text-muted-foreground">{format(new Date(h.date), "EEEE")}</td>
-                    <td className="px-4 py-3">{h.recurring ? <span className="text-xs bg-info/10 text-info px-2 py-0.5 rounded-full">Yearly</span> : "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${h.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+                      {h.recurring ? (
+                        <span className="text-[10px] font-medium border bg-info/10 text-info border-info/20 px-2 py-0.5 rounded-full">Yearly</span>
+                      ) : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${h.is_active ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}`}>
                         {h.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editId ? "Edit Holiday" : "Add Holiday"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-[#E8604C]" />
+              {editId ? "Edit Holiday" : "Add Holiday"}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
-            <div><Label>Holiday Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Republic Day" /></div>
-            <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+            <div><Label>Holiday Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Republic Day" className="h-9" /></div>
+            <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="h-9" /></div>
             <div className="flex items-center gap-2"><Switch checked={form.recurring} onCheckedChange={(v) => setForm({ ...form, recurring: v })} /><Label>Recurring Yearly</Label></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.date} className="bg-[#E8604C] hover:bg-[#d4553f]">Save</Button>
+            <Button variant="outline" onClick={() => setShowDialog(false)} className="h-9">Cancel</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.date} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

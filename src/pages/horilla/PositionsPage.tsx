@@ -2,8 +2,11 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, X, Briefcase } from "lucide-react";
+import { Plus, Edit, Trash2, X, Briefcase, Search } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function PositionsPage() {
   const queryClient = useQueryClient();
@@ -80,7 +83,7 @@ export default function PositionsPage() {
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
-  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 h-9 text-sm outline-none bg-background focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
@@ -88,24 +91,24 @@ export default function PositionsPage() {
   });
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Positions</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{filteredPositions.length} position{filteredPositions.length !== 1 ? "s" : ""}</p>
-        </div>
-        <button
-          onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
-          className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          Add Position
-        </button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4">
+      <PageHeader
+        title="Positions"
+        description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""}`}
+        actions={
+          <button
+            onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
+            className="flex items-center gap-2 h-9 bg-[#E8604C] text-primary-foreground px-4 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Add Position
+          </button>
+        }
+      />
 
       {/* Search bar */}
-      <div className="flex items-center bg-card rounded-lg border border-border px-3 py-2 w-full max-w-sm">
-        <Briefcase className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+      <div className="flex items-center bg-card rounded-lg border border-border h-9 px-3 w-full max-w-sm">
+        <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
         <input
           type="text"
           placeholder="Search positions..."
@@ -116,17 +119,35 @@ export default function PositionsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-16 text-muted-foreground text-sm">Loading...</div>
+        <div className="bg-card rounded-xl border border-border overflow-hidden p-4">
+          <TableSkeleton rows={5} columns={5} />
+        </div>
+      ) : filteredPositions.length === 0 ? (
+        <EmptyState
+          icon={Briefcase}
+          title={searchTerm ? "No positions matching your search" : "No positions yet"}
+          description={searchTerm ? "Try a different search term." : "Create your first position to get started."}
+          action={
+            !searchTerm ? (
+              <button
+                onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
+                className="flex items-center gap-2 h-9 bg-[#E8604C] text-primary-foreground px-4 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors"
+              >
+                <Plus className="h-4 w-4" /> Add Position
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Position</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Department</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Description</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Position</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Department</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Description</th>
+                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</th>
+                <th className="text-right py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -143,7 +164,11 @@ export default function PositionsPage() {
                   <td className="py-3 px-4">
                     <button
                       onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer ${p.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
+                        p.is_active
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                          : "bg-destructive/10 text-destructive border-destructive/20"
+                      }`}
                     >
                       {p.is_active ? "Active" : "Inactive"}
                     </button>
@@ -158,11 +183,6 @@ export default function PositionsPage() {
                   </td>
                 </tr>
               ))}
-              {filteredPositions.length === 0 && (
-                <tr><td colSpan={5} className="py-12 text-center text-muted-foreground text-sm">
-                  {searchTerm ? "No positions matching your search" : "No positions yet"}
-                </td></tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -172,7 +192,10 @@ export default function PositionsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">{editId ? "Edit" : "Add"} Position</h2>
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-[#E8604C]" />
+                {editId ? "Edit" : "Add"} Position
+              </h2>
               <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
@@ -190,13 +213,13 @@ export default function PositionsPage() {
               <div>
                 <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className={`${inputCls} resize-none`} rows={2} />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none bg-background focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20 resize-none" rows={2} />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
+              <button onClick={closeDialog} className="h-9 px-4 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => saveMutation.mutate()} disabled={!form.title || saveMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                className="h-9 px-4 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
               </button>
             </div>
@@ -206,12 +229,14 @@ export default function PositionsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Position</AlertDialogTitle>
+            <AlertDialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive" /> Delete Position
+            </AlertDialogTitle>
             <AlertDialogDescription>Delete "{deleteTarget?.name}"? This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="h-9" onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

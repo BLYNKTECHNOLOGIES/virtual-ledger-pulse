@@ -5,11 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FileText, Plus, Search, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { FileText, Plus, Search, CheckCircle, ExternalLink } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 const DOC_TYPES = [
   { value: "aadhaar", label: "Aadhaar Card" },
@@ -83,53 +85,67 @@ export default function EmployeeDocumentsPage() {
   });
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Employee Documents</h1>
-          <p className="text-sm text-muted-foreground">Manage employee document records</p>
-        </div>
-        <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> Add Document
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Employee Documents"
+        description="Manage employee document records"
+        actions={
+          <Button onClick={() => setShowAdd(true)} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
+            <Plus className="h-4 w-4 mr-2" /> Add Document
+          </Button>
+        }
+      />
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search documents..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder="Search documents..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
       </div>
 
       {isLoading ? (
-        <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        <TableSkeleton rows={5} columns={4} />
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="p-8 text-center">
-          <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <p className="text-muted-foreground">No documents found</p>
-        </CardContent></Card>
+        <EmptyState
+          icon={FileText}
+          title="No documents found"
+          description="Add employee documents to get started"
+          action={
+            <Button onClick={() => setShowAdd(true)} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
+              <Plus className="h-4 w-4 mr-2" /> Add Document
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-3">
           {filtered.map((doc: any) => (
-            <Card key={doc.id}>
+            <Card key={doc.id} className="hover:shadow-sm transition-shadow">
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </div>
                   <div>
-                    <p className="font-medium text-foreground">{doc.document_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {doc.hr_employees?.first_name} {doc.hr_employees?.last_name} · {DOC_TYPES.find(t => t.value === doc.document_type)?.label || doc.document_type}
+                    <p className="font-medium text-foreground text-sm">{doc.document_name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {doc.hr_employees?.first_name} {doc.hr_employees?.last_name}
+                      <span className="mx-1">·</span>
+                      <span className="bg-muted/80 text-muted-foreground border border-border rounded-full px-2 py-0.5 text-[10px] font-medium">
+                        {DOC_TYPES.find(t => t.value === doc.document_type)?.label || doc.document_type}
+                      </span>
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {doc.is_verified ? (
-                    <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" /> Verified</Badge>
+                    <span className="bg-success/10 text-success border border-success/20 rounded-full px-2 py-0.5 text-[10px] font-medium flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" /> Verified
+                    </span>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => verifyMutation.mutate(doc.id)}>
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => verifyMutation.mutate(doc.id)}>
                       Verify
                     </Button>
                   )}
                   {doc.file_url && (
-                    <Button size="sm" variant="ghost" asChild>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" asChild>
                       <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a>
                     </Button>
                   )}
@@ -142,12 +158,16 @@ export default function EmployeeDocumentsPage() {
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Employee Document</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <FileText className="h-4 w-4" /> Add Employee Document
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Employee</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>{employees.map((e: any) => (
                   <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
                 ))}</SelectContent>
@@ -156,19 +176,19 @@ export default function EmployeeDocumentsPage() {
             <div>
               <Label>Document Type</Label>
               <Select value={form.document_type} onValueChange={(v) => setForm({ ...form, document_type: v })}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>{DOC_TYPES.map(t => (
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                 ))}</SelectContent>
               </Select>
             </div>
-            <div><Label>Document Name</Label><Input value={form.document_name} onChange={(e) => setForm({ ...form, document_name: e.target.value })} placeholder="e.g. Aadhaar Card - Front" /></div>
-            <div><Label>File URL</Label><Input value={form.file_url} onChange={(e) => setForm({ ...form, file_url: e.target.value })} placeholder="https://..." /></div>
-            <div><Label>Notes</Label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            <div><Label>Document Name</Label><Input className="h-9 mt-1" value={form.document_name} onChange={(e) => setForm({ ...form, document_name: e.target.value })} placeholder="e.g. Aadhaar Card - Front" /></div>
+            <div><Label>File URL</Label><Input className="h-9 mt-1" value={form.file_url} onChange={(e) => setForm({ ...form, file_url: e.target.value })} placeholder="https://..." /></div>
+            <div><Label>Notes</Label><Input className="h-9 mt-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.document_type || !form.document_name || !form.file_url || addMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f]">
+            <Button variant="outline" className="h-9" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.document_type || !form.document_name || !form.file_url || addMutation.isPending}>
               {addMutation.isPending ? "Adding..." : "Add Document"}
             </Button>
           </DialogFooter>

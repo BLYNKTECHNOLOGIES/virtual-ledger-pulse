@@ -1,3 +1,5 @@
+// ============= Full file contents =============
+
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight, Search, Users, Calendar } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const STATUS_COLORS: Record<string, string> = {
   present: "bg-success",
@@ -122,16 +126,16 @@ export default function AttendanceCalendarPage() {
   }, [attendance]);
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Attendance Calendar</h1>
-          <p className="text-sm text-muted-foreground">Monthly attendance view per employee</p>
-        </div>
-        <Button onClick={() => { setShowBulk(true); setSelectedEmps(employees.map((e: any) => e.id)); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Users className="h-4 w-4 mr-2" /> Bulk Mark Attendance
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Attendance Calendar"
+        description="Monthly attendance view per employee"
+        actions={
+          <Button onClick={() => { setShowBulk(true); setSelectedEmps(employees.map((e: any) => e.id)); }} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Users className="h-4 w-4 mr-2" /> Bulk Mark Attendance
+          </Button>
+        }
+      />
 
       {/* Month Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -142,7 +146,7 @@ export default function AttendanceCalendarPage() {
           { label: "Late", value: monthStats.late },
           { label: "Present Rate", value: `${monthStats.rate}%` },
         ].map(s => (
-          <Card key={s.label}><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{s.value}</p><p className="text-[10px] text-muted-foreground">{s.label}</p></CardContent></Card>
+          <Card key={s.label}><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground tabular-nums">{s.value}</p><p className="text-[10px] text-muted-foreground">{s.label}</p></CardContent></Card>
         ))}
       </div>
 
@@ -154,7 +158,7 @@ export default function AttendanceCalendarPage() {
           <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
         </div>
         <Select value={selectedEmp} onValueChange={setSelectedEmp}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-48 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Employees</SelectItem>
             {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>)}
@@ -162,12 +166,12 @@ export default function AttendanceCalendarPage() {
         </Select>
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 text-xs">
+      <div className="flex gap-4 flex-wrap text-xs">
         {Object.entries(STATUS_COLORS).map(([status, color]) => (
           <div key={status} className="flex items-center gap-1.5">
             <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
@@ -179,7 +183,11 @@ export default function AttendanceCalendarPage() {
       {/* Employee Calendar Cards */}
       <div className="space-y-4">
         {filteredEmps.length === 0 ? (
-          <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No employees found</CardContent></Card>
+          <Card>
+            <CardContent className="py-0">
+              <EmptyState icon={Calendar} title="No employees found" description="Try adjusting your search or filter." />
+            </CardContent>
+          </Card>
         ) : (
           filteredEmps.map((emp: any) => {
             const empAttendance = attendanceMap[emp.id] || {};
@@ -200,7 +208,7 @@ export default function AttendanceCalendarPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-foreground">{empPresent}/{empTotal}</p>
+                      <p className="text-sm font-bold text-foreground tabular-nums">{empPresent}/{empTotal}</p>
                       <p className="text-[10px] text-muted-foreground">Present days</p>
                     </div>
                   </div>
@@ -242,14 +250,18 @@ export default function AttendanceCalendarPage() {
       {/* Bulk Attendance Dialog */}
       <Dialog open={showBulk} onOpenChange={setShowBulk}>
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-          <DialogHeader><DialogTitle>Bulk Mark Attendance</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Users className="h-4 w-4 text-[#E8604C]" /> Bulk Mark Attendance
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Date</Label><Input type="date" value={bulkDate} onChange={e => setBulkDate(e.target.value)} /></div>
+              <div><Label>Date</Label><Input type="date" value={bulkDate} onChange={e => setBulkDate(e.target.value)} className="h-9 mt-1" /></div>
               <div>
                 <Label>Status</Label>
                 <Select value={bulkStatus} onValueChange={setBulkStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="present">Present</SelectItem>
                     <SelectItem value="absent">Absent</SelectItem>
@@ -260,8 +272,8 @@ export default function AttendanceCalendarPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Check In</Label><Input type="time" value={bulkCheckIn} onChange={e => setBulkCheckIn(e.target.value)} /></div>
-              <div><Label>Check Out</Label><Input type="time" value={bulkCheckOut} onChange={e => setBulkCheckOut(e.target.value)} /></div>
+              <div><Label>Check In</Label><Input type="time" value={bulkCheckIn} onChange={e => setBulkCheckIn(e.target.value)} className="h-9 mt-1" /></div>
+              <div><Label>Check Out</Label><Input type="time" value={bulkCheckOut} onChange={e => setBulkCheckOut(e.target.value)} className="h-9 mt-1" /></div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -290,11 +302,11 @@ export default function AttendanceCalendarPage() {
             </div>
           </div>
           <DialogFooter className="shrink-0">
-            <Button variant="outline" onClick={() => setShowBulk(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowBulk(false)} className="h-9">Cancel</Button>
             <Button
               onClick={() => bulkMutation.mutate()}
               disabled={selectedEmps.length === 0 || !bulkDate || bulkMutation.isPending}
-              className="bg-[#E8604C] hover:bg-[#d4553f]"
+              className="bg-[#E8604C] hover:bg-[#d4553f] h-9"
             >
               {bulkMutation.isPending ? "Marking..." : `Mark ${selectedEmps.length} Employees`}
             </Button>

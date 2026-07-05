@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Search } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 const CATEGORIES = ["All", "General", "Leave", "Attendance", "Conduct", "Benefits", "Safety", "Other"];
 
@@ -30,11 +33,11 @@ export default function HRPoliciesPage() {
   });
 
   return (
-    <div className="space-y-6 page-mount">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">HR Policies</h1>
-        <p className="text-sm text-muted-foreground">Company policies and guidelines</p>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="HR Policies"
+        description="Company policies and guidelines"
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -43,7 +46,7 @@ export default function HRPoliciesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search policies..."
-            className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:border-primary"
+            className="w-full h-9 pl-9 pr-3 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:border-primary"
           />
         </div>
         <div className="flex gap-1 flex-wrap">
@@ -64,29 +67,32 @@ export default function HRPoliciesPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground text-center py-8">Loading policies...</p>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No policies found</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
         </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No policies found"
+          description={search || category !== "All" ? "Try adjusting your search or filter." : "No HR policies have been added yet."}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filtered.map((policy: any) => (
             <Card key={policy.id}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-sm">{policy.title}</CardTitle>
-                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                  <CardTitle className="text-sm font-semibold">{policy.title}</CardTitle>
+                  <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 text-muted-foreground">
                     {policy.category || "General"}
-                  </Badge>
+                  </span>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4">
                   {policy.content}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-3">
+                <p className="text-[10px] tabular-nums text-muted-foreground mt-3">
                   Updated {new Date(policy.updated_at || policy.created_at).toLocaleDateString("en-IN")}
                 </p>
               </CardContent>

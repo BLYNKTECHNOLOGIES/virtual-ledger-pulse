@@ -10,8 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Search, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, Search, CheckCircle, XCircle, AlertTriangle, CalendarDays } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function LeaveRequestsPage() {
   const qc = useQueryClient();
@@ -148,16 +151,16 @@ export default function LeaveRequestsPage() {
   });
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Leave Requests</h1>
-          <p className="text-sm text-muted-foreground">Manage employee leave requests</p>
-        </div>
-        <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> New Request
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Leave Requests"
+        description="Manage employee leave requests"
+        actions={
+          <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Plus className="h-4 w-4 mr-2" /> New Request
+          </Button>
+        }
+      />
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
@@ -175,27 +178,35 @@ export default function LeaveRequestsPage() {
         </Select>
       </div>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No leave requests</td></tr>
-              ) : (
-                filtered.map((r: any) => (
+      {isLoading ? (
+        <TableSkeleton rows={6} columns={9} />
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={CalendarDays}
+              title="No leave requests found"
+              description={search || statusFilter !== "all" ? "Try adjusting your filters." : "New requests will appear here once submitted."}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r: any) => (
                   <tr key={r.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#E8604C]/10 text-[#E8604C]">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-[#E8604C]/10 text-[#E8604C] border-[#E8604C]/20">
                         {r.hr_leave_types?.name}
                       </span>
                     </td>
@@ -203,14 +214,14 @@ export default function LeaveRequestsPage() {
                     <td className="px-4 py-3 tabular-nums">{r.end_date}</td>
                     <td className="px-4 py-3 font-medium tabular-nums">
                       {r.total_days}
-                      {r.is_half_day && <span className="ml-1 text-[10px] bg-info/10 text-info px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
+                      {r.is_half_day && <span className="ml-1 text-[10px] bg-info/10 text-info border border-info/20 px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
                     </td>
                     <td className="px-4 py-3">
                       {(r.leave_clashes_count || 0) > 0 ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">
                                 <AlertTriangle className="h-3 w-3" />
                                 {r.leave_clashes_count}
                               </span>
@@ -225,10 +236,10 @@ export default function LeaveRequestsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        r.status === "approved" ? "bg-success/10 text-success" :
-                        r.status === "rejected" ? "bg-destructive/10 text-destructive" :
-                        "bg-warning/10 text-warning"
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                        r.status === "approved" ? "bg-success/10 text-success border-success/20" :
+                        r.status === "rejected" ? "bg-destructive/10 text-destructive border-destructive/20" :
+                        "bg-warning/10 text-warning border-warning/20"
                       }`}>{r.status}</span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
@@ -250,28 +261,32 @@ export default function LeaveRequestsPage() {
                       )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New Leave Request</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-[#E8604C]" /> New Leave Request
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Leave Type</Label>
               <Select value={form.leave_type_id} onValueChange={(v) => setForm({ ...form, leave_type_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -283,7 +298,7 @@ export default function LeaveRequestsPage() {
               <div>
                 <Label>Period</Label>
                 <Select value={form.half_day_period} onValueChange={(v) => setForm({ ...form, half_day_period: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="morning">Morning</SelectItem>
                     <SelectItem value="afternoon">Afternoon</SelectItem>
@@ -292,14 +307,14 @@ export default function LeaveRequestsPage() {
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Start Date</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-              {!form.is_half_day && <div><Label>End Date</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>}
+              <div><Label>Start Date</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-9" /></div>
+              {!form.is_half_day && <div><Label>End Date</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="h-9" /></div>}
             </div>
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Reason for leave..." /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id || !form.start_date || !form.end_date} className="bg-[#E8604C] hover:bg-[#d4553f]">Submit</Button>
+            <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
+            <Button onClick={() => createMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id || !form.start_date || !form.end_date} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Submit</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { RefreshCw, CalendarDays, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 export default function LeaveYearEndResetPage() {
   const qc = useQueryClient();
@@ -51,7 +53,6 @@ export default function LeaveYearEndResetPage() {
         } else if (lt.carryforward_type === "carryforward expire") {
           carryForward = lt.max_carry_forward_days ? Math.min(remaining, lt.max_carry_forward_days) : remaining;
         }
-        // "no carryforward" = 0
 
         const lapsed = remaining - carryForward;
         const newAllocation = lt.max_days_per_year || 0;
@@ -89,7 +90,6 @@ export default function LeaveYearEndResetPage() {
       const newYear = Number(selectedYear) + 1;
 
       for (const item of previewData) {
-        // Check if next year allocation already exists
         const { data: existing } = await (supabase as any).from("hr_leave_allocations")
           .select("id")
           .eq("employee_id", item.employee_id)
@@ -103,24 +103,16 @@ export default function LeaveYearEndResetPage() {
 
         if (existing) {
           await (supabase as any).from("hr_leave_allocations").update({
-            allocated_days: item.new_allocated,
-            carry_forward_days: item.carry_forward,
-            available_days: item.new_total,
-            used_days: 0,
-            expired_date: expiredDate,
-            reset_date: new Date().toISOString().slice(0, 10),
+            allocated_days: item.new_allocated, carry_forward_days: item.carry_forward,
+            available_days: item.new_total, used_days: 0,
+            expired_date: expiredDate, reset_date: new Date().toISOString().slice(0, 10),
           }).eq("id", existing.id);
         } else {
           await (supabase as any).from("hr_leave_allocations").insert({
-            employee_id: item.employee_id,
-            leave_type_id: item.leave_type_id,
-            year: newYear,
-            allocated_days: item.new_allocated,
-            carry_forward_days: item.carry_forward,
-            available_days: item.new_total,
-            used_days: 0,
-            expired_date: expiredDate,
-            reset_date: new Date().toISOString().slice(0, 10),
+            employee_id: item.employee_id, leave_type_id: item.leave_type_id, year: newYear,
+            allocated_days: item.new_allocated, carry_forward_days: item.carry_forward,
+            available_days: item.new_total, used_days: 0,
+            expired_date: expiredDate, reset_date: new Date().toISOString().slice(0, 10),
           });
         }
       }
@@ -142,7 +134,6 @@ export default function LeaveYearEndResetPage() {
     return d.toISOString().slice(0, 10);
   }
 
-  // Group preview by leave type for summary
   const summaryByType = previewData ? Object.values(
     previewData.reduce((acc: any, item) => {
       const key = item.leave_type_id;
@@ -155,13 +146,11 @@ export default function LeaveYearEndResetPage() {
   ) : [];
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Leave Year-End Reset</h1>
-          <p className="text-sm text-muted-foreground">Reset leave balances & carry forward unused leave to the next year</p>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Leave Year-End Reset"
+        description="Reset leave balances & carry forward unused leave to the next year"
+      />
 
       <Card>
         <CardContent className="p-5">
@@ -169,7 +158,7 @@ export default function LeaveYearEndResetPage() {
             <div>
               <Label className="mb-1 block">Reset Year</Label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {[currentYear - 1, currentYear, currentYear + 1].map(y => (
                     <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -177,15 +166,15 @@ export default function LeaveYearEndResetPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => previewMutation.mutate()} disabled={previewMutation.isPending}>
+            <Button onClick={() => previewMutation.mutate()} disabled={previewMutation.isPending} className="h-9">
               {previewMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarDays className="h-4 w-4 mr-2" />}
               Preview Reset ({selectedYear} → {Number(selectedYear) + 1})
             </Button>
           </div>
 
-          <div className="mt-4 text-sm text-muted-foreground">
+          <div className="mt-4 text-sm text-muted-foreground space-y-1">
             <p><strong>Leave Types configured:</strong> {leaveTypes.length} active types</p>
-            <p><strong>Allocations for {selectedYear}:</strong> {allocations.length} records</p>
+            <p><strong>Allocations for {selectedYear}:</strong> <span className="tabular-nums">{allocations.length}</span> records</p>
           </div>
         </CardContent>
       </Card>
@@ -193,24 +182,24 @@ export default function LeaveYearEndResetPage() {
       {previewData && previewData.length > 0 && (
         <>
           <Card>
-            <CardHeader><CardTitle className="text-sm">Reset Summary by Leave Type</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm font-semibold">Reset Summary by Leave Type</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>
                     {["Leave Type", "Carryforward Rule", "Employees", "Total Carry Forward", "Total Lapsed"].map(h => (
-                      <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {summaryByType.map((s: any, i: number) => (
-                    <tr key={i} className="border-b">
+                    <tr key={i} className="border-b hover:bg-muted/30">
                       <td className="px-4 py-3 font-medium">{s.name} <span className="text-muted-foreground text-xs">({s.code})</span></td>
                       <td className="px-4 py-3 capitalize">{s.carryforward_type?.replace(/_/g, " ") || "—"}</td>
-                      <td className="px-4 py-3">{s.count}</td>
-                      <td className="px-4 py-3 text-success font-medium">{s.totalCarry} days</td>
-                      <td className="px-4 py-3 text-destructive font-medium">{s.totalLapsed} days</td>
+                      <td className="px-4 py-3 tabular-nums">{s.count}</td>
+                      <td className="px-4 py-3 text-success font-medium tabular-nums">{s.totalCarry} days</td>
+                      <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.totalLapsed} days</td>
                     </tr>
                   ))}
                 </tbody>
@@ -219,7 +208,7 @@ export default function LeaveYearEndResetPage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button className="bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => setConfirmReset(true)}>
+            <Button className="bg-[#E8604C] hover:bg-[#d4553f] h-9" onClick={() => setConfirmReset(true)}>
               <RefreshCw className="h-4 w-4 mr-2" /> Execute Year-End Reset
             </Button>
           </div>
@@ -228,9 +217,12 @@ export default function LeaveYearEndResetPage() {
 
       {previewData && previewData.length === 0 && (
         <Card>
-          <CardContent className="py-12 text-center">
-            <AlertTriangle className="h-10 w-10 text-warning mx-auto mb-3" />
-            <p className="text-muted-foreground">No leave allocations found for {selectedYear}. Nothing to reset.</p>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={AlertTriangle}
+              title={`No allocations found for ${selectedYear}`}
+              description="Nothing to reset for this year."
+            />
           </CardContent>
         </Card>
       )}
@@ -240,13 +232,13 @@ export default function LeaveYearEndResetPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Confirm Year-End Reset</AlertDialogTitle>
             <AlertDialogDescription>
-              This will create/update <strong>{previewData?.length || 0} leave allocations</strong> for <strong>{Number(selectedYear) + 1}</strong>. 
+              This will create/update <strong>{previewData?.length || 0} leave allocations</strong> for <strong>{Number(selectedYear) + 1}</strong>.
               Carry forwards and lapsed amounts will be finalized. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => executeMutation.mutate()} disabled={executeMutation.isPending}>
+            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-[#E8604C] hover:bg-[#d4553f] h-9" onClick={() => executeMutation.mutate()} disabled={executeMutation.isPending}>
               {executeMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processing...</> : <><CheckCircle className="h-4 w-4 mr-1" /> Execute Reset</>}
             </AlertDialogAction>
           </AlertDialogFooter>

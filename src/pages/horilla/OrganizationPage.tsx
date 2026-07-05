@@ -11,6 +11,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function OrganizationPage() {
   const qc = useQueryClient();
@@ -18,7 +21,7 @@ export default function OrganizationPage() {
   const [editDept, setEditDept] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data: departments = [] } = useQuery({
+  const { data: departments = [], isLoading } = useQuery({
     queryKey: ["org_departments"],
     queryFn: async () => {
       const { data } = await supabase.from("departments").select("*").eq("is_active", true).order("hierarchy_level");
@@ -63,65 +66,84 @@ export default function OrganizationPage() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Organization</h1>
-        <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Add Department
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Organization"
+        description="Manage departments and view your organizational structure"
+        actions={
+          <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-9 gap-1.5">
+            <Plus className="h-4 w-4" /> Add Department
+          </Button>
+        }
+      />
 
       {/* Department table */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Departments</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Departments</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Department</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Code</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Hierarchy Level</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Employees</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Positions</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {departments.map((d: any) => (
-                <tr key={d.id} className="border-b hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 font-medium flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-primary" />{d.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="bg-muted px-2 py-0.5 rounded text-xs font-mono">{d.code}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center text-muted-foreground">{d.hierarchy_level ?? "—"}</td>
-                  <td className="px-4 py-3 text-center">{deptEmpCounts[d.id] || 0}</td>
-                  <td className="px-4 py-3 text-center">{deptPosCounts[d.id] || 0}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1 justify-end">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDept(d); setDialogOpen(true); }}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(d.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </td>
+          {isLoading ? (
+            <div className="p-4"><TableSkeleton rows={4} columns={6} /></div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Department</th>
+                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Code</th>
+                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Hierarchy Level</th>
+                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employees</th>
+                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Positions</th>
+                  <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
                 </tr>
-              ))}
-              {departments.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">No departments yet. Add one above.</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {departments.map((d: any) => (
+                  <tr key={d.id} className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3 font-medium flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />{d.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium font-mono">{d.code}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center tabular-nums text-muted-foreground">{d.hierarchy_level ?? "—"}</td>
+                    <td className="px-4 py-3 text-center tabular-nums">{deptEmpCounts[d.id] || 0}</td>
+                    <td className="px-4 py-3 text-center tabular-nums">{deptPosCounts[d.id] || 0}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDept(d); setDialogOpen(true); }}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(d.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {departments.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState
+                        icon={Building2}
+                        title="No departments yet"
+                        description="Add your first department to start building your organization."
+                        action={
+                          <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-9 gap-1.5">
+                            <Plus className="h-4 w-4" /> Add Department
+                          </Button>
+                        }
+                      />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </CardContent>
       </Card>
 
       {/* Org Chart */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Organization Chart</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Organization Chart</CardTitle></CardHeader>
         <CardContent><OrgChartView /></CardContent>
       </Card>
 
@@ -130,12 +152,14 @@ export default function OrganizationPage() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Department?</AlertDialogTitle>
+            <AlertDialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive" /> Delete Department?
+            </AlertDialogTitle>
             <AlertDialogDescription>This will deactivate the department. It can be reactivated later.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="h-9">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

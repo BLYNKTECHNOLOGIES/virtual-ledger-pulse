@@ -10,6 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Search, Users, CalendarDays, BarChart3 } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 function getCurrentQuarter() {
   return Math.ceil((new Date().getMonth() + 1) / 3);
@@ -31,7 +34,6 @@ export default function LeaveAllocationsPage() {
   const year = parseInt(yearFilter);
   const quarter = parseInt(quarterFilter);
 
-  // Fetch ALL allocations for the employee (across all quarters/years) to compute cumulative balance
   const { data: allAllocations = [], isLoading } = useQuery({
     queryKey: ["hr_leave_allocations_all"],
     queryFn: async () => {
@@ -44,7 +46,6 @@ export default function LeaveAllocationsPage() {
     },
   });
 
-  // Filter for current quarter view
   const currentQuarterAllocations = allAllocations.filter(
     (a: any) => a.year === year && (a.quarter === quarter || !a.quarter)
   );
@@ -113,32 +114,22 @@ export default function LeaveAllocationsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Compute cumulative balances per employee per leave type (all quarters carry forward)
   const computeCumulativeBalances = () => {
     const empMap: Record<string, { employee: any; balances: Record<string, { totalAllocated: number; totalUsed: number; leaveType: any }> }> = {};
-
     for (const a of allAllocations) {
       const empId = a.employee_id;
-      if (!empMap[empId]) {
-        empMap[empId] = { employee: a.hr_employees, balances: {} };
-      }
+      if (!empMap[empId]) empMap[empId] = { employee: a.hr_employees, balances: {} };
       const ltId = a.leave_type_id;
-      if (!empMap[empId].balances[ltId]) {
-        empMap[empId].balances[ltId] = { totalAllocated: 0, totalUsed: 0, leaveType: a.hr_leave_types };
-      }
+      if (!empMap[empId].balances[ltId]) empMap[empId].balances[ltId] = { totalAllocated: 0, totalUsed: 0, leaveType: a.hr_leave_types };
       empMap[empId].balances[ltId].totalAllocated += Number(a.allocated_days || 0);
       empMap[empId].balances[ltId].totalUsed += Number(a.used_days || 0);
     }
-
     return Object.values(empMap);
   };
 
-  // Group current quarter allocations by employee for display
   const grouped = currentQuarterAllocations.reduce((acc: any, a: any) => {
     const empId = a.employee_id;
-    if (!acc[empId]) {
-      acc[empId] = { employee: a.hr_employees, allocations: [] };
-    }
+    if (!acc[empId]) acc[empId] = { employee: a.hr_employees, allocations: [] };
     acc[empId].allocations.push(a);
     return acc;
   }, {} as Record<string, any>);
@@ -150,30 +141,28 @@ export default function LeaveAllocationsPage() {
     return name.includes(q) || g.employee?.badge_id?.toLowerCase().includes(q);
   });
 
-  // Cumulative balances for stats
   const cumulativeData = computeCumulativeBalances();
   const totalAllocated = cumulativeData.reduce((s, e) => s + Object.values(e.balances).reduce((ss, b) => ss + b.totalAllocated, 0), 0);
   const totalUsed = cumulativeData.reduce((s, e) => s + Object.values(e.balances).reduce((ss, b) => ss + b.totalUsed, 0), 0);
   const uniqueEmployees = cumulativeData.length;
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Leave Allocations</h1>
-          <p className="text-sm text-muted-foreground">Quarterly leave allocation — all leaves carry forward infinitely</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowBulk(true)}>
-            <Users className="h-4 w-4 mr-2" /> Bulk Allocate
-          </Button>
-          <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-            <Plus className="h-4 w-4 mr-2" /> Allocate Leave
-          </Button>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Leave Allocations"
+        description="Quarterly leave allocation — all leaves carry forward infinitely"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setShowBulk(true)} className="h-9">
+              <Users className="h-4 w-4 mr-2" /> Bulk Allocate
+            </Button>
+            <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+              <Plus className="h-4 w-4 mr-2" /> Allocate Leave
+            </Button>
+          </>
+        }
+      />
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Employees Allocated", value: uniqueEmployees, icon: Users, color: "text-info", bg: "bg-info/10" },
@@ -184,49 +173,51 @@ export default function LeaveAllocationsPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+              <div><p className="text-2xl font-bold tabular-nums">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <Select value={yearFilter} onValueChange={setYearFilter}>
-          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={quarterFilter} onValueChange={setQuarterFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {[1, 2, 3, 4].map(q => <SelectItem key={q} value={q.toString()}>{getQuarterLabel(q)}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
 
-      {/* Employee-wise allocation cards */}
       {isLoading ? (
-        <p className="text-center text-muted-foreground py-12">Loading...</p>
+        <div className="grid grid-cols-1 gap-4"><CardSkeleton /><CardSkeleton /><CardSkeleton /></div>
       ) : groupedArr.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground text-sm">No leave allocations for {getQuarterLabel(quarter)} {year}</p>
-            <button onClick={() => setShowBulk(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
-              Bulk allocate for all employees →
-            </button>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={CalendarDays}
+              title={`No leave allocations for ${getQuarterLabel(quarter)} ${year}`}
+              description="Bulk allocate to quickly assign default leave days to all active employees."
+              action={
+                <button onClick={() => setShowBulk(true)} className="text-sm text-[#E8604C] font-medium hover:underline">
+                  Bulk allocate for all employees →
+                </button>
+              }
+            />
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
           {(groupedArr as any[]).map((g: any) => {
-            // Get cumulative balance for this employee
             const empCumulative = cumulativeData.find(c => c.employee?.id === g.employee?.id);
             return (
               <Card key={g.employee?.id}>
@@ -242,7 +233,6 @@ export default function LeaveAllocationsPage() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {g.allocations.map((a: any) => {
-                      // Show cumulative balance (all quarters)
                       const cumBal = empCumulative?.balances[a.leave_type_id];
                       const cumulativeAvailable = cumBal ? cumBal.totalAllocated - cumBal.totalUsed : a.allocated_days - a.used_days;
                       const percent = cumBal && cumBal.totalAllocated > 0 ? (cumBal.totalUsed / cumBal.totalAllocated) * 100 : 0;
@@ -257,9 +247,9 @@ export default function LeaveAllocationsPage() {
                           </div>
                           <div className="flex justify-between text-[10px] text-muted-foreground">
                             <span>This Qtr: {a.allocated_days}d</span>
-                            <span className="font-medium text-foreground">Bal: {cumulativeAvailable}</span>
+                            <span className="font-medium text-foreground tabular-nums">Bal: {cumulativeAvailable}</span>
                           </div>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">Used: {cumBal?.totalUsed || a.used_days} (all time)</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">Used: {cumBal?.totalUsed || a.used_days} (all time)</p>
                         </div>
                       );
                     })}
@@ -271,15 +261,18 @@ export default function LeaveAllocationsPage() {
         </div>
       )}
 
-      {/* Add Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Allocate Leave — {getQuarterLabel(quarter)} {year}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-[#E8604C]" /> Allocate Leave — {getQuarterLabel(quarter)} {year}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -289,27 +282,30 @@ export default function LeaveAllocationsPage() {
                 const lt = leaveTypes.find((t: any) => t.id === v);
                 setForm({ ...form, leave_type_id: v, allocated_days: lt?.max_days_per_year || 12 });
               }}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Days to Allocate (this quarter)</Label>
-              <Input type="number" value={form.allocated_days} onChange={(e) => setForm({ ...form, allocated_days: parseFloat(e.target.value) || 0 })} />
+              <Input type="number" value={form.allocated_days} onChange={(e) => setForm({ ...form, allocated_days: parseFloat(e.target.value) || 0 })} className="h-9" />
             </div>
             <p className="text-xs text-muted-foreground">Quarter: {getQuarterLabel(quarter)} {year} • All unused days carry forward automatically</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id} className="bg-[#E8604C] hover:bg-[#d4553f]">Allocate</Button>
+            <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
+            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Allocate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Allocate Dialog */}
       <Dialog open={showBulk} onOpenChange={setShowBulk}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Bulk Leave Allocation — {getQuarterLabel(quarter)} {year}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <Users className="h-4 w-4 text-[#E8604C]" /> Bulk Leave Allocation — {getQuarterLabel(quarter)} {year}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               This will allocate default leave days (from leave type settings) to <strong>all {employees.length} active employees</strong> for <strong>{getQuarterLabel(quarter)} {year}</strong>.
@@ -318,7 +314,7 @@ export default function LeaveAllocationsPage() {
               {leaveTypes.map((lt: any) => (
                 <div key={lt.id} className="flex justify-between">
                   <span className="text-muted-foreground">{lt.name}</span>
-                  <span className="font-medium">{lt.max_days_per_year} days/quarter</span>
+                  <span className="font-medium tabular-nums">{lt.max_days_per_year} days/quarter</span>
                 </div>
               ))}
             </div>
@@ -326,8 +322,8 @@ export default function LeaveAllocationsPage() {
             {leaveTypes.length === 0 && <p className="text-xs text-warning">⚠ Create leave types first before bulk allocating.</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBulk(false)}>Cancel</Button>
-            <Button onClick={() => bulkAllocateMutation.mutate()} disabled={leaveTypes.length === 0 || employees.length === 0 || bulkAllocateMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f]">
+            <Button variant="outline" onClick={() => setShowBulk(false)} className="h-9">Cancel</Button>
+            <Button onClick={() => bulkAllocateMutation.mutate()} disabled={leaveTypes.length === 0 || employees.length === 0 || bulkAllocateMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
               {bulkAllocateMutation.isPending ? "Allocating..." : `Allocate for ${employees.length} Employees`}
             </Button>
           </DialogFooter>

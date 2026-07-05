@@ -11,6 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Play, CalendarDays, Clock } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 const EMPTY_FORM = {
   name: "", leave_type_id: "", accrual_period: "monthly", accrual_amount: 1,
@@ -66,15 +69,11 @@ export default function LeaveAccrualPlansPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = {
-        name: form.name,
-        leave_type_id: form.leave_type_id,
-        accrual_period: form.accrual_period,
-        accrual_amount: Number(form.accrual_amount),
-        max_accrual: form.max_accrual ? Number(form.max_accrual) : null,
+        name: form.name, leave_type_id: form.leave_type_id, accrual_period: form.accrual_period,
+        accrual_amount: Number(form.accrual_amount), max_accrual: form.max_accrual ? Number(form.max_accrual) : null,
         applicable_to: form.applicable_to,
         department_id: form.applicable_to === "department" ? form.department_id : null,
-        is_active: form.is_active,
-        effective_from: form.effective_from,
+        is_active: form.is_active, effective_from: form.effective_from,
       };
       if (editId) {
         const { error } = await (supabase as any).from("hr_leave_accrual_plans").update(payload).eq("id", editId);
@@ -86,8 +85,7 @@ export default function LeaveAccrualPlansPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_accrual_plans"] });
-      setShowForm(false);
-      setEditId(null);
+      setShowForm(false); setEditId(null);
       toast.success(editId ? "Plan updated" : "Plan created");
     },
     onError: (e: any) => toast.error(e.message),
@@ -98,10 +96,7 @@ export default function LeaveAccrualPlansPage() {
       const { error } = await (supabase as any).from("hr_leave_accrual_plans").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_leave_accrual_plans"] });
-      toast.success("Plan deleted");
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["hr_leave_accrual_plans"] }); toast.success("Plan deleted"); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -131,34 +126,44 @@ export default function LeaveAccrualPlansPage() {
     setShowForm(true);
   };
 
-  const openNew = () => {
-    setEditId(null);
-    setForm(EMPTY_FORM);
-    setShowForm(true);
-  };
+  const openNew = () => { setEditId(null); setForm(EMPTY_FORM); setShowForm(true); };
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Leave Accrual Plans</h1>
-          <p className="text-sm text-muted-foreground">Auto-allocate leave based on job position/department with configurable accrual periods</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => runAccrualMutation.mutate()} disabled={runAccrualMutation.isPending}>
-            <Play className="h-4 w-4 mr-1" /> {runAccrualMutation.isPending ? "Running..." : "Run Accrual Now"}
-          </Button>
-          <Button onClick={openNew} className="bg-[#E8604C] hover:bg-[#d4553f]">
-            <Plus className="h-4 w-4 mr-1" /> New Plan
-          </Button>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Leave Accrual Plans"
+        description="Auto-allocate leave based on job position/department with configurable accrual periods"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => runAccrualMutation.mutate()} disabled={runAccrualMutation.isPending} className="h-9">
+              <Play className="h-4 w-4 mr-1" /> {runAccrualMutation.isPending ? "Running..." : "Run Accrual Now"}
+            </Button>
+            <Button onClick={openNew} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+              <Plus className="h-4 w-4 mr-1" /> New Plan
+            </Button>
+          </>
+        }
+      />
 
-      {/* Plans Grid */}
       {isLoading ? (
-        <p className="text-center text-muted-foreground py-12">Loading...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CardSkeleton /><CardSkeleton /><CardSkeleton />
+        </div>
       ) : plans.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No accrual plans. Create one to auto-allocate leave.</CardContent></Card>
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={CalendarDays}
+              title="No accrual plans"
+              description="Create a plan to automatically allocate leave days on a schedule."
+              action={
+                <Button onClick={openNew} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+                  <Plus className="h-4 w-4 mr-1" /> New Plan
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {plans.map((p: any) => (
@@ -183,9 +188,9 @@ export default function LeaveAccrualPlansPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">Period:</span> <span className="font-medium capitalize">{p.accrual_period}</span></div>
-                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium">{p.accrual_amount} days</span></div>
+                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium tabular-nums">{p.accrual_amount} days</span></div>
                   <div><span className="text-muted-foreground">Scope:</span> <span className="font-medium capitalize">{p.applicable_to}</span></div>
-                  <div><span className="text-muted-foreground">Effective:</span> <span className="font-medium">{p.effective_from}</span></div>
+                  <div><span className="text-muted-foreground">Effective:</span> <span className="font-medium tabular-nums">{p.effective_from}</span></div>
                 </div>
                 {p.last_accrual_date && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -198,26 +203,25 @@ export default function LeaveAccrualPlansPage() {
         </div>
       )}
 
-      {/* Recent Accrual Log */}
       {accrualLogs.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Recent Accrual Activity</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm font-semibold">Recent Accrual Activity</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">
                 <tr>
                   {["Date", "Plan", "Employee", "Days Accrued"].map(h => (
-                    <th key={h} className="text-left px-4 py-2 font-medium text-muted-foreground">{h}</th>
+                    <th key={h} className="text-left px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {accrualLogs.slice(0, 20).map((log: any) => (
                   <tr key={log.id} className="border-b hover:bg-muted/30">
-                    <td className="px-4 py-2">{log.accrual_date}</td>
+                    <td className="px-4 py-2 tabular-nums">{log.accrual_date}</td>
                     <td className="px-4 py-2">{log.hr_leave_accrual_plans?.name}</td>
                     <td className="px-4 py-2">{log.hr_employees?.first_name} {log.hr_employees?.last_name}</td>
-                    <td className="px-4 py-2 font-medium text-success">+{log.accrued_days}</td>
+                    <td className="px-4 py-2 font-medium text-success tabular-nums">+{log.accrued_days}</td>
                   </tr>
                 ))}
               </tbody>
@@ -226,22 +230,24 @@ export default function LeaveAccrualPlansPage() {
         </Card>
       )}
 
-      {/* Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editId ? "Edit Accrual Plan" : "New Accrual Plan"}</DialogTitle>
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-[#E8604C]" />
+              {editId ? "Edit Accrual Plan" : "New Accrual Plan"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Plan Name</Label>
-              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Monthly Casual Leave Accrual" />
+              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Monthly Casual Leave Accrual" className="h-9" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Leave Type</Label>
                 <Select value={form.leave_type_id} onValueChange={v => setForm({ ...form, leave_type_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}
                   </SelectContent>
@@ -250,7 +256,7 @@ export default function LeaveAccrualPlansPage() {
               <div>
                 <Label>Accrual Period</Label>
                 <Select value={form.accrual_period} onValueChange={v => setForm({ ...form, accrual_period: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="quarterly">Quarterly</SelectItem>
@@ -262,18 +268,18 @@ export default function LeaveAccrualPlansPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Accrual Amount (days)</Label>
-                <Input type="number" min="0.5" step="0.5" value={form.accrual_amount} onChange={e => setForm({ ...form, accrual_amount: parseFloat(e.target.value) || 0 })} />
+                <Input type="number" min="0.5" step="0.5" value={form.accrual_amount} onChange={e => setForm({ ...form, accrual_amount: parseFloat(e.target.value) || 0 })} className="h-9" />
               </div>
               <div>
                 <Label>Max Accrual (optional cap)</Label>
-                <Input type="number" value={form.max_accrual} onChange={e => setForm({ ...form, max_accrual: e.target.value })} placeholder="No limit" />
+                <Input type="number" value={form.max_accrual} onChange={e => setForm({ ...form, max_accrual: e.target.value })} placeholder="No limit" className="h-9" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Applicable To</Label>
                 <Select value={form.applicable_to} onValueChange={v => setForm({ ...form, applicable_to: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Employees</SelectItem>
                     <SelectItem value="department">Specific Department</SelectItem>
@@ -285,7 +291,7 @@ export default function LeaveAccrualPlansPage() {
                 <div>
                   <Label>Department</Label>
                   <Select value={form.department_id} onValueChange={v => setForm({ ...form, department_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {departments.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                     </SelectContent>
@@ -295,7 +301,7 @@ export default function LeaveAccrualPlansPage() {
             </div>
             <div>
               <Label>Effective From</Label>
-              <Input type="date" value={form.effective_from} onChange={e => setForm({ ...form, effective_from: e.target.value })} />
+              <Input type="date" value={form.effective_from} onChange={e => setForm({ ...form, effective_from: e.target.value })} className="h-9" />
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />
@@ -303,9 +309,9 @@ export default function LeaveAccrualPlansPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)} className="h-9">Cancel</Button>
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name || !form.leave_type_id}
-              className="bg-[#E8604C] hover:bg-[#d4553f]">
+              className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
               {saveMutation.isPending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>

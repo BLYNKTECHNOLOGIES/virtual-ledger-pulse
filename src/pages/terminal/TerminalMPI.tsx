@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   BarChart3, Users, Activity, TrendingUp, Clock, Zap,
@@ -505,7 +505,7 @@ export default function TerminalMPI() {
         <div className="flex items-center gap-1.5 flex-wrap">
           {canViewAll && (
             <Select value={viewLevel} onValueChange={setViewLevel}>
-              <SelectTrigger className="h-7 text-[10px] sm:text-xs w-24 sm:w-28">
+              <SelectTrigger className="h-8 text-[10px] sm:text-xs w-24 sm:w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -517,7 +517,7 @@ export default function TerminalMPI() {
             </Select>
           )}
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
+            <SelectTrigger className="h-8 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -528,7 +528,7 @@ export default function TerminalMPI() {
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
+            <SelectTrigger className="h-8 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -538,34 +538,34 @@ export default function TerminalMPI() {
               <SelectItem value="speed">By Speed</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="h-7 text-[10px] sm:text-xs px-2" onClick={fetchMetrics}>
+          <Button variant="outline" size="sm" className="h-8 text-[10px] sm:text-xs px-2" onClick={fetchMetrics}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
+      <div className="t-stagger grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
         {[
-          { label: 'Orders', value: totalOrders, icon: Package, color: 'text-primary' },
-          { label: 'Volume', value: fmtVol(totalVolume), icon: TrendingUp, color: 'text-success' },
-          { label: 'Active', value: totalActive, icon: Activity, color: 'text-warning' },
-          { label: 'Avg Handle', value: formatDuration(overallAvgHandle), icon: Timer, color: 'text-info' },
-          { label: 'Completed', value: totalCompleted, icon: CheckCircle, color: 'text-success' },
-          { label: 'Cancelled', value: totalCancelled, icon: XCircle, color: 'text-destructive' },
-          { label: 'Payments', value: totalPayments, icon: CreditCard, color: 'text-primary' },
-          { label: 'Avg Score', value: `${avgEfficiency}%`, icon: Gauge, color: getScoreColor(avgEfficiency) },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="border-border bg-card">
-            <CardContent className="p-2 sm:p-3">
-              <div className="flex items-center justify-between mb-1">
-                <Icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${color}`} />
-                <Badge variant="outline" className="text-[7px] sm:text-[8px] px-1">{timeRange}</Badge>
+          { label: 'Orders', value: totalOrders, icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
+          { label: 'Volume', value: fmtVol(totalVolume), icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+          { label: 'Active', value: totalActive, icon: Activity, color: 'text-warning', bg: 'bg-warning/10' },
+          { label: 'Avg Handle', value: formatDuration(overallAvgHandle), icon: Timer, color: 'text-info', bg: 'bg-info/10' },
+          { label: 'Completed', value: totalCompleted, icon: CheckCircle, color: 'text-success', bg: 'bg-success/10' },
+          { label: 'Cancelled', value: totalCancelled, icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
+          { label: 'Payments', value: totalPayments, icon: CreditCard, color: 'text-primary', bg: 'bg-primary/10' },
+          { label: 'Avg Score', value: `${avgEfficiency}%`, icon: Gauge, color: getScoreColor(avgEfficiency), bg: 'bg-primary/10' },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="t-panel p-3 transition-colors hover:border-primary/30 hover:shadow-[var(--glow-primary)]">
+            <div className="flex items-center justify-between mb-2">
+              <div className={`h-8 w-8 rounded-md flex items-center justify-center ${bg}`}>
+                <Icon className={`h-4 w-4 ${color}`} />
               </div>
-              <div className="text-sm sm:text-lg font-bold text-foreground">{value}</div>
-              <div className="text-[8px] sm:text-[9px] text-muted-foreground">{label}</div>
-            </CardContent>
-          </Card>
+              <span className="text-[8px] uppercase tracking-[0.12em] text-muted-foreground">{timeRange}</span>
+            </div>
+            <div className="t-mono text-lg sm:text-2xl font-semibold text-foreground leading-none">{value}</div>
+            <div className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground mt-1.5">{label}</div>
+          </div>
         ))}
       </div>
 
@@ -588,20 +588,19 @@ export default function TerminalMPI() {
                 className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border hover:border-primary/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/terminal/mpi/${m.userId}`)}
               >
-                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  i === 0 ? 'bg-warning/20 text-warning' :
-                  i === 1 ? 'bg-muted/20 text-muted' :
-                  'bg-warning/20 text-warning'
+                <div className={`t-mono h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold border shrink-0 ${
+                  i === 0 ? 'bg-trade-pending/15 text-trade-pending border-trade-pending/25' :
+                  'bg-secondary text-foreground border-border'
                 }`}>
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[10px] sm:text-xs font-medium text-foreground truncate">{m.displayName}</div>
-                  <div className="text-[8px] sm:text-[9px] text-muted-foreground">
+                  <div className="t-mono text-[8px] sm:text-[9px] text-muted-foreground">
                     {m.ordersHandled} orders · {fmtVol(m.totalVolume)}
                   </div>
                 </div>
-                <div className={`text-xs sm:text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
+                <div className={`t-mono text-xs sm:text-sm font-semibold ${getScoreColor(m.efficiencyScore)}`}>
                   {m.efficiencyScore}
                 </div>
               </div>
@@ -621,14 +620,21 @@ export default function TerminalMPI() {
             <div className="h-40 sm:h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={volumeByOperator}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                  <defs>
+                    <linearGradient id="mpiVolFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                   <ReTooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 10 }}
+                    cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
                     formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Volume']}
                   />
-                  <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="volume" fill="url(#mpiVolFill)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -652,7 +658,7 @@ export default function TerminalMPI() {
                       {actionBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                     </Pie>
                     <Legend wrapperStyle={{ fontSize: 9 }} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -676,9 +682,9 @@ export default function TerminalMPI() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="border-border bg-card animate-pulse">
-                <CardContent className="p-3 h-32 sm:h-44" />
-              </Card>
+              <div key={i} className="t-panel p-3 sm:p-4">
+                <div className="t-shimmer h-32 sm:h-44 rounded-md" />
+              </div>
             ))
           ) : filteredMetrics.length === 0 ? (
             <div className="col-span-full text-center py-12 text-sm text-muted-foreground">
@@ -706,11 +712,11 @@ export default function TerminalMPI() {
                     <div className="flex items-center gap-1.5">
                       {m.activeLoad > 0 && (
                         <div className="flex items-center gap-1">
-                          <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                          <span className="text-[9px] text-muted-foreground">{m.activeLoad}</span>
+                          <div className="h-1.5 w-1.5 rounded-full bg-success" />
+                          <span className="t-mono text-[9px] text-muted-foreground">{m.activeLoad}</span>
                         </div>
                       )}
-                      <div className={`text-xs sm:text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
+                      <div className={`t-mono text-xs sm:text-sm font-semibold ${getScoreColor(m.efficiencyScore)}`}>
                         {m.efficiencyScore}
                       </div>
                     </div>
@@ -719,19 +725,19 @@ export default function TerminalMPI() {
                   {/* Primary Stats */}
                   <div className="grid grid-cols-4 gap-1 sm:gap-1.5 text-center mb-2 sm:mb-3">
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{m.ordersHandled}</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{m.ordersHandled}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Handled</div>
                     </div>
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{fmtVol(m.totalVolume)}</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{fmtVol(m.totalVolume)}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Volume</div>
                     </div>
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{formatDuration(m.avgHandleTimeMin)}</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{formatDuration(m.avgHandleTimeMin)}</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Avg Time</div>
                     </div>
                     <div className="p-1 sm:p-1.5 rounded bg-muted/20">
-                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{m.completionRate}%</div>
+                      <div className="t-mono text-[10px] sm:text-xs font-semibold text-foreground">{m.completionRate}%</div>
                       <div className="text-[7px] sm:text-[8px] text-muted-foreground">Rate</div>
                     </div>
                   </div>
@@ -852,9 +858,11 @@ export default function TerminalMPI() {
                       <span className="text-muted-foreground flex items-center gap-1">
                         <Gauge className="h-2.5 w-2.5" /> Efficiency Score
                       </span>
-                      <span className={`font-medium ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}%</span>
+                      <span className={`t-mono font-medium ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}%</span>
                     </div>
-                    <Progress value={m.efficiencyScore} className={`h-1.5 [&>div]:${getScoreBg(m.efficiencyScore)}`} />
+                    <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                      <div className={`h-full rounded-full ${getScoreBg(m.efficiencyScore)}`} style={{ width: `${m.efficiencyScore}%` }} />
+                    </div>
                   </div>
 
                   {/* Hover hint */}

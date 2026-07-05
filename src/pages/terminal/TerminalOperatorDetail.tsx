@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -191,7 +190,7 @@ function TimingCard({ icon: Icon, label, value, subtitle, borderColor }: { icon:
           <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" style={{ color: 'inherit' }} />
           <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{label}</span>
         </div>
-        <div className="text-sm sm:text-lg font-bold text-foreground">{value}</div>
+        <div className="t-mono text-sm sm:text-lg font-semibold text-foreground">{value}</div>
         <p className="text-[8px] sm:text-[9px] text-muted-foreground">{subtitle}</p>
       </CardContent>
     </Card>
@@ -661,12 +660,20 @@ function TerminalOperatorDetailContent() {
   if (isLoading || !metric) {
     return (
       <div className="p-3 sm:p-4 md:p-6 space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/terminal/mpi')} className="mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/terminal/mpi')} className="mb-2 h-8">
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to MPI
         </Button>
-        <div className="grid grid-cols-2 gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="border-border bg-card animate-pulse"><CardContent className="p-3 h-16" /></Card>
+        <div className="t-panel p-4">
+          <div className="t-shimmer h-16 w-full rounded-md" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="t-panel p-4"><div className="t-shimmer h-12 rounded-md" /></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="t-panel p-4"><div className="t-shimmer h-52 rounded-md" /></div>
           ))}
         </div>
       </div>
@@ -741,12 +748,12 @@ function TerminalOperatorDetailContent() {
         <div className="flex items-center gap-2 ml-11 sm:ml-0 sm:justify-end">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/20">
             <span className="text-[9px] text-muted-foreground">Score</span>
-            <span className={`text-xl font-bold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}</span>
+            <span className={`t-mono text-xl font-semibold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}</span>
           </div>
           {m.activeLoad > 0 && (
             <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px]">{m.activeLoad} active</Badge>
           )}
-          <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={fetchData}>
+          <Button variant="outline" size="sm" className="h-8 text-[10px] px-2" onClick={fetchData}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
           </Button>
         </div>
@@ -755,12 +762,12 @@ function TerminalOperatorDetailContent() {
       {/* Tabs - scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollArea className="w-full">
-          <TabsList className="h-8 w-max">
-            <TabsTrigger value="overview" className="text-[10px] sm:text-xs h-7">Overview</TabsTrigger>
-            <TabsTrigger value="assignments" className="text-[10px] sm:text-xs h-7">Assignments</TabsTrigger>
-            <TabsTrigger value="actions" className="text-[10px] sm:text-xs h-7">Actions</TabsTrigger>
-            <TabsTrigger value="trends" className="text-[10px] sm:text-xs h-7">Trends</TabsTrigger>
-            <TabsTrigger value="orders" className="text-[10px] sm:text-xs h-7">Orders</TabsTrigger>
+          <TabsList className="h-9 w-max bg-secondary p-0.5 rounded-lg border border-border">
+            <TabsTrigger value="overview" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Overview</TabsTrigger>
+            <TabsTrigger value="assignments" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Assignments</TabsTrigger>
+            <TabsTrigger value="actions" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Actions</TabsTrigger>
+            <TabsTrigger value="trends" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Trends</TabsTrigger>
+            <TabsTrigger value="orders" className="text-[10px] sm:text-xs h-8 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm text-muted-foreground">Orders</TabsTrigger>
           </TabsList>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
@@ -820,30 +827,30 @@ function TerminalOperatorDetailContent() {
                   {isPayer ? (
                     <>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{m.payerTodayPayments}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{m.payerTodayPayments}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Payments</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-success">{m.todayCompleted}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-success">{m.todayCompleted}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{fmtVol(m.payerTodayVolume || m.todayVolume)}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{fmtVol(m.payerTodayVolume || m.todayVolume)}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Volume</div>
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{m.todayHandled}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{m.todayHandled}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Handled</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-success">{m.todayCompleted}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-success">{m.todayCompleted}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-muted/30">
-                        <div className="text-base sm:text-lg font-bold text-foreground">{fmtVol(m.todayVolume)}</div>
+                        <div className="t-mono text-base sm:text-lg font-semibold text-foreground">{fmtVol(m.todayVolume)}</div>
                         <div className="text-[8px] sm:text-[9px] text-muted-foreground">Volume</div>
                       </div>
                     </>
@@ -869,14 +876,14 @@ function TerminalOperatorDetailContent() {
                       <ArrowDownRight className="h-3 w-3 text-success" />
                       <span className="text-[10px] text-muted-foreground">Buy Volume</span>
                     </div>
-                    <span className="text-xs font-bold text-foreground">{fmtVol(m.buyVolume)}</span>
+                    <span className="t-mono text-xs font-semibold text-foreground">{fmtVol(m.buyVolume)}</span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div className="flex items-center gap-2">
                       <ArrowUpRight className="h-3 w-3 text-warning" />
                       <span className="text-[10px] text-muted-foreground">Sell Volume</span>
                     </div>
-                    <span className="text-xs font-bold text-foreground">{fmtVol(m.sellVolume)}</span>
+                    <span className="t-mono text-xs font-semibold text-foreground">{fmtVol(m.sellVolume)}</span>
                   </div>
                   <Separator className="my-1" />
                   <div className="flex items-center justify-between">
@@ -903,7 +910,9 @@ function TerminalOperatorDetailContent() {
                       {m.payerLocksTotal > 0 ? Math.round((m.payerLocksCompleted / m.payerLocksTotal) * 100) : 0}%
                     </span>
                   </div>
-                  <Progress value={m.payerLocksTotal > 0 ? (m.payerLocksCompleted / m.payerLocksTotal) * 100 : 0} className="h-1.5 sm:h-2" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-info" style={{ width: `${Math.max(0, Math.min(100, m.payerLocksTotal > 0 ? (m.payerLocksCompleted / m.payerLocksTotal) * 100 : 0))}%` }} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] sm:text-xs">
@@ -912,7 +921,9 @@ function TerminalOperatorDetailContent() {
                     </span>
                     <span className="font-semibold text-success">{m.completionRate}%</span>
                   </div>
-                  <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-success" style={{ width: `${Math.max(0, Math.min(100, m.completionRate))}%` }} />
+                  </div>
                 </div>
               </>
             ) : (
@@ -924,7 +935,9 @@ function TerminalOperatorDetailContent() {
                     </span>
                     <span className="font-semibold text-success">{m.completionRate}%</span>
                   </div>
-                  <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-success" style={{ width: `${Math.max(0, Math.min(100, m.completionRate))}%` }} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] sm:text-xs">
@@ -933,7 +946,9 @@ function TerminalOperatorDetailContent() {
                     </span>
                     <span className="font-semibold text-destructive">{m.cancellationRate}%</span>
                   </div>
-                  <Progress value={m.cancellationRate} className="h-1.5 sm:h-2 [&>div]:bg-destructive" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-destructive" style={{ width: `${Math.max(0, Math.min(100, m.cancellationRate))}%` }} />
+                  </div>
                 </div>
               </>
             )}
@@ -944,7 +959,9 @@ function TerminalOperatorDetailContent() {
                 </span>
                 <span className={`font-semibold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}%</span>
               </div>
-              <Progress value={m.efficiencyScore} className="h-1.5 sm:h-2" />
+              <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, m.efficiencyScore))}%` }} />
+                  </div>
             </div>
           </div>
 
@@ -963,7 +980,7 @@ function TerminalOperatorDetailContent() {
                           {tradeBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 9 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -984,7 +1001,7 @@ function TerminalOperatorDetailContent() {
                           <Cell fill={COLORS[1]} /><Cell fill={COLORS[2]} /><Cell fill={COLORS[3]} />
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 9 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -1000,10 +1017,10 @@ function TerminalOperatorDetailContent() {
                 <div className="h-32 sm:h-40">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={volumeBuckets}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                       <XAxis dataKey="range" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                       <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -1107,28 +1124,28 @@ function TerminalOperatorDetailContent() {
             <Card className="border-border bg-card border-l-2 border-l-blue-500">
               <CardContent className="p-2.5 text-center">
                 <UserCheck className="h-4 w-4 text-info mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">{payerAssignData.filter(a => a.is_active).length}/{payerAssignData.length}</div>
+                <div className="t-mono text-base font-semibold text-foreground">{payerAssignData.filter(a => a.is_active).length}/{payerAssignData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Payer Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-indigo-500">
               <CardContent className="p-2.5 text-center">
                 <ClipboardList className="h-4 w-4 text-primary mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">{operatorAssignData.filter(a => a.is_active).length}/{operatorAssignData.length}</div>
+                <div className="t-mono text-base font-semibold text-foreground">{operatorAssignData.filter(a => a.is_active).length}/{operatorAssignData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Operator Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-cyan-500">
               <CardContent className="p-2.5 text-center">
                 <Lock className="h-4 w-4 text-info mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}/{payerLockData.length}</div>
+                <div className="t-mono text-base font-semibold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}/{payerLockData.length}</div>
                 <div className="text-[8px] text-muted-foreground">Payer Locks</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-emerald-500">
               <CardContent className="p-2.5 text-center">
                 <Link2 className="h-4 w-4 text-success mx-auto mb-1" />
-                <div className="text-base font-bold text-foreground">
+                <div className="t-mono text-base font-semibold text-foreground">
                   {new Set([...payerAssignData.map(a => a.ad_id), ...operatorAssignData.map(a => a.ad_id)].filter(Boolean)).size}
                 </div>
                 <div className="text-[8px] text-muted-foreground">Unique Ad IDs</div>
@@ -1294,7 +1311,7 @@ function TerminalOperatorDetailContent() {
               <Card key={label} className={`border ${bg}`}>
                 <CardContent className="p-2.5 text-center">
                   <Icon className={`h-4 w-4 ${color} mx-auto mb-1`} />
-                  <div className="text-lg font-bold text-foreground">{value}</div>
+                  <div className="t-mono text-lg font-semibold text-foreground">{value}</div>
                   <div className="text-[8px] text-muted-foreground">{label}</div>
                 </CardContent>
               </Card>
@@ -1313,7 +1330,7 @@ function TerminalOperatorDetailContent() {
                         <span className="text-[10px] sm:text-xs text-foreground truncate">{a.label}</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs font-bold text-foreground">{a.count}</span>
+                        <span className="t-mono text-xs font-semibold text-foreground">{a.count}</span>
                         {m.ordersHandled > 0 && (
                           <Badge variant="outline" className="text-[7px] sm:text-[8px]">{Math.round((a.count / m.ordersHandled) * 100)}%</Badge>
                         )}
@@ -1336,7 +1353,7 @@ function TerminalOperatorDetailContent() {
                         {actionDetails.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Legend wrapperStyle={{ fontSize: 9 }} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -1377,10 +1394,10 @@ function TerminalOperatorDetailContent() {
               <div className="h-40 sm:h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailyTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                     {isPayer ? (
                       <>
                         <Area type="monotone" dataKey="payments" fill="hsl(262, 83%, 48%)" stroke="hsl(262, 83%, 48%)" fillOpacity={0.2} name="Payments" />
@@ -1409,10 +1426,10 @@ function TerminalOperatorDetailContent() {
               <div className="h-36 sm:h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Volume']} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Volume']} />
                     <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1430,10 +1447,10 @@ function TerminalOperatorDetailContent() {
               <div className="h-28 sm:h-36">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={hourlyActivity.filter((_, i) => i >= 6 && i <= 23)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="hour" tick={{ fontSize: 7, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <ReTooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} cursor={{ fill: 'hsl(0 0% 100% / 0.03)' }} />
                     <Bar dataKey="orders" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

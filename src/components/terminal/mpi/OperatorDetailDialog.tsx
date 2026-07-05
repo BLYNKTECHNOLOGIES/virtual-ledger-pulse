@@ -1,7 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import {
   Package, TrendingUp, Timer, Activity, ArrowUpRight, ArrowDownRight,
@@ -136,7 +135,7 @@ export function OperatorDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 t-scale-in bg-popover border-border">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
@@ -183,9 +182,9 @@ export function OperatorDetailDialog({
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Icon className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[10px] text-muted-foreground">{label}</span>
+                    <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{label}</span>
                   </div>
-                  <div className="text-lg font-bold text-foreground">
+                  <div className="t-mono text-lg font-semibold text-foreground">
                     {compute(m, recentAssignments)}
                   </div>
                 </CardContent>
@@ -205,8 +204,8 @@ export function OperatorDetailDialog({
               <div key={label} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border border-border">
                 <Icon className={`h-4 w-4 ${color}`} />
                 <div>
-                  <div className="text-xs font-semibold text-foreground">{value}</div>
-                  <div className="text-[9px] text-muted-foreground">{label}</div>
+                  <div className="t-mono text-xs font-semibold text-foreground">{value}</div>
+                  <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
                 </div>
               </div>
             ))}
@@ -219,18 +218,22 @@ export function OperatorDetailDialog({
                 <span className="text-muted-foreground flex items-center gap-1">
                   <CheckCircle className="h-3 w-3 text-success" /> Completion Rate
                 </span>
-                <span className="font-semibold text-success">{completionRate}%</span>
+                <span className="t-mono font-semibold text-success">{completionRate}%</span>
               </div>
-              <Progress value={completionRate} className="h-2" />
+              <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                <div className="h-full rounded-full bg-success" style={{ width: `${completionRate}%` }} />
+              </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground flex items-center gap-1">
                   <XCircle className="h-3 w-3 text-destructive" /> Cancellation Rate
                 </span>
-                <span className="font-semibold text-destructive">{cancellationRate}%</span>
+                <span className="t-mono font-semibold text-destructive">{cancellationRate}%</span>
               </div>
-              <Progress value={cancellationRate} className="h-2 [&>div]:bg-destructive" />
+              <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                <div className="h-full rounded-full bg-destructive" style={{ width: `${cancellationRate}%` }} />
+              </div>
             </div>
           </div>
 
@@ -250,7 +253,7 @@ export function OperatorDetailDialog({
                           {tradeBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 10 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -274,7 +277,7 @@ export function OperatorDetailDialog({
                           <Cell fill={COLORS[3]} />
                         </Pie>
                         <Legend wrapperStyle={{ fontSize: 10 }} />
-                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                        <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -294,7 +297,7 @@ export function OperatorDetailDialog({
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -316,7 +319,7 @@ export function OperatorDetailDialog({
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="hour" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                      <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       <Bar dataKey="orders" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -352,7 +355,7 @@ export function OperatorDetailDialog({
                               {a.trade_type || 'N/A'}
                             </Badge>
                           </td>
-                          <td className="py-1.5 px-2 text-right font-medium">
+                          <td className="py-1.5 px-2 text-right font-medium t-mono">
                             ₹{Number(a.total_price || 0).toLocaleString('en-IN')}
                           </td>
                           <td className="py-1.5 px-2">

@@ -468,7 +468,7 @@ function StatCard({ icon: Icon, label, value, sub, tone = 'primary' }: {
         </div>
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
-          <p className="text-lg font-bold text-foreground tabular-nums leading-tight truncate">{value}</p>
+          <p className="text-lg font-bold text-foreground t-mono leading-tight truncate">{value}</p>
           {sub && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
         </div>
       </CardContent>
@@ -492,11 +492,11 @@ function DataRow({ item, showType = false, selected = false, onClick }: { item: 
         </p>}
         {showType && item.details?.length ? <p className="text-[10px] text-muted-foreground truncate">{item.details.join(' · ')}</p> : null}
       </div>
-      <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Volume</p><p className="font-semibold tabular-nums">{fmtINR(item.volume)}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Quantity</p><p className="font-semibold tabular-nums">{fmt(item.quantity, 4)}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Avg rate</p><p className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Avg order</p><p className="font-semibold tabular-nums">{fmtINR(item.avgOrder)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold t-mono">{item.count}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Volume</p><p className="font-semibold t-mono">{fmtINR(item.volume)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Quantity</p><p className="font-semibold t-mono">{fmt(item.quantity, 4)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Avg rate</p><p className="font-semibold t-mono">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Avg order</p><p className="font-semibold t-mono">{fmtINR(item.avgOrder)}</p></div>
     </Wrapper>
   );
 }
@@ -517,7 +517,7 @@ function GraphMetric({ label, value, tone }: { label: string; value: string; ton
   return (
     <div className="rounded-md border border-border bg-secondary/40 p-3">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-sm font-semibold tabular-nums ${toneClass}`}>{value}</p>
+      <p className={`mt-1 text-sm font-semibold t-mono ${toneClass}`}>{value}</p>
     </div>
   );
 }
@@ -568,7 +568,7 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
                   <div key={coin.key} className="space-y-1.5">
                     <div className="flex items-center justify-between gap-3 text-xs">
                       <span className="font-medium text-foreground">{coin.label}</span>
-                      <span className="text-muted-foreground tabular-nums">{fmtINR(coin.volume)} · {fmt(coin.quantity, 4)} USDT</span>
+                      <span className="text-muted-foreground t-mono">{fmtINR(coin.volume)} · {fmt(coin.quantity, 4)} USDT</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>{coin.count} orders</span><span>{fmtRate(coin.weightedRate || coin.avgRate)}</span></div>
@@ -671,10 +671,10 @@ function AdPerformanceGraph({ rows, tradeFilter, selectedAd }: { rows: Aggregate
                   {item.orderKind && <Badge variant="secondary" className={orderKindTextClass[item.orderKind]}>{item.orderKindLabel}</Badge>}
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-                  <div><p className="text-muted-foreground">Volume</p><p className="font-semibold tabular-nums">{fmtINR(item.volume)}</p></div>
-                  <div><p className="text-muted-foreground">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
-                  <div><p className="text-muted-foreground">Eff. Qty</p><p className="font-semibold tabular-nums">{fmt(item.quantity, 4)}</p></div>
-                  <div><p className="text-muted-foreground">Rate</p><p className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
+                  <div><p className="text-muted-foreground">Volume</p><p className="font-semibold t-mono">{fmtINR(item.volume)}</p></div>
+                  <div><p className="text-muted-foreground">Orders</p><p className="font-semibold t-mono">{item.count}</p></div>
+                  <div><p className="text-muted-foreground">Eff. Qty</p><p className="font-semibold t-mono">{fmt(item.quantity, 4)}</p></div>
+                  <div><p className="text-muted-foreground">Rate</p><p className="font-semibold t-mono">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
                 </div>
               </div>
             ))}
@@ -1044,7 +1044,7 @@ export default function TerminalAnalytics() {
           <TabsContent value="rates" className="min-h-0 flex-1">
             <div className="grid h-full grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate Summary</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-3 text-xs"><StatCard icon={TrendingDown} label="Weighted Buy" value={fmtRate(analytics.weightedBuyRate)} tone="buy" /><StatCard icon={TrendingUp} label="Weighted Sell" value={fmtRate(analytics.weightedSellRate)} tone="sell" /><StatCard icon={Banknote} label="Avg Buy" value={fmtRate(analytics.avgBuyRate)} /><StatCard icon={Banknote} label="Avg Sell" value={fmtRate(analytics.avgSellRate)} /></CardContent></Card>
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate by Type</CardTitle></CardHeader><CardContent>{analytics.orderTypes.map((item) => <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-xs"><span className="text-muted-foreground">{item.label}</span><span className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</span></div>)}</CardContent></Card>
+              <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate by Type</CardTitle></CardHeader><CardContent>{analytics.orderTypes.map((item) => <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-xs"><span className="text-muted-foreground">{item.label}</span><span className="font-semibold t-mono">{fmtRate(item.weightedRate || item.avgRate)}</span></div>)}</CardContent></Card>
             </div>
           </TabsContent>
 

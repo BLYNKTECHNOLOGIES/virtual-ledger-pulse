@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useResolveAlternateUpi } from '@/hooks/usePayerModule';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CreditCard } from 'lucide-react';
 
 interface UpdatePaymentMethodDialogProps {
   open: boolean;

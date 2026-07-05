@@ -247,7 +247,9 @@ export function StockReportsTab() {
     new Set(normalizedMovements.map((m: any) => m.products?.code).filter(Boolean))
   ).sort();
 
+  return (
     <div className="space-y-6">
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>

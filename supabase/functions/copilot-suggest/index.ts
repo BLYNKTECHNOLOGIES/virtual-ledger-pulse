@@ -156,7 +156,7 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
         temperature: 0.3,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemContent },
           { role: "user", content: userMsg },
         ],
       }),

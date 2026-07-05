@@ -546,7 +546,7 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} />
                   <YAxis dataKey="label" type="category" width={78} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Orders' ? [v, name] : [fmt(v, 4), name]} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Orders' ? [v, name] : [fmt(v, 4), name]} />
                   <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
                   <Bar dataKey="volume" name="Volume" radius={[0, 4, 4, 0]}>
                     {chartRows.map((entry) => <Cell key={entry.key} fill={entry.fill} />)}
@@ -597,7 +597,7 @@ function OrderTypeActivityChart({ data, isHourly }: { data: Bucket[]; isHourly: 
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
               <YAxis yAxisId="orders" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={34} />
               <YAxis yAxisId="volume" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} width={50} />
-              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => String(name).includes('Volume') ? [fmtINR(v), name] : [v, name]} />
+              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => String(name).includes('Volume') ? [fmtINR(v), name] : [v, name]} />
               <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
               <Bar yAxisId="orders" stackId="orders" dataKey="smallBuyOrders" name="Small Buy" fill={orderKindChartColor.smallBuy} radius={[3, 3, 0, 0]} />
               <Bar yAxisId="orders" stackId="orders" dataKey="bigBuyOrders" name="Big Buy" fill={orderKindChartColor.bigBuy} radius={[3, 3, 0, 0]} />
@@ -649,7 +649,7 @@ function AdPerformanceGraph({ rows, tradeFilter, selectedAd }: { rows: Aggregate
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} />
                     <YAxis dataKey="displayLabel" type="category" width={210} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Avg order' ? [fmtINR(v), name] : name === 'Weighted rate' ? [fmtRate(v), name] : [fmt(v, 4), name]} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Avg order' ? [fmtINR(v), name] : name === 'Weighted rate' ? [fmtRate(v), name] : [fmt(v, 4), name]} />
                     <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
                     <Bar dataKey="volume" name="Volume" fill={tradeFilter === 'BUY' ? 'hsl(var(--trade-buy))' : 'hsl(var(--trade-sell))'} radius={[0, 4, 4, 0]} />
                     <Bar dataKey="avgOrder" name="Avg order" fill="hsl(var(--primary) / 0.38)" radius={[0, 4, 4, 0]} />
@@ -962,7 +962,7 @@ export default function TerminalAnalytics() {
                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                     <YAxis yAxisId="orders" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={35} />
                     <YAxis yAxisId="volume" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} width={50} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name.includes('Volume') ? [fmtINR(v), name] : [v, name]} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => name.includes('Volume') ? [fmtINR(v), name] : [v, name]} />
                     <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
                     <Area yAxisId="volume" type="monotone" dataKey="buyVolume" name="Buy Volume" stroke="hsl(var(--trade-buy))" fill="hsl(var(--trade-buy) / 0.14)" strokeWidth={2} dot={false} />
                     <Area yAxisId="volume" type="monotone" dataKey="sellVolume" name="Sell Volume" stroke="hsl(var(--trade-sell))" fill="hsl(var(--trade-sell) / 0.12)" strokeWidth={2} dot={false} />

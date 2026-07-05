@@ -97,7 +97,7 @@ export default function AdManager() {
   // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
    const [sortMode, setSortMode] = useState<AdSortMode>(() => (searchParams.get('sort') as AdSortMode) || (localStorage.getItem(SORT_PREF_KEY) as AdSortMode) || 'current');
   const [autoRefresh, setAutoRefresh] = useState<boolean>(() => searchParams.has('auto') ? searchParams.get('auto') === '1' : localStorage.getItem(AUTOREFRESH_PREF_KEY) === '1');
-  const [viewMode, setViewMode] = useState<'categorized' | 'desk'>(() => (searchParams.get('view') as 'categorized' | 'desk') || (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk') || 'categorized');
+  const [viewMode, setViewMode] = useState<'categorized' | 'desk' | 'board'>(() => (searchParams.get('view') as 'categorized' | 'desk' | 'board') || (localStorage.getItem(VIEW_PREF_KEY) as 'categorized' | 'desk' | 'board') || 'board');
   const [compact, setCompact] = useState<boolean>(() => searchParams.has('density') ? searchParams.get('density') === '1' : localStorage.getItem(DENSITY_PREF_KEY) === '1');
   const [statusChips, setStatusChips] = useState<Set<number>>(() => {
     const s = searchParams.get('status');

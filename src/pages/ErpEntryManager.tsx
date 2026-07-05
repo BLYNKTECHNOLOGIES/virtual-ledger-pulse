@@ -59,16 +59,6 @@ const ERP_ENTRY_REFRESH_KEYS = [
   ["erp_conversions"],
 ];
 
-const ERP_ENTRY_REALTIME_TABLES = [
-  "erp_action_queue",
-  "terminal_purchase_sync",
-  "terminal_sales_sync",
-  "small_buys_sync",
-  "small_sales_sync",
-  "erp_product_conversions",
-  "purchase_orders",
-  "sales_orders",
-];
 
 export default function ErpEntryManager() {
   const navigate = useNavigate();

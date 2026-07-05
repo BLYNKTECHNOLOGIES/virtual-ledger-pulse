@@ -1,6 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Megaphone, ArrowUpCircle, ArrowDownCircle, Circle, Power } from 'lucide-react';
+import { Megaphone, ArrowUpCircle, ArrowDownCircle, Power } from 'lucide-react';
 import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 export function AdPerformanceWidget() {
@@ -10,7 +8,6 @@ export function AdPerformanceWidget() {
   const buyAds = ads.filter(a => a.tradeType === 'BUY');
   const sellAds = ads.filter(a => a.tradeType === 'SELL');
   const onlineAds = ads.filter(a => a.advStatus === BINANCE_AD_STATUS.ONLINE);
-  const offlineAds = ads.filter(a => a.advStatus === BINANCE_AD_STATUS.OFFLINE);
 
   const stats = [
     { label: 'Total Ads', value: ads.length, icon: Megaphone, color: 'text-primary' },
@@ -20,17 +17,15 @@ export function AdPerformanceWidget() {
   ];
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-          <Megaphone className="h-4 w-4 text-primary" />
-          Ad Performance
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="t-panel flex flex-col">
+      <div className="t-panel-head">
+        <Megaphone className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="t-panel-head-title">Ad Performance</span>
+      </div>
+      <div className="p-3">
         {isLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+            {[1, 2, 3, 4].map(i => <div key={i} className="t-shimmer h-10 w-full rounded-md" />)}
           </div>
         ) : (
           <div className="space-y-2">
@@ -40,7 +35,7 @@ export function AdPerformanceWidget() {
                   <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
                   <span className="text-xs text-muted-foreground">{s.label}</span>
                 </div>
-                <span className="text-sm font-semibold text-foreground tabular-nums">{s.value}</span>
+                <span className="text-sm font-semibold text-foreground t-mono">{s.value}</span>
               </div>
             ))}
 
@@ -56,7 +51,7 @@ export function AdPerformanceWidget() {
                         <span className="text-muted-foreground">{ad.tradeType}</span>
                         <span className="text-foreground font-medium">{ad.asset}</span>
                       </div>
-                      <span className="text-foreground tabular-nums">₹{Number(ad.price).toLocaleString('en-IN')}</span>
+                      <span className="text-foreground t-mono">₹{Number(ad.price).toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                 </div>
@@ -64,7 +59,7 @@ export function AdPerformanceWidget() {
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

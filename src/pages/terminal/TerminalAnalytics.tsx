@@ -468,7 +468,7 @@ function StatCard({ icon: Icon, label, value, sub, tone = 'primary' }: {
         </div>
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
-          <p className="text-lg font-bold text-foreground tabular-nums leading-tight truncate">{value}</p>
+          <p className="text-lg font-bold text-foreground t-mono leading-tight truncate">{value}</p>
           {sub && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
         </div>
       </CardContent>
@@ -492,11 +492,11 @@ function DataRow({ item, showType = false, selected = false, onClick }: { item: 
         </p>}
         {showType && item.details?.length ? <p className="text-[10px] text-muted-foreground truncate">{item.details.join(' · ')}</p> : null}
       </div>
-      <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Volume</p><p className="font-semibold tabular-nums">{fmtINR(item.volume)}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Quantity</p><p className="font-semibold tabular-nums">{fmt(item.quantity, 4)}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Avg rate</p><p className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
-      <div><p className="text-muted-foreground text-[10px]">Avg order</p><p className="font-semibold tabular-nums">{fmtINR(item.avgOrder)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold t-mono">{item.count}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Volume</p><p className="font-semibold t-mono">{fmtINR(item.volume)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Quantity</p><p className="font-semibold t-mono">{fmt(item.quantity, 4)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Avg rate</p><p className="font-semibold t-mono">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
+      <div><p className="text-muted-foreground text-[10px]">Avg order</p><p className="font-semibold t-mono">{fmtINR(item.avgOrder)}</p></div>
     </Wrapper>
   );
 }
@@ -517,7 +517,7 @@ function GraphMetric({ label, value, tone }: { label: string; value: string; ton
   return (
     <div className="rounded-md border border-border bg-secondary/40 p-3">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-sm font-semibold tabular-nums ${toneClass}`}>{value}</p>
+      <p className={`mt-1 text-sm font-semibold t-mono ${toneClass}`}>{value}</p>
     </div>
   );
 }
@@ -546,7 +546,7 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} />
                   <YAxis dataKey="label" type="category" width={78} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Orders' ? [v, name] : [fmt(v, 4), name]} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Orders' ? [v, name] : [fmt(v, 4), name]} />
                   <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
                   <Bar dataKey="volume" name="Volume" radius={[0, 4, 4, 0]}>
                     {chartRows.map((entry) => <Cell key={entry.key} fill={entry.fill} />)}
@@ -568,7 +568,7 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
                   <div key={coin.key} className="space-y-1.5">
                     <div className="flex items-center justify-between gap-3 text-xs">
                       <span className="font-medium text-foreground">{coin.label}</span>
-                      <span className="text-muted-foreground tabular-nums">{fmtINR(coin.volume)} · {fmt(coin.quantity, 4)} USDT</span>
+                      <span className="text-muted-foreground t-mono">{fmtINR(coin.volume)} · {fmt(coin.quantity, 4)} USDT</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>{coin.count} orders</span><span>{fmtRate(coin.weightedRate || coin.avgRate)}</span></div>
@@ -597,7 +597,7 @@ function OrderTypeActivityChart({ data, isHourly }: { data: Bucket[]; isHourly: 
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
               <YAxis yAxisId="orders" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={34} />
               <YAxis yAxisId="volume" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} width={50} />
-              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => String(name).includes('Volume') ? [fmtINR(v), name] : [v, name]} />
+              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => String(name).includes('Volume') ? [fmtINR(v), name] : [v, name]} />
               <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
               <Bar yAxisId="orders" stackId="orders" dataKey="smallBuyOrders" name="Small Buy" fill={orderKindChartColor.smallBuy} radius={[3, 3, 0, 0]} />
               <Bar yAxisId="orders" stackId="orders" dataKey="bigBuyOrders" name="Big Buy" fill={orderKindChartColor.bigBuy} radius={[3, 3, 0, 0]} />
@@ -649,7 +649,7 @@ function AdPerformanceGraph({ rows, tradeFilter, selectedAd }: { rows: Aggregate
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} />
                     <YAxis dataKey="displayLabel" type="category" width={210} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Avg order' ? [fmtINR(v), name] : name === 'Weighted rate' ? [fmtRate(v), name] : [fmt(v, 4), name]} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Avg order' ? [fmtINR(v), name] : name === 'Weighted rate' ? [fmtRate(v), name] : [fmt(v, 4), name]} />
                     <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
                     <Bar dataKey="volume" name="Volume" fill={tradeFilter === 'BUY' ? 'hsl(var(--trade-buy))' : 'hsl(var(--trade-sell))'} radius={[0, 4, 4, 0]} />
                     <Bar dataKey="avgOrder" name="Avg order" fill="hsl(var(--primary) / 0.38)" radius={[0, 4, 4, 0]} />
@@ -671,10 +671,10 @@ function AdPerformanceGraph({ rows, tradeFilter, selectedAd }: { rows: Aggregate
                   {item.orderKind && <Badge variant="secondary" className={orderKindTextClass[item.orderKind]}>{item.orderKindLabel}</Badge>}
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-                  <div><p className="text-muted-foreground">Volume</p><p className="font-semibold tabular-nums">{fmtINR(item.volume)}</p></div>
-                  <div><p className="text-muted-foreground">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
-                  <div><p className="text-muted-foreground">Eff. Qty</p><p className="font-semibold tabular-nums">{fmt(item.quantity, 4)}</p></div>
-                  <div><p className="text-muted-foreground">Rate</p><p className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
+                  <div><p className="text-muted-foreground">Volume</p><p className="font-semibold t-mono">{fmtINR(item.volume)}</p></div>
+                  <div><p className="text-muted-foreground">Orders</p><p className="font-semibold t-mono">{item.count}</p></div>
+                  <div><p className="text-muted-foreground">Eff. Qty</p><p className="font-semibold t-mono">{fmt(item.quantity, 4)}</p></div>
+                  <div><p className="text-muted-foreground">Rate</p><p className="font-semibold t-mono">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
                 </div>
               </div>
             ))}
@@ -899,7 +899,18 @@ export default function TerminalAnalytics() {
   }, [filteredAdRows, selectedAdKey]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="flex w-full flex-col gap-4 p-4 md:p-6">
+        <div className="t-shimmer h-8 w-48 rounded-md" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {[0, 1, 2, 3, 4].map((i) => <div key={i} className="t-shimmer h-20 rounded-md" />)}
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-4">
+          <div className="t-shimmer h-80 rounded-md" />
+          <div className="t-shimmer h-80 rounded-md" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -962,7 +973,7 @@ export default function TerminalAnalytics() {
                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                     <YAxis yAxisId="orders" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={35} />
                     <YAxis yAxisId="volume" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} width={50} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name.includes('Volume') ? [fmtINR(v), name] : [v, name]} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => name.includes('Volume') ? [fmtINR(v), name] : [v, name]} />
                     <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
                     <Area yAxisId="volume" type="monotone" dataKey="buyVolume" name="Buy Volume" stroke="hsl(var(--trade-buy))" fill="hsl(var(--trade-buy) / 0.14)" strokeWidth={2} dot={false} />
                     <Area yAxisId="volume" type="monotone" dataKey="sellVolume" name="Sell Volume" stroke="hsl(var(--trade-sell))" fill="hsl(var(--trade-sell) / 0.12)" strokeWidth={2} dot={false} />
@@ -1044,7 +1055,7 @@ export default function TerminalAnalytics() {
           <TabsContent value="rates" className="min-h-0 flex-1">
             <div className="grid h-full grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate Summary</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-3 text-xs"><StatCard icon={TrendingDown} label="Weighted Buy" value={fmtRate(analytics.weightedBuyRate)} tone="buy" /><StatCard icon={TrendingUp} label="Weighted Sell" value={fmtRate(analytics.weightedSellRate)} tone="sell" /><StatCard icon={Banknote} label="Avg Buy" value={fmtRate(analytics.avgBuyRate)} /><StatCard icon={Banknote} label="Avg Sell" value={fmtRate(analytics.avgSellRate)} /></CardContent></Card>
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate by Type</CardTitle></CardHeader><CardContent>{analytics.orderTypes.map((item) => <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-xs"><span className="text-muted-foreground">{item.label}</span><span className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</span></div>)}</CardContent></Card>
+              <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate by Type</CardTitle></CardHeader><CardContent>{analytics.orderTypes.map((item) => <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-xs"><span className="text-muted-foreground">{item.label}</span><span className="font-semibold t-mono">{fmtRate(item.weightedRate || item.avgRate)}</span></div>)}</CardContent></Card>
             </div>
           </TabsContent>
 

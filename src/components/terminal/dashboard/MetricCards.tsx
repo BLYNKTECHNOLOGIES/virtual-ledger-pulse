@@ -1,6 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
 import { ShoppingCart, Clock, TrendingUp, AlertTriangle, BarChart3, Percent, ArrowLeftRight, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 
 function formatVolume(v: number): string {
   if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)}Cr`;
@@ -41,29 +39,30 @@ export function MetricCards({
     { label: 'Appeals', formatted: String(appeals || 0), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
     { label: 'Buy Volume', formatted: formatVolume(totalBuyVolume || 0), icon: ArrowDownLeft, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
     { label: 'Sell Volume', formatted: formatVolume(totalSellVolume || 0), icon: ArrowUpRight, color: 'text-trade-sell', bg: 'bg-trade-sell/10' },
-    { label: 'Avg Order Size', formatted: `₹${avg.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-accent-foreground', bg: 'bg-accent/30' },
+    { label: 'Avg Order Size', formatted: `₹${avg.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-primary', bg: 'bg-primary/10' },
     { label: 'Completion Rate', formatted: `${rate.toFixed(1)}%`, icon: Percent, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
     { label: 'Buy / Sell', formatted: ratio, icon: ArrowLeftRight, color: 'text-muted-foreground', bg: 'bg-secondary' },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="t-stagger grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3">
       {cards.map((c) => (
-        <Card key={c.label} className="bg-card border-border hover:border-primary/20 transition-colors">
-          <CardContent className="p-3.5">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className={`h-7 w-7 rounded-md ${c.bg} flex items-center justify-center`}>
-                <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
-              </div>
+        <div
+          key={c.label}
+          className="t-panel p-4 relative transition-[border-color,box-shadow] duration-200 hover:border-primary/30 hover:shadow-[var(--glow-primary)]"
+        >
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className={`h-8 w-8 rounded-md ${c.bg} flex items-center justify-center shrink-0`}>
+              <c.icon className={`h-4 w-4 ${c.color}`} />
             </div>
-            {isLoading ? (
-              <Skeleton className="h-7 w-16 mb-1" />
-            ) : (
-              <p className="text-xl font-bold text-foreground tabular-nums tracking-tight">{c.formatted}</p>
-            )}
-            <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">{c.label}</p>
-          </CardContent>
-        </Card>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground leading-tight">{c.label}</span>
+          </div>
+          {isLoading ? (
+            <div className="t-shimmer h-8 w-20 rounded" />
+          ) : (
+            <p className="text-2xl font-semibold t-mono text-foreground tracking-tight">{c.formatted}</p>
+          )}
+        </div>
       ))}
     </div>
   );

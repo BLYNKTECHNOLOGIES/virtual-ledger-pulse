@@ -40,18 +40,7 @@ export function CreateConversionForm() {
 
   const createMutation = useCreateConversion();
 
-  const { data: wallets = [] } = useQuery({
-    queryKey: ['wallets-active'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('id, wallet_name')
-        .eq('is_active', true)
-        .order('wallet_name');
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  const { data: wallets = [] } = useStockWallets();
 
   // WAC position for selected wallet+asset
   const { data: position } = useAssetPosition(walletId || undefined, assetCode || undefined);

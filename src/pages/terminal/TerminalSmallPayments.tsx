@@ -98,7 +98,7 @@ export default function TerminalSmallPayments() {
       <div className="p-4 md:p-6 space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><CreditCard className="h-5 w-5 text-primary" /></div><div><h1 className="text-lg font-semibold text-foreground">Small Payments Manager</h1><p className="text-xs text-muted-foreground">Post-payment exceptions, unreleased orders, and alternate UPI follow-up</p></div></div>
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

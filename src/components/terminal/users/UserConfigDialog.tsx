@@ -523,7 +523,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                 </p>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5">
+                    <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150">
                       <RotateCcw className="h-3 w-3" /> Reset Registration
                     </Button>
                   </AlertDialogTrigger>

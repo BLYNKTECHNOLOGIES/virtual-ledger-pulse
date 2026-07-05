@@ -1112,7 +1112,7 @@ function TerminalOrdersContent() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs gap-1.5"
+            className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150"
             onClick={async () => {
               await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
             }}

@@ -240,7 +240,7 @@ export function OperatorAssignmentManager() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="h-8 text-xs gap-1.5">
+            <Button size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150">
               <Plus className="h-3.5 w-3.5" /> Add Assignment
             </Button>
           </DialogTrigger>

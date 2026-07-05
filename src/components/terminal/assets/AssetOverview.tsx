@@ -73,7 +73,7 @@ export function AssetOverview() {
             </Button>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-foreground tabular-nums">
+            <span className="text-2xl font-bold text-foreground t-mono">
               {showValues ? totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "****"}
             </span>
             <span className="text-sm text-muted-foreground">USDT</span>
@@ -118,10 +118,10 @@ export function AssetOverview() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-foreground tabular-nums">
+                    <p className="text-sm font-medium text-foreground t-mono">
                       {showValues ? asset.total_balance.toFixed(8) : "****"}
                     </p>
-                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                    <p className="text-[10px] text-muted-foreground t-mono">
                       {showValues
                         ? asset.asset === "USDT"
                           ? `≈ ${asset.total_balance.toFixed(4)} USDT`
@@ -138,7 +138,7 @@ export function AssetOverview() {
                       return (
                         <Tooltip>
                           <TooltipTrigger>
-                            <p className={`text-[9px] tabular-nums flex items-center justify-end gap-0.5 ${hasMismatch ? 'text-warning' : 'text-muted-foreground/60'}`}>
+                            <p className={`text-[9px] t-mono flex items-center justify-end gap-0.5 ${hasMismatch ? 'text-warning' : 'text-muted-foreground/60'}`}>
                               <Package className="h-2.5 w-2.5" />
                               ERP: {erpStock.toFixed(4)}
                               {hasMismatch && (

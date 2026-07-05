@@ -516,7 +516,7 @@ export function TerminalRolesList() {
                         {role.name}
                       </Badge>
                       {role.hierarchy_level !== null && (
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted-foreground/30 font-mono">
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted-foreground/30 t-mono">
                           L{role.hierarchy_level}
                         </Badge>
                       )}
@@ -572,7 +572,7 @@ export function TerminalRolesList() {
 
         {/* ─── Edit/Create Role Dialog ─── */}
         <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+          <DialogContent className="t-scale-in sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
             <DialogHeader className="px-6 pt-6 pb-2">
               <DialogTitle>{isNew ? "Create Role" : `Edit: ${editingRole?.name}`}</DialogTitle>
             </DialogHeader>

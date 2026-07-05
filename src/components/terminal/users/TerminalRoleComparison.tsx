@@ -55,7 +55,7 @@ export function TerminalRoleComparison({ open, onOpenChange, roles, modules }: P
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="t-scale-in sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
             <ArrowLeftRight className="h-4 w-4" />

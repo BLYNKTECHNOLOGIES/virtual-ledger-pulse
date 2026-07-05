@@ -315,7 +315,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="t-scale-in max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{editingRule ? 'Edit' : 'Create'} Auto-Pricing Rule</DialogTitle>
         </DialogHeader>
@@ -631,7 +631,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                                       />
                                       <div className="flex-1 min-w-0 space-y-0.5">
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                          <span className="font-mono font-medium">…{ad.advNo.slice(-8)}</span>
+                                          <span className="t-mono font-medium">…{ad.advNo.slice(-8)}</span>
                                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">{ad.priceType === 1 ? 'Fixed' : 'Float'}</Badge>
                                           <Badge
                                             variant="outline"
@@ -790,7 +790,7 @@ function SortableMerchantItem({
       >
         <GripVertical className="h-3.5 w-3.5" />
       </div>
-      <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono min-w-[18px] text-center">
+      <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0.5 t-mono min-w-[18px] text-center">
         P{index + 1}
       </Badge>
       <Input

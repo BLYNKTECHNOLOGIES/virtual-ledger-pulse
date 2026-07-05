@@ -519,7 +519,7 @@ export function CompletedOrdersExport() {
                 <TableBody>
                   {orders.slice(0, 200).map((o) => (
                     <TableRow key={o.order_number}>
-                      <TableCell className="font-mono text-xs">…{o.order_number.slice(-10)}</TableCell>
+                      <TableCell className="t-mono text-xs">…{o.order_number.slice(-10)}</TableCell>
                       <TableCell className="text-xs">
                         {o.verified_name ? (
                           <span className="text-foreground">{o.verified_name}</span>
@@ -533,9 +533,9 @@ export function CompletedOrdersExport() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs">{o.asset}</TableCell>
-                      <TableCell className="text-xs text-right tabular-nums">{parseFloat(o.amount).toFixed(2)}</TableCell>
-                      <TableCell className="text-xs text-right tabular-nums">₹{parseFloat(o.unit_price).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-xs text-right tabular-nums">₹{parseFloat(o.total_price).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-xs text-right t-mono">{parseFloat(o.amount).toFixed(2)}</TableCell>
+                      <TableCell className="text-xs text-right t-mono">₹{parseFloat(o.unit_price).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-xs text-right t-mono">₹{parseFloat(o.total_price).toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{format(new Date(o.create_time), 'dd MMM HH:mm')}</TableCell>
                     </TableRow>
                   ))}

@@ -316,7 +316,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
           <span className="text-xs font-medium text-foreground">
             <span className="text-trade-buy font-semibold">Buy</span> {order.asset || 'USDT'}
           </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">
+          <span className="text-[10px] text-muted-foreground t-mono">
             {order.createTime ? format(new Date(order.createTime), 'yyyy-MM-dd HH:mm') : '—'}
           </span>
         </div>
@@ -326,7 +326,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
       <TableCell className="py-3">
         <div className="flex items-center gap-1.5">
           <span
-            className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2 cursor-pointer hover:text-primary transition-colors"
+            className="text-xs text-foreground t-mono underline decoration-muted-foreground/30 underline-offset-2 cursor-pointer hover:text-primary transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               navigator.clipboard.writeText(order.orderNumber);
@@ -342,7 +342,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
       <TableCell className="py-3">
         <div className="flex flex-col gap-0.5">
           <span
-            className="text-xs text-foreground tabular-nums font-medium cursor-pointer hover:text-primary transition-colors"
+            className="text-xs text-foreground t-mono font-medium cursor-pointer hover:text-primary transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               const intAmount = Math.floor(Number(order.totalPrice || 0)).toString();
@@ -352,7 +352,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
           >
             {Number(order.totalPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat || 'INR'}
           </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">
+          <span className="text-[10px] text-muted-foreground t-mono">
             {Number(order.amount || 0).toFixed(2)} {order.asset || 'USDT'}
           </span>
         </div>
@@ -386,7 +386,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
               Marked Paid
             </Badge>
             {caseAgeMinutes !== null && (
-              <Badge variant="outline" className={`text-[10px] tabular-nums ${caseAgeMinutes >= 30 ? 'border-destructive/30 text-destructive bg-destructive/5' : caseAgeMinutes >= 10 ? 'border-warning/30 text-warning bg-warning/5' : 'border-primary/30 text-primary bg-primary/5'}`}>
+              <Badge variant="outline" className={`text-[10px] t-mono ${caseAgeMinutes >= 30 ? 'border-destructive/30 text-destructive bg-destructive/5' : caseAgeMinutes >= 10 ? 'border-warning/30 text-warning bg-warning/5' : 'border-primary/30 text-primary bg-primary/5'}`}>
                 {formatCaseAge(caseAgeMinutes)} unreleased
               </Badge>
             )}

@@ -265,7 +265,7 @@ export default function TerminalLogs() {
                               {cat && <CategoryBadge category={cat} />}
                               <ActionBadge actionType={log.action_type} />
                               {log.adv_no && (
-                                <span className="text-[10px] text-muted-foreground font-mono">
+                                <span className="text-[10px] text-muted-foreground t-mono">
                                   #{log.adv_no}
                                 </span>
                               )}

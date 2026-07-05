@@ -101,7 +101,7 @@ export function PayerMyAssignments() {
                   ) : (
                     <>
                       <Hash className="h-3 w-3 shrink-0" />
-                      <span className="font-mono font-medium">{a.ad_id || 'N/A'}</span>
+                      <span className="t-mono font-medium">{a.ad_id || 'N/A'}</span>
                     </>
                   )}
                   {!a.is_active && (

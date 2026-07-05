@@ -221,14 +221,14 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                 <TableBody>
                   {releaseLogs.map((log: any) => (
                     <TableRow key={log.id}>
-                      <TableCell className="font-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
+                      <TableCell className="t-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-xs ${getReleaseStatusClass(log.status)}`}>
                           {log.status}
                         </Badge>
                         {log.live_order_status && <div className="text-[10px] text-muted-foreground mt-1">Binance: {log.live_order_status}</div>}
                       </TableCell>
-                      <TableCell className="text-xs tabular-nums">{log.minutes_overdue != null ? `${Number(log.minutes_overdue).toFixed(1)} min` : "—"}</TableCell>
+                      <TableCell className="text-xs t-mono">{log.minutes_overdue != null ? `${Number(log.minutes_overdue).toFixed(1)} min` : "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.notify_pay_time ? format(new Date(log.notify_pay_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.confirm_pay_end_time ? format(new Date(log.confirm_pay_end_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.complain_freeze_time ? format(new Date(log.complain_freeze_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
@@ -282,7 +282,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                       <TableCell>
                         {getLogIcon(log.status)}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
+                      <TableCell className="t-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
                       <TableCell>
                         {log.minutes_remaining != null ? (
                           <Badge variant="outline" className="text-xs">

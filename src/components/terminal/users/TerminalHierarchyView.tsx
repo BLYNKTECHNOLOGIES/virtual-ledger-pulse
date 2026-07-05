@@ -81,7 +81,7 @@ function TreeNode({ node, depth = 0 }: { node: HierarchyNode; depth?: number }) 
         )}
 
         {hasChildren && (
-          <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+          <span className="text-[10px] text-muted-foreground t-mono shrink-0">
             {node.children.length}
           </span>
         )}

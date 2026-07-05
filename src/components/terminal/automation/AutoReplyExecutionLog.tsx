@@ -59,7 +59,7 @@ export function AutoReplyExecutionLog() {
                         {TRIGGER_LABELS[log.trigger_event] || log.trigger_event}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">…{log.order_number.slice(-8)}</TableCell>
+                    <TableCell className="t-mono text-xs">…{log.order_number.slice(-8)}</TableCell>
                     <TableCell className="max-w-[250px]">
                       <p className="text-xs truncate text-muted-foreground">{log.message_sent}</p>
                       {log.error_message && <p className="text-xs text-destructive mt-0.5">{log.error_message}</p>}

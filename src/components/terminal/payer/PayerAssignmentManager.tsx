@@ -147,7 +147,7 @@ export function PayerAssignmentManager() {
               <Plus className="h-3.5 w-3.5" /> Add Assignment
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="t-scale-in">
             <DialogHeader><DialogTitle>Create Payer Assignment</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">

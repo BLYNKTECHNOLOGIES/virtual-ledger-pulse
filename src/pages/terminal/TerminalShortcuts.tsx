@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { Keyboard } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { comboToDisplay } from "@/config/shortcuts";
@@ -19,7 +18,7 @@ function KeyCombo({ shortcut }: { shortcut: TerminalShortcutDef }) {
       {keys.map((k, i) => (
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <span className="text-[10px] text-muted-foreground">+</span>}
-          <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted px-2 text-xs font-semibold text-foreground shadow-sm">
+          <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px] font-semibold text-foreground">
             {k}
           </kbd>
         </span>
@@ -38,19 +37,19 @@ function Section({
 }) {
   if (items.length === 0) return null;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardHeader>
-      <CardContent className="space-y-1">
+    <div className="t-panel overflow-hidden">
+      <div className="t-panel-head">
+        <span className="t-panel-head-title">{title}</span>
+      </div>
+      <p className="px-3 pt-2 text-xs text-muted-foreground">{description}</p>
+      <div className="p-2 divide-y divide-border">
         {items.map((s) => {
           const allowed = canUse(s);
           return (
             <div
               key={s.id}
-              className={`flex items-center justify-between gap-4 rounded-lg px-3 py-2.5 ${
-                allowed ? "hover:bg-muted/50" : "opacity-50"
+              className={`flex items-center justify-between gap-4 px-1 py-2 ${
+                allowed ? "" : "opacity-50"
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -71,8 +70,8 @@ function Section({
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -86,14 +85,14 @@ export default function TerminalShortcuts() {
 
   return (
     <div className="min-h-full bg-background p-4 md:p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
-            <Keyboard className="h-6 w-6 text-primary" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+            <Keyboard className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Terminal Shortcuts</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-lg font-semibold text-foreground tracking-tight">Terminal Shortcuts</h1>
+            <p className="text-xs text-muted-foreground">
               Work faster across the trading terminal. Shortcuts respect your permissions —
               modules you can't access are shown greyed out.
             </p>
@@ -120,8 +119,8 @@ export default function TerminalShortcuts() {
         />
 
         <p className="text-center text-xs text-muted-foreground">
-          Tip: press <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">{isMac ? "⌘" : "Ctrl"}</kbd>{" "}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">K</kbd> anytime to open the command palette.
+          Tip: press <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">{isMac ? "⌘" : "Ctrl"}</kbd>{" "}
+          <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 t-mono text-[11px]">K</kbd> anytime to open the command palette.
         </p>
       </div>
     </div>

@@ -313,7 +313,7 @@ export function TerminalUsersList() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-mono">
+          <Badge variant="outline" className="text-xs t-mono">
             {assignments.length} user{assignments.length !== 1 ? "s" : ""}
           </Badge>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchData}>
@@ -326,7 +326,7 @@ export function TerminalUsersList() {
                   <UserPlus className="h-3.5 w-3.5 mr-1" /> Grant Access
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="t-scale-in sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Grant Terminal Access</DialogTitle>
                   <DialogDescription>Select a user and assign a terminal role.</DialogDescription>

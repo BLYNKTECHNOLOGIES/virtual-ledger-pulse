@@ -903,7 +903,9 @@ function TerminalOperatorDetailContent() {
                       {m.payerLocksTotal > 0 ? Math.round((m.payerLocksCompleted / m.payerLocksTotal) * 100) : 0}%
                     </span>
                   </div>
-                  <Progress value={m.payerLocksTotal > 0 ? (m.payerLocksCompleted / m.payerLocksTotal) * 100 : 0} className="h-1.5 sm:h-2" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-info" style={{ width: `${Math.max(0, Math.min(100, m.payerLocksTotal > 0 ? (m.payerLocksCompleted / m.payerLocksTotal) * 100 : 0))}%` }} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] sm:text-xs">
@@ -912,7 +914,9 @@ function TerminalOperatorDetailContent() {
                     </span>
                     <span className="font-semibold text-success">{m.completionRate}%</span>
                   </div>
-                  <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-success" style={{ width: `${Math.max(0, Math.min(100, m.completionRate))}%` }} />
+                  </div>
                 </div>
               </>
             ) : (
@@ -924,7 +928,9 @@ function TerminalOperatorDetailContent() {
                     </span>
                     <span className="font-semibold text-success">{m.completionRate}%</span>
                   </div>
-                  <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-success" style={{ width: `${Math.max(0, Math.min(100, m.completionRate))}%` }} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] sm:text-xs">
@@ -933,7 +939,9 @@ function TerminalOperatorDetailContent() {
                     </span>
                     <span className="font-semibold text-destructive">{m.cancellationRate}%</span>
                   </div>
-                  <Progress value={m.cancellationRate} className="h-1.5 sm:h-2 [&>div]:bg-destructive" />
+                  <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-destructive" style={{ width: `${Math.max(0, Math.min(100, m.cancellationRate))}%` }} />
+                  </div>
                 </div>
               </>
             )}
@@ -944,7 +952,9 @@ function TerminalOperatorDetailContent() {
                 </span>
                 <span className={`font-semibold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}%</span>
               </div>
-              <Progress value={m.efficiencyScore} className="h-1.5 sm:h-2" />
+              <div className="h-1.5 sm:h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, m.efficiencyScore))}%` }} />
+                  </div>
             </div>
           </div>
 

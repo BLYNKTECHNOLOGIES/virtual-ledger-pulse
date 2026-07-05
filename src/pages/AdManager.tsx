@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { AdSummaryStrip } from '@/components/ad-manager/AdSummaryStrip';
 import { CategorizedAdTable, AdSortMode } from '@/components/ad-manager/CategorizedAdTable';
+import { DeskTable } from '@/components/ad-manager/AdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
 import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
@@ -20,8 +21,9 @@ import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPri
 import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
 import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog';
-import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
-import { MerchantStateCard } from '@/components/ad-manager/MerchantStateCard';
+import { AdCommandStrip } from '@/components/ad-manager/AdCommandStrip';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import {

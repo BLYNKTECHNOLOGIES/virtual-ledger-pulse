@@ -167,33 +167,25 @@ export default function Financials() {
       {/* Header */}
       <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-success/10 rounded-xl shadow-sm">
+          <PageHeader
+            title={
+              <span className="flex items-center gap-3">
+                <span className="p-3 bg-success/10 rounded-xl shadow-sm">
                   <Calculator className="h-8 w-8 text-success" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                    Financial Management
-                  </h1>
-                  <p className="text-muted-foreground text-lg">
-                    Comprehensive financial overview and management
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <DateRangePicker
-                dateRange={dateRange}
-                onDateRangeChange={setDateRange}
-                preset={datePreset}
-                onPresetChange={handleDatePresetChange}
-                className="w-auto min-w-[200px]"
-              />
-              
-              <div className="flex items-center gap-3">
+                </span>
+                Financial Management
+              </span>
+            }
+            description="Comprehensive financial overview and management"
+            actions={
+              <>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onDateRangeChange={setDateRange}
+                  preset={datePreset}
+                  onPresetChange={handleDatePresetChange}
+                  className="w-auto min-w-[200px]"
+                />
                 <Button
                   variant="outline"
                   size="sm"
@@ -210,9 +202,10 @@ export default function Financials() {
                   <Plus className="h-4 w-4 mr-2" />
                   New Transaction
                 </Button>
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
+
         </div>
       </div>
 

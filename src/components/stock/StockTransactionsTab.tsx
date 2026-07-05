@@ -874,227 +874,25 @@ export function StockTransactionsTab() {
         </CardContent>
       </Card>
 
-      {/* Manual Stock Adjustment Dialog */}
-      <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Manual Stock Adjustment</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Transaction Type</Label>
-              <Select 
-                value={adjustmentData.transactionType} 
-                onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, transactionType: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TRANSFER">Transfer Between Wallets</SelectItem>
-                  <SelectItem value="CREDIT">Add Stock (Credit)</SelectItem>
-                  <SelectItem value="DEBIT">Remove Stock (Debit)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Manual Stock Adjustment Dialog (shared) */}
+      <SharedStockAdjustmentDialog
+        open={showAdjustmentDialog}
+        onOpenChange={setShowAdjustmentDialog}
+      />
 
-            <div className="space-y-2">
-              <Label>Asset Type *</Label>
-              <Select 
-                value={adjustmentData.assetCode} 
-                onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, assetCode: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select asset" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(assetCodes || ['USDT']).map((code) => (
-                    <SelectItem key={code} value={code}>
-                      {code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>From Wallet {adjustmentData.transactionType !== 'CREDIT' ? '*' : ''}</Label>
-              <Select 
-                value={adjustmentData.fromWallet} 
-                onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, fromWallet: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source wallet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {wallets?.map((wallet) => (
-                    <SelectItem key={wallet.id} value={wallet.id}>
-                       {wallet.wallet_name} - {Number(wallet.current_balance || 0).toFixed(4)} {adjustmentData.assetCode}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {adjustmentData.transactionType === 'TRANSFER' && (
-              <div className="space-y-2">
-                <Label>To Wallet *</Label>
-                <Select 
-                  value={adjustmentData.toWallet} 
-                  onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, toWallet: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select destination wallet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {wallets?.filter(w => w.id !== adjustmentData.fromWallet).map((wallet) => (
-                      <SelectItem key={wallet.id} value={wallet.id}>
-                        {wallet.wallet_name} - {Number(wallet.current_balance || 0).toFixed(4)} {adjustmentData.assetCode}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Amount *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Enter amount"
-                value={adjustmentData.amount}
-                onChange={(e) => setAdjustmentData(prev => ({ ...prev, amount: e.target.value }))}
-              />
-            </div>
-
-            {adjustmentData.transactionType === 'TRANSFER' && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  Transfer Fee (USDT)
-                  <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                </Label>
-                <Input
-                  type="number"
-                  step="any"
-                  min="0"
-                  placeholder="Enter fee amount (optional)"
-                  value={adjustmentData.transferFee}
-                  onChange={(e) => setAdjustmentData(prev => ({ ...prev, transferFee: e.target.value }))}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                placeholder="Enter reason for adjustment"
-                value={adjustmentData.description}
-                onChange={(e) => setAdjustmentData(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-              />
-            </div>
-
-            {/* Transfer Summary - Show when transfer type with fee */}
-            {adjustmentData.transactionType === 'TRANSFER' && adjustmentData.fromWallet && adjustmentData.amount && (
-              <div className="border rounded-lg p-3 bg-muted/50 space-y-2 text-sm">
-                <div className="font-medium text-foreground">Transfer Summary</div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Transfer Amount:</span>
-                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} {adjustmentData.assetCode}</span>
-                </div>
-                {parseFloat(adjustmentData.transferFee || '0') > 0 && (
-                  <div className="flex justify-between text-warning">
-                    <span>Fee (deducted from sender):</span>
-                    <span>{parseFloat(adjustmentData.transferFee || '0').toFixed(4)} {adjustmentData.assetCode}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-medium border-t pt-2 mt-2">
-                  <span>Total Deducted from Sender:</span>
-                  <span>{(parseFloat(adjustmentData.amount || '0') + parseFloat(adjustmentData.transferFee || '0')).toFixed(4)} {adjustmentData.assetCode}</span>
-                </div>
-                <div className="flex justify-between text-success">
-                  <span>Receiver Gets:</span>
-                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} {adjustmentData.assetCode}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowAdjustmentDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={() => {
-                  if (!adjustmentData.fromWallet || !adjustmentData.amount || 
-                      (adjustmentData.transactionType === 'TRANSFER' && !adjustmentData.toWallet)) {
-                    toast({
-                      title: "Validation Error",
-                      description: "Please fill in all required fields",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  manualAdjustmentMutation.mutate(adjustmentData);
-                }}
-                disabled={manualAdjustmentMutation.isPending}
-                className="bg-info hover:bg-info/90"
-              >
-                {manualAdjustmentMutation.isPending ? "Processing..." : "Submit Adjustment"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reverse Transaction Confirmation Dialog (Immutable Ledger) */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>
-                  The original entry will be preserved forever. A new opposite-sign
-                  reversal row of{' '}
-                  <strong>
-                    {(transactionToDelete?.amount ?? transactionToDelete?.quantity ?? 0)
-                      .toLocaleString('en-IN')}{' '}
-                    {transactionToDelete?.asset_code || 'USDT'}
-                  </strong>{' '}
-                  will be posted and linked back to it.
-                </p>
-                <p className="text-muted-foreground">
-                  Provide a clear reason — it is recorded in the immutable audit chain.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="reversal-reason">Reason (required, min 3 chars)</Label>
-            <Textarea
-              id="reversal-reason"
-              value={reversalReason}
-              onChange={(e) => setReversalReason(e.target.value)}
-              placeholder="e.g. Operator entered wrong amount; correcting via reversal."
-              rows={3}
-              disabled={deleteTransactionMutation.isPending}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteTransactionMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteTransaction}
-              disabled={deleteTransactionMutation.isPending || reversalReason.trim().length < 3}
-            >
-              {deleteTransactionMutation.isPending ? "Posting reversal…" : "Post Reversal"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Reverse Transaction Confirmation Dialog (shared, immutable ledger) */}
+      <ReverseTransactionDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => {
+          setShowDeleteConfirm(open);
+          if (!open) setTransactionToDelete(null);
+        }}
+        transaction={transactionToDelete}
+        onReversed={() => {
+          refetch();
+          setTransactionToDelete(null);
+        }}
+      />
     </div>
   );
 }

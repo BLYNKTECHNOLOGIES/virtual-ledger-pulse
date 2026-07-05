@@ -1,3 +1,5 @@
+// ============= Full file contents =============
+
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +14,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format, differenceInMinutes, parseISO } from "date-fns";
 import { Clock, LogIn, LogOut, Search, Plus, Timer } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 interface ConsolidatedRecord {
   employeeId: string;
@@ -267,17 +272,16 @@ export default function AttendanceActivityPage() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
-      {/* Header — stacks on mobile */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Clock In / Out Activity</h1>
-          <p className="text-sm text-muted-foreground">Real-time attendance activity tracking</p>
-        </div>
-        <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] w-full sm:w-auto flex-shrink-0">
-          <Plus className="h-4 w-4 mr-2" /> Clock In
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Clock In / Out Activity"
+        description="Real-time attendance activity tracking"
+        actions={
+          <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Plus className="h-4 w-4 mr-2" /> Clock In
+          </Button>
+        }
+      />
 
       {/* Stats — 2 cols mobile, 4 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -290,56 +294,56 @@ export default function AttendanceActivityPage() {
           <Card key={s.label}>
             <CardContent className="p-3 sm:p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg} shrink-0`}><s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color}`} /></div>
-              <div><p className="text-lg sm:text-2xl font-bold">{s.value}</p><p className="text-[10px] sm:text-xs text-muted-foreground">{s.label}</p></div>
+              <div><p className="text-lg sm:text-2xl font-bold tabular-nums">{s.value}</p><p className="text-[10px] sm:text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Filters — stacks on mobile */}
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-full sm:w-44" />
+        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-full sm:w-44 h-9" />
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
 
-      {/* Desktop table — hidden on mobile */}
+      {/* Desktop table */}
       <Card className="hidden md:block">
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Employee", "Badge", "First Clock In", "Last Clock Out", "Duration", "Punches", "Note", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
-              ) : queryError ? (
-                <tr><td colSpan={8} className="text-center py-8 text-destructive">Error loading data. Please refresh.</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No activity records for this date</td></tr>
-              ) : (
-                filtered.map((c) => (
+          {isLoading ? (
+            <div className="p-4"><TableSkeleton rows={6} columns={8} /></div>
+          ) : queryError ? (
+            <div className="text-center py-8 text-destructive text-sm">Error loading data. Please refresh.</div>
+          ) : filtered.length === 0 ? (
+            <EmptyState icon={Clock} title="No activity records" description="No clock-in records for this date." />
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Employee", "Badge", "First Clock In", "Last Clock Out", "Duration", "Punches", "Note", "Actions"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
                   <tr key={c.employeeId} className="border-b hover:bg-muted/20">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{c.employeeName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.badgeId}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 tabular-nums">
                       <span className="text-success font-medium">{formatTime(c.firstClockIn)}</span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 tabular-nums">
                       {c.isActive ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success animate-pulse">Active</span>
+                        <span className="bg-success/10 text-success border border-success/20 rounded-full px-2 py-0.5 text-[10px] font-medium animate-pulse">Active</span>
                       ) : (
                         <span className="text-destructive font-medium">{formatTime(c.lastClockOut)}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-semibold">{c.isActive ? "—" : formatDuration(c.durationMinutes)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.punchCount}</td>
+                    <td className="px-4 py-3 font-semibold tabular-nums">{c.isActive ? "—" : formatDuration(c.durationMinutes)}</td>
+                    <td className="px-4 py-3 text-muted-foreground tabular-nums">{c.punchCount}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{c.note}</td>
                     <td className="px-4 py-3">
                       {c.isActive && (
@@ -354,21 +358,21 @@ export default function AttendanceActivityPage() {
                       )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </CardContent>
       </Card>
 
-      {/* Mobile card layout — shown on mobile only */}
+      {/* Mobile card layout */}
       <div className="md:hidden space-y-3">
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
         ) : queryError ? (
           <div className="text-center py-8 text-destructive text-sm">Error loading data.</div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">No activity records for this date</div>
+          <EmptyState icon={Clock} title="No activity records" description="No clock-in records for this date." />
         ) : (
           filtered.map((c) => (
             <Card key={c.employeeId} className="overflow-hidden">
@@ -380,9 +384,9 @@ export default function AttendanceActivityPage() {
                     <p className="text-xs text-muted-foreground">{c.badgeId}</p>
                   </div>
                   {c.isActive ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success animate-pulse shrink-0">Active</span>
+                    <span className="bg-success/10 text-success border border-success/20 rounded-full px-2 py-0.5 text-[10px] font-medium animate-pulse shrink-0">Active</span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground shrink-0">Done</span>
+                    <span className="bg-muted/50 text-muted-foreground border border-border rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0">Done</span>
                   )}
                 </div>
 
@@ -390,15 +394,15 @@ export default function AttendanceActivityPage() {
                 <div className="grid grid-cols-3 gap-2 text-center mb-3">
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">In</p>
-                    <p className="text-sm font-semibold text-success">{formatTime(c.firstClockIn)}</p>
+                    <p className="text-sm font-semibold text-success tabular-nums">{formatTime(c.firstClockIn)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Out</p>
-                    <p className="text-sm font-semibold text-destructive">{c.isActive ? "—" : formatTime(c.lastClockOut)}</p>
+                    <p className="text-sm font-semibold text-destructive tabular-nums">{c.isActive ? "—" : formatTime(c.lastClockOut)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Duration</p>
-                    <p className="text-sm font-semibold">{c.isActive ? "—" : formatDuration(c.durationMinutes)}</p>
+                    <p className="text-sm font-semibold tabular-nums">{c.isActive ? "—" : formatDuration(c.durationMinutes)}</p>
                   </div>
                 </div>
 
@@ -424,12 +428,16 @@ export default function AttendanceActivityPage() {
 
       <Dialog open={showClockIn} onOpenChange={setShowClockIn}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
-          <DialogHeader><DialogTitle>Clock In Employee</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <LogIn className="h-4 w-4 text-[#E8604C]" /> Clock In Employee
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
               <Select value={selectedEmp} onValueChange={setSelectedEmp}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
@@ -439,13 +447,13 @@ export default function AttendanceActivityPage() {
             </div>
             <div>
               <Label>Note (optional)</Label>
-              <Textarea value={clockNote} onChange={(e) => setClockNote(e.target.value)} placeholder="Clock in note..." />
+              <Textarea value={clockNote} onChange={(e) => setClockNote(e.target.value)} placeholder="Clock in note..." className="mt-1" />
             </div>
             <p className="text-xs text-muted-foreground">Time: {format(new Date(), "hh:mm a")} • Date: {dateFilter}</p>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowClockIn(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button onClick={() => clockInMutation.mutate()} disabled={!selectedEmp || clockInMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f] w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setShowClockIn(false)} className="w-full sm:w-auto h-9">Cancel</Button>
+            <Button onClick={() => clockInMutation.mutate()} disabled={!selectedEmp || clockInMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f] w-full sm:w-auto h-9">
               <LogIn className="h-4 w-4 mr-2" /> Clock In
             </Button>
           </DialogFooter>

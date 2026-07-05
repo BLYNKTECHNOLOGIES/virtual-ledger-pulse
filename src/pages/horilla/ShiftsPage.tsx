@@ -9,7 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 const defaultForm = { name: "", start_time: "09:00", end_time: "18:00", break_duration_minutes: 60, grace_period_minutes: 15, is_night_shift: false };
 
@@ -75,22 +78,30 @@ export default function ShiftsPage() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Work Shifts</h1>
-          <p className="text-sm text-muted-foreground">Manage employee work shifts and schedules</p>
-        </div>
-        <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> Add Shift
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Work Shifts"
+        description="Manage employee work shifts and schedules"
+        actions={
+          <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Plus className="h-4 w-4 mr-2" /> Add Shift
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <p className="text-muted-foreground col-span-3 text-center py-12">Loading...</p>
+          <>
+            <CardSkeleton /><CardSkeleton /><CardSkeleton />
+          </>
         ) : shifts.length === 0 ? (
-          <p className="text-muted-foreground col-span-3 text-center py-12">No shifts configured</p>
+          <div className="col-span-3">
+            <EmptyState icon={Clock} title="No shifts configured" description="Add your first work shift to get started." action={
+              <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+                <Plus className="h-4 w-4 mr-2" /> Add Shift
+              </Button>
+            } />
+          </div>
         ) : (
           shifts.map((s: any) => (
             <Card key={s.id} className={`${!s.is_active ? "opacity-50" : ""}`}>
@@ -98,7 +109,9 @@ export default function ShiftsPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-foreground">{s.name}</h3>
-                    {s.is_night_shift && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Night Shift</span>}
+                    {s.is_night_shift && (
+                      <span className="bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 text-[10px] font-medium">Night Shift</span>
+                    )}
                   </div>
                   <Switch checked={s.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: s.id, is_active: v })} />
                 </div>
@@ -108,8 +121,8 @@ export default function ShiftsPage() {
                   <p>⏱ Grace: {s.grace_period_minutes} min</p>
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
-                  <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => deleteMutation.mutate(s.id)}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
+                  <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
+                  <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 h-8" onClick={() => deleteMutation.mutate(s.id)}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
                 </div>
               </CardContent>
             </Card>
@@ -119,16 +132,20 @@ export default function ShiftsPage() {
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editId ? "Edit Shift" : "Create Shift"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Clock className="h-4 w-4 text-[#E8604C]" /> {editId ? "Edit Shift" : "Create Shift"}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
-            <div><Label>Shift Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Morning Shift" /></div>
+            <div><Label>Shift Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Morning Shift" className="h-9 mt-1" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Start Time</Label><Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></div>
-              <div><Label>End Time</Label><Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} /></div>
+              <div><Label>Start Time</Label><Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} className="h-9 mt-1" /></div>
+              <div><Label>End Time</Label><Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} className="h-9 mt-1" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Break (min)</Label><Input type="number" value={form.break_duration_minutes} onChange={(e) => setForm({ ...form, break_duration_minutes: parseInt(e.target.value) || 0 })} /></div>
-              <div><Label>Grace Period (min)</Label><Input type="number" value={form.grace_period_minutes} onChange={(e) => setForm({ ...form, grace_period_minutes: parseInt(e.target.value) || 0 })} /></div>
+              <div><Label>Break (min)</Label><Input type="number" value={form.break_duration_minutes} onChange={(e) => setForm({ ...form, break_duration_minutes: parseInt(e.target.value) || 0 })} className="h-9 mt-1" /></div>
+              <div><Label>Grace Period (min)</Label><Input type="number" value={form.grace_period_minutes} onChange={(e) => setForm({ ...form, grace_period_minutes: parseInt(e.target.value) || 0 })} className="h-9 mt-1" /></div>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_night_shift} onCheckedChange={(v) => setForm({ ...form, is_night_shift: v })} />
@@ -136,8 +153,8 @@ export default function ShiftsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.name} className="bg-[#E8604C] hover:bg-[#d4553f]">Save</Button>
+            <Button variant="outline" onClick={() => setShowDialog(false)} className="h-9">Cancel</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.name} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

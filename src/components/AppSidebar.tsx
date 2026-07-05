@@ -480,7 +480,7 @@ export function AppSidebar() {
           <div className="flex items-center justify-center">
             {!isCollapsed && (
               <div className="text-xs text-muted-foreground font-medium truncate flex-1 mr-2 bg-sidebar px-2 py-1 rounded-lg shadow-sm">
-                © 2025 BLYNK Virtual Technologies
+                © {new Date().getFullYear()} BLYNK Virtual Technologies
               </div>
             )}
             <Button 

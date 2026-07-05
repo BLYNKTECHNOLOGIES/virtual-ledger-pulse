@@ -1079,6 +1079,14 @@ function TerminalOrdersContent() {
     );
   }
 
+  if (queueMode) {
+    return (
+      <div className="h-[calc(100vh-48px)]">
+        <QueueMode orders={displayOrders} onClose={() => setQueueMode(false)} />
+      </div>
+    );
+  }
+
   if (selectedOrder) {
     return (
       <div className="h-[calc(100vh-48px)]">

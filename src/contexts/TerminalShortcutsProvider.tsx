@@ -166,7 +166,12 @@ function matchContextKey(e: KeyboardEvent): TerminalContextKey | null {
     case "j": case "J": return "orders-down";
     case "k": case "K": return "orders-up";
     case "o": case "O": return "orders-open";
-    case "Enter": return "orders-open";
+    case "Enter": {
+      // Don't hijack Enter when a button/link is focused — let it activate normally.
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "BUTTON" || el.tagName === "A" || el.getAttribute("role") === "button")) return null;
+      return "orders-open";
+    }
     case "[": return "orders-prev-tab";
     case "]": return "orders-next-tab";
     case "f": case "F": return "orders-search";

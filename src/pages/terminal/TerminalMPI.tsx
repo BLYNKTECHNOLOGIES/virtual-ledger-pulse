@@ -851,9 +851,11 @@ export default function TerminalMPI() {
                       <span className="text-muted-foreground flex items-center gap-1">
                         <Gauge className="h-2.5 w-2.5" /> Efficiency Score
                       </span>
-                      <span className={`font-medium ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}%</span>
+                      <span className={`t-mono font-medium ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}%</span>
                     </div>
-                    <Progress value={m.efficiencyScore} className={`h-1.5 [&>div]:${getScoreBg(m.efficiencyScore)}`} />
+                    <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                      <div className={`h-full rounded-full ${getScoreBg(m.efficiencyScore)}`} style={{ width: `${m.efficiencyScore}%` }} />
+                    </div>
                   </div>
 
                   {/* Hover hint */}

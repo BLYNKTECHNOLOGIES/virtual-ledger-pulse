@@ -1,5 +1,8 @@
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { SharedStockAdjustmentDialog } from "./SharedStockAdjustmentDialog";
+import { ReverseTransactionDialog } from "./ReverseTransactionDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

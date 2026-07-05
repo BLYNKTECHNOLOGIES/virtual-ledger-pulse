@@ -289,8 +289,12 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     }
   };
 
+  // Insert (not send) the quick reply into the input with template tokens filled,
+  // so the operator can review/adjust before sending. Tap-shaving per T1.
   const handleQuickReply = (replyText: string) => {
-    handleSend(replyText);
+    const filled = fillTemplate(replyText, templateValues || {});
+    setText((prev) => (prev.trim() ? `${prev.trim()} ${filled}` : filled));
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const counterpartyMsgCount = currentOrderMessages.filter(

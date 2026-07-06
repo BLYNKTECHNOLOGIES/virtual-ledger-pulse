@@ -506,11 +506,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {ad.updateTime ? (
+                      {toValidDate(ad.updateTime) ? (
                         <div className="flex flex-col">
-                          <span>{format(new Date(ad.updateTime), 'dd MMM yyyy HH:mm')}</span>
+                          <span>{safeFormat(ad.updateTime, 'dd MMM yyyy HH:mm')}</span>
                           {(() => {
-                            const mins = Math.floor((Date.now() - new Date(ad.updateTime).getTime()) / 60000);
+                            const d = toValidDate(ad.updateTime)!;
+                            const mins = Math.floor((Date.now() - d.getTime()) / 60000);
                             if (mins <= 30) return null;
                             const label = mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
                             return <span className="text-warning">{label}</span>;

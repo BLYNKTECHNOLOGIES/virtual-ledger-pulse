@@ -10,7 +10,7 @@ import { InlinePriceEditor } from './InlinePriceEditor';
 import { QuickEditPopover } from './QuickEditPopover';
 import { AdSortMode, applyAdSort, stalePriceLabel } from './CategorizedAdTable';
 import { AccountBadge } from '@/components/exchange/AccountBadge';
-import { format } from 'date-fns';
+import { safeFormat } from '@/lib/safe-date';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useValueFlash } from '@/hooks/useValueFlash';
@@ -218,7 +218,7 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
                 <TableCell className="text-xs text-muted-foreground">
                   {ad.updateTime ? (
                     <div className="flex flex-col">
-                      <span>{format(new Date(ad.updateTime), 'dd MMM yyyy HH:mm')}</span>
+                      <span>{safeFormat(ad.updateTime, 'dd MMM yyyy HH:mm')}</span>
                       {staleAge && <span className="text-warning">{staleAge}</span>}
                     </div>
                   ) : '—'}

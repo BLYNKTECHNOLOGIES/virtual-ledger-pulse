@@ -11,7 +11,7 @@ import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
 import { QuickEditPopover } from './QuickEditPopover';
 import { AccountBadge } from '@/components/exchange/AccountBadge';
-import { format } from 'date-fns';
+import { toValidDate, safeFormat } from '@/lib/safe-date';
 import { useState } from 'react';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -44,8 +44,9 @@ function AdPriceCell({ ad, isEditing, onRequestEdit, onClose }: { ad: BinanceAd;
 
 /** Amber "Xh ago" label when an ad's price is older than 30 min, else null. */
 export function stalePriceLabel(updateTime?: string): string | null {
-  if (!updateTime) return null;
-  const mins = Math.floor((Date.now() - new Date(updateTime).getTime()) / 60000);
+  const d = toValidDate(updateTime);
+  if (!d) return null;
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
   if (mins <= 30) return null;
   return mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
 }
@@ -504,11 +505,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {ad.updateTime ? (
+                      {toValidDate(ad.updateTime) ? (
                         <div className="flex flex-col">
-                          <span>{format(new Date(ad.updateTime), 'dd MMM yyyy HH:mm')}</span>
+                          <span>{safeFormat(ad.updateTime, 'dd MMM yyyy HH:mm')}</span>
                           {(() => {
-                            const mins = Math.floor((Date.now() - new Date(ad.updateTime).getTime()) / 60000);
+                            const d = toValidDate(ad.updateTime)!;
+                            const mins = Math.floor((Date.now() - d.getTime()) / 60000);
                             if (mins <= 30) return null;
                             const label = mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
                             return <span className="text-warning">{label}</span>;

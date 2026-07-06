@@ -12,6 +12,7 @@ import { InlinePriceEditor } from './InlinePriceEditor';
 import { QuickEditPopover } from './QuickEditPopover';
 import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { format } from 'date-fns';
+import { toValidDate, safeFormat } from '@/lib/safe-date';
 import { useState } from 'react';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';

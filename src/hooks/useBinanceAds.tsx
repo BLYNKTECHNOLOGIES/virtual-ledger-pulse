@@ -283,7 +283,7 @@ export function useUpdateAd() {
       const patched = patchAdsCache(queryClient, (ad) => {
         if (ad.advNo !== adData.advNo) return null;
         if (adData.exchange_account_id !== undefined && ad._exchangeAccountId !== adData.exchange_account_id) return null;
-        const next: any = { ...ad, updateTime: String(Date.now()) };
+        const next: any = { ...ad, updateTime: Date.now() };
         if (adData.price !== undefined) next.price = Number(adData.price);
         if (adData.priceFloatingRatio !== undefined) next.priceFloatingRatio = adData.priceFloatingRatio;
         return next;
@@ -323,7 +323,7 @@ export function useUpdateAdStatus() {
       const patched = patchAdsCache(queryClient, (ad) => {
         if (!targets.has(ad.advNo)) return null;
         if (vars.exchangeAccountId !== undefined && ad._exchangeAccountId !== vars.exchangeAccountId) return null;
-        return { ...ad, advStatus: vars.advStatus, updateTime: String(Date.now()) };
+        return { ...ad, advStatus: vars.advStatus, updateTime: Date.now() };
       });
       if (!patched) queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Status Updated', description: 'Ad status has been updated.' });

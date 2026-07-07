@@ -27,27 +27,17 @@ export interface HistoricalChatMessage {
 const PAGE_SIZE = 3; // Load 3 past orders at a time
 
 /**
- * Resolve the stable Binance counterparty user id for an order.
+ * Counterparty chat history.
  *
- * IMPORTANT (data-integrity): The counterparty is the taker on our (merchant/maker)
- * ads, so `takerUserNo` inside `order_detail_raw` is the ONLY globally-unique
- * identifier for a person. We deliberately do NOT group history by `verified_name`
- * or by the masked Binance nickname: those are shared by many unrelated clients
- * (e.g. dozens of different people are named "DEEPAK KUMAR"), which previously
- * caused "Load More Chats" to leak completely unrelated orders and KYC documents.
+ * IMPORTANT (data-integrity): We do NOT group history by `verified_name` or the
+ * masked Binance nickname (shared by many unrelated clients), nor by raw
+ * `takerUserNo` — on BUY orders (and any ad WE took) `takerUserNo` is OUR OWN
+ * account number, which is shared across thousands of unrelated orders and
+ * previously leaked other clients' chats/KYC. Counterparty resolution is done
+ * server-side by the `get_counterparty_order_history` RPC, which detects our own
+ * account numbers and treats the OTHER side of each order as the counterparty.
  */
-function takerUserNoFromRow(row: any): string | null {
-  const detail = row?.order_detail_raw || {};
-  const raw = row?.raw_data || {};
-  const value =
-    detail.takerUserNo ??
-    detail.takerUserId ??
-    raw.takerUserNo ??
-    raw.takerUserId ??
-    null;
-  const text = value === null || value === undefined ? '' : String(value).trim();
-  return text || null;
-}
+
 
 export function useCounterpartyChatHistory(
   counterpartyNickname: string,

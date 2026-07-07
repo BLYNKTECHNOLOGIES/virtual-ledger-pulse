@@ -82,36 +82,18 @@ export function useCounterpartyChatHistory(
       // Fetch the full list of past orders once and cache
       if (!allPastOrdersRef.current) {
         // Resolve the CURRENT order's counterparty user id. This is the only safe
-        // key to group history by. Live order detail is often empty for older
-        // orders, so read the stored detail for the current order number.
-        const { data: currentRow } = await supabase
-          .from('binance_order_history')
-          .select('order_detail_raw, raw_data')
-          .eq('order_number', currentOrderNumber)
-          .maybeSingle();
-
-        const counterpartyUserNo = takerUserNoFromRow(currentRow);
-
-        if (!counterpartyUserNo) {
-          // No reliable identity -> do NOT fall back to name/nickname (would leak
-          // unrelated clients). Show no history rather than wrong history.
-          allPastOrdersRef.current = [];
-        } else {
-          let query = supabase
-            .from('binance_order_history')
-            .select('order_number, trade_type, asset, total_price, fiat_unit, create_time, exchange_account_id')
-            .neq('order_number', currentOrderNumber)
-            .eq('order_detail_raw->>takerUserNo', counterpartyUserNo)
-            .order('create_time', { ascending: false });
-
-          if (exchangeAccountId) {
-            query = query.eq('exchange_account_id', exchangeAccountId);
-          }
-
-          const { data, error } = await query;
-          if (error) throw error;
-          allPastOrdersRef.current = data || [];
-        }
+        // key to group history by. The counterparty is resolved server-side by
+        // get_counterparty_order_history: it detects OUR own account numbers
+        // (accounts that trade with many different people) and treats the OTHER
+        // side of each order as the counterparty. This fixes the leak where
+        // takerUserNo was OUR own id on BUY orders (and any ad we took), which
+        // previously pulled in thousands of unrelated orders/KYC docs.
+        const { data, error } = await supabase.rpc('get_counterparty_order_history', {
+          p_order_number: currentOrderNumber,
+          p_exchange_account_id: exchangeAccountId || null,
+        });
+        if (error) throw error;
+        allPastOrdersRef.current = data || [];
       }
 
       const allOrders = allPastOrdersRef.current;

@@ -17033,6 +17033,18 @@ export type Database = {
           calculated_balance: number
         }[]
       }
+      get_counterparty_order_history: {
+        Args: { p_exchange_account_id?: string; p_order_number: string }
+        Returns: {
+          asset: string
+          create_time: number
+          exchange_account_id: string
+          fiat_unit: string
+          order_number: string
+          total_price: string
+          trade_type: string
+        }[]
+      }
       get_default_risk_level: { Args: never; Returns: string }
       get_latest_binance_ad_state: {
         Args: { p_adv_no: string }

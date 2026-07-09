@@ -149,9 +149,9 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
       <div className="flex items-center gap-1.5 mb-1">
         <Sparkles className="h-3 w-3 text-primary shrink-0" />
         {loading ? (
-          <span className="text-[10px] text-muted-foreground animate-pulse">Thinking…</span>
+          <span className="text-[10px] text-foreground animate-pulse">Thinking…</span>
         ) : (
-          <span className="text-[10px] font-medium text-primary">
+          <span className="text-[10px] font-medium text-foreground">
             {SITUATION_LABELS[result?.situation || 'other'] || result?.situation}
           </span>
         )}

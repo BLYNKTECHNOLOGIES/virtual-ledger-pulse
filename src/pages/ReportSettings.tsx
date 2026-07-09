@@ -37,7 +37,7 @@ interface ReportConfig {
 type Draft = {
   id?: string;
   name: string;
-  variant: "profit" | "operations";
+  variant: "profit" | "operations" | "kyc_rm";
   recipients: string[];
   send_time: string;
   enabled: boolean;

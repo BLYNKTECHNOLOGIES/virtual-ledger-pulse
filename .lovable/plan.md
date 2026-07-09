@@ -1,59 +1,51 @@
 
-# KYC & Client Management (RM) Daily Report
+# De-Merge Wrongly-Linked Clients by Binance userNo + Fix the Root Cause
 
-A third report **variant** (`kyc_rm`) that plugs into the existing Report Formats tab. You create it, assign recipient mail IDs, pick the IST send time (daily), toggle auto-send, and use "Send now" — exactly like the Profit and Operations reports. Content is built **only** from tables I verified are actually populated (numbers below are live from today's data, so you can see it works).
+## Confirmed with live data
+- **466 clients** hold 2+ active nicknames (430×2, 26×3, 7×4, 1×5, 2×6) of 2,435 linked clients.
+- Example G26KTP "MANOJ KUMAR": 6 linked nicknames, but only 2 have real orders → **2 distinct userNos** (`s6f8fc29…` = 7 orders via `Avengers_Associates`; `sbd6bb2d…` = 1 order via `User-b2d25`), both verified "MANOJ KUMAR" → two different people merged by the name-match fallback. The other 4 nicknames have **zero orders**.
 
-## Proposed email format (please review before I build)
+## Ground truth = counterparty userNo
+Identity comes only from Binance **order detail** (already synced in `binance_order_history.order_detail_raw`): counterparty = `takerUserNo` when our merchant (`BlynkEx`, `merchantNo se7510c53…`) is the maker, else `merchantNo`. There is **no Binance "search by nickname" API**; gaps are filled via the supported **order-detail** endpoint (re-fetch by order number), never a nickname search. Present on 64% of orders (31,876 / 49,283).
 
-**Title:** `KYC & Client Management — Daily Report · <DD Mon YYYY> (IST)`
+## Core model change
+Make **userNo the stable client identity** and **nickname a single, mutable attribute**:
+- Add `counterparty_user_no` to `client_binance_nicknames` (and track the account's own merchantNo per `exchange_account_id`).
+- Each client keeps exactly **one active nickname**; on rename (same userNo, new nickname) the active nickname is **updated**, old kept `is_active=false` only so historical orders still resolve.
+- Split rule: split **only across different userNos**. Same userNo across nicknames = one person renamed → stays one client.
 
-### 1. Onboarding & KYC — today's KPIs (cards)
-| Metric | Source | Live sample (today) |
-|---|---|---|
-| New clients onboarded | `clients.date_of_onboarding = today` | 30 |
-| KYC / QC approvals done today | `client_onboarding_approvals` APPROVED, reviewed today | 49 |
-| Distinct clients approved today | same, distinct resolved client | 20 |
-| KYC documents uploaded today | `client_kyc_documents` created today | 104 |
-| Rejections today | approvals REJECTED, reviewed today | (live) |
-| Pending approval backlog | approvals still PENDING | 199 |
+```text
+Client "MANOJ KUMAR" (G26KTP)
+ ├─ Avengers_Associates → userNo s6f8fc29… (7 orders) ── ANCHOR (keeps KYC docs)
+ ├─ User-b2d25          → userNo sbd6bb2d… (1 order)  ── SPLIT → new client "MANOJ KUMAR", its 1 order + nickname move here
+ └─ MANOJ KUMAR, User-9fd73, User-f1af2, Monu_hr24 (0 orders) ── UNRESOLVED → detach + report, no phantom clients
+```
 
-### 2. New clients who traded for the first time today
-Clients whose **very first order ever** is dated today (a new QC turned into a real first trade).
-- Count + total first-trade value — live sample: **19 clients, ₹8,63,062**.
-- Table (≤ topline, capped ~15 rows): Client name · phone (masked) · first order value · assigned operator. *(No email column — per project rule, client emails are never collected/shown.)*
+## Phase 1 — Identity resolution engine (read-only)
+1. Determine our own merchantNo per `exchange_account_id` (dominant merchant on our-ad orders).
+2. `resolve_counterparty_userno(order)` → counterparty userNo + verified_name + nickname from each order.
+3. For every `(client_id, nickname)`, aggregate matching orders → resolved userNo, verified_name, exact order_numbers, order/completed counts, turnover, first/last seen.
+4. Gap backfill: queue `order_number`s lacking `order_detail_raw` into the existing order-detail sync. Nicknames still unresolved (no orders at all) are marked `UNRESOLVED` — never guessed.
 
-### 3. Client trading activity today (segregated purchase vs sales)
-| Flow | Meaning | Amount | Orders | Distinct parties |
-|---|---|---|---|---|
-| Sales | clients **buying** USDT from us | ₹30,11,438 | 51 | 45 |
-| Purchases | clients/counterparties **selling** USDT to us | ₹23,19,506 | 32 | 30 |
-| **Total client turnover** | sales + purchases | **₹53,30,945** | 83 | — |
+## Phase 2 — Audit report (CSV only, no data change)
+`/mnt/documents/client_nickname_merge_audit.csv`, one row per (client, nickname):
+`client_code, client_name, nickname, source, resolved_userno, verified_name, order_count, completed_count, turnover, order_numbers, first_seen, last_seen, proposed_action(ANCHOR|SPLIT|UNRESOLVED), proposed_target_client`.
+Anchor = the userNo whose verified_name matches the client name and/or owns the KYC docs (ties → most orders, then earliest). **No writes.** You review, then approve Phase 3.
 
-### 4. Top clients by turnover today
-One table, top 10 by total amount: Client name · sales amount · purchase amount · total. (Sales keyed by client, purchases keyed by counterparty/supplier name; matched by name where possible, otherwise listed on their respective side.)
+## Phase 3 — Guarded de-merge (only after CSV approval)
+Per `SPLIT` userNo (idempotent, fully logged):
+1. Create a new client — **same KYC name as parent** (your decision); named split uses verified_name when it differs.
+2. Move that userNo's nickname row(s) and its orders/chats/identity rows (sales `supplier_name`/nickname links, `client_verified_names`, `p2p_counterparties`) to the new client.
+3. Anchor userNo (with KYC docs, bank details, verified name, limits) stays on the original record.
+4. `UNRESOLVED` nicknames (zero orders) are set inactive and listed for RM review — not converted to clients.
+5. Everything written to an audit table for reversibility.
 
-### 5. RM / KYC team productivity today
-Approvals completed per reviewer (KYC/QC officer). Live sample today: **KHUSHBU PARMAR — 51**. Table: reviewer · approvals · rejections.
+## Phase 4 — Root-cause fix (stop recurrence)
+1. `clientIdentityResolver.ts`: resolution keyed on **userNo first**, nickname second, verified_name third; pure name match (`name_match`/`name_exact`) becomes **suggestion-only**, never auto-link, whenever the order's counterparty userNo differs from every userNo already on the candidate client.
+2. Approval flow: resolve the counterparty userNo from order detail; **existing userNo → same client** (update nickname if changed); **userNo never seen with us → new client**, even on a name match. (This is the correct form of "new person" detection — keyed on our own history, not Binance's lifetime public order count.)
+3. DB guard trigger on `client_binance_nicknames`: block/soft-flag attaching a nickname whose resolved userNo conflicts with the userNo(s) already on that client → routes to a review queue instead of silently merging.
+4. Harden `auto_sync`/backfill writers to skip name-only attachment and to update (not duplicate) the active nickname on same-userNo rename.
 
-### 6. Compliance watch (only if non-zero, else hidden)
-- Pending client limit-increase requests (`client_limit_requests` pending).
-- Re-KYC requests raised today (`rekyc_requests`) — *currently 0 records ever; row auto-hides when empty.*
-- High-risk clients onboarded / traded today.
-
-**Deliberately excluded** (no reliable/used data or duplicative): dedicated re-KYC table (empty), any profit/asset-value figures (not RM's concern), and any table that would be empty for typical days auto-hides rather than showing a blank grid.
-
-## How it's built (technical)
-
-**No schema change needed for config** — the existing `report_email_configs.variant` already stores a free-text variant. I'll add `kyc_rm` as a selectable option.
-
-1. **Frontend** — `src/pages/ReportSettings.tsx`: add a third variant option ("KYC & Client Management") to the variant `Select` and its badge/label rendering. No other UI change; CRUD, recipients, time, enable, Send-now already generic.
-
-2. **Dispatcher** — `supabase/functions/dispatch-report-emails/index.ts`: route by variant. `profit`/`operations` → `daily-report-email` (unchanged); `kyc_rm` → new `kyc-rm-report-email` function. Keeps the same 5-minute cron, `last_sent_on` idempotency, and `configId` manual send.
-
-3. **New edge function** — `supabase/functions/kyc-rm-report-email/index.ts`: computes the IST-day aggregates above with `fetchAllPaginated` where needed, renders a new template, sends via the existing transactional-email sender with a `kyc-rm-report-<date>-<recipient>` idempotency key. No writes, no snapshot cleanup.
-
-4. **New template** — `supabase/functions/_shared/transactional-email-templates/kyc-rm-report.tsx`: sections 1–6, reusing the existing email card/row/table styles for visual consistency; empty sections auto-hide.
-
-5. **Validation** — `bunx tsgo --noEmit`; deploy both functions; dry-run the new function to confirm the payload matches this format; manually invoke the dispatcher with the new config's `configId` to confirm routing + send.
-
-Once you approve this format (add/remove any section), I'll implement it.
+## Notes
+- Phases 1–2 are pure reads + a CSV; zero risk. Phase 3 is destructive and runs only on explicit approval, as reviewed migrations.
+- All identity derives from synced order detail (+ supported order-detail backfill). No nickname-search API is used or simulated (Binance limitation).

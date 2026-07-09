@@ -2113,6 +2113,66 @@ export type Database = {
           },
         ]
       }
+      client_nickname_merge_audit_report: {
+        Row: {
+          anchor_userno: string | null
+          client_code: string | null
+          client_name: string | null
+          client_uuid: string | null
+          completed_count: number | null
+          distinct_usernos_on_client: number | null
+          distinct_usernos_on_nick: number | null
+          first_order: string | null
+          last_order: string | null
+          nickname: string | null
+          order_count: number | null
+          order_numbers: string | null
+          proposed_action: string | null
+          resolved_userno: string | null
+          source: string | null
+          turnover: number | null
+          verified_name: string | null
+        }
+        Insert: {
+          anchor_userno?: string | null
+          client_code?: string | null
+          client_name?: string | null
+          client_uuid?: string | null
+          completed_count?: number | null
+          distinct_usernos_on_client?: number | null
+          distinct_usernos_on_nick?: number | null
+          first_order?: string | null
+          last_order?: string | null
+          nickname?: string | null
+          order_count?: number | null
+          order_numbers?: string | null
+          proposed_action?: string | null
+          resolved_userno?: string | null
+          source?: string | null
+          turnover?: number | null
+          verified_name?: string | null
+        }
+        Update: {
+          anchor_userno?: string | null
+          client_code?: string | null
+          client_name?: string | null
+          client_uuid?: string | null
+          completed_count?: number | null
+          distinct_usernos_on_client?: number | null
+          distinct_usernos_on_nick?: number | null
+          first_order?: string | null
+          last_order?: string | null
+          nickname?: string | null
+          order_count?: number | null
+          order_numbers?: string | null
+          proposed_action?: string | null
+          resolved_userno?: string | null
+          source?: string | null
+          turnover?: number | null
+          verified_name?: string | null
+        }
+        Relationships: []
+      }
       client_onboarding_approvals: {
         Row: {
           aadhar_back_url: string | null
@@ -2709,6 +2769,39 @@ export type Database = {
           id?: string
           pan_number?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      cp_order_identity: {
+        Row: {
+          cp_userno: string | null
+          create_time: number | null
+          masked_nick: string | null
+          nickname: string | null
+          order_number: string | null
+          order_status: string | null
+          total_price: number | null
+          verified_name: string | null
+        }
+        Insert: {
+          cp_userno?: string | null
+          create_time?: number | null
+          masked_nick?: string | null
+          nickname?: string | null
+          order_number?: string | null
+          order_status?: string | null
+          total_price?: number | null
+          verified_name?: string | null
+        }
+        Update: {
+          cp_userno?: string | null
+          create_time?: number | null
+          masked_nick?: string | null
+          nickname?: string | null
+          order_number?: string | null
+          order_status?: string | null
+          total_price?: number | null
+          verified_name?: string | null
         }
         Relationships: []
       }
@@ -16401,6 +16494,27 @@ export type Database = {
       assign_terminal_role: {
         Args: { p_assigned_by?: string; p_role_id: string; p_user_id: string }
         Returns: undefined
+      }
+      audit_client_nickname_merges: {
+        Args: never
+        Returns: {
+          anchor_userno: string
+          client_code: string
+          client_name: string
+          client_uuid: string
+          completed_count: number
+          distinct_usernos_on_client: number
+          first_order: string
+          last_order: string
+          nickname: string
+          order_count: number
+          order_numbers: string
+          proposed_action: string
+          resolved_userno: string
+          source: string
+          turnover: number
+          verified_name: string
+        }[]
       }
       auto_assign_and_apply_salary_template: {
         Args: { p_employee_id: string }

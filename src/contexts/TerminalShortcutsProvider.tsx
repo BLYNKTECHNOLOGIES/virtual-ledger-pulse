@@ -77,10 +77,15 @@ export function TerminalShortcutsProvider({ children }: { children: React.ReactN
         return;
       }
 
-      // Esc is the ONLY key allowed while typing or while an overlay is open.
+      // Esc: close help → let overlays self-close → blur focused input →
+      // otherwise step back from an open order to the list.
       if (e.key === "Escape") {
         if (helpOpen) { setHelpOpen(false); return; }
+        if (isOverlayOpen()) { clearGoto(); return; }
+        const active = document.activeElement as HTMLElement | null;
+        if (active && isTypingTarget(active)) { active.blur(); clearGoto(); return; }
         clearGoto();
+        dispatchTerminalContextKey("orders-back");
         return;
       }
 

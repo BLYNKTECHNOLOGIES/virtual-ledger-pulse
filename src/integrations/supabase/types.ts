@@ -11994,6 +11994,45 @@ export type Database = {
           },
         ]
       }
+      report_email_configs: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          is_monthly: boolean
+          last_sent_on: string | null
+          name: string
+          recipients: string[]
+          send_time: string
+          updated_at: string
+          variant: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          is_monthly?: boolean
+          last_sent_on?: string | null
+          name: string
+          recipients?: string[]
+          send_time?: string
+          updated_at?: string
+          variant?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          is_monthly?: boolean
+          last_sent_on?: string | null
+          name?: string
+          recipients?: string[]
+          send_time?: string
+          updated_at?: string
+          variant?: string
+        }
+        Relationships: []
+      }
       reversal_guards: {
         Row: {
           action: string

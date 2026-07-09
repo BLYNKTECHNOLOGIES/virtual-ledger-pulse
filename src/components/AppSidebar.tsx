@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard, Mail } from "lucide-react";
 import blynkLogoWhite from "@/assets/brand/blynk-logo-white.svg";
 import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import { Link, useLocation } from "react-router-dom";
@@ -16,6 +16,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+import { useAuth } from "@/hooks/useAuth";
 
 // Reconciliation cockpit item (gated by reconciliation function, not a permission string)
 const reconciliationItem: SidebarGroupItem = {
@@ -25,6 +26,16 @@ const reconciliationItem: SidebarGroupItem = {
   icon: ShieldCheck,
   color: "text-destructive",
   bgColor: "bg-destructive/10",
+  permissions: [],
+};
+
+const reportSettingsItem: SidebarGroupItem = {
+  id: "report-formats",
+  title: "Report Formats",
+  url: "/settings/report-formats",
+  icon: Mail,
+  color: "text-primary",
+  bgColor: "bg-primary/10",
   permissions: [],
 };
 
@@ -256,6 +267,8 @@ export function AppSidebar() {
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
   const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super admin");
   const isCollapsed = state === "collapsed";
 
   // Configure drag sensors
@@ -286,6 +299,11 @@ export function AppSidebar() {
       entries.push({ type: 'item', data: reconciliationItem });
     }
 
+    // Report Formats — Super Admin only
+    if (isSuperAdmin) {
+      entries.push({ type: 'item', data: reportSettingsItem });
+    }
+
     
     // Add groups (filter children by permissions)
     sidebarGroups.forEach(group => {
@@ -301,7 +319,7 @@ export function AppSidebar() {
     });
     
     return entries;
-  }, [isLoading, hasAnyPermission, hasReconAccess]);
+  }, [isLoading, hasAnyPermission, hasReconAccess, isSuperAdmin]);
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {

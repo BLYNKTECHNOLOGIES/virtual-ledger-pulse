@@ -1126,6 +1126,8 @@ serve(async (req) => {
 
     const isMonthly = body.mode === "monthly";
     const recipients: string[] = body.recipients || RECIPIENTS;
+    // Report content variant: 'profit' (default, full report) | 'operations' (no P&L / asset totals).
+    const variant: string = body.variant === "operations" ? "operations" : "profit";
 
     // Resolve the report period.
     let startDate: string;
@@ -1155,7 +1157,7 @@ serve(async (req) => {
     // AI Daily Narrative — fully guarded; on ANY failure the email sends exactly
     // as it does today with the narrative section simply omitted.
     let narrativePayload: any = null;
-    if (!isMonthly) {
+    if (!isMonthly && variant !== "operations") {
       try {
         const nr = await buildDailyNarrative(supabase, report, startDate);
         narrativePayload = nr;
@@ -1183,7 +1185,19 @@ serve(async (req) => {
       console.error("copilot report block skipped:", (cErr as Error).message);
     }
 
-    // Dry-run: return the built payload + narrative WITHOUT sending any email.
+    // Operations Business Report variant — strip everything that reveals profit or
+    // total asset value, while keeping the Stock-by-Asset + POS/Gateway detail tables
+    // (and the POS/Gateway total row) inside the asset section.
+    report.variant = variant;
+    if (variant === "operations") {
+      delete report.pnl;          // hides Gross/Net Profit KPI cards + P&L Summary card
+      delete report.narrative;    // hides AI Daily Narrative
+      if (report.charts) delete report.charts.pnl; // hides P&L breakdown chart
+      if (report.assetValue) {
+        report.assetValue = { ...report.assetValue, operationsMode: true };
+      }
+    }
+
     if (body?.dryRun === true) {
       return new Response(JSON.stringify({
         success: true,
@@ -1194,7 +1208,7 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${startDate}`;
+    const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${variant}-${startDate}`;
 
 
     const results: { recipient: string; success: boolean; error?: string }[] = [];
@@ -1215,8 +1229,9 @@ serve(async (req) => {
 
     // Erase the consumed 4 AM ERP-vs-Terminal balance snapshots once the DAILY report
     // has been sent successfully (per requirement: stored only until the mail goes out).
-    // The monthly report must NOT erase these daily snapshots.
-    if (allOk && !isMonthly) {
+    // Only the full Profit report clears them — the monthly report and the Operations
+    // report must NOT erase snapshots the Profit report still needs.
+    if (allOk && !isMonthly && variant !== "operations") {
       const { error: clearErr } = await supabase
         .from("erp_terminal_balance_snapshots")
         .delete()

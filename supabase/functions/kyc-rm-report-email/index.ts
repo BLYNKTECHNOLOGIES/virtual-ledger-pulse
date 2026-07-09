@@ -98,9 +98,10 @@ async function buildKycRmReport(supabase: any, date: string) {
     approvedRows.map((r) => r.resolved_client_id || normName(r.client_name)),
   ).size;
 
-  const kycDocsToday = await headCount(() =>
-    supabase.from("client_kyc_documents").select("*", { count: "exact", head: true })
+  const kycDocsRows = await fetchAllRows(() =>
+    supabase.from("client_kyc_documents").select("created_at")
       .gte("created_at", start).lt("created_at", end).is("deleted_at", null));
+  const kycDocsToday = kycDocsRows.length;
 
   const pendingBacklog = await headCount(() =>
     supabase.from("client_onboarding_approvals").select("*", { count: "exact", head: true })

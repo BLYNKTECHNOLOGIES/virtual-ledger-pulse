@@ -748,7 +748,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                     <CheckCircle2 className="h-4 w-4 text-success" />
                     <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
                     <Badge variant="outline" className="text-[10px] bg-success/10 text-success">Linked</Badge>
-                    {(duplicateClients.length > 1 || autoMatchVia) && (
+                    {userNoLocked ? (
+                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-auto flex items-center gap-1">
+                        <Lock className="h-2.5 w-2.5" />
+                        User No Locked
+                      </Badge>
+                    ) : (duplicateClients.length > 1 || autoMatchVia) && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -759,6 +764,14 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                       </Button>
                     )}
                   </div>
+                  {userNoLocked && (
+                    <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-2">
+                      <Lock className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-[11px] font-medium text-primary">
+                        Client locked via Binance User No{lockedUserNo ? ` (${lockedUserNo})` : ''} — the strongest account identity. Cannot be reassigned on approval.
+                      </span>
+                    </div>
+                  )}
                   {autoMatchVia && autoMatchVia !== 'name_exact' && (
                     <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />

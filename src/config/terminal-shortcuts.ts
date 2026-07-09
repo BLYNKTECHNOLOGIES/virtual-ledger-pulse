@@ -16,7 +16,7 @@ import type { TerminalPermission } from "@/hooks/useTerminalAuth";
  *
  * HARD RULES enforced by the provider:
  *  - Shortcuts only fire OUTSIDE inputs/textareas/contenteditable (except Esc
- *    and composer keys).
+ *    and Alt+1–Alt+9 quick-reply composer keys).
  *  - ALL shortcuts suspend while any dialog/sheet/popover is open (except Esc).
  *  - NO money-moving action is ever bound to a key — keys only navigate, focus,
  *    copy, or trigger the same UI handler as an existing NON-destructive click.
@@ -115,7 +115,7 @@ export const TERMINAL_ORDER_DETAIL_SHORTCUTS: TerminalShortcutDef[] = [
  * ------------------------------------------------------------------ */
 export const TERMINAL_CHAT_SHORTCUTS: TerminalShortcutDef[] = [
   { id: "t-chat-focus", category: "Chat", label: "Focus Chat Input", description: "Jump straight to the chat message box (when no page search box is present)", keys: ["/"], scope: "Order chat", icon: MessageSquare, permissions: [] },
-  { id: "t-chat-quick-reply", category: "Chat", label: "Insert Quick Reply", description: "Press 1–9 to insert your matching quick reply (never auto-sends)", keys: ["1", "–", "9"], scope: "Order chat", icon: Zap, permissions: [] },
+  { id: "t-chat-quick-reply", category: "Chat", label: "Insert Quick Reply", description: "Press Alt+1 through Alt+9 to insert your matching quick reply (never auto-sends). Plain numbers still type normally.", keys: ["Alt", "1", "–", "Alt", "9"], scope: "Order chat / composer", icon: Zap, permissions: [] },
   { id: "t-chat-esc", category: "Chat", label: "Blur Composer", description: "Blur the chat composer and return to list scope", keys: ["Esc"], scope: "Chat composer", icon: CornerUpLeft, permissions: [] },
 ];
 

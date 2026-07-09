@@ -144,6 +144,53 @@ async function buildKycRmReport(supabase: any, date: string) {
     turnoverOrders: salesToday.length + purchasesToday.length,
   };
 
+  // ---- Shift-wise breakdown (Morning 09–17 · Evening 17–01 · Night 01–09 IST) ----
+  const makeShiftBucket = () => ({
+    approvals: 0, rejections: 0, kycDocs: 0,
+    salesAmount: 0, salesCount: 0, purchaseAmount: 0, purchaseCount: 0,
+  });
+  const shiftBuckets: Record<Shift, ReturnType<typeof makeShiftBucket>> = {
+    Morning: makeShiftBucket(), Evening: makeShiftBucket(), Night: makeShiftBucket(),
+  };
+  for (const r of approvalsToday) {
+    const s = shiftOf(r.reviewed_at);
+    if (!s) continue;
+    if (r.approval_status === "APPROVED") shiftBuckets[s].approvals += 1;
+    else if (r.approval_status === "REJECTED") shiftBuckets[s].rejections += 1;
+  }
+  for (const r of kycDocsRows) {
+    const s = shiftOf(r.created_at);
+    if (s) shiftBuckets[s].kycDocs += 1;
+  }
+  for (const r of salesToday) {
+    const s = shiftOf(r.created_at);
+    if (!s) continue;
+    shiftBuckets[s].salesAmount += Number(r.total_amount || 0);
+    shiftBuckets[s].salesCount += 1;
+  }
+  for (const r of purchasesToday) {
+    const s = shiftOf(r.created_at);
+    if (!s) continue;
+    shiftBuckets[s].purchaseAmount += Number(r.total_amount || 0);
+    shiftBuckets[s].purchaseCount += 1;
+  }
+  const shifts = SHIFTS.map((s) => {
+    const b = shiftBuckets[s];
+    return {
+      label: SHIFT_LABELS[s],
+      approvals: b.approvals,
+      rejections: b.rejections,
+      kycDocs: b.kycDocs,
+      salesAmount: money(b.salesAmount),
+      salesCount: b.salesCount,
+      purchaseAmount: money(b.purchaseAmount),
+      purchaseCount: b.purchaseCount,
+      turnover: money(b.salesAmount + b.purchaseAmount),
+    };
+  });
+
+
+
   // ---- Section 2: New clients who traded for the FIRST time today ----
   const todayClientIds = Array.from(
     new Set(salesToday.map((r) => r.client_id).filter((x): x is string => !!x)),

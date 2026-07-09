@@ -267,6 +267,8 @@ export function AppSidebar() {
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
   const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super admin");
   const isCollapsed = state === "collapsed";
 
   // Configure drag sensors

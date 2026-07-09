@@ -119,11 +119,11 @@ async function buildKycRmReport(supabase: any, date: string) {
   // ---- Section 3: Trading activity today (segregated) ----
   const salesToday = await fetchAllRows(() =>
     supabase.from("sales_orders")
-      .select("client_id, client_name, client_phone, total_amount, created_by")
+      .select("client_id, client_name, client_phone, total_amount, created_by, created_at")
       .eq("order_date", date));
   const purchasesToday = await fetchAllRows(() =>
     supabase.from("purchase_orders")
-      .select("supplier_name, contact_number, total_amount")
+      .select("supplier_name, contact_number, total_amount, created_at")
       .eq("order_date", date));
 
   const salesAmount = salesToday.reduce((s, r) => s + Number(r.total_amount || 0), 0);

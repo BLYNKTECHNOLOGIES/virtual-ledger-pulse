@@ -1185,7 +1185,19 @@ serve(async (req) => {
       console.error("copilot report block skipped:", (cErr as Error).message);
     }
 
-    // Dry-run: return the built payload + narrative WITHOUT sending any email.
+    // Operations Business Report variant — strip everything that reveals profit or
+    // total asset value, while keeping the Stock-by-Asset + POS/Gateway detail tables
+    // (and the POS/Gateway total row) inside the asset section.
+    report.variant = variant;
+    if (variant === "operations") {
+      delete report.pnl;          // hides Gross/Net Profit KPI cards + P&L Summary card
+      delete report.narrative;    // hides AI Daily Narrative
+      if (report.charts) delete report.charts.pnl; // hides P&L breakdown chart
+      if (report.assetValue) {
+        report.assetValue = { ...report.assetValue, operationsMode: true };
+      }
+    }
+
     if (body?.dryRun === true) {
       return new Response(JSON.stringify({
         success: true,

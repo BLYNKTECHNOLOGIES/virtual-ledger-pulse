@@ -46,6 +46,13 @@ function isOverlayOpen(): boolean {
 
 const sys = (id: string) => TERMINAL_SYSTEM_SHORTCUTS.find((s) => s.id === id)!.combo!;
 
+function quickReplyIndexFromHotkey(e: KeyboardEvent): number | null {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return null;
+  const digit = e.code.startsWith("Digit") ? e.code.slice(5) : e.code.startsWith("Numpad") ? e.code.slice(6) : "";
+  if (!/^[1-9]$/.test(digit)) return null;
+  return Number(digit) - 1;
+}
+
 export function TerminalShortcutsProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { hasAnyPermission } = useTerminalAuth();
@@ -89,6 +96,18 @@ export function TerminalShortcutsProvider({ children }: { children: React.ReactN
         return;
       }
 
+      // Alt+1–Alt+9 → insert the matching per-user quick reply into the chat
+      // composer (never auto-sends). Plain number keys remain available for
+      // normal message entry, including while the composer is focused.
+      const quickReplyIndex = quickReplyIndexFromHotkey(e);
+      if (quickReplyIndex !== null) {
+        if (isOverlayOpen()) { clearGoto(); return; }
+        e.preventDefault();
+        clearGoto();
+        dispatchQuickReplyHotkey(quickReplyIndex);
+        return;
+      }
+
       // Everything else is ignored while typing so it never disrupts data entry.
       if (isTypingTarget(e.target)) { clearGoto(); return; }
 
@@ -116,14 +135,6 @@ export function TerminalShortcutsProvider({ children }: { children: React.ReactN
         if (focusPageSearch()) { e.preventDefault(); return; }
         const chat = document.querySelector('[data-terminal-chat-input]') as HTMLElement | null;
         if (chat) { e.preventDefault(); chat.focus(); }
-        return;
-      }
-
-      // 1–9 → insert the matching per-user quick reply into the chat composer
-      // (never auto-sends). No-op unless an order chat is mounted.
-      if (/^[1-9]$/.test(e.key)) {
-        e.preventDefault();
-        dispatchQuickReplyHotkey(Number(e.key) - 1);
         return;
       }
 

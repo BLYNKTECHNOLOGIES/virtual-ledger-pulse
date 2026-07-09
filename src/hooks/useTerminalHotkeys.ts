@@ -59,7 +59,7 @@ export function subscribeTerminalContextKey(cb: (key: TerminalContextKey) => voi
  * Terminal keyboard shortcuts (never bound to money-moving actions):
  *   J / ArrowRight → next     K / ArrowLeft → previous
  *   /              → focus the chat input
- *   1–9            → INSERT (not send) the matching per-user quick reply
+ *   Alt+1–Alt+9    → INSERT (not send) the matching per-user quick reply
  * Disabled while typing in inputs/textareas/contenteditable (except "/" which
  * only focuses, and only when not already typing).
  */
@@ -72,7 +72,7 @@ export function useTerminalHotkeys({ onPrev, onNext, enabled = true }: TerminalH
       const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
       if (typing) return;
 
-      // `/` (focus chat) and 1–9 (quick reply) are handled centrally by the
+      // `/` (focus chat) and Alt+1–Alt+9 (quick reply) are handled centrally by the
       // TerminalShortcutsProvider so they work in every order view, not just
       // Queue Mode. This hook only owns prev/next navigation.
       if (e.key === 'j' || e.key === 'J' || e.code === 'ArrowRight') {

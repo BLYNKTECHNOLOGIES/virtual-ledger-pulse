@@ -43,7 +43,7 @@ export function QuickReplyBar({ tradeType, orderType, onSelect }: Props) {
         </div>
         <ScrollArea className="max-h-60">
           <div className="p-1">
-            {replies.map((reply: any) => (
+            {replies.map((reply: any, index: number) => (
               <button
                 key={reply.id}
                 onClick={() => {
@@ -54,6 +54,11 @@ export function QuickReplyBar({ tradeType, orderType, onSelect }: Props) {
               >
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-medium text-primary">{reply.label}</span>
+                  {index < 9 && (
+                    <span className="text-[8px] px-1 rounded border border-border text-muted-foreground bg-secondary/60 t-mono">
+                      Alt+{index + 1}
+                    </span>
+                  )}
                   {reply.trade_type && (
                     <span className={`text-[8px] px-1 rounded ${
                       reply.trade_type === 'BUY' ? 'text-trade-buy bg-trade-buy/10' : 'text-trade-sell bg-trade-sell/10'

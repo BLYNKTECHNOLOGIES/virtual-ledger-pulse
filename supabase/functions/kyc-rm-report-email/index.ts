@@ -89,7 +89,7 @@ async function buildKycRmReport(supabase: any, date: string) {
 
   const approvalsToday = await fetchAllRows(() =>
     supabase.from("client_onboarding_approvals")
-      .select("resolved_client_id, reviewed_by, approval_status, client_name")
+      .select("resolved_client_id, reviewed_by, approval_status, client_name, reviewed_at")
       .gte("reviewed_at", start).lt("reviewed_at", end));
 
   const approvedRows = approvalsToday.filter((r) => r.approval_status === "APPROVED");

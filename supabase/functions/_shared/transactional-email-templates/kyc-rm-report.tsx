@@ -294,6 +294,11 @@ export const template = {
   previewData: {
     date: '2026-07-09',
     kpis: { newClients: 30, approvalsDone: 49, distinctApproved: 20, rejections: 3, kycDocs: 104, pendingBacklog: 199 },
+    shifts: [
+      { label: 'Morning (09:00–17:00)', approvals: 28, rejections: 2, kycDocs: 61, salesAmount: '18,42,110.00', salesCount: 30, purchaseAmount: '12,05,300.00', purchaseCount: 18, turnover: '30,47,410.00' },
+      { label: 'Evening (17:00–01:00)', approvals: 17, rejections: 1, kycDocs: 33, salesAmount: '9,11,228.93', salesCount: 16, purchaseAmount: '8,14,206.25', purchaseCount: 10, turnover: '17,25,435.18' },
+      { label: 'Night (01:00–09:00)', approvals: 4, rejections: 0, kycDocs: 10, salesAmount: '2,58,100.00', salesCount: 5, purchaseAmount: '3,00,000.00', purchaseCount: 4, turnover: '5,58,100.00' },
+    ],
     firstTime: {
       count: 19, totalValue: '8,63,062.91',
       rows: [

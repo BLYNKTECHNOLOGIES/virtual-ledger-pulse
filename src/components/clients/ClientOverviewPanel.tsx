@@ -122,6 +122,20 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
     enabled: !!activeClientId,
   });
 
+  // Fetch linked Binance user numbers (stable account identity)
+  const { data: binanceUsernos = [] } = useQuery({
+    queryKey: ['client-binance-usernos', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId) return [];
+      const { data, error } = await supabase.rpc('get_client_usernos', {
+        p_client_id: activeClientId,
+      });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeClientId,
+  });
+
   if (isLoading) {
     return (
       <Card>

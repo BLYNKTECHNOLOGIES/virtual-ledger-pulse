@@ -11,6 +11,11 @@ export interface TerminalHotkeyHandlers {
 
 const QUICK_REPLY_EVENT = 'terminal-hotkey-quickreply';
 
+/** Dispatch a quick-reply insert (0-based index). Consumed by ChatPanel. */
+export function dispatchQuickReplyHotkey(index: number) {
+  window.dispatchEvent(new CustomEvent<number>(QUICK_REPLY_EVENT, { detail: index }));
+}
+
 /** Fired by ChatPanel-side listeners to insert the Nth quick reply. */
 export function subscribeQuickReplyHotkey(cb: (index: number) => void): () => void {
   const handler = (e: Event) => {
@@ -67,11 +72,9 @@ export function useTerminalHotkeys({ onPrev, onNext, enabled = true }: TerminalH
       const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
       if (typing) return;
 
-      if (e.key === '/') {
-        const el = document.querySelector('[data-terminal-chat-input]') as HTMLElement | null;
-        if (el) { e.preventDefault(); el.focus(); }
-        return;
-      }
+      // `/` (focus chat) and 1–9 (quick reply) are handled centrally by the
+      // TerminalShortcutsProvider so they work in every order view, not just
+      // Queue Mode. This hook only owns prev/next navigation.
       if (e.key === 'j' || e.key === 'J' || e.code === 'ArrowRight') {
         if (onNext) { e.preventDefault(); onNext(); }
         return;
@@ -79,10 +82,6 @@ export function useTerminalHotkeys({ onPrev, onNext, enabled = true }: TerminalH
       if (e.key === 'k' || e.key === 'K' || e.code === 'ArrowLeft') {
         if (onPrev) { e.preventDefault(); onPrev(); }
         return;
-      }
-      if (/^[1-9]$/.test(e.key)) {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent<number>(QUICK_REPLY_EVENT, { detail: Number(e.key) - 1 }));
       }
     };
     window.addEventListener('keydown', handler);

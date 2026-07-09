@@ -11,7 +11,7 @@ import {
   TERMINAL_NAVIGATION_SHORTCUTS, TERMINAL_GOTO_SHORTCUTS, TERMINAL_SYSTEM_SHORTCUTS,
 } from "@/config/terminal-shortcuts";
 import {
-  dispatchTerminalContextKey, type TerminalContextKey,
+  dispatchTerminalContextKey, dispatchQuickReplyHotkey, type TerminalContextKey,
 } from "@/hooks/useTerminalHotkeys";
 
 interface TerminalShortcutsContextValue {
@@ -77,10 +77,15 @@ export function TerminalShortcutsProvider({ children }: { children: React.ReactN
         return;
       }
 
-      // Esc is the ONLY key allowed while typing or while an overlay is open.
+      // Esc: close help → let overlays self-close → blur focused input →
+      // otherwise step back from an open order to the list.
       if (e.key === "Escape") {
         if (helpOpen) { setHelpOpen(false); return; }
+        if (isOverlayOpen()) { clearGoto(); return; }
+        const active = document.activeElement as HTMLElement | null;
+        if (active && isTypingTarget(active)) { active.blur(); clearGoto(); return; }
         clearGoto();
+        dispatchTerminalContextKey("orders-back");
         return;
       }
 
@@ -105,9 +110,20 @@ export function TerminalShortcutsProvider({ children }: { children: React.ReactN
         return;
       }
 
-      // "/" focuses the current page's search box.
+      // "/" focuses the current page's search box; if there's none (e.g. inside
+      // an open order), fall back to focusing the order chat composer.
       if (matchesCombo(e, sys("t-sys-page-search"))) {
-        if (focusPageSearch()) e.preventDefault();
+        if (focusPageSearch()) { e.preventDefault(); return; }
+        const chat = document.querySelector('[data-terminal-chat-input]') as HTMLElement | null;
+        if (chat) { e.preventDefault(); chat.focus(); }
+        return;
+      }
+
+      // 1–9 → insert the matching per-user quick reply into the chat composer
+      // (never auto-sends). No-op unless an order chat is mounted.
+      if (/^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        dispatchQuickReplyHotkey(Number(e.key) - 1);
         return;
       }
 

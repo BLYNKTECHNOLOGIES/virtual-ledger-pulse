@@ -1,72 +1,59 @@
-# Configurable Business Report Formats
 
-Add an ERP tab (Super Admin only) to manage multiple business‑report email formats — each with its own name, recipients, send time, and content variant. Ship a second built‑in variant, **Operations Business Report**, that hides all profit/asset‑value figures but keeps the Stock‑by‑Asset and POS/Gateway detail tables. Migrate the existing 11 AM management report into this tab as the **Profit Business Report** so its recipients and time become editable.
+# KYC & Client Management (RM) Daily Report
 
-## How it works today
+A third report **variant** (`kyc_rm`) that plugs into the existing Report Formats tab. You create it, assign recipient mail IDs, pick the IST send time (daily), toggle auto-send, and use "Send now" — exactly like the Profit and Operations reports. Content is built **only** from tables I verified are actually populated (numbers below are live from today's data, so you can see it works).
 
-- `daily-report-email` edge function builds one full report object and renders the `daily-business-report` email template.
-- A pg_cron job `daily-report-email-11am-ist` (`30 5 * * *` UTC = 11 AM IST) fires it to two hardcoded recipients (`RECIPIENTS`). A separate monthly job stays untouched.
-- The template already renders sections conditionally based on which fields are present (`pnl`, `assetValue`, `narrative`, `charts.pnl`, etc.).
+## Proposed email format (please review before I build)
 
-## Data model
+**Title:** `KYC & Client Management — Daily Report · <DD Mon YYYY> (IST)`
 
-New table `public.report_email_configs`:
+### 1. Onboarding & KYC — today's KPIs (cards)
+| Metric | Source | Live sample (today) |
+|---|---|---|
+| New clients onboarded | `clients.date_of_onboarding = today` | 30 |
+| KYC / QC approvals done today | `client_onboarding_approvals` APPROVED, reviewed today | 49 |
+| Distinct clients approved today | same, distinct resolved client | 20 |
+| KYC documents uploaded today | `client_kyc_documents` created today | 104 |
+| Rejections today | approvals REJECTED, reviewed today | (live) |
+| Pending approval backlog | approvals still PENDING | 199 |
 
-```text
-id            uuid pk
-name          text                 -- e.g. "Profit Business Report"
-variant       text                 -- 'profit' | 'operations'
-recipients    text[]               -- list of email IDs
-send_time     text                 -- 'HH:MM' in IST (24h)
-enabled       boolean default true
-is_monthly    boolean default false
-last_sent_on  date                 -- idempotency guard for the dispatcher
-created_at / updated_at timestamptz + update trigger
-```
+### 2. New clients who traded for the first time today
+Clients whose **very first order ever** is dated today (a new QC turned into a real first trade).
+- Count + total first-trade value — live sample: **19 clients, ₹8,63,062**.
+- Table (≤ topline, capped ~15 rows): Client name · phone (masked) · first order value · assigned operator. *(No email column — per project rule, client emails are never collected/shown.)*
 
-- GRANTs: `authenticated` (SELECT/INSERT/UPDATE/DELETE), `service_role` ALL. No `anon`.
-- RLS: all actions gated to Super Admin via the existing role check (`has_role`/role hierarchy used elsewhere). Service role (edge functions) bypasses RLS.
-- Seed two rows: `Profit Business Report` (variant `profit`, `send_time` `11:00`, recipients = current two management addresses) and `Operations Business Report` (variant `operations`, send_time chosen in the UI, recipients empty until set).
+### 3. Client trading activity today (segregated purchase vs sales)
+| Flow | Meaning | Amount | Orders | Distinct parties |
+|---|---|---|---|---|
+| Sales | clients **buying** USDT from us | ₹30,11,438 | 51 | 45 |
+| Purchases | clients/counterparties **selling** USDT to us | ₹23,19,506 | 32 | 30 |
+| **Total client turnover** | sales + purchases | **₹53,30,945** | 83 | — |
 
-## Scheduling (dispatcher)
+### 4. Top clients by turnover today
+One table, top 10 by total amount: Client name · sales amount · purchase amount · total. (Sales keyed by client, purchases keyed by counterparty/supplier name; matched by name where possible, otherwise listed on their respective side.)
 
-- New edge function `dispatch-report-emails`: computes the current IST `HH:MM`, selects enabled `report_email_configs` whose `send_time` matches the current minute window and `last_sent_on <> today`, and for each invokes `daily-report-email` with `{ recipients, variant, isMonthly }`; then stamps `last_sent_on = today`.
-- New pg_cron job runs the dispatcher every 5 minutes (`*/5 * * * *`). Matching uses an HH:MM equality against the 5‑minute window so a config sends once at its configured time.
-- Remove the old fixed `daily-report-email-11am-ist` cron job (its behavior is now the seeded Profit config). The monthly cron job is left unchanged.
-- Idempotency: `daily-report-email` idempotency key will include the variant (`daily-report-${date}-${variant}-${recipient}`) so Profit and Operations sends to the same address never collide; `last_sent_on` prevents duplicate dispatch within a day.
+### 5. RM / KYC team productivity today
+Approvals completed per reviewer (KYC/QC officer). Live sample today: **KHUSHBU PARMAR — 51**. Table: reviewer · approvals · rejections.
 
-## Report content — Operations variant
+### 6. Compliance watch (only if non-zero, else hidden)
+- Pending client limit-increase requests (`client_limit_requests` pending).
+- Re-KYC requests raised today (`rekyc_requests`) — *currently 0 records ever; row auto-hides when empty.*
+- High-risk clients onboarded / traded today.
 
-`daily-report-email` accepts a `variant` param (default `profit`). When `variant === 'operations'`, before sending it strips profit/asset figures from the report object:
+**Deliberately excluded** (no reliable/used data or duplicative): dedicated re-KYC table (empty), any profit/asset-value figures (not RM's concern), and any table that would be empty for typical days auto-hides rather than showing a blank grid.
 
-- Remove `pnl` → hides Gross/Net Profit KPI cards **and** the P&L Summary card.
-- Remove `narrative` → hides the AI Daily Narrative.
-- Remove `charts.pnl` → hides the P&L breakdown chart.
-- Reshape `assetValue`: set an `operationsMode` flag; keep **POS/Gateway total row**, **Stock‑by‑Asset table**, and **POS/Gateway detail table**; drop the Total Asset Value KPI amount and the Bank Balances / Stock Valuation / Unpaid TDS / Net Total rows.
+## How it's built (technical)
 
-Everything else (Sales, Purchases, Wallet, Expenses, Shifts, Platform Rates, Stats, KYC, ERP‑vs‑Terminal diff, other charts) is unchanged. The balance‑snapshot cleanup after a successful daily send is kept only for the Profit variant so the Operations send doesn't erase snapshots the Profit report still needs.
+**No schema change needed for config** — the existing `report_email_configs.variant` already stores a free-text variant. I'll add `kyc_rm` as a selectable option.
 
-## Template change
+1. **Frontend** — `src/pages/ReportSettings.tsx`: add a third variant option ("KYC & Client Management") to the variant `Select` and its badge/label rendering. No other UI change; CRUD, recipients, time, enable, Send-now already generic.
 
-`daily-business-report.tsx`: in the Total Asset Value section, honor `assetValue.operationsMode` — when true, render only the POS total row + the two tables and skip the total KPI card and the other breakdown rows. No change to any section when the flag is absent (existing report unaffected).
+2. **Dispatcher** — `supabase/functions/dispatch-report-emails/index.ts`: route by variant. `profit`/`operations` → `daily-report-email` (unchanged); `kyc_rm` → new `kyc-rm-report-email` function. Keeps the same 5-minute cron, `last_sent_on` idempotency, and `configId` manual send.
 
-## Frontend tab
+3. **New edge function** — `supabase/functions/kyc-rm-report-email/index.ts`: computes the IST-day aggregates above with `fetchAllPaginated` where needed, renders a new template, sends via the existing transactional-email sender with a `kyc-rm-report-<date>-<recipient>` idempotency key. No writes, no snapshot cleanup.
 
-- New page `src/pages/ReportSettings.tsx`, route `/report-settings`, added to `App.tsx` behind `AuthCheck`/`Layout`.
-- Sidebar (`AppSidebar.tsx`) + mobile nav entry, gated to Super Admin only (reuse the super‑admin check already used for restricted items).
-- The page lists configs in cards with: name, variant badge (Profit / Operations), editable recipients (chip input), send‑time picker, enabled toggle, and a **Send now** button (invokes `daily-report-email` with that config's variant + recipients for a manual run). CRUD via `@tanstack/react-query` against `report_email_configs`. `AlertDialog` for delete confirmation, per project UI conventions. Variant is chosen from the two built‑in variants (extensible later).
+4. **New template** — `supabase/functions/_shared/transactional-email-templates/kyc-rm-report.tsx`: sections 1–6, reusing the existing email card/row/table styles for visual consistency; empty sections auto-hide.
 
-## Files touched
+5. **Validation** — `bunx tsgo --noEmit`; deploy both functions; dry-run the new function to confirm the payload matches this format; manually invoke the dispatcher with the new config's `configId` to confirm routing + send.
 
-- Migration: create `report_email_configs` (+ grants, RLS, trigger, seed); add dispatcher cron; drop old 11 AM cron.
-- `supabase/functions/dispatch-report-emails/index.ts` (new).
-- `supabase/functions/daily-report-email/index.ts` (variant param + operations stripping + variant‑scoped idempotency & snapshot cleanup).
-- `supabase/functions/_shared/transactional-email-templates/daily-business-report.tsx` (operationsMode rendering).
-- `src/pages/ReportSettings.tsx` (new) + `src/App.tsx` route.
-- `src/components/AppSidebar.tsx` + `src/components/MobileBottomNav.tsx` (Super‑Admin‑only nav entry).
-
-## Validation
-
-- `bunx tsgo --noEmit`.
-- Deploy `daily-report-email` and `dispatch-report-emails`; use `dryRun` to confirm both variants build correctly and that the Operations payload has no `pnl`/`narrative`/`charts.pnl` and a reshaped `assetValue`.
-- Manually invoke the dispatcher to confirm it selects matching configs and stamps `last_sent_on`.
+Once you approve this format (add/remove any section), I'll implement it.

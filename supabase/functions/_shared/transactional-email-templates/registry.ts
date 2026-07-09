@@ -14,6 +14,7 @@ import { template as taskSpectatorNotification } from './task-spectator-notifica
 import { template as taskCompleted } from './task-completed.tsx'
 import { template as dailyBusinessReport } from './daily-business-report.tsx'
 import { template as erpPasswordOtp } from './erp-password-otp.tsx'
+import { template as kycRmReport } from './kyc-rm-report.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'task-notification': taskNotification,
@@ -21,4 +22,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'task-completed': taskCompleted,
   'daily-business-report': dailyBusinessReport,
   'erp-password-otp': erpPasswordOtp,
+  'kyc-rm-report': kycRmReport,
 }

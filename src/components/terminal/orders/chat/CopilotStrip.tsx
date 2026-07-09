@@ -187,7 +187,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
             <button
               key={i}
               onClick={() => handleClick(s, i)}
-              className="text-left text-[11px] leading-snug rounded-full bg-card border border-border px-2.5 py-1.5 hover:border-primary/50 hover:bg-secondary/80 active:bg-secondary transition-colors max-w-full"
+              className="text-left text-[11px] leading-snug rounded-full bg-card border border-border text-card-foreground px-2.5 py-1.5 hover:border-primary/50 hover:bg-secondary/80 active:bg-secondary transition-colors max-w-full"
               title="Insert into input (review before sending)"
             >
               {s}

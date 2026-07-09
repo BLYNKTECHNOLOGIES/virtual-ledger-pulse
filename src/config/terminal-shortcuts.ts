@@ -87,8 +87,8 @@ export const TERMINAL_GOTO_SHORTCUTS: TerminalShortcutDef[] = [
  * ORDERS (list)                                                        *
  * ------------------------------------------------------------------ */
 export const TERMINAL_ORDERS_SHORTCUTS: TerminalShortcutDef[] = [
-  { id: "t-orders-down", category: "Orders", label: "Move Focus Down", description: "Move the focus ring to the next order row", keys: ["J"], scope: "Orders list", icon: ArrowUpDown, permissions: [] },
-  { id: "t-orders-up", category: "Orders", label: "Move Focus Up", description: "Move the focus ring to the previous order row", keys: ["K"], scope: "Orders list", icon: ArrowUpDown, permissions: [] },
+  { id: "t-orders-down", category: "Orders", label: "Move Focus Down", description: "Move the focus ring to the next order row", keys: ["J", "or", "→"], scope: "Orders list", icon: ArrowUpDown, permissions: [] },
+  { id: "t-orders-up", category: "Orders", label: "Move Focus Up", description: "Move the focus ring to the previous order row", keys: ["K", "or", "←"], scope: "Orders list", icon: ArrowUpDown, permissions: [] },
   { id: "t-orders-open", category: "Orders", label: "Open Focused Order", description: "Open the focused order (same as clicking the row)", keys: ["Enter", "or", "O"], scope: "Orders list", icon: MousePointerClick, permissions: [] },
   { id: "t-orders-prev-tab", category: "Orders", label: "Previous Status Tab", description: "Switch to the previous status filter tab", keys: ["["], scope: "Orders list", icon: ArrowLeftRight, permissions: [] },
   { id: "t-orders-next-tab", category: "Orders", label: "Next Status Tab", description: "Switch to the next status filter tab", keys: ["]"], scope: "Orders list", icon: ArrowLeftRight, permissions: [] },
@@ -115,7 +115,7 @@ export const TERMINAL_ORDER_DETAIL_SHORTCUTS: TerminalShortcutDef[] = [
  * ------------------------------------------------------------------ */
 export const TERMINAL_CHAT_SHORTCUTS: TerminalShortcutDef[] = [
   { id: "t-chat-focus", category: "Chat", label: "Focus Chat Input", description: "Jump straight to the chat message box (when no page search box is present)", keys: ["/"], scope: "Order chat", icon: MessageSquare, permissions: [] },
-  { id: "t-chat-quick-reply", category: "Chat", label: "Insert Quick Reply", description: "Press Alt+1 through Alt+9 to insert your matching quick reply (never auto-sends). Plain numbers still type normally.", keys: ["Alt", "1", "–", "Alt", "9"], scope: "Order chat / composer", icon: Zap, permissions: [] },
+  { id: "t-chat-quick-reply", category: "Chat", label: "Insert Quick Reply", description: "Hold Alt and press 1–9 to insert your matching quick reply (never auto-sends; works even while typing in the composer)", keys: ["Alt", "1", "–", "9"], scope: "Order chat / composer", icon: Zap, permissions: [] },
   { id: "t-chat-esc", category: "Chat", label: "Blur Composer", description: "Blur the chat composer and return to list scope", keys: ["Esc"], scope: "Chat composer", icon: CornerUpLeft, permissions: [] },
 ];
 

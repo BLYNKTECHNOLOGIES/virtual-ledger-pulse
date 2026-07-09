@@ -223,7 +223,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       }
     });
     return () => { cancelled = true; };
-  }, [open, displayName, allClients, linkedClientId, clientAutoMatched, contactNumber, clientState, od, enrichedName, syncRecord]);
+  }, [open, displayName, allClients, linkedClientId, clientAutoMatched, contactNumber, clientState, od, enrichedName, syncRecord, userNoLocked]);
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {

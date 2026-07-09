@@ -11,6 +11,15 @@ export function sanitizeNickname(value: unknown): string | null {
   const v = value.trim();
   if (!v || v.includes('*')) return null;
   if (v.toLowerCase() === 'unknown') return null;
+  // Reject Binance-generated placeholders — these are derived from userNo at
+  // fetch time and are NOT stable identity. Persisting or looking up by them
+  // cross-contaminates distinct counterparties.
+  //   - "P2P-xxxxxxxx" fallbacks returned when the real nickname is hidden
+  //   - "User-1234" / "user1234" style placeholders
+  //   - bare all-digit strings (raw userNo leaking into the nickname field)
+  if (/^p2p[-_ ]/i.test(v)) return null;
+  if (/^user[-_ ]?\d+$/i.test(v)) return null;
+  if (/^\d{6,}$/.test(v)) return null;
   return v;
 }
 

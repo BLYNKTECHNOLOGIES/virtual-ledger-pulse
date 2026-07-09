@@ -74,6 +74,32 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const [counterpartyPhone, setCounterpartyPhone] = useState('');
   const [clientMasterState, setClientMasterState] = useState('');
   const [counterpartyState, setCounterpartyState] = useState('');
+  // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
+  const [userNoLocked, setUserNoLocked] = useState(false);
+  const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+
+  // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor)
+  useEffect(() => {
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); return; }
+    const orderNumber = od?.order_number || syncRecord?.binance_order_number;
+    if (!orderNumber) return;
+
+    let cancelled = false;
+    supabase.rpc('resolve_client_by_userno', { p_order_number: String(orderNumber) })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.client_id) return;
+        setLinkedClientId(row.client_id);
+        setLinkedClientName(row.client_name || '');
+        setAutoMatchVia('nickname');
+        setCrossNameWarning(false);
+        setUserNoLocked(true);
+        setLockedUserNo(row.cp_userno ? String(row.cp_userno) : null);
+      });
+    return () => { cancelled = true; };
+  }, [open, od?.order_number, syncRecord?.binance_order_number]);
+
 
   // Fetch live CoinUSDT rate for non-USDT assets
   useEffect(() => {

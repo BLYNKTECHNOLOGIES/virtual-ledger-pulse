@@ -28,6 +28,18 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return false;
 }
 
+/**
+ * True while a modal overlay (Radix dialog / alert dialog / open popover or
+ * menu) is on screen. Navigation & quick-create shortcuts are suspended in that
+ * state so they never fire behind an open dialog — the palette (handled before
+ * this check) still works everywhere.
+ */
+function isOverlayOpen(): boolean {
+  return !!document.querySelector(
+    '[role="dialog"],[role="alertdialog"],[data-radix-popper-content-wrapper],[data-state="open"][role="menu"]',
+  );
+}
+
 export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();

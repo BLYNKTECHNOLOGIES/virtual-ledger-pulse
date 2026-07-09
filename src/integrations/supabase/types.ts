@@ -17673,6 +17673,8 @@ export type Database = {
           out_batch_id: string
           purchases_moved: number
           sales_moved: number
+          skipped_name_collision: number
+          skipped_same_identity: number
         }[]
       }
       phase3a_demerge_rollback: { Args: { p_batch: string }; Returns: string }

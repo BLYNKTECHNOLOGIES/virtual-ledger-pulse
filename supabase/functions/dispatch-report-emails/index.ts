@@ -69,15 +69,16 @@ serve(async (req) => {
         continue;
       }
 
+      // Route by variant: KYC/RM report uses its own function; profit/operations use daily-report-email.
+      const isKycRm = cfg.variant === "kyc_rm";
+      const targetFn = isKycRm ? "kyc-rm-report-email" : "daily-report-email";
+      const invokeBody = isKycRm
+        ? { recipients }
+        : { recipients, variant: cfg.variant, mode: cfg.is_monthly ? "monthly" : "daily" };
+
       const { data: invokeData, error: invokeError } = await supabase.functions.invoke(
-        "daily-report-email",
-        {
-          body: {
-            recipients,
-            variant: cfg.variant,
-            mode: cfg.is_monthly ? "monthly" : "daily",
-          },
-        },
+        targetFn,
+        { body: invokeBody },
       );
 
       const ok = !invokeError;

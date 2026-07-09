@@ -110,9 +110,20 @@ export function TerminalShortcutsProvider({ children }: { children: React.ReactN
         return;
       }
 
-      // "/" focuses the current page's search box.
+      // "/" focuses the current page's search box; if there's none (e.g. inside
+      // an open order), fall back to focusing the order chat composer.
       if (matchesCombo(e, sys("t-sys-page-search"))) {
-        if (focusPageSearch()) e.preventDefault();
+        if (focusPageSearch()) { e.preventDefault(); return; }
+        const chat = document.querySelector('[data-terminal-chat-input]') as HTMLElement | null;
+        if (chat) { e.preventDefault(); chat.focus(); }
+        return;
+      }
+
+      // 1–9 → insert the matching per-user quick reply into the chat composer
+      // (never auto-sends). No-op unless an order chat is mounted.
+      if (/^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        dispatchQuickReplyHotkey(Number(e.key) - 1);
         return;
       }
 

@@ -74,7 +74,6 @@ function AdCard({
         selected && 'ring-2 ring-primary',
         isPrivate && 'border-warning/50',
         outOfStock && 'border-destructive/50',
-        lowStock && !outOfStock && 'border-warning/50',
         isOffline && 'opacity-60 grayscale-[.4]',
       )}
     >
@@ -114,15 +113,9 @@ function AdCard({
         />
       </div>
 
-      {/* Stock bar */}
-      <div className="space-y-1">
-        <Progress
-          value={pct}
-          className={cn('h-1.5', outOfStock ? '[&>div]:bg-destructive' : lowStock ? '[&>div]:bg-warning' : '')}
-        />
-        <div className={cn('text-[11px] tabular-nums', outOfStock ? 'text-destructive' : lowStock ? 'text-warning' : 'text-muted-foreground')}>
-          {surplus.toLocaleString('en-IN')} / {init.toLocaleString('en-IN')} {ad.asset}
-        </div>
+      {/* Remaining quantity */}
+      <div className={cn('text-[11px] tabular-nums', outOfStock ? 'text-destructive' : 'text-muted-foreground')}>
+        {surplus.toLocaleString('en-IN')} {ad.asset} remaining
       </div>
 
       {/* Meta */}

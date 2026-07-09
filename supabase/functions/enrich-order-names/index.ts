@@ -339,6 +339,18 @@ serve(async (req) => {
                 .from("p2p_order_records")
                 .update({ counterparty_nickname: cleanNick })
                 .eq("binance_order_number", order.order_number);
+              // Durable 5-day nickname registry (fast lookup + audit trail).
+              await supabase
+                .from("order_nickname_registry")
+                .upsert({
+                  order_number: order.order_number,
+                  exchange_account_id: order.exchange_account_id ?? null,
+                  nickname: cleanNick,
+                  verified_name: verifiedName ?? null,
+                  trade_type: order.trade_type ?? null,
+                  captured_at: new Date().toISOString(),
+                  expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+                }, { onConflict: "order_number" });
             }
             await persistCommissionRateSnapshots(supabase, detail, "order_detail", order.order_number);
             enriched++;

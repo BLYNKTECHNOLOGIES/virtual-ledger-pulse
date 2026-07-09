@@ -28,6 +28,7 @@ import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { format } from "date-fns";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { matchesWordPrefix } from "@/lib/utils";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { resolveTerminalApprovalClient, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
@@ -76,6 +77,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [linkedClientName, setLinkedClientName] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   // Long-press (touch & hold) support to preview a matched client's history on mobile
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -902,9 +904,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                         </span>
                       </HoverCardTrigger>
                       <HoverCardContent
-                        side="right"
-                        align="start"
-                        className="w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
+                        side={isMobile ? "bottom" : "right"}
+                        align={isMobile ? "center" : "start"}
+                        collisionPadding={12}
+                        avoidCollisions
+                        className="w-[calc(100vw-24px)] max-w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
                         sideOffset={8}
                       >
                         <ClientOrderPreview
@@ -1027,9 +1031,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                               </div>
                             </HoverCardTrigger>
                             <HoverCardContent
-                              side="right"
-                              align="start"
-                              className="w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
+                              side={isMobile ? "bottom" : "right"}
+                              align={isMobile ? "center" : "start"}
+                              collisionPadding={12}
+                              avoidCollisions
+                              className="w-[calc(100vw-24px)] max-w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
                               sideOffset={8}
                             >
                               <ClientOrderPreview

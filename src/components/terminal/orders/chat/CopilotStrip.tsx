@@ -133,7 +133,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
         variant="ghost"
         size="sm"
         onClick={() => run(false)}
-        className="relative h-7 rounded-full bg-secondary border border-border text-xs gap-1 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors px-3"
+        className="relative h-7 rounded-full bg-secondary border border-border text-xs gap-1 text-foreground hover:text-foreground hover:border-primary/40 transition-colors px-3"
       >
         <Sparkles className="h-3 w-3 text-primary" />
         AI Copilot

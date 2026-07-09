@@ -11,6 +11,15 @@ export function sanitizeNickname(value: unknown): string | null {
   const v = value.trim();
   if (!v || v.includes('*')) return null;
   if (v.toLowerCase() === 'unknown') return null;
+  // Reject Binance-generated placeholders — these are derived from userNo at
+  // fetch time and are NOT stable identity. Persisting or looking up by them
+  // cross-contaminates distinct counterparties.
+  //   - "P2P-xxxxxxxx" fallbacks returned when the real nickname is hidden
+  //   - "User-1234" / "user1234" style placeholders
+  //   - bare all-digit strings (raw userNo leaking into the nickname field)
+  if (/^p2p[-_ ]/i.test(v)) return null;
+  if (/^user[-_ ]?\d+$/i.test(v)) return null;
+  if (/^\d{6,}$/.test(v)) return null;
   return v;
 }
 
@@ -104,12 +113,11 @@ export function resolveClientId(params: {
     if (id) return { clientId: id, resolvedVia: 'nickname' };
   }
 
-  // Priority 3: Name-based match
-  if (counterpartyName !== 'Unknown') {
-    const id = clientNameMap.get(counterpartyName.trim().toLowerCase()) || null;
-    if (id) return { clientId: id, resolvedVia: 'name_match' };
-  }
-
+  // Priority 3: Name-based match — DISABLED for auto-linking.
+  // A shared display name is NOT a reliable identity signal: distinct Binance
+  // users routinely share the same name, and auto-linking on it is the root
+  // cause of merged client records. Returning null forces the row into the
+  // manual client-mapping queue where an operator confirms identity.
   return { clientId: null, resolvedVia: null };
 }
 
@@ -192,6 +200,12 @@ export interface TerminalAutoMatchResult {
   resolvedVia: TerminalAutoMatchVia;
   crossNameWarning: boolean;
   ambiguousCandidates: { id: string; name: string }[];
+  /**
+   * Non-binding suggestion produced by an exact display-name match. Name
+   * matching is UNRELIABLE (distinct Binance users routinely share a name),
+   * so it is NEVER auto-linked — the operator must confirm it explicitly.
+   */
+  nameSuggestion: { id: string; name: string } | null;
 }
 
 export async function resolveTerminalApprovalClient(params: {
@@ -204,7 +218,7 @@ export async function resolveTerminalApprovalClient(params: {
   const { unmaskedNickname, verifiedName, displayName, side } = params;
   const empty: TerminalAutoMatchResult = {
     clientId: null, clientName: null, resolvedVia: null,
-    crossNameWarning: false, ambiguousCandidates: [],
+    crossNameWarning: false, ambiguousCandidates: [], nameSuggestion: null,
   };
   const isRejected = (c: { buyer_approval_status: string | null; seller_approval_status: string | null }) =>
     side === 'buyer' ? c.buyer_approval_status === 'REJECTED' : c.seller_approval_status === 'REJECTED';
@@ -226,7 +240,7 @@ export async function resolveTerminalApprovalClient(params: {
         .maybeSingle();
       if (c && !c.is_deleted && !isRejected(c)) {
         const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
-        return { clientId: c.id, clientName: c.name, resolvedVia: 'nickname', crossNameWarning: cross, ambiguousCandidates: [] };
+        return { clientId: c.id, clientName: c.name, resolvedVia: 'nickname', crossNameWarning: cross, ambiguousCandidates: [], nameSuggestion: null };
       }
     }
   }
@@ -248,7 +262,7 @@ export async function resolveTerminalApprovalClient(params: {
       if (valid.length === 1) {
         const c = valid[0];
         const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
-        return { clientId: c.id, clientName: c.name, resolvedVia: 'verified_name', crossNameWarning: cross, ambiguousCandidates: [] };
+        return { clientId: c.id, clientName: c.name, resolvedVia: 'verified_name', crossNameWarning: cross, ambiguousCandidates: [], nameSuggestion: null };
       }
       if (valid.length > 1) {
         return { ...empty, ambiguousCandidates: valid.map(c => ({ id: c.id, name: c.name })) };
@@ -267,7 +281,10 @@ export async function resolveTerminalApprovalClient(params: {
       !c.is_deleted && !isRejected(c) && c.name.trim().toLowerCase() === dname
     );
     if (exact.length === 1) {
-      return { clientId: exact[0].id, clientName: exact[0].name, resolvedVia: 'name_exact', crossNameWarning: false, ambiguousCandidates: [] };
+      // Do NOT auto-link on a name match — it is unreliable (distinct Binance
+      // users frequently share a display name). Surface it as a suggestion the
+      // operator must confirm before it becomes a binding client link.
+      return { ...empty, nameSuggestion: { id: exact[0].id, name: exact[0].name } };
     }
     if (exact.length > 1) {
       return { ...empty, ambiguousCandidates: exact.map(c => ({ id: c.id, name: c.name })) };

@@ -8,23 +8,21 @@ interface AdSummaryStripProps {
 /**
  * Compact, client-side stat chips derived entirely from the fetched ads
  * already in memory — no extra queries. Shows status counts, total ads,
- * and per-asset total surplus for the top 3 assets.
+ * and the USDT surplus only.
  */
 export function AdSummaryStrip({ ads }: AdSummaryStripProps) {
   const stats = useMemo(() => {
     let online = 0, priv = 0, offline = 0;
-    const surplusByAsset = new Map<string, number>();
+    let usdtSurplus = 0;
     for (const ad of ads) {
       if (ad.advStatus === BINANCE_AD_STATUS.ONLINE) online++;
       else if (ad.advStatus === BINANCE_AD_STATUS.PRIVATE) priv++;
       else if (ad.advStatus === BINANCE_AD_STATUS.OFFLINE) offline++;
-      const asset = ad.asset || '—';
-      surplusByAsset.set(asset, (surplusByAsset.get(asset) || 0) + Number(ad.surplusAmount || 0));
+      if ((ad.asset || '').toUpperCase() === 'USDT') {
+        usdtSurplus += Number(ad.surplusAmount || 0);
+      }
     }
-    const topAssets = [...surplusByAsset.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-    return { online, priv, offline, total: ads.length, topAssets };
+    return { online, priv, offline, total: ads.length, usdtSurplus };
   }, [ads]);
 
   if (!ads.length) return null;
@@ -42,9 +40,7 @@ export function AdSummaryStrip({ ads }: AdSummaryStripProps) {
       {chip('Online', String(stats.online), 'text-success')}
       {chip('Private', String(stats.priv), 'text-warning')}
       {chip('Offline', String(stats.offline), 'text-muted-foreground')}
-      {stats.topAssets.map(([asset, surplus]) =>
-        chip(`${asset} surplus`, surplus.toLocaleString('en-IN', { maximumFractionDigits: 2 }))
-      )}
+      {chip('USDT surplus', stats.usdtSurplus.toLocaleString('en-IN', { maximumFractionDigits: 2 }))}
     </div>
   );
 }

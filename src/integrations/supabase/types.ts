@@ -17258,6 +17258,14 @@ export type Database = {
           calculated_balance: number
         }[]
       }
+      get_client_usernos: {
+        Args: { p_client_id: string }
+        Returns: {
+          cp_userno: string
+          nicknames: string[]
+          order_count: number
+        }[]
+      }
       get_counterparty_order_history: {
         Args: { p_exchange_account_id?: string; p_order_number: string }
         Returns: {
@@ -17852,6 +17860,14 @@ export type Database = {
       require_permission: {
         Args: { _action_name?: string; _permission: string; _user_id: string }
         Returns: boolean
+      }
+      resolve_client_by_userno: {
+        Args: { p_order_number: string }
+        Returns: {
+          client_id: string
+          client_name: string
+          cp_userno: string
+        }[]
       }
       resolve_inactive_assignee_notifications: {
         Args: { p_user_id: string }

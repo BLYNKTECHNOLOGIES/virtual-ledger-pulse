@@ -319,7 +319,7 @@ export function AppSidebar() {
     });
     
     return entries;
-  }, [isLoading, hasAnyPermission, hasReconAccess]);
+  }, [isLoading, hasAnyPermission, hasReconAccess, isSuperAdmin]);
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {

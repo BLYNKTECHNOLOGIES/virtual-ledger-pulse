@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { OrderDetailWorkspace } from './OrderDetailWorkspace';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
-import { useTerminalHotkeys } from '@/hooks/useTerminalHotkeys';
+import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
 
 interface Props {
   /** Already-fetched, already-jurisdiction-filtered orders from TerminalOrders. */
@@ -61,7 +61,30 @@ export function QueueMode({ orders, onClose }: Props) {
     setCurrentId(queue[next].binance_order_number);
   };
 
-  useTerminalHotkeys({ onPrev: () => step(-1), onNext: () => step(1), enabled: !!current });
+  // J/K arrive through the central TerminalShortcutsProvider so Queue Mode uses
+  // the same shortcut path as the rest of Terminal. The provider intentionally
+  // ignores letter keys while typing, so J/K will not leak into chat drafting.
+  useEffect(() => subscribeTerminalContextKey((key) => {
+    if (!current) return;
+    if (key === 'orders-down') step(1);
+    if (key === 'orders-up') step(-1);
+  }), [current, index, queue]);
+
+  // Arrow keys should still move between queue chats even when the chat composer
+  // is focused. Use capture phase so the input cursor handling does not swallow
+  // the queue navigation shortcut.
+  useEffect(() => {
+    if (!current) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      e.stopPropagation();
+      step(e.key === 'ArrowRight' ? 1 : -1);
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, [current, index, queue]);
 
   if (!current) {
     return (

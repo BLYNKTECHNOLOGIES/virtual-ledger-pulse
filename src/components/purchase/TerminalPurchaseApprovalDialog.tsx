@@ -203,7 +203,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       }
 
       // Strict precedence auto-match: nickname → verified name → exact name
-      if (!linkedClientId && !syncRecord?.client_id) {
+      // userNo lock takes precedence — skip name-based matching entirely when locked
+      if (!userNoLocked && !linkedClientId && !syncRecord?.client_id) {
         const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
           || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
           || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)

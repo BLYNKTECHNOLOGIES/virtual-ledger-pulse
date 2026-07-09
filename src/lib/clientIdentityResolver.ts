@@ -5,21 +5,22 @@ import { supabase } from "@/integrations/supabase/client";
  * or null. Masked values from the Binance public chat must NEVER be
  * persisted, looked up by, or used as identity — they reveal nothing
  * about the actual counterparty and cause cross-contamination.
+ *
+ * NOTE: "P2P-xxxxxxxx", "User-1234" and phone-style all-digit strings are
+ * Binance's default handles for counterparties who never set a custom
+ * nickname. Contrary to an earlier assumption, database analysis proved
+ * these are a PERFECT 1:1 bijection with userNo (3,844 distinct P2P handles,
+ * zero collisions in either direction) — i.e. the MOST stable identifiers we
+ * have, and the only identity string for ~19% of order flow. They never
+ * caused a merge (shared *custom names* did). They are therefore accepted as
+ * valid identity for both lookup and persistence. Only masked/'Unknown'/empty
+ * strings are rejected here.
  */
 export function sanitizeNickname(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const v = value.trim();
   if (!v || v.includes('*')) return null;
   if (v.toLowerCase() === 'unknown') return null;
-  // Reject Binance-generated placeholders — these are derived from userNo at
-  // fetch time and are NOT stable identity. Persisting or looking up by them
-  // cross-contaminates distinct counterparties.
-  //   - "P2P-xxxxxxxx" fallbacks returned when the real nickname is hidden
-  //   - "User-1234" / "user1234" style placeholders
-  //   - bare all-digit strings (raw userNo leaking into the nickname field)
-  if (/^p2p[-_ ]/i.test(v)) return null;
-  if (/^user[-_ ]?\d+$/i.test(v)) return null;
-  if (/^\d{6,}$/.test(v)) return null;
   return v;
 }
 

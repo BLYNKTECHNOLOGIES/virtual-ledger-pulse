@@ -1126,6 +1126,8 @@ serve(async (req) => {
 
     const isMonthly = body.mode === "monthly";
     const recipients: string[] = body.recipients || RECIPIENTS;
+    // Report content variant: 'profit' (default, full report) | 'operations' (no P&L / asset totals).
+    const variant: string = body.variant === "operations" ? "operations" : "profit";
 
     // Resolve the report period.
     let startDate: string;

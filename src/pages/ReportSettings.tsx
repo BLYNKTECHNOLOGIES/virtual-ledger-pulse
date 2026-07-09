@@ -280,6 +280,7 @@ export default function ReportSettings() {
                 <SelectContent>
                   <SelectItem value="profit">Profit (full report incl. P&amp;L and asset value)</SelectItem>
                   <SelectItem value="operations">Operations (no P&amp;L / asset totals)</SelectItem>
+                  <SelectItem value="kyc_rm">KYC &amp; Client Management (RM)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

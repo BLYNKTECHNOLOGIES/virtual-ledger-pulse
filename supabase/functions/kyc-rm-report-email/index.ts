@@ -21,6 +21,29 @@ function istDayBounds(date: string): { start: string; end: string } {
   return { start: `${date}T00:00:00+05:30`, end: `${shiftDate(date, 1)}T00:00:00+05:30` };
 }
 
+// ---------- shift bucketing (IST) ----------
+// Morning 09:00–17:00 · Evening 17:00–01:00 · Night 01:00–09:00
+const SHIFTS = ["Morning", "Evening", "Night"] as const;
+type Shift = typeof SHIFTS[number];
+const SHIFT_LABELS: Record<Shift, string> = {
+  Morning: "Morning (09:00–17:00)",
+  Evening: "Evening (17:00–01:00)",
+  Night: "Night (01:00–09:00)",
+};
+function istHour(ts: unknown): number | null {
+  if (!ts) return null;
+  const t = new Date(String(ts)).getTime();
+  if (!Number.isFinite(t)) return null;
+  return new Date(t + 5.5 * 60 * 60 * 1000).getUTCHours();
+}
+function shiftOf(ts: unknown): Shift | null {
+  const h = istHour(ts);
+  if (h === null) return null;
+  if (h >= 9 && h < 17) return "Morning";
+  if (h >= 1 && h < 9) return "Night";
+  return "Evening"; // 17:00–23:59 and 00:00–00:59
+}
+
 // ---------- formatting ----------
 const nf = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const money = (n: number) => nf.format(Number.isFinite(n) ? n : 0);

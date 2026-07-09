@@ -34,18 +34,19 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
 
   // Fetch client's orders to calculate value metrics (both sales AND purchase orders) - exclude cancelled
   const { data: orders } = useQuery({
-    queryKey: ['client-orders-value', activeClientId, client?.name, client?.phone],
+    queryKey: ['client-orders-value', activeClientId, client?.name],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
       const allOrders: any[] = [];
       
-      // Fetch sales orders (buyer activity) - exclude cancelled
+      // Fetch sales orders (buyer activity) - match strictly by client_id to avoid
+      // pulling in unrelated clients that share a name substring. Exclude cancelled.
       const salesData = await fetchAllPaginated<any>(() =>
         supabase
           .from('sales_orders')
           .select('id, order_number, order_date, total_amount, status')
-          .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
+          .eq('client_id', activeClientId)
           .neq('status', 'CANCELLED')
           .order('order_date', { ascending: false }));
       
@@ -53,12 +54,12 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
         allOrders.push(...salesData.map(o => ({ ...o, order_type: 'SALES' })));
       }
       
-      // Fetch purchase orders (seller activity) - exclude cancelled
+      // Fetch purchase orders (seller activity) - match by exact supplier name. Exclude cancelled.
       const purchaseData = await fetchAllPaginated<any>(() =>
         supabase
           .from('purchase_orders')
           .select('id, order_number, order_date, total_amount, status')
-          .or(`supplier_name.ilike."%${client.name}%",contact_number.eq."${client.phone || 'NONE'}"`)
+          .eq('supplier_name', client.name)
           .neq('status', 'CANCELLED')
           .order('order_date', { ascending: false }));
       

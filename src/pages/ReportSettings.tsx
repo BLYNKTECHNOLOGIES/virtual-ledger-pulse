@@ -26,7 +26,7 @@ import { Mail, Plus, Send, Trash2, Clock, ShieldAlert, X } from "lucide-react";
 interface ReportConfig {
   id: string;
   name: string;
-  variant: "profit" | "operations";
+  variant: "profit" | "operations" | "kyc_rm";
   recipients: string[];
   send_time: string;
   enabled: boolean;
@@ -37,7 +37,7 @@ interface ReportConfig {
 type Draft = {
   id?: string;
   name: string;
-  variant: "profit" | "operations";
+  variant: "profit" | "operations" | "kyc_rm";
   recipients: string[];
   send_time: string;
   enabled: boolean;
@@ -206,7 +206,7 @@ export default function ReportSettings() {
                     <CardTitle className="text-sm font-semibold truncate">{cfg.name}</CardTitle>
                   </div>
                   <Badge variant={cfg.variant === "profit" ? "default" : "secondary"}>
-                    {cfg.variant === "profit" ? "Profit" : "Operations"}
+                    {cfg.variant === "profit" ? "Profit" : cfg.variant === "kyc_rm" ? "KYC / RM" : "Operations"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -280,6 +280,7 @@ export default function ReportSettings() {
                 <SelectContent>
                   <SelectItem value="profit">Profit (full report incl. P&amp;L and asset value)</SelectItem>
                   <SelectItem value="operations">Operations (no P&amp;L / asset totals)</SelectItem>
+                  <SelectItem value="kyc_rm">KYC &amp; Client Management (RM)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

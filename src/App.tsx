@@ -129,6 +129,7 @@ const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
 const AttendancePunchesPage = lazy(() => import('./pages/horilla/AttendancePunchesPage'));
 const MonthlyHoursSummaryPage = lazy(() => import('./pages/horilla/MonthlyHoursSummaryPage'));
 const ExchangeAccountsSettings = lazy(() => import('./pages/ExchangeAccountsSettings'));
+const ReportSettings = lazy(() => import('./pages/ReportSettings'));
 const OAuthConsent = lazy(() => import('./pages/OAuthConsent'));
 
 

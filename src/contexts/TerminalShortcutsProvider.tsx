@@ -181,6 +181,8 @@ function matchContextKey(e: KeyboardEvent): TerminalContextKey | null {
   switch (e.key) {
     case "j": case "J": return "orders-down";
     case "k": case "K": return "orders-up";
+    case "ArrowRight": return "orders-down";
+    case "ArrowLeft": return "orders-up";
     case "o": case "O": return "orders-open";
     case "Enter": {
       // Don't hijack Enter when a button/link is focused — let it activate normally.

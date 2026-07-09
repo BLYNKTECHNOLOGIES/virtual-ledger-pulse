@@ -21,7 +21,7 @@ interface Props {
   order: P2POrderRecord;
   onClose: () => void;
   preserveOrderStatus?: boolean;
-  /** Step to prev (-1) / next (1) order — mirrors the desktop Shift+Arrow shortcut. */
+  /** Step to prev (-1) / next (1) order — mirrors J/→ and K/← shortcuts. */
   onStepOrder?: (direction: 1 | -1) => void;
 }
 
@@ -29,7 +29,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   const [rightPanel, setRightPanel] = useState<'profile' | 'internal'>('internal');
   const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('chat');
   const isMobile = useIsMobile();
-  // Swipe-to-navigate on the order number (mobile) — mirrors desktop Shift+Arrow.
+  // Swipe-to-navigate on the order number (mobile) — mirrors J/→ and K/←.
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const handleSwipeStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
@@ -178,7 +178,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   );
 
   // Subtle edge arrows to step between orders — same action as the swipe gesture
-  // and desktop Shift+Arrow shortcut. Left = order above (prev), Right = order below (next).
+  // and documented J/→ / K/← shortcuts. Left = order above (prev), Right = order below (next).
   const stepArrows = onStepOrder ? (
     <>
       <button

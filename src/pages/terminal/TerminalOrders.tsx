@@ -1077,26 +1077,6 @@ function TerminalOrdersContent() {
     });
   }, [visibleOrders]);
 
-  // Shift + Arrow navigation while an order detail is open — walks the list you
-  // entered from (respecting all active filters), never leaving that group.
-  useEffect(() => {
-    if (!selectedOrder) return;
-    const handler = (e: KeyboardEvent) => {
-      if (!e.shiftKey) return;
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-      if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
-        e.preventDefault();
-        stepSelectedOrder(1);
-      } else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        stepSelectedOrder(-1);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedOrder, stepSelectedOrder]);
-
   // Honor the ?view=queue param (used by the "g q" go-to sequence) to open Queue Mode.
   useEffect(() => {
     if (searchParams.get('view') === 'queue') {
@@ -1137,6 +1117,12 @@ function TerminalOrdersContent() {
         }
         case 'orders-back':
           setSelectedOrder(null);
+          return;
+        case 'orders-down':
+          stepSelectedOrder(1);
+          return;
+        case 'orders-up':
+          stepSelectedOrder(-1);
           return;
         default:
           return;

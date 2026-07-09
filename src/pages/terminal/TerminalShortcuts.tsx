@@ -12,10 +12,10 @@ function KeyCombo({ keys }: { keys: string[] }) {
     <span className="flex items-center gap-1">
       {keys.map((k, i) => {
         const label = k === "Ctrl" && isMac ? "⌘" : k === "Alt" && isMac ? "⌥" : k === "Shift" && isMac ? "⇧" : k;
-        if (k === "then" || k === "–" || k === "/") {
+        if (k === "then" || k === "–" || k === "or") {
           return (
             <span key={i} className="text-[10px] text-muted-foreground px-0.5">
-              {k === "/" ? "or" : k}
+              {k}
             </span>
           );
         }

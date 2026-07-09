@@ -95,8 +95,8 @@ export const TERMINAL_ORDERS_SHORTCUTS: TerminalShortcutDef[] = [
   { id: "t-orders-search", category: "Orders", label: "Focus Search", description: "Focus the orders search box", keys: ["F"], scope: "Orders list", icon: Search, permissions: [] },
   { id: "t-orders-refresh", category: "Orders", label: "Refresh", description: "Trigger the existing refresh button", keys: ["R"], scope: "Orders list", icon: Navigation, permissions: [] },
   { id: "t-orders-back", category: "Orders", label: "Back to List", description: "Return from an open order to the list", keys: ["U"], scope: "Orders list / detail", icon: CornerUpLeft, permissions: [] },
-  { id: "t-queue-next", category: "Orders", label: "Queue: Next Order", description: "In Queue Mode, move to the next actionable order (also →)", keys: ["J", "/", "→"], scope: "Queue Mode", icon: ListChecks, permissions: [] },
-  { id: "t-queue-prev", category: "Orders", label: "Queue: Previous Order", description: "In Queue Mode, move to the previous actionable order (also ←)", keys: ["K", "/", "←"], scope: "Queue Mode", icon: ListChecks, permissions: [] },
+  { id: "t-queue-next", category: "Orders", label: "Queue: Next Order", description: "In Queue Mode or an open order, move to the next chat/order", keys: ["J", "or", "→"], scope: "Queue Mode / order detail", icon: ListChecks, permissions: [] },
+  { id: "t-queue-prev", category: "Orders", label: "Queue: Previous Order", description: "In Queue Mode or an open order, move to the previous chat/order", keys: ["K", "or", "←"], scope: "Queue Mode / order detail", icon: ListChecks, permissions: [] },
 ];
 
 /* ------------------------------------------------------------------ *

@@ -9,8 +9,8 @@ function Keys({ keys }: { keys: string[] }) {
   return (
     <span className="flex items-center gap-1">
       {keys.map((k, i) =>
-        k === "then" || k === "–" || k === "/" ? (
-          <span key={i} className="text-[10px] text-muted-foreground px-0.5">{k === "/" ? "or" : k}</span>
+        k === "then" || k === "–" || k === "or" ? (
+          <span key={i} className="text-[10px] text-muted-foreground px-0.5">{k}</span>
         ) : (
           <kbd
             key={i}

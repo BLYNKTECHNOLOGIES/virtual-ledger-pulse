@@ -57,7 +57,7 @@ interface KycRmProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const KycRmReport = ({ date, kpis, firstTime, trading, topClients, productivity, compliance }: KycRmProps) => {
+const KycRmReport = ({ date, kpis, shifts, firstTime, trading, topClients, productivity, compliance }: KycRmProps) => {
   const title = formatDate(date)
   return (
     <Html lang="en" dir="ltr">

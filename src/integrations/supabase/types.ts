@@ -1966,6 +1966,45 @@ export type Database = {
           },
         ]
       }
+      client_demerge_rollback_log: {
+        Row: {
+          batch_id: string
+          created_at: string
+          entity_ref: string
+          entity_type: string
+          id: string
+          new_client_id: string | null
+          new_value: string | null
+          old_client_id: string | null
+          old_value: string | null
+          reverted: boolean
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          entity_ref: string
+          entity_type: string
+          id?: string
+          new_client_id?: string | null
+          new_value?: string | null
+          old_client_id?: string | null
+          old_value?: string | null
+          reverted?: boolean
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          entity_ref?: string
+          entity_type?: string
+          id?: string
+          new_client_id?: string | null
+          new_value?: string | null
+          old_client_id?: string | null
+          old_value?: string | null
+          reverted?: boolean
+        }
+        Relationships: []
+      }
       client_income_details: {
         Row: {
           client_id: string
@@ -17626,6 +17665,17 @@ export type Database = {
       mpi_can_view: { Args: { _uid: string }; Returns: boolean }
       mpi_is_admin: { Args: { _uid: string }; Returns: boolean }
       next_small_sales_order_number: { Args: never; Returns: string }
+      phase3a_demerge: {
+        Args: never
+        Returns: {
+          clients_created: number
+          nicknames_moved: number
+          out_batch_id: string
+          purchases_moved: number
+          sales_moved: number
+        }[]
+      }
+      phase3a_demerge_rollback: { Args: { p_batch: string }; Returns: string }
       preview_off_market_purchase_order_number: { Args: never; Returns: string }
       preview_off_market_sales_order_number: { Args: never; Returns: string }
       process_payment_gateway_settlement: {

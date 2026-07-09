@@ -76,6 +76,24 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [linkedClientName, setLinkedClientName] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
+
+  // Long-press (touch & hold) support to preview a matched client's history on mobile
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+  const startClientPreviewPress = (id: string) => {
+    longPressFiredRef.current = false;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      setHoveredClientId(id);
+    }, 350);
+  };
+  const cancelClientPreviewPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
   const [clientAutoMatched, setClientAutoMatched] = useState(false);
   const [counterpartyPhone, setCounterpartyPhone] = useState('');
   const [counterpartyState, setCounterpartyState] = useState('');

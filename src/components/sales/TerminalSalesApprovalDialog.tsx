@@ -887,11 +887,17 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                    <HoverCard openDelay={300} closeDelay={100} onOpenChange={(isOpen) => {
-                      if (isOpen) setHoveredClientId(selectedClient.id);
+                    <HoverCard openDelay={300} closeDelay={100} open={hoveredClientId === selectedClient.id} onOpenChange={(isOpen) => {
+                      setHoveredClientId(isOpen ? selectedClient.id : null);
                     }}>
                       <HoverCardTrigger asChild>
-                        <span className="text-sm font-medium cursor-pointer hover:underline underline-offset-2">
+                        <span
+                          className="text-sm font-medium cursor-pointer hover:underline underline-offset-2 select-none"
+                          onTouchStart={() => startClientPreviewPress(selectedClient.id)}
+                          onTouchEnd={cancelClientPreviewPress}
+                          onTouchMove={cancelClientPreviewPress}
+                          onTouchCancel={cancelClientPreviewPress}
+                        >
                           {selectedClient.name}
                         </span>
                       </HoverCardTrigger>

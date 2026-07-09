@@ -28,6 +28,7 @@ import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { format } from "date-fns";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { matchesWordPrefix } from "@/lib/utils";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { resolveTerminalApprovalClient, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";

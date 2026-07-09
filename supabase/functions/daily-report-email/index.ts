@@ -1208,7 +1208,7 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${startDate}`;
+    const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${variant}-${startDate}`;
 
 
     const results: { recipient: string; success: boolean; error?: string }[] = [];

@@ -1026,14 +1026,21 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                   <CheckCircle2 className="h-4 w-4 text-success" />
                   <span className="text-sm">{linkedClientName || displayName}</span>
                   <Badge variant="outline" className="text-[10px] bg-success/10 text-success">Linked</Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[10px] text-muted-foreground hover:text-destructive ml-auto"
-                    onClick={handleUnlinkClient}
-                  >
-                    Change
-                  </Button>
+                  {userNoLocked ? (
+                    <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-auto flex items-center gap-1">
+                      <Lock className="h-2.5 w-2.5" />
+                      User No Locked
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] text-muted-foreground hover:text-destructive ml-auto"
+                      onClick={handleUnlinkClient}
+                    >
+                      Change
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <>

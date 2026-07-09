@@ -423,6 +423,29 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         )}
 
+        {/* Linked Binance User Numbers (stable account identity) */}
+        {binanceUsernos.length > 0 && (
+          <div className="p-3 bg-primary/5 rounded-md border border-primary/20 space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Fingerprint className="h-4 w-4" />
+              Binance User No (Account Identity)
+            </label>
+            <div className="space-y-1.5">
+              {binanceUsernos.map((u: any) => (
+                <div key={u.cp_userno} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-mono break-all">{u.cp_userno}</span>
+                  <span className="shrink-0 text-muted-foreground">{u.order_count} orders</span>
+                </div>
+              ))}
+            </div>
+            {binanceUsernos.length > 1 && (
+              <p className="text-xs text-amber-600">
+                Multiple user numbers detected — this may indicate a merge anomaly.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-4 pt-4 border-t">
           <div className="grid grid-cols-2 gap-2">

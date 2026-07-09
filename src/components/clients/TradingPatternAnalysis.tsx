@@ -36,8 +36,10 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
   });
 
   // Fetch client's buy orders (sales_orders where client is buyer) - exclude cancelled
+  // Match strictly by client_id (identity link) to avoid cross-contamination between
+  // distinct clients that share a name substring (e.g. FAISAL vs MOHAMMAD FAISAL).
   const { data: buyOrders } = useQuery({
-    queryKey: ['client-buy-orders-analysis', activeClientId, client?.name, client?.phone],
+    queryKey: ['client-buy-orders-analysis', activeClientId],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
@@ -45,7 +47,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         supabase
           .from('sales_orders')
           .select('*')
-          .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
+          .eq('client_id', activeClientId)
           .neq('status', 'CANCELLED')
           .order('order_date', { ascending: false }));
       return data || [];
@@ -54,8 +56,10 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
   });
 
   // Fetch client's sell orders (purchase_orders where client is seller) - exclude cancelled
+  // Match by exact supplier name (purchase orders are not client_id-linked), mirroring
+  // OrderHistoryModule / ClientDualStatistics so all panels report the same numbers.
   const { data: sellOrders } = useQuery({
-    queryKey: ['client-sell-orders-analysis', activeClientId, client?.name, client?.phone],
+    queryKey: ['client-sell-orders-analysis', activeClientId, client?.name],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
@@ -63,7 +67,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         supabase
           .from('purchase_orders')
           .select('*')
-          .or(`supplier_name.ilike."%${client.name}%",contact_number.eq."${client.phone || 'NONE'}"`)
+          .eq('supplier_name', client.name)
           .neq('status', 'CANCELLED')
           .order('order_date', { ascending: false }));
       return data || [];

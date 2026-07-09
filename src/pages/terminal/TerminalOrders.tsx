@@ -1129,8 +1129,13 @@ function TerminalOrdersContent() {
       }
     }
 
+    if (queueMode) {
+      if (key === 'orders-back') setQueueMode(false);
+      return;
+    }
+
     // Orders-list scope (no order open, not in queue/inbox views).
-    if (queueMode || showChatInbox || activeChatConv) return;
+    if (showChatInbox || activeChatConv) return;
     const list = visibleOrders;
     switch (key) {
       case 'orders-down': {

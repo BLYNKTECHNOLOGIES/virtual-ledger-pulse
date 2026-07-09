@@ -206,7 +206,7 @@ export default function ReportSettings() {
                     <CardTitle className="text-sm font-semibold truncate">{cfg.name}</CardTitle>
                   </div>
                   <Badge variant={cfg.variant === "profit" ? "default" : "secondary"}>
-                    {cfg.variant === "profit" ? "Profit" : "Operations"}
+                    {cfg.variant === "profit" ? "Profit" : cfg.variant === "kyc_rm" ? "KYC / RM" : "Operations"}
                   </Badge>
                 </div>
               </CardHeader>

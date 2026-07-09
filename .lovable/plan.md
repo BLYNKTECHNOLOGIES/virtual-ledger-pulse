@@ -1,51 +1,75 @@
 
-# De-Merge Wrongly-Linked Clients by Binance userNo + Fix the Root Cause
+# Client Identity De-Merge — Corrected Conclusion & Execution Plan
 
-## Confirmed with live data
-- **466 clients** hold 2+ active nicknames (430×2, 26×3, 7×4, 1×5, 2×6) of 2,435 linked clients.
-- Example G26KTP "MANOJ KUMAR": 6 linked nicknames, but only 2 have real orders → **2 distinct userNos** (`s6f8fc29…` = 7 orders via `Avengers_Associates`; `sbd6bb2d…` = 1 order via `User-b2d25`), both verified "MANOJ KUMAR" → two different people merged by the name-match fallback. The other 4 nicknames have **zero orders**.
+## 0. Status confirmation
+**No destructive action has run.** No client record, `client_binance_nicknames` row, or order has been modified. Everything so far is read-only analysis plus two internal staging tables (`cp_order_identity`, `client_nickname_merge_audit_report`) and `order_detail_raw` enrichment (Binance detail cache only).
 
-## Ground truth = counterparty userNo
-Identity comes only from Binance **order detail** (already synced in `binance_order_history.order_detail_raw`): counterparty = `takerUserNo` when our merchant (`BlynkEx`, `merchantNo se7510c53…`) is the maker, else `merchantNo`. There is **no Binance "search by nickname" API**; gaps are filled via the supported **order-detail** endpoint (re-fetch by order number), never a nickname search. Present on 64% of orders (31,876 / 49,283).
+## 1. Your audit reproduced exactly (I re-ran each check)
+- 466 multi-nickname clients. Of the 403 "rename"-classified (single resolved userNo), **400 contain an unresolved nickname** → the rename verdict was unproven for 99%. Only **3** were fully resolved.
+- **35** userNos ever used 2+ nicknames; **7** of them have **interleaved** (overlapping) nickname windows — impossible for a true rename.
 
-## Core model change
-Make **userNo the stable client identity** and **nickname a single, mutable attribute**:
-- Add `counterparty_user_no` to `client_binance_nicknames` (and track the account's own merchantNo per `exchange_account_id`).
-- Each client keeps exactly **one active nickname**; on rename (same userNo, new nickname) the active nickname is **updated**, old kept `is_active=false` only so historical orders still resolve.
-- Split rule: split **only across different userNos**. Same userNo across nicknames = one person renamed → stays one client.
+## 2. Root cause of the interleaving — nickname semantics verified
+`order_detail_raw.nickname` is **fetch-time, not at-trade**, and is unreliable:
+- **6,153 of 31,877** resolved orders (~19%) return a generated placeholder `P2P-<userNoSuffix>` / `User-<suffix>` instead of a real name. The same person appears as real-name on one fetch and placeholder on another → this *is* the "interleaving".
+- **62** orders captured **our own** merchant brand (BlynkEx, ASEC-CORPORATION) as the "counterparty" → a side-assignment error.
+- Cross-checked against at-trade `binance_order_chat_messages.sender_nickname`: chat confirms the real counterparty and exposes the placeholders/own-brand entries as artifacts.
+- **Reliable signal:** the counterparty `userNo` itself (98.1% agreement with the at-trade masked-nick prefix). Identity keying on `userNo` is sound; keying on nickname is not.
 
 ```text
-Client "MANOJ KUMAR" (G26KTP)
- ├─ Avengers_Associates → userNo s6f8fc29… (7 orders) ── ANCHOR (keeps KYC docs)
- ├─ User-b2d25          → userNo sbd6bb2d… (1 order)  ── SPLIT → new client "MANOJ KUMAR", its 1 order + nickname move here
- └─ MANOJ KUMAR, User-9fd73, User-f1af2, Monu_hr24 (0 orders) ── UNRESOLVED → detach + report, no phantom clients
+Example userNo sb5a…34de2
+  order_detail_raw : BombayOTC | ASEC-CORPORATION | BlynkEx | FiatanoX
+  chat (at-trade)  : BombayOTC | FiatanoX          <- ASEC/BlynkEx were OUR side
 ```
 
-## Phase 1 — Identity resolution engine (read-only)
-1. Determine our own merchantNo per `exchange_account_id` (dominant merchant on our-ad orders).
-2. `resolve_counterparty_userno(order)` → counterparty userNo + verified_name + nickname from each order.
-3. For every `(client_id, nickname)`, aggregate matching orders → resolved userNo, verified_name, exact order_numbers, order/completed counts, turnover, first/last seen.
-4. Gap backfill: queue `order_number`s lacking `order_detail_raw` into the existing order-detail sync. Nicknames still unresolved (no orders at all) are marked `UNRESOLVED` — never guessed.
+## 3. Corrected classification (persisted to the audit report)
+| Label | Clients | Meaning | Action |
+|---|---|---|---|
+| SPLIT | 58 | Multiple distinct userNos proven | De-merge (Phase 3a) |
+| AMBIGUOUS | 12 | One nickname → multiple userNos | Manual review |
+| RENAME_PROVEN | 2 | All nicknames = one userNo, clean sequential windows | Safe cleanup |
+| INDETERMINATE | 400 | Has ≥1 unproven nickname (or interleaved) | Resolve-first queue — **no changes** |
+| SINGLE_CLEAN | 1,970 | One clean nickname | None |
 
-## Phase 2 — Audit report (CSV only, no data change)
-`/mnt/documents/client_nickname_merge_audit.csv`, one row per (client, nickname):
-`client_code, client_name, nickname, source, resolved_userno, verified_name, order_count, completed_count, turnover, order_numbers, first_seen, last_seen, proposed_action(ANCHOR|SPLIT|UNRESOLVED), proposed_target_client`.
-Anchor = the userNo whose verified_name matches the client name and/or owns the KYC docs (ties → most orders, then earliest). **No writes.** You review, then approve Phase 3.
+Note: this supersedes my earlier "663 deactivate" recommendation. **Phase 3b as originally framed is withdrawn** — those clients are INDETERMINATE, not proven-spurious, so bulk nickname deactivation is unsafe.
 
-## Phase 3 — Guarded de-merge (only after CSV approval)
-Per `SPLIT` userNo (idempotent, fully logged):
-1. Create a new client — **same KYC name as parent** (your decision); named split uses verified_name when it differs.
-2. Move that userNo's nickname row(s) and its orders/chats/identity rows (sales `supplier_name`/nickname links, `client_verified_names`, `p2p_counterparties`) to the new client.
-3. Anchor userNo (with KYC docs, bank details, verified name, limits) stays on the original record.
-4. `UNRESOLVED` nicknames (zero orders) are set inactive and listed for RM review — not converted to clients.
-5. Everything written to an audit table for reversibility.
+## 4. The 7 interleaved userNos (manual review)
+| userNo | nicknames (orders) | verdict |
+|---|---|---|
+| s17b05a…03ec7 | P2P-103ec7gx(39) / User-ec229(4) | placeholder artifact |
+| s2b09…8e3ad | Gaorola(3) / P2P-18e3adqw(1) | placeholder artifact |
+| s2f81…002b3e | pspoonam(12) / Majorie Abdon vFTN(3) | mixed — review |
+| s884a…732680 | User-a1924(16) / P2P-732680ll(6) | placeholder artifact |
+| sb5a4…c34de2 | BombayOTC(29)/ASEC-CORPORATION(7)/BlynkEx(7)/FiatanoX(2) | side-error + possible rebrand |
+| sdae0…4536e8a | P2P-536e8agn(6) / AnkurPrajapati(2) | placeholder artifact |
+| sde01…1f8c18 | 9tanks(19) / User-69686(8) | placeholder artifact |
 
-## Phase 4 — Root-cause fix (stop recurrence)
-1. `clientIdentityResolver.ts`: resolution keyed on **userNo first**, nickname second, verified_name third; pure name match (`name_match`/`name_exact`) becomes **suggestion-only**, never auto-link, whenever the order's counterparty userNo differs from every userNo already on the candidate client.
-2. Approval flow: resolve the counterparty userNo from order detail; **existing userNo → same client** (update nickname if changed); **userNo never seen with us → new client**, even on a name match. (This is the correct form of "new person" detection — keyed on our own history, not Binance's lifetime public order count.)
-3. DB guard trigger on `client_binance_nicknames`: block/soft-flag attaching a nickname whose resolved userNo conflicts with the userNo(s) already on that client → routes to a review queue instead of silently merging.
-4. Harden `auto_sync`/backfill writers to skip name-only attachment and to update (not duplicate) the active nickname on same-userNo rename.
+## 5. Execution plan (gated, in order)
 
-## Notes
-- Phases 1–2 are pure reads + a CSV; zero risk. Phase 3 is destructive and runs only on explicit approval, as reviewed migrations.
-- All identity derives from synced order detail (+ supported order-detail backfill). No nickname-search API is used or simulated (Binance limitation).
+### Phase 4 — Resolver root-cause fix (non-destructive, do FIRST)
+Stops new bad merges. Changes to the order-approval client-resolution path:
+1. Make Binance `userNo` (from `order_detail_raw` merchant/taker + buyer/seller side logic) the **primary identity key** for linking an order to a client.
+2. **Demote name-matching to a non-binding suggestion** — it may pre-fill the approval dialog but must never auto-attach a nickname to an existing client.
+3. **First-timer check:** on approval, if the counterparty `userNo` has ≤1 completed order (query via existing Binance proxy / order history), treat as a **new** client rather than attaching to a name-match.
+4. **Sanitize captured nicknames:** never store `P2P-*` / `User-*` placeholders or our own brand names (BlynkEx, ASEC-CORPORATION, FiatanoX, BombayOTC-as-self) as a counterparty nickname; prefer the at-trade chat nickname when the detail is a placeholder.
+5. Enforce: at most one active nickname per `userNo` per client, keyed by userNo.
+
+(Exact files being confirmed via a resolver trace; expected in the terminal sales approval hook/edge function, `client_binance_nicknames` insert path, and the `TerminalSalesApprovalDialog` mapping section.)
+
+### Phase 3a — Split the 58 confirmed clients (destructive, needs explicit go-ahead)
+For each userNo beyond the anchor: create a new client record, re-point that userNo's orders, set one active nickname (using a **real** chat/at-trade name, never a placeholder/own-brand), inherit KYC name. Guarded, transactional, with a reversible audit log. **Exclude the side-error userNos** flagged above from auto-split.
+
+### Phase 3b — REPLACED by resolve-first queue (no bulk changes)
+- The **400 INDETERMINATE** clients get **no nickname changes**. They enter a queue and self-heal via the Phase-4 userNo resolver the next time each counterparty trades.
+- **2 RENAME_PROVEN** clients: safe to collapse to one active nickname now.
+- **12 AMBIGUOUS + 7 interleaved**: flagged for manual operator review.
+
+### Backfill (raises resolution before any future decision)
+- Recoverable gap = **1,373 completed orders** missing `order_detail_raw` (all >7 months old but Binance still returns them). The other ~15,971 raw-less orders are CANCELLED and irrelevant.
+- Empirical yield is low: enriching ~300 old orders resolved only **11 of 699** unresolved nicknames (~4%), because most unresolved nicknames have **no completed trade** behind them (attached via the buggy name-match approval). So backfill is worth running via the existing `enrich-order-names` path (batched, limit 25) but will not rescue most INDETERMINATE clients — the Phase-4 resolver will.
+
+## 6. What I need from you
+1. Approve **Phase 4** (safe, stops the bleeding) — I'll implement after confirming resolver file locations.
+2. Separately approve **Phase 3a** (the 58 splits) before I run anything destructive.
+3. Confirm you're OK that **no bulk nickname deactivation** runs (400 → resolve-first queue), which reverses my earlier suggestion.
+
+Deliverables already available: the re-labelled `client_nickname_merge_audit_report`. I can regenerate the two CSVs (full audit + actionable-58) on request.

@@ -16,6 +16,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+import { useAuth } from "@/hooks/useAuth";
 
 // Reconciliation cockpit item (gated by reconciliation function, not a permission string)
 const reconciliationItem: SidebarGroupItem = {

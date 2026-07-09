@@ -102,6 +102,42 @@ const KycRmReport = ({ date, kpis, shifts, firstTime, trading, topClients, produ
               </Section>
             )}
 
+            {/* Section 1b — Shift-wise breakdown */}
+            {shifts && shifts.length > 0 && (
+              <Section style={card}>
+                <Text style={sectionTitle}>Shift-wise Breakdown — Today</Text>
+                <Text style={{ fontSize: '11px', color: '#8a6a4a', margin: '0 0 8px' }}>
+                  Activity bucketed by IST shift. Morning 09:00–17:00 · Evening 17:00–01:00 · Night 01:00–09:00.
+                </Text>
+                <table style={tbl}>
+                  <thead><tr>
+                    <th style={th}>Shift</th>
+                    <th style={thR}>Approvals</th>
+                    <th style={thR}>Rejections</th>
+                    <th style={thR}>KYC Docs</th>
+                    <th style={thR}>Sales (₹)</th>
+                    <th style={thR}>Purchases (₹)</th>
+                    <th style={thR}>Turnover (₹)</th>
+                  </tr></thead>
+                  <tbody>
+                    {shifts.map((s, i) => (
+                      <tr key={i}>
+                        <td style={td}>{s.label}</td>
+                        <td style={tdR}>{s.approvals}</td>
+                        <td style={tdR}>{s.rejections}</td>
+                        <td style={tdR}>{s.kycDocs}</td>
+                        <td style={tdR}>{s.salesAmount}</td>
+                        <td style={tdR}>{s.purchaseAmount}</td>
+                        <td style={{ ...tdR, fontWeight: 700 }}>{s.turnover}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Section>
+            )}
+
+
+
             {/* Section 2 — New clients traded first time */}
             {firstTime && (
               <Section style={card}>

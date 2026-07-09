@@ -174,6 +174,18 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: "/settings/report-formats",
+    element: (
+      <QueryProvider>
+          <AuthCheck>
+            <Layout>
+              <ReportSettings />
+            </Layout>
+          </AuthCheck>
+      </QueryProvider>
+    ),
+  },
+  {
     path: "/sales",
     element: (
       <QueryProvider>

@@ -456,11 +456,20 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
   // Clear linked client (to allow re-selection or new creation)
   const handleUnlinkClient = () => {
+    if (userNoLocked) {
+      toast({
+        title: "Locked by Binance User No",
+        description: "This client is locked via the counterparty's Binance account identity and cannot be changed.",
+        variant: "destructive",
+      });
+      return;
+    }
     setLinkedClientId('');
     setLinkedClientName('');
     setClientAutoMatched(false);
     setShowClientDropdown(true);
   };
+
 
   // Create buyer client mutation
   const createClientMutation = useMutation({

@@ -111,20 +111,28 @@ const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, period
           {/* Total Asset Value (from Financials tab) */}
           {assetValue && (
             <Section>
-              <div style={{ ...kpiCard, display: 'block', width: 'auto', borderColor: '#4F46E5', backgroundColor: '#eef0ff', margin: '8px 0' }}>
-                <Text style={kpiLabel}>Total Asset Value (Current)</Text>
-                <Text style={{ ...kpiValue, color: assetValue.totalPositive ? '#4F46E5' : '#C62828' }}>₹{assetValue.total}</Text>
-                <Text style={{ fontSize: '11px', color: '#6b6f8a', margin: '4px 0 0' }}>Banks + POS + Stock − Unpaid TDS</Text>
-              </div>
+              {!assetValue.operationsMode && (
+                <div style={{ ...kpiCard, display: 'block', width: 'auto', borderColor: '#4F46E5', backgroundColor: '#eef0ff', margin: '8px 0' }}>
+                  <Text style={kpiLabel}>Total Asset Value (Current)</Text>
+                  <Text style={{ ...kpiValue, color: assetValue.totalPositive ? '#4F46E5' : '#C62828' }}>₹{assetValue.total}</Text>
+                  <Text style={{ fontSize: '11px', color: '#6b6f8a', margin: '4px 0 0' }}>Banks + POS + Stock − Unpaid TDS</Text>
+                </div>
+              )}
 
               <Section style={card}>
-                <Text style={sectionTitle}>Total Asset Value — Breakdown</Text>
-                <Row label={`Bank Balances (${assetValue.bankCount})`} value={`₹${assetValue.totalBank}`} />
+                <Text style={sectionTitle}>{assetValue.operationsMode ? 'Stock & POS / Gateway' : 'Total Asset Value — Breakdown'}</Text>
+                {!assetValue.operationsMode && (
+                  <Row label={`Bank Balances (${assetValue.bankCount})`} value={`₹${assetValue.totalBank}`} />
+                )}
                 <Row label={`POS / Gateway (${assetValue.pendingCount} pending)`} value={`₹${assetValue.totalGateway}`} />
-                <Row label="Stock Valuation (Multi-Asset)" value={`₹${assetValue.stockVal}`} />
-                <Row label={`Unpaid TDS (${assetValue.tdsCount})`} value={`- ₹${assetValue.totalUnpaidTds}`} />
-                <Hr style={divider} />
-                <Row label="Net Total Asset Value" value={`₹${assetValue.total}`} />
+                {!assetValue.operationsMode && (
+                  <>
+                    <Row label="Stock Valuation (Multi-Asset)" value={`₹${assetValue.stockVal}`} />
+                    <Row label={`Unpaid TDS (${assetValue.tdsCount})`} value={`- ₹${assetValue.totalUnpaidTds}`} />
+                    <Hr style={divider} />
+                    <Row label="Net Total Asset Value" value={`₹${assetValue.total}`} />
+                  </>
+                )}
 
                 {assetValue.assetStocks.length > 0 && (
                   <>

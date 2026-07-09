@@ -240,7 +240,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     };
 
     fetchResolvedData();
-  }, [open, syncRecord, linkedClientId]);
+  }, [open, syncRecord, linkedClientId, userNoLocked]);
 
 
   // Build conflict items for the banner

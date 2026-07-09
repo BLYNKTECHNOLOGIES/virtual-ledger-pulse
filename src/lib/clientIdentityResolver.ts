@@ -113,12 +113,11 @@ export function resolveClientId(params: {
     if (id) return { clientId: id, resolvedVia: 'nickname' };
   }
 
-  // Priority 3: Name-based match
-  if (counterpartyName !== 'Unknown') {
-    const id = clientNameMap.get(counterpartyName.trim().toLowerCase()) || null;
-    if (id) return { clientId: id, resolvedVia: 'name_match' };
-  }
-
+  // Priority 3: Name-based match — DISABLED for auto-linking.
+  // A shared display name is NOT a reliable identity signal: distinct Binance
+  // users routinely share the same name, and auto-linking on it is the root
+  // cause of merged client records. Returning null forces the row into the
+  // manual client-mapping queue where an operator confirms identity.
   return { clientId: null, resolvedVia: null };
 }
 

@@ -28,6 +28,16 @@ const reconciliationItem: SidebarGroupItem = {
   permissions: [],
 };
 
+const reportSettingsItem: SidebarGroupItem = {
+  id: "report-formats",
+  title: "Report Formats",
+  url: "/settings/report-formats",
+  icon: Mail,
+  color: "text-primary",
+  bgColor: "bg-primary/10",
+  permissions: [],
+};
+
 // Standalone menu items (not in groups)
 const standaloneItems: SidebarGroupItem[] = [
   {

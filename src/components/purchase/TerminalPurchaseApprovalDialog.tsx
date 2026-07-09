@@ -74,6 +74,32 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const [counterpartyPhone, setCounterpartyPhone] = useState('');
   const [clientMasterState, setClientMasterState] = useState('');
   const [counterpartyState, setCounterpartyState] = useState('');
+  // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
+  const [userNoLocked, setUserNoLocked] = useState(false);
+  const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+
+  // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor)
+  useEffect(() => {
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); return; }
+    const orderNumber = od?.order_number || syncRecord?.binance_order_number;
+    if (!orderNumber) return;
+
+    let cancelled = false;
+    supabase.rpc('resolve_client_by_userno', { p_order_number: String(orderNumber) })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.client_id) return;
+        setLinkedClientId(row.client_id);
+        setLinkedClientName(row.client_name || '');
+        setAutoMatchVia('nickname');
+        setCrossNameWarning(false);
+        setUserNoLocked(true);
+        setLockedUserNo(row.cp_userno ? String(row.cp_userno) : null);
+      });
+    return () => { cancelled = true; };
+  }, [open, od?.order_number, syncRecord?.binance_order_number]);
+
 
   // Fetch live CoinUSDT rate for non-USDT assets
   useEffect(() => {
@@ -177,7 +203,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       }
 
       // Strict precedence auto-match: nickname → verified name → exact name
-      if (!linkedClientId && !syncRecord?.client_id) {
+      // userNo lock takes precedence — skip name-based matching entirely when locked
+      if (!userNoLocked && !linkedClientId && !syncRecord?.client_id) {
         const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
           || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
           || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
@@ -213,7 +240,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     };
 
     fetchResolvedData();
-  }, [open, syncRecord, linkedClientId]);
+  }, [open, syncRecord, linkedClientId, userNoLocked]);
 
 
   // Build conflict items for the banner
@@ -721,7 +748,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                     <CheckCircle2 className="h-4 w-4 text-success" />
                     <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
                     <Badge variant="outline" className="text-[10px] bg-success/10 text-success">Linked</Badge>
-                    {(duplicateClients.length > 1 || autoMatchVia) && (
+                    {userNoLocked ? (
+                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-auto flex items-center gap-1">
+                        <Lock className="h-2.5 w-2.5" />
+                        User No Locked
+                      </Badge>
+                    ) : (duplicateClients.length > 1 || autoMatchVia) && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -732,6 +764,14 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                       </Button>
                     )}
                   </div>
+                  {userNoLocked && (
+                    <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-2">
+                      <Lock className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-[11px] font-medium text-primary">
+                        Client locked via Binance User No{lockedUserNo ? ` (${lockedUserNo})` : ''} — the strongest account identity. Cannot be reassigned on approval.
+                      </span>
+                    </div>
+                  )}
                   {autoMatchVia && autoMatchVia !== 'name_exact' && (
                     <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Calendar, Tag, Phone, MapPin, FileText, IndianRupee, CreditCard, Settings, Briefcase, Link2 } from "lucide-react";
+import { User, Calendar, Tag, Phone, MapPin, FileText, IndianRupee, CreditCard, Settings, Briefcase, Link2, Fingerprint } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
@@ -116,6 +116,20 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         .select('nickname, is_active, source, last_seen_at')
         .eq('client_id', activeClientId)
         .order('last_seen_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeClientId,
+  });
+
+  // Fetch linked Binance user numbers (stable account identity)
+  const { data: binanceUsernos = [] } = useQuery({
+    queryKey: ['client-binance-usernos', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId) return [];
+      const { data, error } = await supabase.rpc('get_client_usernos', {
+        p_client_id: activeClientId,
+      });
       if (error) throw error;
       return data || [];
     },
@@ -406,6 +420,29 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
                 </Badge>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Linked Binance User Numbers (stable account identity) */}
+        {binanceUsernos.length > 0 && (
+          <div className="p-3 bg-primary/5 rounded-md border border-primary/20 space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Fingerprint className="h-4 w-4" />
+              Binance User No (Account Identity)
+            </label>
+            <div className="space-y-1.5">
+              {binanceUsernos.map((u: any) => (
+                <div key={u.cp_userno} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-mono break-all">{u.cp_userno}</span>
+                  <span className="shrink-0 text-muted-foreground">{u.order_count} orders</span>
+                </div>
+              ))}
+            </div>
+            {binanceUsernos.length > 1 && (
+              <p className="text-xs text-amber-600">
+                Multiple user numbers detected — this may indicate a merge anomaly.
+              </p>
+            )}
           </div>
         )}
 

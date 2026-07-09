@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -63,9 +62,6 @@ function AdCard({
   const isOffline = ad.advStatus === BINANCE_AD_STATUS.OFFLINE;
 
   const surplus = Number(ad.surplusAmount || 0);
-  const init = Number(ad.initAmount || 0);
-  const pct = init > 0 ? Math.min(100, Math.max(0, (surplus / init) * 100)) : 0;
-  const lowStock = pct > 0 && pct < 20;
   const outOfStock = surplus <= 0;
   const staleAge = stalePriceLabel(ad.updateTime);
 
@@ -78,7 +74,6 @@ function AdCard({
         selected && 'ring-2 ring-primary',
         isPrivate && 'border-warning/50',
         outOfStock && 'border-destructive/50',
-        lowStock && !outOfStock && 'border-warning/50',
         isOffline && 'opacity-60 grayscale-[.4]',
       )}
     >
@@ -118,15 +113,9 @@ function AdCard({
         />
       </div>
 
-      {/* Stock bar */}
-      <div className="space-y-1">
-        <Progress
-          value={pct}
-          className={cn('h-1.5', outOfStock ? '[&>div]:bg-destructive' : lowStock ? '[&>div]:bg-warning' : '')}
-        />
-        <div className={cn('text-[11px] tabular-nums', outOfStock ? 'text-destructive' : lowStock ? 'text-warning' : 'text-muted-foreground')}>
-          {surplus.toLocaleString('en-IN')} / {init.toLocaleString('en-IN')} {ad.asset}
-        </div>
+      {/* Remaining quantity */}
+      <div className={cn('text-[11px] tabular-nums', outOfStock ? 'text-destructive' : 'text-muted-foreground')}>
+        {surplus.toLocaleString('en-IN')} {ad.asset} remaining
       </div>
 
       {/* Meta */}

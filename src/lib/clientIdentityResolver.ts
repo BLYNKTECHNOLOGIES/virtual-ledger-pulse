@@ -263,7 +263,7 @@ export async function resolveTerminalApprovalClient(params: {
       if (valid.length === 1) {
         const c = valid[0];
         const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
-        return { clientId: c.id, clientName: c.name, resolvedVia: 'verified_name', crossNameWarning: cross, ambiguousCandidates: [] };
+        return { clientId: c.id, clientName: c.name, resolvedVia: 'verified_name', crossNameWarning: cross, ambiguousCandidates: [], nameSuggestion: null };
       }
       if (valid.length > 1) {
         return { ...empty, ambiguousCandidates: valid.map(c => ({ id: c.id, name: c.name })) };

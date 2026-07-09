@@ -26,7 +26,7 @@ import { Mail, Plus, Send, Trash2, Clock, ShieldAlert, X } from "lucide-react";
 interface ReportConfig {
   id: string;
   name: string;
-  variant: "profit" | "operations";
+  variant: "profit" | "operations" | "kyc_rm";
   recipients: string[];
   send_time: string;
   enabled: boolean;

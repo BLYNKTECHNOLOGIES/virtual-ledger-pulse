@@ -904,9 +904,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                         </span>
                       </HoverCardTrigger>
                       <HoverCardContent
-                        side="right"
-                        align="start"
-                        className="w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
+                        side={isMobile ? "bottom" : "right"}
+                        align={isMobile ? "center" : "start"}
+                        collisionPadding={12}
+                        avoidCollisions
+                        className="w-[calc(100vw-24px)] max-w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
                         sideOffset={8}
                       >
                         <ClientOrderPreview

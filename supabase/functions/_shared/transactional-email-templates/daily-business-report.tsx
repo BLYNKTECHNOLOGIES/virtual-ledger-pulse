@@ -41,6 +41,7 @@ interface DailyReportProps {
     total: string; totalPositive: boolean;
     totalBank: string; totalGateway: string; stockVal: string; totalUnpaidTds: string;
     bankCount: number; pendingCount: number; tdsCount: number;
+    operationsMode?: boolean;
     assetStocks: { asset: string; units: string; avgCost: string; value: string }[];
     gatewayGroups: { name: string; total: string; count: number }[];
   }

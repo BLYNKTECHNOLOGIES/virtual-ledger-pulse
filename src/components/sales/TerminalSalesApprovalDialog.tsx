@@ -478,10 +478,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       if (!displayName || displayName === '—' || displayName === 'Unknown' || displayName.includes('*')) {
         throw new Error('Cannot create client with a masked or unknown name. Please resolve the verified name first.');
       }
+      const unmaskedNick = (od?.counterparty_nickname_unmasked
+        || (od?.counterparty_nickname && !String(od.counterparty_nickname).includes('*') ? od.counterparty_nickname : null)) as string | null;
       const clientData = await createBuyerClient(
         displayName,
         contactNumber || undefined,
         clientState || undefined,
+        { binanceNickname: unmaskedNick },
       );
       if (!clientData?.id) {
         throw new Error('Failed to create buyer client. Please try selecting an existing client or verify the buyer name.');

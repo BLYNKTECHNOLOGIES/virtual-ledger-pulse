@@ -90,7 +90,41 @@ export const findAllClientsByName = async (name: string) => {
 };
 
 /**
- * Create a new seller client from purchase order
+ * Resolve the client that OWNS a given Binance nickname (proxy for the stable userNo).
+ * Nickname ownership is the strongest identity anchor available at creation time and
+ * takes precedence over name matching, so two distinct accounts sharing a KYC name
+ * are never merged.
+ */
+const isMaskedNick = (v?: string | null) =>
+  !v || !v.trim() || v.includes('*') || v.trim().toLowerCase() === 'unknown';
+
+export const resolveClientByNickname = async (
+  nickname: string
+): Promise<{ id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null } | null> => {
+  const { data: link } = await supabase
+    .from('client_binance_nicknames')
+    .select('client_id')
+    .eq('nickname', nickname.trim())
+    .eq('is_active', true)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!link?.client_id) return null;
+  const { data: c } = await supabase
+    .from('clients')
+    .select('id, client_id, is_seller, seller_approval_status')
+    .eq('id', link.client_id)
+    .eq('is_deleted', false)
+    .maybeSingle();
+  return (c as any) || null;
+};
+
+/**
+ * Create a new seller client from purchase order.
+ * Identity resolution is userNo/nickname-first: a real (unmasked) nickname owned by an
+ * existing client always wins. Name / verified-name matching is only used as a fallback
+ * when NO real nickname is available, because same-KYC-name accounts are legitimately
+ * distinct people and must not be auto-merged.
  */
 export const createSellerClient = async (
   supplierName: string,
@@ -98,89 +132,75 @@ export const createSellerClient = async (
   evidence?: { binanceNickname?: string | null; verifiedName?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
-    // Check by name first
-    const existingClient = await findClientByName(supplierName);
-    
-    // If no name match, also check by phone number
-    if (!existingClient && contactNumber?.trim() && contactNumber.trim().length >= 10) {
+    const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
+    const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+
+    const markSeller = async (c: { id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null }) => {
+      const updates: Record<string, any> = {};
+      if (contactNumber) {
+        const { data: existing } = await supabase.from('clients').select('phone').eq('id', c.id).maybeSingle();
+        if (existing && !existing.phone) updates.phone = contactNumber;
+      }
+      if (!c.is_seller) {
+        updates.is_seller = true;
+        if (!c.seller_approval_status || c.seller_approval_status === 'NOT_APPLICABLE') {
+          updates.seller_approval_status = 'PENDING';
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('clients').update(updates).eq('id', c.id);
+      }
+      return { id: c.id, client_id: c.client_id };
+    };
+
+    // 1. Identity-first: nickname (proxy for stable userNo).
+    if (cleanNickname) {
+      const owner = await resolveClientByNickname(cleanNickname);
+      if (owner) return markSeller(owner);
+    }
+
+    // 2. Phone number is a strong, person-specific identity anchor.
+    if (contactNumber?.trim() && contactNumber.trim().length >= 10) {
       const { data: phoneMatch } = await supabase
         .from('clients')
-        .select('id, client_id, name, phone, is_seller, seller_approval_status')
+        .select('id, client_id, is_seller, seller_approval_status')
         .eq('is_deleted', false)
         .eq('phone', contactNumber.trim())
         .limit(1)
         .maybeSingle();
-      if (phoneMatch) {
-        const updates: Record<string, any> = {};
-        if (!phoneMatch.is_seller) {
-          updates.is_seller = true;
-          if (!phoneMatch.seller_approval_status || phoneMatch.seller_approval_status === 'NOT_APPLICABLE') {
-            updates.seller_approval_status = 'PENDING';
-          }
-        }
-        if (Object.keys(updates).length > 0) {
-          await supabase.from('clients').update(updates).eq('id', phoneMatch.id);
-        }
-        return { id: phoneMatch.id, client_id: phoneMatch.client_id };
-      }
-    }
-    if (existingClient) {
-      const updates: Record<string, string> = {};
-      if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
-      if (!existingClient.is_seller) {
-        updates.is_seller = 'true' as any;
-        if (!existingClient.seller_approval_status || existingClient.seller_approval_status === 'NOT_APPLICABLE') {
-          updates.seller_approval_status = 'PENDING' as any;
-        }
-      }
-      if (Object.keys(updates).length > 0) {
-        await supabase.from('clients').update(updates).eq('id', existingClient.id);
-      }
-      return { id: existingClient.id, client_id: existingClient.client_id };
+      if (phoneMatch) return markSeller(phoneMatch as any);
     }
 
-    // Check by verified name — prevents duplicate sellers for the same Binance counterparty
-    const { data: verifiedNameMatch } = await supabase
-      .from('client_verified_names')
-      .select('client_id')
-      .eq('verified_name', supplierName.trim())
-      .limit(1)
-      .maybeSingle();
+    // 3. Fallback name / verified-name matching — ONLY when there is no real nickname.
+    //    With a real Binance nickname present but unowned, we must create a SEPARATE
+    //    client (the RPC auto-disambiguates the name) rather than merging same-name people.
+    if (!cleanNickname) {
+      const existingClient = await findClientByName(supplierName);
+      if (existingClient) return markSeller(existingClient as any);
 
-    if (verifiedNameMatch) {
-      const { data: existingByVN } = await supabase
-        .from('clients')
-        .select('id, client_id, is_seller, seller_approval_status')
-        .eq('id', verifiedNameMatch.client_id)
-        .eq('is_deleted', false)
-        .maybeSingle();
-      if (existingByVN) {
-        const updates: Record<string, any> = {};
-        if (!existingByVN.is_seller) {
-          updates.is_seller = true;
-          if (!existingByVN.seller_approval_status || existingByVN.seller_approval_status === 'NOT_APPLICABLE') {
-            updates.seller_approval_status = 'PENDING';
-          }
+      if (cleanVerifiedName) {
+        const { data: verifiedNameMatch } = await supabase
+          .from('client_verified_names')
+          .select('client_id')
+          .eq('verified_name', cleanVerifiedName)
+          .limit(1)
+          .maybeSingle();
+        if (verifiedNameMatch) {
+          const { data: existingByVN } = await supabase
+            .from('clients')
+            .select('id, client_id, is_seller, seller_approval_status')
+            .eq('id', verifiedNameMatch.client_id)
+            .eq('is_deleted', false)
+            .maybeSingle();
+          if (existingByVN) return markSeller(existingByVN as any);
         }
-        if (Object.keys(updates).length > 0) {
-          await supabase.from('clients').update(updates).eq('id', existingByVN.id);
-        }
-        return { id: existingByVN.id, client_id: existingByVN.client_id };
       }
     }
 
     const clientId = await generateUniqueClientId();
-    // Sanitize masked/sentinel values — Binance returns "Unknown", "", or
-    // "Use***" for completed orders. The DB sentinel-guard trigger rejects
-    // these. Fall back to verified_name (KYC-backed, never masked) as the
-    // identity anchor when the nickname is unusable.
-    const isMaskedValue = (v?: string | null) =>
-      !v || !v.trim() || v.includes('*') || v.trim().toLowerCase() === 'unknown';
-    const cleanNickname = isMaskedValue(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
-    const cleanVerifiedName = isMaskedValue(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
 
-    // Use atomic RPC that creates client + supporting evidence in a single
-    // transaction, satisfying the deferred trg_prevent_ghost_pending_client check.
+    // Atomic RPC — creates client (+ nickname/verified-name evidence) in one transaction
+    // and auto-disambiguates the name on collision so distinct accounts stay separate.
     const { data, error } = await supabase.rpc('create_seller_client_with_evidence' as any, {
       p_name: supplierName.trim(),
       p_client_id: clientId,
@@ -189,10 +209,6 @@ export const createSellerClient = async (
       p_verified_name: cleanVerifiedName,
     });
     if (error) {
-      if ((error as any).code === '23505') {
-        const existing = await findClientByName(supplierName);
-        if (existing) return { id: existing.id, client_id: existing.client_id };
-      }
       console.error('Error creating seller client (RPC):', error);
       const msg = (error as any).message || 'Unknown database error';
       const code = (error as any).code ? ` [${(error as any).code}]` : '';
@@ -215,21 +231,27 @@ export const createSellerClient = async (
 export const createBuyerClient = async (
   buyerName: string,
   contactNumber?: string,
-  _state?: string  // Intentionally ignored — state must be entered during Buyer Approval
+  _state?: string,  // Intentionally ignored — state must be entered during Buyer Approval
+  evidence?: { binanceNickname?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
-    // Always check for existing client first (by name)
-    const existingClient = await findClientByName(buyerName);
-    if (existingClient) {
-      const updates: Record<string, string> = {};
-      if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
-      if (Object.keys(updates).length > 0) {
-        await supabase.from('clients').update(updates).eq('id', existingClient.id);
+    const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
+
+    // 1. Identity-first: nickname (proxy for stable userNo) always wins.
+    if (cleanNickname) {
+      const owner = await resolveClientByNickname(cleanNickname);
+      if (owner) {
+        if (contactNumber) {
+          const { data: existing } = await supabase.from('clients').select('phone').eq('id', owner.id).maybeSingle();
+          if (existing && !existing.phone) {
+            await supabase.from('clients').update({ phone: contactNumber }).eq('id', owner.id);
+          }
+        }
+        return { id: owner.id, client_id: owner.client_id };
       }
-      return { id: existingClient.id, client_id: existingClient.client_id };
     }
-    
-    // Also check by phone number to prevent duplicates
+
+    // 2. Phone number is a strong, person-specific identity anchor.
     if (contactNumber?.trim() && contactNumber.trim().length >= 10) {
       const { data: phoneMatch } = await supabase
         .from('clients')
@@ -242,9 +264,24 @@ export const createBuyerClient = async (
         return { id: phoneMatch.id, client_id: phoneMatch.client_id };
       }
     }
+
+    // 3. Fallback name matching — ONLY when there is no real nickname, so distinct
+    //    same-KYC-name accounts are never merged.
+    if (!cleanNickname) {
+      const existingClient = await findClientByName(buyerName);
+      if (existingClient) {
+        const updates: Record<string, string> = {};
+        if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('clients').update(updates).eq('id', existingClient.id);
+        }
+        return { id: existingClient.id, client_id: existingClient.client_id };
+      }
+    }
+
     const clientId = await generateUniqueClientId();
-    // Use atomic RPC that creates client + onboarding-approval evidence row in a
-    // single transaction, satisfying the deferred trg_prevent_ghost_pending_client check.
+    // Atomic RPC — creates client + onboarding-approval evidence in one transaction and
+    // auto-disambiguates the name on collision so distinct accounts stay separate.
     const { data, error } = await supabase.rpc('create_buyer_client_with_evidence' as any, {
       p_name: buyerName.trim(),
       p_client_id: clientId,
@@ -252,12 +289,9 @@ export const createBuyerClient = async (
       p_order_amount: 0,
       p_order_date: new Date().toISOString().split('T')[0],
       p_sales_order_id: null,
+      p_nickname: cleanNickname,
     });
     if (error) {
-      if ((error as any).code === '23505') {
-        const existing = await findClientByName(buyerName);
-        if (existing) return { id: existing.id, client_id: existing.client_id };
-      }
       console.error('Error creating buyer client (RPC):', error);
       const msg = (error as any).message || 'Unknown database error';
       const code = (error as any).code ? ` [${(error as any).code}]` : '';

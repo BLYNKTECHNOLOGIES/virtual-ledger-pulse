@@ -58,7 +58,15 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
                       <TerminalHeader />
                       <main className="flex-1 overflow-auto t-grid-bg">
                         <div className="t-mount">
-                          {children}
+                          <Suspense
+                            fallback={
+                              <div className="flex min-h-[50vh] items-center justify-center bg-background">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                              </div>
+                            }
+                          >
+                            {children}
+                          </Suspense>
                         </div>
                       </main>
                     </SidebarInset>

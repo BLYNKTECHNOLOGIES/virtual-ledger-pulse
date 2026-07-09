@@ -989,13 +989,20 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                       </p>
                       <div className="border border-border rounded-md bg-background max-h-48 overflow-y-auto">
                         {matchingClients.map((client) => (
-                          <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(isOpen) => {
-                            if (isOpen) setHoveredClientId(client.id);
+                          <HoverCard key={client.id} openDelay={300} closeDelay={100} open={hoveredClientId === client.id} onOpenChange={(isOpen) => {
+                            setHoveredClientId(isOpen ? client.id : null);
                           }}>
                             <HoverCardTrigger asChild>
                               <div
-                                className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 transition-colors"
-                                onClick={() => handleClientSelect(client)}
+                                className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 transition-colors select-none"
+                                onClick={() => {
+                                  if (longPressFiredRef.current) { longPressFiredRef.current = false; return; }
+                                  handleClientSelect(client);
+                                }}
+                                onTouchStart={() => startClientPreviewPress(client.id)}
+                                onTouchEnd={cancelClientPreviewPress}
+                                onTouchMove={cancelClientPreviewPress}
+                                onTouchCancel={cancelClientPreviewPress}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="font-medium text-sm truncate">{client.name}</span>

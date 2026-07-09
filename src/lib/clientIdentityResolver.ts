@@ -282,7 +282,10 @@ export async function resolveTerminalApprovalClient(params: {
       !c.is_deleted && !isRejected(c) && c.name.trim().toLowerCase() === dname
     );
     if (exact.length === 1) {
-      return { clientId: exact[0].id, clientName: exact[0].name, resolvedVia: 'name_exact', crossNameWarning: false, ambiguousCandidates: [] };
+      // Do NOT auto-link on a name match — it is unreliable (distinct Binance
+      // users frequently share a display name). Surface it as a suggestion the
+      // operator must confirm before it becomes a binding client link.
+      return { ...empty, nameSuggestion: { id: exact[0].id, name: exact[0].name } };
     }
     if (exact.length > 1) {
       return { ...empty, ambiguousCandidates: exact.map(c => ({ id: c.id, name: c.name })) };

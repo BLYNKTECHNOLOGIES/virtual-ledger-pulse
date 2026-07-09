@@ -1157,7 +1157,7 @@ serve(async (req) => {
     // AI Daily Narrative — fully guarded; on ANY failure the email sends exactly
     // as it does today with the narrative section simply omitted.
     let narrativePayload: any = null;
-    if (!isMonthly) {
+    if (!isMonthly && variant !== "operations") {
       try {
         const nr = await buildDailyNarrative(supabase, report, startDate);
         narrativePayload = nr;

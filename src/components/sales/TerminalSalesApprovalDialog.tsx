@@ -176,7 +176,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Auto-select client using strict precedence: nickname → verified name → exact name
   useEffect(() => {
     if (!open || !displayName || displayName === '—') return;
+    if (userNoLocked) return; // userNo lock takes precedence over name-based matching
     if (linkedClientId && !clientAutoMatched) return;
+
 
     const unmaskedNick = (od?.counterparty_nickname_unmasked
       || (od?.counterparty_nickname && !String(od.counterparty_nickname).includes('*') ? od.counterparty_nickname : null)

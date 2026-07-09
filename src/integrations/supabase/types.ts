@@ -9701,6 +9701,39 @@ export type Database = {
           },
         ]
       }
+      order_nickname_registry: {
+        Row: {
+          captured_at: string
+          cp_userno: string | null
+          exchange_account_id: string | null
+          expires_at: string
+          nickname: string
+          order_number: string
+          trade_type: string | null
+          verified_name: string | null
+        }
+        Insert: {
+          captured_at?: string
+          cp_userno?: string | null
+          exchange_account_id?: string | null
+          expires_at?: string
+          nickname: string
+          order_number: string
+          trade_type?: string | null
+          verified_name?: string | null
+        }
+        Update: {
+          captured_at?: string
+          cp_userno?: string | null
+          exchange_account_id?: string | null
+          expires_at?: string
+          nickname?: string
+          order_number?: string
+          trade_type?: string | null
+          verified_name?: string | null
+        }
+        Relationships: []
+      }
       p2p_auto_pay_engine_runs: {
         Row: {
           attempted: number

@@ -158,7 +158,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
         <div className="ml-auto flex items-center gap-0.5">
           <Button
             variant="ghost" size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground"
+            className="h-5 w-5 text-foreground/80 hover:text-foreground"
             disabled={loading}
             onClick={() => run(true)}
             title="Regenerate"
@@ -167,7 +167,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
           </Button>
           <Button
             variant="ghost" size="icon"
-            className="h-5 w-5 text-muted-foreground hover:text-foreground"
+            className="h-5 w-5 text-foreground/80 hover:text-foreground"
             onClick={() => setOpen(false)}
             title="Close"
           >

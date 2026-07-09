@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { isPhoneBlocked } from "@/lib/blocked-phones";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
@@ -76,6 +76,24 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [linkedClientName, setLinkedClientName] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
+
+  // Long-press (touch & hold) support to preview a matched client's history on mobile
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+  const startClientPreviewPress = (id: string) => {
+    longPressFiredRef.current = false;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      setHoveredClientId(id);
+    }, 350);
+  };
+  const cancelClientPreviewPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
   const [clientAutoMatched, setClientAutoMatched] = useState(false);
   const [counterpartyPhone, setCounterpartyPhone] = useState('');
   const [counterpartyState, setCounterpartyState] = useState('');
@@ -869,11 +887,17 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                    <HoverCard openDelay={300} closeDelay={100} onOpenChange={(isOpen) => {
-                      if (isOpen) setHoveredClientId(selectedClient.id);
+                    <HoverCard openDelay={300} closeDelay={100} open={hoveredClientId === selectedClient.id} onOpenChange={(isOpen) => {
+                      setHoveredClientId(isOpen ? selectedClient.id : null);
                     }}>
                       <HoverCardTrigger asChild>
-                        <span className="text-sm font-medium cursor-pointer hover:underline underline-offset-2">
+                        <span
+                          className="text-sm font-medium cursor-pointer hover:underline underline-offset-2 select-none"
+                          onTouchStart={() => startClientPreviewPress(selectedClient.id)}
+                          onTouchEnd={cancelClientPreviewPress}
+                          onTouchMove={cancelClientPreviewPress}
+                          onTouchCancel={cancelClientPreviewPress}
+                        >
                           {selectedClient.name}
                         </span>
                       </HoverCardTrigger>
@@ -971,13 +995,20 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                       </p>
                       <div className="border border-border rounded-md bg-background max-h-48 overflow-y-auto">
                         {matchingClients.map((client) => (
-                          <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(isOpen) => {
-                            if (isOpen) setHoveredClientId(client.id);
+                          <HoverCard key={client.id} openDelay={300} closeDelay={100} open={hoveredClientId === client.id} onOpenChange={(isOpen) => {
+                            setHoveredClientId(isOpen ? client.id : null);
                           }}>
                             <HoverCardTrigger asChild>
                               <div
-                                className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 transition-colors"
-                                onClick={() => handleClientSelect(client)}
+                                className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 transition-colors select-none"
+                                onClick={() => {
+                                  if (longPressFiredRef.current) { longPressFiredRef.current = false; return; }
+                                  handleClientSelect(client);
+                                }}
+                                onTouchStart={() => startClientPreviewPress(client.id)}
+                                onTouchEnd={cancelClientPreviewPress}
+                                onTouchMove={cancelClientPreviewPress}
+                                onTouchCancel={cancelClientPreviewPress}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="font-medium text-sm truncate">{client.name}</span>

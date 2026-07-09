@@ -241,7 +241,7 @@ export async function resolveTerminalApprovalClient(params: {
         .maybeSingle();
       if (c && !c.is_deleted && !isRejected(c)) {
         const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
-        return { clientId: c.id, clientName: c.name, resolvedVia: 'nickname', crossNameWarning: cross, ambiguousCandidates: [] };
+        return { clientId: c.id, clientName: c.name, resolvedVia: 'nickname', crossNameWarning: cross, ambiguousCandidates: [], nameSuggestion: null };
       }
     }
   }

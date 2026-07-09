@@ -27,6 +27,13 @@ interface KycRmProps {
     kycDocs: number
     pendingBacklog: number
   }
+  shifts?: {
+    label: string
+    approvals: number; rejections: number; kycDocs: number
+    salesAmount: string; salesCount: number
+    purchaseAmount: string; purchaseCount: number
+    turnover: string
+  }[]
   firstTime?: {
     count: number
     totalValue: string

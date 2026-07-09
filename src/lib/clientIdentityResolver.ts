@@ -201,6 +201,12 @@ export interface TerminalAutoMatchResult {
   resolvedVia: TerminalAutoMatchVia;
   crossNameWarning: boolean;
   ambiguousCandidates: { id: string; name: string }[];
+  /**
+   * Non-binding suggestion produced by an exact display-name match. Name
+   * matching is UNRELIABLE (distinct Binance users routinely share a name),
+   * so it is NEVER auto-linked — the operator must confirm it explicitly.
+   */
+  nameSuggestion: { id: string; name: string } | null;
 }
 
 export async function resolveTerminalApprovalClient(params: {
@@ -213,7 +219,7 @@ export async function resolveTerminalApprovalClient(params: {
   const { unmaskedNickname, verifiedName, displayName, side } = params;
   const empty: TerminalAutoMatchResult = {
     clientId: null, clientName: null, resolvedVia: null,
-    crossNameWarning: false, ambiguousCandidates: [],
+    crossNameWarning: false, ambiguousCandidates: [], nameSuggestion: null,
   };
   const isRejected = (c: { buyer_approval_status: string | null; seller_approval_status: string | null }) =>
     side === 'buyer' ? c.buyer_approval_status === 'REJECTED' : c.seller_approval_status === 'REJECTED';

@@ -11,7 +11,7 @@ import {
   TERMINAL_NAVIGATION_SHORTCUTS, TERMINAL_GOTO_SHORTCUTS, TERMINAL_SYSTEM_SHORTCUTS,
 } from "@/config/terminal-shortcuts";
 import {
-  dispatchTerminalContextKey, type TerminalContextKey,
+  dispatchTerminalContextKey, dispatchQuickReplyHotkey, type TerminalContextKey,
 } from "@/hooks/useTerminalHotkeys";
 
 interface TerminalShortcutsContextValue {

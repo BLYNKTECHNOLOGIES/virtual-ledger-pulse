@@ -1229,8 +1229,9 @@ serve(async (req) => {
 
     // Erase the consumed 4 AM ERP-vs-Terminal balance snapshots once the DAILY report
     // has been sent successfully (per requirement: stored only until the mail goes out).
-    // The monthly report must NOT erase these daily snapshots.
-    if (allOk && !isMonthly) {
+    // Only the full Profit report clears them — the monthly report and the Operations
+    // report must NOT erase snapshots the Profit report still needs.
+    if (allOk && !isMonthly && variant !== "operations") {
       const { error: clearErr } = await supabase
         .from("erp_terminal_balance_snapshots")
         .delete()

@@ -311,7 +311,7 @@ async function buildKycRmReport(supabase: any, date: string) {
     hasAny: pendingLimitRequests > 0 || rekycToday > 0 || highRiskOnboarded > 0,
   };
 
-  return { date, kpis, firstTime, trading, topClients, productivity, compliance };
+  return { date, kpis, shifts, firstTime, trading, topClients, productivity, compliance };
 }
 
 serve(async (req) => {

@@ -77,6 +77,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [linkedClientName, setLinkedClientName] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   // Long-press (touch & hold) support to preview a matched client's history on mobile
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

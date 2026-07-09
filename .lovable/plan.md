@@ -1,43 +1,66 @@
+# Phase 3a De-Merge — Guard Spec + P2P Auto-Link Verification
 
-# Correction to Phase 4 Identity Sanitizer
+## Part 1 — P2P auto-linking verification (DONE, read-only)
 
-## Verdict
-Claude is right. Verified against the live database:
-- `P2P-*` nicknames are a perfect 1:1 bijection with userNo (3,844 distinct, 0 collisions in either direction) — the most stable identifiers in the system.
-- Rejecting them severs auto-linking for **3,824 counterparties / 6,053 orders (~19% of flow)**, dumping them into the manual mapping queue forever.
-- Pure-digit rejection catches **0** of its intended target (bare userNo strings — none exist) and only hits ~20 legitimate phone-style nicknames.
-- The real cause of bad merges was the **display-name string fallback**, which the name-match demotion already fixes.
+Ran the real resolver (`src/lib/clientIdentityResolver.ts`) end-to-end against representative inputs:
 
-## What to change (`src/lib/clientIdentityResolver.ts`)
+```text
+sanitizeNickname:
+  "P2P-abc12345"   -> "P2P-abc12345"   (accepted)
+  "918888888888"   -> "918888888888"   (accepted, phone-style)
+  "User-1234"      -> "User-1234"      (accepted)
+  "Kaustubh"       -> "Kaustubh"       (accepted)
+  "ram*** "        -> null             (rejected — masked)
+  "Unknown"        -> null             (rejected)
+  "" / null        -> null             (rejected)
 
-### 1. Keep the name-match demotion (no change)
-Bare display-name matches stay non-binding (`nameSuggestion`), still routed to manual confirmation. This is the fix that actually prevents distinct users sharing a name from merging. Leave it exactly as shipped.
+resolveClientId (P2P nickname already linked) -> { clientId: client-777, resolvedVia: "nickname" }
+resolveClientId (name-only match)             -> { clientId: null,       resolvedVia: null }  ← routed to manual queue
+```
 
-### 2. Reverse the identity-lookup rejection in `sanitizeNickname`
-- **Stop rejecting `P2P-*` for lookups.** They are stable, bijective identity strings — treat them as valid nickname keys for resolving/auto-linking a counterparty, exactly like custom nicknames.
-- **Stop rejecting pure-digit / phone-style nicknames for lookups.** Data shows none of them equal their own userNo, so they are real handles, not placeholder noise.
-- Keep rejecting only genuinely unstable/ambiguous inputs: empty strings and, if desired, a string that is *identical to the row's own `cp_userno`* (belt-and-suspenders — currently 0 rows, but cheap to guard).
+Database backs this: 407 active `P2P-*` nickname links exist and each is 1:1 with a userNo (2,957 total active links). The resolver map is built from `client_binance_nicknames` (which includes P2P rows), so P2P counterparties auto-link instead of falling into the manual queue. Name-only matches still return null — the merge-prevention fix stays intact. **No code change needed; behavior is correct.**
 
-### 3. Optional split (persist vs. lookup)
-If we want to avoid proliferating new placeholder aliases on client records going forward:
-- Allow `P2P-*` / digit nicks for **lookups** (resolution/auto-link) — always.
-- Optionally gate only the **creation of a new `client_binance_nicknames` row** whose sole alias is a placeholder, when a stronger signal (userNo already linked) exists.
-- Never block a lookup on these strings.
+## Part 2 — Phase 3a Guard Spec (written, to satisfy the "spec before any further run" requirement)
 
-### 4. Leave existing data untouched
-The 407 active `P2P-*` links on client records are stable and correct — do not strip or migrate them.
+Current state:
+- One batch already executed: `e7d245ed-296a-445d-a547-3e0ba8b81720` (11 clients created, 9 POs moved, 1 nickname moved, 65 same-identity skips, 2 name-collision skips) — fully rollback-able, 0 rows reverted.
+- Audit report totals now: 79 `SPLIT`, 702 `UNRESOLVED`, 2,172 `ANCHOR`.
 
-## Phase 3a governance (before any further de-merge runs)
-Per Claude's ask, and sound practice:
-- Produce a **written guard spec** first: explicit reversibility mapping (rollback batch id + affected rows) and a turnover-reconciliation check (per-userNo order count and value before/after must balance).
-- The already-executed batch `e7d245ed-...` stays rollback-able via `phase3a_demerge_rollback`; no new de-merge batch runs until the spec is approved.
-- The 7 interleaved custom-nickname userNos from the earlier audit remain **open** — they involve custom nicknames and still need the re-fetch stability test; they are not covered by this sanitizer change.
+### 2.1 Preconditions (must all pass before any new batch)
+1. No un-reverted prior batch is in an inconsistent state (`client_demerge_rollback_log` reconciles to actual `client_id` values).
+2. Candidate set is frozen: snapshot the exact `SPLIT` rows (client_uuid, resolved_userno, verified_name) that the batch will touch into a pre-run manifest.
+3. `resolved_userno <> anchor_userno` and verified_name present — rows without a verified name are skipped (never guessed).
 
-## Verification after implementation
-1. Confirm `sanitizeNickname` returns a usable key for representative `P2P-*` and phone-style samples (unit-level check).
-2. Re-run the sync/approval resolver against a set of P2P-only counterparties and confirm they auto-link to their existing client instead of routing to the manual queue.
-3. Re-count the manual mapping queue to confirm the ~6,000-order backlog does not accumulate.
-4. When a new Phase 3a batch is eventually approved, verify execution with per-userNo order-count and turnover reconciliation against the DB.
+### 2.2 Reversibility mapping (already enforced, formalized here)
+- Every mutation writes a `client_demerge_rollback_log` row keyed by `batch_id` with `entity_type`, `entity_ref` (order_number / nickname / client id), `old_client_id`, `new_client_id`, `old_value`, `new_value`.
+- Rollback path: `SELECT phase3a_demerge_rollback('<batch_id>')` restores every `sales_orders`/`purchase_orders`/`client_binance_nicknames` row to `old_value`/`old_client_id` and marks `reverted=true`.
+- Acceptance: after a dry-run mental pass, count of mutation log rows must equal `sales_moved + purchases_moved + nicknames_moved + clients_created`.
 
-## Scope
-Code-only change in the identity resolver; no schema migration, no bulk data rewrite. No behavior change to the name-match demotion (the actual merge-prevention fix stays intact).
+### 2.3 Turnover / order-count reconciliation (the new hard gate)
+For each `resolved_userno` in the batch, capture BEFORE and AFTER:
+
+```text
+per-userNo:
+  sales_order_count, sales_turnover  (sum of order value)
+  purchase_order_count, purchase_turnover
+```
+
+Invariants that MUST hold (else abort/rollback):
+1. **Conservation:** for each userNo, `orders(before) == orders(after)` and `turnover(before) == turnover(after within 0.01 tolerance)` — the split only re-attributes ownership, never creates or drops volume.
+2. **Global balance:** `Σ turnover across (parent + all new clients) after == parent turnover before` per userNo group.
+3. **No orphans:** every re-attributed order points to a live, non-deleted client after the run.
+4. **Name-collision safety:** any `resolved_userno` whose verified_name equals an existing different client is logged as `skipped_name_collision` and left for manual review (never auto-merged).
+
+### 2.4 Execution protocol
+1. Write pre-run manifest + BEFORE reconciliation snapshot to a log table / export.
+2. Run `phase3a_demerge()` (single transaction, SECURITY DEFINER).
+3. Capture AFTER snapshot; compute deltas.
+4. If any invariant in 2.3 fails → immediately `phase3a_demerge_rollback(batch_id)` and report.
+5. If all pass → report per-userNo before/after table for sign-off.
+
+### 2.5 Out of scope for this batch
+- The ~702 `UNRESOLVED` rows and 7 interleaved custom-nickname userNos: require the re-fetch stability test first; not touched here.
+
+## Deliverable of the build step
+- A read-only reconciliation script/query pair (BEFORE/AFTER per-userNo order-count + turnover) wrapping the existing `phase3a_demerge` / `phase3a_demerge_rollback` functions.
+- No new schema, no resolver change. Execution of an actual new de-merge batch happens only after you approve the reconciliation output.

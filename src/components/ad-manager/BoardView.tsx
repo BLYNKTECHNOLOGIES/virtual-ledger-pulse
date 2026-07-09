@@ -62,9 +62,6 @@ function AdCard({
   const isOffline = ad.advStatus === BINANCE_AD_STATUS.OFFLINE;
 
   const surplus = Number(ad.surplusAmount || 0);
-  const init = Number(ad.initAmount || 0);
-  const pct = init > 0 ? Math.min(100, Math.max(0, (surplus / init) * 100)) : 0;
-  const lowStock = pct > 0 && pct < 20;
   const outOfStock = surplus <= 0;
   const staleAge = stalePriceLabel(ad.updateTime);
 

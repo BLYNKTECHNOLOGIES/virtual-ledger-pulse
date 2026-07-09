@@ -64,11 +64,11 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
 
           {/* Payment fields — every identifier gets a one-tap copy button */}
           {method.fields?.filter(f => f.fieldValue).map((field, fIdx) => (
-            <div key={fIdx} className="flex items-start justify-between py-1.5 border-b border-border/50 last:border-0">
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
-              <div className="flex items-center gap-1.5 min-w-0">
+            <div key={fIdx} className="flex flex-col gap-1 py-1.5 border-b border-border/50 last:border-0">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{field.fieldName}</span>
+              <div className="flex items-start justify-between gap-1.5">
                 <span
-                  className="text-xs text-foreground t-mono bg-secondary px-1.5 py-0.5 rounded text-right break-all cursor-pointer hover:text-primary transition-colors"
+                  className="text-xs text-foreground t-mono bg-secondary px-1.5 py-0.5 rounded break-words min-w-0 flex-1 cursor-pointer hover:text-primary transition-colors"
                   onClick={() => copyToClipboard(field.fieldValue, field.fieldName)}
                   title={`Click to copy ${field.fieldName}`}
                 >
@@ -76,7 +76,7 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
                 </span>
                 <button
                   onClick={() => copyToClipboard(field.fieldValue, field.fieldName)}
-                  className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+                  className="text-muted-foreground hover:text-primary transition-colors shrink-0 mt-0.5"
                   title={`Copy ${field.fieldName}`}
                   aria-label={`Copy ${field.fieldName}`}
                 >

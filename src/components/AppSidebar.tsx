@@ -299,6 +299,11 @@ export function AppSidebar() {
       entries.push({ type: 'item', data: reconciliationItem });
     }
 
+    // Report Formats — Super Admin only
+    if (isSuperAdmin) {
+      entries.push({ type: 'item', data: reportSettingsItem });
+    }
+
     
     // Add groups (filter children by permissions)
     sidebarGroups.forEach(group => {

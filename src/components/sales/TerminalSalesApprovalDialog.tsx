@@ -144,6 +144,34 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Track how the auto-match was resolved so we can warn the operator
   const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
   const [crossNameWarning, setCrossNameWarning] = useState(false);
+  // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
+  const [userNoLocked, setUserNoLocked] = useState(false);
+  const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+
+  // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor)
+  useEffect(() => {
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); return; }
+    const orderNumber = od?.order_number || syncRecord?.binance_order_number;
+    if (!orderNumber) return;
+
+    let cancelled = false;
+    supabase.rpc('resolve_client_by_userno', { p_order_number: String(orderNumber) })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.client_id) return;
+        setLinkedClientId(row.client_id);
+        setLinkedClientName(row.client_name || '');
+        setClientAutoMatched(true);
+        setAutoMatchVia('nickname');
+        setCrossNameWarning(false);
+        setShowClientDropdown(false);
+        setUserNoLocked(true);
+        setLockedUserNo(row.cp_userno ? String(row.cp_userno) : null);
+      });
+    return () => { cancelled = true; };
+  }, [open, od?.order_number, syncRecord?.binance_order_number]);
+
 
   // Auto-select client using strict precedence: nickname → verified name → exact name
   useEffect(() => {

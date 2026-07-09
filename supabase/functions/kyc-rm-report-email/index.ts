@@ -21,6 +21,29 @@ function istDayBounds(date: string): { start: string; end: string } {
   return { start: `${date}T00:00:00+05:30`, end: `${shiftDate(date, 1)}T00:00:00+05:30` };
 }
 
+// ---------- shift bucketing (IST) ----------
+// Morning 09:00–17:00 · Evening 17:00–01:00 · Night 01:00–09:00
+const SHIFTS = ["Morning", "Evening", "Night"] as const;
+type Shift = typeof SHIFTS[number];
+const SHIFT_LABELS: Record<Shift, string> = {
+  Morning: "Morning (09:00–17:00)",
+  Evening: "Evening (17:00–01:00)",
+  Night: "Night (01:00–09:00)",
+};
+function istHour(ts: unknown): number | null {
+  if (!ts) return null;
+  const t = new Date(String(ts)).getTime();
+  if (!Number.isFinite(t)) return null;
+  return new Date(t + 5.5 * 60 * 60 * 1000).getUTCHours();
+}
+function shiftOf(ts: unknown): Shift | null {
+  const h = istHour(ts);
+  if (h === null) return null;
+  if (h >= 9 && h < 17) return "Morning";
+  if (h >= 1 && h < 9) return "Night";
+  return "Evening"; // 17:00–23:59 and 00:00–00:59
+}
+
 // ---------- formatting ----------
 const nf = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const money = (n: number) => nf.format(Number.isFinite(n) ? n : 0);
@@ -66,7 +89,7 @@ async function buildKycRmReport(supabase: any, date: string) {
 
   const approvalsToday = await fetchAllRows(() =>
     supabase.from("client_onboarding_approvals")
-      .select("resolved_client_id, reviewed_by, approval_status, client_name")
+      .select("resolved_client_id, reviewed_by, approval_status, client_name, reviewed_at")
       .gte("reviewed_at", start).lt("reviewed_at", end));
 
   const approvedRows = approvalsToday.filter((r) => r.approval_status === "APPROVED");
@@ -75,9 +98,10 @@ async function buildKycRmReport(supabase: any, date: string) {
     approvedRows.map((r) => r.resolved_client_id || normName(r.client_name)),
   ).size;
 
-  const kycDocsToday = await headCount(() =>
-    supabase.from("client_kyc_documents").select("*", { count: "exact", head: true })
+  const kycDocsRows = await fetchAllRows(() =>
+    supabase.from("client_kyc_documents").select("created_at")
       .gte("created_at", start).lt("created_at", end).is("deleted_at", null));
+  const kycDocsToday = kycDocsRows.length;
 
   const pendingBacklog = await headCount(() =>
     supabase.from("client_onboarding_approvals").select("*", { count: "exact", head: true })
@@ -95,11 +119,11 @@ async function buildKycRmReport(supabase: any, date: string) {
   // ---- Section 3: Trading activity today (segregated) ----
   const salesToday = await fetchAllRows(() =>
     supabase.from("sales_orders")
-      .select("client_id, client_name, client_phone, total_amount, created_by")
+      .select("client_id, client_name, client_phone, total_amount, created_by, created_at")
       .eq("order_date", date));
   const purchasesToday = await fetchAllRows(() =>
     supabase.from("purchase_orders")
-      .select("supplier_name, contact_number, total_amount")
+      .select("supplier_name, contact_number, total_amount, created_at")
       .eq("order_date", date));
 
   const salesAmount = salesToday.reduce((s, r) => s + Number(r.total_amount || 0), 0);
@@ -119,6 +143,53 @@ async function buildKycRmReport(supabase: any, date: string) {
     turnover: money(salesAmount + purchaseAmount),
     turnoverOrders: salesToday.length + purchasesToday.length,
   };
+
+  // ---- Shift-wise breakdown (Morning 09–17 · Evening 17–01 · Night 01–09 IST) ----
+  const makeShiftBucket = () => ({
+    approvals: 0, rejections: 0, kycDocs: 0,
+    salesAmount: 0, salesCount: 0, purchaseAmount: 0, purchaseCount: 0,
+  });
+  const shiftBuckets: Record<Shift, ReturnType<typeof makeShiftBucket>> = {
+    Morning: makeShiftBucket(), Evening: makeShiftBucket(), Night: makeShiftBucket(),
+  };
+  for (const r of approvalsToday) {
+    const s = shiftOf(r.reviewed_at);
+    if (!s) continue;
+    if (r.approval_status === "APPROVED") shiftBuckets[s].approvals += 1;
+    else if (r.approval_status === "REJECTED") shiftBuckets[s].rejections += 1;
+  }
+  for (const r of kycDocsRows) {
+    const s = shiftOf(r.created_at);
+    if (s) shiftBuckets[s].kycDocs += 1;
+  }
+  for (const r of salesToday) {
+    const s = shiftOf(r.created_at);
+    if (!s) continue;
+    shiftBuckets[s].salesAmount += Number(r.total_amount || 0);
+    shiftBuckets[s].salesCount += 1;
+  }
+  for (const r of purchasesToday) {
+    const s = shiftOf(r.created_at);
+    if (!s) continue;
+    shiftBuckets[s].purchaseAmount += Number(r.total_amount || 0);
+    shiftBuckets[s].purchaseCount += 1;
+  }
+  const shifts = SHIFTS.map((s) => {
+    const b = shiftBuckets[s];
+    return {
+      label: SHIFT_LABELS[s],
+      approvals: b.approvals,
+      rejections: b.rejections,
+      kycDocs: b.kycDocs,
+      salesAmount: money(b.salesAmount),
+      salesCount: b.salesCount,
+      purchaseAmount: money(b.purchaseAmount),
+      purchaseCount: b.purchaseCount,
+      turnover: money(b.salesAmount + b.purchaseAmount),
+    };
+  });
+
+
 
   // ---- Section 2: New clients who traded for the FIRST time today ----
   const todayClientIds = Array.from(
@@ -240,7 +311,7 @@ async function buildKycRmReport(supabase: any, date: string) {
     hasAny: pendingLimitRequests > 0 || rekycToday > 0 || highRiskOnboarded > 0,
   };
 
-  return { date, kpis, firstTime, trading, topClients, productivity, compliance };
+  return { date, kpis, shifts, firstTime, trading, topClients, productivity, compliance };
 }
 
 serve(async (req) => {

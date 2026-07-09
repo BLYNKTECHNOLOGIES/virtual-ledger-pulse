@@ -27,6 +27,13 @@ interface KycRmProps {
     kycDocs: number
     pendingBacklog: number
   }
+  shifts?: {
+    label: string
+    approvals: number; rejections: number; kycDocs: number
+    salesAmount: string; salesCount: number
+    purchaseAmount: string; purchaseCount: number
+    turnover: string
+  }[]
   firstTime?: {
     count: number
     totalValue: string
@@ -50,7 +57,7 @@ interface KycRmProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const KycRmReport = ({ date, kpis, firstTime, trading, topClients, productivity, compliance }: KycRmProps) => {
+const KycRmReport = ({ date, kpis, shifts, firstTime, trading, topClients, productivity, compliance }: KycRmProps) => {
   const title = formatDate(date)
   return (
     <Html lang="en" dir="ltr">
@@ -94,6 +101,42 @@ const KycRmReport = ({ date, kpis, firstTime, trading, topClients, productivity,
                 </Section>
               </Section>
             )}
+
+            {/* Section 1b — Shift-wise breakdown */}
+            {shifts && shifts.length > 0 && (
+              <Section style={card}>
+                <Text style={sectionTitle}>Shift-wise Breakdown — Today</Text>
+                <Text style={{ fontSize: '11px', color: '#8a6a4a', margin: '0 0 8px' }}>
+                  Activity bucketed by IST shift. Morning 09:00–17:00 · Evening 17:00–01:00 · Night 01:00–09:00.
+                </Text>
+                <table style={tbl}>
+                  <thead><tr>
+                    <th style={th}>Shift</th>
+                    <th style={thR}>Approvals</th>
+                    <th style={thR}>Rejections</th>
+                    <th style={thR}>KYC Docs</th>
+                    <th style={thR}>Sales (₹)</th>
+                    <th style={thR}>Purchases (₹)</th>
+                    <th style={thR}>Turnover (₹)</th>
+                  </tr></thead>
+                  <tbody>
+                    {shifts.map((s, i) => (
+                      <tr key={i}>
+                        <td style={td}>{s.label}</td>
+                        <td style={tdR}>{s.approvals}</td>
+                        <td style={tdR}>{s.rejections}</td>
+                        <td style={tdR}>{s.kycDocs}</td>
+                        <td style={tdR}>{s.salesAmount}</td>
+                        <td style={tdR}>{s.purchaseAmount}</td>
+                        <td style={{ ...tdR, fontWeight: 700 }}>{s.turnover}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Section>
+            )}
+
+
 
             {/* Section 2 — New clients traded first time */}
             {firstTime && (
@@ -251,6 +294,11 @@ export const template = {
   previewData: {
     date: '2026-07-09',
     kpis: { newClients: 30, approvalsDone: 49, distinctApproved: 20, rejections: 3, kycDocs: 104, pendingBacklog: 199 },
+    shifts: [
+      { label: 'Morning (09:00–17:00)', approvals: 28, rejections: 2, kycDocs: 61, salesAmount: '18,42,110.00', salesCount: 30, purchaseAmount: '12,05,300.00', purchaseCount: 18, turnover: '30,47,410.00' },
+      { label: 'Evening (17:00–01:00)', approvals: 17, rejections: 1, kycDocs: 33, salesAmount: '9,11,228.93', salesCount: 16, purchaseAmount: '8,14,206.25', purchaseCount: 10, turnover: '17,25,435.18' },
+      { label: 'Night (01:00–09:00)', approvals: 4, rejections: 0, kycDocs: 10, salesAmount: '2,58,100.00', salesCount: 5, purchaseAmount: '3,00,000.00', purchaseCount: 4, turnover: '5,58,100.00' },
+    ],
     firstTime: {
       count: 19, totalValue: '8,63,062.91',
       rows: [

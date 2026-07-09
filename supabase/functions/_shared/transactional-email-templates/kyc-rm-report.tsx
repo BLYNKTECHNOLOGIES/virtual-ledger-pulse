@@ -245,7 +245,7 @@ export const template = {
   component: KycRmReport,
   subject: (data: Record<string, any>) => {
     const d = data.date ? new Date(data.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
-    return `🧾 KYC & Client Management — Daily Report — ${d}`
+    return `KYC & Client Management Report - ${d}`
   },
   displayName: 'KYC & Client Management Report',
   previewData: {

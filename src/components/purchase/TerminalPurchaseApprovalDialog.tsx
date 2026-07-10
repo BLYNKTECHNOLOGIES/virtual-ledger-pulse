@@ -77,6 +77,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+  // True once the operator explicitly picks/creates/unlinks a client — prevents
+  // the auto-match effect from clobbering or re-validating a human decision.
+  const manualSelectionRef = useRef(false);
 
   // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor).
   // userNo is the stable, unique Binance account id — the primary identity key.

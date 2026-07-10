@@ -738,6 +738,51 @@ export function ClientOnboardingApprovals() {
     return result;
   };
 
+  // Fetch ALL orders (buy + sell) associated with a client — by client_id and by name.
+  const fetchAllClientOrders = async (clientId: string | null, clientName?: string | null) => {
+    const name = (clientName || '').trim();
+
+    // BUY orders (sales_orders) — match by client_id OR name
+    let buyRows: any[] = [];
+    if (clientId) {
+      const { data } = await supabase
+        .from('sales_orders')
+        .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
+        .eq('client_id', clientId)
+        .order('order_date', { ascending: false });
+      buyRows = data || [];
+    }
+    if (name) {
+      const { data } = await supabase
+        .from('sales_orders')
+        .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
+        .ilike('client_name', name)
+        .order('order_date', { ascending: false });
+      buyRows = [...buyRows, ...(data || [])];
+    }
+
+    // SELL orders (purchase_orders) — match by supplier name
+    let sellRows: any[] = [];
+    if (name) {
+      const { data } = await supabase
+        .from('purchase_orders')
+        .select('order_number, order_date, total_amount, status, quantity, price_per_unit')
+        .ilike('supplier_name', name)
+        .order('order_date', { ascending: false });
+      sellRows = (data || []).map((o: any) => ({ ...o, sale_type: 'SELL', client_phone: null, client_state: null }));
+    }
+
+    // De-dup by order_number and sort by date desc
+    const seen = new Set<string>();
+    const combined = [...buyRows, ...sellRows].filter((o: any) => {
+      if (!o.order_number || seen.has(o.order_number)) return false;
+      seen.add(o.order_number);
+      return true;
+    });
+    combined.sort((a: any, b: any) => new Date(b.order_date || 0).getTime() - new Date(a.order_date || 0).getTime());
+    return combined;
+  };
+
   // Check for existing client with same name
   const checkExistingClient = async (clientName: string): Promise<ExistingClientMatch | null> => {
     const { data } = await supabase
@@ -747,15 +792,10 @@ export function ClientOnboardingApprovals() {
       .ilike('name', clientName.trim())
       .maybeSingle();
     
-    // Fetch recent transactions for the matched client
+    // Fetch ALL transactions for the matched client
     if (data?.id) {
-      const { data: recentOrders } = await supabase
-        .from('sales_orders')
-        .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
-        .eq('client_id', data.id)
-        .order('order_date', { ascending: false })
-        .limit(5);
-      setExistingClientTransactions(recentOrders || []);
+      const allOrders = await fetchAllClientOrders(data.id, data.name);
+      setExistingClientTransactions(allOrders);
     } else {
       setExistingClientTransactions([]);
     }
@@ -1351,13 +1391,8 @@ export function ClientOnboardingApprovals() {
         .maybeSingle();
       if (data) {
         existing = data as ExistingClientMatch;
-        const { data: recentOrders } = await supabase
-          .from('sales_orders')
-          .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
-          .eq('client_id', data.id)
-          .order('order_date', { ascending: false })
-          .limit(5);
-        setExistingClientTransactions(recentOrders || []);
+        const allOrders = await fetchAllClientOrders(data.id, data.name);
+        setExistingClientTransactions(allOrders);
       }
     }
     if (!existing) {
@@ -2085,11 +2120,11 @@ export function ClientOnboardingApprovals() {
                     </div>
                   </div>
 
-                  {/* Recent Transactions */}
+                  {/* All Orders */}
                   {existingClientTransactions.length > 0 && (
                     <div className="bg-card rounded-md p-3 border border-warning/20">
-                      <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
-                      <div className="w-full">
+                      <h4 className="font-semibold text-sm mb-2 text-foreground">All Orders ({existingClientTransactions.length})</h4>
+                      <div className="w-full max-h-72 overflow-y-auto">
                         <table className="w-full text-xs table-fixed">
                           <thead>
                             <tr className="border-b text-muted-foreground">

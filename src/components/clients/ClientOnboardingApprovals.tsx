@@ -1859,10 +1859,19 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell numeric>
                       <div className="text-sm">
-                        <div>₹{entry.totalAmount.toLocaleString('en-IN')}</div>
-                        <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>
+                        {entry.totalAmount > 0 ? (
+                          <>
+                            <div>₹{entry.totalAmount.toLocaleString('en-IN')}</div>
+                            {approval.order_date && (
+                              <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">No linked order</span>
+                        )}
                       </div>
                     </TableCell>
+
                     <TableCell>
                       <div className="text-sm">
                         <div>{approval.client_phone}</div>

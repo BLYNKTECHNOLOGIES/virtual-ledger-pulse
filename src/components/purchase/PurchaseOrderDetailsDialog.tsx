@@ -66,6 +66,26 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     navigate(`/clients/${linkedClient.id}`);
   };
 
+  // Resolve platform (wallet) name. Deep-link fetches don't join the wallet
+  // relation, so resolve it here from wallet_id / warehouse_id when missing.
+  const walletIdForPlatform = order?.wallet_id || order?.purchase_order_items?.[0]?.warehouse_id || null;
+  const { data: platformWallet } = useQuery({
+    queryKey: ['po_platform_wallet', walletIdForPlatform],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('wallets')
+        .select('wallet_name')
+        .eq('id', walletIdForPlatform)
+        .maybeSingle();
+      return data;
+    },
+    enabled: open && !order?.wallet?.wallet_name && !order?.is_off_market && !!walletIdForPlatform,
+  });
+
+  const platformName = order?.is_off_market
+    ? 'Off Market'
+    : (order?.wallet?.wallet_name || platformWallet?.wallet_name || 'N/A');
+
   // Fetch creator's username if created_by exists
   const { data: creatorUser } = useQuery({
     queryKey: ['user', order?.created_by],
@@ -288,6 +308,10 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
                   </>
                 );
               })()}
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Platform</label>
+              <p className="text-sm">{platformName}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Status</label>

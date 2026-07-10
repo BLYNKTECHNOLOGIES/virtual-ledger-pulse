@@ -29,9 +29,18 @@ export function useSpotTradeSync() {
       .limit(1)
       .maybeSingle();
 
+    // OVERLAP the cursor instead of MAX+1. Binance myTrades `startTime` is
+    // inclusive at millisecond granularity, and a single market order fills as
+    // many trades that frequently share the SAME millisecond. Advancing to
+    // MAX+1 permanently skips any same-ms/late-arriving sibling fills that were
+    // not yet listed on the prior sync — which silently truncates conversions
+    // (e.g. a 2504 TRX sell booked as 164 TRX). Re-fetching a safety window is
+    // harmless: the (binance_trade_id, symbol) upsert dedupes duplicates.
+    const SYNC_OVERLAP_MS = 15 * 60 * 1000; // 15 min re-fetch window
     const startTime = latestTrade?.trade_time
-      ? Number(latestTrade.trade_time) + 1
+      ? Math.max(0, Number(latestTrade.trade_time) - SYNC_OVERLAP_MS)
       : undefined;
+
 
     const { data, error } = await supabase.functions.invoke("binance-assets", {
       body: { action: "getMyTrades", startTime, exchange_account_id: accountId },

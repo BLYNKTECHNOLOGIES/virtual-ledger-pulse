@@ -330,24 +330,41 @@ serve(async (req) => {
           "TRXUSDT", "SHIBUSDT", "TONUSDT", "USDCUSDT", "FDUSDUSDT"
         ];
         const allTrades: any[] = [];
+        // Binance myTrades caps at 1000 rows/request. A single market order can
+        // fill as many trades (dozens), and a busy window can exceed any single
+        // page — so we MUST paginate, otherwise the tail fills are silently
+        // dropped and conversions under-count. Paginate exactly by `fromId`
+        // (tradeId is monotonic per symbol) until a page returns < pageLimit.
+        const pageLimit = Number(tradeLimit) > 0 ? Math.min(Number(tradeLimit), 1000) : 1000;
+        const MAX_PAGES = 20; // safety cap: up to 20k trades per symbol per sync
 
         for (const sym of tradingSymbols) {
           try {
-            const tradeParams: Record<string, string> = { symbol: sym };
-            if (tradeLimit) tradeParams.limit = String(tradeLimit);
-            else tradeParams.limit = "100";
-            if (startTime) tradeParams.startTime = String(startTime);
-
-            const qs = new URLSearchParams(tradeParams).toString();
-            const url = `${BINANCE_PROXY_URL}/api/api/v3/myTrades?${qs}`;
-            const res = await fetchWithRetry(url, { method: "GET", headers: proxyHeaders });
-            const text = await res.text();
-            let trades: any[] = [];
-            try { trades = JSON.parse(text); } catch { trades = []; }
-            if (Array.isArray(trades)) {
-              for (const t of trades) {
-                allTrades.push({ ...t, symbol: sym });
+            let fromId: number | null = null;
+            for (let page = 0; page < MAX_PAGES; page++) {
+              const tradeParams: Record<string, string> = { symbol: sym, limit: String(pageLimit) };
+              if (fromId !== null) {
+                // Exact cursor: fetch trades with id >= fromId (ascending).
+                tradeParams.fromId = String(fromId);
+              } else if (startTime) {
+                tradeParams.startTime = String(startTime);
               }
+
+              const qs = new URLSearchParams(tradeParams).toString();
+              const url = `${BINANCE_PROXY_URL}/api/api/v3/myTrades?${qs}`;
+              const res = await fetchWithRetry(url, { method: "GET", headers: proxyHeaders });
+              const text = await res.text();
+              let trades: any[] = [];
+              try { trades = JSON.parse(text); } catch { trades = []; }
+              if (!Array.isArray(trades) || trades.length === 0) break;
+
+              for (const t of trades) allTrades.push({ ...t, symbol: sym });
+
+              if (trades.length < pageLimit) break; // last page reached
+              // Advance exact cursor past the highest trade id in this page.
+              const maxId = trades.reduce((m: number, t: any) => Math.max(m, Number(t.id) || 0), 0);
+              if (!maxId) break;
+              fromId = maxId + 1;
             }
           } catch (e) {
             console.warn(`Failed to fetch trades for ${sym}:`, (e as Error).message);
@@ -358,6 +375,7 @@ serve(async (req) => {
         result = allTrades;
         break;
       }
+
 
       // ===== DEPOSIT HISTORY =====
       case "getDepositHistory": {

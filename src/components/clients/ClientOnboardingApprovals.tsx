@@ -1995,7 +1995,7 @@ export function ClientOnboardingApprovals() {
               {reviewedApprovals.map((approval) => (
                 <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-destructive/5' : ''}>
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
-                  <TableCell>₹{approval.order_amount.toLocaleString('en-IN')}</TableCell>
+                  <TableCell>{approval.order_amount > 0 ? `₹${approval.order_amount.toLocaleString('en-IN')}` : <span className="text-xs text-muted-foreground italic">No linked order</span>}</TableCell>
                   <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>
                   <TableCell>{(approval.reviewed_by && (reviewerNameMap?.[approval.reviewed_by] || approval.reviewed_by)) || '-'}</TableCell>
                   <TableCell>

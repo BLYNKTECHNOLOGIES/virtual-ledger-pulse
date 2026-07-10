@@ -82,6 +82,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Long-press (touch & hold) support to preview a matched client's history on mobile
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFiredRef = useRef(false);
+  // True once the operator explicitly picks/creates a client — prevents the
+  // auto-match effect from clobbering or re-validating a human decision.
+  const manualSelectionRef = useRef(false);
   const startClientPreviewPress = (id: string) => {
     longPressFiredRef.current = false;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);

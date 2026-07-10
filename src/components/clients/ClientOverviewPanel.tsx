@@ -428,7 +428,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           <div className="p-3 bg-primary/5 rounded-md border border-primary/20 space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
               <Fingerprint className="h-4 w-4" />
-              Binance User No (Account Identity)
+              Binance User No (Primary Account Identity)
             </label>
             <div className="space-y-1.5">
               {binanceUsernos.map((u: any) => (

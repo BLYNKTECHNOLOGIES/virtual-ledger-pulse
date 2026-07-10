@@ -775,14 +775,8 @@ export default function UserManagement() {
               <TerminalAccessTab />
             </PermissionGate>
           </TabsContent>
-
-          {/* Password Reset Requests Tab - Super Admin only */}
-          <TabsContent value="password-requests" className="space-y-4">
-            <PermissionGate permissions={['user_management_manage']}>
-              <PasswordResetRequestsTab />
-            </PermissionGate>
-          </TabsContent>
         </Tabs>
+
 
       {/* Dialogs */}
       {editingUser && (

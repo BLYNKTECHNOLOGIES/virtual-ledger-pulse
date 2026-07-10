@@ -1649,10 +1649,9 @@ export function ClientOnboardingApprovals() {
       rows.push(
         ...((data || []).filter((row: any) => {
           const sameVerifiedName = normalizeTextKey(row.verified_name) === normalizeTextKey(verifiedName);
-          return sameVerifiedName && (
-            orderAmountMatchesApprovalAmount(row.total_price, approval.order_amount) ||
-            orderDateMatchesApprovalDate(row.create_time, approval.order_date)
-          );
+          return sameVerifiedName &&
+            orderAmountMatchesApprovalAmount(row.total_price, approval.order_amount) &&
+            orderDateMatchesApprovalDate(row.create_time, approval.order_date);
         }))
       );
     }

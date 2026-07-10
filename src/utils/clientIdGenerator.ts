@@ -157,8 +157,13 @@ export const createSellerClient = async (
     // 1. Identity-first: nickname (proxy for stable userNo).
     if (cleanNickname) {
       const owner = await resolveClientByNickname(cleanNickname);
-      if (owner) return markSeller(owner);
+      if (owner) {
+        // Recurring order for a known account — backfill the real verified name.
+        if (cleanVerifiedName) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
+        return markSeller(owner);
+      }
     }
+
 
     // 2. Phone number is a strong, person-specific identity anchor.
     if (contactNumber?.trim() && contactNumber.trim().length >= 10) {

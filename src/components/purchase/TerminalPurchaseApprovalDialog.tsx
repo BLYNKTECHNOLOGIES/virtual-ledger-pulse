@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
@@ -77,12 +77,15 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+  // True once the operator explicitly picks/creates/unlinks a client — prevents
+  // the auto-match effect from clobbering or re-validating a human decision.
+  const manualSelectionRef = useRef(false);
 
   // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor).
   // userNo is the stable, unique Binance account id — the primary identity key.
   // If it isn't cached yet for a fresh order, resolveOrderUserNo fetches order-detail on demand.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
@@ -202,44 +205,52 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       setContactNumber(resolvedPhone);
       setClientState(resolvedState);
 
-      if (!linkedClientId) {
-        setLinkedClientId(syncRecord?.client_id || '');
+      // Never override an explicit operator decision.
+      if (manualSelectionRef.current) return;
+
+      // userNo lock takes precedence — skip name-based matching entirely when locked.
+      if (userNoLocked) return;
+
+      const seededClientId = syncRecord?.client_id || linkedClientId || '';
+
+      // Strict precedence auto-match: nickname → verified name (corroborated only).
+      const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
+        || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
+        || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
+        || null) as string | null;
+      const verifiedName = (syncRecord?.order_data?.verified_name || null) as string | null;
+      const displayName = verifiedName || syncRecord?.counterparty_name || null;
+
+      const result = await resolveTerminalApprovalClient({
+        unmaskedNickname: unmaskedNick,
+        verifiedName,
+        displayName,
+        side: 'seller',
+      });
+
+      if (result.clientId) {
+        // High-confidence match (nickname / intersection). Trust it.
+        setLinkedClientId(result.clientId);
+        setLinkedClientName(result.clientName || '');
+        setAutoMatchVia(result.resolvedVia);
+        setCrossNameWarning(result.crossNameWarning);
+        setDuplicateClients([]);
+        return;
       }
 
-      // Strict precedence auto-match: nickname → verified name → exact name
-      // userNo lock takes precedence — skip name-based matching entirely when locked
-      if (!userNoLocked && !linkedClientId && !syncRecord?.client_id) {
-        const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
-          || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
-          || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
-          || null) as string | null;
-        const verifiedName = (syncRecord?.order_data?.verified_name || null) as string | null;
-        const displayName = verifiedName || syncRecord?.counterparty_name || null;
-
-        const result = await resolveTerminalApprovalClient({
-          unmaskedNickname: unmaskedNick,
-          verifiedName,
-          displayName,
-          side: 'seller',
-        });
-        if (result.clientId) {
-          setLinkedClientId(result.clientId);
-          setLinkedClientName(result.clientName || '');
-          setAutoMatchVia(result.resolvedVia);
-          setCrossNameWarning(result.crossNameWarning);
-          setDuplicateClients([]);
-        } else if (result.ambiguousCandidates.length > 1 && syncRecord?.counterparty_name) {
-          // Fall back to name-based ambiguity surfacing
-          const matches = await findAllClientsByName(syncRecord.counterparty_name);
-          setDuplicateClients(matches.length > 1 ? matches : []);
-          setAutoMatchVia(null);
-          setCrossNameWarning(false);
-        } else if (syncRecord?.counterparty_name) {
-          const matches = await findAllClientsByName(syncRecord.counterparty_name);
-          setDuplicateClients(matches.length > 1 ? matches : []);
-          setAutoMatchVia(null);
-          setCrossNameWarning(false);
-        }
+      // No high-confidence match. A seeded pre-link (from the sync record) may be
+      // a wrong same-name attribution — a lone verified-name match is NOT a safe
+      // identity signal. Clear it and force the operator to confirm manually.
+      if (seededClientId) {
+        console.warn(`[PurchaseApproval] Cleared non-corroborated pre-link for "${displayName}" — manual confirmation required`);
+        setLinkedClientId('');
+        setLinkedClientName('');
+        setAutoMatchVia(null);
+        setCrossNameWarning(false);
+      }
+      if (syncRecord?.counterparty_name) {
+        const matches = await findAllClientsByName(syncRecord.counterparty_name);
+        setDuplicateClients(matches.length > 1 ? matches : []);
       }
     };
 
@@ -395,6 +406,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         toast({ title: "Error", description: "Client creation returned no ID.", variant: "destructive" });
         return;
       }
+      manualSelectionRef.current = true;
       setLinkedClientId(client.id);
       setLinkedClientName(syncRecord?.counterparty_name || '');
       toast({ title: "Client Created", description: `${syncRecord.counterparty_name} added as seller client` });
@@ -762,7 +774,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                         variant="ghost"
                         size="sm"
                         className="h-6 text-[10px]"
-                        onClick={() => { setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); setCrossNameWarning(false); }}
+                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); setCrossNameWarning(false); }}
                       >
                         Change
                       </Button>
@@ -803,7 +815,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                     {duplicateClients.map((client) => (
                       <button
                         key={client.id}
-                        onClick={() => { setLinkedClientId(client.id); setLinkedClientName(client.name); setDuplicateClients(duplicateClients); }}
+                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(client.id); setLinkedClientName(client.name); setDuplicateClients(duplicateClients); }}
                         className="w-full text-left p-2 rounded border hover:bg-accent/50 transition-colors text-sm"
                       >
                         <div className="flex items-center justify-between">

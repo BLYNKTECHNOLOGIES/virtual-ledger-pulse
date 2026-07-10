@@ -146,6 +146,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
   // Track how the auto-match was resolved so we can warn the operator
   const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
+  // Non-binding same-name suggestion the operator must confirm before linking.
+  const [nameSuggestion, setNameSuggestion] = useState<{ id: string; name: string } | null>(null);
   const [crossNameWarning, setCrossNameWarning] = useState(false);
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
@@ -155,7 +157,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // userNo is the stable, unique Binance account id — the primary identity key.
   // If it isn't cached yet for a fresh order, resolveOrderUserNo fetches order-detail on demand.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; setNameSuggestion(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
@@ -184,8 +186,14 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   useEffect(() => {
     if (!open || !displayName || displayName === '—') return;
     if (userNoLocked) return; // userNo lock takes precedence over name-based matching
-    if (linkedClientId && !clientAutoMatched) return;
+    if (manualSelectionRef.current) return; // never override an explicit operator decision
 
+    // A pre-link may be seeded from the sync record (clientAutoMatched === false).
+    // Do NOT blindly trust it — a lone verified-name match at sync time is the
+    // root cause of cross-contamination (KYC names are not globally unique).
+    // Re-validate it here and clear it if it isn't corroborated by a trustworthy
+    // signal (nickname / userNo), forcing the operator to confirm.
+    const hadSeededPrelink = !!linkedClientId && !clientAutoMatched;
 
     const unmaskedNick = (od?.counterparty_nickname_unmasked
       || (od?.counterparty_nickname && !String(od.counterparty_nickname).includes('*') ? od.counterparty_nickname : null)
@@ -225,8 +233,21 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         setCrossNameWarning(false);
         setShowClientDropdown(true);
       } else {
+        // No high-confidence match. If a non-corroborated pre-link was seeded,
+        // clear it — it may be a wrong same-name attribution. Surface any
+        // name suggestion for the operator to confirm manually.
         setAutoMatchVia(null);
         setCrossNameWarning(false);
+        if (hadSeededPrelink) {
+          console.warn(`[SalesApproval] Cleared non-corroborated pre-link for "${displayName}" — manual confirmation required`);
+          setLinkedClientId('');
+          setLinkedClientName('');
+          setClientAutoMatched(false);
+          setNameSuggestion(result.nameSuggestion || null);
+          setShowClientDropdown(true);
+        } else {
+          setNameSuggestion(result.nameSuggestion || null);
+        }
       }
     });
     return () => { cancelled = true; };
@@ -472,6 +493,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       });
       return;
     }
+    manualSelectionRef.current = true;
     setLinkedClientId('');
     setLinkedClientName('');
     setClientAutoMatched(false);

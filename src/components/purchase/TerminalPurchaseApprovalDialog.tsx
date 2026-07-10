@@ -406,6 +406,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         toast({ title: "Error", description: "Client creation returned no ID.", variant: "destructive" });
         return;
       }
+      manualSelectionRef.current = true;
       setLinkedClientId(client.id);
       setLinkedClientName(syncRecord?.counterparty_name || '');
       toast({ title: "Client Created", description: `${syncRecord.counterparty_name} added as seller client` });

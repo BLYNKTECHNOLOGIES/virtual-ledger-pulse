@@ -1,11 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
-import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName, sanitizeNickname, enrichVerifiedNameByNickname } from "@/lib/clientIdentityResolver";
+import { extractCounterpartyUserNo, resolveOrderUserNo } from "@/lib/clientIdentityResolver";
+
+/** Max on-demand userNo fetches per sync run (protects Binance rate limits). */
+const MAX_ONDEMAND_USERNO = 60;
 
 /**
- * Fetch verified buyer name from Binance order detail API.
- * Returns the real name or null if unavailable.
+ * Fetch verified buyer name from Binance order detail API — DISPLAY ONLY.
+ * Never used to match a client; matching is strictly by Binance userNo.
  */
 async function fetchVerifiedBuyerName(orderNumber: string, exchangeAccountId?: string | null): Promise<string | null> {
   try {
@@ -13,7 +16,6 @@ async function fetchVerifiedBuyerName(orderNumber: string, exchangeAccountId?: s
       body: { action: 'getOrderDetail', orderNumber, exchange_account_id: exchangeAccountId },
     });
     if (error) return null;
-    // The response structure: data.data.buyerRealName or data.data.sellerRealName
     const apiResult = data?.data;
     const detail = apiResult?.data || apiResult;
     if (!detail) return null;
@@ -56,7 +58,11 @@ async function fetchSalesOrdersByStatus(statuses: string[], cutoffTime: number):
 
 /**
  * Syncs completed SELL orders from binance_order_history to terminal_sales_sync.
- * Called after the order sync completes (alongside purchase sync).
+ *
+ * Client attribution is STRICTLY by Binance userNo (the stable, globally-unique
+ * account id). Nickname / verified-KYC-name matching has been removed — those
+ * are not globally unique and caused cross-contamination. Nicknames/verified
+ * names are still stored in order_data for DISPLAY only.
  */
 export async function syncCompletedSellOrders(): Promise<{ synced: number; duplicates: number }> {
   let synced = 0;
@@ -92,8 +98,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
     const walletNameById = new Map<string, string>((walletRows || []).map((w) => [w.id, w.wallet_name]));
 
     // 2. Get completed SELL orders from binance_order_history — last 7 days to catch cross-day orders
-    // (orders created yesterday but completed/appeal-resolved today)
-    const cutoffTime = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days ago in epoch ms
+    const cutoffTime = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const completedSells = await fetchSalesOrdersByStatus(['COMPLETED', '4'], cutoffTime);
 
     if (!completedSells || completedSells.length === 0) {
@@ -113,21 +118,16 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       }
     }
 
-    // 3. Get existing sync records to check duplicates AND detect broken historical links
+    // 3. Get existing sync records to check duplicates
     const orderNumbers = filteredSells.map(o => o.order_number);
     const { data: existingSyncs } = await supabase
       .from('terminal_sales_sync')
       .select('id, binance_order_number, sync_status, sales_order_id')
       .in('binance_order_number', orderNumbers);
 
-    // NOTE: Auto-heal logic was removed — it was aggressively resetting approved sync records
-    // back to pending when terminal_sync_id didn't match, causing 276+ records to lose their
-    // approved status. The mismatch was benign (different sync flows creating the sales order)
-    // and did not indicate actual data corruption.
-
     const existingSet = new Set((existingSyncs || []).map((s: any) => s.binance_order_number));
 
-    // 3b. Fetch unmasked nicknames from p2p_order_records
+    // 3b. Fetch unmasked nicknames from p2p_order_records (DISPLAY ONLY)
     const { data: p2pNicknames } = await supabase
       .from('p2p_order_records')
       .select('binance_order_number, counterparty_nickname')
@@ -137,22 +137,13 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       (p2pNicknames || []).map((r: any) => [r.binance_order_number, r.counterparty_nickname])
     );
 
-    // 4. Get contact records for counterparties
-    // Filter out masked nicknames (containing *) to prevent cross-contamination of contact data
-    const nicknames = [...new Set(
+    // 4. Contact records for display (contact number / state) keyed by nickname
+    const allSafeNicknames = [...new Set(
       filteredSells
-        .map(o => o.counter_part_nick_name)
+        .flatMap(o => [o.counter_part_nick_name, p2pNicknameMap.get(o.order_number)])
         .filter(Boolean)
         .filter((n: string) => !n.includes('*'))
     )];
-    // Also collect unmasked nicknames from p2p_order_records
-    const unmaskedNicks = [...new Set(
-      filteredSells
-        .map(o => p2pNicknameMap.get(o.order_number))
-        .filter(Boolean)
-        .filter((n: string) => !n.includes('*'))
-    )];
-    const allSafeNicknames = [...new Set([...nicknames, ...unmaskedNicks])];
 
     const { data: contactRecords } = await supabase
       .from('counterparty_contact_records')
@@ -161,38 +152,45 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
     const contactMap = new Map((contactRecords || []).map(c => [c.counterparty_nickname, c]));
 
-    // 4b. Lookup client_binance_nicknames for auto-matching by nickname
-    const { data: nicknameLinks } = await supabase
-      .from('client_binance_nicknames')
-      .select('nickname, client_id')
-      .eq('is_active', true)
-      .in('nickname', allSafeNicknames.length > 0 ? allSafeNicknames : ['__none__']);
+    // 5. === userNo-ONLY client resolution ===
+    // 5a. Cached userNos for these orders from cp_order_identity.
+    const { data: coiRows } = await supabase
+      .from('cp_order_identity')
+      .select('order_number, cp_userno')
+      .in('order_number', orderNumbers.length > 0 ? orderNumbers : ['__none__']);
+    const cachedUserNo = new Map<string, string>();
+    for (const r of coiRows || []) {
+      if (r.cp_userno) cachedUserNo.set(r.order_number, String(r.cp_userno));
+    }
 
-    const nicknameClientMap = new Map(
-      (nicknameLinks || []).map((l: any) => [l.nickname, l.client_id])
-    );
+    // 5b. For each new order, determine cpUserNo (cache → order_detail_raw).
+    const newOrders = filteredSells.filter(o => !existingSet.has(o.order_number));
+    const orderUserNo = new Map<string, string>();
+    for (const order of newOrders) {
+      let uno = cachedUserNo.get(order.order_number) || null;
+      if (!uno && order.order_detail_raw) {
+        uno = extractCounterpartyUserNo(order.order_detail_raw, 'SELL');
+      }
+      if (uno) orderUserNo.set(order.order_number, String(uno));
+    }
 
-    // 4c. Lookup client_verified_names for Priority 0 identity resolution
-    const allVerifiedNames = [...new Set(
-      filteredSells
-        .map(o => o.verified_name || null)
-        .filter((v): v is string => Boolean(v) && v !== 'Unknown')
-    )];
-    const verifiedNameMap = await fetchVerifiedNameMap(allVerifiedNames);
-
-    // 5. Try to match clients — use case-insensitive matching to prevent duplicates
-    const { data: matchedClients } = await supabase
-      .from('clients')
-      .select('id, name')
-      .eq('is_deleted', false);
-
-    // Build case-insensitive name→id map from ALL non-deleted clients
-    const clientMap = new Map<string, string>();
-    for (const c of (matchedClients || [])) {
-      clientMap.set(c.name.trim().toLowerCase(), c.id);
+    // 5c. Resolve all known userNos → client in one query.
+    const knownUserNos = [...new Set([...orderUserNo.values()])];
+    const userNoClientMap = new Map<string, { id: string; name: string | null }>();
+    if (knownUserNos.length > 0) {
+      const { data: unoRows } = await supabase
+        .from('client_binance_usernos')
+        .select('cp_userno, client_id, clients!inner(id, name, is_deleted)')
+        .eq('is_active', true)
+        .in('cp_userno', knownUserNos);
+      for (const r of unoRows || []) {
+        const c = (r as any).clients;
+        if (c && !c.is_deleted) userNoClientMap.set(String((r as any).cp_userno), { id: c.id, name: c.name });
+      }
     }
 
     const userId = getCurrentUserId();
+    let onDemandBudget = MAX_ONDEMAND_USERNO;
 
     // 6. Process each order
     const toInsert: any[] = [];
@@ -202,62 +200,50 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         continue;
       }
 
-      // Enrich: fetch verified buyer name from order detail API
+      const orderAccountId = (order as any).exchange_account_id || null;
+
+      // ---- userNo resolution ----
+      let cpUserNo = orderUserNo.get(order.order_number) || null;
+      let clientId: string | null = cpUserNo ? (userNoClientMap.get(cpUserNo)?.id ?? null) : null;
+
+      // On-demand fetch when userNo still unknown (bounded per run).
+      if (!cpUserNo && onDemandBudget > 0) {
+        onDemandBudget--;
+        const res = await resolveOrderUserNo({
+          orderNumber: order.order_number,
+          tradeType: 'SELL',
+          exchangeAccountId: orderAccountId,
+        });
+        if (res.cpUserNo) {
+          cpUserNo = res.cpUserNo;
+          clientId = res.clientId ?? (userNoClientMap.get(res.cpUserNo)?.id ?? null);
+        }
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      // ---- display-only enrichment (verified name for readability) ----
       let verifiedName = order.verified_name || null;
       if (!verifiedName || verifiedName === order.counter_part_nick_name) {
-        const fetched = await fetchVerifiedBuyerName(order.order_number, (order as any).exchange_account_id || null);
+        const fetched = await fetchVerifiedBuyerName(order.order_number, orderAccountId);
         if (fetched) {
           verifiedName = fetched;
-          // Persist verified name back to binance_order_history (parity with purchase sync)
           await supabase
             .from('binance_order_history')
             .update({ verified_name: fetched })
             .eq('order_number', order.order_number);
         }
-        // Small delay to avoid rate limiting
         await new Promise(r => setTimeout(r, 200));
       }
 
       const isMaskedNick = (order.counter_part_nick_name || '').includes('*');
-      // NEVER use masked nickname as counterparty name — only verified names or unmasked nicknames
       const counterpartyName = verifiedName || (!isMaskedNick ? order.counter_part_nick_name : null) || 'Unknown';
       const contact = contactMap.get(order.counter_part_nick_name || '') || null;
-
-      // Resolve unmasked nickname from p2p_order_records
       const unmaskedNickname = p2pNicknameMap.get(order.order_number) || null;
-      const safeUnmasked = unmaskedNickname && !unmaskedNickname.includes('*') ? unmaskedNickname : null;
-      const safeNick = !isMaskedNick ? order.counter_part_nick_name : null;
 
-      // Multi-signal identity resolution
-      // If we just fetched a new verified name, add it to the map for resolution
-      if (verifiedName && !verifiedNameMap.has(verifiedName)) {
-        // New verified name not yet in DB — won't match, but that's correct
-      }
-      const resolved = resolveClientId({
-        verifiedName,
-        unmaskedNickname: safeUnmasked,
-        safeNickname: safeNick,
-        counterpartyName,
-        verifiedNameMap,
-        nicknameClientMap,
-        clientNameMap: clientMap,
-      });
-      const clientId = resolved.clientId;
-      const resolvedVia = resolved.resolvedVia;
+      // Auto-link ONLY when userNo maps to an existing client. Otherwise the
+      // operator must confirm/create the client manually (no name matching).
+      const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
 
-      // Progressive enrichment: if this order recurs for a nickname already linked to a
-      // client (userNo/nickname match), backfill the real verified name onto that client's
-      // directory record. This corrects split same-name clients (e.g. de-merged MANOJ KUMAR)
-      // as their orders re-sync — never touches a different same-name client.
-      if (clientId && (resolvedVia === 'nickname' || resolvedVia === 'intersection') && verifiedName) {
-        await enrichVerifiedNameByNickname(safeUnmasked || safeNick, verifiedName);
-      }
-
-
-      // Force manual mapping if we couldn't resolve a real name
-      const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');
-
-      const orderAccountId = (order as any).exchange_account_id || null;
       const link = resolveLink(orderAccountId);
 
       toInsert.push({
@@ -275,6 +261,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
           counterparty_nickname: order.counter_part_nick_name,
           counterparty_nickname_unmasked: unmaskedNickname,
           verified_name: verifiedName,
+          cp_userno: cpUserNo,
           create_time: order.create_time,
           pay_method: order.pay_method_name,
           wallet_id: link.wallet_id,
@@ -287,7 +274,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         state: contact?.state || null,
         synced_by: userId || null,
         synced_at: new Date().toISOString(),
-        resolved_via: resolvedVia,
+        resolved_via: cpUserNo ? 'userno' : null,
       });
     }
 
@@ -301,50 +288,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       }
       synced = toInsert.length;
     }
-
-    // Auto-backfill: capture unmasked nicknames + verified names ONLY for clients
-    // already APPROVED as buyers. Linking a nickname to a still-PENDING client
-    // creates a self-match in the Approvals queue. Wait for the operator-approval
-    // flow to do the upsert at approve-time instead.
-    const matchedClientIds = Array.from(new Set(toInsert.map(r => r.client_id).filter(Boolean) as string[]));
-    const approvedBuyerIds = new Set<string>();
-    if (matchedClientIds.length > 0) {
-      const { data: approvedRows } = await supabase
-        .from('clients')
-        .select('id')
-        .in('id', matchedClientIds)
-        .eq('is_deleted', false)
-        .eq('buyer_approval_status', 'APPROVED');
-      for (const r of approvedRows || []) approvedBuyerIds.add(r.id);
-    }
-
-    for (const rec of toInsert) {
-      if (!rec.client_id) continue;
-      if (!approvedBuyerIds.has(rec.client_id)) continue; // Skip pending/rejected — avoid self-match pollution
-
-      // Capture verified name into client_verified_names
-      await captureVerifiedName(rec.client_id, rec.order_data?.verified_name, 'auto_sync');
-
-      const unmasked = rec.order_data?.counterparty_nickname_unmasked;
-      const safeNick = rec.order_data?.counterparty_nickname;
-      const nicksToCapture = [
-        sanitizeNickname(unmasked),
-        sanitizeNickname(safeNick),
-      ].filter((v): v is string => Boolean(v));
-
-      for (const nick of nicksToCapture) {
-        if (nicknameClientMap.has(nick)) continue; // Already linked
-        try {
-          await supabase.from('client_binance_nicknames').upsert({
-            client_id: rec.client_id,
-            nickname: nick,
-            source: 'auto_sync',
-            last_seen_at: new Date().toISOString(),
-          }, { onConflict: 'nickname' });
-        } catch { /* best effort — DB trigger now also rejects sentinels */ }
-      }
-    }
-
   } catch (err) {
     console.error('[SalesSync] Error:', err);
   }

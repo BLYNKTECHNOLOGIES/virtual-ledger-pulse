@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
-import { resolveTerminalApprovalClient, resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, linkClientUserNo } from "@/lib/clientIdentityResolver";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
@@ -64,8 +64,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Contact & State form fields (like Sales dialog)
   const [contactNumber, setContactNumber] = useState('');
   const [clientState, setClientState] = useState('');
-  const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
-  const [crossNameWarning, setCrossNameWarning] = useState(false);
+  const [autoMatchVia, setAutoMatchVia] = useState<string | null>(null);
 
   // Conflict tracking between client master and counterparty records
   const [clientMasterPan, setClientMasterPan] = useState('');
@@ -100,8 +99,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       if (!res.clientId) return;
       setLinkedClientId(res.clientId);
       setLinkedClientName(res.clientName || '');
-      setAutoMatchVia('nickname');
-      setCrossNameWarning(false);
+      setAutoMatchVia('userno');
       setUserNoLocked(true);
     });
     return () => { cancelled = true; };
@@ -205,54 +203,10 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       setContactNumber(resolvedPhone);
       setClientState(resolvedState);
 
-      // Never override an explicit operator decision.
-      if (manualSelectionRef.current) return;
-
-      // userNo lock takes precedence — skip name-based matching entirely when locked.
-      if (userNoLocked) return;
-
-      const seededClientId = syncRecord?.client_id || linkedClientId || '';
-
-      // Strict precedence auto-match: nickname → verified name (corroborated only).
-      const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
-        || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
-        || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
-        || null) as string | null;
-      const verifiedName = (syncRecord?.order_data?.verified_name || null) as string | null;
-      const displayName = verifiedName || syncRecord?.counterparty_name || null;
-
-      const result = await resolveTerminalApprovalClient({
-        unmaskedNickname: unmaskedNick,
-        verifiedName,
-        displayName,
-        side: 'seller',
-      });
-
-      if (result.clientId) {
-        // High-confidence match (nickname / intersection). Trust it.
-        setLinkedClientId(result.clientId);
-        setLinkedClientName(result.clientName || '');
-        setAutoMatchVia(result.resolvedVia);
-        setCrossNameWarning(result.crossNameWarning);
-        setDuplicateClients([]);
-        return;
-      }
-
-      // No high-confidence match. A seeded pre-link (from the sync record) may be
-      // a wrong same-name attribution — a lone verified-name match is NOT a safe
-      // identity signal. Clear it and force the operator to confirm manually.
-      if (seededClientId) {
-        console.warn(`[PurchaseApproval] Cleared non-corroborated pre-link for "${displayName}" — manual confirmation required`);
-        setLinkedClientId('');
-        setLinkedClientName('');
-        setAutoMatchVia(null);
-        setCrossNameWarning(false);
-      }
-      if (syncRecord?.counterparty_name) {
-        const matches = await findAllClientsByName(syncRecord.counterparty_name);
-        setDuplicateClients(matches.length > 1 ? matches : []);
-      }
+      // Client binding is driven strictly by Binance userNo (the userNo effect
+      // above). No nickname / verified-name / display-name matching here.
     };
+
 
     fetchResolvedData();
   }, [open, syncRecord, linkedClientId, userNoLocked]);
@@ -573,49 +527,13 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           await supabase.from('clients').update(updates).eq('id', linkedClientId);
         }
 
-        // Auto-capture nickname→client link for future auto-matching
-        const unmaskedNick = od.counterparty_nickname_unmasked || od.counterparty_nickname || syncRecord?.counterparty_name || '';
-        const safeNick = unmaskedNick.trim();
-        if (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') {
-          await supabase
-            .from('client_binance_nicknames')
-            .upsert({
-              client_id: linkedClientId,
-              nickname: safeNick,
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'nickname' })
-            .then(({ error }) => {
-              if (error) console.warn('[PurchaseApproval] Nickname link upsert failed:', error.message);
-            });
-        }
-        // Auto-capture verified name — only when correlated to this client
-        const verifiedName = od.verified_name || syncRecord?.counterparty_name;
-        const cleanVName = sanitizeVerifiedName(verifiedName);
-        if (cleanVName) {
-          const supportingNick = (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') ? safeNick : null;
-          const ok = await canAttachVerifiedName({
-            clientId: linkedClientId,
-            verifiedName: cleanVName,
-            supportingNickname: supportingNick,
-          });
-          if (ok) {
-            await supabase
-              .from('client_verified_names')
-              .upsert({
-                client_id: linkedClientId,
-                verified_name: cleanVName,
-                source: 'approval',
-                last_seen_at: new Date().toISOString(),
-              }, { onConflict: 'client_id,verified_name' })
-              .then(({ error }) => {
-                if (error) console.warn('[PurchaseApproval] Verified name upsert failed:', error.message);
-              });
-          } else {
-            console.warn(`[PurchaseApproval] Skipped verified-name attachment "${cleanVName}" → client ${linkedClientId}: no correlation evidence (prevents cross-contamination).`);
-          }
+        // Persist the Binance userNo → client link (the only identity anchor).
+        if (lockedUserNo) {
+          await linkClientUserNo(linkedClientId, lockedUserNo, 'approval');
         }
       }
+
+
 
       // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {
@@ -774,7 +692,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                         variant="ghost"
                         size="sm"
                         className="h-6 text-[10px]"
-                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); setCrossNameWarning(false); }}
+                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); }}
                       >
                         Change
                       </Button>
@@ -788,19 +706,11 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                       </span>
                     </div>
                   )}
-                  {autoMatchVia && autoMatchVia !== 'name_exact' && (
+                  {autoMatchVia === 'userno' && (
                     <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />
                       <span className="text-[11px] font-medium text-info dark:text-info">
-                        Auto-linked by {autoMatchVia === 'nickname' ? 'Binance nickname' : 'KYC verified name'} — strongest identity signal.
-                      </span>
-                    </div>
-                  )}
-                  {crossNameWarning && (
-                    <div className="flex items-center gap-2 rounded-md border border-warning bg-warning/10 dark:border-warning dark:bg-warning/30 px-3 py-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-warning dark:text-warning shrink-0" />
-                      <span className="text-[11px] font-medium text-warning dark:text-warning">
-                        Linked by nickname/KYC — name on Binance ("{syncRecord?.counterparty_name}") differs from client master ("{linkedClientName}"). Confirm this is intentional.
+                        Auto-linked by Binance userNo — the unique account identity.
                       </span>
                     </div>
                   )}

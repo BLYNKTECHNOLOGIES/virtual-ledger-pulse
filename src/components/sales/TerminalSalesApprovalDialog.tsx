@@ -31,7 +31,7 @@ import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { matchesWordPrefix } from "@/lib/utils";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
-import { resolveTerminalApprovalClient, resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, linkClientUserNo } from "@/lib/clientIdentityResolver";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface Props {
@@ -144,20 +144,19 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     return [...exact, ...partial];
   }, [displayName, allClients]);
 
-  // Track how the auto-match was resolved so we can warn the operator
-  const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
-  // Non-binding same-name suggestion the operator must confirm before linking.
-  const [nameSuggestion, setNameSuggestion] = useState<{ id: string; name: string } | null>(null);
-  const [crossNameWarning, setCrossNameWarning] = useState(false);
+  // How the auto-match was resolved (only 'userno' auto-locks now).
+  const [autoMatchVia, setAutoMatchVia] = useState<string | null>(null);
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
 
-  // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor).
-  // userNo is the stable, unique Binance account id — the primary identity key.
-  // If it isn't cached yet for a fresh order, resolveOrderUserNo fetches order-detail on demand.
+  // Resolve & LOCK client STRICTLY by Binance userNo (the only identity anchor).
+  // userNo is the stable, unique Binance account id. Nickname / verified-name /
+  // display-name matching has been removed — it caused cross-contamination.
+  // If userNo isn't cached for a fresh order, resolveOrderUserNo fetches
+  // order-detail on demand. No userNo → operator must pick/create manually.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; setNameSuggestion(null); return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
@@ -169,89 +168,25 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     }).then((res) => {
       if (cancelled) return;
       if (res.cpUserNo) setLockedUserNo(String(res.cpUserNo));
-      if (!res.clientId) return;
+      if (!res.clientId) return; // unknown userNo → manual selection/creation
       setLinkedClientId(res.clientId);
       setLinkedClientName(res.clientName || '');
       setClientAutoMatched(true);
-      setAutoMatchVia('nickname');
-      setCrossNameWarning(false);
+      setAutoMatchVia('userno');
       setShowClientDropdown(false);
       setUserNoLocked(true);
-    });
-    return () => { cancelled = true; };
-  }, [open, od?.order_number, syncRecord?.binance_order_number]);
-
-
-  // Auto-select client using strict precedence: nickname → verified name → exact name
-  useEffect(() => {
-    if (!open || !displayName || displayName === '—') return;
-    if (userNoLocked) return; // userNo lock takes precedence over name-based matching
-    if (manualSelectionRef.current) return; // never override an explicit operator decision
-
-    // A pre-link may be seeded from the sync record (clientAutoMatched === false).
-    // Do NOT blindly trust it — a lone verified-name match at sync time is the
-    // root cause of cross-contamination (KYC names are not globally unique).
-    // Re-validate it here and clear it if it isn't corroborated by a trustworthy
-    // signal (nickname / userNo), forcing the operator to confirm.
-    const hadSeededPrelink = !!linkedClientId && !clientAutoMatched;
-
-    const unmaskedNick = (od?.counterparty_nickname_unmasked
-      || (od?.counterparty_nickname && !String(od.counterparty_nickname).includes('*') ? od.counterparty_nickname : null)
-      || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
-      || null) as string | null;
-    const verifiedName = (od?.verified_name || enrichedName || null) as string | null;
-
-    let cancelled = false;
-    resolveTerminalApprovalClient({
-      unmaskedNickname: unmaskedNick,
-      verifiedName,
-      displayName,
-      side: 'buyer',
-    }).then(result => {
-      if (cancelled) return;
-      if (result.clientId) {
-        setLinkedClientId(result.clientId);
-        setLinkedClientName(result.clientName || '');
-        setClientAutoMatched(true);
-        setAutoMatchVia(result.resolvedVia);
-        setCrossNameWarning(result.crossNameWarning);
-        const matched = allClients.find(c => c.id === result.clientId);
-        if (matched) {
-          const isApprovedClient = String(matched.buyer_approval_status || '').toUpperCase() === 'APPROVED';
-          if (!contactNumber && matched.phone) setContactNumber(matched.phone);
-          if (!clientState && matched.state && isApprovedClient) {
-            const normalizedState = normalizeIndianState(matched.state);
-            if (normalizedState) setClientState(normalizedState);
-          }
-        }
-      } else if (result.ambiguousCandidates.length > 1) {
-        console.warn(`[SalesApproval] Ambiguous match for "${displayName}" — requires manual selection`);
-        setLinkedClientId('');
-        setLinkedClientName('');
-        setClientAutoMatched(false);
-        setAutoMatchVia(null);
-        setCrossNameWarning(false);
-        setShowClientDropdown(true);
-      } else {
-        // No high-confidence match. If a non-corroborated pre-link was seeded,
-        // clear it — it may be a wrong same-name attribution. Surface any
-        // name suggestion for the operator to confirm manually.
-        setAutoMatchVia(null);
-        setCrossNameWarning(false);
-        if (hadSeededPrelink) {
-          console.warn(`[SalesApproval] Cleared non-corroborated pre-link for "${displayName}" — manual confirmation required`);
-          setLinkedClientId('');
-          setLinkedClientName('');
-          setClientAutoMatched(false);
-          setNameSuggestion(result.nameSuggestion || null);
-          setShowClientDropdown(true);
-        } else {
-          setNameSuggestion(result.nameSuggestion || null);
+      const matched = allClients.find(c => c.id === res.clientId);
+      if (matched) {
+        const isApprovedClient = String(matched.buyer_approval_status || '').toUpperCase() === 'APPROVED';
+        if (!contactNumber && matched.phone) setContactNumber(matched.phone);
+        if (!clientState && matched.state && isApprovedClient) {
+          const normalizedState = normalizeIndianState(matched.state);
+          if (normalizedState) setClientState(normalizedState);
         }
       }
     });
     return () => { cancelled = true; };
-  }, [open, displayName, allClients, linkedClientId, clientAutoMatched, contactNumber, clientState, od, enrichedName, syncRecord, userNoLocked]);
+  }, [open, od?.order_number, syncRecord?.binance_order_number, allClients]);
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {
@@ -802,53 +737,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         }
       }
 
-      // Auto-capture nickname→client link for future auto-matching.
-      // Strict: only persist a real unmasked nickname — never the masked "S***" form.
-      if (linkedClientId) {
-        const safeNick = sanitizeNickname(od.counterparty_nickname_unmasked)
-          || sanitizeNickname(od.counterparty_nickname)
-          || sanitizeNickname(syncRecord?.counterparty_name);
-        if (safeNick) {
-          await supabase
-            .from('client_binance_nicknames')
-            .upsert({
-              client_id: linkedClientId,
-              nickname: safeNick,
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'nickname' })
-            .then(({ error }) => {
-              if (error) console.warn('[SalesApproval] Nickname link upsert failed:', error.message);
-            });
-        }
-        // Auto-capture verified name — only when correlated to this client
-        const verifiedName = od.verified_name || syncRecord?.counterparty_name;
-        const cleanVName = sanitizeVerifiedName(verifiedName);
-        if (cleanVName) {
-          const safeNickForCheck = sanitizeNickname(od.counterparty_nickname_unmasked)
-            || sanitizeNickname(od.counterparty_nickname)
-            || sanitizeNickname(syncRecord?.counterparty_name);
-          const ok = await canAttachVerifiedName({
-            clientId: linkedClientId,
-            verifiedName: cleanVName,
-            supportingNickname: safeNickForCheck,
-          });
-          if (ok) {
-            await supabase
-              .from('client_verified_names')
-              .upsert({
-                client_id: linkedClientId,
-                verified_name: cleanVName,
-                source: 'approval',
-                last_seen_at: new Date().toISOString(),
-              }, { onConflict: 'client_id,verified_name' })
-              .then(({ error }) => {
-                if (error) console.warn('[SalesApproval] Verified name upsert failed:', error.message);
-              });
-          } else {
-            console.warn(`[SalesApproval] Skipped verified-name attachment "${cleanVName}" → client ${linkedClientId}: no correlation evidence (prevents cross-contamination).`);
-          }
-        }
+      // Persist the Binance userNo → client link (the only identity anchor).
+      if (linkedClientId && lockedUserNo) {
+        await linkClientUserNo(linkedClientId, lockedUserNo, 'approval');
       }
 
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval
@@ -1026,20 +917,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                       </span>
                     </div>
                   )}
-                  {/* Auto-match precedence info — surfaces nickname/verified-name vs name match */}
-                  {clientAutoMatched && autoMatchVia && autoMatchVia !== 'name_exact' && (
+                  {/* Auto-match info — client bound strictly by Binance userNo */}
+                  {clientAutoMatched && autoMatchVia === 'userno' && (
                     <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />
                       <span className="text-[11px] font-medium text-info dark:text-info">
-                        Auto-linked by {autoMatchVia === 'nickname' ? 'Binance nickname' : 'KYC verified name'} — strongest identity signal.
-                      </span>
-                    </div>
-                  )}
-                  {clientAutoMatched && crossNameWarning && (
-                    <div className="flex items-center gap-2 rounded-md border border-warning bg-warning/10 dark:border-warning dark:bg-warning/30 px-3 py-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-warning dark:text-warning shrink-0" />
-                      <span className="text-[11px] font-medium text-warning dark:text-warning">
-                        Linked by nickname/KYC — name on Binance ("{displayName}") differs from client master ("{selectedClient.name}"). Confirm this is intentional.
+                        Auto-linked by Binance userNo — the unique account identity.
                       </span>
                     </div>
                   )}

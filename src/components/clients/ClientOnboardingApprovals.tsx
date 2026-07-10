@@ -28,7 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
-import { sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName } from '@/lib/clientIdentityResolver';
+import { sanitizeNickname, sanitizeVerifiedName } from '@/lib/clientIdentityResolver';
 import { 
   CheckCircle, 
   XCircle, 
@@ -1198,60 +1198,9 @@ export function ClientOnboardingApprovals() {
         }
       });
 
-      // Auto-capture Binance nickname → client link (uses identityMap)
-      const idInfo = identityMap?.[variables.id];
-      const nickname = idInfo?.nickname || null;
-      const verifiedName = idInfo?.verifiedName || null;
-      if (nickname || verifiedName) {
-        try {
-          let targetClientId = variables.existingClientId;
-          if (!targetClientId) {
-            const approval = approvals?.find(a => a.id === variables.id);
-            if (approval) {
-              const { data: cl } = await supabase
-                .from('clients')
-                .select('id')
-                .eq('is_deleted', false)
-                .ilike('name', approval.client_name.trim())
-                .maybeSingle();
-              targetClientId = cl?.id;
-            }
-          }
-          if (targetClientId && nickname && !nickname.includes('*')) {
-            await supabase.from('client_binance_nicknames').upsert({
-              client_id: targetClientId,
-              nickname,
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'nickname' });
-          }
-          if (targetClientId) {
-            // Only attach the *verified* KYC name — never fall back to the
-            // display name (approval.client_name), which is just operator
-            // input and is NOT a KYC-verified identity.
-            const vname = sanitizeVerifiedName(verifiedName);
-            if (vname) {
-              const ok = await canAttachVerifiedName({
-                clientId: targetClientId,
-                verifiedName: vname,
-                supportingNickname: nickname && !nickname.includes('*') ? nickname : null,
-              });
-              if (ok) {
-                await supabase.from('client_verified_names').upsert({
-                  client_id: targetClientId,
-                  verified_name: vname,
-                  source: 'approval',
-                  last_seen_at: new Date().toISOString(),
-                }, { onConflict: 'client_id,verified_name' });
-              } else {
-                console.warn(`[ClientOnboarding] Skipped verified-name attachment "${vname}" → client ${targetClientId}: no correlation evidence.`);
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Failed to auto-capture nickname link:', e);
-        }
-      }
+      // Client identity is anchored strictly by Binance userNo elsewhere;
+      // nickname / verified-name auto-capture has been removed.
+
       
       toast({
         title: "Client Approved",

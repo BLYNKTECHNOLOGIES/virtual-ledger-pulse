@@ -535,7 +535,7 @@ export default function UserProfile() {
     leave_type_id: '', from_date: '', to_date: '', reason: ''
   });
   const [settingsData, setSettingsData] = useState({
-    newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '', passwordResetReason: ''
+    newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);

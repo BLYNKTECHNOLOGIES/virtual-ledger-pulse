@@ -1994,7 +1994,7 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        {approval.sales_order_id && (
+                        {approval.sales_order_id ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -2003,7 +2003,16 @@ export function ClientOnboardingApprovals() {
                             <FileText className="h-3 w-3 mr-1" />
                             View Order
                           </Button>
-                        )}
+                        ) : approval.binance_nickname ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewNicknameOrders(approval)}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            View Orders
+                          </Button>
+                        ) : null}
                         <Button
                           size="sm"
                           onClick={() => handleApprovalClick(approval)}

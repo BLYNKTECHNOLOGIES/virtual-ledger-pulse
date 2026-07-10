@@ -383,6 +383,15 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     mutationFn: async () => {
       const userId = await requireCurrentUserId();
 
+      // Hard gate: never approve an order whose Binance userNo hasn't been inferred.
+      if (userNoResolving) {
+        throw new Error("Still inferring the Binance User No for this order — please wait.");
+      }
+      if (!lockedUserNo) {
+        throw new Error("Cannot approve: Binance User No could not be inferred for this order.");
+      }
+
+
       // Validate
       if (tdsOption === '1%' && !panNumber.trim()) {
         throw new Error("PAN is required for 1% TDS");

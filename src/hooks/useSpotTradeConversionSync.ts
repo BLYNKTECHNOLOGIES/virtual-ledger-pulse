@@ -130,15 +130,26 @@ export function useUnsyncedSpotTrades() {
         }
       }
 
-      return trades.map((t: any) => {
-        const fillIds: string[] = t._fill_ids || [t.id];
-        const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
-          (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
-        const cutoff = maxApprovedBySymbol.get(t.symbol) ?? 0;
-        const isStale = !anySynced && Number(t.trade_time) > 0 && cutoff > 0 && Number(t.trade_time) < cutoff;
-        const { _fill_ids, ...rest } = t;
-        return { ...rest, fill_ids: fillIds, already_synced: anySynced || isStale } as SpotTradeForSync;
-      });
+      return trades
+        // Skip orders that are still settling (a fill landed within the settle
+        // window). They reappear automatically once quiet, fully aggregated.
+        .filter((t: any) => {
+          const anySyncedNow = (t._fill_ids || [t.id]).some((fid: string) => syncedTradeIds.has(fid)) ||
+            (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+          if (anySyncedNow) return true; // keep already-synced ones for status display
+          const lastFill = Number(t._last_fill_ts) || 0;
+          return !(lastFill > 0 && now - lastFill < SETTLE_WINDOW_MS);
+        })
+        .map((t: any) => {
+          const fillIds: string[] = t._fill_ids || [t.id];
+          const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
+            (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+          const cutoff = maxApprovedBySymbol.get(t.symbol) ?? 0;
+          const isStale = !anySynced && Number(t.trade_time) > 0 && cutoff > 0 && Number(t.trade_time) < cutoff;
+          const { _fill_ids, _last_fill_ts, ...rest } = t;
+          return { ...rest, fill_ids: fillIds, already_synced: anySynced || isStale } as SpotTradeForSync;
+        });
+
     },
   });
 }

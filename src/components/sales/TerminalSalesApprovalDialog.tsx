@@ -737,53 +737,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         }
       }
 
-      // Auto-capture nickname→client link for future auto-matching.
-      // Strict: only persist a real unmasked nickname — never the masked "S***" form.
-      if (linkedClientId) {
-        const safeNick = sanitizeNickname(od.counterparty_nickname_unmasked)
-          || sanitizeNickname(od.counterparty_nickname)
-          || sanitizeNickname(syncRecord?.counterparty_name);
-        if (safeNick) {
-          await supabase
-            .from('client_binance_nicknames')
-            .upsert({
-              client_id: linkedClientId,
-              nickname: safeNick,
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'nickname' })
-            .then(({ error }) => {
-              if (error) console.warn('[SalesApproval] Nickname link upsert failed:', error.message);
-            });
-        }
-        // Auto-capture verified name — only when correlated to this client
-        const verifiedName = od.verified_name || syncRecord?.counterparty_name;
-        const cleanVName = sanitizeVerifiedName(verifiedName);
-        if (cleanVName) {
-          const safeNickForCheck = sanitizeNickname(od.counterparty_nickname_unmasked)
-            || sanitizeNickname(od.counterparty_nickname)
-            || sanitizeNickname(syncRecord?.counterparty_name);
-          const ok = await canAttachVerifiedName({
-            clientId: linkedClientId,
-            verifiedName: cleanVName,
-            supportingNickname: safeNickForCheck,
-          });
-          if (ok) {
-            await supabase
-              .from('client_verified_names')
-              .upsert({
-                client_id: linkedClientId,
-                verified_name: cleanVName,
-                source: 'approval',
-                last_seen_at: new Date().toISOString(),
-              }, { onConflict: 'client_id,verified_name' })
-              .then(({ error }) => {
-                if (error) console.warn('[SalesApproval] Verified name upsert failed:', error.message);
-              });
-          } else {
-            console.warn(`[SalesApproval] Skipped verified-name attachment "${cleanVName}" → client ${linkedClientId}: no correlation evidence (prevents cross-contamination).`);
-          }
-        }
+      // Persist the Binance userNo → client link (the only identity anchor).
+      if (linkedClientId && lockedUserNo) {
+        await linkClientUserNo(linkedClientId, lockedUserNo, 'approval');
       }
 
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval

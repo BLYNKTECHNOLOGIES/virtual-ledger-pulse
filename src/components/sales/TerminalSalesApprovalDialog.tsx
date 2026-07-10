@@ -481,6 +481,15 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     mutationFn: async () => {
       const userId = await requireCurrentUserId();
 
+      // Hard gate: never approve an order whose Binance userNo hasn't been inferred.
+      if (userNoResolving) {
+        throw new Error("Still inferring the Binance User No for this order — please wait.");
+      }
+      if (!lockedUserNo) {
+        throw new Error("Cannot approve: Binance User No could not be inferred for this order.");
+      }
+
+
       if (isMultiplePayments) {
         if (!splitAllocation.isValid) {
           throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)} (must be ₹0.00)`);

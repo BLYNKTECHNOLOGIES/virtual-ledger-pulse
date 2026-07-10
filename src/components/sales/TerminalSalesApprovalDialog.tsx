@@ -159,11 +159,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // If userNo isn't cached for a fresh order, resolveOrderUserNo fetches
   // order-detail on demand. No userNo → operator must pick/create manually.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
     let cancelled = false;
+    setUserNoResolving(true);
     resolveOrderUserNo({
       orderNumber: String(orderNumber),
       tradeType: 'SELL', // our sales flow: WE sell, counterparty is the buyer
@@ -187,9 +188,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           if (normalizedState) setClientState(normalizedState);
         }
       }
+    }).finally(() => {
+      if (!cancelled) setUserNoResolving(false);
     });
     return () => { cancelled = true; };
   }, [open, od?.order_number, syncRecord?.binance_order_number, allClients]);
+
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {

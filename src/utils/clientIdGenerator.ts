@@ -188,7 +188,16 @@ export const createSellerClient = async (
       return { id: c.id, client_id: c.client_id };
     };
 
-    // 1. Identity-first: nickname (proxy for stable userNo).
+    // 0. Primary identity: Binance userNo — the stable, unique account identifier.
+    if (cpUserNo) {
+      const owner = await resolveClientByUserNo(cpUserNo);
+      if (owner) {
+        if (cleanVerifiedName && cleanNickname) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
+        return markSeller(owner);
+      }
+    }
+
+    // 1. Identity fallback: nickname (proxy for stable userNo).
     if (cleanNickname) {
       const owner = await resolveClientByNickname(cleanNickname);
       if (owner) {

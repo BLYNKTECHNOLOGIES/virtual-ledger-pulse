@@ -1286,6 +1286,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           </div>
         </div>
 
+        {(userNoResolving || !lockedUserNo) && (
+          <p className="text-[11px] text-amber-500 mb-1">
+            {userNoResolving
+              ? "Inferring Binance User No for this order…"
+              : "Binance User No not yet inferred — approval is blocked until it resolves."}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
@@ -1293,7 +1300,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
+            disabled={approveMutation.isPending || userNoResolving || !lockedUserNo || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

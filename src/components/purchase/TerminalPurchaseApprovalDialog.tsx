@@ -692,7 +692,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                         variant="ghost"
                         size="sm"
                         className="h-6 text-[10px]"
-                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); setCrossNameWarning(false); }}
+                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); }}
                       >
                         Change
                       </Button>

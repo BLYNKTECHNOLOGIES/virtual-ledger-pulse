@@ -245,6 +245,15 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       const clientId = resolved.clientId;
       const resolvedVia = resolved.resolvedVia;
 
+      // Progressive enrichment: if this order recurs for a nickname already linked to a
+      // client (userNo/nickname match), backfill the real verified name onto that client's
+      // directory record. This corrects split same-name clients (e.g. de-merged MANOJ KUMAR)
+      // as their orders re-sync — never touches a different same-name client.
+      if (clientId && (resolvedVia === 'nickname' || resolvedVia === 'intersection') && verifiedName) {
+        await enrichVerifiedNameByNickname(safeUnmasked || safeNick, verifiedName);
+      }
+
+
       // Force manual mapping if we couldn't resolve a real name
       const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');
 

@@ -121,6 +121,39 @@ export const resolveClientByNickname = async (
 };
 
 /**
+ * Resolve the client that OWNS a given Binance userNo — the STABLE, unique numeric
+ * account identifier. This is the strongest identity anchor available and takes
+ * precedence over nickname, phone and name matching.
+ */
+export const resolveClientByUserNo = async (
+  cpUserNo: string
+): Promise<{ id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null } | null> => {
+  const clean = String(cpUserNo || '').trim();
+  if (!clean) return null;
+  const { data: resolved } = await supabase.rpc('resolve_client_by_userno' as any, { p_cp_userno: clean });
+  const row = Array.isArray(resolved) ? resolved[0] : resolved;
+  if (!row?.client_id) return null;
+  const { data: c } = await supabase
+    .from('clients')
+    .select('id, client_id, is_seller, seller_approval_status')
+    .eq('client_id', (row as any).client_id)
+    .eq('is_deleted', false)
+    .maybeSingle();
+  return (c as any) || null;
+};
+
+/** Persist a client↔userNo mapping (best-effort; never throws). */
+const linkClientUserNo = async (clientId: string, cpUserNo?: string | null) => {
+  const clean = String(cpUserNo || '').trim();
+  if (!clean || !clientId) return;
+  try {
+    await supabase.rpc('link_client_userno' as any, { p_client_id: clientId, p_cp_userno: clean });
+  } catch (e) {
+    console.warn('link_client_userno failed', e);
+  }
+};
+
+/**
  * Create a new seller client from purchase order.
  * Identity resolution is userNo/nickname-first: a real (unmasked) nickname owned by an
  * existing client always wins. Name / verified-name matching is only used as a fallback

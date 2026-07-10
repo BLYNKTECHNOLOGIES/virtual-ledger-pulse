@@ -149,6 +149,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+  // Approval is blocked until this settles: no order may be approved until its
+  // Binance userNo is inferred (on-demand resolution lifecycle flag).
+  const [userNoResolving, setUserNoResolving] = useState(false);
 
   // Resolve & LOCK client STRICTLY by Binance userNo (the only identity anchor).
   // userNo is the stable, unique Binance account id. Nickname / verified-name /

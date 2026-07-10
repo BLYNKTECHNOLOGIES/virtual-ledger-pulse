@@ -2280,6 +2280,40 @@ export function ClientOnboardingApprovals() {
                       <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}
                     </div>
                   </div>
+                  {/* P2P Terminal Order ID(s) */}
+                  <div>
+                    <span className="font-medium">P2P Terminal Order ID:</span>{' '}
+                    {selectedApproval.sales_order_id ? (
+                      <button
+                        type="button"
+                        className="text-primary underline underline-offset-2 hover:opacity-80"
+                        onClick={() => handleViewOrder(selectedApproval.sales_order_id)}
+                      >
+                        View linked order
+                      </button>
+                    ) : reviewNicknameOrders.length > 0 ? (
+                      <span className="inline-flex flex-wrap gap-1 align-middle">
+                        {reviewNicknameOrders.slice(0, 6).map((o: any) => (
+                          <code
+                            key={o.order_number}
+                            className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono cursor-pointer hover:bg-muted-foreground/20"
+                            title={`${o.trade_type} • ₹${Number(o.total_price || 0).toLocaleString('en-IN')} • click to copy`}
+                            onClick={() => { navigator.clipboard?.writeText(String(o.order_number)); toast({ title: 'Copied', description: `Order ID ${o.order_number}` }); }}
+                          >
+                            {o.order_number}
+                          </code>
+                        ))}
+                        {reviewNicknameOrders.length > 6 && (
+                          <span className="text-xs text-muted-foreground">+{reviewNicknameOrders.length - 6} more</span>
+                        )}
+                      </span>
+                    ) : selectedApproval.binance_nickname ? (
+                      <span className="text-xs text-muted-foreground italic">Resolving via nickname “{selectedApproval.binance_nickname}”…</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">No linked order</span>
+                    )}
+                  </div>
+
                   {/* Row 2: Phone + State */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>

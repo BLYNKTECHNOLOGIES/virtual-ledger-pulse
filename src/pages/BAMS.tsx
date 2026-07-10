@@ -75,70 +75,98 @@ export default function BAMS() {
         </div>
 
         <div className="w-full h-full flex-1 overflow-auto bg-card rounded-lg shadow-sm p-0">
-          <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
+          <Tabs defaultValue={canFullBams ? "bank-accounts" : "journal-entries"} className="h-full flex flex-col">
             {/* Single responsive tab bar: horizontal scroll on mobile, full width on desktop */}
             <div className="overflow-x-auto pb-1 mb-4 md:mb-6">
-              <TabsList className="inline-flex w-max md:grid md:w-full md:grid-cols-8 bg-muted p-1 rounded-md gap-1">
-                <TabsTrigger value="account-summary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <BarChart3 className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                  <span>Account Summary</span>
-                </TabsTrigger>
-                <TabsTrigger value="bank-accounts" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <Building className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                  <span>Bank Accounts</span>
-                </TabsTrigger>
-                <TabsTrigger value="payment-methods" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                  <span>Sales Methods</span>
-                </TabsTrigger>
-                <TabsTrigger value="purchases" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <ShoppingBag className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                  <span>Purchase Management</span>
-                </TabsTrigger>
+              <TabsList className={`inline-flex w-max ${canFullBams ? "md:grid md:w-full md:grid-cols-8" : ""} bg-muted p-1 rounded-md gap-1`}>
+                {canFullBams && (
+                  <TabsTrigger value="account-summary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <BarChart3 className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                    <span>Account Summary</span>
+                  </TabsTrigger>
+                )}
+                {canFullBams && (
+                  <TabsTrigger value="bank-accounts" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <Building className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                    <span>Bank Accounts</span>
+                  </TabsTrigger>
+                )}
+                {canFullBams && (
+                  <TabsTrigger value="payment-methods" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                    <span>Sales Methods</span>
+                  </TabsTrigger>
+                )}
+                {canFullBams && (
+                  <TabsTrigger value="purchases" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <ShoppingBag className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                    <span>Purchase Management</span>
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="journal-entries" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Bank Journal Entries</span>
                 </TabsTrigger>
-                <TabsTrigger value="payment-gateway" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <Smartphone className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                  <span>Payment Gateway</span>
-                </TabsTrigger>
-                <TabsTrigger value="case-generator" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                  <span>Case Generator</span>
-                </TabsTrigger>
-                <TabsTrigger value="beneficiary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <Users className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                  <span>Beneficiary</span>
-                </TabsTrigger>
+                {canFullBams && (
+                  <TabsTrigger value="payment-gateway" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <Smartphone className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                    <span>Payment Gateway</span>
+                  </TabsTrigger>
+                )}
+                {canFullBams && (
+                  <TabsTrigger value="case-generator" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                    <span>Case Generator</span>
+                  </TabsTrigger>
+                )}
+                {canFullBams && (
+                  <TabsTrigger value="beneficiary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                    <Users className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+                    <span>Beneficiary</span>
+                  </TabsTrigger>
+                )}
               </TabsList>
             </div>
 
             <div className="flex-1 w-full overflow-auto">
-              <TabsContent value="account-summary" className="w-full h-full">
-                <AccountSummary />
-              </TabsContent>
-              <TabsContent value="bank-accounts" className="w-full h-full">
-                <BankAccountManagement />
-              </TabsContent>
-              <TabsContent value="payment-methods" className="w-full h-full">
-                <PaymentMethodManagement />
-              </TabsContent>
-              <TabsContent value="purchases" className="w-full h-full">
-                <PurchaseManagement />
-              </TabsContent>
+              {canFullBams && (
+                <TabsContent value="account-summary" className="w-full h-full">
+                  <AccountSummary />
+                </TabsContent>
+              )}
+              {canFullBams && (
+                <TabsContent value="bank-accounts" className="w-full h-full">
+                  <BankAccountManagement />
+                </TabsContent>
+              )}
+              {canFullBams && (
+                <TabsContent value="payment-methods" className="w-full h-full">
+                  <PaymentMethodManagement />
+                </TabsContent>
+              )}
+              {canFullBams && (
+                <TabsContent value="purchases" className="w-full h-full">
+                  <PurchaseManagement />
+                </TabsContent>
+              )}
               <TabsContent value="journal-entries" className="w-full h-full">
                 <BankJournalEntries />
               </TabsContent>
-              <TabsContent value="payment-gateway" className="w-full h-full">
-                <PaymentGatewayManagement />
-              </TabsContent>
-              <TabsContent value="case-generator" className="w-full h-full">
-                <CaseGenerator />
-              </TabsContent>
-              <TabsContent value="beneficiary" className="w-full h-full">
-                <BeneficiaryManagement />
-              </TabsContent>
+              {canFullBams && (
+                <TabsContent value="payment-gateway" className="w-full h-full">
+                  <PaymentGatewayManagement />
+                </TabsContent>
+              )}
+              {canFullBams && (
+                <TabsContent value="case-generator" className="w-full h-full">
+                  <CaseGenerator />
+                </TabsContent>
+              )}
+              {canFullBams && (
+                <TabsContent value="beneficiary" className="w-full h-full">
+                  <BeneficiaryManagement />
+                </TabsContent>
+              )}
             </div>
           </Tabs>
         </div>

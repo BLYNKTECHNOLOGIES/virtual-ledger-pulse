@@ -706,19 +706,11 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                       </span>
                     </div>
                   )}
-                  {autoMatchVia && autoMatchVia !== 'name_exact' && (
+                  {autoMatchVia === 'userno' && (
                     <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />
                       <span className="text-[11px] font-medium text-info dark:text-info">
-                        Auto-linked by {autoMatchVia === 'nickname' ? 'Binance nickname' : 'KYC verified name'} — strongest identity signal.
-                      </span>
-                    </div>
-                  )}
-                  {crossNameWarning && (
-                    <div className="flex items-center gap-2 rounded-md border border-warning bg-warning/10 dark:border-warning dark:bg-warning/30 px-3 py-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-warning dark:text-warning shrink-0" />
-                      <span className="text-[11px] font-medium text-warning dark:text-warning">
-                        Linked by nickname/KYC — name on Binance ("{syncRecord?.counterparty_name}") differs from client master ("{linkedClientName}"). Confirm this is intentional.
+                        Auto-linked by Binance userNo — the unique account identity.
                       </span>
                     </div>
                   )}

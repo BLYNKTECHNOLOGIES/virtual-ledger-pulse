@@ -163,11 +163,12 @@ const linkClientUserNo = async (clientId: string, cpUserNo?: string | null) => {
 export const createSellerClient = async (
   supplierName: string,
   contactNumber?: string,
-  evidence?: { binanceNickname?: string | null; verifiedName?: string | null }
+  evidence?: { binanceNickname?: string | null; verifiedName?: string | null; cpUserNo?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
     const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
     const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+    const cpUserNo = String(evidence?.cpUserNo || '').trim() || null;
 
     const markSeller = async (c: { id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null }) => {
       const updates: Record<string, any> = {};

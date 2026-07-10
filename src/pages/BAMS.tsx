@@ -16,15 +16,17 @@ import { Shield } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function BAMS() {
   const navigate = useNavigate();
   useDeepLinkHighlight(['txId']);
+  const { hasAnyPermission } = usePermissions();
+  const canFullBams = hasAnyPermission(["bams_view", "bams_manage"]);
 
-  
   return (
     <PermissionGate 
-      permissions={["bams_view", "bams_manage"]} 
+      permissions={["bams_view", "bams_manage", "bams_journal_entry"]} 
       fallback={
         <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="max-w-md border-destructive/20 bg-destructive/10">

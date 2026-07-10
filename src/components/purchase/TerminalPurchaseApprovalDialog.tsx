@@ -205,44 +205,52 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       setContactNumber(resolvedPhone);
       setClientState(resolvedState);
 
-      if (!linkedClientId) {
-        setLinkedClientId(syncRecord?.client_id || '');
+      // Never override an explicit operator decision.
+      if (manualSelectionRef.current) return;
+
+      // userNo lock takes precedence — skip name-based matching entirely when locked.
+      if (userNoLocked) return;
+
+      const seededClientId = syncRecord?.client_id || linkedClientId || '';
+
+      // Strict precedence auto-match: nickname → verified name (corroborated only).
+      const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
+        || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
+        || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
+        || null) as string | null;
+      const verifiedName = (syncRecord?.order_data?.verified_name || null) as string | null;
+      const displayName = verifiedName || syncRecord?.counterparty_name || null;
+
+      const result = await resolveTerminalApprovalClient({
+        unmaskedNickname: unmaskedNick,
+        verifiedName,
+        displayName,
+        side: 'seller',
+      });
+
+      if (result.clientId) {
+        // High-confidence match (nickname / intersection). Trust it.
+        setLinkedClientId(result.clientId);
+        setLinkedClientName(result.clientName || '');
+        setAutoMatchVia(result.resolvedVia);
+        setCrossNameWarning(result.crossNameWarning);
+        setDuplicateClients([]);
+        return;
       }
 
-      // Strict precedence auto-match: nickname → verified name → exact name
-      // userNo lock takes precedence — skip name-based matching entirely when locked
-      if (!userNoLocked && !linkedClientId && !syncRecord?.client_id) {
-        const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
-          || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
-          || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
-          || null) as string | null;
-        const verifiedName = (syncRecord?.order_data?.verified_name || null) as string | null;
-        const displayName = verifiedName || syncRecord?.counterparty_name || null;
-
-        const result = await resolveTerminalApprovalClient({
-          unmaskedNickname: unmaskedNick,
-          verifiedName,
-          displayName,
-          side: 'seller',
-        });
-        if (result.clientId) {
-          setLinkedClientId(result.clientId);
-          setLinkedClientName(result.clientName || '');
-          setAutoMatchVia(result.resolvedVia);
-          setCrossNameWarning(result.crossNameWarning);
-          setDuplicateClients([]);
-        } else if (result.ambiguousCandidates.length > 1 && syncRecord?.counterparty_name) {
-          // Fall back to name-based ambiguity surfacing
-          const matches = await findAllClientsByName(syncRecord.counterparty_name);
-          setDuplicateClients(matches.length > 1 ? matches : []);
-          setAutoMatchVia(null);
-          setCrossNameWarning(false);
-        } else if (syncRecord?.counterparty_name) {
-          const matches = await findAllClientsByName(syncRecord.counterparty_name);
-          setDuplicateClients(matches.length > 1 ? matches : []);
-          setAutoMatchVia(null);
-          setCrossNameWarning(false);
-        }
+      // No high-confidence match. A seeded pre-link (from the sync record) may be
+      // a wrong same-name attribution — a lone verified-name match is NOT a safe
+      // identity signal. Clear it and force the operator to confirm manually.
+      if (seededClientId) {
+        console.warn(`[PurchaseApproval] Cleared non-corroborated pre-link for "${displayName}" — manual confirmation required`);
+        setLinkedClientId('');
+        setLinkedClientName('');
+        setAutoMatchVia(null);
+        setCrossNameWarning(false);
+      }
+      if (syncRecord?.counterparty_name) {
+        const matches = await findAllClientsByName(syncRecord.counterparty_name);
+        setDuplicateClients(matches.length > 1 ? matches : []);
       }
     };
 

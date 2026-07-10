@@ -1341,6 +1341,12 @@ export function ClientOnboardingApprovals() {
 
   const handleApprovalClick = async (approval: ClientOnboardingApproval) => {
     setSelectedApproval(approval);
+    // Resolve the P2P Terminal order ID(s) for display when the approval has no
+    // directly-linked sales order (e.g. de-merge siblings tracked only by nickname).
+    setReviewNicknameOrders([]);
+    if (!approval.sales_order_id && approval.binance_nickname) {
+      fetchOrdersByNickname(approval.binance_nickname).then(setReviewNicknameOrders);
+    }
     const phone = approval.client_phone || '';
     const state = approval.client_state || '';
     const draft = await loadBuyerApprovalDraft(approval.id);

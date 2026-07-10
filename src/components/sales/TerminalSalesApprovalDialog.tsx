@@ -444,6 +444,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
   // Handle client selection from dropdown
   const handleClientSelect = (client: any) => {
+    manualSelectionRef.current = true;
     setLinkedClientId(client.id);
     setLinkedClientName(client.name);
     setShowClientDropdown(false);

@@ -493,6 +493,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       });
       return;
     }
+    manualSelectionRef.current = true;
     setLinkedClientId('');
     setLinkedClientName('');
     setClientAutoMatched(false);

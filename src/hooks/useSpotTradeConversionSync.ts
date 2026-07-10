@@ -43,13 +43,24 @@ export function useUnsyncedSpotTrades() {
 
       if (tradeErr) throw tradeErr;
 
+      // SETTLE WINDOW GUARD: a single Binance order fills in multiple partial
+      // trades that can arrive seconds apart. If we surface an order for sync
+      // while it is still filling, only the fills present so far get booked and
+      // the rest are permanently dropped (they share the same binance_order_id
+      // and are treated as "already synced"). This once mis-booked a 2504.4 TRX
+      // sell as only 164.7 TRX. Require every order to be quiet for a settle
+      // window before it becomes eligible, so all fills have landed first.
+      const SETTLE_WINDOW_MS = 3 * 60 * 1000; // 3 minutes since last fill
+      const now = Date.now();
+
       // Aggregate fills by binance_order_id — sum qty, quote_quantity, commission
       const orderMap = new Map<string, any>();
       for (const t of (rawTrades || [])) {
         const key = t.binance_order_id || t.id; // fallback to id if no binance_order_id
         const existing = orderMap.get(key);
+        const fillTs = t.created_at ? new Date(t.created_at).getTime() : 0;
         if (!existing) {
-          orderMap.set(key, { ...t, _fill_ids: [t.id] });
+          orderMap.set(key, { ...t, _fill_ids: [t.id], _last_fill_ts: fillTs });
         } else {
           // Aggregate: sum quantities, quote_quantity, commission
           existing.quantity = (Number(existing.quantity) || 0) + (Number(t.quantity) || 0);
@@ -65,6 +76,8 @@ export function useUnsyncedSpotTrades() {
           }
           // Track all fill IDs for sync checking
           existing._fill_ids.push(t.id);
+          // Track the newest fill timestamp for the settle-window check
+          if (fillTs > (existing._last_fill_ts || 0)) existing._last_fill_ts = fillTs;
           // Prefer earlier trade_time
           if (t.trade_time && (!existing.trade_time || t.trade_time < existing.trade_time)) {
             existing.trade_time = t.trade_time;
@@ -73,6 +86,7 @@ export function useUnsyncedSpotTrades() {
         }
       }
       const trades = Array.from(orderMap.values());
+
 
       // Get ALL synced trade IDs (any status including REJECTED)
       const { data: synced, error: syncErr } = await supabase
@@ -116,15 +130,26 @@ export function useUnsyncedSpotTrades() {
         }
       }
 
-      return trades.map((t: any) => {
-        const fillIds: string[] = t._fill_ids || [t.id];
-        const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
-          (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
-        const cutoff = maxApprovedBySymbol.get(t.symbol) ?? 0;
-        const isStale = !anySynced && Number(t.trade_time) > 0 && cutoff > 0 && Number(t.trade_time) < cutoff;
-        const { _fill_ids, ...rest } = t;
-        return { ...rest, fill_ids: fillIds, already_synced: anySynced || isStale } as SpotTradeForSync;
-      });
+      return trades
+        // Skip orders that are still settling (a fill landed within the settle
+        // window). They reappear automatically once quiet, fully aggregated.
+        .filter((t: any) => {
+          const anySyncedNow = (t._fill_ids || [t.id]).some((fid: string) => syncedTradeIds.has(fid)) ||
+            (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+          if (anySyncedNow) return true; // keep already-synced ones for status display
+          const lastFill = Number(t._last_fill_ts) || 0;
+          return !(lastFill > 0 && now - lastFill < SETTLE_WINDOW_MS);
+        })
+        .map((t: any) => {
+          const fillIds: string[] = t._fill_ids || [t.id];
+          const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
+            (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+          const cutoff = maxApprovedBySymbol.get(t.symbol) ?? 0;
+          const isStale = !anySynced && Number(t.trade_time) > 0 && cutoff > 0 && Number(t.trade_time) < cutoff;
+          const { _fill_ids, _last_fill_ts, ...rest } = t;
+          return { ...rest, fill_ids: fillIds, already_synced: anySynced || isStale } as SpotTradeForSync;
+        });
+
     },
   });
 }

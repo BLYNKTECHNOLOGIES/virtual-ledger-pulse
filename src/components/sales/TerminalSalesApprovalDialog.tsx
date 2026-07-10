@@ -31,7 +31,7 @@ import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { matchesWordPrefix } from "@/lib/utils";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
-import { resolveTerminalApprovalClient, resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, linkClientUserNo } from "@/lib/clientIdentityResolver";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface Props {

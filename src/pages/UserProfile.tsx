@@ -540,6 +540,7 @@ export default function UserProfile() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showLeaveCreate, setShowLeaveCreate] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
 
   // ─── Fetch HRMS employee linked to this user ───

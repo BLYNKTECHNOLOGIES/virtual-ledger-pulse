@@ -1017,6 +1017,13 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           </div>
         </div>
 
+        {(userNoResolving || !lockedUserNo) && (
+          <p className="text-[11px] text-amber-500 mb-1">
+            {userNoResolving
+              ? "Inferring Binance User No for this order…"
+              : "Binance User No not yet inferred — approval is blocked until it resolves."}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel

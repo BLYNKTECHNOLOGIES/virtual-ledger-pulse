@@ -17,9 +17,15 @@ async function syncSpotTradesForAccount(accountId: string): Promise<number> {
     .limit(1)
     .maybeSingle();
 
+  // OVERLAP the cursor instead of MAX+1: Binance myTrades `startTime` is
+  // inclusive at ms granularity and one order fills as many same-ms trades.
+  // MAX+1 permanently skips same-ms/late fills → truncated conversions. The
+  // (binance_trade_id, symbol) upsert dedupes, so re-fetching is harmless.
+  const SYNC_OVERLAP_MS = 15 * 60 * 1000; // 15 min re-fetch window
   const startTime = latestTrade?.trade_time
-    ? Number(latestTrade.trade_time) + 1
+    ? Math.max(0, Number(latestTrade.trade_time) - SYNC_OVERLAP_MS)
     : undefined;
+
 
   const { data, error } = await supabase.functions.invoke("binance-assets", {
     body: { action: "getMyTrades", startTime, exchange_account_id: accountId },

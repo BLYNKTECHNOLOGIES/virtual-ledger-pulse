@@ -90,34 +90,11 @@ export const findAllClientsByName = async (name: string) => {
 };
 
 /**
- * Resolve the client that OWNS a given Binance nickname (proxy for the stable userNo).
- * Nickname ownership is the strongest identity anchor available at creation time and
- * takes precedence over name matching, so two distinct accounts sharing a KYC name
- * are never merged.
+ * Masked/sentinel nickname check. Nicknames are stored for DISPLAY only and are
+ * NEVER used to resolve/match a client — matching is strictly by Binance userNo.
  */
 const isMaskedNick = (v?: string | null) =>
   !v || !v.trim() || v.includes('*') || v.trim().toLowerCase() === 'unknown';
-
-export const resolveClientByNickname = async (
-  nickname: string
-): Promise<{ id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null } | null> => {
-  const { data: link } = await supabase
-    .from('client_binance_nicknames')
-    .select('client_id')
-    .eq('nickname', nickname.trim())
-    .eq('is_active', true)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (!link?.client_id) return null;
-  const { data: c } = await supabase
-    .from('clients')
-    .select('id, client_id, is_seller, seller_approval_status')
-    .eq('id', link.client_id)
-    .eq('is_deleted', false)
-    .maybeSingle();
-  return (c as any) || null;
-};
 
 /**
  * Resolve the client that OWNS a given Binance userNo — the STABLE, unique numeric

@@ -52,6 +52,80 @@ export interface ResolvedClient {
 }
 
 /**
+ * userNo-first order → client resolution.
+ *
+ * Binance `userNo` (the stable, unique account id) is the PRIMARY identity
+ * anchor. It is NOT present in the order-list payload — only in order-detail —
+ * so it is captured into `cp_order_identity` by the background cron. When it is
+ * not yet known for a fresh order we fetch the order-detail ON DEMAND via the
+ * `resolve-order-userno` edge function. We NEVER fabricate a userNo.
+ *
+ * Returns the resolved userNo (if obtainable) and the owning client (if the
+ * userNo is already mapped in `client_binance_usernos`).
+ */
+export interface OrderUserNoResolution {
+  cpUserNo: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  verifiedName: string | null;
+  nickname: string | null;
+  source: 'cache' | 'on_demand' | 'unavailable';
+}
+
+export async function resolveOrderUserNo(params: {
+  orderNumber: string;
+  tradeType?: string | null;
+  exchangeAccountId?: string | null;
+}): Promise<OrderUserNoResolution> {
+  const { orderNumber, tradeType, exchangeAccountId } = params;
+  const empty: OrderUserNoResolution = {
+    cpUserNo: null, clientId: null, clientName: null, verifiedName: null, nickname: null, source: 'unavailable',
+  };
+  if (!orderNumber) return empty;
+
+  // 1. Cache: userNo already captured for this order.
+  const { data: cached } = await supabase
+    .from('cp_order_identity')
+    .select('cp_userno, verified_name, nickname')
+    .eq('order_number', String(orderNumber))
+    .maybeSingle();
+
+  if (cached?.cp_userno) {
+    const { data: resolved } = await supabase.rpc('resolve_client_by_userno', { p_cp_userno: String(cached.cp_userno) });
+    const row = Array.isArray(resolved) ? resolved[0] : resolved;
+    return {
+      cpUserNo: String(cached.cp_userno),
+      clientId: row?.client_id ?? null,
+      clientName: row?.client_name ?? null,
+      verifiedName: cached.verified_name ?? null,
+      nickname: cached.nickname ?? null,
+      source: 'cache',
+    };
+  }
+
+  // 2. On-demand: fetch order-detail to obtain userNo.
+  try {
+    const { data, error } = await supabase.functions.invoke('resolve-order-userno', {
+      body: { order_number: String(orderNumber), trade_type: tradeType ?? undefined, exchange_account_id: exchangeAccountId ?? undefined },
+    });
+    if (error || !data) return empty;
+    if (!data.cp_userno) {
+      return { ...empty, verifiedName: data.verified_name ?? null, nickname: data.nickname ?? null };
+    }
+    return {
+      cpUserNo: String(data.cp_userno),
+      clientId: data.client_id ?? null,
+      clientName: data.client_name ?? null,
+      verifiedName: data.verified_name ?? null,
+      nickname: data.nickname ?? null,
+      source: 'on_demand',
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/**
  * Batch-fetch verified name → client_id mappings for a list of verified names.
  * Returns a Map<verified_name, client_id[]> (may have multiple clients per name).
  */

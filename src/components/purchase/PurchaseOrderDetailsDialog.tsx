@@ -310,6 +310,10 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
               })()}
             </div>
             <div>
+              <label className="text-sm font-medium text-muted-foreground">Platform</label>
+              <p className="text-sm">{platformName}</p>
+            </div>
+            <div>
               <label className="text-sm font-medium text-muted-foreground">Status</label>
               <div className="mt-1">{getStatusBadge(order.status)}</div>
             </div>

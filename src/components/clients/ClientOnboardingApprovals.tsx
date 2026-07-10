@@ -308,6 +308,13 @@ export function ClientOnboardingApprovals() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOrderData, setViewOrderData] = useState<any>(null);
   const [viewOrderOpen, setViewOrderOpen] = useState(false);
+  // P2P Terminal orders resolved by Binance nickname (for approvals with no linked sales_order_id)
+  const [nicknameOrders, setNicknameOrders] = useState<any[]>([]);
+  const [nicknameOrdersOpen, setNicknameOrdersOpen] = useState(false);
+  const [nicknameOrdersLoading, setNicknameOrdersLoading] = useState(false);
+  const [nicknameOrdersTitle, setNicknameOrdersTitle] = useState('');
+  // P2P order IDs shown inline in the Review dialog (nickname-resolved, no linked sales order)
+  const [reviewNicknameOrders, setReviewNicknameOrders] = useState<any[]>([]);
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
   const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');

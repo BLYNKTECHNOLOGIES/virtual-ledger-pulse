@@ -1928,6 +1928,47 @@ export type Database = {
           },
         ]
       }
+      client_binance_usernos: {
+        Row: {
+          client_id: string
+          cp_userno: string
+          created_at: string
+          first_seen_at: string
+          id: string
+          is_active: boolean
+          last_seen_at: string
+          source: string
+        }
+        Insert: {
+          client_id: string
+          cp_userno: string
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string
+          source?: string
+        }
+        Update: {
+          client_id?: string
+          cp_userno?: string
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_binance_usernos_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_communication_logs: {
         Row: {
           client_id: string
@@ -17600,6 +17641,10 @@ export type Database = {
         Args: { p_order_number: string }
         Returns: boolean
       }
+      link_client_userno: {
+        Args: { p_client_id: string; p_cp_userno: string; p_source?: string }
+        Returns: undefined
+      }
       list_terminal_roles: {
         Args: never
         Returns: {
@@ -17863,7 +17908,7 @@ export type Database = {
         Returns: boolean
       }
       resolve_client_by_userno: {
-        Args: { p_order_number: string }
+        Args: { p_cp_userno: string }
         Returns: {
           client_id: string
           client_name: string

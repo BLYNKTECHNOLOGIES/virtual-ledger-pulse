@@ -1391,13 +1391,8 @@ export function ClientOnboardingApprovals() {
         .maybeSingle();
       if (data) {
         existing = data as ExistingClientMatch;
-        const { data: recentOrders } = await supabase
-          .from('sales_orders')
-          .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
-          .eq('client_id', data.id)
-          .order('order_date', { ascending: false })
-          .limit(5);
-        setExistingClientTransactions(recentOrders || []);
+        const allOrders = await fetchAllClientOrders(data.id, data.name);
+        setExistingClientTransactions(allOrders);
       }
     }
     if (!existing) {

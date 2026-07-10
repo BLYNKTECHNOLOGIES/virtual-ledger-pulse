@@ -2120,11 +2120,11 @@ export function ClientOnboardingApprovals() {
                     </div>
                   </div>
 
-                  {/* Recent Transactions */}
+                  {/* All Orders */}
                   {existingClientTransactions.length > 0 && (
                     <div className="bg-card rounded-md p-3 border border-warning/20">
-                      <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
-                      <div className="w-full">
+                      <h4 className="font-semibold text-sm mb-2 text-foreground">All Orders ({existingClientTransactions.length})</h4>
+                      <div className="w-full max-h-72 overflow-y-auto">
                         <table className="w-full text-xs table-fixed">
                           <thead>
                             <tr className="border-b text-muted-foreground">

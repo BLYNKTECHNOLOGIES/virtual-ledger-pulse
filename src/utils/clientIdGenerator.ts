@@ -265,6 +265,7 @@ export const createSellerClient = async (
       throw new Error(`DB${code}: ${msg}${details}`);
     }
     const row = Array.isArray(data) ? (data as any[])[0] : data;
+    if (row && cpUserNo) await linkClientUserNo((row as any).client_id, cpUserNo);
     return row ? { id: (row as any).id, client_id: (row as any).client_id } : null;
   } catch (error: any) {
     console.error('Error in createSellerClient:', error);

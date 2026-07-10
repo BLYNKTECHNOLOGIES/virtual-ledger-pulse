@@ -529,49 +529,13 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           await supabase.from('clients').update(updates).eq('id', linkedClientId);
         }
 
-        // Auto-capture nickname→client link for future auto-matching
-        const unmaskedNick = od.counterparty_nickname_unmasked || od.counterparty_nickname || syncRecord?.counterparty_name || '';
-        const safeNick = unmaskedNick.trim();
-        if (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') {
-          await supabase
-            .from('client_binance_nicknames')
-            .upsert({
-              client_id: linkedClientId,
-              nickname: safeNick,
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'nickname' })
-            .then(({ error }) => {
-              if (error) console.warn('[PurchaseApproval] Nickname link upsert failed:', error.message);
-            });
-        }
-        // Auto-capture verified name — only when correlated to this client
-        const verifiedName = od.verified_name || syncRecord?.counterparty_name;
-        const cleanVName = sanitizeVerifiedName(verifiedName);
-        if (cleanVName) {
-          const supportingNick = (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') ? safeNick : null;
-          const ok = await canAttachVerifiedName({
-            clientId: linkedClientId,
-            verifiedName: cleanVName,
-            supportingNickname: supportingNick,
-          });
-          if (ok) {
-            await supabase
-              .from('client_verified_names')
-              .upsert({
-                client_id: linkedClientId,
-                verified_name: cleanVName,
-                source: 'approval',
-                last_seen_at: new Date().toISOString(),
-              }, { onConflict: 'client_id,verified_name' })
-              .then(({ error }) => {
-                if (error) console.warn('[PurchaseApproval] Verified name upsert failed:', error.message);
-              });
-          } else {
-            console.warn(`[PurchaseApproval] Skipped verified-name attachment "${cleanVName}" → client ${linkedClientId}: no correlation evidence (prevents cross-contamination).`);
-          }
+        // Persist the Binance userNo → client link (the only identity anchor).
+        if (lockedUserNo) {
+          await linkClientUserNo(linkedClientId, lockedUserNo, 'approval');
         }
       }
+
+
 
       // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {

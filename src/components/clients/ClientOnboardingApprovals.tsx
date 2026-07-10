@@ -2932,6 +2932,43 @@ export function ClientOnboardingApprovals() {
         order={viewOrderData}
       />
 
+      {/* Nickname-resolved P2P Terminal Orders Dialog */}
+      <Dialog open={nicknameOrdersOpen} onOpenChange={setNicknameOrdersOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>P2P Terminal Orders — {nicknameOrdersTitle}</DialogTitle>
+          </DialogHeader>
+          {nicknameOrdersLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading orders…</div>
+          ) : nicknameOrders.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No linked P2P orders found.</div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto space-y-2">
+              {nicknameOrders.map((o: any) => (
+                <div key={o.order_number} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm">
+                  <div className="min-w-0">
+                    <code className="font-mono text-xs">{o.order_number}</code>
+                    <div className="text-xs text-muted-foreground">
+                      {o.trade_type} • {o.create_time ? new Date(o.create_time).toLocaleDateString() : '—'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-medium">₹{Number(o.total_price || 0).toLocaleString('en-IN')}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { navigator.clipboard?.writeText(String(o.order_number)); toast({ title: 'Copied', description: `Order ID ${o.order_number}` }); }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <ReuploadDocumentDialog
         target={reuploadTarget}
         onClose={() => setReuploadTarget(null)}

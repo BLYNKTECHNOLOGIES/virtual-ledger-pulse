@@ -43,13 +43,24 @@ export function useUnsyncedSpotTrades() {
 
       if (tradeErr) throw tradeErr;
 
+      // SETTLE WINDOW GUARD: a single Binance order fills in multiple partial
+      // trades that can arrive seconds apart. If we surface an order for sync
+      // while it is still filling, only the fills present so far get booked and
+      // the rest are permanently dropped (they share the same binance_order_id
+      // and are treated as "already synced"). This once mis-booked a 2504.4 TRX
+      // sell as only 164.7 TRX. Require every order to be quiet for a settle
+      // window before it becomes eligible, so all fills have landed first.
+      const SETTLE_WINDOW_MS = 3 * 60 * 1000; // 3 minutes since last fill
+      const now = Date.now();
+
       // Aggregate fills by binance_order_id — sum qty, quote_quantity, commission
       const orderMap = new Map<string, any>();
       for (const t of (rawTrades || [])) {
         const key = t.binance_order_id || t.id; // fallback to id if no binance_order_id
         const existing = orderMap.get(key);
+        const fillTs = t.created_at ? new Date(t.created_at).getTime() : 0;
         if (!existing) {
-          orderMap.set(key, { ...t, _fill_ids: [t.id] });
+          orderMap.set(key, { ...t, _fill_ids: [t.id], _last_fill_ts: fillTs });
         } else {
           // Aggregate: sum quantities, quote_quantity, commission
           existing.quantity = (Number(existing.quantity) || 0) + (Number(t.quantity) || 0);
@@ -65,6 +76,8 @@ export function useUnsyncedSpotTrades() {
           }
           // Track all fill IDs for sync checking
           existing._fill_ids.push(t.id);
+          // Track the newest fill timestamp for the settle-window check
+          if (fillTs > (existing._last_fill_ts || 0)) existing._last_fill_ts = fillTs;
           // Prefer earlier trade_time
           if (t.trade_time && (!existing.trade_time || t.trade_time < existing.trade_time)) {
             existing.trade_time = t.trade_time;
@@ -73,6 +86,7 @@ export function useUnsyncedSpotTrades() {
         }
       }
       const trades = Array.from(orderMap.values());
+
 
       // Get ALL synced trade IDs (any status including REJECTED)
       const { data: synced, error: syncErr } = await supabase

@@ -99,8 +99,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       if (!res.clientId) return;
       setLinkedClientId(res.clientId);
       setLinkedClientName(res.clientName || '');
-      setAutoMatchVia('nickname');
-      setCrossNameWarning(false);
+      setAutoMatchVia('userno');
       setUserNoLocked(true);
     });
     return () => { cancelled = true; };

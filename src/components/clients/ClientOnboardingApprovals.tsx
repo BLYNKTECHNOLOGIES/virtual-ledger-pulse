@@ -1859,10 +1859,19 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell numeric>
                       <div className="text-sm">
-                        <div>₹{entry.totalAmount.toLocaleString('en-IN')}</div>
-                        <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>
+                        {entry.totalAmount > 0 ? (
+                          <>
+                            <div>₹{entry.totalAmount.toLocaleString('en-IN')}</div>
+                            {approval.order_date && (
+                              <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">No linked order</span>
+                        )}
                       </div>
                     </TableCell>
+
                     <TableCell>
                       <div className="text-sm">
                         <div>{approval.client_phone}</div>
@@ -1986,7 +1995,7 @@ export function ClientOnboardingApprovals() {
               {reviewedApprovals.map((approval) => (
                 <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-destructive/5' : ''}>
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
-                  <TableCell>₹{approval.order_amount.toLocaleString('en-IN')}</TableCell>
+                  <TableCell>{approval.order_amount > 0 ? `₹${approval.order_amount.toLocaleString('en-IN')}` : <span className="text-xs text-muted-foreground italic">No linked order</span>}</TableCell>
                   <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>
                   <TableCell>{(approval.reviewed_by && (reviewerNameMap?.[approval.reviewed_by] || approval.reviewed_by)) || '-'}</TableCell>
                   <TableCell>

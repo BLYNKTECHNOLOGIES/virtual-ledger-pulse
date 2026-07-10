@@ -162,14 +162,15 @@ export function resolveClientId(params: {
 }): ResolvedClient {
   const { verifiedName, unmaskedNickname, safeNickname, counterpartyName, verifiedNameMap, nicknameClientMap, clientNameMap } = params;
 
-  // Priority 0: Verified name lookup
+  // Priority 0: Verified name lookup — ONLY trusted when corroborated by a
+  // nickname pointing to the SAME client (intersection). A verified name alone
+  // is NOT a safe identity signal: KYC names are immutable per client but NOT
+  // globally unique, so distinct Binance accounts (different userNo) can share
+  // the same KYC name. Auto-linking on a lone verified-name match cross-
+  // contaminates client data — it is deliberately NOT done here.
   if (verifiedName) {
     const candidates = verifiedNameMap.get(verifiedName) || [];
-    if (candidates.length === 1) {
-      return { clientId: candidates[0], resolvedVia: 'verified_name' };
-    }
-    // Multiple candidates — try intersection with nickname (Priority 2)
-    if (candidates.length > 1) {
+    if (candidates.length >= 1) {
       const nickClientId = (unmaskedNickname ? nicknameClientMap.get(unmaskedNickname) : null)
         || (safeNickname ? nicknameClientMap.get(safeNickname) : null);
       if (nickClientId && candidates.includes(nickClientId)) {
@@ -187,6 +188,7 @@ export function resolveClientId(params: {
     const id = nicknameClientMap.get(safeNickname);
     if (id) return { clientId: id, resolvedVia: 'nickname' };
   }
+
 
   // Priority 3: Name-based match — DISABLED for auto-linking.
   // A shared display name is NOT a reliable identity signal: distinct Binance
@@ -335,13 +337,22 @@ export async function resolveTerminalApprovalClient(params: {
         .in('id', ids);
       const valid = (clients || []).filter(c => !c.is_deleted && !isRejected(c));
       if (valid.length === 1) {
+        // Do NOT auto-link on a verified-name match alone. Per project rule,
+        // KYC verified names are IMMUTABLE per client but NOT globally unique —
+        // two distinct Binance accounts (different userNo) can legitimately
+        // share the same KYC name (e.g. "ABHISHEK SINGH"). Auto-linking on a
+        // single verified-name match is the root cause of cross-contamination:
+        // a brand-new person's order gets attributed to an unrelated existing
+        // client that merely shares the name. Only Binance userNo (handled in
+        // the caller, before this fn) is a high-confidence auto-lock. Surface
+        // the verified-name hit as a suggestion the operator must confirm.
         const c = valid[0];
-        const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
-        return { clientId: c.id, clientName: c.name, resolvedVia: 'verified_name', crossNameWarning: cross, ambiguousCandidates: [], nameSuggestion: null };
+        return { ...empty, nameSuggestion: { id: c.id, name: c.name } };
       }
       if (valid.length > 1) {
         return { ...empty, ambiguousCandidates: valid.map(c => ({ id: c.id, name: c.name })) };
       }
+
     }
   }
 

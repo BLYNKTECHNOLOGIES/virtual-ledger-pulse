@@ -815,7 +815,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                     {duplicateClients.map((client) => (
                       <button
                         key={client.id}
-                        onClick={() => { setLinkedClientId(client.id); setLinkedClientName(client.name); setDuplicateClients(duplicateClients); }}
+                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(client.id); setLinkedClientName(client.name); setDuplicateClients(duplicateClients); }}
                         className="w-full text-left p-2 rounded border hover:bg-accent/50 transition-colors text-sm"
                       >
                         <div className="flex items-center justify-between">

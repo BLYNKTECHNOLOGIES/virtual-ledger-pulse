@@ -319,6 +319,50 @@ export async function captureVerifiedName(
 }
 
 /**
+ * Progressive enrichment: when an order recurs for a Binance nickname (proxy for the
+ * stable userNo) that is already linked to a client, backfill the real KYC verified
+ * name onto that client's directory record if it isn't already stored.
+ *
+ * This is what lets a split same-name client (e.g. one of the de-merged "MANOJ KUMAR"
+ * records) acquire its correct verified name the next time one of its orders is synced,
+ * without ever touching a different client that happens to share the display name.
+ *
+ * Safe by construction: the nickname is already linked to the target client, so the
+ * server-side attachment trigger (order-backed condition) is satisfied. Best-effort.
+ */
+export async function enrichVerifiedNameByNickname(
+  nickname: string | null | undefined,
+  verifiedName: string | null | undefined,
+  source: string = 'order_reappear'
+): Promise<void> {
+  const nick = sanitizeNickname(nickname);
+  const verified = sanitizeVerifiedName(verifiedName);
+  if (!nick || !verified) return;
+  try {
+    const { data: link } = await supabase
+      .from('client_binance_nicknames')
+      .select('client_id')
+      .eq('nickname', nick)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!link?.client_id) return;
+
+    // Skip if this exact verified name is already attached (avoid redundant writes).
+    const { data: existing } = await supabase
+      .from('client_verified_names')
+      .select('id')
+      .eq('client_id', link.client_id)
+      .ilike('verified_name', verified)
+      .maybeSingle();
+    if (existing) return;
+
+    await captureVerifiedName(link.client_id, verified, source);
+  } catch { /* best effort */ }
+}
+
+/**
  * Correlation check: returns true if it is SAFE to attach `verifiedName` to
  * `clientId`. Used by all "merge into existing client" approval flows to
  * prevent cross-contamination of the KYC verified-name table.

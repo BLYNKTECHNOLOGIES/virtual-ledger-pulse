@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { getSmallBuysConfig } from "@/hooks/useSmallBuysSync";
-import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName, sanitizeNickname } from "@/lib/clientIdentityResolver";
+import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName, sanitizeNickname, enrichVerifiedNameByNickname } from "@/lib/clientIdentityResolver";
 
 /**
  * Fetch order detail from Binance API.
@@ -322,6 +322,13 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       });
       let clientId = resolved.clientId;
       const resolvedVia = resolved.resolvedVia;
+
+      // Progressive enrichment: recurring order for a nickname (userNo proxy) already
+      // linked to a client backfills its real verified name into the directory.
+      if (clientId && (resolvedVia === 'nickname' || resolvedVia === 'intersection') && verifiedName) {
+        await enrichVerifiedNameByNickname(safeUnmasked || safeNickname, verifiedName);
+      }
+
 
       // Fallback: explicit sales sync mappings (purchase-specific cross-reference)
       if (!clientId && verifiedName) {

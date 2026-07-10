@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { enrichVerifiedNameByNickname } from "@/lib/clientIdentityResolver";
 
 /**
  * Generate a unique 6-character alphanumeric client ID
@@ -156,8 +157,13 @@ export const createSellerClient = async (
     // 1. Identity-first: nickname (proxy for stable userNo).
     if (cleanNickname) {
       const owner = await resolveClientByNickname(cleanNickname);
-      if (owner) return markSeller(owner);
+      if (owner) {
+        // Recurring order for a known account — backfill the real verified name.
+        if (cleanVerifiedName) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
+        return markSeller(owner);
+      }
     }
+
 
     // 2. Phone number is a strong, person-specific identity anchor.
     if (contactNumber?.trim() && contactNumber.trim().length >= 10) {
@@ -232,10 +238,11 @@ export const createBuyerClient = async (
   buyerName: string,
   contactNumber?: string,
   _state?: string,  // Intentionally ignored — state must be entered during Buyer Approval
-  evidence?: { binanceNickname?: string | null }
+  evidence?: { binanceNickname?: string | null; verifiedName?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
     const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
+    const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
 
     // 1. Identity-first: nickname (proxy for stable userNo) always wins.
     if (cleanNickname) {
@@ -247,6 +254,8 @@ export const createBuyerClient = async (
             await supabase.from('clients').update({ phone: contactNumber }).eq('id', owner.id);
           }
         }
+        // Recurring order for a known account — backfill the real verified name.
+        if (cleanVerifiedName) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
         return { id: owner.id, client_id: owner.client_id };
       }
     }

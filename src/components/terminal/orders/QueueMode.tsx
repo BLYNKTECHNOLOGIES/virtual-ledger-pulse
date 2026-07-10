@@ -78,6 +78,21 @@ export function QueueMode({ orders, onClose }: Props) {
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      // Never hijack arrow keys while the operator is editing text or a dialog
+      // is open — the caret must move freely inside inputs/fields.
+      const t = e.target as HTMLElement | null;
+      if (t) {
+        const tag = t.tagName;
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          tag === 'SELECT' ||
+          t.isContentEditable ||
+          t.closest('[role="dialog"], [role="menu"], [role="listbox"], [contenteditable="true"]')
+        ) {
+          return;
+        }
+      }
       e.preventDefault();
       e.stopPropagation();
       step(e.key === 'ArrowRight' ? 1 : -1);

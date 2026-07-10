@@ -62,7 +62,7 @@ interface BankEntry {
 
 interface ClientOnboardingApproval {
   id: string;
-  sales_order_id: string;
+  sales_order_id?: string | null;
   client_name: string;
   client_email?: string;
   client_phone?: string;
@@ -91,6 +91,25 @@ interface ClientOnboardingApproval {
   verified_name?: string | null;
   resolved_client_id?: string | null;
 }
+
+const cleanApprovalPersonName = (name?: string | null) => (name || '').split(' • ')[0].trim();
+
+const normalizeTextKey = (value?: string | null) => (value || '').trim().toLowerCase();
+
+const orderDateMatchesApprovalDate = (createTime: unknown, approvalDate?: string | null) => {
+  if (!createTime || !approvalDate) return false;
+  const orderMs = Number(createTime);
+  const approvalMs = new Date(`${approvalDate}T00:00:00`).getTime();
+  if (!Number.isFinite(orderMs) || !Number.isFinite(approvalMs)) return false;
+  return Math.abs(orderMs - approvalMs) <= 36 * 60 * 60 * 1000;
+};
+
+const orderAmountMatchesApprovalAmount = (totalPrice: unknown, approvalAmount?: number | null) => {
+  const orderAmount = Number(totalPrice || 0);
+  const expectedAmount = Number(approvalAmount || 0);
+  if (!Number.isFinite(orderAmount) || !Number.isFinite(expectedAmount) || expectedAmount <= 0) return false;
+  return Math.abs(orderAmount - expectedAmount) <= 1;
+};
 
 interface ExistingClientMatch {
   id: string;
@@ -315,6 +334,7 @@ export function ClientOnboardingApprovals() {
   const [nicknameOrdersTitle, setNicknameOrdersTitle] = useState('');
   // P2P order IDs shown inline in the Review dialog (nickname-resolved, no linked sales order)
   const [reviewNicknameOrders, setReviewNicknameOrders] = useState<any[]>([]);
+  const [reviewOrdersLoading, setReviewOrdersLoading] = useState(false);
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
   const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
@@ -1339,14 +1359,16 @@ export function ClientOnboardingApprovals() {
     }
   });
 
-  const handleApprovalClick = async (approval: ClientOnboardingApproval) => {
+  const handleApprovalClick = async (approval: ClientOnboardingApproval, approvalsForReview: ClientOnboardingApproval[] = [approval]) => {
     setSelectedApproval(approval);
-    // Resolve the P2P Terminal order ID(s) for display when the approval has no
-    // directly-linked sales order (e.g. de-merge siblings tracked only by nickname).
+    // Resolve P2P Terminal order ID(s) for display in every review path. Direct
+    // sales links resolve via terminal_sales_sync; de-merge siblings fall back to
+    // Binance history by nickname / verified-name + amount/date.
     setReviewNicknameOrders([]);
-    if (!approval.sales_order_id && approval.binance_nickname) {
-      fetchOrdersByNickname(approval.binance_nickname).then(setReviewNicknameOrders);
-    }
+    setReviewOrdersLoading(true);
+    fetchApprovalsP2POrders(approvalsForReview)
+      .then(setReviewNicknameOrders)
+      .finally(() => setReviewOrdersLoading(false));
     const phone = approval.client_phone || '';
     const state = approval.client_state || '';
     const draft = await loadBuyerApprovalDraft(approval.id);
@@ -1557,27 +1579,103 @@ export function ClientOnboardingApprovals() {
     setViewOrderOpen(true);
   };
 
-  // Resolve P2P Terminal orders for an approval that has no linked sales_order_id.
-  // The Binance nickname (full, unmasked) is the reliable key into binance_order_history.
-  const fetchOrdersByNickname = async (nickname?: string | null): Promise<any[]> => {
-    const nick = (nickname || '').trim();
-    if (!nick) return [];
-    const { data } = await supabase
-      .from('binance_order_history')
-      .select('order_number, trade_type, total_price, create_time, verified_name, counter_part_nick_name')
-      .eq('counter_part_nick_name', nick)
-      .order('create_time', { ascending: false })
-      .limit(200);
-    return data || [];
+  const dedupeP2POrders = (rows: any[]) => {
+    const map = new Map<string, any>();
+    for (const row of rows) {
+      if (!row?.order_number) continue;
+      map.set(String(row.order_number), { ...map.get(String(row.order_number)), ...row });
+    }
+    return Array.from(map.values()).sort((a, b) => Number(b.create_time || 0) - Number(a.create_time || 0));
+  };
+
+  // Resolve P2P Terminal orders for any approval row. Some de-merged rows do
+  // not carry sales_order_id and some Binance history nicknames are masked, so
+  // use progressively safer fallbacks without relying on client-name alone.
+  const fetchApprovalP2POrders = async (approval: ClientOnboardingApproval): Promise<any[]> => {
+    const rows: any[] = [];
+    const nick = sanitizeNickname(approval.binance_nickname);
+    const cleanName = cleanApprovalPersonName(approval.client_name);
+    const verifiedName = sanitizeVerifiedName(approval.verified_name) || cleanName;
+
+    if (approval.sales_order_id) {
+      const { data: syncRows } = await supabase
+        .from('terminal_sales_sync')
+        .select('binance_order_number, order_data, sales_order_id')
+        .eq('sales_order_id', approval.sales_order_id);
+
+      const orderNumbers = (syncRows || [])
+        .map((r: any) => r.binance_order_number)
+        .filter(Boolean);
+
+      if (orderNumbers.length > 0) {
+        const { data: historyRows } = await supabase
+          .from('binance_order_history')
+          .select('order_number, trade_type, total_price, create_time, verified_name, counter_part_nick_name')
+          .in('order_number', orderNumbers);
+        rows.push(...(historyRows || []));
+      }
+
+      for (const r of syncRows || []) {
+        const od = (r.order_data as any) || {};
+        if (!r.binance_order_number) continue;
+        rows.push({
+          order_number: r.binance_order_number,
+          trade_type: od.trade_type || od.tradeType || 'BUY',
+          total_price: od.total_price || approval.order_amount,
+          create_time: od.create_time || (approval.order_date ? new Date(`${approval.order_date}T00:00:00`).getTime() : null),
+          verified_name: od.verified_name || verifiedName,
+          counter_part_nick_name: od.counterparty_nickname_unmasked || od.counterparty_nickname || nick,
+        });
+      }
+    }
+
+    if (nick) {
+      const { data } = await supabase
+        .from('binance_order_history')
+        .select('order_number, trade_type, total_price, create_time, verified_name, counter_part_nick_name')
+        .eq('counter_part_nick_name', nick)
+        .order('create_time', { ascending: false })
+        .limit(200);
+      rows.push(...(data || []));
+    }
+
+    if (verifiedName) {
+      const { data } = await supabase
+        .from('binance_order_history')
+        .select('order_number, trade_type, total_price, create_time, verified_name, counter_part_nick_name')
+        .ilike('verified_name', verifiedName)
+        .order('create_time', { ascending: false })
+        .limit(200);
+      rows.push(
+        ...((data || []).filter((row: any) => {
+          const sameVerifiedName = normalizeTextKey(row.verified_name) === normalizeTextKey(verifiedName);
+          return sameVerifiedName && (
+            orderAmountMatchesApprovalAmount(row.total_price, approval.order_amount) ||
+            orderDateMatchesApprovalDate(row.create_time, approval.order_date)
+          );
+        }))
+      );
+    }
+
+    return dedupeP2POrders(rows);
+  };
+
+  const fetchApprovalsP2POrders = async (approvalRows: ClientOnboardingApproval[]): Promise<any[]> => {
+    const batches = await Promise.all(approvalRows.map((approval) => fetchApprovalP2POrders(approval)));
+    return dedupeP2POrders(batches.flat());
+  };
+
+  const handleViewApprovalOrders = async (approvalRows: ClientOnboardingApproval[], title: string) => {
+    setNicknameOrdersTitle(title);
+    setNicknameOrdersOpen(true);
+    setNicknameOrdersLoading(true);
+    const orders = await fetchApprovalsP2POrders(approvalRows);
+    setNicknameOrders(orders);
+    setNicknameOrdersLoading(false);
   };
 
   const handleViewNicknameOrders = async (approval: ClientOnboardingApproval) => {
-    setNicknameOrdersTitle(approval.client_name);
-    setNicknameOrdersOpen(true);
-    setNicknameOrdersLoading(true);
-    const orders = await fetchOrdersByNickname(approval.binance_nickname);
-    setNicknameOrders(orders);
-    setNicknameOrdersLoading(false);
+    await handleViewApprovalOrders([approval], approval.client_name);
   };
 
 
@@ -1674,12 +1772,13 @@ export function ClientOnboardingApprovals() {
 
   // Deduplicate pending approvals by client_name — show each client once with aggregated order info
   const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];
-  const pendingByClient = new Map<string, { primary: ClientOnboardingApproval; allIds: string[]; totalAmount: number; orderCount: number }>();
+  const pendingByClient = new Map<string, { primary: ClientOnboardingApproval; all: ClientOnboardingApproval[]; allIds: string[]; totalAmount: number; orderCount: number }>();
   for (const a of allPending) {
     const key = a.client_name.trim().toLowerCase();
     const existing = pendingByClient.get(key);
     if (existing) {
       existing.allIds.push(a.id);
+      existing.all.push(a);
       existing.totalAmount += a.order_amount;
       existing.orderCount += 1;
       // Keep the latest record as primary
@@ -1687,7 +1786,7 @@ export function ClientOnboardingApprovals() {
         existing.primary = a;
       }
     } else {
-      pendingByClient.set(key, { primary: a, allIds: [a.id], totalAmount: a.order_amount, orderCount: 1 });
+      pendingByClient.set(key, { primary: a, all: [a], allIds: [a.id], totalAmount: a.order_amount, orderCount: 1 });
     }
   }
   const allPendingApprovals = Array.from(pendingByClient.values());
@@ -2003,19 +2102,19 @@ export function ClientOnboardingApprovals() {
                             <FileText className="h-3 w-3 mr-1" />
                             View Order
                           </Button>
-                        ) : approval.binance_nickname ? (
+                        ) : (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleViewNicknameOrders(approval)}
+                            onClick={() => handleViewApprovalOrders(entry.all, approval.client_name)}
                           >
                             <FileText className="h-3 w-3 mr-1" />
                             View Orders
                           </Button>
-                        ) : null}
+                        )}
                         <Button
                           size="sm"
-                          onClick={() => handleApprovalClick(approval)}
+                          onClick={() => handleApprovalClick(approval, entry.all)}
                         >
                           <Eye className="h-3 w-3 mr-1" />
                           Review
@@ -2283,14 +2382,8 @@ export function ClientOnboardingApprovals() {
                   {/* P2P Terminal Order ID(s) */}
                   <div>
                     <span className="font-medium">P2P Terminal Order ID:</span>{' '}
-                    {selectedApproval.sales_order_id ? (
-                      <button
-                        type="button"
-                        className="text-primary underline underline-offset-2 hover:opacity-80"
-                        onClick={() => handleViewOrder(selectedApproval.sales_order_id)}
-                      >
-                        View linked order
-                      </button>
+                    {reviewOrdersLoading ? (
+                      <span className="text-xs text-muted-foreground italic">Resolving linked P2P order…</span>
                     ) : reviewNicknameOrders.length > 0 ? (
                       <span className="inline-flex flex-wrap gap-1 align-middle">
                         {reviewNicknameOrders.slice(0, 6).map((o: any) => (
@@ -2306,11 +2399,26 @@ export function ClientOnboardingApprovals() {
                         {reviewNicknameOrders.length > 6 && (
                           <span className="text-xs text-muted-foreground">+{reviewNicknameOrders.length - 6} more</span>
                         )}
+                        {selectedApproval.sales_order_id && (
+                          <button
+                            type="button"
+                            className="text-primary underline underline-offset-2 hover:opacity-80"
+                            onClick={() => handleViewOrder(selectedApproval.sales_order_id)}
+                          >
+                            View linked order
+                          </button>
+                        )}
                       </span>
-                    ) : selectedApproval.binance_nickname ? (
-                      <span className="text-xs text-muted-foreground italic">Resolving via nickname “{selectedApproval.binance_nickname}”…</span>
+                    ) : selectedApproval.sales_order_id ? (
+                      <button
+                        type="button"
+                        className="text-primary underline underline-offset-2 hover:opacity-80"
+                        onClick={() => handleViewOrder(selectedApproval.sales_order_id)}
+                      >
+                        View linked order
+                      </button>
                     ) : (
-                      <span className="text-xs text-muted-foreground italic">No linked order</span>
+                      <span className="text-xs text-destructive italic">No linked P2P order found</span>
                     )}
                   </div>
 

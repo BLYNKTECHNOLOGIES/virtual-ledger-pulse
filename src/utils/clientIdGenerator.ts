@@ -121,6 +121,39 @@ export const resolveClientByNickname = async (
 };
 
 /**
+ * Resolve the client that OWNS a given Binance userNo — the STABLE, unique numeric
+ * account identifier. This is the strongest identity anchor available and takes
+ * precedence over nickname, phone and name matching.
+ */
+export const resolveClientByUserNo = async (
+  cpUserNo: string
+): Promise<{ id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null } | null> => {
+  const clean = String(cpUserNo || '').trim();
+  if (!clean) return null;
+  const { data: resolved } = await supabase.rpc('resolve_client_by_userno' as any, { p_cp_userno: clean });
+  const row = Array.isArray(resolved) ? resolved[0] : resolved;
+  if (!row?.client_id) return null;
+  const { data: c } = await supabase
+    .from('clients')
+    .select('id, client_id, is_seller, seller_approval_status')
+    .eq('client_id', (row as any).client_id)
+    .eq('is_deleted', false)
+    .maybeSingle();
+  return (c as any) || null;
+};
+
+/** Persist a client↔userNo mapping (best-effort; never throws). */
+const linkClientUserNo = async (clientId: string, cpUserNo?: string | null) => {
+  const clean = String(cpUserNo || '').trim();
+  if (!clean || !clientId) return;
+  try {
+    await supabase.rpc('link_client_userno' as any, { p_client_id: clientId, p_cp_userno: clean });
+  } catch (e) {
+    console.warn('link_client_userno failed', e);
+  }
+};
+
+/**
  * Create a new seller client from purchase order.
  * Identity resolution is userNo/nickname-first: a real (unmasked) nickname owned by an
  * existing client always wins. Name / verified-name matching is only used as a fallback
@@ -130,11 +163,12 @@ export const resolveClientByNickname = async (
 export const createSellerClient = async (
   supplierName: string,
   contactNumber?: string,
-  evidence?: { binanceNickname?: string | null; verifiedName?: string | null }
+  evidence?: { binanceNickname?: string | null; verifiedName?: string | null; cpUserNo?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
     const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
     const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+    const cpUserNo = String(evidence?.cpUserNo || '').trim() || null;
 
     const markSeller = async (c: { id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null }) => {
       const updates: Record<string, any> = {};
@@ -154,7 +188,16 @@ export const createSellerClient = async (
       return { id: c.id, client_id: c.client_id };
     };
 
-    // 1. Identity-first: nickname (proxy for stable userNo).
+    // 0. Primary identity: Binance userNo — the stable, unique account identifier.
+    if (cpUserNo) {
+      const owner = await resolveClientByUserNo(cpUserNo);
+      if (owner) {
+        if (cleanVerifiedName && cleanNickname) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
+        return markSeller(owner);
+      }
+    }
+
+    // 1. Identity fallback: nickname (proxy for stable userNo).
     if (cleanNickname) {
       const owner = await resolveClientByNickname(cleanNickname);
       if (owner) {
@@ -222,6 +265,7 @@ export const createSellerClient = async (
       throw new Error(`DB${code}: ${msg}${details}`);
     }
     const row = Array.isArray(data) ? (data as any[])[0] : data;
+    if (row && cpUserNo) await linkClientUserNo((row as any).client_id, cpUserNo);
     return row ? { id: (row as any).id, client_id: (row as any).client_id } : null;
   } catch (error: any) {
     console.error('Error in createSellerClient:', error);
@@ -238,13 +282,29 @@ export const createBuyerClient = async (
   buyerName: string,
   contactNumber?: string,
   _state?: string,  // Intentionally ignored — state must be entered during Buyer Approval
-  evidence?: { binanceNickname?: string | null; verifiedName?: string | null }
+  evidence?: { binanceNickname?: string | null; verifiedName?: string | null; cpUserNo?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
     const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
     const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+    const cpUserNo = String(evidence?.cpUserNo || '').trim() || null;
 
-    // 1. Identity-first: nickname (proxy for stable userNo) always wins.
+    // 0. Primary identity: Binance userNo — the stable, unique account identifier.
+    if (cpUserNo) {
+      const owner = await resolveClientByUserNo(cpUserNo);
+      if (owner) {
+        if (contactNumber) {
+          const { data: existing } = await supabase.from('clients').select('phone').eq('id', owner.id).maybeSingle();
+          if (existing && !existing.phone) {
+            await supabase.from('clients').update({ phone: contactNumber }).eq('id', owner.id);
+          }
+        }
+        if (cleanVerifiedName && cleanNickname) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
+        return { id: owner.id, client_id: owner.client_id };
+      }
+    }
+
+    // 1. Identity fallback: nickname (proxy for stable userNo).
     if (cleanNickname) {
       const owner = await resolveClientByNickname(cleanNickname);
       if (owner) {
@@ -308,6 +368,7 @@ export const createBuyerClient = async (
       throw new Error(`DB${code}: ${msg}${details}`);
     }
     const row = Array.isArray(data) ? (data as any[])[0] : data;
+    if (row && cpUserNo) await linkClientUserNo((row as any).client_id, cpUserNo);
     return row ? { id: (row as any).id, client_id: (row as any).client_id } : null;
   } catch (error: any) {
     console.error('Error in createBuyerClient:', error);

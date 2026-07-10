@@ -917,20 +917,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                       </span>
                     </div>
                   )}
-                  {/* Auto-match precedence info — surfaces nickname/verified-name vs name match */}
-                  {clientAutoMatched && autoMatchVia && autoMatchVia !== 'name_exact' && (
+                  {/* Auto-match info — client bound strictly by Binance userNo */}
+                  {clientAutoMatched && autoMatchVia === 'userno' && (
                     <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />
                       <span className="text-[11px] font-medium text-info dark:text-info">
-                        Auto-linked by {autoMatchVia === 'nickname' ? 'Binance nickname' : 'KYC verified name'} — strongest identity signal.
-                      </span>
-                    </div>
-                  )}
-                  {clientAutoMatched && crossNameWarning && (
-                    <div className="flex items-center gap-2 rounded-md border border-warning bg-warning/10 dark:border-warning dark:bg-warning/30 px-3 py-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-warning dark:text-warning shrink-0" />
-                      <span className="text-[11px] font-medium text-warning dark:text-warning">
-                        Linked by nickname/KYC — name on Binance ("{displayName}") differs from client master ("{selectedClient.name}"). Confirm this is intentional.
+                        Auto-linked by Binance userNo — the unique account identity.
                       </span>
                     </div>
                   )}

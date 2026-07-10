@@ -76,6 +76,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+  // Tracks the on-demand userNo resolution lifecycle. Approval is blocked until
+  // this settles: no order may be approved until its Binance userNo is inferred.
+  const [userNoResolving, setUserNoResolving] = useState(false);
   // True once the operator explicitly picks/creates/unlinks a client — prevents
   // the auto-match effect from clobbering or re-validating a human decision.
   const manualSelectionRef = useRef(false);
@@ -84,11 +87,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // userNo is the stable, unique Binance account id — the primary identity key.
   // If it isn't cached yet for a fresh order, resolveOrderUserNo fetches order-detail on demand.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); manualSelectionRef.current = false; return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
     let cancelled = false;
+    setUserNoResolving(true);
     resolveOrderUserNo({
       orderNumber: String(orderNumber),
       tradeType: 'BUY', // our purchase flow: WE buy, counterparty is the seller
@@ -101,9 +105,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       setLinkedClientName(res.clientName || '');
       setAutoMatchVia('userno');
       setUserNoLocked(true);
+    }).finally(() => {
+      if (!cancelled) setUserNoResolving(false);
     });
     return () => { cancelled = true; };
   }, [open, od?.order_number, syncRecord?.binance_order_number]);
+
 
 
   // Fetch live CoinUSDT rate for non-USDT assets

@@ -144,11 +144,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     return [...exact, ...partial];
   }, [displayName, allClients]);
 
-  // Track how the auto-match was resolved so we can warn the operator
-  const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
-  // Non-binding same-name suggestion the operator must confirm before linking.
-  const [nameSuggestion, setNameSuggestion] = useState<{ id: string; name: string } | null>(null);
-  const [crossNameWarning, setCrossNameWarning] = useState(false);
+  // How the auto-match was resolved (only 'userno' auto-locks now).
+  const [autoMatchVia, setAutoMatchVia] = useState<string | null>(null);
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);

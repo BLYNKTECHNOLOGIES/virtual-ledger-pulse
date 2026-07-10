@@ -308,6 +308,13 @@ export function ClientOnboardingApprovals() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOrderData, setViewOrderData] = useState<any>(null);
   const [viewOrderOpen, setViewOrderOpen] = useState(false);
+  // P2P Terminal orders resolved by Binance nickname (for approvals with no linked sales_order_id)
+  const [nicknameOrders, setNicknameOrders] = useState<any[]>([]);
+  const [nicknameOrdersOpen, setNicknameOrdersOpen] = useState(false);
+  const [nicknameOrdersLoading, setNicknameOrdersLoading] = useState(false);
+  const [nicknameOrdersTitle, setNicknameOrdersTitle] = useState('');
+  // P2P order IDs shown inline in the Review dialog (nickname-resolved, no linked sales order)
+  const [reviewNicknameOrders, setReviewNicknameOrders] = useState<any[]>([]);
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
   const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
@@ -1334,6 +1341,12 @@ export function ClientOnboardingApprovals() {
 
   const handleApprovalClick = async (approval: ClientOnboardingApproval) => {
     setSelectedApproval(approval);
+    // Resolve the P2P Terminal order ID(s) for display when the approval has no
+    // directly-linked sales order (e.g. de-merge siblings tracked only by nickname).
+    setReviewNicknameOrders([]);
+    if (!approval.sales_order_id && approval.binance_nickname) {
+      fetchOrdersByNickname(approval.binance_nickname).then(setReviewNicknameOrders);
+    }
     const phone = approval.client_phone || '';
     const state = approval.client_state || '';
     const draft = await loadBuyerApprovalDraft(approval.id);
@@ -1543,6 +1556,31 @@ export function ClientOnboardingApprovals() {
     setViewOrderData(data);
     setViewOrderOpen(true);
   };
+
+  // Resolve P2P Terminal orders for an approval that has no linked sales_order_id.
+  // The Binance nickname (full, unmasked) is the reliable key into binance_order_history.
+  const fetchOrdersByNickname = async (nickname?: string | null): Promise<any[]> => {
+    const nick = (nickname || '').trim();
+    if (!nick) return [];
+    const { data } = await supabase
+      .from('binance_order_history')
+      .select('order_number, trade_type, total_price, create_time, verified_name, counter_part_nick_name')
+      .eq('counter_part_nick_name', nick)
+      .order('create_time', { ascending: false })
+      .limit(200);
+    return data || [];
+  };
+
+  const handleViewNicknameOrders = async (approval: ClientOnboardingApproval) => {
+    setNicknameOrdersTitle(approval.client_name);
+    setNicknameOrdersOpen(true);
+    setNicknameOrdersLoading(true);
+    const orders = await fetchOrdersByNickname(approval.binance_nickname);
+    setNicknameOrders(orders);
+    setNicknameOrdersLoading(false);
+  };
+
+
 
   const resetForm = () => {
     setFormData(createEmptyApprovalFormData());
@@ -1956,7 +1994,7 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        {approval.sales_order_id && (
+                        {approval.sales_order_id ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -1965,7 +2003,16 @@ export function ClientOnboardingApprovals() {
                             <FileText className="h-3 w-3 mr-1" />
                             View Order
                           </Button>
-                        )}
+                        ) : approval.binance_nickname ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewNicknameOrders(approval)}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            View Orders
+                          </Button>
+                        ) : null}
                         <Button
                           size="sm"
                           onClick={() => handleApprovalClick(approval)}
@@ -2233,6 +2280,40 @@ export function ClientOnboardingApprovals() {
                       <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}
                     </div>
                   </div>
+                  {/* P2P Terminal Order ID(s) */}
+                  <div>
+                    <span className="font-medium">P2P Terminal Order ID:</span>{' '}
+                    {selectedApproval.sales_order_id ? (
+                      <button
+                        type="button"
+                        className="text-primary underline underline-offset-2 hover:opacity-80"
+                        onClick={() => handleViewOrder(selectedApproval.sales_order_id)}
+                      >
+                        View linked order
+                      </button>
+                    ) : reviewNicknameOrders.length > 0 ? (
+                      <span className="inline-flex flex-wrap gap-1 align-middle">
+                        {reviewNicknameOrders.slice(0, 6).map((o: any) => (
+                          <code
+                            key={o.order_number}
+                            className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono cursor-pointer hover:bg-muted-foreground/20"
+                            title={`${o.trade_type} • ₹${Number(o.total_price || 0).toLocaleString('en-IN')} • click to copy`}
+                            onClick={() => { navigator.clipboard?.writeText(String(o.order_number)); toast({ title: 'Copied', description: `Order ID ${o.order_number}` }); }}
+                          >
+                            {o.order_number}
+                          </code>
+                        ))}
+                        {reviewNicknameOrders.length > 6 && (
+                          <span className="text-xs text-muted-foreground">+{reviewNicknameOrders.length - 6} more</span>
+                        )}
+                      </span>
+                    ) : selectedApproval.binance_nickname ? (
+                      <span className="text-xs text-muted-foreground italic">Resolving via nickname “{selectedApproval.binance_nickname}”…</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">No linked order</span>
+                    )}
+                  </div>
+
                   {/* Row 2: Phone + State */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -2850,6 +2931,43 @@ export function ClientOnboardingApprovals() {
         onOpenChange={(open) => { if (!open) { setViewOrderOpen(false); setViewOrderData(null); } }}
         order={viewOrderData}
       />
+
+      {/* Nickname-resolved P2P Terminal Orders Dialog */}
+      <Dialog open={nicknameOrdersOpen} onOpenChange={setNicknameOrdersOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>P2P Terminal Orders — {nicknameOrdersTitle}</DialogTitle>
+          </DialogHeader>
+          {nicknameOrdersLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading orders…</div>
+          ) : nicknameOrders.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No linked P2P orders found.</div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto space-y-2">
+              {nicknameOrders.map((o: any) => (
+                <div key={o.order_number} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm">
+                  <div className="min-w-0">
+                    <code className="font-mono text-xs">{o.order_number}</code>
+                    <div className="text-xs text-muted-foreground">
+                      {o.trade_type} • {o.create_time ? new Date(o.create_time).toLocaleDateString() : '—'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-medium">₹{Number(o.total_price || 0).toLocaleString('en-IN')}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { navigator.clipboard?.writeText(String(o.order_number)); toast({ title: 'Copied', description: `Order ID ${o.order_number}` }); }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <ReuploadDocumentDialog
         target={reuploadTarget}

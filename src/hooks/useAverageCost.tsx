@@ -13,14 +13,20 @@ export function useAverageCost() {
   return useQuery({
     queryKey: ['average_cost_calculation'],
     queryFn: async () => {
-      // Use effective_usdt_qty and net_payable_amount from purchase_orders
-      // These are the normalized USDT-equivalent fields — source of truth
+      // WAC = total INR cost / total COIN quantity acquired (per product).
+      //
+      // IMPORTANT: The denominator MUST be the actual coin quantity, NOT the
+      // USDT-equivalent quantity. Using effective_usdt_qty only works for USDT
+      // (where 1 coin == 1 USDT). For any other asset (TRX, BTC, ...) the
+      // USDT-equivalent is far smaller than the coin count, which inflated the
+      // reported "Avg Cost" to roughly the USDT buying rate (e.g. TRX showed
+      // ~₹95/coin — the USDT rate — instead of its true ~₹29/coin basis).
       const { data: purchaseOrders, error: poError } = await supabase
         .from('purchase_orders')
         .select(`
-          effective_usdt_qty,
           net_payable_amount,
           purchase_order_items (
+            quantity,
             products (
               code
             )
@@ -33,30 +39,31 @@ export function useAverageCost() {
         throw poError;
       }
 
-      // Aggregate: WAC = total INR cost / total USDT-equivalent qty per product
-      const costCalculations = new Map<string, { totalUsdtQty: number; totalCost: number }>();
+      // Aggregate: WAC = total INR cost / total coin qty per product
+      const costCalculations = new Map<string, { totalQty: number; totalCost: number }>();
 
       purchaseOrders?.forEach(po => {
-        const usdtQty = Number(po.effective_usdt_qty) || 0;
         const cost = Number(po.net_payable_amount) || 0;
-        if (usdtQty <= 0 || cost <= 0) return;
+        if (cost <= 0) return;
 
-        // Get product code from first item (each PO maps to one product)
-        const productCode = (po.purchase_order_items as any)?.[0]?.products?.code;
-        if (!productCode) return;
+        // Each PO maps to one product/asset (first item).
+        const item = (po.purchase_order_items as any)?.[0];
+        const productCode = item?.products?.code;
+        const coinQty = Number(item?.quantity) || 0;
+        if (!productCode || coinQty <= 0) return;
 
-        const existing = costCalculations.get(productCode) || { totalUsdtQty: 0, totalCost: 0 };
+        const existing = costCalculations.get(productCode) || { totalQty: 0, totalCost: 0 };
         costCalculations.set(productCode, {
-          totalUsdtQty: existing.totalUsdtQty + usdtQty,
+          totalQty: existing.totalQty + coinQty,
           totalCost: existing.totalCost + cost,
         });
       });
 
       const result: AverageCostData[] = Array.from(costCalculations.entries()).map(([productCode, data]) => ({
         product_code: productCode,
-        total_quantity: data.totalUsdtQty,
+        total_quantity: data.totalQty,
         total_cost: data.totalCost,
-        average_cost: data.totalUsdtQty > 0 ? data.totalCost / data.totalUsdtQty : 0,
+        average_cost: data.totalQty > 0 ? data.totalCost / data.totalQty : 0,
       }));
 
       return result;

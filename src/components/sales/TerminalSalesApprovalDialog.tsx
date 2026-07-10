@@ -149,6 +149,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Binance userNo (stable account identity) lock — when resolved, client cannot be changed
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
+  // Approval is blocked until this settles: no order may be approved until its
+  // Binance userNo is inferred (on-demand resolution lifecycle flag).
+  const [userNoResolving, setUserNoResolving] = useState(false);
 
   // Resolve & LOCK client STRICTLY by Binance userNo (the only identity anchor).
   // userNo is the stable, unique Binance account id. Nickname / verified-name /
@@ -156,11 +159,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // If userNo isn't cached for a fresh order, resolveOrderUserNo fetches
   // order-detail on demand. No userNo → operator must pick/create manually.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
     let cancelled = false;
+    setUserNoResolving(true);
     resolveOrderUserNo({
       orderNumber: String(orderNumber),
       tradeType: 'SELL', // our sales flow: WE sell, counterparty is the buyer
@@ -184,9 +188,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           if (normalizedState) setClientState(normalizedState);
         }
       }
+    }).finally(() => {
+      if (!cancelled) setUserNoResolving(false);
     });
     return () => { cancelled = true; };
   }, [open, od?.order_number, syncRecord?.binance_order_number, allClients]);
+
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {
@@ -473,6 +480,15 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const approveMutation = useMutation({
     mutationFn: async () => {
       const userId = await requireCurrentUserId();
+
+      // Hard gate: never approve an order whose Binance userNo hasn't been inferred.
+      if (userNoResolving) {
+        throw new Error("Still inferring the Binance User No for this order — please wait.");
+      }
+      if (!lockedUserNo) {
+        throw new Error("Cannot approve: Binance User No could not be inferred for this order.");
+      }
+
 
       if (isMultiplePayments) {
         if (!splitAllocation.isValid) {
@@ -1270,6 +1286,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           </div>
         </div>
 
+        {(userNoResolving || !lockedUserNo) && (
+          <p className="text-[11px] text-amber-500 mb-1">
+            {userNoResolving
+              ? "Inferring Binance User No for this order…"
+              : "Binance User No not yet inferred — approval is blocked until it resolves."}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
@@ -1277,7 +1300,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
+            disabled={approveMutation.isPending || userNoResolving || !lockedUserNo || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

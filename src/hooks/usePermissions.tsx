@@ -8,7 +8,7 @@ const ADMIN_PERMISSIONS = [
   'sales_view', 'sales_manage',
   'purchase_view', 'purchase_manage',
   'terminal_view', 'terminal_manage',
-  'bams_view', 'bams_manage',
+  'bams_view', 'bams_manage', 'bams_journal_entry',
   'clients_view', 'clients_manage',
   'ra_assign', 'ra_dashboard_view',
   'leads_view', 'leads_manage',

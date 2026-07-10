@@ -1517,6 +1517,12 @@ export default function UserProfile() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ForgotPasswordDialog
+        open={showResetPassword}
+        onOpenChange={setShowResetPassword}
+        defaultEmail={user?.email || ''}
+      />
     </div>
   );
 }

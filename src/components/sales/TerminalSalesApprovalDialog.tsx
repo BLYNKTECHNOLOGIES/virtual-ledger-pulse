@@ -155,7 +155,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // userNo is the stable, unique Binance account id — the primary identity key.
   // If it isn't cached yet for a fresh order, resolveOrderUserNo fetches order-detail on demand.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); manualSelectionRef.current = false; return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 

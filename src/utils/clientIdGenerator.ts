@@ -282,13 +282,29 @@ export const createBuyerClient = async (
   buyerName: string,
   contactNumber?: string,
   _state?: string,  // Intentionally ignored — state must be entered during Buyer Approval
-  evidence?: { binanceNickname?: string | null; verifiedName?: string | null }
+  evidence?: { binanceNickname?: string | null; verifiedName?: string | null; cpUserNo?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
     const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
     const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+    const cpUserNo = String(evidence?.cpUserNo || '').trim() || null;
 
-    // 1. Identity-first: nickname (proxy for stable userNo) always wins.
+    // 0. Primary identity: Binance userNo — the stable, unique account identifier.
+    if (cpUserNo) {
+      const owner = await resolveClientByUserNo(cpUserNo);
+      if (owner) {
+        if (contactNumber) {
+          const { data: existing } = await supabase.from('clients').select('phone').eq('id', owner.id).maybeSingle();
+          if (existing && !existing.phone) {
+            await supabase.from('clients').update({ phone: contactNumber }).eq('id', owner.id);
+          }
+        }
+        if (cleanVerifiedName && cleanNickname) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
+        return { id: owner.id, client_id: owner.client_id };
+      }
+    }
+
+    // 1. Identity fallback: nickname (proxy for stable userNo).
     if (cleanNickname) {
       const owner = await resolveClientByNickname(cleanNickname);
       if (owner) {

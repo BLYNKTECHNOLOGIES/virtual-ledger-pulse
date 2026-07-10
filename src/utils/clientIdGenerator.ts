@@ -216,7 +216,10 @@ export const createBuyerClient = async (
     const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
     const cpUserNo = String(evidence?.cpUserNo || '').trim() || null;
 
-    // 0. Primary identity: Binance userNo — the stable, unique account identifier.
+    // Client resolution is STRICTLY by Binance userNo — the stable, unique
+    // account identifier. Nickname / verified-name / phone / name matching have
+    // been removed: they are not globally unique and caused cross-contamination.
+    // If the userNo is unknown, a NEW client is created (no auto-merge).
     if (cpUserNo) {
       const owner = await resolveClientByUserNo(cpUserNo);
       if (owner) {
@@ -226,52 +229,7 @@ export const createBuyerClient = async (
             await supabase.from('clients').update({ phone: contactNumber }).eq('id', owner.id);
           }
         }
-        if (cleanVerifiedName && cleanNickname) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
         return { id: owner.id, client_id: owner.client_id };
-      }
-    }
-
-    // 1. Identity fallback: nickname (proxy for stable userNo).
-    if (cleanNickname) {
-      const owner = await resolveClientByNickname(cleanNickname);
-      if (owner) {
-        if (contactNumber) {
-          const { data: existing } = await supabase.from('clients').select('phone').eq('id', owner.id).maybeSingle();
-          if (existing && !existing.phone) {
-            await supabase.from('clients').update({ phone: contactNumber }).eq('id', owner.id);
-          }
-        }
-        // Recurring order for a known account — backfill the real verified name.
-        if (cleanVerifiedName) await enrichVerifiedNameByNickname(cleanNickname, cleanVerifiedName);
-        return { id: owner.id, client_id: owner.client_id };
-      }
-    }
-
-    // 2. Phone number is a strong, person-specific identity anchor.
-    if (contactNumber?.trim() && contactNumber.trim().length >= 10) {
-      const { data: phoneMatch } = await supabase
-        .from('clients')
-        .select('id, client_id, name, phone')
-        .eq('is_deleted', false)
-        .eq('phone', contactNumber.trim())
-        .limit(1)
-        .maybeSingle();
-      if (phoneMatch) {
-        return { id: phoneMatch.id, client_id: phoneMatch.client_id };
-      }
-    }
-
-    // 3. Fallback name matching — ONLY when there is no real nickname, so distinct
-    //    same-KYC-name accounts are never merged.
-    if (!cleanNickname) {
-      const existingClient = await findClientByName(buyerName);
-      if (existingClient) {
-        const updates: Record<string, string> = {};
-        if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
-        if (Object.keys(updates).length > 0) {
-          await supabase.from('clients').update(updates).eq('id', existingClient.id);
-        }
-        return { id: existingClient.id, client_id: existingClient.client_id };
       }
     }
 

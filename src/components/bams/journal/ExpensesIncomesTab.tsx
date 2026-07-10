@@ -189,7 +189,7 @@ export function ExpensesIncomesTab() {
 
   return (
     <div className="space-y-6">
-      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+      <PermissionGate permissions={["bams_manage", "bams_journal_entry"]} showFallback={false}>
         <TransactionForm bankAccounts={bankAccounts || []} />
       </PermissionGate>
       <TransactionSummary transactions={transactions || []} />
@@ -296,7 +296,7 @@ export function ExpensesIncomesTab() {
                          </a>
                        </Button>
                      )}
-                     <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+                     <PermissionGate permissions={["bams_manage", "bams_journal_entry"]} showFallback={false}>
                        <Button
                          variant="ghost"
                          size="icon" aria-label="Edit"

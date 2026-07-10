@@ -78,25 +78,29 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const [userNoLocked, setUserNoLocked] = useState(false);
   const [lockedUserNo, setLockedUserNo] = useState<string | null>(null);
 
-  // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor)
+  // Resolve & LOCK client by Binance userNo (highest-confidence identity anchor).
+  // userNo is the stable, unique Binance account id — the primary identity key.
+  // If it isn't cached yet for a fresh order, resolveOrderUserNo fetches order-detail on demand.
   useEffect(() => {
     if (!open) { setUserNoLocked(false); setLockedUserNo(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
     let cancelled = false;
-    supabase.rpc('resolve_client_by_userno', { p_order_number: String(orderNumber) })
-      .then(({ data, error }) => {
-        if (cancelled || error || !data) return;
-        const row = Array.isArray(data) ? data[0] : data;
-        if (!row?.client_id) return;
-        setLinkedClientId(row.client_id);
-        setLinkedClientName(row.client_name || '');
-        setAutoMatchVia('nickname');
-        setCrossNameWarning(false);
-        setUserNoLocked(true);
-        setLockedUserNo(row.cp_userno ? String(row.cp_userno) : null);
-      });
+    resolveOrderUserNo({
+      orderNumber: String(orderNumber),
+      tradeType: 'BUY', // our purchase flow: WE buy, counterparty is the seller
+      exchangeAccountId: syncRecord?.exchange_account_id ?? od?.exchange_account_id ?? null,
+    }).then((res) => {
+      if (cancelled) return;
+      if (res.cpUserNo) setLockedUserNo(String(res.cpUserNo));
+      if (!res.clientId) return;
+      setLinkedClientId(res.clientId);
+      setLinkedClientName(res.clientName || '');
+      setAutoMatchVia('nickname');
+      setCrossNameWarning(false);
+      setUserNoLocked(true);
+    });
     return () => { cancelled = true; };
   }, [open, od?.order_number, syncRecord?.binance_order_number]);
 

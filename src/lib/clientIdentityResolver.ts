@@ -335,13 +335,22 @@ export async function resolveTerminalApprovalClient(params: {
         .in('id', ids);
       const valid = (clients || []).filter(c => !c.is_deleted && !isRejected(c));
       if (valid.length === 1) {
+        // Do NOT auto-link on a verified-name match alone. Per project rule,
+        // KYC verified names are IMMUTABLE per client but NOT globally unique —
+        // two distinct Binance accounts (different userNo) can legitimately
+        // share the same KYC name (e.g. "ABHISHEK SINGH"). Auto-linking on a
+        // single verified-name match is the root cause of cross-contamination:
+        // a brand-new person's order gets attributed to an unrelated existing
+        // client that merely shares the name. Only Binance userNo (handled in
+        // the caller, before this fn) is a high-confidence auto-lock. Surface
+        // the verified-name hit as a suggestion the operator must confirm.
         const c = valid[0];
-        const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
-        return { clientId: c.id, clientName: c.name, resolvedVia: 'verified_name', crossNameWarning: cross, ambiguousCandidates: [], nameSuggestion: null };
+        return { ...empty, nameSuggestion: { id: c.id, name: c.name } };
       }
       if (valid.length > 1) {
         return { ...empty, ambiguousCandidates: valid.map(c => ({ id: c.id, name: c.name })) };
       }
+
     }
   }
 

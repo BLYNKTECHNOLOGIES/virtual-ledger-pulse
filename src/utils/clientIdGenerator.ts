@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { enrichVerifiedNameByNickname } from "@/lib/clientIdentityResolver";
 
 /**
  * Generate a unique 6-character alphanumeric client ID

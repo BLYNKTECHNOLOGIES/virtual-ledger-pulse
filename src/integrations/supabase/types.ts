@@ -2394,6 +2394,39 @@ export type Database = {
         }
         Relationships: []
       }
+      client_userno_merge_log: {
+        Row: {
+          canonical_name: string | null
+          cp_userno: string
+          created_at: string
+          id: string
+          merged_client_id: string
+          merged_client_name: string | null
+          survivor_id: string
+          survivor_name: string | null
+        }
+        Insert: {
+          canonical_name?: string | null
+          cp_userno: string
+          created_at?: string
+          id?: string
+          merged_client_id: string
+          merged_client_name?: string | null
+          survivor_id: string
+          survivor_name?: string | null
+        }
+        Update: {
+          canonical_name?: string | null
+          cp_userno?: string
+          created_at?: string
+          id?: string
+          merged_client_id?: string
+          merged_client_name?: string | null
+          survivor_id?: string
+          survivor_name?: string | null
+        }
+        Relationships: []
+      }
       client_verified_names: {
         Row: {
           client_id: string
@@ -17747,6 +17780,16 @@ export type Database = {
       maybe_delete_orphan_client: {
         Args: { client_name_param: string }
         Returns: undefined
+      }
+      merge_shared_userno_clients: {
+        Args: { p_dry_run?: boolean }
+        Returns: {
+          out_canonical_name: string
+          out_merged_count: number
+          out_merged_ids: string[]
+          out_survivor_id: string
+          out_userno: string
+        }[]
       }
       mpi_can_manage: { Args: { _uid: string }; Returns: boolean }
       mpi_can_view: { Args: { _uid: string }; Returns: boolean }

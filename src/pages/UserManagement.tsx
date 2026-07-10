@@ -34,7 +34,6 @@ import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordD
 import { FunctionsTab } from "@/components/user-management/FunctionsTab";
 import { PermissionChangeLog } from "@/components/user-management/PermissionChangeLog";
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
-import { PasswordResetRequestsTab } from "@/components/user-management/PasswordResetRequestsTab";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
@@ -427,10 +426,6 @@ export default function UserManagement() {
               <Terminal className="h-4 w-4" />
               Terminal Access
             </TabsTrigger>
-            <TabsTrigger value="password-requests" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              Password Requests
-            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               User Settings
@@ -775,14 +770,8 @@ export default function UserManagement() {
               <TerminalAccessTab />
             </PermissionGate>
           </TabsContent>
-
-          {/* Password Reset Requests Tab - Super Admin only */}
-          <TabsContent value="password-requests" className="space-y-4">
-            <PermissionGate permissions={['user_management_manage']}>
-              <PasswordResetRequestsTab />
-            </PermissionGate>
-          </TabsContent>
         </Tabs>
+
 
       {/* Dialogs */}
       {editingUser && (

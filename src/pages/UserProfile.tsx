@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { 
   User, 
   Building2, 
@@ -534,11 +535,12 @@ export default function UserProfile() {
     leave_type_id: '', from_date: '', to_date: '', reason: ''
   });
   const [settingsData, setSettingsData] = useState({
-    newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '', passwordResetReason: ''
+    newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showLeaveCreate, setShowLeaveCreate] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
 
   // ─── Fetch HRMS employee linked to this user ───
@@ -1456,43 +1458,22 @@ export default function UserProfile() {
               </CardContent>
             </Card>
 
-            {/* Request New Password */}
+            {/* Reset Password */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Request New Password</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Reset Password</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  For security reasons, password changes are handled by the Super Admin. Submit a request and the Super Admin will reset your password.
+                  Reset your password yourself using a one-time verification code sent to your registered email.
                 </p>
-                <div>
-                  <Label htmlFor="passwordResetReason">Reason (optional)</Label>
-                  <Input
-                    id="passwordResetReason"
-                    value={settingsData.passwordResetReason || ''}
-                    onChange={(e) => setSettingsData(prev => ({ ...prev, passwordResetReason: e.target.value }))}
-                    placeholder="e.g. Forgot my password"
-                  />
-                </div>
-                <Button onClick={async () => {
-                  try {
-                    const { error } = await supabase.from('password_reset_requests').insert({
-                      user_id: user?.id,
-                      reason: settingsData.passwordResetReason || null,
-                      status: 'pending',
-                    });
-                    if (error) throw error;
-                    toast({ title: "✅ Request Submitted", description: "Your password reset request has been sent to the Super Admin." });
-                    setSettingsData(prev => ({ ...prev, passwordResetReason: '' }));
-                  } catch (error: any) {
-                    toast({ title: "Error", description: error.message || "Failed to submit request", variant: "destructive" });
-                  }
-                }} className="w-full">
-                  Request New Password
+                <Button onClick={() => setShowResetPassword(true)} className="w-full">
+                  Reset Password
                 </Button>
               </CardContent>
             </Card>
           </div>
+
 
           {/* Security Information */}
           <Card>
@@ -1536,6 +1517,12 @@ export default function UserProfile() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ForgotPasswordDialog
+        open={showResetPassword}
+        onOpenChange={setShowResetPassword}
+        defaultEmail={user?.email || ''}
+      />
     </div>
   );
 }

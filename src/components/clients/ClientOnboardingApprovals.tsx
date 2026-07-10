@@ -1551,6 +1551,31 @@ export function ClientOnboardingApprovals() {
     setViewOrderOpen(true);
   };
 
+  // Resolve P2P Terminal orders for an approval that has no linked sales_order_id.
+  // The Binance nickname (full, unmasked) is the reliable key into binance_order_history.
+  const fetchOrdersByNickname = async (nickname?: string | null): Promise<any[]> => {
+    const nick = (nickname || '').trim();
+    if (!nick) return [];
+    const { data } = await supabase
+      .from('binance_order_history')
+      .select('order_number, trade_type, total_price, create_time, verified_name, counter_part_nick_name')
+      .eq('counter_part_nick_name', nick)
+      .order('create_time', { ascending: false })
+      .limit(200);
+    return data || [];
+  };
+
+  const handleViewNicknameOrders = async (approval: ClientOnboardingApproval) => {
+    setNicknameOrdersTitle(approval.client_name);
+    setNicknameOrdersOpen(true);
+    setNicknameOrdersLoading(true);
+    const orders = await fetchOrdersByNickname(approval.binance_nickname);
+    setNicknameOrders(orders);
+    setNicknameOrdersLoading(false);
+  };
+
+
+
   const resetForm = () => {
     setFormData(createEmptyApprovalFormData());
     setSelectedApproval(null);

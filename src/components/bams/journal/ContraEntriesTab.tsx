@@ -44,7 +44,7 @@ export function ContraEntriesTab() {
 
   return (
     <div className="space-y-6">
-      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+      <PermissionGate permissions={["bams_manage", "bams_journal_entry"]} showFallback={false}>
         <TransferForm bankAccounts={bankAccounts || []} />
       </PermissionGate>
       <TransferHistory transfers={transfers || []} />

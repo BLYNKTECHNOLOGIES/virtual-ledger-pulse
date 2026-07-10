@@ -22,6 +22,7 @@ const availablePermissions = [
   { id: "purchase_manage", name: "Purchase Manage", description: "Manage purchase orders" },
   { id: "bams_view", name: "BAMS View", description: "View Bank Account Management System" },
   { id: "bams_manage", name: "BAMS Manage", description: "Manage Bank Account Management System" },
+  { id: "bams_journal_entry", name: "BAMS Bank Journal Entry", description: "Access only the Bank Journal Entries section (expense, income & contra entries)" },
   { id: "clients_view", name: "Clients View", description: "View client information" },
   { id: "clients_manage", name: "Clients Manage", description: "Manage clients" },
   { id: "ra_assign", name: "Assign RA", description: "Assign clients to Relationship Associates" },

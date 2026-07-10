@@ -68,6 +68,7 @@ const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: str
     permissions: [
       { id: 'bams_view', name: 'View', description: 'View bank accounts', tier: 'view' },
       { id: 'bams_manage', name: 'Manage', description: 'Manage bank accounts', tier: 'manage' },
+      { id: 'bams_journal_entry', name: 'Bank Journal Entry', description: 'Access only the Bank Journal Entries section (expense, income & contra entries)', tier: 'special' },
     ],
   },
   clients: {

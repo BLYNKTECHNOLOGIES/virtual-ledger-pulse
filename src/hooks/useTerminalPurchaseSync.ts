@@ -323,6 +323,13 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       let clientId = resolved.clientId;
       const resolvedVia = resolved.resolvedVia;
 
+      // Progressive enrichment: recurring order for a nickname (userNo proxy) already
+      // linked to a client backfills its real verified name into the directory.
+      if (clientId && (resolvedVia === 'nickname' || resolvedVia === 'intersection') && verifiedName) {
+        await enrichVerifiedNameByNickname(safeUnmasked || safeNickname, verifiedName);
+      }
+
+
       // Fallback: explicit sales sync mappings (purchase-specific cross-reference)
       if (!clientId && verifiedName) {
         clientId = salesClientMap.get(verifiedName.toLowerCase().trim()) || null;

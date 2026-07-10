@@ -34,7 +34,6 @@ import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordD
 import { FunctionsTab } from "@/components/user-management/FunctionsTab";
 import { PermissionChangeLog } from "@/components/user-management/PermissionChangeLog";
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
-import { PasswordResetRequestsTab } from "@/components/user-management/PasswordResetRequestsTab";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";

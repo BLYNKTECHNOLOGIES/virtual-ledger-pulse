@@ -1400,6 +1400,44 @@ export function ClientOnboardingApprovals() {
       if (!draft) setApprovalMode('normal');
     }
     setDialogOpen(true);
+
+    // Resolve Binance identity (userNo + nickname) for both the matched existing
+    // client and the incoming onboarding request — display only.
+    setIdentityDetail({
+      existingUserNo: null,
+      existingNickname: null,
+      requestUserNo: null,
+      requestNickname: sanitizeNickname(approval.binance_nickname),
+    });
+    void (async () => {
+      const next = {
+        existingUserNo: null as string | null,
+        existingNickname: null as string | null,
+        requestUserNo: null as string | null,
+        requestNickname: sanitizeNickname(approval.binance_nickname),
+      };
+      // Existing client identity
+      if (existing?.id) {
+        const [{ data: unoRow }, { data: nickRow }] = await Promise.all([
+          supabase.from('client_binance_usernos').select('cp_userno').eq('client_id', existing.id).limit(1).maybeSingle(),
+          supabase.from('client_binance_nicknames').select('nickname').eq('client_id', existing.id).limit(1).maybeSingle(),
+        ]);
+        next.existingUserNo = unoRow?.cp_userno ? String(unoRow.cp_userno) : null;
+        next.existingNickname = sanitizeNickname(nickRow?.nickname);
+      }
+      // Incoming request identity via its P2P order
+      const orderNo = reviewNicknameOrders[0]?.order_number || null;
+      if (orderNo) {
+        const { data: idRow } = await supabase
+          .from('cp_order_identity')
+          .select('cp_userno, nickname')
+          .eq('order_number', String(orderNo))
+          .maybeSingle();
+        if (idRow?.cp_userno) next.requestUserNo = String(idRow.cp_userno);
+        next.requestNickname = next.requestNickname || sanitizeNickname(idRow?.nickname);
+      }
+      setIdentityDetail(next);
+    })();
   };
 
   const handleApprove = () => {

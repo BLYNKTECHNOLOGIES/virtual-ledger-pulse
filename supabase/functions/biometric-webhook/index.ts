@@ -32,6 +32,39 @@ Deno.serve(async (req) => {
   );
 
   try {
+    // ─── AUTHENTICATE ICLOCK DEVICE REQUESTS (GET/POST with ?SN=) ───
+    // Prevents anyone who guesses a serial number from forging attendance data.
+    if (serialNumber) {
+      // 1. Only registered devices may talk to this endpoint.
+      const { data: knownDevice } = await supabase
+        .from("hr_biometric_devices")
+        .select("id")
+        .eq("device_serial", serialNumber)
+        .maybeSingle();
+
+      if (!knownDevice) {
+        console.warn(`Rejected ICLOCK request from unknown serial: ${serialNumber}`);
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "Content-Type": "text/plain", ...corsHeaders },
+        });
+      }
+
+      // 2. When a shared secret is configured, require it on every device request.
+      //    Configure devices to append `&token=<BIOMETRIC_WEBHOOK_SECRET>` to their server URL.
+      const deviceToken = Deno.env.get("BIOMETRIC_WEBHOOK_SECRET");
+      const providedToken =
+        url.searchParams.get("token") ?? req.headers.get("x-webhook-secret");
+
+      if (deviceToken && providedToken !== deviceToken) {
+        console.warn(`Rejected ICLOCK request with invalid token from serial: ${serialNumber}`);
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "Content-Type": "text/plain", ...corsHeaders },
+        });
+      }
+    }
+
     // ─── ICLOCK PROTOCOL: GET requests ───
     if (req.method === "GET" && serialNumber) {
       const options = url.searchParams.get("options");

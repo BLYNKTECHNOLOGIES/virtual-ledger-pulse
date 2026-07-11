@@ -54,6 +54,24 @@ export function CustomerAutocomplete({
     },
   });
 
+  // Pending onboarding approvals — these are counterparties that have
+  // transacted but do NOT yet exist in the clients table. Surfacing them here
+  // prevents operators from creating duplicate clients for someone who is
+  // already waiting in the approval queue.
+  const { data: pendingApprovals } = useQuery({
+    queryKey: ['pending-approvals-search'],
+    queryFn: async () => {
+      return await fetchAllPaginated<any>(() =>
+        supabase
+          .from('client_onboarding_approvals')
+          .select('id, client_name, client_phone, binance_nickname, cp_userno, order_amount, order_date, resolved_client_id')
+          .eq('approval_status', 'PENDING')
+          .is('resolved_client_id', null)
+          .order('order_date', { ascending: false })
+      );
+    },
+  });
+
   // Filter clients based on input - search by name, phone, or PAN
   // Exclude deleted clients and rejected buyers
   const filteredClients = useMemo(() => {
@@ -70,6 +88,27 @@ export function CustomerAutocomplete({
         (client.pan_card_number && client.pan_card_number.toLowerCase().includes(searchTerm));
     });
   }, [clients, debouncedValue]);
+
+  // Filter pending approvals by the same search term. Match on name, phone or
+  // Binance nickname so operators can find the queued client however they type.
+  const filteredApprovals = useMemo(() => {
+    if (!pendingApprovals || !debouncedValue.trim()) return [];
+    const searchTerm = debouncedValue.toLowerCase().trim();
+    const seen = new Set<string>();
+    return pendingApprovals.filter((a: any) => {
+      const matches =
+        matchesWordPrefix(searchTerm, a.client_name || '') ||
+        (a.client_phone && a.client_phone.includes(searchTerm)) ||
+        (a.binance_nickname && a.binance_nickname.toLowerCase().includes(searchTerm));
+      if (!matches) return false;
+      // De-dupe repeated approvals for the same person (name + phone)
+      const key = `${(a.client_name || '').toLowerCase()}|${a.client_phone || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [pendingApprovals, debouncedValue]);
+
 
   // Check for exact match
   useEffect(() => {

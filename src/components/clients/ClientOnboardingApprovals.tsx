@@ -1629,7 +1629,7 @@ export function ClientOnboardingApprovals() {
           .from('binance_order_history')
           .select('order_number, trade_type, total_price, create_time, verified_name, counter_part_nick_name')
           .in('order_number', orderNumbers);
-        rows.push(...(historyRows || []));
+        rows.push(...(historyRows || []).map((r: any) => ({ ...r, _authoritative: true })));
       }
 
       for (const r of syncRows || []) {

@@ -19,6 +19,7 @@ interface CustomerAutocompleteProps {
   onStateChange?: (state: string) => void;
   onClientSelect?: (client: any) => void;
   onNewClient?: (isNew: boolean) => void;
+  onApprovalSelect?: (approval: any) => void;
   selectedClientId?: string;
   label?: string;
   placeholder?: string;

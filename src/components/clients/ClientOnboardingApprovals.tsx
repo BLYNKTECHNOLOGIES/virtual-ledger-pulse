@@ -1798,6 +1798,40 @@ export function ClientOnboardingApprovals() {
     setNicknameOrdersLoading(false);
   };
 
+  // Resolve a single P2P order number to its full Sales Order and open the
+  // full-length Sales Order Details dialog. Falls back to a toast if the order
+  // has no linked sales order (e.g. it was never approved/synced).
+  const openSalesOrderForP2P = async (orderNumber: string | number | undefined) => {
+    if (!orderNumber) return;
+    const num = String(orderNumber);
+    const { data: syncRows } = await supabase
+      .from('terminal_sales_sync')
+      .select('sales_order_id')
+      .eq('binance_order_number', num);
+    const salesId = (syncRows || []).map((r: any) => r.sales_order_id).filter(Boolean)[0];
+    if (!salesId) {
+      toast({
+        title: 'No linked sales order',
+        description: `Order ${num} has no synced sales order yet.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const { data, error } = await supabase
+      .from('sales_orders')
+      .select('*')
+      .eq('id', salesId)
+      .single();
+    if (error || !data) {
+      toast({ title: 'Order not found', description: 'Could not fetch the linked sales order', variant: 'destructive' });
+      return;
+    }
+    setNicknameOrdersOpen(false);
+    setViewOrderData(data);
+    setViewOrderOpen(true);
+  };
+
+
 
   const handleViewNicknameOrders = async (approval: ClientOnboardingApproval) => {
     await handleViewApprovalOrders([approval], approval.client_name);

@@ -245,12 +245,20 @@ export function CustomerAutocomplete({
           </div>
         )}
         
-        {isNewClient && !hasExactMatch && value.trim().length > 0 && (
+        {pendingApprovalMatch && !hasExactMatch && !selectedClientId && (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            Already in approval queue — don't create a duplicate
+          </Badge>
+        )}
+
+        {isNewClient && !hasExactMatch && !pendingApprovalMatch && value.trim().length > 0 && (
           <Badge variant="outline" className="bg-accent text-accent-foreground flex items-center gap-1">
             <UserPlus className="h-3 w-3" />
             New buyer will be created
           </Badge>
         )}
+
         
         {selectedClientId && (
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 flex items-center gap-1">

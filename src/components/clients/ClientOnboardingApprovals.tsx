@@ -1786,26 +1786,37 @@ export function ClientOnboardingApprovals() {
   };
 
 
-  // Deduplicate pending approvals by client_name — show each client once with aggregated order info
+  // Deduplicate pending approvals by client_name — show each client once with aggregated order info.
+  // A single client can accumulate phantom sibling records (order_amount = 0, no linked sales
+  // order, no phone) created during onboarding submission. Those are NOT real orders and must
+  // never inflate the "N orders" badge — otherwise the row count disagrees with what Review shows.
+  const isRealOrderApproval = (a: ClientOnboardingApproval) =>
+    !!a.sales_order_id || (Number(a.order_amount) || 0) > 0;
   const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];
   const pendingByClient = new Map<string, { primary: ClientOnboardingApproval; all: ClientOnboardingApproval[]; allIds: string[]; totalAmount: number; orderCount: number }>();
   for (const a of allPending) {
     const key = a.client_name.trim().toLowerCase();
+    const real = isRealOrderApproval(a);
     const existing = pendingByClient.get(key);
     if (existing) {
       existing.allIds.push(a.id);
       existing.all.push(a);
       existing.totalAmount += a.order_amount;
-      existing.orderCount += 1;
-      // Keep the latest record as primary
-      if (new Date(a.created_at) > new Date(existing.primary.created_at)) {
-        existing.primary = a;
-      }
+      // Count only records that represent an actual order.
+      if (real) existing.orderCount += 1;
+      // Keep the latest REAL record as primary; only fall back to a phantom when
+      // no real record exists yet.
+      const existingReal = isRealOrderApproval(existing.primary);
+      const preferNew =
+        (real && !existingReal) ||
+        (real === existingReal && new Date(a.created_at) > new Date(existing.primary.created_at));
+      if (preferNew) existing.primary = a;
     } else {
-      pendingByClient.set(key, { primary: a, all: [a], allIds: [a.id], totalAmount: a.order_amount, orderCount: 1 });
+      pendingByClient.set(key, { primary: a, all: [a], allIds: [a.id], totalAmount: a.order_amount, orderCount: real ? 1 : 0 });
     }
   }
   const allPendingApprovals = Array.from(pendingByClient.values());
+
   const search = searchTerm.trim().toLowerCase();
   const pendingApprovals = search
     ? allPendingApprovals.filter((entry) => {

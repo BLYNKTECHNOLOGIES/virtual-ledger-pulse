@@ -337,6 +337,13 @@ export function ClientOnboardingApprovals() {
   const [reviewOrdersLoading, setReviewOrdersLoading] = useState(false);
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
   const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
+  // Binance identity (userNo + nickname) for the matched existing client and the incoming request
+  const [identityDetail, setIdentityDetail] = useState<{
+    existingUserNo: string | null;
+    existingNickname: string | null;
+    requestUserNo: string | null;
+    requestNickname: string | null;
+  }>({ existingUserNo: null, existingNickname: null, requestUserNo: null, requestNickname: null });
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
   const [formData, setFormData] = useState(createEmptyApprovalFormData);
   const [phoneEditEnabled, setPhoneEditEnabled] = useState(false);
@@ -1393,6 +1400,44 @@ export function ClientOnboardingApprovals() {
       if (!draft) setApprovalMode('normal');
     }
     setDialogOpen(true);
+
+    // Resolve Binance identity (userNo + nickname) for both the matched existing
+    // client and the incoming onboarding request — display only.
+    setIdentityDetail({
+      existingUserNo: null,
+      existingNickname: null,
+      requestUserNo: null,
+      requestNickname: sanitizeNickname(approval.binance_nickname),
+    });
+    void (async () => {
+      const next = {
+        existingUserNo: null as string | null,
+        existingNickname: null as string | null,
+        requestUserNo: null as string | null,
+        requestNickname: sanitizeNickname(approval.binance_nickname),
+      };
+      // Existing client identity
+      if (existing?.id) {
+        const [{ data: unoRow }, { data: nickRow }] = await Promise.all([
+          supabase.from('client_binance_usernos').select('cp_userno').eq('client_id', existing.id).limit(1).maybeSingle(),
+          supabase.from('client_binance_nicknames').select('nickname').eq('client_id', existing.id).limit(1).maybeSingle(),
+        ]);
+        next.existingUserNo = unoRow?.cp_userno ? String(unoRow.cp_userno) : null;
+        next.existingNickname = sanitizeNickname(nickRow?.nickname);
+      }
+      // Incoming request identity via its P2P order
+      const orderNo = reviewNicknameOrders[0]?.order_number || null;
+      if (orderNo) {
+        const { data: idRow } = await supabase
+          .from('cp_order_identity')
+          .select('cp_userno, nickname')
+          .eq('order_number', String(orderNo))
+          .maybeSingle();
+        if (idRow?.cp_userno) next.requestUserNo = String(idRow.cp_userno);
+        next.requestNickname = next.requestNickname || sanitizeNickname(idRow?.nickname);
+      }
+      setIdentityDetail(next);
+    })();
   };
 
   const handleApprove = () => {
@@ -2194,7 +2239,9 @@ export function ClientOnboardingApprovals() {
                    <div className="bg-card rounded-md p-3 border border-warning/20">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
-                      <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
+                     <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
+                      <div><span className="text-muted-foreground">User No:</span> <span className="font-mono">{identityDetail.existingUserNo || 'N/A'}</span></div>
+                      <div><span className="text-muted-foreground">Nickname:</span> {identityDetail.existingNickname ? `@${identityDetail.existingNickname}` : 'N/A'}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {existingClientMatch.phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
@@ -2269,6 +2316,8 @@ export function ClientOnboardingApprovals() {
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
+                      <div><span className="text-muted-foreground">User No:</span> <span className="font-mono">{identityDetail.requestUserNo || 'N/A'}</span></div>
+                      <div><span className="text-muted-foreground">Nickname:</span> {identityDetail.requestNickname ? `@${identityDetail.requestNickname}` : 'N/A'}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {selectedApproval.client_phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {selectedApproval.client_email || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {selectedApproval.client_state || 'N/A'}</div>

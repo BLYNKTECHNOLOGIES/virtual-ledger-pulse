@@ -160,7 +160,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // If userNo isn't cached for a fresh order, resolveOrderUserNo fetches
   // order-detail on demand. No userNo → operator must pick/create manually.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); setUserNoOverride(false); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
@@ -486,17 +486,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       if (userNoResolving) {
         throw new Error("Still inferring the Binance User No for this order — please wait.");
       }
-      // userNo is the primary identity anchor. If it couldn't be inferred (proxy
-      // failure / rate-limit / order past Binance's identity window), the operator
-      // may proceed only by explicitly overriding AND selecting a client manually.
+      // userNo is the mandatory identity anchor. No order may be approved until
+      // its Binance User No has been inferred — there is NO manual override.
       if (!lockedUserNo) {
-        if (!userNoOverride) {
-          throw new Error("Binance User No could not be inferred. Tick 'Proceed without User No' to approve manually.");
-        }
-        if (!linkedClientId) {
-          throw new Error("Select or create a client before approving without a Binance User No.");
-        }
+        throw new Error("Binance User No could not be inferred for this order. Approval is blocked until it resolves.");
       }
+
 
 
       if (isMultiplePayments) {

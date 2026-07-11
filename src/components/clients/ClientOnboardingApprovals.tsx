@@ -2316,6 +2316,8 @@ export function ClientOnboardingApprovals() {
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
+                      <div><span className="text-muted-foreground">User No:</span> <span className="font-mono">{identityDetail.requestUserNo || 'N/A'}</span></div>
+                      <div><span className="text-muted-foreground">Nickname:</span> {identityDetail.requestNickname ? `@${identityDetail.requestNickname}` : 'N/A'}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {selectedApproval.client_phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {selectedApproval.client_email || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {selectedApproval.client_state || 'N/A'}</div>

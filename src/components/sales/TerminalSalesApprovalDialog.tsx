@@ -1298,12 +1298,19 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           </div>
         </div>
 
-        {(userNoResolving || !lockedUserNo) && (
-          <p className="text-[11px] text-amber-500 mb-1">
-            {userNoResolving
-              ? "Inferring Binance User No for this order…"
-              : "Binance User No not yet inferred — approval is blocked until it resolves."}
-          </p>
+        {userNoResolving && (
+          <p className="text-[11px] text-amber-500 mb-1">Inferring Binance User No for this order…</p>
+        )}
+        {!userNoResolving && !lockedUserNo && (
+          <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+            <p className="text-[11px] text-amber-500 mb-1.5">
+              Binance User No could not be inferred (proxy issue, rate-limit, or an older order past Binance's identity window). Verify the client below, then override to approve.
+            </p>
+            <label className="flex items-center gap-2 text-[11px] text-foreground cursor-pointer">
+              <Checkbox checked={userNoOverride} onCheckedChange={(c) => setUserNoOverride(c === true)} />
+              Proceed without User No (client selected manually)
+            </label>
+          </div>
         )}
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
@@ -1312,7 +1319,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || userNoResolving || !lockedUserNo || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
+            disabled={approveMutation.isPending || userNoResolving || (!lockedUserNo && (!userNoOverride || !linkedClientId)) || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

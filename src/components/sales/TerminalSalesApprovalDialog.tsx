@@ -152,10 +152,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Approval is blocked until this settles: no order may be approved until its
   // Binance userNo is inferred (on-demand resolution lifecycle flag).
   const [userNoResolving, setUserNoResolving] = useState(false);
-  // Manual override when userNo genuinely can't be inferred (Binance proxy failure,
-  // rate-limit, or an old order past Binance's identity window). Operator must pick
-  // a client manually and acknowledge before proceeding.
-  const [userNoOverride, setUserNoOverride] = useState(false);
+
 
   // Resolve & LOCK client STRICTLY by Binance userNo (the only identity anchor).
   // userNo is the stable, unique Binance account id. Nickname / verified-name /
@@ -163,7 +160,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // If userNo isn't cached for a fresh order, resolveOrderUserNo fetches
   // order-detail on demand. No userNo → operator must pick/create manually.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); setUserNoOverride(false); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
@@ -489,17 +486,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       if (userNoResolving) {
         throw new Error("Still inferring the Binance User No for this order — please wait.");
       }
-      // userNo is the primary identity anchor. If it couldn't be inferred (proxy
-      // failure / rate-limit / order past Binance's identity window), the operator
-      // may proceed only by explicitly overriding AND selecting a client manually.
+      // userNo is the mandatory identity anchor. No order may be approved until
+      // its Binance User No has been inferred — there is NO manual override.
       if (!lockedUserNo) {
-        if (!userNoOverride) {
-          throw new Error("Binance User No could not be inferred. Tick 'Proceed without User No' to approve manually.");
-        }
-        if (!linkedClientId) {
-          throw new Error("Select or create a client before approving without a Binance User No.");
-        }
+        throw new Error("Binance User No could not be inferred for this order. Approval is blocked until it resolves.");
       }
+
 
 
       if (isMultiplePayments) {
@@ -1302,16 +1294,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <p className="text-[11px] text-amber-500 mb-1">Inferring Binance User No for this order…</p>
         )}
         {!userNoResolving && !lockedUserNo && (
-          <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
-            <p className="text-[11px] text-amber-500 mb-1.5">
-              Binance User No could not be inferred (proxy issue, rate-limit, or an older order past Binance's identity window). Verify the client below, then override to approve.
+          <div className="mb-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
+            <p className="text-[11px] text-destructive">
+              Binance User No could not be inferred for this order (proxy issue, rate-limit, or an older order past Binance's identity window). Approval is blocked until it resolves — retry shortly.
             </p>
-            <label className="flex items-center gap-2 text-[11px] text-foreground cursor-pointer">
-              <Checkbox checked={userNoOverride} onCheckedChange={(c) => setUserNoOverride(c === true)} />
-              Proceed without User No (client selected manually)
-            </label>
           </div>
         )}
+
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
@@ -1319,7 +1308,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || userNoResolving || (!lockedUserNo && (!userNoOverride || !linkedClientId)) || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
+            disabled={approveMutation.isPending || userNoResolving || !lockedUserNo || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

@@ -772,41 +772,99 @@ export function ClientOnboardingApprovals() {
     return result;
   };
 
-  // Fetch ALL orders (buy + sell) associated with a client — by client_id and by name.
+  // Fetch ALL orders (buy + sell) associated with a client.
+  // Robust resolution: orders are matched not only by client_id / display name
+  // (which can be a synthetic "NAME • User-xxxx" label that never equals the raw
+  // Binance supplier/verified name), but ALSO by the client's Binance identity
+  // signals — userNo (authoritative), nickname and verified names — mapped to
+  // concrete order numbers via cp_order_identity and binance_order_history.
   const fetchAllClientOrders = async (clientId: string | null, clientName?: string | null) => {
-    const name = (clientName || '').trim();
+    const rawName = (clientName || '').trim();
+    // Strip the synthetic "• User-xxxx" suffix to recover the underlying name.
+    const baseName = rawName.split('•')[0].trim();
 
-    // BUY orders (sales_orders) — match by client_id OR name
-    let buyRows: any[] = [];
+    // 1. Gather identity signals for this client.
+    const nameSet = new Set<string>();
+    if (rawName) nameSet.add(rawName.toLowerCase());
+    if (baseName) nameSet.add(baseName.toLowerCase());
+
+    let userNos: string[] = [];
+    let nicknames: string[] = [];
+    if (clientId) {
+      const [unoRes, nickRes, vnameRes] = await Promise.all([
+        supabase.from('client_binance_usernos').select('cp_userno').eq('client_id', clientId),
+        supabase.from('client_binance_nicknames').select('nickname').eq('client_id', clientId),
+        supabase.from('client_verified_names').select('verified_name').eq('client_id', clientId),
+      ]);
+      userNos = (unoRes.data || []).map((r: any) => r.cp_userno).filter(Boolean);
+      nicknames = (nickRes.data || []).map((r: any) => r.nickname).filter(Boolean);
+      (vnameRes.data || []).forEach((r: any) => { if (r.verified_name) nameSet.add(String(r.verified_name).toLowerCase()); });
+    }
+
+    // 2. Resolve concrete order numbers from Binance identity signals.
+    const orderNumbers = new Set<string>();
+    if (userNos.length) {
+      const { data } = await supabase
+        .from('cp_order_identity')
+        .select('order_number')
+        .in('cp_userno', userNos);
+      (data || []).forEach((r: any) => { if (r.order_number) orderNumbers.add(String(r.order_number)); });
+    }
+    if (nicknames.length) {
+      const { data } = await supabase
+        .from('binance_order_history')
+        .select('order_number')
+        .in('counter_part_nick_name', nicknames);
+      (data || []).forEach((r: any) => { if (r.order_number) orderNumbers.add(String(r.order_number)); });
+    }
+    const orderNumList = Array.from(orderNumbers);
+    const names = Array.from(nameSet).filter(Boolean);
+
+    // 3. Fetch BUY orders (sales_orders) by client_id, name, and resolved order #.
+    const buyRows: any[] = [];
+    const pushBuy = (rows: any[] | null) => { if (rows) buyRows.push(...rows); };
     if (clientId) {
       const { data } = await supabase
         .from('sales_orders')
         .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
         .eq('client_id', clientId)
         .order('order_date', { ascending: false });
-      buyRows = data || [];
+      pushBuy(data);
     }
-    if (name) {
+    for (const nm of names) {
       const { data } = await supabase
         .from('sales_orders')
         .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
-        .ilike('client_name', name)
-        .order('order_date', { ascending: false });
-      buyRows = [...buyRows, ...(data || [])];
+        .ilike('client_name', nm);
+      pushBuy(data);
+    }
+    if (orderNumList.length) {
+      const { data } = await supabase
+        .from('sales_orders')
+        .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
+        .in('order_number', orderNumList);
+      pushBuy(data);
     }
 
-    // SELL orders (purchase_orders) — match by supplier name
-    let sellRows: any[] = [];
-    if (name) {
+    // 4. Fetch SELL orders (purchase_orders) by supplier name and resolved order #.
+    const sellRaw: any[] = [];
+    for (const nm of names) {
       const { data } = await supabase
         .from('purchase_orders')
-        .select('order_number, order_date, total_amount, status, quantity, price_per_unit')
-        .ilike('supplier_name', name)
-        .order('order_date', { ascending: false });
-      sellRows = (data || []).map((o: any) => ({ ...o, sale_type: 'SELL', client_phone: null, client_state: null }));
+        .select('order_number, order_date, total_amount, status, quantity, price_per_unit, supplier_name')
+        .ilike('supplier_name', nm);
+      if (data) sellRaw.push(...data);
     }
+    if (orderNumList.length) {
+      const { data } = await supabase
+        .from('purchase_orders')
+        .select('order_number, order_date, total_amount, status, quantity, price_per_unit, supplier_name')
+        .in('order_number', orderNumList);
+      if (data) sellRaw.push(...data);
+    }
+    const sellRows = sellRaw.map((o: any) => ({ ...o, sale_type: 'SELL', client_phone: null, client_state: null }));
 
-    // De-dup by order_number and sort by date desc
+    // 5. De-dup by order_number and sort by date desc.
     const seen = new Set<string>();
     const combined = [...buyRows, ...sellRows].filter((o: any) => {
       if (!o.order_number || seen.has(o.order_number)) return false;

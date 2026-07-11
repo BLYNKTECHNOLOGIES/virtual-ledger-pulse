@@ -1308,7 +1308,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || userNoResolving || (!lockedUserNo && (!userNoOverride || !linkedClientId)) || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
+            disabled={approveMutation.isPending || userNoResolving || !lockedUserNo || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

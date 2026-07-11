@@ -1669,7 +1669,7 @@ export function ClientOnboardingApprovals() {
           return sameVerifiedName &&
             orderAmountMatchesApprovalAmount(row.total_price, approval.order_amount) &&
             orderDateMatchesApprovalDate(row.create_time, approval.order_date);
-        }))
+        }).map((r: any) => ({ ...r, _authoritative: true })))
       );
     }
 

@@ -485,12 +485,20 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     mutationFn: async () => {
       const userId = await requireCurrentUserId();
 
-      // Hard gate: never approve an order whose Binance userNo hasn't been inferred.
+      // Hard gate: never approve while resolution is still in flight.
       if (userNoResolving) {
         throw new Error("Still inferring the Binance User No for this order — please wait.");
       }
+      // userNo is the primary identity anchor. If it couldn't be inferred (proxy
+      // failure / rate-limit / order past Binance's identity window), the operator
+      // may proceed only by explicitly overriding AND selecting a client manually.
       if (!lockedUserNo) {
-        throw new Error("Cannot approve: Binance User No could not be inferred for this order.");
+        if (!userNoOverride) {
+          throw new Error("Binance User No could not be inferred. Tick 'Proceed without User No' to approve manually.");
+        }
+        if (!linkedClientId) {
+          throw new Error("Select or create a client before approving without a Binance User No.");
+        }
       }
 
 

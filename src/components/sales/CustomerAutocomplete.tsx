@@ -142,6 +142,32 @@ export function CustomerAutocomplete({
     }
   }, [value, clients, selectedClientId, onNewClient]);
 
+  // Detect whether the typed name matches a client already sitting in the
+  // pending onboarding approval queue — surfaces a warning so the operator
+  // doesn't create a duplicate client.
+  useEffect(() => {
+    if (!pendingApprovals || !value.trim() || selectedClientId) {
+      setPendingApprovalMatch(null);
+      return;
+    }
+    const match = pendingApprovals.find(
+      (a: any) => (a.client_name || '').toLowerCase() === value.trim().toLowerCase()
+    );
+    setPendingApprovalMatch(match || null);
+  }, [value, pendingApprovals, selectedClientId]);
+
+  const handleApprovalSelect = (approval: any) => {
+    onChange(approval.client_name || '');
+    if (onPhoneChange && approval.client_phone) {
+      onPhoneChange(approval.client_phone);
+    }
+    if (onApprovalSelect) {
+      onApprovalSelect(approval);
+    }
+    setPendingApprovalMatch(approval);
+    setShowSuggestions(false);
+  };
+
   const handleClientSelect = (client: any) => {
     onChange(client.name);
     

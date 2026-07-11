@@ -79,6 +79,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Tracks the on-demand userNo resolution lifecycle. Approval is blocked until
   // this settles: no order may be approved until its Binance userNo is inferred.
   const [userNoResolving, setUserNoResolving] = useState(false);
+  // Manual override when userNo genuinely can't be inferred (Binance proxy failure,
+  // rate-limit, or an old order past Binance's identity window).
+  const [userNoOverride, setUserNoOverride] = useState(false);
   // True once the operator explicitly picks/creates/unlinks a client — prevents
   // the auto-match effect from clobbering or re-validating a human decision.
   const manualSelectionRef = useRef(false);
@@ -87,7 +90,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // userNo is the stable, unique Binance account id — the primary identity key.
   // If it isn't cached yet for a fresh order, resolveOrderUserNo fetches order-detail on demand.
   useEffect(() => {
-    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); manualSelectionRef.current = false; return; }
+    if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); setUserNoOverride(false); manualSelectionRef.current = false; return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
     if (!orderNumber) return;
 
@@ -388,7 +391,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         throw new Error("Still inferring the Binance User No for this order — please wait.");
       }
       if (!lockedUserNo) {
-        throw new Error("Cannot approve: Binance User No could not be inferred for this order.");
+        if (!userNoOverride) {
+          throw new Error("Binance User No could not be inferred. Tick 'Proceed without User No' to approve manually.");
+        }
+        if (!linkedClientId) {
+          throw new Error("Select or create a client before approving without a Binance User No.");
+        }
       }
 
 
@@ -648,7 +656,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const orderDate = od.create_time ? format(new Date(od.create_time), 'dd MMM yyyy, HH:mm') : '—';
 
   const isSubmitDisabled = approveMutation.isPending || 
-    userNoResolving || !lockedUserNo ||
+    userNoResolving || (!lockedUserNo && !userNoOverride) ||
     !linkedClientId ||
     (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId);
 
@@ -1017,12 +1025,19 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           </div>
         </div>
 
-        {(userNoResolving || !lockedUserNo) && (
-          <p className="text-[11px] text-amber-500 mb-1">
-            {userNoResolving
-              ? "Inferring Binance User No for this order…"
-              : "Binance User No not yet inferred — approval is blocked until it resolves."}
-          </p>
+        {userNoResolving && (
+          <p className="text-[11px] text-amber-500 mb-1">Inferring Binance User No for this order…</p>
+        )}
+        {!userNoResolving && !lockedUserNo && (
+          <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+            <p className="text-[11px] text-amber-500 mb-1.5">
+              Binance User No could not be inferred (proxy issue, rate-limit, or an older order past Binance's identity window). Verify the client below, then override to approve.
+            </p>
+            <label className="flex items-center gap-2 text-[11px] text-foreground cursor-pointer">
+              <Checkbox checked={userNoOverride} onCheckedChange={(c) => setUserNoOverride(c === true)} />
+              Proceed without User No (client selected manually)
+            </label>
+          </div>
         )}
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>

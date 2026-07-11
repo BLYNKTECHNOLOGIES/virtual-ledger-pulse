@@ -33,6 +33,7 @@ export function CustomerAutocomplete({
   onStateChange,
   onClientSelect,
   onNewClient,
+  onApprovalSelect,
   selectedClientId,
   label = "Customer Name *",
   placeholder = "Enter customer name"
@@ -40,6 +41,7 @@ export function CustomerAutocomplete({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasExactMatch, setHasExactMatch] = useState(false);
   const [isNewClient, setIsNewClient] = useState(false);
+  const [pendingApprovalMatch, setPendingApprovalMatch] = useState<any | null>(null);
   const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
   const debouncedValue = useDebounce(value, 300);
 

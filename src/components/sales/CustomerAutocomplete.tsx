@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
-import { AlertCircle, UserPlus, Check } from "lucide-react";
+import { AlertCircle, UserPlus, Check, Clock } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { matchesWordPrefix } from "@/lib/utils";

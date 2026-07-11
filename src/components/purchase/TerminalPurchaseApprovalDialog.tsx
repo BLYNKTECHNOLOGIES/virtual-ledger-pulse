@@ -391,7 +391,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         throw new Error("Still inferring the Binance User No for this order — please wait.");
       }
       if (!lockedUserNo) {
-        throw new Error("Cannot approve: Binance User No could not be inferred for this order.");
+        if (!userNoOverride) {
+          throw new Error("Binance User No could not be inferred. Tick 'Proceed without User No' to approve manually.");
+        }
+        if (!linkedClientId) {
+          throw new Error("Select or create a client before approving without a Binance User No.");
+        }
       }
 
 

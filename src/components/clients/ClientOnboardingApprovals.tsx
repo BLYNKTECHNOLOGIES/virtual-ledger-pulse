@@ -1653,7 +1653,7 @@ export function ClientOnboardingApprovals() {
         .eq('counter_part_nick_name', nick)
         .order('create_time', { ascending: false })
         .limit(200);
-      rows.push(...(data || []));
+      rows.push(...(data || []).map((r: any) => ({ ...r, _authoritative: true })));
     }
 
     if (verifiedName) {

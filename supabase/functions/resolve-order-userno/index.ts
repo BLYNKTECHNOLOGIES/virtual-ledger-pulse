@@ -10,6 +10,16 @@ const corsHeaders = {
 
 const OUR_HANDLES = new Set(["blynkex", "asec-corporation"]);
 
+// Our own merchant (maker) account numbers. Binance's getUserOrderDetail does
+// NOT expose buyer/seller userNos directly — it only carries `merchantNo` (the
+// ad owner / maker) and `takerUserNo` (whoever took the order). On our own ads
+// WE are the maker, so `merchantNo` is us and the counterparty is the taker.
+// When we take someone else's ad, `merchantNo` is the counterparty instead.
+const OUR_MERCHANT_NOS = new Set([
+  "se7510c53abb33831869d5152e7bf1333", // BlynkEx
+  "sac9f53661c6a3ebcbf7b691b6a66b2cd", // ASEC Corporation
+]);
+
 function cleanNickname(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const v = value.trim();
@@ -23,19 +33,37 @@ function cleanNickname(value: unknown): string | null {
 // counterparty is the buyer; for BUY orders the counterparty is the seller.
 function extractCounterparty(detail: any, tradeType: string) {
   if (!detail || typeof detail !== "object") return { nick: null, verified: null, userNo: null };
-  if (String(tradeType).toUpperCase() === "SELL") {
-    return {
-      nick: cleanNickname(detail.buyerNickname ?? detail.buyerNickName),
-      verified: (detail.buyerRealName || detail.buyerName || null) as string | null,
-      userNo: (detail.buyerNo || detail.buyerUserNo || detail.buyerUserId || null) as string | null,
-    };
+  const isSell = String(tradeType).toUpperCase() === "SELL";
+
+  const nick = cleanNickname(
+    isSell ? (detail.buyerNickname ?? detail.buyerNickName) : (detail.sellerNickname ?? detail.sellerNickName),
+  );
+  const verified = (isSell
+    ? (detail.buyerRealName || detail.buyerName)
+    : (detail.sellerRealName || detail.sellerName)) as string | null || null;
+
+  // 1) Direct buyer/seller userNo fields — rarely present, but honour them first.
+  let userNo = (isSell
+    ? (detail.buyerNo || detail.buyerUserNo || detail.buyerUserId)
+    : (detail.sellerNo || detail.sellerUserNo || detail.sellerUserId)) as string | null || null;
+
+  // 2) Fallback: derive from maker(merchantNo)/taker(takerUserNo). Pick the side
+  //    that is NOT one of our own merchant accounts.
+  if (!userNo) {
+    const merchantNo = detail.merchantNo ? String(detail.merchantNo) : null;
+    const takerUserNo = detail.takerUserNo ? String(detail.takerUserNo) : null;
+    if (merchantNo && OUR_MERCHANT_NOS.has(merchantNo)) {
+      userNo = takerUserNo; // our ad → counterparty is the taker
+    } else if (merchantNo) {
+      userNo = merchantNo; // we took their ad → counterparty is the maker
+    } else {
+      userNo = takerUserNo;
+    }
   }
-  return {
-    nick: cleanNickname(detail.sellerNickname ?? detail.sellerNickName),
-    verified: (detail.sellerRealName || detail.sellerName || null) as string | null,
-    userNo: (detail.sellerNo || detail.sellerUserNo || detail.sellerUserId || null) as string | null,
-  };
+
+  return { nick, verified, userNo: userNo ? String(userNo) : null };
 }
+
 
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, delayMs = 500): Promise<Response> {
   let lastError: Error | null = null;

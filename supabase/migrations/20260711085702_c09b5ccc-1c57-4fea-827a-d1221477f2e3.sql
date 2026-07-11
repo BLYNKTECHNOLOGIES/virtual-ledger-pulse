@@ -1,0 +1,1 @@
+ALTER TABLE public.cp_order_identity ADD CONSTRAINT cp_order_identity_order_number_key UNIQUE (order_number);

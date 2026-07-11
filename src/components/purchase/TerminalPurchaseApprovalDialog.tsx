@@ -656,7 +656,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const orderDate = od.create_time ? format(new Date(od.create_time), 'dd MMM yyyy, HH:mm') : '—';
 
   const isSubmitDisabled = approveMutation.isPending || 
-    userNoResolving || !lockedUserNo ||
+    userNoResolving || (!lockedUserNo && !userNoOverride) ||
     !linkedClientId ||
     (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId);
 

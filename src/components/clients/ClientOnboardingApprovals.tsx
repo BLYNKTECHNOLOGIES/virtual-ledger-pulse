@@ -1740,13 +1740,64 @@ export function ClientOnboardingApprovals() {
   };
 
   const handleViewApprovalOrders = async (approvalRows: ClientOnboardingApproval[], title: string) => {
+    // Prefer showing the full-length Sales Order Details dialog reflecting the
+    // client's LATEST order. Fall back to the P2P Terminal Orders list only when
+    // no linked sales order can be resolved.
     setNicknameOrdersTitle(title);
-    setNicknameOrdersOpen(true);
     setNicknameOrdersLoading(true);
-    const orders = await fetchApprovalsP2POrders(approvalRows);
-    setNicknameOrders(orders);
+
+    // 1) If any approval row already carries a sales_order_id, resolve the latest.
+    const directIds = approvalRows
+      .map((a) => a.sales_order_id)
+      .filter(Boolean) as string[];
+
+    // 2) Gather P2P order numbers (already sorted latest-first) and map them to
+    //    linked sales orders via terminal_sales_sync.
+    const p2pOrders = await fetchApprovalsP2POrders(approvalRows);
+    const orderNumbers = p2pOrders.map((o: any) => String(o.order_number)).filter(Boolean);
+
+    let syncSalesIds: string[] = [];
+    if (orderNumbers.length > 0) {
+      const { data: syncRows } = await supabase
+        .from('terminal_sales_sync')
+        .select('binance_order_number, sales_order_id')
+        .in('binance_order_number', orderNumbers);
+      // Preserve latest-first ordering from p2pOrders.
+      const idByOrder = new Map<string, string>();
+      for (const r of syncRows || []) {
+        if (r.binance_order_number && r.sales_order_id) {
+          idByOrder.set(String(r.binance_order_number), r.sales_order_id as string);
+        }
+      }
+      syncSalesIds = orderNumbers
+        .map((n) => idByOrder.get(n))
+        .filter(Boolean) as string[];
+    }
+
+    const candidateIds = Array.from(new Set([...directIds, ...syncSalesIds]));
+
+    if (candidateIds.length > 0) {
+      const { data: salesRows } = await supabase
+        .from('sales_orders')
+        .select('*')
+        .in('id', candidateIds)
+        .order('order_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (salesRows && salesRows.length > 0) {
+        setNicknameOrdersLoading(false);
+        setViewOrderData(salesRows[0]);
+        setViewOrderOpen(true);
+        return;
+      }
+    }
+
+    // Fallback: no linked sales order — show the P2P Terminal Orders list.
+    setNicknameOrdersOpen(true);
+    setNicknameOrders(p2pOrders);
     setNicknameOrdersLoading(false);
   };
+
 
   const handleViewNicknameOrders = async (approval: ClientOnboardingApproval) => {
     await handleViewApprovalOrders([approval], approval.client_name);

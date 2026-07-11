@@ -1577,10 +1577,33 @@ export function ClientOnboardingApprovals() {
     const map = new Map<string, any>();
     for (const row of rows) {
       if (!row?.order_number) continue;
-      map.set(String(row.order_number), { ...map.get(String(row.order_number)), ...row });
+      const key = String(row.order_number);
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...row });
+        continue;
+      }
+      // Merge without letting lower-priority (fallback) data clobber the
+      // authoritative binance_order_history values. Authoritative rows always
+      // win; otherwise a field is only filled when the target value is missing.
+      const rowAuthoritative = !!row._authoritative;
+      const existingAuthoritative = !!existing._authoritative;
+      const merged = { ...existing };
+      for (const [field, value] of Object.entries(row)) {
+        if (value === undefined || value === null || value === '') continue;
+        const existingValue = merged[field];
+        const existingMissing =
+          existingValue === undefined || existingValue === null || existingValue === '';
+        if (existingMissing || (rowAuthoritative && !existingAuthoritative)) {
+          merged[field] = value;
+        }
+      }
+      merged._authoritative = existingAuthoritative || rowAuthoritative;
+      map.set(key, merged);
     }
     return Array.from(map.values()).sort((a, b) => Number(b.create_time || 0) - Number(a.create_time || 0));
   };
+
 
   // Resolve P2P Terminal orders for any approval row. Some de-merged rows do
   // not carry sales_order_id and some Binance history nicknames are masked, so

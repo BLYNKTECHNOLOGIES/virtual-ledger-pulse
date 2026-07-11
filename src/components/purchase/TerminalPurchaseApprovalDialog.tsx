@@ -79,9 +79,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Tracks the on-demand userNo resolution lifecycle. Approval is blocked until
   // this settles: no order may be approved until its Binance userNo is inferred.
   const [userNoResolving, setUserNoResolving] = useState(false);
-  // Manual override when userNo genuinely can't be inferred (Binance proxy failure,
-  // rate-limit, or an old order past Binance's identity window).
-  const [userNoOverride, setUserNoOverride] = useState(false);
+
   // True once the operator explicitly picks/creates/unlinks a client — prevents
   // the auto-match effect from clobbering or re-validating a human decision.
   const manualSelectionRef = useRef(false);

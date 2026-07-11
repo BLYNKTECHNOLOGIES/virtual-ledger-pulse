@@ -3238,6 +3238,14 @@ export function ClientOnboardingApprovals() {
                     <span className="font-medium">₹{Number(o.total_price || 0).toLocaleString('en-IN')}</span>
                     <Button
                       size="sm"
+                      variant="outline"
+                      onClick={() => openSalesOrderForP2P(o.order_number)}
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => { navigator.clipboard?.writeText(String(o.order_number)); toast({ title: 'Copied', description: `Order ID ${o.order_number}` }); }}
                     >
@@ -3246,6 +3254,7 @@ export function ClientOnboardingApprovals() {
                   </div>
                 </div>
               ))}
+
             </div>
           )}
         </DialogContent>

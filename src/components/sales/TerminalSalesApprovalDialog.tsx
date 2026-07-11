@@ -152,6 +152,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Approval is blocked until this settles: no order may be approved until its
   // Binance userNo is inferred (on-demand resolution lifecycle flag).
   const [userNoResolving, setUserNoResolving] = useState(false);
+  // Manual override when userNo genuinely can't be inferred (Binance proxy failure,
+  // rate-limit, or an old order past Binance's identity window). Operator must pick
+  // a client manually and acknowledge before proceeding.
+  const [userNoOverride, setUserNoOverride] = useState(false);
 
   // Resolve & LOCK client STRICTLY by Binance userNo (the only identity anchor).
   // userNo is the stable, unique Binance account id. Nickname / verified-name /

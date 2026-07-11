@@ -877,23 +877,31 @@ export function ClientOnboardingApprovals() {
 
   // Check for existing client with same name
   const checkExistingClient = async (clientName: string): Promise<ExistingClientMatch | null> => {
+    // NOTE: multiple client records can share the same name (post de-merge),
+    // so we must NOT use .maybeSingle() here — it throws on >1 row and would
+    // silently hide the comparison card for those clients. Fetch a bounded
+    // list and pick the most recently onboarded match instead.
     const { data } = await supabase
       .from('clients')
       .select('id, name, phone, email, state, client_id, kyc_status, monthly_limit, is_buyer, is_seller, date_of_onboarding, pan_card_number, buying_purpose, current_month_used, risk_appetite, first_order_value, client_type, default_risk_level, assigned_operator')
       .eq('is_deleted', false)
       .ilike('name', clientName.trim())
-      .maybeSingle();
-    
+      .order('date_of_onboarding', { ascending: false, nullsFirst: false })
+      .limit(1);
+
+    const match = (data && data.length > 0) ? data[0] : null;
+
     // Fetch ALL transactions for the matched client
-    if (data?.id) {
-      const allOrders = await fetchAllClientOrders(data.id, data.name);
+    if (match?.id) {
+      const allOrders = await fetchAllClientOrders(match.id, match.name);
       setExistingClientTransactions(allOrders);
     } else {
       setExistingClientTransactions([]);
     }
 
-    return data as ExistingClientMatch | null;
+    return match as ExistingClientMatch | null;
   };
+
 
   // Approve client mutation
   const approveClientMutation = useMutation({

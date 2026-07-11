@@ -2268,6 +2268,7 @@ export type Database = {
           client_phone: string | null
           client_state: string | null
           compliance_notes: string | null
+          cp_userno: string | null
           created_at: string
           id: string
           order_amount: number
@@ -2299,6 +2300,7 @@ export type Database = {
           client_phone?: string | null
           client_state?: string | null
           compliance_notes?: string | null
+          cp_userno?: string | null
           created_at?: string
           id?: string
           order_amount: number
@@ -2330,6 +2332,7 @@ export type Database = {
           client_phone?: string | null
           client_state?: string | null
           compliance_notes?: string | null
+          cp_userno?: string | null
           created_at?: string
           id?: string
           order_amount?: number

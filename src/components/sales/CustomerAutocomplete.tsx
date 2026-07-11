@@ -269,7 +269,7 @@ export function CustomerAutocomplete({
       </div>
       
       {/* Suggestions dropdown */}
-      {showSuggestions && filteredClients.length > 0 && (
+      {showSuggestions && (filteredClients.length > 0 || filteredApprovals.length > 0) && (
         <div className="absolute z-50 min-w-[320px] w-max max-w-md mt-1 bg-background border border-border rounded-md shadow-md max-h-60 overflow-y-auto">
           {filteredClients.map((client) => (
             <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(open) => {
@@ -317,11 +317,40 @@ export function CustomerAutocomplete({
               </HoverCardContent>
             </HoverCard>
           ))}
+
+          {/* Pending onboarding approvals — not yet real clients */}
+          {filteredApprovals.length > 0 && (
+            <div className="border-t border-border">
+              <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600 bg-amber-500/5 flex items-center gap-1.5">
+                <Clock className="h-3 w-3" />
+                In approval queue (not yet onboarded)
+              </div>
+              {filteredApprovals.map((a: any) => (
+                <div
+                  key={a.id}
+                  className="px-3 py-2 hover:bg-muted cursor-pointer"
+                  onClick={() => handleApprovalSelect(a)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium whitespace-nowrap">{a.client_name}</span>
+                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">
+                      PENDING APPROVAL
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-0.5">
+                    {a.client_phone && `Phone: ${a.client_phone}`}
+                    {a.binance_nickname && ` | ${a.binance_nickname}`}
+                    {a.order_amount != null && ` | ₹${Number(a.order_amount).toLocaleString('en-IN')}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       
       {/* No matches found */}
-      {showSuggestions && value.trim().length > 0 && filteredClients.length === 0 && !hasExactMatch && (
+      {showSuggestions && value.trim().length > 0 && filteredClients.length === 0 && filteredApprovals.length === 0 && !hasExactMatch && (
         <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-md p-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <UserPlus className="h-4 w-4 text-primary" />
@@ -330,5 +359,6 @@ export function CustomerAutocomplete({
         </div>
       )}
     </div>
+
   );
 }

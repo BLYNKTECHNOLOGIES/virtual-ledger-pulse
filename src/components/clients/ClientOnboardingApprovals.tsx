@@ -337,6 +337,13 @@ export function ClientOnboardingApprovals() {
   const [reviewOrdersLoading, setReviewOrdersLoading] = useState(false);
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
   const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
+  // Binance identity (userNo + nickname) for the matched existing client and the incoming request
+  const [identityDetail, setIdentityDetail] = useState<{
+    existingUserNo: string | null;
+    existingNickname: string | null;
+    requestUserNo: string | null;
+    requestNickname: string | null;
+  }>({ existingUserNo: null, existingNickname: null, requestUserNo: null, requestNickname: null });
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
   const [formData, setFormData] = useState(createEmptyApprovalFormData);
   const [phoneEditEnabled, setPhoneEditEnabled] = useState(false);

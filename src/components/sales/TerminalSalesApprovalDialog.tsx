@@ -1294,16 +1294,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <p className="text-[11px] text-amber-500 mb-1">Inferring Binance User No for this order…</p>
         )}
         {!userNoResolving && !lockedUserNo && (
-          <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
-            <p className="text-[11px] text-amber-500 mb-1.5">
-              Binance User No could not be inferred (proxy issue, rate-limit, or an older order past Binance's identity window). Verify the client below, then override to approve.
+          <div className="mb-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
+            <p className="text-[11px] text-destructive">
+              Binance User No could not be inferred for this order (proxy issue, rate-limit, or an older order past Binance's identity window). Approval is blocked until it resolves — retry shortly.
             </p>
-            <label className="flex items-center gap-2 text-[11px] text-foreground cursor-pointer">
-              <Checkbox checked={userNoOverride} onCheckedChange={(c) => setUserNoOverride(c === true)} />
-              Proceed without User No (client selected manually)
-            </label>
           </div>
         )}
+
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel

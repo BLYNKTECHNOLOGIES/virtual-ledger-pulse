@@ -86,7 +86,11 @@ export function TerminalSidebar() {
   })();
 
   const isActive = (url: string) => {
-    if (url === '/terminal') return location.pathname === '/terminal';
+    // Root landing (/terminal) renders the Orders page for order-viewers,
+    // so highlight the Orders nav item there too.
+    if (url === '/terminal/orders') {
+      return location.pathname === '/terminal' || location.pathname.startsWith('/terminal/orders');
+    }
     return location.pathname.startsWith(url);
   };
 

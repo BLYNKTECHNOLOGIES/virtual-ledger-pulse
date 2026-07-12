@@ -300,8 +300,17 @@ export default function UserManagement() {
   };
 
   // Check user management permissions
-  const hasViewPermission = hasPermission('user_management_view') || hasPermission('user_management_manage');
+  const hasHrManage = hasPermission('user_management_hr_manage');
   const hasManagePermission = hasPermission('user_management_manage');
+  const hasViewPermission = hasPermission('user_management_view') || hasManagePermission || hasHrManage;
+  // HR-restricted: can edit user details & delete non-admins, but NOT roles/terminal/approvals
+  const isHrRestricted = hasHrManage && !hasManagePermission && !isSuperAdmin;
+  const canEditUsers = hasManagePermission || hasHrManage || isSuperAdmin;
+
+  const isProtectedRole = (roleName?: string) => {
+    const r = roleName?.toLowerCase();
+    return r === 'admin' || r === 'super admin';
+  };
 
   useEffect(() => {
     fetchRoles();

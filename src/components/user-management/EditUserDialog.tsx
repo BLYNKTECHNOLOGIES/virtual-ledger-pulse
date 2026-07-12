@@ -416,6 +416,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
             </Select>
           </div>
 
+          {!restrictSensitive && (
           <div className="space-y-3 rounded-lg border p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -444,6 +445,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
               </div>
             )}
           </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>

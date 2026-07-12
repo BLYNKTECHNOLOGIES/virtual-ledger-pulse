@@ -54,6 +54,7 @@ const RiskManagement = lazy(() => import('./pages/RiskManagement'));
 const AdManager = lazy(() => import('./pages/AdManager'));
 const TerminalAdManager = lazy(() => import('./pages/terminal/TerminalAdManager'));
 const TerminalDashboard = lazy(() => import('./pages/terminal/TerminalDashboard'));
+const TerminalLanding = lazy(() => import('./pages/terminal/TerminalLanding'));
 const TerminalOrders = lazy(() => import('./pages/terminal/TerminalOrders'));
 const TerminalAutomation = lazy(() => import('./pages/terminal/TerminalAutomation'));
 const TerminalUsers = lazy(() => import('./pages/terminal/TerminalUsers'));
@@ -466,6 +467,18 @@ const router = createBrowserRouter([
     // P2P Trading Terminal routes
     {
       path: "/terminal",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalLanding />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/dashboard",
       element: (
         <QueryProvider>
             <AuthCheck>

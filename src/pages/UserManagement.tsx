@@ -801,6 +801,7 @@ export default function UserManagement() {
           user={editingUser}
           onSave={updateUser}
           onClose={() => setEditingUser(null)}
+          restrictSensitive={isHrRestricted}
         />
       )}
 

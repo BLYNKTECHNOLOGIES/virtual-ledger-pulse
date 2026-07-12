@@ -50,7 +50,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: 'Dashboard', url: '/terminal', icon: LayoutDashboard, requiredPermission: 'terminal_dashboard_view' },
+  { title: 'Dashboard', url: '/terminal/dashboard', icon: LayoutDashboard, requiredPermission: 'terminal_dashboard_view' },
   { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone, requiredPermission: 'terminal_ads_view' },
   { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, showActiveCount: true, requiredPermission: 'terminal_orders_view' },
   { title: 'Automation', url: '/terminal/automation', icon: Bot, requiredPermission: 'terminal_pricing_view' },

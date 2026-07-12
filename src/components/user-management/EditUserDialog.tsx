@@ -372,6 +372,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
             </p>
           </div>
 
+          {!restrictSensitive && (
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
             <Select value={formData.role_id} onValueChange={(value) => {
@@ -399,6 +400,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
               Functions are inherited from the assigned role. Edit the role to manage functions.
             </p>
           </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>

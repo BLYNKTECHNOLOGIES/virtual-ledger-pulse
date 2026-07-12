@@ -199,7 +199,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
           metadata: { username: formData.username, email: formData.email, role_id: formData.role_id, badge_id: formData.badge_id }
         });
         
-        if (formData.role_id !== initialRoleId) {
+        if (!restrictSensitive && formData.role_id !== initialRoleId) {
           logActionWithCurrentUser({
             actionType: ActionTypes.USER_ROLE_ASSIGNED,
             entityType: EntityTypes.USER,
@@ -209,36 +209,38 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
           });
         }
 
-        // Handle terminal access changes
-        const hadAccess = !!currentTerminalRoleId;
-        if (terminalAccess && !hadAccess) {
-          const selectedErpRole = roles.find(r => r.id === formData.role_id);
-          const adminTerminalRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
-          const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin' && adminTerminalRole
-            ? adminTerminalRole.id
-            : terminalRoleId;
-          const assignedBy = getSessionUserId() || undefined;
-          await supabase.rpc("assign_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: autoTerminalRoleId,
-            p_assigned_by: assignedBy,
-          });
-        } else if (!terminalAccess && hadAccess) {
-          await supabase.rpc("remove_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: currentTerminalRoleId!,
-          });
-        } else if (terminalAccess && hadAccess && terminalRoleId !== currentTerminalRoleId) {
-          await supabase.rpc("remove_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: currentTerminalRoleId!,
-          });
-          const assignedBy = getSessionUserId() || undefined;
-          await supabase.rpc("assign_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: terminalRoleId,
-            p_assigned_by: assignedBy,
-          });
+        // Handle terminal access changes — skipped entirely for HR-restricted editors
+        if (!restrictSensitive) {
+          const hadAccess = !!currentTerminalRoleId;
+          if (terminalAccess && !hadAccess) {
+            const selectedErpRole = roles.find(r => r.id === formData.role_id);
+            const adminTerminalRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
+            const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin' && adminTerminalRole
+              ? adminTerminalRole.id
+              : terminalRoleId;
+            const assignedBy = getSessionUserId() || undefined;
+            await supabase.rpc("assign_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: autoTerminalRoleId,
+              p_assigned_by: assignedBy,
+            });
+          } else if (!terminalAccess && hadAccess) {
+            await supabase.rpc("remove_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: currentTerminalRoleId!,
+            });
+          } else if (terminalAccess && hadAccess && terminalRoleId !== currentTerminalRoleId) {
+            await supabase.rpc("remove_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: currentTerminalRoleId!,
+            });
+            const assignedBy = getSessionUserId() || undefined;
+            await supabase.rpc("assign_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: terminalRoleId,
+              p_assigned_by: assignedBy,
+            });
+          }
         }
         
         toast({

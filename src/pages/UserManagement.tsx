@@ -330,15 +330,21 @@ export default function UserManagement() {
     return new Date(dateString).toLocaleString('en-GB');
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    
-    if (!hasPermission('user_management_manage')) {
+  const handleDeleteUser = async (user: DatabaseUser) => {
+
+    if (!canEditUsers) {
       console.error('User does not have permission to delete users');
       toast.error('You do not have permission to delete users');
       return;
     }
-    
-    setUserToDelete(userId);
+
+    // HR-restricted staff cannot delete Admin or Super Admin accounts
+    if (isHrRestricted && isProtectedRole(user.role?.name)) {
+      toast.error('You cannot delete Admin or Super Admin accounts');
+      return;
+    }
+
+    setUserToDelete(user.id);
   };
 
   const confirmDeleteUser = async () => {

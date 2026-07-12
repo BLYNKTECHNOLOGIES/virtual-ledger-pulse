@@ -418,7 +418,7 @@ export default function UserManagement() {
     </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className={`grid w-full ${isSuperAdmin ? "grid-cols-7" : "grid-cols-6"}`}>
+          <TabsList className={`grid w-full ${isHrRestricted ? "grid-cols-1" : isSuperAdmin ? "grid-cols-7" : "grid-cols-6"}`}>
             {isSuperAdmin && (
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4" />
@@ -429,22 +429,26 @@ export default function UserManagement() {
               <Users className="h-4 w-4" />
               All Users
             </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Roles & Permissions
-            </TabsTrigger>
-            <TabsTrigger value="functions" className="flex items-center gap-2">
-              <Settings2 className="h-4 w-4" />
-              Functions
-            </TabsTrigger>
-            <TabsTrigger value="terminal" className="flex items-center gap-2">
-              <Terminal className="h-4 w-4" />
-              Terminal Access
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              User Settings
-            </TabsTrigger>
+            {!isHrRestricted && (
+              <>
+                <TabsTrigger value="roles" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Roles & Permissions
+                </TabsTrigger>
+                <TabsTrigger value="functions" className="flex items-center gap-2">
+                  <Settings2 className="h-4 w-4" />
+                  Functions
+                </TabsTrigger>
+                <TabsTrigger value="terminal" className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4" />
+                  Terminal Access
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  User Settings
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* Pending Registrations Tab — Super Admin only */}

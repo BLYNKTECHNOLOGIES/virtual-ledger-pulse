@@ -31,6 +31,7 @@ const availablePermissions = [
   { id: "leads_manage", name: "Leads Manage", description: "Manage leads" },
   { id: "user_management_view", name: "User Management View", description: "View users and roles" },
   { id: "user_management_manage", name: "User Management Manage", description: "Manage users and roles" },
+  { id: "user_management_hr_manage", name: "User Management (HR)", description: "HR access: edit user details & delete non-admin users. Cannot change roles, grant terminal access, or approve new registrations" },
   { id: "hrms_view", name: "HRMS View", description: "View Human Resource Management" },
   { id: "hrms_manage", name: "HRMS Manage", description: "Manage Human Resources" },
   { id: "payroll_view", name: "Payroll View", description: "View payroll data" },

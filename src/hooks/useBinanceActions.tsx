@@ -472,37 +472,26 @@ export function useCounterpartyCompletedOrderCount(
     queryFn: async () => {
       const { supabase } = await import('@/integrations/supabase/client');
 
-      // Resolve the current order's stable counterparty user id.
-      const { data: currentRow } = await supabase
-        .from('binance_order_history')
-        .select('order_detail_raw, raw_data')
+      // Resolve the counterparty's authoritative Binance userNo. cp_order_identity
+      // is populated for active/pending orders too (via resolve-order-userno), so
+      // this works even before the order is synced into binance_order_history.
+      const { data: identity } = await supabase
+        .from('cp_order_identity')
+        .select('cp_userno')
         .eq('order_number', currentOrderNumber!)
         .maybeSingle();
 
-      const detail: any = currentRow?.order_detail_raw || {};
-      const raw: any = currentRow?.raw_data || {};
-      const userNoValue =
-        detail.takerUserNo ?? detail.takerUserId ?? raw.takerUserNo ?? raw.takerUserId ?? null;
-      const counterpartyUserNo =
-        userNoValue === null || userNoValue === undefined ? '' : String(userNoValue).trim();
-
-      // No reliable identity -> report 0 rather than leak unrelated orders.
-      if (!counterpartyUserNo) return 0;
-
-      let query = supabase
-        .from('binance_order_history')
-        .select('*', { count: 'exact', head: true })
-        .eq('order_detail_raw->>takerUserNo', counterpartyUserNo)
-        .eq('order_status', 'COMPLETED')
-        .neq('order_number', currentOrderNumber!);
-
-      if (exchangeAccountId) {
-        query = query.eq('exchange_account_id', exchangeAccountId);
-      }
-
-      const { count, error } = await query;
+      // Server-side count. The RPC resolves the counterparty (non-self side) and
+      // counts COMPLETED orders where they acted as EITHER the ad merchant or the
+      // taker — the raw takerUserNo-only match previously missed most orders and
+      // returned 0 for active orders not yet in history.
+      const { data, error } = await supabase.rpc('get_counterparty_completed_order_count', {
+        p_order_number: currentOrderNumber!,
+        p_cp_userno: (identity as any)?.cp_userno ?? null,
+        p_exchange_account_id: exchangeAccountId ?? null,
+      });
       if (error) throw error;
-      return count ?? 0;
+      return (data as number) ?? 0;
     },
     enabled: !!currentOrderNumber,
     staleTime: 5 * 60 * 1000,

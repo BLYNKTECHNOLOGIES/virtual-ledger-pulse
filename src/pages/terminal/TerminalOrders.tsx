@@ -132,7 +132,7 @@ function TerminalOrdersContent() {
   const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences
-  const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'all' as string, assignmentFilter: 'all' as string };
+  const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'active' as string, assignmentFilter: 'all' as string };
   const [orderPrefs, setOrderPref] = useTerminalUserPrefs(userId, 'orders', ORDER_PREF_DEFAULTS);
   const tradeFilter = orderPrefs.tradeFilter;
   const statusFilter = orderPrefs.statusFilter;

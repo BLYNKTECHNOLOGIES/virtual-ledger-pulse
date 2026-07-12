@@ -545,7 +545,7 @@ export default function UserManagement() {
                                 <p><strong>Created:</strong> {formatDate(user.created_at)}</p>
                               </div>
                               
-                              <PermissionGate permissions={['user_management_manage']}>
+                              {canEditUsers && (
                                 <div className="flex justify-between pt-2 border-t">
                                   <Button
                                     variant="outline"
@@ -567,17 +567,19 @@ export default function UserManagement() {
                                     Reset
                                   </Button>
                                   
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDeleteUser(user.id)}
-                                    className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                    Delete
-                                  </Button>
+                                  {!(isHrRestricted && isProtectedRole(user.role?.name)) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteUser(user)}
+                                      className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                      Delete
+                                    </Button>
+                                  )}
                                 </div>
-                              </PermissionGate>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

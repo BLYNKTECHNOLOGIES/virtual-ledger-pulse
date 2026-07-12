@@ -1473,14 +1473,15 @@ export function ClientOnboardingApprovals() {
     setIdentityDetail({
       existingUserNo: null,
       existingNickname: null,
-      requestUserNo: null,
+      requestUserNo: approval.cp_userno ? String(approval.cp_userno) : null,
       requestNickname: sanitizeNickname(approval.binance_nickname),
     });
     void (async () => {
       const next = {
         existingUserNo: null as string | null,
         existingNickname: null as string | null,
-        requestUserNo: null as string | null,
+        // Authoritative applicant userNo lives on the approval row itself.
+        requestUserNo: approval.cp_userno ? String(approval.cp_userno) : null,
         requestNickname: sanitizeNickname(approval.binance_nickname),
       };
       // Existing client identity
@@ -1492,16 +1493,21 @@ export function ClientOnboardingApprovals() {
         next.existingUserNo = unoRow?.cp_userno ? String(unoRow.cp_userno) : null;
         next.existingNickname = sanitizeNickname(nickRow?.nickname);
       }
-      // Incoming request identity via its P2P order
-      const orderNo = reviewNicknameOrders[0]?.order_number || null;
-      if (orderNo) {
-        const { data: idRow } = await supabase
-          .from('cp_order_identity')
-          .select('cp_userno, nickname')
-          .eq('order_number', String(orderNo))
-          .maybeSingle();
-        if (idRow?.cp_userno) next.requestUserNo = String(idRow.cp_userno);
-        next.requestNickname = next.requestNickname || sanitizeNickname(idRow?.nickname);
+      // Fallback: resolve incoming request identity via its P2P order only when
+      // the approval row has no authoritative userNo. Await the P2P orders fetch
+      // instead of reading stale React state.
+      if (!next.requestUserNo) {
+        const p2pOrders = await fetchApprovalsP2POrders(approvalsForReview);
+        const orderNo = p2pOrders?.[0]?.order_number || null;
+        if (orderNo) {
+          const { data: idRow } = await supabase
+            .from('cp_order_identity')
+            .select('cp_userno, nickname')
+            .eq('order_number', String(orderNo))
+            .maybeSingle();
+          if (idRow?.cp_userno) next.requestUserNo = String(idRow.cp_userno);
+          next.requestNickname = next.requestNickname || sanitizeNickname(idRow?.nickname);
+        }
       }
       setIdentityDetail(next);
     })();

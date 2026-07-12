@@ -12,7 +12,7 @@ const ADMIN_PERMISSIONS = [
   'clients_view', 'clients_manage',
   'ra_assign', 'ra_dashboard_view',
   'leads_view', 'leads_manage',
-  'user_management_view', 'user_management_manage',
+  'user_management_view', 'user_management_manage', 'user_management_hr_manage',
   'hrms_view', 'hrms_manage',
   'payroll_view', 'payroll_manage',
   'compliance_view', 'compliance_manage',

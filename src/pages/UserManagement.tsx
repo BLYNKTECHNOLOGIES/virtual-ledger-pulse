@@ -378,7 +378,7 @@ export default function UserManagement() {
   // If user has no permissions, show access denied
   if (!hasViewPermission && !isLoadingPermissions) {
     return (
-      <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+      <PermissionGate permissions={['user_management_view', 'user_management_manage', 'user_management_hr_manage']}>
         <div />
       </PermissionGate>
     );
@@ -461,7 +461,7 @@ export default function UserManagement() {
 
           {/* All Users Tab */}
           <TabsContent value="users" className="space-y-4">
-            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+            <PermissionGate permissions={['user_management_view', 'user_management_manage', 'user_management_hr_manage']}>
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-center">

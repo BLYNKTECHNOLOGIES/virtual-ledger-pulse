@@ -92,6 +92,7 @@ const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: str
     permissions: [
       { id: 'user_management_view', name: 'View', description: 'View users and roles', tier: 'view' },
       { id: 'user_management_manage', name: 'Manage', description: 'Manage users and roles', tier: 'manage' },
+      { id: 'user_management_hr_manage', name: 'HR Manage', description: 'HR: edit user details & delete non-admins. No role/terminal/approval control', tier: 'manage' },
     ],
   },
   hrms: {

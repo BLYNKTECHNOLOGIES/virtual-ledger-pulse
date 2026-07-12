@@ -1,0 +1,1 @@
+ALTER TYPE public.app_permission ADD VALUE IF NOT EXISTS 'user_management_hr_manage';

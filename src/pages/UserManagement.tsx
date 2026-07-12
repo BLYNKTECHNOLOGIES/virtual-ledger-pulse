@@ -300,8 +300,17 @@ export default function UserManagement() {
   };
 
   // Check user management permissions
-  const hasViewPermission = hasPermission('user_management_view') || hasPermission('user_management_manage');
+  const hasHrManage = hasPermission('user_management_hr_manage');
   const hasManagePermission = hasPermission('user_management_manage');
+  const hasViewPermission = hasPermission('user_management_view') || hasManagePermission || hasHrManage;
+  // HR-restricted: can edit user details & delete non-admins, but NOT roles/terminal/approvals
+  const isHrRestricted = hasHrManage && !hasManagePermission && !isSuperAdmin;
+  const canEditUsers = hasManagePermission || hasHrManage || isSuperAdmin;
+
+  const isProtectedRole = (roleName?: string) => {
+    const r = roleName?.toLowerCase();
+    return r === 'admin' || r === 'super admin';
+  };
 
   useEffect(() => {
     fetchRoles();
@@ -321,15 +330,21 @@ export default function UserManagement() {
     return new Date(dateString).toLocaleString('en-GB');
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    
-    if (!hasPermission('user_management_manage')) {
+  const handleDeleteUser = async (user: DatabaseUser) => {
+
+    if (!canEditUsers) {
       console.error('User does not have permission to delete users');
       toast.error('You do not have permission to delete users');
       return;
     }
-    
-    setUserToDelete(userId);
+
+    // HR-restricted staff cannot delete Admin or Super Admin accounts
+    if (isHrRestricted && isProtectedRole(user.role?.name)) {
+      toast.error('You cannot delete Admin or Super Admin accounts');
+      return;
+    }
+
+    setUserToDelete(user.id);
   };
 
   const confirmDeleteUser = async () => {
@@ -363,7 +378,7 @@ export default function UserManagement() {
   // If user has no permissions, show access denied
   if (!hasViewPermission && !isLoadingPermissions) {
     return (
-      <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+      <PermissionGate permissions={['user_management_view', 'user_management_manage', 'user_management_hr_manage']}>
         <div />
       </PermissionGate>
     );
@@ -403,7 +418,7 @@ export default function UserManagement() {
     </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className={`grid w-full ${isSuperAdmin ? "grid-cols-7" : "grid-cols-6"}`}>
+          <TabsList className={`grid w-full ${isHrRestricted ? "grid-cols-1" : isSuperAdmin ? "grid-cols-7" : "grid-cols-6"}`}>
             {isSuperAdmin && (
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4" />
@@ -414,22 +429,26 @@ export default function UserManagement() {
               <Users className="h-4 w-4" />
               All Users
             </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Roles & Permissions
-            </TabsTrigger>
-            <TabsTrigger value="functions" className="flex items-center gap-2">
-              <Settings2 className="h-4 w-4" />
-              Functions
-            </TabsTrigger>
-            <TabsTrigger value="terminal" className="flex items-center gap-2">
-              <Terminal className="h-4 w-4" />
-              Terminal Access
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              User Settings
-            </TabsTrigger>
+            {!isHrRestricted && (
+              <>
+                <TabsTrigger value="roles" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Roles & Permissions
+                </TabsTrigger>
+                <TabsTrigger value="functions" className="flex items-center gap-2">
+                  <Settings2 className="h-4 w-4" />
+                  Functions
+                </TabsTrigger>
+                <TabsTrigger value="terminal" className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4" />
+                  Terminal Access
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  User Settings
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* Pending Registrations Tab — Super Admin only */}
@@ -442,7 +461,7 @@ export default function UserManagement() {
 
           {/* All Users Tab */}
           <TabsContent value="users" className="space-y-4">
-            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+            <PermissionGate permissions={['user_management_view', 'user_management_manage', 'user_management_hr_manage']}>
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-center">
@@ -526,7 +545,7 @@ export default function UserManagement() {
                                 <p><strong>Created:</strong> {formatDate(user.created_at)}</p>
                               </div>
                               
-                              <PermissionGate permissions={['user_management_manage']}>
+                              {canEditUsers && (
                                 <div className="flex justify-between pt-2 border-t">
                                   <Button
                                     variant="outline"
@@ -548,17 +567,19 @@ export default function UserManagement() {
                                     Reset
                                   </Button>
                                   
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDeleteUser(user.id)}
-                                    className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                    Delete
-                                  </Button>
+                                  {!(isHrRestricted && isProtectedRole(user.role?.name)) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteUser(user)}
+                                      className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                      Delete
+                                    </Button>
+                                  )}
                                 </div>
-                              </PermissionGate>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -780,6 +801,7 @@ export default function UserManagement() {
           user={editingUser}
           onSave={updateUser}
           onClose={() => setEditingUser(null)}
+          restrictSensitive={isHrRestricted}
         />
       )}
 

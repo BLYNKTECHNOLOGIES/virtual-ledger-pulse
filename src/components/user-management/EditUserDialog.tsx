@@ -38,9 +38,11 @@ interface EditUserDialogProps {
   user: DatabaseUser;
   onSave: (userId: string, userData: any) => Promise<any>;
   onClose: () => void;
+  /** HR-restricted editors cannot change role or terminal access */
+  restrictSensitive?: boolean;
 }
 
-export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
+export function EditUserDialog({ user, onSave, onClose, restrictSensitive = false }: EditUserDialogProps) {
   const initialRoleId = user.role?.id || user.role_id || "no_role";
   
   const [formData, setFormData] = useState({
@@ -161,9 +163,13 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
     setIsLoading(true);
 
     try {
+      // HR-restricted editors cannot change the role — always keep the original
+      const effectiveRoleId = restrictSensitive
+        ? (initialRoleId === "no_role" ? "" : initialRoleId)
+        : (formData.role_id === "no_role" ? "" : formData.role_id);
       const submitData = {
         ...formData,
-        role_id: formData.role_id === "no_role" ? "" : formData.role_id,
+        role_id: effectiveRoleId,
         badge_id: formData.badge_id.trim() || null,
       };
       
@@ -193,7 +199,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
           metadata: { username: formData.username, email: formData.email, role_id: formData.role_id, badge_id: formData.badge_id }
         });
         
-        if (formData.role_id !== initialRoleId) {
+        if (!restrictSensitive && formData.role_id !== initialRoleId) {
           logActionWithCurrentUser({
             actionType: ActionTypes.USER_ROLE_ASSIGNED,
             entityType: EntityTypes.USER,
@@ -203,36 +209,38 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
           });
         }
 
-        // Handle terminal access changes
-        const hadAccess = !!currentTerminalRoleId;
-        if (terminalAccess && !hadAccess) {
-          const selectedErpRole = roles.find(r => r.id === formData.role_id);
-          const adminTerminalRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
-          const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin' && adminTerminalRole
-            ? adminTerminalRole.id
-            : terminalRoleId;
-          const assignedBy = getSessionUserId() || undefined;
-          await supabase.rpc("assign_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: autoTerminalRoleId,
-            p_assigned_by: assignedBy,
-          });
-        } else if (!terminalAccess && hadAccess) {
-          await supabase.rpc("remove_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: currentTerminalRoleId!,
-          });
-        } else if (terminalAccess && hadAccess && terminalRoleId !== currentTerminalRoleId) {
-          await supabase.rpc("remove_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: currentTerminalRoleId!,
-          });
-          const assignedBy = getSessionUserId() || undefined;
-          await supabase.rpc("assign_terminal_role", {
-            p_user_id: user.id,
-            p_role_id: terminalRoleId,
-            p_assigned_by: assignedBy,
-          });
+        // Handle terminal access changes — skipped entirely for HR-restricted editors
+        if (!restrictSensitive) {
+          const hadAccess = !!currentTerminalRoleId;
+          if (terminalAccess && !hadAccess) {
+            const selectedErpRole = roles.find(r => r.id === formData.role_id);
+            const adminTerminalRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
+            const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin' && adminTerminalRole
+              ? adminTerminalRole.id
+              : terminalRoleId;
+            const assignedBy = getSessionUserId() || undefined;
+            await supabase.rpc("assign_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: autoTerminalRoleId,
+              p_assigned_by: assignedBy,
+            });
+          } else if (!terminalAccess && hadAccess) {
+            await supabase.rpc("remove_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: currentTerminalRoleId!,
+            });
+          } else if (terminalAccess && hadAccess && terminalRoleId !== currentTerminalRoleId) {
+            await supabase.rpc("remove_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: currentTerminalRoleId!,
+            });
+            const assignedBy = getSessionUserId() || undefined;
+            await supabase.rpc("assign_terminal_role", {
+              p_user_id: user.id,
+              p_role_id: terminalRoleId,
+              p_assigned_by: assignedBy,
+            });
+          }
         }
         
         toast({
@@ -364,6 +372,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
             </p>
           </div>
 
+          {!restrictSensitive && (
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
             <Select value={formData.role_id} onValueChange={(value) => {
@@ -391,6 +400,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
               Functions are inherited from the assigned role. Edit the role to manage functions.
             </p>
           </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
@@ -406,6 +416,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
             </Select>
           </div>
 
+          {!restrictSensitive && (
           <div className="space-y-3 rounded-lg border p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -434,6 +445,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
               </div>
             )}
           </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>

@@ -18525,6 +18525,7 @@ export type Database = {
         | "help_assistant_manage"
         | "ra_assign"
         | "ra_dashboard_view"
+        | "user_management_hr_manage"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -18843,6 +18844,7 @@ export const Constants = {
         "help_assistant_manage",
         "ra_assign",
         "ra_dashboard_view",
+        "user_management_hr_manage",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

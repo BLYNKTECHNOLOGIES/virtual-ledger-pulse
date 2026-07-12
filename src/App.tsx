@@ -471,7 +471,7 @@ const router = createBrowserRouter([
         <QueryProvider>
             <AuthCheck>
               <TerminalLayout>
-                <TerminalDashboard />
+                <TerminalLanding />
               </TerminalLayout>
             </AuthCheck>
         </QueryProvider>

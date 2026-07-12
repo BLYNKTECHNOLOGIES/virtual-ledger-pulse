@@ -17344,6 +17344,14 @@ export type Database = {
           order_count: number
         }[]
       }
+      get_counterparty_completed_order_count: {
+        Args: {
+          p_cp_userno?: string
+          p_exchange_account_id?: string
+          p_order_number: string
+        }
+        Returns: number
+      }
       get_counterparty_order_history: {
         Args: { p_exchange_account_id?: string; p_order_number: string }
         Returns: {

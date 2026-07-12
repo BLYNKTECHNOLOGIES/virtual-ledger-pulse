@@ -90,6 +90,7 @@ interface ClientOnboardingApproval {
   binance_nickname?: string | null;
   verified_name?: string | null;
   resolved_client_id?: string | null;
+  cp_userno?: string | null;
 }
 
 const cleanApprovalPersonName = (name?: string | null) => (name || '').split(' • ')[0].trim();

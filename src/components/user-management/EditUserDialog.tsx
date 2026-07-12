@@ -38,9 +38,11 @@ interface EditUserDialogProps {
   user: DatabaseUser;
   onSave: (userId: string, userData: any) => Promise<any>;
   onClose: () => void;
+  /** HR-restricted editors cannot change role or terminal access */
+  restrictSensitive?: boolean;
 }
 
-export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
+export function EditUserDialog({ user, onSave, onClose, restrictSensitive = false }: EditUserDialogProps) {
   const initialRoleId = user.role?.id || user.role_id || "no_role";
   
   const [formData, setFormData] = useState({

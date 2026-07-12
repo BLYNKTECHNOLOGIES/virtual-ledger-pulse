@@ -478,6 +478,18 @@ const router = createBrowserRouter([
       ),
     },
     {
+      path: "/terminal/dashboard",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalDashboard />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
       path: "/terminal/ads",
       element: (
         <QueryProvider>

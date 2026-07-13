@@ -34,6 +34,18 @@ export function BulkEditPaymentMethodsDialog({ open, onOpenChange, ads, onComple
   const hasMix = buyAds.length > 0 && sellAds.length > 0;
 
   const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>(sellAds.length >= buyAds.length ? 'SELL' : 'BUY');
+
+  // The initial useState value can be computed while `ads` is still empty (dialog
+  // mounts before selection propagates), which would wrongly lock onto SELL and
+  // show "0 sell ads". Re-derive the correct default each time the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    if (sellAds.length > 0 && buyAds.length === 0) setTradeType('SELL');
+    else if (buyAds.length > 0 && sellAds.length === 0) setTradeType('BUY');
+    else if (sellAds.length === 0 && buyAds.length === 0) return; // nothing yet
+    else setTradeType(sellAds.length >= buyAds.length ? 'SELL' : 'BUY');
+  }, [open, buyAds.length, sellAds.length]);
+
   const targetAds = tradeType === 'BUY' ? buyAds : sellAds;
   const isBuy = tradeType === 'BUY';
 

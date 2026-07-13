@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
-import { resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, linkClientUserNo } from "@/lib/clientIdentityResolver";
+import { resolveOrderUserNo, sanitizeVerifiedName, linkClientUserNo } from "@/lib/clientIdentityResolver";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
@@ -129,20 +129,10 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   useEffect(() => {
     if (!open || !syncRecord?.counterparty_name) return;
 
-    // Only consider unmasked nicknames as identity. Masked values are intentionally ignored.
-    const unmaskedNickname = sanitizeNickname(syncRecord.order_data?.counterparty_nickname_unmasked)
-      || sanitizeNickname(syncRecord.order_data?.counterparty_nickname)
-      || sanitizeNickname(syncRecord.counterparty_name)
-      || '';
-    const isMaskedNickname = !unmaskedNickname; // i.e. we have nothing usable
-
     const fetchResolvedData = async () => {
       let cMasterPan = '';
-      let cPartyPan = '';
       let cMasterPhone = '';
-      let cPartyPhone = '';
       let cMasterState = '';
-      let cPartyState = '';
 
       const selectedClient = linkedClientId || syncRecord?.client_id || '';
 
@@ -161,55 +151,24 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         }
       }
 
-      // 2) Fetch counterparty records (PAN + contact) — only by unmasked nickname
-      let lookupNickname = unmaskedNickname || '';
-      // If we have nothing usable, try the live p2p_order_records for an unmasked value
-      if (!lookupNickname && syncRecord?.binance_order_number) {
-        const { data: p2pRec } = await supabase
-          .from('p2p_order_records')
-          .select('counterparty_nickname')
-          .eq('binance_order_number', syncRecord.binance_order_number)
-          .maybeSingle();
-        const safe = sanitizeNickname(p2pRec?.counterparty_nickname);
-        if (safe) lookupNickname = safe;
-      }
-
-      if (lookupNickname) {
-        const { data: panRec } = await supabase
-          .from('counterparty_pan_records')
-          .select('pan_number')
-          .eq('counterparty_nickname', lookupNickname)
-          .maybeSingle();
-        if (panRec?.pan_number) cPartyPan = panRec.pan_number;
-
-        const { data: contactRec } = await supabase
-          .from('counterparty_contact_records')
-          .select('contact_number, state')
-          .eq('counterparty_nickname', lookupNickname)
-          .maybeSingle();
-        if (contactRec?.contact_number) cPartyPhone = contactRec.contact_number;
-        if (contactRec?.state) cPartyState = contactRec.state;
-      }
-
       // Store both sources for conflict detection
       setClientMasterPan(cMasterPan);
-      setCounterpartyPan(cPartyPan);
+      setCounterpartyPan('');
       setClientMasterPhone(cMasterPhone);
-      setCounterpartyPhone(cPartyPhone);
+      setCounterpartyPhone('');
       setClientMasterState(cMasterState);
-      setCounterpartyState(cPartyState);
+      setCounterpartyState('');
 
-      // Auto-resolve: sync record PAN (entered in terminal) wins, then counterparty, then client master
+      // Auto-resolve: sync record PAN (entered in terminal) wins, then client master.
+      // Do not read counterparty_contact_records here: those rows are nickname-keyed
+      // display data and can belong to a different Binance userNo.
       const syncPan = syncRecord?.pan_number || '';
-      const resolvedPan = syncPan || cPartyPan || cMasterPan;
+      const resolvedPan = syncPan || cMasterPan;
       setPanNumber(resolvedPan);
       setTdsOption(resolvedPan ? '1%' : '20%');
 
-      // Auto-resolve contact/state: counterparty records (terminal-captured) > client master
-      const resolvedPhone = cPartyPhone || cMasterPhone;
-      const resolvedState = cPartyState || cMasterState;
-      setContactNumber(resolvedPhone);
-      setClientState(resolvedState);
+      setContactNumber(cMasterPhone);
+      setClientState(cMasterState);
 
       // Client binding is driven strictly by Binance userNo (the userNo effect
       // above). No nickname / verified-name / display-name matching here.
@@ -318,8 +277,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     mutationFn: async () => {
       const nickname = syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name;
       const unmasked = syncRecord?.order_data?.counterparty_nickname_unmasked || '';
-      // Resolve contact using unmasked nickname (from p2p_order_records) or unmasked binance nickname
-      let contactPhone: string | undefined;
       let lookupNick = unmasked || '';
       if (!lookupNick && nickname && !nickname.includes('*')) {
         lookupNick = nickname;
@@ -334,14 +291,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           lookupNick = p2pRec.counterparty_nickname.trim();
         }
       }
-      if (lookupNick) {
-        const { data: contactRec } = await supabase
-          .from('counterparty_contact_records')
-          .select('contact_number')
-          .eq('counterparty_nickname', lookupNick)
-          .maybeSingle();
-        contactPhone = contactRec?.contact_number || undefined;
-      }
 
       // Block client creation with masked nicknames or unknown names
       const clientName = syncRecord.counterparty_name;
@@ -350,12 +299,16 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       }
       const verifiedNameRaw = od.verified_name || '';
       const cleanVerifiedName = sanitizeVerifiedName(verifiedNameRaw);
+      if (!lockedUserNo) {
+        throw new Error('Binance User No is not resolved yet. Client creation is blocked until this order identity is available.');
+      }
       const clientData = await createSellerClient(
         clientName,
-        contactPhone,
+        contactNumber.trim() || undefined,
         {
           binanceNickname: lookupNick || null,
           verifiedName: cleanVerifiedName,
+          cpUserNo: lockedUserNo,
         }
       );
       if (!clientData?.id) {
@@ -371,6 +324,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       manualSelectionRef.current = true;
       setLinkedClientId(client.id);
       setLinkedClientName(syncRecord?.counterparty_name || '');
+      if (lockedUserNo) setUserNoLocked(true);
       toast({ title: "Client Created", description: `${syncRecord.counterparty_name} added as seller client` });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
     },

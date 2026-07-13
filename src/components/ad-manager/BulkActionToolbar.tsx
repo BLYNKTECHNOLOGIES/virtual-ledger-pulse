@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Percent, Power, PowerOff, X, Blend, ShieldAlert, ListChecks } from 'lucide-react';
+import { Edit, Percent, Power, PowerOff, X, Blend, ShieldAlert, ListChecks, CreditCard } from 'lucide-react';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 interface BulkActionToolbarProps {

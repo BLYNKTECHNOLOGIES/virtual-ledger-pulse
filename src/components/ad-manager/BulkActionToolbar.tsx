@@ -65,6 +65,12 @@ export function BulkActionToolbar({
         Edit Order Limits
       </Button>
 
+      <Button variant="outline" size="sm" onClick={onBulkEditPaymentMethods} className="text-foreground border-border">
+        <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+        Edit Payment Methods
+      </Button>
+
+
       <Button
         variant="outline"
         size="sm"

@@ -21,6 +21,7 @@ export function BulkActionToolbar({
   selectedAds,
   onClearSelection,
   onBulkEditLimits,
+  onBulkEditPaymentMethods,
   onBulkFloatingPrice,
   onBulkHybridAdjust,
   onBulkRiskGuard,

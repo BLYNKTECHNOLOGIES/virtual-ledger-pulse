@@ -7,6 +7,7 @@ interface BulkActionToolbarProps {
   selectedAds: BinanceAd[];
   onClearSelection: () => void;
   onBulkEditLimits: () => void;
+  onBulkEditPaymentMethods: () => void;
   onBulkFloatingPrice: () => void;
   onBulkHybridAdjust: () => void;
   onBulkRiskGuard: () => void;

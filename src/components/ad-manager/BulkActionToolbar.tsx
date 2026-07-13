@@ -1,12 +1,13 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Percent, Power, PowerOff, X, Blend, ShieldAlert, ListChecks } from 'lucide-react';
+import { Edit, Percent, Power, PowerOff, X, Blend, ShieldAlert, ListChecks, CreditCard } from 'lucide-react';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 interface BulkActionToolbarProps {
   selectedAds: BinanceAd[];
   onClearSelection: () => void;
   onBulkEditLimits: () => void;
+  onBulkEditPaymentMethods: () => void;
   onBulkFloatingPrice: () => void;
   onBulkHybridAdjust: () => void;
   onBulkRiskGuard: () => void;
@@ -20,6 +21,7 @@ export function BulkActionToolbar({
   selectedAds,
   onClearSelection,
   onBulkEditLimits,
+  onBulkEditPaymentMethods,
   onBulkFloatingPrice,
   onBulkHybridAdjust,
   onBulkRiskGuard,
@@ -62,6 +64,12 @@ export function BulkActionToolbar({
         <Edit className="h-3.5 w-3.5 mr-1.5" />
         Edit Order Limits
       </Button>
+
+      <Button variant="outline" size="sm" onClick={onBulkEditPaymentMethods} className="text-foreground border-border">
+        <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+        Edit Payment Methods
+      </Button>
+
 
       <Button
         variant="outline"

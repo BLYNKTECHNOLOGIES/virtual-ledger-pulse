@@ -91,6 +91,7 @@ export default function AdManager() {
   // Bulk selection state
   const [selectedAdvNos, setSelectedAdvNos] = useState<Set<string>>(new Set());
   const [bulkLimitsOpen, setBulkLimitsOpen] = useState(false);
+  const [bulkPayMethodsOpen, setBulkPayMethodsOpen] = useState(false);
   const [bulkFloatingOpen, setBulkFloatingOpen] = useState(false);
   const [bulkHybridOpen, setBulkHybridOpen] = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);

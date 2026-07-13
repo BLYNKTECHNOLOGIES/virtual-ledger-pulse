@@ -19,6 +19,7 @@ import { BoardView } from '@/components/ad-manager/BoardView';
 import { CreateEditAdDialog, CreateAdInitialValues } from '@/components/ad-manager/CreateEditAdDialog';
 import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
+import { BulkEditPaymentMethodsDialog } from '@/components/ad-manager/BulkEditPaymentMethodsDialog';
 import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPriceDialog';
 import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';

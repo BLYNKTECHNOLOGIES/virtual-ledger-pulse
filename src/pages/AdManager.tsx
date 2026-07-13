@@ -336,6 +336,7 @@ export default function AdManager() {
           selectedAds={selectedAds}
           onClearSelection={() => setSelectedAdvNos(new Set())}
           onBulkEditLimits={() => setBulkLimitsOpen(true)}
+          onBulkEditPaymentMethods={() => setBulkPayMethodsOpen(true)}
           onBulkFloatingPrice={() => setBulkFloatingOpen(true)}
           onBulkHybridAdjust={() => setBulkHybridOpen(true)}
           onBulkRiskGuard={() => setBulkRiskGuardOpen(true)}

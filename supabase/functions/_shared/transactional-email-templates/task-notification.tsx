@@ -317,13 +317,14 @@ const brandName = {
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 }
 const brandTag = {
-  color: '#e0e7ff',
-  WebkitTextFillColor: '#e0e7ff',
+  color: '#c7d2fe',
+  WebkitTextFillColor: '#c7d2fe',
   fontSize: '11px',
-  margin: '3px 0 0',
-  letterSpacing: '0.5px',
+  margin: '4px 0 0',
+  letterSpacing: '0.8px',
   fontWeight: 500 as const,
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  textTransform: 'uppercase' as const,
 }
 const eyebrow = {
   color: '#ffffff',

@@ -213,8 +213,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 
 function ConversationRow({ conversation: c, onClick }: { conversation: ChatConversation; onClick: () => void }) {
   const numStatusMap: Record<number, string> = {
-    1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
-    5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
+    1: 'TRADING', 2: 'BUYER_PAYED', 3: 'BUYER_PAYED', 4: 'COMPLETED',
+    5: 'APPEAL', 6: 'CANCELLED', 7: 'CANCELLED_BY_SYSTEM', 8: 'APPEAL',
   };
   const rawStatus = isNaN(Number(c.orderStatus))
     ? c.orderStatus

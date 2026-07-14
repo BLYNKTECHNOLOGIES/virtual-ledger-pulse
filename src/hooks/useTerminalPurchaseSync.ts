@@ -39,9 +39,9 @@ async function fetchOrderDetail(orderNumber: string, exchangeAccountId?: string 
       const numStatus = Number(rawStatus);
       if (!isNaN(numStatus)) {
         const statusMap: Record<number, string> = {
-          0: 'PENDING', 1: 'TRADING', 2: 'BUYER_PAYED',
-          3: 'DISTRIBUTING', 4: 'COMPLETED', 5: 'IN_APPEAL',
-          6: 'CANCELLED', 7: 'CANCELLED_BY_SYSTEM', 8: 'IN_APPEAL',
+          1: 'TRADING', 2: 'BUYER_PAYED', 3: 'BUYER_PAYED',
+          4: 'COMPLETED', 5: 'APPEAL', 6: 'CANCELLED',
+          7: 'CANCELLED_BY_SYSTEM', 8: 'APPEAL',
         };
         status = statusMap[numStatus] ?? String(rawStatus);
       } else {

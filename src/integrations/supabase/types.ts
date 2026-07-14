@@ -16741,6 +16741,7 @@ export type Database = {
         Args: { _ticket_id: string; _user_id: string }
         Returns: boolean
       }
+      can_delete_erp_user: { Args: { p_user_id: string }; Returns: Json }
       can_manage_customer_support_tickets: {
         Args: { _user_id: string }
         Returns: boolean

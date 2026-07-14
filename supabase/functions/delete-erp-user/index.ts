@@ -11,6 +11,8 @@ const BodySchema = z.object({
   userId: z.string().uuid("Invalid user id"),
 });
 
+// Always return 200 with a success flag so the browser client can read the
+// error body (supabase.functions.invoke swallows the body on non-2xx).
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -26,12 +28,12 @@ Deno.serve(async (req) => {
   try {
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
-      return jsonResponse({ success: false, error: parsed.error.flatten().fieldErrors }, 400);
+      return jsonResponse({ success: false, error: "Invalid request payload" });
     }
 
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return jsonResponse({ success: false, error: "Unauthorized. Please log in again." }, 401);
+      return jsonResponse({ success: false, error: "Unauthorized. Please log in again." });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -45,11 +47,11 @@ Deno.serve(async (req) => {
 
     const { data: { user: caller }, error: callerError } = await adminClient.auth.getUser(token);
     if (callerError || !caller?.id) {
-      return jsonResponse({ success: false, error: "Unauthorized. Please log in again." }, 401);
+      return jsonResponse({ success: false, error: "Unauthorized. Please log in again." });
     }
 
     if (caller.id === parsed.data.userId) {
-      return jsonResponse({ success: false, error: "You cannot delete your own account" }, 400);
+      return jsonResponse({ success: false, error: "You cannot delete your own account" });
     }
 
     const userClient = createClient(supabaseUrl, anonKey, {
@@ -63,14 +65,19 @@ Deno.serve(async (req) => {
 
     if (cleanupError) {
       console.error("delete_user_with_cleanup failed:", cleanupError);
-      return jsonResponse({ success: false, error: cleanupError.message || "ERP cleanup failed" }, 500);
+      return jsonResponse({ success: false, error: cleanupError.message || "ERP cleanup failed" });
     }
 
-    const cleanup = cleanupResult as { success?: boolean; error?: string; user_name?: string } | null;
+    const cleanup = cleanupResult as { success?: boolean; error?: string; user_name?: string; sqlstate?: string; mode?: string } | null;
     if (!cleanup?.success) {
-      return jsonResponse({ success: false, error: cleanup?.error || "ERP cleanup failed" }, 400);
+      return jsonResponse({
+        success: false,
+        error: cleanup?.error || "ERP cleanup failed",
+        sqlstate: cleanup?.sqlstate,
+      });
     }
 
+    // Remove Supabase Auth account so the user can no longer log in.
     const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(parsed.data.userId);
     if (authDeleteError) {
       const message = authDeleteError.message || "Auth deletion failed";
@@ -80,15 +87,22 @@ Deno.serve(async (req) => {
         return jsonResponse({
           success: true,
           authDeleted: false,
-          warning: "ERP user was deleted, but the Auth account could not be removed. Contact Super Admin if login remains active.",
+          userName: cleanup.user_name,
+          mode: cleanup.mode,
+          warning: "User was anonymized, but the Auth account could not be removed. Contact Super Admin if login remains active.",
         });
       }
     }
 
-    return jsonResponse({ success: true, authDeleted: !authDeleteError, userName: cleanup.user_name });
+    return jsonResponse({
+      success: true,
+      authDeleted: !authDeleteError,
+      userName: cleanup.user_name,
+      mode: cleanup.mode,
+    });
   } catch (error) {
     console.error("delete-erp-user error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
-    return jsonResponse({ success: false, error: message }, 500);
+    return jsonResponse({ success: false, error: message });
   }
 });

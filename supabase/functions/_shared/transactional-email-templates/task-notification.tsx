@@ -18,8 +18,10 @@ import {
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
 
-const SITE_NAME = 'BLYNK Virtual Technologies'
+const SITE_NAME = 'Blynkex'
 const APP_URL = 'https://erp.blynkex.com'
+const LOGO_URL = 'https://erp.blynkex.com/__l5e/assets-v1/b6b06bc5-e6c4-4625-b9d1-57b258a7be69/blynkex-logo.svg'
+
 
 interface TaskNotificationProps {
   eventType?: string
@@ -120,25 +122,35 @@ const TaskNotificationEmail = ({
 
   return (
     <Html lang="en" dir="ltr">
-      <Head />
+      <Head>
+        <meta name="color-scheme" content="light only" />
+        <meta name="supported-color-schemes" content="light only" />
+      </Head>
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
           {/* Brand header */}
-          <Section style={{ ...brandHeader, background: `linear-gradient(135deg, ${meta.accent} 0%, #1a1a2e 100%)` }}>
+          <Section style={{ ...brandHeader, background: `linear-gradient(135deg, ${meta.accent} 0%, #0b1024 100%)` }}>
             <Row>
-              <Column style={{ width: '42px' }}>
-                <div style={brandMark}>B</div>
+              <Column style={{ width: '52px', verticalAlign: 'middle' as const }}>
+                <img
+                  src={LOGO_URL}
+                  alt="Blynkex"
+                  width="40"
+                  height="40"
+                  style={{ display: 'block', width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.14)', padding: '4px' }}
+                />
               </Column>
-              <Column>
-                <Text style={brandName}>BLYNK</Text>
-                <Text style={brandTag}>Virtual Technologies · ERP</Text>
+              <Column style={{ verticalAlign: 'middle' as const }}>
+                <div style={brandName}>BLYNKEX</div>
+                <div style={brandTag}>Enterprise Resource Platform</div>
               </Column>
-              <Column align="right">
-                <Text style={eyebrow}>{meta.emoji} Tasks</Text>
+              <Column align="right" style={{ verticalAlign: 'middle' as const }}>
+                <span style={eyebrow}>{meta.emoji} Tasks</span>
               </Column>
             </Row>
           </Section>
+
 
           {/* Content */}
           <Section style={content}>
@@ -217,7 +229,7 @@ const TaskNotificationEmail = ({
           </Section>
 
           <Text style={legalFooter}>
-            © {new Date().getFullYear()} BLYNK Virtual Technologies · Automated Task Notification
+            © {new Date().getFullYear()} Blynkex · Automated Task Notification
           </Text>
         </Container>
       </Body>
@@ -284,28 +296,36 @@ const brandMark = {
 }
 const brandName = {
   color: '#ffffff',
-  fontSize: '15px',
-  fontWeight: 700 as const,
-  letterSpacing: '2px',
+  WebkitTextFillColor: '#ffffff',
+  fontSize: '18px',
+  fontWeight: 800 as const,
+  letterSpacing: '3px',
   margin: '0',
   lineHeight: '1.1',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 }
 const brandTag = {
-  color: 'rgba(255,255,255,0.7)',
+  color: '#e0e7ff',
+  WebkitTextFillColor: '#e0e7ff',
   fontSize: '11px',
-  margin: '2px 0 0',
-  letterSpacing: '0.3px',
+  margin: '3px 0 0',
+  letterSpacing: '0.5px',
+  fontWeight: 500 as const,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 }
 const eyebrow = {
-  color: 'rgba(255,255,255,0.85)',
+  color: '#ffffff',
+  WebkitTextFillColor: '#ffffff',
   fontSize: '12px',
-  fontWeight: 600 as const,
-  margin: '0',
-  padding: '4px 10px',
-  backgroundColor: 'rgba(255,255,255,0.12)',
+  fontWeight: 700 as const,
+  padding: '5px 12px',
+  backgroundColor: 'rgba(255,255,255,0.18)',
+  border: '1px solid rgba(255,255,255,0.3)',
   borderRadius: '999px',
   display: 'inline-block' as const,
+  whiteSpace: 'nowrap' as const,
 }
+
 const content = { padding: '28px 28px 20px' }
 const eventLabel = {
   fontSize: '11px',

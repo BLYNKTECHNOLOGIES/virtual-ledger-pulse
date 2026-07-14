@@ -1,0 +1,1 @@
+ALTER FUNCTION public.delete_user_with_cleanup(uuid) SET statement_timeout = '120s';

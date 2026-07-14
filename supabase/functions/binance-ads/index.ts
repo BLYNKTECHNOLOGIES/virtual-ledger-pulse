@@ -1070,6 +1070,115 @@ serve(async (req) => {
         break;
       }
 
+      case "syncTerminalOrdersForErp": {
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
+
+        const authHeader = req.headers.get("Authorization") || "";
+        const token = authHeader.replace(/^Bearer\s+/i, "");
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: authData, error: authErr } = token
+          ? await supabase.auth.getUser(token)
+          : { data: null, error: new Error("Missing auth token") } as any;
+        if (authErr || !authData?.user?.id) throw new Error("Authentication required");
+
+        const { data: canManageErp } = await supabase.rpc("user_has_permission", {
+          user_uuid: authData.user.id,
+          check_permission: "erp_entry_manage",
+        });
+        const { data: canManageTerminal } = await supabase.rpc("has_terminal_permission", {
+          _user_id: authData.user.id,
+          _permission: "terminal_manage",
+        });
+        if (!canManageErp && !canManageTerminal) {
+          throw new Error("Permission denied: ERP Entry manage or Terminal manage permission required");
+        }
+
+        const accounts = await listActiveAccounts();
+        const syncAccounts = accounts.length > 0 ? accounts : [{ id: EXCHANGE_ACCOUNT_ID, account_name: "Primary", credential_key: null, is_default: true, is_active: true }];
+        const forceGapFill = payload.forceGapFill !== false;
+        const endTimestamp = Number(payload.endTimestamp || Date.now());
+        const overlapStart = Math.max(0, endTimestamp - Number(payload.overlapMs || 24 * 60 * 60 * 1000));
+        const gapStart = Math.max(0, endTimestamp - Number(payload.gapFillMs || 7 * 24 * 60 * 60 * 1000));
+        const batches: Array<{ startTimestamp: number; maxPages: number; label: string }> = [
+          { startTimestamp: overlapStart, maxPages: Number(payload.maxRecentPages || 8), label: "recent" },
+          ...(forceGapFill ? [{ startTimestamp: gapStart, maxPages: Number(payload.maxGapPages || 30), label: "gap" }] : []),
+        ];
+
+        let fetched = 0;
+        let upserted = 0;
+        const accountResults: any[] = [];
+
+        for (const account of syncAccounts) {
+          const resolved = await resolveAccount(account.id);
+          const headers = proxyHeadersFor(resolved);
+          const seen = new Set<string>();
+          const rows: any[] = [];
+
+          for (const batch of batches) {
+            for (let page = 1; page <= batch.maxPages; page++) {
+              const params = new URLSearchParams({ page: String(page), rows: "50" });
+              params.set("startTimestamp", String(batch.startTimestamp));
+              params.set("endTimestamp", String(endTimestamp));
+              const url = `${resolved.proxyUrl}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory?${params.toString()}`;
+              const response = await fetchWithRetry(url, { method: "GET", headers }, 1, 500, 15000);
+              const text = await response.text();
+              let pageResult: any;
+              try { pageResult = JSON.parse(text); } catch { pageResult = { raw: text, status: response.status }; }
+              if (!response.ok || (pageResult?.code && pageResult.code !== "000000" && pageResult.code !== 200)) {
+                throw new Error(pageResult?.message || pageResult?.msg || `Binance order history sync failed for ${resolved.accountName}`);
+              }
+
+              const orders = unwrapOrderList(pageResult);
+              if (orders.length === 0) break;
+              fetched += orders.length;
+              for (const order of orders) {
+                const orderNumber = String(order?.orderNumber ?? order?.orderNo ?? order?.adOrderNo ?? "");
+                if (!orderNumber || seen.has(orderNumber)) continue;
+                seen.add(orderNumber);
+                rows.push(orderToHistoryRow(order, resolved.id));
+              }
+              if (orders.length < 50) break;
+              await new Promise((r) => setTimeout(r, 150));
+            }
+          }
+
+          const batchSize = 200;
+          for (let i = 0; i < rows.length; i += batchSize) {
+            const batchRows = rows.slice(i, i + batchSize);
+            const { error } = await supabase
+              .from("binance_order_history")
+              .upsert(batchRows, { onConflict: "order_number" });
+            if (error) throw error;
+            upserted += batchRows.length;
+          }
+
+          accountResults.push({ accountId: resolved.id, accountName: resolved.accountName, upserted: rows.length });
+        }
+
+        await supabase.from("binance_sync_metadata").upsert({
+          id: "order_history",
+          last_sync_at: new Date().toISOString(),
+          last_sync_order_count: upserted,
+          last_sync_duration_ms: null,
+        }, { onConflict: "id" });
+
+        // Let DB-side cancellation reconciliation and any triggers run after the
+        // history table is fresh. Approval rows are still created by the existing
+        // client-side ERP sync code so userNo/approval safeguards remain unchanged.
+        try {
+          await supabase.rpc("reconcile_terminal_sync_cancellations", { p_order_number: null });
+        } catch (reconcileErr) {
+          console.warn("syncTerminalOrdersForErp cancellation reconcile failed:", reconcileErr);
+        }
+
+        result = {
+          code: "000000",
+          message: "Terminal order history refreshed from Binance",
+          data: { fetched, upserted, accounts: accountResults },
+        };
+        break;
+      }
+
       case "listActiveOrders": {
         // POST /sapi/v1/c2c/orderMatch/listOrders
         const body: Record<string, any> = {

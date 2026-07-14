@@ -229,7 +229,7 @@ const TaskNotificationEmail = ({
           </Section>
 
           <Text style={legalFooter}>
-            © {new Date().getFullYear()} BLYNK Virtual Technologies · Automated Task Notification
+            © {new Date().getFullYear()} Blynkex · Automated Task Notification
           </Text>
         </Container>
       </Body>

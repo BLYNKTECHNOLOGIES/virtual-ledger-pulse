@@ -18,8 +18,10 @@ import {
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
 
-const SITE_NAME = 'BLYNK Virtual Technologies'
+const SITE_NAME = 'Blynkex'
 const APP_URL = 'https://erp.blynkex.com'
+const LOGO_URL = 'https://erp.blynkex.com/__l5e/assets-v1/b6b06bc5-e6c4-4625-b9d1-57b258a7be69/blynkex-logo.svg'
+
 
 interface TaskNotificationProps {
   eventType?: string

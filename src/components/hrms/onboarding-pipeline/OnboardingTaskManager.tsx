@@ -48,7 +48,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
     enabled: stageIds.length > 0,
   });
 
-  // Fetch task assignments (completion status)
+  // Fetch task assignments (completion status) — post-hire per-employee
   const taskIds = tasks.map((t: any) => t.id);
   const { data: taskEmployees = [] } = useQuery({
     queryKey: ["hr_onboarding_task_employees", taskIds],
@@ -112,23 +112,42 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
   });
 
   const toggleTask = useMutation({
-    mutationFn: async ({ taskId, employeeId, completed }: { taskId: string; employeeId: string; completed: boolean }) => {
-      const existing = taskEmployees.find((te: any) => te.task_id === taskId && te.employee_id === employeeId);
-      if (existing) {
-        await (supabase as any).from("hr_onboarding_task_employees").update({
-          is_completed: completed,
-          completed_at: completed ? new Date().toISOString() : null,
-        }).eq("id", existing.id);
-      } else {
-        await (supabase as any).from("hr_onboarding_task_employees").insert({
-          task_id: taskId,
-          employee_id: employeeId,
-          is_completed: completed,
-          completed_at: completed ? new Date().toISOString() : null,
-        });
+    mutationFn: async ({ taskId, employeeId, completed }: { taskId: string; employeeId: string | null; completed: boolean }) => {
+      // Post-hire: per-employee completion table
+      if (employeeId) {
+        const existing = taskEmployees.find((te: any) => te.task_id === taskId && te.employee_id === employeeId);
+        if (existing) {
+          await (supabase as any).from("hr_onboarding_task_employees").update({
+            is_completed: completed,
+            completed_at: completed ? new Date().toISOString() : null,
+          }).eq("id", existing.id);
+        } else {
+          await (supabase as any).from("hr_onboarding_task_employees").insert({
+            task_id: taskId,
+            employee_id: employeeId,
+            is_completed: completed,
+            completed_at: completed ? new Date().toISOString() : null,
+          });
+        }
+        return;
       }
+      // Pre-hire: store on hr_employee_onboarding.stage_completions.tasks
+      const current = (onboarding?.stage_completions as any) || {};
+      const tasksMap = { ...(current.tasks || {}) };
+      if (completed) tasksMap[taskId] = { completed: true, completed_at: new Date().toISOString() };
+      else delete tasksMap[taskId];
+      const next = { ...current, tasks: tasksMap };
+      const { error } = await (supabase as any)
+        .from("hr_employee_onboarding")
+        .update({ stage_completions: next })
+        .eq("id", onboardingId);
+      if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_onboarding_task_employees"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_onboarding_task_employees"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_onboarding_detail", onboardingId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to update task"),
   });
 
   const deleteTask = useMutation({
@@ -150,7 +169,12 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
     },
   });
 
-  const employeeId = onboarding?.employee_id || onboarding?.candidate_id; // prefer employee_id from Stage 5 finalization
+  const employeeId: string | null = onboarding?.employee_id || onboarding?.candidate_id || null;
+  const preHireCompletions: Record<string, { completed?: boolean }> = ((onboarding?.stage_completions as any)?.tasks) || {};
+  const isTaskCompleted = (taskId: string) => {
+    if (employeeId) return taskEmployees.some((te: any) => te.task_id === taskId && te.is_completed);
+    return !!preHireCompletions[taskId]?.completed;
+  };
 
   const loadDefaultTemplate = useMutation({
     mutationFn: async () => {
@@ -203,9 +227,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
         stages.map((stage: any) => {
           const stageTasks = tasks.filter((t: any) => t.stage_id === stage.id);
           const managers = stageManagers.filter((m: any) => m.stage_id === stage.id);
-          const completedCount = stageTasks.filter((t: any) =>
-            taskEmployees.some((te: any) => te.task_id === t.id && te.is_completed)
-          ).length;
+          const completedCount = stageTasks.filter((t: any) => isTaskCompleted(t.id)).length;
 
           return (
             <Card key={stage.id}>
@@ -238,18 +260,19 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
                 ) : (
                   <div className="space-y-2">
                     {stageTasks.map((task: any) => {
-                      const assignment = taskEmployees.find((te: any) => te.task_id === task.id);
-                      const isCompleted = assignment?.is_completed || false;
+                      const isCompleted = isTaskCompleted(task.id);
                       return (
                         <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 group">
                           <button
-                            onClick={() => employeeId && toggleTask.mutate({ taskId: task.id, employeeId, completed: !isCompleted })}
-                            className="mt-0.5"
+                            type="button"
+                            onClick={() => toggleTask.mutate({ taskId: task.id, employeeId, completed: !isCompleted })}
+                            className="mt-0.5 cursor-pointer"
+                            aria-label={isCompleted ? "Mark task incomplete" : "Mark task complete"}
                           >
                             {isCompleted ? (
                               <CheckCircle2 className="h-5 w-5 text-success" />
                             ) : (
-                              <Circle className="h-5 w-5 text-muted-foreground" />
+                              <Circle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                             )}
                           </button>
                           <div className="flex-1">

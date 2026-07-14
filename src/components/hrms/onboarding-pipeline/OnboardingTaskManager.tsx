@@ -112,23 +112,42 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
   });
 
   const toggleTask = useMutation({
-    mutationFn: async ({ taskId, employeeId, completed }: { taskId: string; employeeId: string; completed: boolean }) => {
-      const existing = taskEmployees.find((te: any) => te.task_id === taskId && te.employee_id === employeeId);
-      if (existing) {
-        await (supabase as any).from("hr_onboarding_task_employees").update({
-          is_completed: completed,
-          completed_at: completed ? new Date().toISOString() : null,
-        }).eq("id", existing.id);
-      } else {
-        await (supabase as any).from("hr_onboarding_task_employees").insert({
-          task_id: taskId,
-          employee_id: employeeId,
-          is_completed: completed,
-          completed_at: completed ? new Date().toISOString() : null,
-        });
+    mutationFn: async ({ taskId, employeeId, completed }: { taskId: string; employeeId: string | null; completed: boolean }) => {
+      // Post-hire: per-employee completion table
+      if (employeeId) {
+        const existing = taskEmployees.find((te: any) => te.task_id === taskId && te.employee_id === employeeId);
+        if (existing) {
+          await (supabase as any).from("hr_onboarding_task_employees").update({
+            is_completed: completed,
+            completed_at: completed ? new Date().toISOString() : null,
+          }).eq("id", existing.id);
+        } else {
+          await (supabase as any).from("hr_onboarding_task_employees").insert({
+            task_id: taskId,
+            employee_id: employeeId,
+            is_completed: completed,
+            completed_at: completed ? new Date().toISOString() : null,
+          });
+        }
+        return;
       }
+      // Pre-hire: store on hr_employee_onboarding.stage_completions.tasks
+      const current = (onboarding?.stage_completions as any) || {};
+      const tasksMap = { ...(current.tasks || {}) };
+      if (completed) tasksMap[taskId] = { completed: true, completed_at: new Date().toISOString() };
+      else delete tasksMap[taskId];
+      const next = { ...current, tasks: tasksMap };
+      const { error } = await (supabase as any)
+        .from("hr_employee_onboarding")
+        .update({ stage_completions: next })
+        .eq("id", onboardingId);
+      if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_onboarding_task_employees"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_onboarding_task_employees"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_onboarding_detail", onboardingId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to update task"),
   });
 
   const deleteTask = useMutation({

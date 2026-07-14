@@ -229,15 +229,15 @@ export const template = {
   component: TaskNotificationEmail,
   subject: (data: Record<string, any>) => {
     const title = data.taskTitle || 'Task'
-    const by = data.assignedByName ? ` — from ${data.assignedByName}` : ''
+    const by = data.assignedByName ? ` - from ${data.assignedByName}` : ''
     const subjects: Record<string, string> = {
-      task_assigned: `📋 New task: ${title}${by}`,
-      task_reassigned: `🔄 Reassigned to you: ${title}${by}`,
-      task_overdue: `⚠️ Overdue — action needed: ${title}`,
-      task_due_soon: `⏰ Due soon: ${title}`,
-      task_mention: `💬 ${data.assignedByName ? `${data.assignedByName} mentioned you` : 'You were mentioned'} — ${title}`,
+      task_assigned: `[Task] New: ${title}${by}`,
+      task_reassigned: `[Task] Reassigned to you: ${title}${by}`,
+      task_overdue: `[Task] Overdue - action needed: ${title}`,
+      task_due_soon: `[Task] Due soon: ${title}`,
+      task_mention: `[Task] ${data.assignedByName ? `${data.assignedByName} mentioned you` : 'You were mentioned'}: ${title}`,
     }
-    return subjects[data.eventType] || `Task update: ${title}`
+    return subjects[data.eventType] || `[Task] Update: ${title}`
   },
   displayName: 'Task Notification',
   previewData: {

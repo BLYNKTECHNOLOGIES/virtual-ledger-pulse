@@ -227,9 +227,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
         stages.map((stage: any) => {
           const stageTasks = tasks.filter((t: any) => t.stage_id === stage.id);
           const managers = stageManagers.filter((m: any) => m.stage_id === stage.id);
-          const completedCount = stageTasks.filter((t: any) =>
-            taskEmployees.some((te: any) => te.task_id === t.id && te.is_completed)
-          ).length;
+          const completedCount = stageTasks.filter((t: any) => isTaskCompleted(t.id)).length;
 
           return (
             <Card key={stage.id}>

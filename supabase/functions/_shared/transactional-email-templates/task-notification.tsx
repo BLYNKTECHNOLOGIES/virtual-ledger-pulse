@@ -13,10 +13,13 @@ import {
   Section,
   Text,
   Hr,
+  Row,
+  Column,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
 
 const SITE_NAME = 'BLYNK Virtual Technologies'
+const APP_URL = 'https://erp.blynkex.com'
 
 interface TaskNotificationProps {
   eventType?: string
@@ -28,12 +31,56 @@ interface TaskNotificationProps {
   recipientName?: string
 }
 
-const eventHeaders: Record<string, string> = {
-  task_assigned: '📋 New Task Assigned',
-  task_reassigned: '🔄 Task Reassigned',
-  task_overdue: '⚠️ Task Overdue',
-  task_due_soon: '⏰ Task Due Soon',
-  task_mention: '💬 You Were Mentioned',
+interface EventMeta {
+  emoji: string
+  label: string
+  intro: (assigner?: string) => string
+  accent: string      // primary accent for gradient / borders
+  accentSoft: string  // soft tint for backgrounds
+  cta: string
+}
+
+const eventMeta: Record<string, EventMeta> = {
+  task_assigned: {
+    emoji: '📋',
+    label: 'New Task Assigned',
+    intro: (a) => a ? `${a} has assigned a new task to you.` : 'A new task has been assigned to you.',
+    accent: '#4361ee',
+    accentSoft: '#eef1ff',
+    cta: 'Open Task',
+  },
+  task_reassigned: {
+    emoji: '🔄',
+    label: 'Task Reassigned to You',
+    intro: (a) => a ? `${a} has reassigned this task to you.` : 'This task has been reassigned to you.',
+    accent: '#7c3aed',
+    accentSoft: '#f2ecff',
+    cta: 'Review Task',
+  },
+  task_overdue: {
+    emoji: '⚠️',
+    label: 'Task Overdue',
+    intro: () => 'This task has passed its due date and still needs your attention.',
+    accent: '#dc2626',
+    accentSoft: '#fdecec',
+    cta: 'Resolve Now',
+  },
+  task_due_soon: {
+    emoji: '⏰',
+    label: 'Task Due Soon',
+    intro: () => 'Heads up — this task is coming up on its deadline.',
+    accent: '#d97706',
+    accentSoft: '#fdf3e2',
+    cta: 'View Task',
+  },
+  task_mention: {
+    emoji: '💬',
+    label: 'You Were Mentioned',
+    intro: (a) => a ? `${a} mentioned you in a task discussion.` : 'You were mentioned in a task discussion.',
+    accent: '#0891b2',
+    accentSoft: '#e6f6fa',
+    cta: 'Jump to Thread',
+  },
 }
 
 const TaskNotificationEmail = ({
@@ -45,9 +92,12 @@ const TaskNotificationEmail = ({
   status,
   recipientName,
 }: TaskNotificationProps) => {
-  const header = eventHeaders[eventType] || 'Task Update'
-  const previewText = `${header}: ${taskTitle}`
-  const statusLabel = status?.replace('_', ' ').toUpperCase() || ''
+  const meta = eventMeta[eventType] || eventMeta.task_assigned
+  const previewText = assignedByName && (eventType === 'task_assigned' || eventType === 'task_reassigned')
+    ? `${assignedByName} → ${taskTitle}`
+    : `${meta.label}: ${taskTitle}`
+
+  const statusLabel = status?.replace(/_/g, ' ').toUpperCase() || ''
   const formattedDue = dueDate
     ? new Date(dueDate).toLocaleString('en-IN', {
         day: 'numeric',
@@ -56,8 +106,17 @@ const TaskNotificationEmail = ({
         hour: '2-digit',
         minute: '2-digit',
         hour12: true,
+        timeZone: 'Asia/Kolkata',
       })
     : null
+
+  const initials = (assignedByName || 'BX')
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
 
   return (
     <Html lang="en" dir="ltr">
@@ -65,50 +124,101 @@ const TaskNotificationEmail = ({
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          {/* Header bar */}
-          <Section style={headerBar}>
-            <Text style={headerText}>ERP Task Management</Text>
+          {/* Brand header */}
+          <Section style={{ ...brandHeader, background: `linear-gradient(135deg, ${meta.accent} 0%, #1a1a2e 100%)` }}>
+            <Row>
+              <Column style={{ width: '42px' }}>
+                <div style={brandMark}>B</div>
+              </Column>
+              <Column>
+                <Text style={brandName}>BLYNK</Text>
+                <Text style={brandTag}>Virtual Technologies · ERP</Text>
+              </Column>
+              <Column align="right">
+                <Text style={eyebrow}>{meta.emoji} Tasks</Text>
+              </Column>
+            </Row>
           </Section>
 
+          {/* Content */}
           <Section style={content}>
-            <Heading style={h1}>{header}</Heading>
+            <Text style={eventLabel}>{meta.label.toUpperCase()}</Text>
+            <Heading style={h1}>{taskTitle}</Heading>
 
-            {recipientName && (
-              <Text style={text}>Hi {recipientName},</Text>
+            <Text style={intro}>
+              {recipientName ? `Hi ${recipientName.split(' ')[0]}, ` : ''}
+              {meta.intro(assignedByName)}
+            </Text>
+
+            {/* Assigner callout */}
+            {assignedByName && (eventType === 'task_assigned' || eventType === 'task_reassigned' || eventType === 'task_mention') && (
+              <Section style={{ ...assignerCard, backgroundColor: meta.accentSoft, borderLeft: `3px solid ${meta.accent}` }}>
+                <Row>
+                  <Column style={{ width: '44px' }}>
+                    <div style={{ ...avatar, backgroundColor: meta.accent }}>{initials}</div>
+                  </Column>
+                  <Column>
+                    <Text style={assignerFrom}>From</Text>
+                    <Text style={assignerName}>{assignedByName}</Text>
+                  </Column>
+                </Row>
+              </Section>
             )}
 
-            {/* Task card */}
-            <Section style={taskCard}>
-              <Text style={taskTitle_style}>{taskTitle}</Text>
-              {taskDescription && (
-                <Text style={taskDesc}>
-                  {taskDescription.length > 200
-                    ? taskDescription.substring(0, 200) + '…'
+            {/* Description */}
+            {taskDescription && (
+              <Section style={descCard}>
+                <Text style={descLabel}>DETAILS</Text>
+                <Text style={descText}>
+                  {taskDescription.length > 280
+                    ? taskDescription.substring(0, 280) + '…'
                     : taskDescription}
                 </Text>
+              </Section>
+            )}
+
+            {/* Meta grid */}
+            <Section style={metaGrid}>
+              {formattedDue && (
+                <Row style={metaRow}>
+                  <Column style={metaKeyCol}><Text style={metaKey}>📅 Due</Text></Column>
+                  <Column><Text style={metaVal}>{formattedDue} IST</Text></Column>
+                </Row>
+              )}
+              {statusLabel && (
+                <Row style={metaRow}>
+                  <Column style={metaKeyCol}><Text style={metaKey}>◉ Status</Text></Column>
+                  <Column>
+                    <span style={{ ...statusPill, backgroundColor: meta.accentSoft, color: meta.accent, borderColor: meta.accent }}>
+                      {statusLabel}
+                    </span>
+                  </Column>
+                </Row>
               )}
             </Section>
 
-            {/* Meta info */}
-            {formattedDue && (
-              <Text style={meta}>📅 Due: <strong>{formattedDue}</strong></Text>
-            )}
-            {assignedByName && (
-              <Text style={meta}>
-                👤 {eventType === 'task_reassigned' ? 'Reassigned' : 'Assigned'} by: <strong>{assignedByName}</strong>
-              </Text>
-            )}
-            {statusLabel && (
-              <Text style={meta}>Status: <strong>{statusLabel}</strong></Text>
-            )}
+            {/* CTA */}
+            <Section style={{ textAlign: 'center', margin: '28px 0 8px' }}>
+              <Button
+                href={`${APP_URL}/tasks`}
+                style={{ ...ctaBtn, backgroundColor: meta.accent }}
+              >
+                {meta.cta} →
+              </Button>
+            </Section>
 
             <Hr style={divider} />
 
             <Text style={footer}>
-              This is an automated notification from {SITE_NAME} ERP.
-              Please log in to view full details and take action.
+              You're receiving this because you're part of the {SITE_NAME} team.
+              <br />
+              Sign in to <a href={APP_URL} style={{ color: meta.accent, textDecoration: 'none' }}>erp.blynkex.com</a> to respond.
             </Text>
           </Section>
+
+          <Text style={legalFooter}>
+            © {new Date().getFullYear()} BLYNK Virtual Technologies · Automated Task Notification
+          </Text>
         </Container>
       </Body>
     </Html>
@@ -118,14 +228,16 @@ const TaskNotificationEmail = ({
 export const template = {
   component: TaskNotificationEmail,
   subject: (data: Record<string, any>) => {
+    const title = data.taskTitle || 'Task'
+    const by = data.assignedByName ? ` — from ${data.assignedByName}` : ''
     const subjects: Record<string, string> = {
-      task_assigned: `📋 New Task Assigned: ${data.taskTitle || 'Task'}`,
-      task_reassigned: `🔄 Task Reassigned: ${data.taskTitle || 'Task'}`,
-      task_overdue: `⚠️ Task Overdue: ${data.taskTitle || 'Task'}`,
-      task_due_soon: `⏰ Task Due Soon: ${data.taskTitle || 'Task'}`,
-      task_mention: `💬 You were mentioned: ${data.taskTitle || 'Task'}`,
+      task_assigned: `📋 New task: ${title}${by}`,
+      task_reassigned: `🔄 Reassigned to you: ${title}${by}`,
+      task_overdue: `⚠️ Overdue — action needed: ${title}`,
+      task_due_soon: `⏰ Due soon: ${title}`,
+      task_mention: `💬 ${data.assignedByName ? `${data.assignedByName} mentioned you` : 'You were mentioned'} — ${title}`,
     }
-    return subjects[data.eventType] || `Task Update: ${data.taskTitle || 'Task'}`
+    return subjects[data.eventType] || `Task update: ${title}`
   },
   displayName: 'Task Notification',
   previewData: {
@@ -140,55 +252,178 @@ export const template = {
 } satisfies TemplateEntry
 
 // Styles
-const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { maxWidth: '560px', margin: '0 auto' }
-const headerBar = {
-  backgroundColor: '#1a1a2e',
-  padding: '20px 30px',
-  borderRadius: '8px 8px 0 0',
+const main = {
+  backgroundColor: '#f4f5f9',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  padding: '24px 12px',
 }
-const headerText = {
+const container = {
+  maxWidth: '580px',
+  margin: '0 auto',
+  backgroundColor: '#ffffff',
+  borderRadius: '14px',
+  overflow: 'hidden' as const,
+  boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)',
+}
+const brandHeader = {
+  padding: '22px 28px',
   color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: 'bold' as const,
-  margin: '0',
 }
-const content = { padding: '30px' }
+const brandMark = {
+  width: '36px',
+  height: '36px',
+  borderRadius: '10px',
+  backgroundColor: 'rgba(255,255,255,0.15)',
+  border: '1px solid rgba(255,255,255,0.25)',
+  color: '#ffffff',
+  fontSize: '18px',
+  fontWeight: 800 as const,
+  lineHeight: '34px',
+  textAlign: 'center' as const,
+  letterSpacing: '-0.5px',
+}
+const brandName = {
+  color: '#ffffff',
+  fontSize: '15px',
+  fontWeight: 700 as const,
+  letterSpacing: '2px',
+  margin: '0',
+  lineHeight: '1.1',
+}
+const brandTag = {
+  color: 'rgba(255,255,255,0.7)',
+  fontSize: '11px',
+  margin: '2px 0 0',
+  letterSpacing: '0.3px',
+}
+const eyebrow = {
+  color: 'rgba(255,255,255,0.85)',
+  fontSize: '12px',
+  fontWeight: 600 as const,
+  margin: '0',
+  padding: '4px 10px',
+  backgroundColor: 'rgba(255,255,255,0.12)',
+  borderRadius: '999px',
+  display: 'inline-block' as const,
+}
+const content = { padding: '28px 28px 20px' }
+const eventLabel = {
+  fontSize: '11px',
+  fontWeight: 700 as const,
+  color: '#64748b',
+  letterSpacing: '1.5px',
+  margin: '0 0 6px',
+}
 const h1 = {
-  fontSize: '20px',
-  fontWeight: 'bold' as const,
-  color: '#1a1a2e',
-  margin: '0 0 16px',
+  fontSize: '22px',
+  fontWeight: 700 as const,
+  color: '#0f172a',
+  margin: '0 0 14px',
+  lineHeight: '1.3',
+  letterSpacing: '-0.3px',
 }
-const text = {
+const intro = {
   fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 16px',
+  color: '#475569',
+  lineHeight: '1.6',
+  margin: '0 0 20px',
 }
-const taskCard = {
-  backgroundColor: '#f8f9fa',
-  borderLeft: '4px solid #4361ee',
-  padding: '16px',
-  borderRadius: '0 6px 6px 0',
-  margin: '16px 0',
+const assignerCard = {
+  padding: '12px 14px',
+  borderRadius: '10px',
+  margin: '0 0 18px',
 }
-const taskTitle_style = {
-  fontSize: '16px',
-  fontWeight: 'bold' as const,
-  color: '#1a1a2e',
-  margin: '0 0 8px',
-}
-const taskDesc = {
+const avatar = {
+  width: '36px',
+  height: '36px',
+  borderRadius: '50%',
+  color: '#ffffff',
   fontSize: '13px',
-  color: '#666666',
-  lineHeight: '1.5',
+  fontWeight: 700 as const,
+  lineHeight: '36px',
+  textAlign: 'center' as const,
+  letterSpacing: '0.5px',
+}
+const assignerFrom = {
+  fontSize: '10px',
+  color: '#64748b',
+  letterSpacing: '1px',
+  fontWeight: 600 as const,
+  margin: '0',
+  textTransform: 'uppercase' as const,
+}
+const assignerName = {
+  fontSize: '15px',
+  color: '#0f172a',
+  fontWeight: 600 as const,
+  margin: '1px 0 0',
+}
+const descCard = {
+  backgroundColor: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  padding: '14px 16px',
+  borderRadius: '10px',
+  margin: '0 0 18px',
+}
+const descLabel = {
+  fontSize: '10px',
+  color: '#64748b',
+  letterSpacing: '1.2px',
+  fontWeight: 700 as const,
+  margin: '0 0 6px',
+}
+const descText = {
+  fontSize: '14px',
+  color: '#334155',
+  lineHeight: '1.6',
   margin: '0',
 }
-const meta = {
+const metaGrid = { margin: '4px 0 8px' }
+const metaRow = { padding: '6px 0' }
+const metaKeyCol = { width: '90px', verticalAlign: 'top' as const }
+const metaKey = {
   fontSize: '13px',
-  color: '#555555',
-  margin: '6px 0',
+  color: '#64748b',
+  margin: '0',
+  fontWeight: 500 as const,
 }
-const divider = { borderTop: '1px solid #eeeeee', margin: '24px 0' }
-const footer = { fontSize: '12px', color: '#999999', margin: '0' }
+const metaVal = {
+  fontSize: '13px',
+  color: '#0f172a',
+  margin: '0',
+  fontWeight: 600 as const,
+}
+const statusPill = {
+  fontSize: '11px',
+  fontWeight: 700 as const,
+  padding: '3px 10px',
+  borderRadius: '999px',
+  border: '1px solid',
+  letterSpacing: '0.5px',
+  display: 'inline-block' as const,
+}
+const ctaBtn = {
+  color: '#ffffff',
+  fontSize: '14px',
+  fontWeight: 600 as const,
+  padding: '12px 28px',
+  borderRadius: '10px',
+  textDecoration: 'none',
+  display: 'inline-block' as const,
+  letterSpacing: '0.2px',
+}
+const divider = { borderTop: '1px solid #e2e8f0', margin: '24px 0 16px' }
+const footer = {
+  fontSize: '12px',
+  color: '#94a3b8',
+  lineHeight: '1.6',
+  margin: '0',
+  textAlign: 'center' as const,
+}
+const legalFooter = {
+  fontSize: '11px',
+  color: '#94a3b8',
+  textAlign: 'center' as const,
+  margin: '16px 0 0',
+  padding: '0 20px',
+}

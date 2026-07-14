@@ -917,7 +917,7 @@ export default function UserProfile() {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* ─── Header ─── */}
-      <div className="bg-gradient-to-r from-muted to-muted rounded-xl p-6 text-primary-foreground">
+      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 rounded-xl p-6 text-primary-foreground shadow-lg">
         <div className="flex items-center gap-6">
           <Avatar className="h-24 w-24 border-4 border-white/20">
             {user?.avatar_url ? (

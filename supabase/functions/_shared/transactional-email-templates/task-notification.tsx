@@ -129,26 +129,38 @@ const TaskNotificationEmail = ({
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          {/* Brand header */}
-          <Section style={{ ...brandHeader, background: `linear-gradient(135deg, ${meta.accent} 0%, #0b1024 100%)` }}>
+          {/* Brand header — Blynkex identity: deep indigo → cyan */}
+          <Section style={{ ...brandHeader, background: 'linear-gradient(135deg, #0a1747 0%, #1e2a8a 45%, #2563eb 75%, #06b6d4 100%)' }}>
+            {/* Subtle top hairline for premium feel */}
+            <div style={{ height: '2px', background: 'linear-gradient(90deg, transparent 0%, #22d3ee 50%, transparent 100%)', margin: '-22px -28px 18px' }} />
             <Row>
-              <Column style={{ width: '52px', verticalAlign: 'middle' as const }}>
-                <img
-                  src={LOGO_URL}
-                  alt="Blynkex"
-                  width="40"
-                  height="40"
-                  style={{ display: 'block', width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.14)', padding: '4px' }}
-                />
+              <Column style={{ width: '56px', verticalAlign: 'middle' as const }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(34,211,238,0.25), rgba(255,255,255,0.08))', border: '1px solid rgba(34,211,238,0.45)', padding: '4px', boxShadow: '0 4px 14px rgba(6,182,212,0.35)' }}>
+                  <img
+                    src={LOGO_URL}
+                    alt="Blynkex"
+                    width="36"
+                    height="36"
+                    style={{ display: 'block', width: '36px', height: '36px' }}
+                  />
+                </div>
               </Column>
-              <Column style={{ verticalAlign: 'middle' as const }}>
-                <div style={brandName}>BLYNKEX</div>
-                <div style={brandTag}>Enterprise Resource Platform</div>
+              <Column style={{ verticalAlign: 'middle' as const, paddingLeft: '4px' }}>
+                <div style={brandName}>
+                  <span style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}>BLYNK</span>
+                  <span style={{ color: '#22d3ee', WebkitTextFillColor: '#22d3ee' }}>EX</span>
+                </div>
+                <div style={brandTag}>
+                  <span style={{ color: '#22d3ee', WebkitTextFillColor: '#22d3ee', marginRight: '6px' }}>▸</span>
+                  Enterprise Resource Platform
+                </div>
               </Column>
               <Column align="right" style={{ verticalAlign: 'middle' as const }}>
                 <span style={eyebrow}>{meta.emoji} Tasks</span>
               </Column>
             </Row>
+            {/* Bottom cyan accent strip */}
+            <div style={{ height: '3px', background: 'linear-gradient(90deg, #22d3ee 0%, #2563eb 50%, #7c3aed 100%)', margin: '18px -28px -22px' }} />
           </Section>
 
 

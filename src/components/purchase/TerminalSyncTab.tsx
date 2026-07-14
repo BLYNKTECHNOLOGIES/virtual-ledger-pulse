@@ -17,7 +17,7 @@ import { TerminalPurchaseApprovalDialog } from "./TerminalPurchaseApprovalDialog
 import { syncCompletedBuyOrders } from "@/hooks/useTerminalPurchaseSync";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useSyncOrderHistory } from "@/hooks/useBinanceOrderSync";
+import { syncTerminalOrdersForErp } from "@/hooks/useBinanceOrderSync";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -63,7 +63,6 @@ export function TerminalSyncTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
-  const orderSyncMutation = useSyncOrderHistory();
   const [statusFilter, setStatusFilter] = useState("all");
   const [approvalRecord, setApprovalRecord] = useState<any>(null);
   const [rejectRecord, setRejectRecord] = useState<any>(null);
@@ -234,7 +233,7 @@ export function TerminalSyncTab() {
     mutationFn: async () => {
       toast({ title: "Syncing...", description: "Fetching latest orders from Binance, then syncing purchases..." });
       // Step 1: Pull fresh orders from Binance API into binance_order_history
-      await orderSyncMutation.mutateAsync({ fullSync: false });
+      await syncTerminalOrdersForErp({ forceGapFill: true });
       // Step 2: Sync completed BUY orders from history to terminal_purchase_sync
       const result = await syncCompletedBuyOrders();
       // Step 3: Enrich any missing verified names

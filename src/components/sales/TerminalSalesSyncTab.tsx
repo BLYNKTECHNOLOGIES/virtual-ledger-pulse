@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { TerminalSalesApprovalDialog } from "./TerminalSalesApprovalDialog";
+import { syncTerminalOrdersForErp } from "@/hooks/useBinanceOrderSync";
 import { syncCompletedSellOrders } from "@/hooks/useTerminalSalesSync";
 import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
@@ -249,6 +250,7 @@ export function TerminalSalesSyncTab() {
   // Manual sync trigger — now also auto-fetches names
   const syncMutation = useMutation({
     mutationFn: async () => {
+      await syncTerminalOrdersForErp({ forceGapFill: true });
       const syncResult = await syncCompletedSellOrders();
       // Invalidate so we get fresh records before enrichment
       await queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });

@@ -272,6 +272,18 @@ export async function syncOrderHistoryFromBinance({
       return { count: grandTotal, duration, type: (anyFull ? 'full' : 'incremental') as 'full' | 'incremental' };
 }
 
+export async function syncTerminalOrdersForErp({
+  forceGapFill = true,
+}: { forceGapFill?: boolean } = {}) {
+  const { data, error } = await supabase.functions.invoke('binance-ads', {
+    body: { action: 'syncTerminalOrdersForErp', forceGapFill },
+  });
+  if (error) throw new Error(error.message);
+  if (!data?.success) throw new Error(data?.error || 'Terminal order refresh failed');
+  const result = data.data;
+  return result?.data || result;
+}
+
 export function useSyncOrderHistory() {
   const queryClient = useQueryClient();
 
@@ -375,9 +387,9 @@ const BINANCE_STATUS_MAP: Record<number, string> = {
   1: 'TRADING',
   2: 'BUYER_PAYED',
   3: 'BUYER_PAYED',
-  4: 'BUYER_PAYED',
-  5: 'COMPLETED',
-  6: 'CANCELLED_BY_SYSTEM',
+  4: 'COMPLETED',
+  5: 'APPEAL',
+  6: 'CANCELLED',
   7: 'CANCELLED_BY_SYSTEM',
   8: 'APPEAL',
 };

@@ -177,6 +177,72 @@ function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
   };
 }
 
+const BINANCE_ORDER_STATUS_MAP: Record<number, string> = {
+  1: "TRADING",
+  2: "BUYER_PAYED",
+  3: "BUYER_PAYED",
+  4: "COMPLETED",
+  5: "APPEAL",
+  6: "CANCELLED",
+  7: "CANCELLED_BY_SYSTEM",
+  8: "APPEAL",
+};
+
+function normalizeBinanceOrderStatus(raw: unknown): string {
+  if (raw === null || raw === undefined || raw === "") return "TRADING";
+  const value = String(raw).trim();
+  if (/^\d+$/.test(value)) return BINANCE_ORDER_STATUS_MAP[Number(value)] || "TRADING";
+  return value.toUpperCase();
+}
+
+function hasActiveComplaintFromPayload(payload: any): boolean {
+  const detail = payload?.data?.data || payload?.data || payload;
+  if (!detail || typeof detail !== "object") return false;
+  const complaintStatus = detail.complaintStatus ?? detail.complainStatus ?? detail.appealStatus;
+  const hasComplaintStatus = complaintStatus !== undefined && complaintStatus !== null && String(complaintStatus) !== "" &&
+    !["0", "3", "CLOSED", "RESOLVED", "CANCELLED", "CANCELED"].includes(String(complaintStatus).toUpperCase());
+  const status = normalizeBinanceOrderStatus(detail.orderStatus ?? detail.status ?? detail.tradeStatus);
+  return hasComplaintStatus || detail.canCancelComplaintOrder === true || status.includes("APPEAL") || status.includes("DISPUTE") || status.includes("COMPLAINT");
+}
+
+function unwrapOrderList(result: any): any[] {
+  const outer = result?.data ?? result;
+  const inner = outer?.data ?? outer;
+  if (Array.isArray(inner)) return inner;
+  if (Array.isArray(inner?.list)) return inner.list;
+  if (Array.isArray(outer?.list)) return outer.list;
+  return [];
+}
+
+function orderToHistoryRow(order: any, accountId: string) {
+  const amount = String(order.amount ?? order.quantity ?? order.takerAmount ?? "0");
+  const totalPrice = String(order.totalPrice ?? order.total_price ?? order.fiatAmount ?? "0");
+  const computedUnitPrice = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : "0";
+  const unitPrice = String(order.unitPrice ?? order.price ?? order.unit_price ?? computedUnitPrice);
+  const orderNumber = order.orderNumber ?? order.orderNo ?? order.adOrderNo ?? order.order_number ?? "";
+
+  return {
+    order_number: String(orderNumber),
+    adv_no: String(order.advNo ?? order.adsNo ?? order.adv_no ?? ""),
+    trade_type: String(order.tradeType ?? order.trade_type ?? "").toUpperCase(),
+    asset: String(order.asset ?? "USDT").toUpperCase(),
+    fiat_unit: String(order.fiat ?? order.fiatUnit ?? order.fiat_unit ?? "INR"),
+    order_status: normalizeBinanceOrderStatus(order.orderStatus ?? order.status ?? order.order_status),
+    amount,
+    total_price: totalPrice,
+    unit_price: unitPrice,
+    commission: String(order.commission ?? "0"),
+    counter_part_nick_name: order.counterPartNickName ?? order.counter_part_nick_name ?? order.buyerNickname ?? order.buyerNickName ?? order.sellerNickname ?? order.sellerNickName ?? "",
+    create_time: Number(order.createTime ?? order.create_time ?? order.orderCreateTime ?? 0),
+    pay_method_name: order.payMethodName ?? order.pay_method_name ?? order.payType ?? null,
+    complaint_status: order.complaintStatus ?? order.complainStatus ?? order.appealStatus ?? null,
+    has_active_complaint: hasActiveComplaintFromPayload(order),
+    raw_data: order,
+    synced_at: new Date().toISOString(),
+    exchange_account_id: accountId,
+  };
+}
+
 function toNumeric(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
@@ -1001,6 +1067,115 @@ serve(async (req) => {
         const text = await response.text();
         console.log("getOrderHistory response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "syncTerminalOrdersForErp": {
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
+
+        const authHeader = req.headers.get("Authorization") || "";
+        const token = authHeader.replace(/^Bearer\s+/i, "");
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: authData, error: authErr } = token
+          ? await supabase.auth.getUser(token)
+          : { data: null, error: new Error("Missing auth token") } as any;
+        if (authErr || !authData?.user?.id) throw new Error("Authentication required");
+
+        const { data: canManageErp } = await supabase.rpc("user_has_permission", {
+          user_uuid: authData.user.id,
+          check_permission: "erp_entry_manage",
+        });
+        const { data: canManageTerminal } = await supabase.rpc("has_terminal_permission", {
+          _user_id: authData.user.id,
+          _permission: "terminal_manage",
+        });
+        if (!canManageErp && !canManageTerminal) {
+          throw new Error("Permission denied: ERP Entry manage or Terminal manage permission required");
+        }
+
+        const accounts = await listActiveAccounts();
+        const syncAccounts = accounts.length > 0 ? accounts : [{ id: EXCHANGE_ACCOUNT_ID, account_name: "Primary", credential_key: null, is_default: true, is_active: true }];
+        const forceGapFill = payload.forceGapFill !== false;
+        const endTimestamp = Number(payload.endTimestamp || Date.now());
+        const overlapStart = Math.max(0, endTimestamp - Number(payload.overlapMs || 24 * 60 * 60 * 1000));
+        const gapStart = Math.max(0, endTimestamp - Number(payload.gapFillMs || 7 * 24 * 60 * 60 * 1000));
+        const batches: Array<{ startTimestamp: number; maxPages: number; label: string }> = [
+          { startTimestamp: overlapStart, maxPages: Number(payload.maxRecentPages || 8), label: "recent" },
+          ...(forceGapFill ? [{ startTimestamp: gapStart, maxPages: Number(payload.maxGapPages || 30), label: "gap" }] : []),
+        ];
+
+        let fetched = 0;
+        let upserted = 0;
+        const accountResults: any[] = [];
+
+        for (const account of syncAccounts) {
+          const resolved = await resolveAccount(account.id);
+          const headers = proxyHeadersFor(resolved);
+          const seen = new Set<string>();
+          const rows: any[] = [];
+
+          for (const batch of batches) {
+            for (let page = 1; page <= batch.maxPages; page++) {
+              const params = new URLSearchParams({ page: String(page), rows: "50" });
+              params.set("startTimestamp", String(batch.startTimestamp));
+              params.set("endTimestamp", String(endTimestamp));
+              const url = `${resolved.proxyUrl}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory?${params.toString()}`;
+              const response = await fetchWithRetry(url, { method: "GET", headers }, 1, 500, 15000);
+              const text = await response.text();
+              let pageResult: any;
+              try { pageResult = JSON.parse(text); } catch { pageResult = { raw: text, status: response.status }; }
+              if (!response.ok || (pageResult?.code && pageResult.code !== "000000" && pageResult.code !== 200)) {
+                throw new Error(pageResult?.message || pageResult?.msg || `Binance order history sync failed for ${resolved.accountName}`);
+              }
+
+              const orders = unwrapOrderList(pageResult);
+              if (orders.length === 0) break;
+              fetched += orders.length;
+              for (const order of orders) {
+                const orderNumber = String(order?.orderNumber ?? order?.orderNo ?? order?.adOrderNo ?? "");
+                if (!orderNumber || seen.has(orderNumber)) continue;
+                seen.add(orderNumber);
+                rows.push(orderToHistoryRow(order, resolved.id));
+              }
+              if (orders.length < 50) break;
+              await new Promise((r) => setTimeout(r, 150));
+            }
+          }
+
+          const batchSize = 200;
+          for (let i = 0; i < rows.length; i += batchSize) {
+            const batchRows = rows.slice(i, i + batchSize);
+            const { error } = await supabase
+              .from("binance_order_history")
+              .upsert(batchRows, { onConflict: "order_number" });
+            if (error) throw error;
+            upserted += batchRows.length;
+          }
+
+          accountResults.push({ accountId: resolved.id, accountName: resolved.accountName, upserted: rows.length });
+        }
+
+        await supabase.from("binance_sync_metadata").upsert({
+          id: "order_history",
+          last_sync_at: new Date().toISOString(),
+          last_sync_order_count: upserted,
+          last_sync_duration_ms: null,
+        }, { onConflict: "id" });
+
+        // Let DB-side cancellation reconciliation and any triggers run after the
+        // history table is fresh. Approval rows are still created by the existing
+        // client-side ERP sync code so userNo/approval safeguards remain unchanged.
+        try {
+          await supabase.rpc("reconcile_terminal_sync_cancellations", { p_order_number: null });
+        } catch (reconcileErr) {
+          console.warn("syncTerminalOrdersForErp cancellation reconcile failed:", reconcileErr);
+        }
+
+        result = {
+          code: "000000",
+          message: "Terminal order history refreshed from Binance",
+          data: { fetched, upserted, accounts: accountResults },
+        };
         break;
       }
 

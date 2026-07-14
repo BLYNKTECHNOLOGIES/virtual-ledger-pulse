@@ -258,9 +258,19 @@ Deno.serve(async (req) => {
         contentType: a.contentType || 'application/octet-stream',
       }))
 
+    // CC standard HR oversight recipients on every HR email, deduped against the primary recipient.
+    const HR_CC_RECIPIENTS = [
+      'shubham.singh@blynkex.com',
+      'hr.desk@blynkex.com',
+      'abhisheksingh@blynkex.com',
+    ]
+    const primaryLower = String(recipientEmail).trim().toLowerCase()
+    const ccList = HR_CC_RECIPIENTS.filter(addr => addr.toLowerCase() !== primaryLower)
+
     await client.send({
       from: `HR - Blynk Virtual Technologies <${smtpUser}>`,
       to: recipientEmail,
+      cc: ccList.length ? ccList : undefined,
       replyTo: replyTo,
       subject,
       content: "Please view this email in an HTML-compatible client.",

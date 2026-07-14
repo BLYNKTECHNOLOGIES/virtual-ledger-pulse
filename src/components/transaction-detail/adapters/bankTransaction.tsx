@@ -12,7 +12,7 @@ export const bankTransactionAdapter: TransactionAdapter = {
   async fetch(id) {
     const { data, error } = await supabase
       .from('bank_transactions')
-      .select('*, bank_accounts:bank_account_id ( account_name, bank_name, account_number ), clients:client_id ( name, client_code )')
+      .select('*, bank_accounts:bank_account_id ( account_name, bank_name, account_number ), clients:client_id ( name, client_id )')
       .eq('id', id)
       .maybeSingle();
 
@@ -56,7 +56,7 @@ export const bankTransactionAdapter: TransactionAdapter = {
         { label: 'Balance Before (₹)', value: data.balance_before != null ? formatINR(Number(data.balance_before)) : '—' },
         { label: 'Balance After (₹)', value: data.balance_after != null ? formatINR(Number(data.balance_after)) : '—' },
         { label: 'Related Account', value: data.related_account_name || '—' },
-        { label: 'Client', value: client ? `${client.name}${client.client_code ? ` (${client.client_code})` : ''}` : '—' },
+        { label: 'Client', value: client ? `${client.name}${client.client_id ? ` (${client.client_id})` : ''}` : '—' },
         { label: 'Created By', value: createdByName || '—' },
         { label: 'Created At', value: data.created_at ? format(new Date(data.created_at), 'dd MMM yyyy, HH:mm:ss') : '—' },
         { label: 'Sequence No.', value: data.sequence_no != null ? String(data.sequence_no) : '—' },

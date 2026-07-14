@@ -12,7 +12,7 @@ export const salesOrderAdapter: TransactionAdapter = {
   async fetch(id) {
     const { data, error } = await supabase
       .from('sales_orders')
-      .select('*, products:product_id ( code, name ), wallets:wallet_id ( wallet_name ), clients:client_id ( name, client_code )')
+      .select('*, products:product_id ( code, name ), wallets:wallet_id ( wallet_name ), clients:client_id ( name, client_id )')
       .eq('id', id)
       .maybeSingle();
 
@@ -65,7 +65,7 @@ export const salesOrderAdapter: TransactionAdapter = {
         { label: 'USDT Amount', value: data.usdt_amount ? Number(data.usdt_amount).toLocaleString('en-IN', { maximumFractionDigits: 8 }) : '—' },
         { label: 'Effective USDT Qty', value: data.effective_usdt_qty ? Number(data.effective_usdt_qty).toLocaleString('en-IN', { maximumFractionDigits: 8 }) : '—' },
         { label: 'Market Rate (USDT/INR)', value: data.market_rate_usdt ? Number(data.market_rate_usdt).toLocaleString('en-IN', { maximumFractionDigits: 6 }) : '—' },
-        { label: 'Client', value: client ? `${client.name}${client.client_code ? ` (${client.client_code})` : ''}` : data.client_name || '—' },
+        { label: 'Client', value: client ? `${client.name}${client.client_id ? ` (${client.client_id})` : ''}` : data.client_name || '—' },
         { label: 'Client Phone', value: data.client_phone || '—' },
         { label: 'Client State', value: data.client_state || '—' },
         { label: 'Sale Type', value: data.sale_type || '—' },

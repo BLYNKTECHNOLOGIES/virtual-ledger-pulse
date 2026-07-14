@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
@@ -103,9 +103,11 @@ export default function UserManagement() {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [viewingRoleUsers, setViewingRoleUsers] = useState<Role | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<DatabaseUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
   const { permissions, isLoading: isLoadingPermissions, hasPermission } = usePermissions();
   const { hasRole } = useAuth();
+  const { toast } = useToast();
   const isSuperAdmin = hasRole("super admin");
 
   // Scroll to top when component mounts or tab changes
@@ -334,13 +336,21 @@ export default function UserManagement() {
 
     if (!canEditUsers) {
       console.error('User does not have permission to delete users');
-      toast.error('You do not have permission to delete users');
+      toast({
+        title: "Permission denied",
+        description: "You do not have permission to delete users",
+        variant: "destructive",
+      });
       return;
     }
 
     // HR-restricted staff cannot delete Admin or Super Admin accounts
     if (isHrRestricted && isProtectedRole(user.role?.name)) {
-      toast.error('You cannot delete Admin or Super Admin accounts');
+      toast({
+        title: "Protected user",
+        description: "You cannot delete Admin or Super Admin accounts",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -348,17 +358,19 @@ export default function UserManagement() {
   };
 
   const confirmDeleteUser = async () => {
-    if (!userToDelete) return;
+    if (!userToDelete || isDeletingUser) return;
+    setIsDeletingUser(true);
     try {
       const result = await deleteUser(userToDelete);
       if (result?.success) {
+        setUserToDelete(null);
       } else {
         console.error('Delete failed:', result?.error);
       }
     } catch (error) {
       console.error('Exception during delete:', error);
     } finally {
-      setUserToDelete(null);
+      setIsDeletingUser(false);
     }
   };
 
@@ -848,18 +860,27 @@ export default function UserManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && !isDeletingUser && setUserToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to permanently delete this user and all related data? This action cannot be undone.
+              {isDeletingUser
+                ? "Deleting user account and cleaning linked ERP access. Please wait..."
+                : "Are you sure you want to permanently delete this user and clean linked ERP access? Historical orders and ledgers will be preserved with the user reference removed."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete Permanently
+            <AlertDialogCancel disabled={isDeletingUser}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingUser}
+              onClick={(event) => {
+                event.preventDefault();
+                confirmDeleteUser();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingUser ? "Deleting..." : "Delete Permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

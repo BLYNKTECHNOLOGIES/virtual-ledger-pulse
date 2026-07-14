@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.delete_user_with_cleanup(uuid) TO authenticated;

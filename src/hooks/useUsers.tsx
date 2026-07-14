@@ -353,11 +353,6 @@ export function useUsers() {
         throw new Error('You must be logged in to delete users');
       }
 
-      // Check if user has admin permissions
-      if (!isAdmin && !hasRole('admin') && !hasRole('user_management')) {
-        throw new Error('You do not have permission to delete users');
-      }
-
       // Prevent self-deletion
       if (userId === user.id) {
         toast({
@@ -368,31 +363,23 @@ export function useUsers() {
         return { success: false, error: "Cannot delete your own account" };
       }
       
-      // Use the new database function to handle deletion with proper permissions
-const { data, error } = await supabase.rpc('delete_user_with_cleanup', {
-        p_user_id: userId
+      const { data, error } = await supabase.functions.invoke('delete-erp-user', {
+        body: { userId },
       });
 
       if (error) {
         console.error('Delete user error:', error);
-        throw error;
+        throw new Error(error.message || 'User deletion failed');
       }
 
-      // Handle JSON response (new) or boolean (legacy)
-      if (data && typeof data === 'object' && 'success' in data) {
-        const result = data as { success: boolean; error?: string };
-        if (!result.success) {
-          throw new Error(result.error || 'User deletion failed');
-        }
-      } else if (data === false) {
-        throw new Error('User deletion failed - no result returned');
-      } else if (data === null) {
-         throw new Error('User deletion failed - no result returned');
+      const result = data as { success?: boolean; error?: string; authDeleted?: boolean; warning?: string } | null;
+      if (!result?.success) {
+        throw new Error(result?.error || 'User deletion failed');
       }
 
       toast({
         title: "Success",
-        description: "User deleted successfully",
+        description: result.warning || "User deleted successfully",
       });
 
       fetchUsers(); // Refresh the users list

@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.can_delete_erp_user(uuid);

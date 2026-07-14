@@ -260,18 +260,19 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
                 ) : (
                   <div className="space-y-2">
                     {stageTasks.map((task: any) => {
-                      const assignment = taskEmployees.find((te: any) => te.task_id === task.id);
-                      const isCompleted = assignment?.is_completed || false;
+                      const isCompleted = isTaskCompleted(task.id);
                       return (
                         <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 group">
                           <button
-                            onClick={() => employeeId && toggleTask.mutate({ taskId: task.id, employeeId, completed: !isCompleted })}
-                            className="mt-0.5"
+                            type="button"
+                            onClick={() => toggleTask.mutate({ taskId: task.id, employeeId, completed: !isCompleted })}
+                            className="mt-0.5 cursor-pointer"
+                            aria-label={isCompleted ? "Mark task incomplete" : "Mark task complete"}
                           >
                             {isCompleted ? (
                               <CheckCircle2 className="h-5 w-5 text-success" />
                             ) : (
-                              <Circle className="h-5 w-5 text-muted-foreground" />
+                              <Circle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                             )}
                           </button>
                           <div className="flex-1">

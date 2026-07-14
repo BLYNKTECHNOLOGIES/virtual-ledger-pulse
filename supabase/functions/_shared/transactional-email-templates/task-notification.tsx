@@ -122,25 +122,35 @@ const TaskNotificationEmail = ({
 
   return (
     <Html lang="en" dir="ltr">
-      <Head />
+      <Head>
+        <meta name="color-scheme" content="light only" />
+        <meta name="supported-color-schemes" content="light only" />
+      </Head>
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
           {/* Brand header */}
-          <Section style={{ ...brandHeader, background: `linear-gradient(135deg, ${meta.accent} 0%, #1a1a2e 100%)` }}>
+          <Section style={{ ...brandHeader, background: `linear-gradient(135deg, ${meta.accent} 0%, #0b1024 100%)` }}>
             <Row>
-              <Column style={{ width: '42px' }}>
-                <div style={brandMark}>B</div>
+              <Column style={{ width: '52px', verticalAlign: 'middle' as const }}>
+                <img
+                  src={LOGO_URL}
+                  alt="Blynkex"
+                  width="40"
+                  height="40"
+                  style={{ display: 'block', width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.14)', padding: '4px' }}
+                />
               </Column>
-              <Column>
-                <Text style={brandName}>BLYNK</Text>
-                <Text style={brandTag}>Virtual Technologies · ERP</Text>
+              <Column style={{ verticalAlign: 'middle' as const }}>
+                <div style={brandName}>BLYNKEX</div>
+                <div style={brandTag}>Enterprise Resource Platform</div>
               </Column>
-              <Column align="right">
-                <Text style={eyebrow}>{meta.emoji} Tasks</Text>
+              <Column align="right" style={{ verticalAlign: 'middle' as const }}>
+                <span style={eyebrow}>{meta.emoji} Tasks</span>
               </Column>
             </Row>
           </Section>
+
 
           {/* Content */}
           <Section style={content}>

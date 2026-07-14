@@ -12,7 +12,7 @@ export const bankTransactionAdapter: TransactionAdapter = {
   async fetch(id) {
     const { data, error } = await supabase
       .from('bank_transactions')
-      .select('*, bank_accounts:bank_account_id ( account_name, bank_name, account_number ), clients:client_id ( name, client_code )')
+      .select('*, bank_accounts:bank_account_id ( account_name, bank_name, account_number ), clients:client_id ( name, client_id )')
       .eq('id', id)
       .maybeSingle();
 

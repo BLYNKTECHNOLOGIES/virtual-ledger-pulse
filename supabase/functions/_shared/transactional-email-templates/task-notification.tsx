@@ -296,28 +296,36 @@ const brandMark = {
 }
 const brandName = {
   color: '#ffffff',
-  fontSize: '15px',
-  fontWeight: 700 as const,
-  letterSpacing: '2px',
+  WebkitTextFillColor: '#ffffff',
+  fontSize: '18px',
+  fontWeight: 800 as const,
+  letterSpacing: '3px',
   margin: '0',
   lineHeight: '1.1',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 }
 const brandTag = {
-  color: 'rgba(255,255,255,0.7)',
+  color: '#e0e7ff',
+  WebkitTextFillColor: '#e0e7ff',
   fontSize: '11px',
-  margin: '2px 0 0',
-  letterSpacing: '0.3px',
+  margin: '3px 0 0',
+  letterSpacing: '0.5px',
+  fontWeight: 500 as const,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 }
 const eyebrow = {
-  color: 'rgba(255,255,255,0.85)',
+  color: '#ffffff',
+  WebkitTextFillColor: '#ffffff',
   fontSize: '12px',
-  fontWeight: 600 as const,
-  margin: '0',
-  padding: '4px 10px',
-  backgroundColor: 'rgba(255,255,255,0.12)',
+  fontWeight: 700 as const,
+  padding: '5px 12px',
+  backgroundColor: 'rgba(255,255,255,0.18)',
+  border: '1px solid rgba(255,255,255,0.3)',
   borderRadius: '999px',
   display: 'inline-block' as const,
+  whiteSpace: 'nowrap' as const,
 }
+
 const content = { padding: '28px 28px 20px' }
 const eventLabel = {
   fontSize: '11px',

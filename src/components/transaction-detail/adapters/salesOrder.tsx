@@ -12,7 +12,7 @@ export const salesOrderAdapter: TransactionAdapter = {
   async fetch(id) {
     const { data, error } = await supabase
       .from('sales_orders')
-      .select('*, products:product_id ( code, name ), wallets:wallet_id ( wallet_name ), clients:client_id ( name, client_code )')
+      .select('*, products:product_id ( code, name ), wallets:wallet_id ( wallet_name ), clients:client_id ( name, client_id )')
       .eq('id', id)
       .maybeSingle();
 

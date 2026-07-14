@@ -177,6 +177,72 @@ function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
   };
 }
 
+const BINANCE_ORDER_STATUS_MAP: Record<number, string> = {
+  1: "TRADING",
+  2: "BUYER_PAYED",
+  3: "BUYER_PAYED",
+  4: "COMPLETED",
+  5: "APPEAL",
+  6: "CANCELLED",
+  7: "CANCELLED_BY_SYSTEM",
+  8: "APPEAL",
+};
+
+function normalizeBinanceOrderStatus(raw: unknown): string {
+  if (raw === null || raw === undefined || raw === "") return "TRADING";
+  const value = String(raw).trim();
+  if (/^\d+$/.test(value)) return BINANCE_ORDER_STATUS_MAP[Number(value)] || "TRADING";
+  return value.toUpperCase();
+}
+
+function hasActiveComplaintFromPayload(payload: any): boolean {
+  const detail = payload?.data?.data || payload?.data || payload;
+  if (!detail || typeof detail !== "object") return false;
+  const complaintStatus = detail.complaintStatus ?? detail.complainStatus ?? detail.appealStatus;
+  const hasComplaintStatus = complaintStatus !== undefined && complaintStatus !== null && String(complaintStatus) !== "" &&
+    !["0", "3", "CLOSED", "RESOLVED", "CANCELLED", "CANCELED"].includes(String(complaintStatus).toUpperCase());
+  const status = normalizeBinanceOrderStatus(detail.orderStatus ?? detail.status ?? detail.tradeStatus);
+  return hasComplaintStatus || detail.canCancelComplaintOrder === true || status.includes("APPEAL") || status.includes("DISPUTE") || status.includes("COMPLAINT");
+}
+
+function unwrapOrderList(result: any): any[] {
+  const outer = result?.data ?? result;
+  const inner = outer?.data ?? outer;
+  if (Array.isArray(inner)) return inner;
+  if (Array.isArray(inner?.list)) return inner.list;
+  if (Array.isArray(outer?.list)) return outer.list;
+  return [];
+}
+
+function orderToHistoryRow(order: any, accountId: string) {
+  const amount = String(order.amount ?? order.quantity ?? order.takerAmount ?? "0");
+  const totalPrice = String(order.totalPrice ?? order.total_price ?? order.fiatAmount ?? "0");
+  const computedUnitPrice = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : "0";
+  const unitPrice = String(order.unitPrice ?? order.price ?? order.unit_price ?? computedUnitPrice);
+  const orderNumber = order.orderNumber ?? order.orderNo ?? order.adOrderNo ?? order.order_number ?? "";
+
+  return {
+    order_number: String(orderNumber),
+    adv_no: String(order.advNo ?? order.adsNo ?? order.adv_no ?? ""),
+    trade_type: String(order.tradeType ?? order.trade_type ?? "").toUpperCase(),
+    asset: String(order.asset ?? "USDT").toUpperCase(),
+    fiat_unit: String(order.fiat ?? order.fiatUnit ?? order.fiat_unit ?? "INR"),
+    order_status: normalizeBinanceOrderStatus(order.orderStatus ?? order.status ?? order.order_status),
+    amount,
+    total_price: totalPrice,
+    unit_price: unitPrice,
+    commission: String(order.commission ?? "0"),
+    counter_part_nick_name: order.counterPartNickName ?? order.counter_part_nick_name ?? order.buyerNickname ?? order.buyerNickName ?? order.sellerNickname ?? order.sellerNickName ?? "",
+    create_time: Number(order.createTime ?? order.create_time ?? order.orderCreateTime ?? 0),
+    pay_method_name: order.payMethodName ?? order.pay_method_name ?? order.payType ?? null,
+    complaint_status: order.complaintStatus ?? order.complainStatus ?? order.appealStatus ?? null,
+    has_active_complaint: hasActiveComplaintFromPayload(order),
+    raw_data: order,
+    synced_at: new Date().toISOString(),
+    exchange_account_id: accountId,
+  };
+}
+
 function toNumeric(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);

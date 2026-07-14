@@ -48,7 +48,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
     enabled: stageIds.length > 0,
   });
 
-  // Fetch task assignments (completion status)
+  // Fetch task assignments (completion status) — post-hire per-employee
   const taskIds = tasks.map((t: any) => t.id);
   const { data: taskEmployees = [] } = useQuery({
     queryKey: ["hr_onboarding_task_employees", taskIds],

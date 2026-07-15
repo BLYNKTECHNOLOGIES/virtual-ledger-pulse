@@ -13,6 +13,25 @@ interface Settings {
   bulk_sync_unlocked: boolean;
   last_creds_validated_at: string | null;
   last_import_at: string | null;
+  push_pilot_verified_at?: string | null;
+  push_pilot_hr_employee_id?: string | null;
+  bulk_push_unlocked?: boolean;
+  last_push_at?: string | null;
+}
+interface PushRow {
+  razorpay_employee_id: string;
+  hr_employee_id?: string;
+  status: "planned" | "unchanged" | "pushed" | "failed";
+  changed: string[];
+  conflicts?: string[];
+  payload_field_names?: string[];
+  error?: string;
+}
+interface PushResponse {
+  ok: boolean;
+  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number };
+  rows: PushRow[];
+  pilot: { verified_at: string | null; bulk_unlocked: boolean };
 }
 interface FetchOneResponse {
   ok: boolean;

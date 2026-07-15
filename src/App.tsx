@@ -750,6 +750,7 @@ const router = createBrowserRouter([
         { path: "employee/separation", element: <SeparationPage /> },
         { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },
         { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
+        { path: "payroll/razorpay-sync", element: <RazorpaySyncPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
         
         { path: "helpdesk/policies", element: <HRPoliciesPage /> },

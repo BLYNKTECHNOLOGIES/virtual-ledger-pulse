@@ -13,6 +13,8 @@
 //   apply_one          - write one employee-id (pilot); flips bulk_sync_unlocked
 //   dry_run_range      - walk 1..max, return match table, NO writes  (gated)
 //   apply_range        - write everything from a fresh dry-run       (gated)
+//   pull_person_full   - re-fetch people:view for every mapped id and project
+//                        into hr_employees / work_info / bank_details (ERP-wins)
 //
 // PII policy: only field NAMES land in hr_razorpay_sync_log.field_diff_summary.
 

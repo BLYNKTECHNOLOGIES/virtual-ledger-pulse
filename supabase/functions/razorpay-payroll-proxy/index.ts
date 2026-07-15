@@ -393,6 +393,7 @@ Deno.serve(async (req) => {
         matches: rows.filter((r) => r.action_planned === "match").length,
         creates: rows.filter((r) => r.action_planned === "create_draft").length,
         misses: rows.filter((r) => r.status === "miss").length,
+        errors: rows.filter((r) => r.error).length,
         stopped: rows.some((r) => r.status === "stopped"),
       };
       return json(200, { ok: true, summary, rows });

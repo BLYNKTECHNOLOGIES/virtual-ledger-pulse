@@ -43,7 +43,7 @@ async function requireAuth(req: Request): Promise<{ userId: string } | Response>
 
 async function requirePermission(userId: string, svc: SupabaseClient) {
   const { data, error } = await svc.rpc("user_has_permission", {
-    _user_id: userId, _permission: "hrms_razorpay_sync",
+    user_uuid: userId, check_permission: "hrms_razorpay_sync",
   });
   if (error) return { ok: false, msg: error.message };
   return { ok: !!data, msg: data ? "" : "Missing hrms_razorpay_sync permission" };

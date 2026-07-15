@@ -102,9 +102,10 @@ export default function EmployeeListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
-    { field: "is_active", label: "Is active", value: "true", displayValue: "True" }
-  ]);
+  // No default filter — imported drafts (is_active=false) must be visible so
+  // operators can review and activate them. Users can filter by Is active
+  // manually from the filter panel.
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [pendingFilterField, setPendingFilterField] = useState("");
   const [pendingFilterValue, setPendingFilterValue] = useState("");
   const [sort, setSort] = useState<SortState>({ column: null, direction: null });

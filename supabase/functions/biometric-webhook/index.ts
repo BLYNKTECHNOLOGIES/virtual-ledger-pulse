@@ -72,6 +72,10 @@ Deno.serve(async (req) => {
       const requestType = url.searchParams.get("type")?.toLowerCase();
       const isCommandPoll = requestType === "getrequest" || pathName.endsWith("/getrequest");
 
+      console.log(
+        `ICLOCK GET from ${serialNumber}: path=${url.pathname}, options=${options || "-"}, type=${requestType || "-"}, queryKeys=${Array.from(url.searchParams.keys()).join(",") || "-"}`
+      );
+
       // Heartbeat: update device status on every GET
       await updateDeviceHeartbeat(supabase, serialNumber);
 

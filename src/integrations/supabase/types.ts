@@ -17214,6 +17214,13 @@ export type Database = {
         Returns: number
       }
       cleanup_expired_records: { Args: never; Returns: undefined }
+      cleanup_ghost_synthetic_clients: {
+        Args: never
+        Returns: {
+          retired_client_id: string
+          retired_name: string
+        }[]
+      }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       cleanup_terminal_stale_data: { Args: never; Returns: undefined }
       compare_snapshots: {

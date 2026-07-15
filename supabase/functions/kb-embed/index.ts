@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText, toPgVector } from "../_shared/embed.ts";
+import { requireAuth } from "../_shared/require-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,15 +10,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const auth = await requireAuth(req, { corsHeaders, permission: "help_assistant_manage" });
+    if (!auth.ok) return auth.response;
+    const supabase = auth.admin;
+
     const { type, id } = await req.json();
     if (!["faq", "document"].includes(type) || !id) {
       return json({ error: "type ('faq'|'document') and id required" }, 400);
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     if (type === "faq") {
       const { data: faq, error } = await supabase

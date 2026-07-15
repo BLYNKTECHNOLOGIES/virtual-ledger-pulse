@@ -152,16 +152,27 @@ async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: 
 async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string> {
   const { first, last } = splitName(e.name || "");
   const dept = (e.department || "General").toString().trim() || "General";
-  // generate_employee_id can race/collide on rapid bulk imports; retry with fresh
-  // IDs on unique-violation (23505) before giving up.
-  const maxAttempts = 5;
+  // generate_employee_id is deterministic (max+1 style) so on rapid sequential
+  // creates it can return the same badge for multiple rows within a batch.
+  // Strategy: try the RPC-provided badge first; on unique-violation, append a
+  // numeric suffix (-2, -3, ...) or a short random suffix until it lands.
+  const maxAttempts = 10;
   let lastErr: any = null;
+  let baseBadge: string | null = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const { data: badgeData, error: badgeErr } = await svc.rpc("generate_employee_id", {
-      dept, designation: "Employee",
-    });
-    if (badgeErr) throw new Error(`generate_employee_id failed: ${badgeErr.message}`);
-    const badgeId = badgeData as string;
+    let badgeId: string;
+    if (attempt === 0) {
+      const { data: badgeData, error: badgeErr } = await svc.rpc("generate_employee_id", {
+        dept, designation: "Employee",
+      });
+      if (badgeErr) throw new Error(`generate_employee_id failed: ${badgeErr.message}`);
+      baseBadge = String(badgeData);
+      badgeId = baseBadge;
+    } else {
+      // fallback: append short random suffix to guarantee uniqueness
+      const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+      badgeId = `${baseBadge}-${suffix}`;
+    }
     const { data, error } = await svc.from("hr_employees").insert({
       badge_id: badgeId,
       first_name: first,
@@ -175,8 +186,10 @@ async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string>
     }).select("id").single();
     if (!error) return data!.id as string;
     lastErr = error;
-    // 23505 = unique_violation; retry only for badge_id collision
-    if ((error as any).code !== "23505" || !String(error.message).includes("badge_id")) break;
+    // Retry on any unique-violation (badge_id, email, phone, pan). For non-badge
+    // uniqueness we can't just suffix, so break and surface a clear error.
+    if ((error as any).code !== "23505") break;
+    if (!String(error.message).includes("badge_id")) break;
   }
   throw new Error(`create hr_employees failed: ${lastErr?.message ?? "unknown"}`);
 }
@@ -341,21 +354,34 @@ Deno.serve(async (req) => {
         });
 
         if (action === "apply_range") {
-          let hrId = match.hr_employee_id;
-          let created = false;
-          if (!hrId) { hrId = await createDraftEmployee(svc, r.body); created = true; }
-          await upsertMap(svc, String(i), hrId!, false, created);
-          await logSync(svc, {
-            action: created ? "create_draft" : "match",
-            http_status: r.status,
-            razorpay_employee_id: String(i),
-            hr_employee_id: hrId,
-            field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, bulk: true },
-            actor_user_id: authed.userId,
-          });
-          rows[rows.length - 1].applied = true;
-          rows[rows.length - 1].created = created;
-          rows[rows.length - 1].hr_employee_id = hrId;
+          try {
+            let hrId = match.hr_employee_id;
+            let created = false;
+            if (!hrId) { hrId = await createDraftEmployee(svc, r.body); created = true; }
+            await upsertMap(svc, String(i), hrId!, false, created);
+            await logSync(svc, {
+              action: created ? "create_draft" : "match",
+              http_status: r.status,
+              razorpay_employee_id: String(i),
+              hr_employee_id: hrId,
+              field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, bulk: true },
+              actor_user_id: authed.userId,
+            });
+            rows[rows.length - 1].applied = true;
+            rows[rows.length - 1].created = created;
+            rows[rows.length - 1].hr_employee_id = hrId;
+          } catch (rowErr: any) {
+            const msg = String(rowErr?.message ?? rowErr);
+            rows[rows.length - 1].applied = false;
+            rows[rows.length - 1].error = msg;
+            await logSync(svc, {
+              action: "apply_error",
+              http_status: 500,
+              razorpay_employee_id: String(i),
+              field_diff_summary: { error: msg, bulk: true },
+              actor_user_id: authed.userId,
+            }).catch(() => {});
+          }
         }
       }
 
@@ -367,6 +393,7 @@ Deno.serve(async (req) => {
         matches: rows.filter((r) => r.action_planned === "match").length,
         creates: rows.filter((r) => r.action_planned === "create_draft").length,
         misses: rows.filter((r) => r.status === "miss").length,
+        errors: rows.filter((r) => r.error).length,
         stopped: rows.some((r) => r.status === "stopped"),
       };
       return json(200, { ok: true, summary, rows });

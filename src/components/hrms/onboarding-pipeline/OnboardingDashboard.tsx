@@ -201,13 +201,26 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                         {format(new Date(r.created_at), "dd MMM yyyy")}
                       </td>
                       <td className="p-3">
-                        <Button
-                          size="sm"
-                          variant={r.status === "completed" ? "outline" : "default"}
-                          onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}
-                        >
-                          {r.status === "completed" ? "View" : "Continue"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant={r.status === "completed" ? "outline" : "default"}
+                            onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}
+                          >
+                            {r.status === "completed" ? "View" : "Continue"}
+                          </Button>
+                          {r.status !== "completed" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => { e.stopPropagation(); setToDelete(r); }}
+                              title="Delete dropped onboarding"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -217,6 +230,31 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this onboarding record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the onboarding for{" "}
+              <span className="font-medium">
+                {toDelete ? `${toDelete.first_name || ""} ${toDelete.last_name || ""}`.trim() || toDelete.email || "this candidate" : ""}
+              </span>
+              . Use this when the candidate dropped mid-onboarding. Any linked draft (inactive) employee record will also be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

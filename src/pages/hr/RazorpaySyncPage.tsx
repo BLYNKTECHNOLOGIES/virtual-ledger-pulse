@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, ShieldCheck, ShieldAlert, Lock, Play, ListChecks, CheckCircle2 } from "lucide-react";
+import { Loader2, ShieldCheck, ShieldAlert, Lock, Play, ListChecks, CheckCircle2, DownloadCloud, AlertTriangle } from "lucide-react";
 
 interface Settings {
   base_url: string;
@@ -66,6 +66,11 @@ export default function RazorpaySyncPage() {
   const [dryRun, setDryRun] = useState<DryRunResponse | null>(null);
   const [applied, setApplied] = useState<DryRunResponse | null>(null);
 
+  // Phase 1a — Deep pull
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<{ total: number; pulled: number; projected_writes: number; missed: number; errored: number } | null>(null);
+  const [gaps, setGaps] = useState<{ total: number; missing_pan: number; missing_doj: number; missing_dept: number; missing_designation: number; missing_bank: number; not_pulled: number } | null>(null);
+
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")
@@ -74,7 +79,21 @@ export default function RazorpaySyncPage() {
     setSettings(data as Settings | null);
   };
 
-  useEffect(() => { if (canAccess) reloadSettings(); }, [canAccess]);
+  useEffect(() => { if (canAccess) { reloadSettings(); reloadGaps(); } }, [canAccess]);
+
+  const reloadGaps = async () => {
+    const { data, error } = await supabase.from("v_razorpay_import_gaps").select("*");
+    if (error || !data) { setGaps(null); return; }
+    setGaps({
+      total: data.length,
+      missing_pan: data.filter((r: any) => r.missing_pan).length,
+      missing_doj: data.filter((r: any) => r.missing_doj).length,
+      missing_dept: data.filter((r: any) => r.missing_department).length,
+      missing_designation: data.filter((r: any) => r.missing_designation).length,
+      missing_bank: data.filter((r: any) => r.missing_bank).length,
+      not_pulled: data.filter((r: any) => !r.last_pulled_at).length,
+    });
+  };
 
   const invoke = async <T,>(body: object): Promise<T> => {
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body });
@@ -145,7 +164,38 @@ export default function RazorpaySyncPage() {
     } finally { setUnlocking(false); }
   };
 
-  // Chunk large ranges into smaller batches to avoid the 30s client-side
+  // Deep pull: iterate mapped ids in chunks to stay within edge fn timeout.
+  const runDeepPull = async () => {
+    if (!confirm("Deep-pull people:view for every mapped Razorpay employee and project into HRMS?\n\nERP-authored fields are never overwritten; only empty fields are filled.")) return;
+    setPulling(true); setPullResult(null);
+    try {
+      const { data: maps, error } = await supabase
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .order("razorpay_employee_id");
+      if (error) throw error;
+      const ids = (maps || []).map((r: any) => r.razorpay_employee_id);
+      const CHUNK = 15;
+      const agg = { total: 0, pulled: 0, projected_writes: 0, missed: 0, errored: 0 };
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const d = await invoke<{ ok: boolean; summary: typeof agg }>({
+          action: "pull_person_full",
+          razorpay_employee_ids: slice,
+        });
+        agg.total += d.summary.total;
+        agg.pulled += d.summary.pulled;
+        agg.projected_writes += d.summary.projected_writes;
+        agg.missed += d.summary.missed;
+        agg.errored += d.summary.errored;
+      }
+      setPullResult(agg);
+      toast({ title: "Deep pull complete", description: `${agg.pulled} pulled · ${agg.projected_writes} employees updated · ${agg.missed} missed` });
+      await reloadGaps();
+    } catch (e: any) {
+      toast({ title: "Deep pull failed", description: e?.message, variant: "destructive" });
+    } finally { setPulling(false); }
+  };
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
   // well under the timeout while the overall run can cover 100s of IDs.
   const CHUNK_SIZE = 20;
@@ -337,6 +387,51 @@ export default function RazorpaySyncPage() {
         </Card>
       )}
 
+      {/* PHASE 1a — Deep pull + Completion readiness */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Phase 1a — Deep pull &amp; completion readiness</CardTitle>
+          <CardDescription>
+            Re-fetch <code>people:view</code> for every mapped Razorpay employee and project the payload
+            into <code>hr_employees</code> / <code>hr_employee_work_info</code> / <code>hr_employee_bank_details</code>.
+            ERP-authored values are never overwritten — only NULL/empty fields are filled.
+            Nothing is pushed back to Razorpay.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" onClick={runDeepPull} disabled={pulling}>
+              {pulling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Run deep pull for all mapped IDs
+            </Button>
+            {pullResult && (
+              <span className="text-xs text-muted-foreground">
+                {pullResult.pulled} pulled · {pullResult.projected_writes} employees updated · {pullResult.missed} missed · {pullResult.errored} errored
+              </span>
+            )}
+          </div>
+          {gaps && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2">
+              <GapChip label="Mapped drafts" value={gaps.total} tone="neutral" />
+              <GapChip label="Not yet pulled" value={gaps.not_pulled} tone={gaps.not_pulled ? "warn" : "ok"} />
+              <GapChip label="Missing PAN" value={gaps.missing_pan} tone={gaps.missing_pan ? "warn" : "ok"} />
+              <GapChip label="Missing bank" value={gaps.missing_bank} tone={gaps.missing_bank ? "warn" : "ok"} />
+              <GapChip label="Missing DOJ" value={gaps.missing_doj} tone={gaps.missing_doj ? "warn" : "ok"} />
+              <GapChip label="Missing dept/role" value={gaps.missing_dept + gaps.missing_designation} tone={(gaps.missing_dept + gaps.missing_designation) ? "warn" : "ok"} />
+            </div>
+          )}
+          {gaps && (gaps.missing_pan || gaps.missing_bank || gaps.missing_doj || gaps.missing_dept || gaps.missing_designation) > 0 && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="text-xs">Onboarding gaps remain</AlertTitle>
+              <AlertDescription className="text-xs">
+                RazorpayX did not supply every required field. HR must complete these in the Onboarding Pipeline before activating drafts. Bulk ERP→Razorpay push does not open until zero drafts have missing bank / PAN / DOJ / department fields.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
       {/* STEP 3 — Bulk */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
@@ -410,6 +505,19 @@ export default function RazorpaySyncPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function GapChip({ label, value, tone }: { label: string; value: number; tone: "ok" | "warn" | "neutral" }) {
+  const cls =
+    tone === "ok" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    : tone === "warn" ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    : "border-border bg-muted/40 text-foreground";
+  return (
+    <div className={`rounded-md border px-2 py-1.5 ${cls}`}>
+      <div className="text-[10px] uppercase tracking-wide opacity-70">{label}</div>
+      <div className="text-base font-semibold tabular-nums">{value}</div>
     </div>
   );
 }

@@ -13,6 +13,8 @@
 //   apply_one          - write one employee-id (pilot); flips bulk_sync_unlocked
 //   dry_run_range      - walk 1..max, return match table, NO writes  (gated)
 //   apply_range        - write everything from a fresh dry-run       (gated)
+//   pull_person_full   - re-fetch people:view for every mapped id and project
+//                        into hr_employees / work_info / bank_details (ERP-wins)
 //
 // PII policy: only field NAMES land in hr_razorpay_sync_log.field_diff_summary.
 
@@ -200,6 +202,124 @@ async function unlockBulk(svc: SupabaseClient) {
   await svc.from("hr_razorpay_settings").update({
     bulk_sync_unlocked: true,
   }).eq("is_singleton", true);
+}
+
+// ---------- Deep-pull helpers (Phase 1a) ----------
+
+async function canonicalHash(obj: unknown): Promise<string> {
+  const s = JSON.stringify(obj, Object.keys(obj as object).sort());
+  const buf = new TextEncoder().encode(s);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function pickString(...vals: any[]): string | null {
+  for (const v of vals) {
+    if (v === null || v === undefined) continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return null;
+}
+
+function normIfsc(v: any): string | null {
+  const s = pickString(v);
+  return s ? s.toUpperCase().replace(/\s+/g, "") : null;
+}
+
+// ERP-wins: only patch keys where ERP row currently has NULL/empty; return
+// diff summary of field names actually written (never values).
+function pickPatch<T extends Record<string, any>>(current: T | null, incoming: Record<string, any>): { patch: Record<string, any>; wrote: string[]; conflicts: string[] } {
+  const patch: Record<string, any> = {};
+  const wrote: string[] = [];
+  const conflicts: string[] = [];
+  for (const [k, v] of Object.entries(incoming)) {
+    if (v === null || v === undefined || v === "") continue;
+    const cur = current?.[k];
+    const isEmpty = cur === null || cur === undefined || cur === "";
+    if (isEmpty) {
+      patch[k] = v;
+      wrote.push(k);
+    } else if (String(cur).trim() !== String(v).trim()) {
+      conflicts.push(k);
+    }
+  }
+  return { patch, wrote, conflicts };
+}
+
+async function projectSnapshotIntoErp(
+  svc: SupabaseClient,
+  hrId: string,
+  snap: any,
+): Promise<{ hr_employees: { wrote: string[]; conflicts: string[] }; work_info: { wrote: string[]; conflicts: string[] }; bank: { wrote: string[]; conflicts: string[] } }> {
+  // ---- hr_employees identity fields ----
+  const { first, last } = splitName(snap?.name || "");
+  const empIncoming = {
+    first_name: pickString(snap?.first_name, first) || null,
+    last_name: pickString(snap?.last_name, last) || null,
+    gender: pickString(snap?.gender)?.toLowerCase() || null,
+    dob: parseDobIso(snap?.["date-of-birth"] ?? snap?.date_of_birth ?? snap?.dob),
+    phone: normPhone(snap?.phone_number ?? snap?.phone),
+    pan_number: (pickString(snap?.pan) || "").toUpperCase() || null,
+  };
+  const { data: empCur } = await svc.from("hr_employees").select("first_name,last_name,gender,dob,phone,pan_number").eq("id", hrId).maybeSingle();
+  const empPick = pickPatch(empCur as any, empIncoming);
+  if (Object.keys(empPick.patch).length) {
+    await svc.from("hr_employees").update(empPick.patch).eq("id", hrId);
+  }
+
+  // ---- hr_employee_work_info ----
+  const deptName = pickString(snap?.department);
+  const jobTitle = pickString(snap?.title, snap?.designation, snap?.job_title);
+  let departmentId: string | null = null;
+  let jobPositionId: string | null = null;
+  if (deptName) {
+    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName).limit(1).maybeSingle();
+    if (d?.id) departmentId = d.id;
+  }
+  if (jobTitle) {
+    const { data: p } = await svc.from("positions").select("id").ilike("title", jobTitle).limit(1).maybeSingle();
+    if (p?.id) jobPositionId = p.id;
+  }
+  const wiIncoming: Record<string, any> = {
+    joining_date: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
+    department_id: departmentId,
+    job_position_id: jobPositionId,
+    job_role: jobTitle,
+    employee_type: pickString(snap?.employee_type, snap?.employment_type),
+    work_email: pickString(snap?.work_email, snap?.email)?.toLowerCase() || null,
+    location: pickString(snap?.location, snap?.work_location),
+  };
+  const { data: wiCur } = await svc.from("hr_employee_work_info").select("*").eq("employee_id", hrId).maybeSingle();
+  const wiPick = pickPatch(wiCur as any, wiIncoming);
+  if (wiCur) {
+    if (Object.keys(wiPick.patch).length) {
+      await svc.from("hr_employee_work_info").update(wiPick.patch).eq("employee_id", hrId);
+    }
+  } else if (Object.keys(wiPick.patch).length) {
+    await svc.from("hr_employee_work_info").insert({ employee_id: hrId, ...wiPick.patch });
+  }
+
+  // ---- hr_employee_bank_details ----
+  // RazorpayX nests bank under bank_account / bank_details / bank_information; take widest reach.
+  const b = snap?.bank_account ?? snap?.bank_details ?? snap?.bank_information ?? snap?.bank ?? {};
+  const bankIncoming: Record<string, any> = {
+    account_number: pickString(b?.account_number, snap?.account_number, snap?.bank_account_number),
+    ifsc_code: normIfsc(b?.ifsc ?? b?.ifsc_code ?? snap?.ifsc ?? snap?.ifsc_code),
+    bank_name: pickString(b?.bank_name, snap?.bank_name),
+    branch: pickString(b?.branch, b?.branch_name, snap?.branch),
+  };
+  const { data: bdCur } = await svc.from("hr_employee_bank_details").select("*").eq("employee_id", hrId).maybeSingle();
+  const bdPick = pickPatch(bdCur as any, bankIncoming);
+  if (bdCur) {
+    if (Object.keys(bdPick.patch).length) {
+      await svc.from("hr_employee_bank_details").update(bdPick.patch).eq("employee_id", hrId);
+    }
+  } else if (Object.keys(bdPick.patch).length) {
+    await svc.from("hr_employee_bank_details").insert({ employee_id: hrId, ...bdPick.patch });
+  }
+
+  return { hr_employees: empPick, work_info: wiPick, bank: bdPick };
 }
 
 Deno.serve(async (req) => {
@@ -442,6 +562,105 @@ Deno.serve(async (req) => {
         stopped: rows.some((r) => r.status === "stopped"),
       };
       return json(200, { ok: true, summary, rows });
+    }
+
+    // ---------- pull_person_full: deep-pull + project (Phase 1a) ----------
+    // Fetches people:view for every mapped Razorpay id (or a supplied subset),
+    // stores the raw envelope, and projects it into hr_employees /
+    // hr_employee_work_info / hr_employee_bank_details using ERP-wins
+    // semantics. NEVER touches is_active. NEVER pushes to Razorpay.
+    if (action === "pull_person_full") {
+      const only: string[] | null = Array.isArray(payload?.razorpay_employee_ids) && payload.razorpay_employee_ids.length
+        ? payload.razorpay_employee_ids.map((v: any) => String(v))
+        : null;
+
+      let query = svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,hr_employee_id,last_payload_hash");
+      if (only) query = query.in("razorpay_employee_id", only);
+      const { data: maps, error: mapsErr } = await query;
+      if (mapsErr) return json(500, { error: `map read failed: ${mapsErr.message}` });
+
+      const rows: any[] = [];
+      let pulled = 0, skipped = 0, missed = 0, errored = 0, wroteAny = 0;
+
+      for (const m of maps || []) {
+        const eid = Number(m.razorpay_employee_id);
+        if (!Number.isFinite(eid) || eid < 1) { skipped++; continue; }
+        const r = await opfinView(eid);
+        if (!r.ok) {
+          missed++;
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "miss", http_status: r.status });
+          continue;
+        }
+        try {
+          const hash = await canonicalHash(r.body);
+          const unchanged = m.last_payload_hash === hash;
+          // Always refresh snapshot + last_pulled_at, but skip projection when unchanged.
+          await svc.from("hr_razorpay_employee_map").update({
+            last_pull_snapshot: r.body,
+            last_pulled_at: new Date().toISOString(),
+            last_payload_hash: hash,
+          }).eq("razorpay_employee_id", m.razorpay_employee_id);
+
+          let diff: any = null;
+          if (!unchanged) {
+            diff = await projectSnapshotIntoErp(svc, m.hr_employee_id, r.body);
+            const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length;
+            if (wroteCount) wroteAny++;
+          }
+
+          await logSync(svc, {
+            action: "pull_person",
+            http_status: r.status,
+            razorpay_employee_id: String(eid),
+            hr_employee_id: m.hr_employee_id,
+            field_diff_summary: {
+              unchanged,
+              wrote: diff ? {
+                hr_employees: diff.hr_employees.wrote,
+                work_info: diff.work_info.wrote,
+                bank: diff.bank.wrote,
+              } : null,
+              conflicts: diff ? {
+                hr_employees: diff.hr_employees.conflicts,
+                work_info: diff.work_info.conflicts,
+                bank: diff.bank.conflicts,
+              } : null,
+              field_names: fieldNames(r.body),
+            },
+            actor_user_id: authed.userId,
+          });
+
+          pulled++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: unchanged ? "unchanged" : "projected",
+            wrote: diff ? {
+              hr_employees: diff.hr_employees.wrote.length,
+              work_info: diff.work_info.wrote.length,
+              bank: diff.bank.wrote.length,
+            } : null,
+            conflicts: diff ? diff.hr_employees.conflicts.length + diff.work_info.conflicts.length + diff.bank.conflicts.length : 0,
+          });
+        } catch (rowErr: any) {
+          errored++;
+          const msg = String(rowErr?.message ?? rowErr);
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "error", error: msg });
+          await logSync(svc, {
+            action: "pull_person", http_status: 500,
+            razorpay_employee_id: String(eid),
+            hr_employee_id: m.hr_employee_id,
+            error_text: msg,
+            actor_user_id: authed.userId,
+          }).catch(() => {});
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        summary: { total: (maps || []).length, pulled, projected_writes: wroteAny, missed, errored, skipped },
+        rows,
+      });
     }
 
     return json(400, { error: `Unsupported action: ${action}` });

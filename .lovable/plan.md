@@ -1,133 +1,55 @@
 
-# RazorpayX ↔ ERP Integration — Revised Plan
+# Phase 1a — Deep pull from `people:view`
 
-## Grounding facts (proven, non-negotiable)
+Live-only tenant confirmed; no sandbox. All work in this phase is **read-only** against Razorpay, so no live-write safeguards trigger yet. Postman JSON is skipped — we discover writable sub-types later, phase-by-phase, as they come up.
 
-- **Transport is legacy Opfin JSON-RPC**, not REST. Every call is `POST {BASE}/api/{resource}` with body `{ auth:{id,key}, request:{ type, "sub-type" }, data:{...} }`. There are no REST verbs, no `/v1/*` paths, no query-string list endpoints, no `X-Razorpay-Account` header. All previously cited REST endpoints are **retracted** — this plan uses JSON-RPC `resource / type / sub-type` tuples only, and marks unverified ones **UNVERIFIED** with a discovery step.
-- Credentials are configured and validated. Proxy is JWT-gated and PII-safe. Do not re-request keys.
-- 40 employees are imported as **drafts** in the Onboarding Pipeline with name-card fields only (`people:view` returned no bank/salary payload). The `EmployeeListPage` filter bug is fixed; drafts activate through the existing Onboarding Pipeline.
+## Scope
 
-## Design principles
+For every mapped Razorpay employee (currently 40 drafts), fetch the full `people:view` payload, project it into ERP tables, and surface the exact gaps HR must close in the Onboarding Pipeline. Nothing is written back to Razorpay.
 
-1. **ERP is the system of record** for every HRMS domain (identity, attendance, leave, salary structure, revisions, payroll pre-run). Razorpay is reduced to **payout execution + statutory filings + payslip archival**.
-2. **Complete the roster before any bidirectional push begins.** Pull whatever Razorpay will surrender, then HR completes gaps in ERP; only then do writes flip on, one domain at a time.
-3. **Every write domain ships behind a per-domain toggle in `hr_razorpay_settings` (default OFF), a dry-run diff, a pilot-one confirmation, and idempotent payload hashing.**
-4. **Existing HRMS engines are untouched as the computation source** — leave triggers, hour-account rollups, payroll state machine, revision scheduler. Razorpay never recomputes; it only receives finalized numbers.
-5. **No invented endpoints.** Any sub-type not empirically confirmed via the `probe_endpoint` action or the Postman collection JSON is labelled UNVERIFIED and gated behind a discovery task before build.
+## Fetch
 
-## Discovery task (blocks Phase 2+)
+- New action `pull_person_full` on `razorpay-payroll-proxy` — JSON-RPC `people:view` with the widest response envelope the endpoint returns (no field cherry-picking on request; we take whatever it gives).
+- Batch driver on the client: iterate `hr_razorpay_employee_map` in 20-ID chunks (same chunking that fixed the Edge Function timeout on bulk apply).
+- Each fetched envelope is stored raw in a new column `hr_razorpay_employee_map.last_pull_snapshot jsonb` plus `last_pulled_at timestamptz` — canonical audit of what Razorpay actually returned, so future phases don't re-guess field shapes.
 
-For each capability below, run `probe_endpoint` (read-only sub-types) or parse the Postman collection JSON the owner exports from the doc page. Record `resource / type / sub-type / verified?` in a new `razorpay_endpoint_registry` table so no code ever references an unverified tuple.
+## Projection into ERP
 
-| Capability | Candidate sub-type (VERIFIED / UNVERIFIED) | How to verify |
-|---|---|---|
-| Employee read (single) | `people / view` — VERIFIED | already succeeded |
-| Employee list / paginate | `people / list` — UNVERIFIED | probe read-only |
-| Employee create | `people / create` — UNVERIFIED | Postman JSON |
-| Employee update | `people / update` — UNVERIFIED | Postman JSON |
-| Employee exit / dismiss | `people / dismiss` (or `separate`) — UNVERIFIED | Postman JSON |
-| Bank details | likely nested in `people` or `bank / view` — UNVERIFIED | probe + Postman |
-| Salary structure read | `salary / view` — UNVERIFIED | probe read-only |
-| Salary structure update | `salary / update` — UNVERIFIED | Postman JSON |
-| Attendance / LOP push | `attendance / *` — UNVERIFIED | Postman JSON |
-| Payroll run trigger | `payroll / execute` (or `run`) — UNVERIFIED | Postman JSON |
-| Payroll status | `payroll / status` — UNVERIFIED | probe read-only |
-| Payslip fetch | `payslip / view` or `download` — UNVERIFIED | probe read-only |
-| TDS / Form-16 / challans | `tds / *`, `compliance / *` — UNVERIFIED | Postman JSON |
-| Reimbursements | `reimbursement / *` — UNVERIFIED | Postman JSON |
-| Webhooks catalogue | UNVERIFIED — may not exist on Opfin | ask owner + Postman |
+Deterministic mapper `projectRazorpayPerson(snapshot)` writes into three tables. Every write is an UPSERT; ERP-authored values that already exist are NEVER overwritten silently — if a field is already set in ERP and Razorpay disagrees, we log the diff into `hr_razorpay_sync_log` and leave the ERP value alone (ERP-wins, per the approved conflict matrix).
 
-**Owner action:** export the Postman collection from the doc page as JSON and upload it — this needs no browser rendering and unblocks every UNVERIFIED row above.
+| Target table | Fields we attempt to populate (only those actually present in the snapshot) |
+|---|---|
+| `hr_employees` | first/last name, gender, date_of_birth, personal_email, phone, PAN (identity fields only — never touch is_active from here) |
+| `hr_employee_work_info` | date_of_joining, designation, department, employment_type, location, employee_type, reporting_manager (if resolvable to an existing employee) |
+| `hr_employee_bank_details` | account_holder_name, account_number, ifsc, bank_name, account_type |
 
-## Phased execution
+Fields Razorpay does not return stay NULL. No dummy values, no inferred defaults, no manual overrides in the mapper.
 
-### Phase 1 — Roster completion loop (build immediately after approval; no writes to Razorpay)
+## Gap tracking
 
-- Pull side (read-only, verified subtypes only): expand `people:view` fetch to capture whatever fields it does return per employee and store into `hr_employees` + `hr_employee_work_info` + `hr_employee_bank_details` where present. Anything Razorpay refuses to surrender is flagged as **HR-must-complete** in the Onboarding Pipeline.
-- Onboarding Pipeline stays the sole activation surface. Completing all stages sets `is_active=true`; the fixed list filter then reveals the employee.
-- Deliverable: every one of the 40 drafts either activated or explicitly abandoned. **Gate to Phase 2:** zero drafts with missing bank/PAN/DOJ/department.
+- Small view `v_razorpay_import_gaps` computes per-draft which of {bank details, PAN, DOJ, department, designation} are still missing.
+- `RazorpaySyncPage` gains a "Completion readiness" strip: total drafts, drafts with each gap category, and a click-through into the filtered Onboarding Pipeline. Purely informational; the Onboarding Pipeline itself remains the single activation surface.
 
-### Phase 2 — Read-only reconciliation (still no ERP→Razorpay writes)
+## What this phase deliberately does NOT do
 
-- Nightly `razorpay-reconcile` cron pulls all mapped employees (using verified read sub-types) and computes a **drift report** into `hr_razorpay_sync_log` (masked diffs only). Surfaces in a Drift tab; nothing auto-overwrites.
-- Establishes conflict-resolution ground truth per field before any push:
+- No writes to Razorpay (no `people:update`, no bank push).
+- No changes to `is_active` — only the Onboarding Pipeline flips that.
+- No auto-merge with existing ERP employees by name/email; mapping stays 1:1 with `hr_razorpay_employee_map`.
+- No new permission enums; existing `hrms_razorpay_sync` gates the pull action.
 
-| Domain | Field class | Working surface | Winner on conflict |
-|---|---|---|---|
-| Identity (name, DOB, gender, PAN, Aadhaar last-4) | ERP | ERP | ERP |
-| Contact (email, phone) | ERP | ERP | ERP |
-| Work info (dept, designation, DOJ, manager, location, employment type) | ERP | ERP | ERP |
-| Bank details | ERP (verified by HR) | ERP | ERP |
-| Salary structure & CTC | ERP | ERP | ERP |
-| Salary revisions (effective-dated) | ERP | ERP | ERP |
-| Attendance / hour accounts | ERP | ERP | ERP |
-| Leave balances & approved leave | ERP (triggers own it) | ERP | ERP |
-| LOP for a payroll period | ERP (derived) | ERP | ERP |
-| Payroll run state | Razorpay executes, ERP orchestrates | ERP triggers, RZP computes tax/payout | Razorpay for tax math; ERP for gross inputs |
-| Payslip PDF & TDS challans | Razorpay generates, ERP archives | Razorpay | Razorpay |
-| Statutory filings (PF/ESI/PT/Form-16) | Razorpay | Razorpay | Razorpay |
-| Exit / F&F final settlement inputs | ERP | ERP | ERP |
+## Safety carry-forwards
 
-### Phase 3 — Employee-master write (ERP→Razorpay, one domain at a time)
+- Calls flow through the JWT-gated `razorpay-payroll-proxy`.
+- PII-safe logging: `hr_razorpay_sync_log` records field names + hash diffs only; raw PAN/account numbers never leave the snapshot column, which is RLS-locked to Super-Admin + `hrms_razorpay_sync` holders.
+- Idempotent: re-running the pull for the same employee is a no-op unless Razorpay's payload changed (compared by SHA-256 of the canonicalised snapshot).
 
-Order: `people:update` (identity + contact) → bank details → work info → exit/dismiss. For each:
-1. Enable per-domain toggle in `hr_razorpay_settings` (default OFF).
-2. Dry-run diff renders the exact JSON-RPC payload for one employee.
-3. Pilot-one write, human confirm, then unlock bulk (same gate discipline as the import flow).
-4. Idempotency: hash of last-pushed payload stored per employee; identical push is a no-op.
-5. New-hire `people:create` piggybacks on Onboarding completion **only after** `update` has run clean for two weeks.
-6. Manual Razorpay-side edits are **never** auto-overwritten — they surface in the Drift tab for HR to accept (pulls into ERP) or reject (queues a corrective push).
+## Verification before phase closes
 
-### Phase 4 — Salary structure & revisions
+1. All 40 mapped drafts have a fresh `last_pull_snapshot` and `last_pulled_at`.
+2. Every field Razorpay returned that maps to a known ERP column is landed (spot-check 3 drafts against raw snapshot).
+3. Gap strip on `RazorpaySyncPage` matches a direct SQL count from `v_razorpay_import_gaps`.
+4. `hr_razorpay_sync_log` contains one row per pulled employee with masked field-name list.
 
-- Component-map table (`hr_razorpay_component_map`) links ERP salary components to Razorpay component keys (discovered via `salary:view`).
-- On approval of an `hr_salary_revisions` row with a future `effective_date`, a scheduled job pushes to Razorpay on that date — never earlier, never bypassing the existing revision engine.
-- Retro revisions block the push and require HR to acknowledge that arrears will be settled through the next payroll's earnings, not by rewriting Razorpay history.
+## Immediate next phase (proposed, not built yet)
 
-### Phase 5 — Attendance / LOP push (period-scoped, immutable once pushed)
-
-- Source of truth: `hr_attendance_daily` + APPROVED `hr_leave_requests` only. Draft leave and unposted attendance are excluded.
-- A **Payroll Pre-check screen** shows the exact LOP days per employee that will be pushed, and blocks push if any day in the period is still open/unapproved.
-- Push happens once per period; re-push requires an explicit "recall period" action with a written reason (audit-logged).
-
-### Phase 6 — Payroll run orchestration
-
-- New permission enum value `hrms_payroll_execute` (migration adds enum + `system_functions` row + Super-Admin grant). Only holders can trigger payroll.
-- Trigger from ERP calls the verified run sub-type; ERP polls the verified status sub-type until terminal. `hr_payroll_runs` state machine advances only on Razorpay's terminal state, never speculatively.
-- Failure paths: partial success → ERP marks period `partially_processed`, blocks close-out, surfaces per-employee errors.
-
-### Phase 7 — Pull-back: payslips, TDS, statutory documents
-
-- Once the run is terminal, fetch payslip PDFs into Supabase Storage under `payslips/{yyyy-mm}/{badge_id}.pdf`, TDS entries into `tds_records`, and Form-16/challans into `compliance_documents`. Storage paths are the ERP's canonical link — Razorpay URLs are treated as ephemeral.
-
-### Phase 8 — Reimbursements
-
-- ERP is the intake surface. Approved reimbursements push to Razorpay as one-off earnings in the next open period. No push before manager approval + finance approval.
-
-### Phase 9 — Webhooks or polling reconciliation
-
-- If the Postman collection confirms webhook availability, ship a public HMAC-verified `razorpay-payroll-webhook` Edge Function writing raw events to `razorpay_webhook_events` and reducing into domain tables. **If webhooks are not supported by Opfin (likely — UNVERIFIED)**, the Phase 2 reconciliation cron is the permanent mechanism, run at a tighter cadence (hourly for payroll days, nightly otherwise).
-
-### Phase 10 — Cutover & lock-down
-
-- Per-domain: run two clean cycles with the domain toggle ON while Razorpay dashboard edits are still allowed. On success, revoke non-break-glass Razorpay-dashboard write access for that domain and document the break-glass procedure.
-
-## Safety discipline (applies to every phase with writes)
-
-- All calls through the existing JWT-gated `razorpay-payroll-proxy`. No client-side calls.
-- PII-safe logging: mask PAN, Aadhaar, bank account, phone before logging; only field names + hash diffs in `hr_razorpay_sync_log`.
-- Idempotency key = SHA-256 of canonicalised request payload; identical replays are no-ops.
-- Dry-run diff mandatory before every first push in a new domain.
-- Pilot-one confirmation UI required to unlock bulk in every write domain.
-- **Test tenant question — needs owner answer:** does Opfin/RazorpayX offer a sandbox org? If **yes**, Phases 3–8 first-runs execute there. If **no**, live-write safeguards are: (i) pilot-one on a single test employee HR designates (ideally a founder or an intentionally created dummy), (ii) writes blocked outside a defined maintenance window for the first cycle of each domain, (iii) each new domain's first live cycle requires explicit Super-Admin confirmation with a typed reason logged to `hr_razorpay_sync_log`.
-
-## What this plan does NOT do
-
-- Does not touch existing HRMS computation (leave triggers, hour accounts, payroll state machine, revision scheduler).
-- Does not build any UI or code against an UNVERIFIED sub-type — discovery must land first.
-- Does not enable any write toggle by default.
-- Does not treat Razorpay's dashboard as an editing surface once Phase 10 lands for a domain.
-
-## Immediate next action after approval
-
-Run the discovery task: probe the read-only sub-types listed above and ask the owner to upload the Postman collection JSON. Fill `razorpay_endpoint_registry`. Only then does Phase 1 build begin.
+Phase 1b — Onboarding gap-check UI: surface the same gap data inside the Onboarding Pipeline row-by-row and block stage completion when required fields are still empty. Approval on this plan implies Phase 1b is queued next; I will re-plan before starting it.

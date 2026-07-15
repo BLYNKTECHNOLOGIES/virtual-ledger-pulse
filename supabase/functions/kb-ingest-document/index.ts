@@ -181,14 +181,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const { requireAuth } = await import("../_shared/require-auth.ts");
+    const auth = await requireAuth(req, { corsHeaders, permission: "help_assistant_manage" });
+    if (!auth.ok) return auth.response;
+
     const { documentId } = await req.json();
     if (!documentId) return json({ error: "documentId required" }, 400);
 
     // Mark as queued immediately so UI shows progress instantly
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = auth.admin;
     await supabase.from("kb_documents").update({
       status: "processing",
       ingest_stage: "queued",

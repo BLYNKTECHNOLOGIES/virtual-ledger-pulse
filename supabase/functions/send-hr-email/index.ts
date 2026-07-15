@@ -203,6 +203,12 @@ Deno.serve(async (req) => {
       htmlBody = buildCareersHtml(data)
       if (!replyTo && data.email) replyTo = String(data.email)
     } else {
+      // Non-careers templates: require authenticated staff session. This
+      // prevents anonymous callers from using the company SMTP account as
+      // an open email relay for arbitrary recipient/subject/htmlBody.
+      const { requireAuth } = await import('../_shared/require-auth.ts')
+      const authRes = await requireAuth(req, { corsHeaders })
+      if (!authRes.ok) return authRes.response
       recipientEmail = body.recipientEmail || body.recipient_email
       subject = body.subject
       htmlBody = body.htmlBody || body.html_body

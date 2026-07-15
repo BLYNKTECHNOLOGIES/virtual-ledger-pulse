@@ -1,5 +1,5 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
+import { requireAuth } from '../_shared/require-auth.ts'
 
 const COLS = [
   'client_code','client_name','nickname','source','resolved_userno','distinct_usernos_on_nick',
@@ -16,9 +16,9 @@ function csvCell(v: unknown): string {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const url = Deno.env.get('SUPABASE_URL')!
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const supabase = createClient(url, key)
+  const auth = await requireAuth(req, { corsHeaders, permission: 'clients_view' })
+  if (!auth.ok) return auth.response
+  const supabase = auth.admin
 
   const onlySplits = new URL(req.url).searchParams.get('splits') === '1'
 

@@ -318,6 +318,19 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Auth: allow either a shared dispatcher secret (used by dispatch-report-emails
+    // cron), or an authenticated staff session. Blocks anonymous callers from
+    // reading confidential KYC/compliance data via dryRun and from redirecting
+    // the email to arbitrary addresses.
+    const dispatcherSecret = Deno.env.get("REPORT_DISPATCH_SECRET") || Deno.env.get("CRON_SECRET");
+    const providedSecret = req.headers.get("x-report-dispatch-secret") || "";
+    const dispatcherAuthorized = !!(dispatcherSecret && providedSecret && providedSecret === dispatcherSecret);
+    if (!dispatcherAuthorized) {
+      const { requireAuth } = await import("../_shared/require-auth.ts");
+      const authRes = await requireAuth(req, { corsHeaders });
+      if (!authRes.ok) return authRes.response;
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -327,7 +340,8 @@ serve(async (req) => {
     try { body = await req.json(); } catch { /* no body */ }
 
     const date: string = body.date || istToday();
-    const recipients: string[] = Array.isArray(body.recipients)
+    // Only accept caller-supplied recipients when server-to-server authorized.
+    const recipients: string[] = dispatcherAuthorized && Array.isArray(body.recipients)
       ? body.recipients.filter((r: string) => !!r && r.trim())
       : [];
 

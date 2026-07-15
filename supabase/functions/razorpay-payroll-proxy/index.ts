@@ -564,6 +564,105 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, summary, rows });
     }
 
+    // ---------- pull_person_full: deep-pull + project (Phase 1a) ----------
+    // Fetches people:view for every mapped Razorpay id (or a supplied subset),
+    // stores the raw envelope, and projects it into hr_employees /
+    // hr_employee_work_info / hr_employee_bank_details using ERP-wins
+    // semantics. NEVER touches is_active. NEVER pushes to Razorpay.
+    if (action === "pull_person_full") {
+      const only: string[] | null = Array.isArray(payload?.razorpay_employee_ids) && payload.razorpay_employee_ids.length
+        ? payload.razorpay_employee_ids.map((v: any) => String(v))
+        : null;
+
+      let query = svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,hr_employee_id,last_payload_hash");
+      if (only) query = query.in("razorpay_employee_id", only);
+      const { data: maps, error: mapsErr } = await query;
+      if (mapsErr) return json(500, { error: `map read failed: ${mapsErr.message}` });
+
+      const rows: any[] = [];
+      let pulled = 0, skipped = 0, missed = 0, errored = 0, wroteAny = 0;
+
+      for (const m of maps || []) {
+        const eid = Number(m.razorpay_employee_id);
+        if (!Number.isFinite(eid) || eid < 1) { skipped++; continue; }
+        const r = await opfinView(eid);
+        if (!r.ok) {
+          missed++;
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "miss", http_status: r.status });
+          continue;
+        }
+        try {
+          const hash = await canonicalHash(r.body);
+          const unchanged = m.last_payload_hash === hash;
+          // Always refresh snapshot + last_pulled_at, but skip projection when unchanged.
+          await svc.from("hr_razorpay_employee_map").update({
+            last_pull_snapshot: r.body,
+            last_pulled_at: new Date().toISOString(),
+            last_payload_hash: hash,
+          }).eq("razorpay_employee_id", m.razorpay_employee_id);
+
+          let diff: any = null;
+          if (!unchanged) {
+            diff = await projectSnapshotIntoErp(svc, m.hr_employee_id, r.body);
+            const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length;
+            if (wroteCount) wroteAny++;
+          }
+
+          await logSync(svc, {
+            action: "pull_person",
+            http_status: r.status,
+            razorpay_employee_id: String(eid),
+            hr_employee_id: m.hr_employee_id,
+            field_diff_summary: {
+              unchanged,
+              wrote: diff ? {
+                hr_employees: diff.hr_employees.wrote,
+                work_info: diff.work_info.wrote,
+                bank: diff.bank.wrote,
+              } : null,
+              conflicts: diff ? {
+                hr_employees: diff.hr_employees.conflicts,
+                work_info: diff.work_info.conflicts,
+                bank: diff.bank.conflicts,
+              } : null,
+              field_names: fieldNames(r.body),
+            },
+            actor_user_id: authed.userId,
+          });
+
+          pulled++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: unchanged ? "unchanged" : "projected",
+            wrote: diff ? {
+              hr_employees: diff.hr_employees.wrote.length,
+              work_info: diff.work_info.wrote.length,
+              bank: diff.bank.wrote.length,
+            } : null,
+            conflicts: diff ? diff.hr_employees.conflicts.length + diff.work_info.conflicts.length + diff.bank.conflicts.length : 0,
+          });
+        } catch (rowErr: any) {
+          errored++;
+          const msg = String(rowErr?.message ?? rowErr);
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "error", error: msg });
+          await logSync(svc, {
+            action: "pull_person", http_status: 500,
+            razorpay_employee_id: String(eid),
+            hr_employee_id: m.hr_employee_id,
+            error_text: msg,
+            actor_user_id: authed.userId,
+          }).catch(() => {});
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        summary: { total: (maps || []).length, pulled, projected_writes: wroteAny, missed, errored, skipped },
+        rows,
+      });
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
   } catch (e) {
     console.error("razorpay-payroll-proxy error", e);

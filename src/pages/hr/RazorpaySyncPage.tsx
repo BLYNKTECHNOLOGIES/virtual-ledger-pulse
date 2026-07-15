@@ -686,6 +686,8 @@ export default function RazorpaySyncPage() {
                           {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
                           {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
                           {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
+                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no baseline</Badge>}
+                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
                         </td>
                         <td className="p-2 text-muted-foreground">{row.changed.join(", ") || "—"}</td>
                         <td className="p-2 text-amber-600">{row.conflicts?.join(", ") || "—"}</td>

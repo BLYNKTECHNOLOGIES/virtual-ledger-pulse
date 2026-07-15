@@ -8251,32 +8251,44 @@ export type Database = {
       hr_razorpay_settings: {
         Row: {
           base_url: string
+          bulk_push_unlocked: boolean
           bulk_sync_unlocked: boolean
           created_at: string
           id: string
           is_singleton: boolean
           last_creds_validated_at: string | null
           last_import_at: string | null
+          last_push_at: string | null
+          push_pilot_hr_employee_id: string | null
+          push_pilot_verified_at: string | null
           updated_at: string
         }
         Insert: {
           base_url?: string
+          bulk_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           created_at?: string
           id?: string
           is_singleton?: boolean
           last_creds_validated_at?: string | null
           last_import_at?: string | null
+          last_push_at?: string | null
+          push_pilot_hr_employee_id?: string | null
+          push_pilot_verified_at?: string | null
           updated_at?: string
         }
         Update: {
           base_url?: string
+          bulk_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           created_at?: string
           id?: string
           is_singleton?: boolean
           last_creds_validated_at?: string | null
           last_import_at?: string | null
+          last_push_at?: string | null
+          push_pilot_hr_employee_id?: string | null
+          push_pilot_verified_at?: string | null
           updated_at?: string
         }
         Relationships: []

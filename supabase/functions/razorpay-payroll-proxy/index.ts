@@ -793,6 +793,207 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---------- PHASE 3 — Employee-master PUSH (people:update) ----------
+    // Build a conservative payload from the current ERP row, diff against the
+    // last pull snapshot cached on hr_razorpay_employee_map, and (optionally)
+    // POST people:update. Pilot-one gate: bulk push requires push_pilot_verified
+    // on settings AND explicit unlock_bulk_push.
+    //
+    // Fields whitelisted for push (identity/metadata only — bank/PAN handled in
+    // Phase 4 with an isolated flow):
+    //   name, phone_number, email, gender, date-of-birth,
+    //   department, title, date-of-joining, employee_type
+    if (
+      action === "push_person_dry_run" ||
+      action === "push_person_apply_one" ||
+      action === "push_person_apply_bulk"
+    ) {
+      const settingsRow = await readSettings(svc);
+      const only: string[] | null = Array.isArray(payload?.razorpay_employee_ids) && payload.razorpay_employee_ids.length
+        ? payload.razorpay_employee_ids.map((v: any) => String(v))
+        : (payload?.razorpay_employee_id ? [String(payload.razorpay_employee_id)] : null);
+
+      if (action === "push_person_apply_bulk") {
+        if (!settingsRow?.push_pilot_verified_at) {
+          return json(400, { error: "Push pilot not yet verified. Run push_person_apply_one on one employee first." });
+        }
+        if (!settingsRow?.bulk_push_unlocked) {
+          return json(400, { error: "Bulk push locked. Call action:unlock_bulk_push after reviewing the pilot log." });
+        }
+      }
+      if (action === "push_person_apply_one" && (!only || only.length !== 1)) {
+        return json(400, { error: "push_person_apply_one requires exactly one razorpay_employee_id" });
+      }
+
+      // Load mappings + latest snapshot.
+      let query = svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,hr_employee_id,last_pull_snapshot,is_pilot_verified");
+      if (only) query = query.in("razorpay_employee_id", only);
+      const { data: maps, error: mapsErr } = await query;
+      if (mapsErr) return json(500, { error: `map read failed: ${mapsErr.message}` });
+      if (!maps?.length) return json(400, { error: "No mappings resolved for the requested id(s)" });
+
+      // Collect ERP snapshots in bulk.
+      const hrIds = maps.map((m: any) => m.hr_employee_id).filter(Boolean);
+      const [{ data: emps }, { data: wis }] = await Promise.all([
+        svc.from("hr_employees")
+          .select("id,first_name,last_name,email,phone,gender,dob")
+          .in("id", hrIds),
+        svc.from("hr_employee_work_info")
+          .select("employee_id,department_id,job_role,joining_date,employee_type")
+          .in("employee_id", hrIds),
+      ]);
+      const empById = new Map((emps || []).map((r: any) => [r.id, r]));
+      const wiById = new Map((wis || []).map((r: any) => [r.employee_id, r]));
+      const deptIds = Array.from(new Set((wis || []).map((r: any) => r.department_id).filter(Boolean)));
+      const deptById = new Map<string, string>();
+      if (deptIds.length) {
+        const { data: depts } = await svc.from("departments").select("id,name").in("id", deptIds);
+        for (const d of depts || []) deptById.set(d.id, d.name);
+      }
+
+      function buildIncoming(hrId: string): Record<string, any> {
+        const e: any = empById.get(hrId) || {};
+        const w: any = wiById.get(hrId) || {};
+        const full = [e.first_name, e.last_name].filter(Boolean).join(" ").trim();
+        const dobIso = e.dob ? String(e.dob) : null;
+        // Razorpay accepts dd/mm/yyyy for date-of-birth on people:update.
+        const dobRp = dobIso && /^\d{4}-\d{2}-\d{2}$/.test(dobIso)
+          ? `${dobIso.slice(8, 10)}/${dobIso.slice(5, 7)}/${dobIso.slice(0, 4)}` : null;
+        const joinIso = w.joining_date ? String(w.joining_date) : null;
+        const joinRp = joinIso && /^\d{4}-\d{2}-\d{2}$/.test(joinIso)
+          ? `${joinIso.slice(8, 10)}/${joinIso.slice(5, 7)}/${joinIso.slice(0, 4)}` : null;
+        return {
+          name: full || null,
+          phone_number: normPhone(e.phone),
+          email: e.email ? String(e.email).trim().toLowerCase() : null,
+          gender: e.gender ? String(e.gender).toLowerCase() : null,
+          "date-of-birth": dobRp,
+          department: deptById.get(w.department_id) || null,
+          title: w.job_role || null,
+          "date-of-joining": joinRp,
+          employee_type: w.employee_type || null,
+        };
+      }
+
+      // Diff incoming vs last snapshot; only include keys where the value
+      // actually differs (case/whitespace normalised).
+      function diffPayload(incoming: Record<string, any>, snap: any): { patch: Record<string, any>; changed: string[]; conflicts: string[] } {
+        const patch: Record<string, any> = {};
+        const changed: string[] = [];
+        const conflicts: string[] = [];
+        const s = snap && typeof snap === "object" ? snap : {};
+        for (const [k, v] of Object.entries(incoming)) {
+          if (v === null || v === undefined || v === "") continue;
+          const cur = s?.[k];
+          const curStr = cur === null || cur === undefined ? "" : String(cur).trim();
+          const nextStr = String(v).trim();
+          if (curStr === nextStr) continue;
+          patch[k] = v;
+          changed.push(k);
+          if (curStr) conflicts.push(k);
+        }
+        return { patch, changed, conflicts };
+      }
+
+      const rows: any[] = [];
+      let planned = 0, unchanged = 0, pushed = 0, failed = 0, skipped = 0;
+
+      for (const m of maps) {
+        const eid = Number(m.razorpay_employee_id);
+        if (!Number.isFinite(eid) || eid < 1 || !m.hr_employee_id) { skipped++; continue; }
+        const incoming = buildIncoming(m.hr_employee_id);
+        const diff = diffPayload(incoming, m.last_pull_snapshot);
+        if (!diff.changed.length) {
+          unchanged++;
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "unchanged", changed: [] });
+          continue;
+        }
+        planned++;
+        if (action === "push_person_dry_run") {
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "planned",
+            changed: diff.changed,
+            conflicts: diff.conflicts,
+            payload_field_names: Object.keys(diff.patch).sort(),
+          });
+          continue;
+        }
+
+        // Live push
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        let httpStatus = 0; let ok = false; let errText: string | null = null;
+        try {
+          const res = await fetch(`${BASE}/people`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: "people", "sub-type": "update" },
+              data: { "employee-id": eid, "employee-type": "employee", ...diff.patch },
+            }),
+            signal: ctrl.signal,
+          });
+          httpStatus = res.status;
+          const raw = await res.text();
+          let body: any = null; try { body = JSON.parse(raw); } catch { /* ignore */ }
+          const rpErr = body && typeof body === "object" ? (body.error || body.message || null) : null;
+          ok = res.ok && !rpErr;
+          if (!ok) errText = rpErr || raw?.slice(0, 400) || `HTTP ${res.status}`;
+        } catch (e) {
+          errText = `NETWORK: ${(e as Error).message}`;
+        } finally { clearTimeout(t); }
+
+        await logSync(svc, {
+          action: "push_person",
+          http_status: httpStatus,
+          razorpay_employee_id: String(eid),
+          hr_employee_id: m.hr_employee_id,
+          field_diff_summary: { changed: diff.changed, conflicts: diff.conflicts, payload_field_names: Object.keys(diff.patch).sort() },
+          error_text: ok ? null : errText,
+          actor_user_id: authed.userId,
+        });
+
+        if (ok) {
+          pushed++;
+          // If this is pilot-apply and pilot not verified yet, stamp it.
+          if (action === "push_person_apply_one" && !settingsRow?.push_pilot_verified_at) {
+            await svc.from("hr_razorpay_settings").update({
+              push_pilot_verified_at: new Date().toISOString(),
+              push_pilot_hr_employee_id: m.hr_employee_id,
+              last_push_at: new Date().toISOString(),
+            }).eq("is_singleton", true);
+          } else {
+            await svc.from("hr_razorpay_settings").update({ last_push_at: new Date().toISOString() }).eq("is_singleton", true);
+          }
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "pushed", changed: diff.changed });
+        } else {
+          failed++;
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "failed", changed: diff.changed, error: errText });
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        summary: { total: maps.length, planned, unchanged, pushed, failed, skipped },
+        rows,
+        pilot: {
+          verified_at: settingsRow?.push_pilot_verified_at || null,
+          bulk_unlocked: !!settingsRow?.bulk_push_unlocked,
+        },
+      });
+    }
+
+    if (action === "unlock_bulk_push") {
+      const s = await readSettings(svc);
+      if (!s?.push_pilot_verified_at) return json(400, { error: "Cannot unlock bulk push — pilot not verified yet." });
+      await svc.from("hr_razorpay_settings").update({ bulk_push_unlocked: true }).eq("is_singleton", true);
+      return json(200, { ok: true });
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
   } catch (e) {
     console.error("razorpay-payroll-proxy error", e);

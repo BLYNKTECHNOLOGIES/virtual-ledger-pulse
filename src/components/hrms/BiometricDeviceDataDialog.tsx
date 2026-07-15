@@ -1,12 +1,21 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Cpu, Users, Fingerprint, ScrollText, Image as ImageIcon, Activity, Wifi } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Cpu, Users, Fingerprint, ScrollText, Image as ImageIcon, Activity, Wifi, Settings2, Trash2, UserPlus, MessageSquare, Power, DoorOpen, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -77,14 +86,58 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     queryFn: async () => (await (supabase as any).from("hr_biometric_device_photos").select("id,pin,kind,size_bytes,photo_base64,punch_time,captured_at").eq("device_serial", serial).order("captured_at", { ascending: false }).limit(60)).data || [],
   });
 
-  const queueCmd = async (cmd: string) => {
+
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const queueCmd = async (cmd: string, successMsg = "Command queued — device will pick it up on next heartbeat") => {
     if (!serial) return;
+    setBusy(true);
     const { error } = await (supabase as any).from("hr_biometric_device_commands").insert({
       device_serial: serial, command_text: cmd, status: "pending",
     });
+    setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("Command queued — device will pick it up on next heartbeat");
+    toast.success(successMsg);
+    qc.invalidateQueries({ queryKey: ["bio-cmds", serial] });
   };
+
+  // eSSL/ZKTeco iclock write commands — device-side only, unrelated to HRMS
+  const escape = (v: string) => String(v ?? "").replace(/\t/g, " ").replace(/\n/g, " ");
+  const upsertUser = (p: { pin: string; name: string; privilege: number; password?: string; card?: string; group?: string }) => {
+    const parts = [
+      `PIN=${escape(p.pin)}`,
+      `Name=${escape(p.name)}`,
+      `Pri=${p.privilege ?? 0}`,
+      p.password ? `Passwd=${escape(p.password)}` : "",
+      p.card ? `Card=${escape(p.card)}` : "",
+      p.group ? `Grp=${escape(p.group)}` : "1",
+    ].filter(Boolean).join("\t");
+    return queueCmd(`C:${Date.now()}:DATA UPDATE USERINFO ${parts}`, `User ${p.pin} queued for push`);
+  };
+  const deleteUser = (pin: string) =>
+    queueCmd(`C:${Date.now()}:DATA DELETE USERINFO PIN=${escape(pin)}`, `Delete user ${pin} queued`);
+  const clearAll = (target: "DATA" | "LOG" | "PHOTO") =>
+    queueCmd(`C:${Date.now()}:CLEAR ${target}`, `CLEAR ${target} queued`);
+  const reboot = () => queueCmd(`C:${Date.now()}:REBOOT`, "Reboot queued");
+  const unlockDoor = () => queueCmd(`C:${Date.now()}:AC_UNLOCK`, "Door unlock queued");
+  const pushMessage = (pin: string, text: string, minutes = 60) => {
+    const smsId = Math.floor(Date.now() / 1000) % 2147483647;
+    const start = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+    return queueCmd(
+      `C:${Date.now()}:DATA UPDATE SMS MSG=${smsId}\tTAG=1\tUID=${smsId}\tMIN=${minutes}\tStartTime=${start}\tContent=${escape(text)}` +
+      (pin ? `\nC:${Date.now() + 1}:DATA UPDATE USER_SMS PIN=${escape(pin)}\tMSG=${smsId}` : ""),
+      pin ? `Message pushed to PIN ${pin}` : `Broadcast message queued`
+    );
+  };
+  const setOption = (key: string, value: string) =>
+    queueCmd(`C:${Date.now()}:SET OPTION ${escape(key)}=${escape(value)}`, `Option ${key}=${value} queued`);
+
+  const cmdsQ = useQuery({
+    enabled: !!serial && open,
+    queryKey: ["bio-cmds", serial],
+    queryFn: async () => (await (supabase as any).from("hr_biometric_device_commands").select("*").eq("device_serial", serial).order("created_at", { ascending: false }).limit(40)).data || [],
+  });
 
   const info = infoQ.data;
   const users = usersQ.data || [];
@@ -92,6 +145,7 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
   const oplog = oplogQ.data || [];
   const punches = punchesQ.data || [];
   const photos = photosQ.data || [];
+  const cmds = cmdsQ.data || [];
 
   const fpTotal = templates.filter((t: any) => t.template_kind === "FP" || t.template_kind === "BIODATA").length;
   const faceTotal = templates.filter((t: any) => t.template_kind === "FACE").length;
@@ -117,13 +171,14 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
           </div>
         ) : (
           <Tabs defaultValue="overview" className="flex-1 min-h-0 flex flex-col">
-            <TabsList className="grid grid-cols-6 w-full">
+            <TabsList className="grid grid-cols-7 w-full">
               <TabsTrigger value="overview"><Activity className="h-3.5 w-3.5 mr-1" />Overview</TabsTrigger>
               <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1" />Users ({users.length})</TabsTrigger>
               <TabsTrigger value="bio"><Fingerprint className="h-3.5 w-3.5 mr-1" />Biometrics ({templates.length})</TabsTrigger>
               <TabsTrigger value="punches"><Wifi className="h-3.5 w-3.5 mr-1" />Punches ({punches.length})</TabsTrigger>
               <TabsTrigger value="oplog"><ScrollText className="h-3.5 w-3.5 mr-1" />Operator Log ({oplog.length})</TabsTrigger>
               <TabsTrigger value="photos"><ImageIcon className="h-3.5 w-3.5 mr-1" />Photos ({photos.length})</TabsTrigger>
+              <TabsTrigger value="manage"><Settings2 className="h-3.5 w-3.5 mr-1" />Manage</TabsTrigger>
             </TabsList>
 
             <div className="flex-1 min-h-0 overflow-hidden mt-3">
@@ -205,10 +260,11 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                         <TableHead className="text-center">Palm</TableHead>
                         <TableHead>Employee</TableHead>
                         <TableHead>Last Seen</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No user roster received yet. On the device panel: Data Mgmt → Upload All Data → Users.</TableCell></TableRow>}
+                      {users.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">No user roster received yet. On the device panel: Data Mgmt → Upload All Data → Users.</TableCell></TableRow>}
                       {users.map((u: any) => (
                         <TableRow key={u.id}>
                           <TableCell className="font-mono">{u.pin}</TableCell>
@@ -222,6 +278,25 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                           <TableCell className="text-center">{u.palm_count || 0}</TableCell>
                           <TableCell>{u.matched_employee_id ? <Badge variant="outline" className="text-xs">Linked</Badge> : <Badge variant="destructive" className="text-xs">Unlinked</Badge>}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmt(u.last_seen_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete user from device?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This queues a <code>DATA DELETE USERINFO PIN={u.pin}</code> command on the device. Fingerprint/face/card templates for this PIN will also be removed on the device. This does NOT affect HRMS employee records.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteUser(u.pin)} className="bg-destructive text-destructive-foreground">Delete on device</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -335,10 +410,204 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                   )}
                 </ScrollArea>
               </TabsContent>
+
+              {/* Manage — device-side write actions, decoupled from HRMS */}
+              <TabsContent value="manage" className="h-full m-0">
+                <ScrollArea className="h-[65vh] pr-4">
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400 flex gap-2">
+                      <AlertTriangle className="h-4 w-4 flex-none mt-0.5" />
+                      <div>
+                        These actions modify the eSSL device roster/state directly. They are <b>independent of HRMS</b> — device names, cards and PINs on the device are informational only. HRMS attendance mapping is driven solely by <b>Badge ID (PIN) → Employee</b>.
+                      </div>
+                    </div>
+
+                    <ManageUserCard onSubmit={upsertUser} busy={busy} />
+                    <BroadcastCard onSubmit={pushMessage} busy={busy} users={users} />
+                    <DeviceOptionCard onSubmit={setOption} busy={busy} />
+
+                    <Card><CardContent className="p-4 space-y-3">
+                      <div className="text-xs font-semibold text-destructive flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" />Danger Zone</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <DangerAction label="Clear all attendance logs" desc="Wipes ATTLOG on device. Punches already synced to HRMS are safe." confirm="CLEAR LOG" onConfirm={() => clearAll("LOG")} disabled={busy} />
+                        <DangerAction label="Clear all photos" desc="Wipes captured photos on device (attendance snapshots + avatars)." confirm="CLEAR PHOTO" onConfirm={() => clearAll("PHOTO")} disabled={busy} />
+                        <DangerAction label="Clear ALL device data" desc="Wipes users, templates, logs — full factory-like reset of storage." confirm="CLEAR DATA" onConfirm={() => clearAll("DATA")} disabled={busy} destructive />
+                        <DangerAction label="Reboot device" icon={<Power className="h-3.5 w-3.5" />} desc="Sends REBOOT command. Device will be offline for ~60s." confirm="REBOOT" onConfirm={reboot} disabled={busy} />
+                        <DangerAction label="Unlock door (AC)" icon={<DoorOpen className="h-3.5 w-3.5" />} desc="Triggers remote door unlock via access-control relay (if wired)." confirm="AC_UNLOCK" onConfirm={unlockDoor} disabled={busy} />
+                      </div>
+                    </CardContent></Card>
+
+                    <Card><CardContent className="p-4">
+                      <div className="text-xs font-semibold text-muted-foreground mb-3">Recent Commands ({cmds.length})</div>
+                      <Table>
+                        <TableHeader><TableRow>
+                          <TableHead>Time</TableHead><TableHead>Status</TableHead><TableHead>Command</TableHead><TableHead>Response</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                          {cmds.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No commands yet.</TableCell></TableRow>}
+                          {cmds.map((c: any) => (
+                            <TableRow key={c.id}>
+                              <TableCell className="text-xs">{fmt(c.created_at)}</TableCell>
+                              <TableCell>
+                                <Badge variant={c.status === "delivered" ? "outline" : c.status === "pending" ? "secondary" : "default"} className="text-[10px]">
+                                  {c.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-mono text-[11px] max-w-[380px] truncate" title={c.command_text}>{c.command_text}</TableCell>
+                              <TableCell className="text-[11px] text-muted-foreground max-w-[200px] truncate" title={c.response_text || ""}>{c.response_text || "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent></Card>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
             </div>
           </Tabs>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// --- Manage subcomponents ---
+
+function ManageUserCard({ onSubmit, busy }: { onSubmit: (p: any) => Promise<any>; busy: boolean }) {
+  const [pin, setPin] = useState("");
+  const [name, setName] = useState("");
+  const [privilege, setPrivilege] = useState("0");
+  const [password, setPassword] = useState("");
+  const [card, setCard] = useState("");
+  const [group, setGroup] = useState("1");
+
+  const submit = async () => {
+    if (!pin.trim()) return toast.error("PIN (Badge ID) is required");
+    await onSubmit({ pin: pin.trim(), name: name.trim(), privilege: Number(privilege), password, card, group });
+    setPin(""); setName(""); setPassword(""); setCard("");
+  };
+
+  return (
+    <Card><CardContent className="p-4 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><UserPlus className="h-3.5 w-3.5" />Create / Update User on Device</div>
+      <div className="text-[11px] text-muted-foreground -mt-2">
+        Uses <code>DATA UPDATE USERINFO</code>. If PIN already exists on the device it will be updated. Name/card on device are cosmetic — HRMS links via <b>PIN → Badge ID</b> only.
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">PIN (Badge ID) *</Label><Input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="e.g. 1042" /></div>
+        <div><Label className="text-xs">Name (on device)</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Display name" /></div>
+        <div>
+          <Label className="text-xs">Privilege</Label>
+          <Select value={privilege} onValueChange={setPrivilege}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">User</SelectItem>
+              <SelectItem value="1">Enroller</SelectItem>
+              <SelectItem value="2">Admin</SelectItem>
+              <SelectItem value="3">Super Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Password</Label><Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Optional" /></div>
+        <div><Label className="text-xs">Card No</Label><Input value={card} onChange={(e) => setCard(e.target.value)} placeholder="RFID / MIFARE" /></div>
+        <div><Label className="text-xs">Group</Label><Input value={group} onChange={(e) => setGroup(e.target.value)} /></div>
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={submit} disabled={busy}>Queue push to device</Button>
+      </div>
+    </CardContent></Card>
+  );
+}
+
+function BroadcastCard({ onSubmit, busy, users }: { onSubmit: (pin: string, text: string, min?: number) => Promise<any>; busy: boolean; users: any[] }) {
+  const [pin, setPin] = useState("");
+  const [text, setText] = useState("");
+  const [minutes, setMinutes] = useState("60");
+
+  const submit = async () => {
+    if (!text.trim()) return toast.error("Message text is required");
+    await onSubmit(pin.trim(), text.trim(), Number(minutes) || 60);
+    setText("");
+  };
+
+  return (
+    <Card><CardContent className="p-4 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" />Push Message to Device Display</div>
+      <div className="text-[11px] text-muted-foreground -mt-2">
+        Personal message (PIN set) shows after that user verifies. Leave PIN empty for a broadcast to all users.
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">Target PIN (blank = broadcast)</Label><Input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="e.g. 1042" list="bio-pins" /><datalist id="bio-pins">{users.map((u: any) => <option key={u.pin} value={u.pin}>{u.name}</option>)}</datalist></div>
+        <div className="md:col-span-2"><Label className="text-xs">Message</Label><Textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="Message to display on the device screen" /></div>
+        <div><Label className="text-xs">Show for (minutes)</Label><Input type="number" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></div>
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={submit} disabled={busy}>Queue message</Button>
+      </div>
+    </CardContent></Card>
+  );
+}
+
+function DeviceOptionCard({ onSubmit, busy }: { onSubmit: (k: string, v: string) => Promise<any>; busy: boolean }) {
+  const [key, setKey] = useState("");
+  const [value, setValue] = useState("");
+  const presets = [
+    { k: "VerifyMode", v: "1", label: "Verify: FP / Pwd / Card" },
+    { k: "VerifyMode", v: "9", label: "Verify: Face" },
+    { k: "IsSupportBioPhoto", v: "1", label: "Enable attendance photo capture" },
+    { k: "AttPhotoUpload", v: "1", label: "Upload attendance photos to server" },
+  ];
+  return (
+    <Card><CardContent className="p-4 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Settings2 className="h-3.5 w-3.5" />Device Option / Setting</div>
+      <div className="text-[11px] text-muted-foreground -mt-2">
+        Sends <code>SET OPTION key=value</code>. Refer to your device firmware option keys.
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {presets.map((p) => (
+          <Button key={p.label} size="sm" variant="outline" className="text-[11px] h-7" disabled={busy} onClick={() => onSubmit(p.k, p.v)}>{p.label}</Button>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">Option key</Label><Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="e.g. VerifyMode" /></div>
+        <div><Label className="text-xs">Value</Label><Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 1" /></div>
+        <div className="flex items-end"><Button size="sm" onClick={() => key && value && onSubmit(key, value)} disabled={busy || !key || !value}>Queue option</Button></div>
+      </div>
+    </CardContent></Card>
+  );
+}
+
+function DangerAction({ label, desc, confirm, onConfirm, disabled, destructive, icon }: { label: string; desc: string; confirm: string; onConfirm: () => void; disabled?: boolean; destructive?: boolean; icon?: React.ReactNode }) {
+  const [typed, setTyped] = useState("");
+  const [open, setOpen] = useState(false);
+  return (
+    <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setTyped(""); }}>
+      <AlertDialogTrigger asChild>
+        <Button variant={destructive ? "destructive" : "outline"} size="sm" disabled={disabled} className="justify-start">
+          {icon || <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+          <span className="text-xs">{label}</span>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{label}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {desc}<br /><br />
+            Type <code className="font-mono px-1 py-0.5 bg-muted rounded">{confirm}</code> to confirm:
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={confirm} className="font-mono" />
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={typed !== confirm}
+            className={destructive ? "bg-destructive text-destructive-foreground" : ""}
+            onClick={() => { onConfirm(); setOpen(false); }}
+          >
+            Queue on device
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

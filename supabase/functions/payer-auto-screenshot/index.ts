@@ -164,21 +164,24 @@ Deno.serve(async (req: Request) => {
     global: { headers: { Authorization: authHeader } },
   });
 
+  // Require an authenticated session — this endpoint sends chat messages
+  // to Binance counterparties from the company's real merchant account.
+  const { data: userData, error: userErr } = await userClient.auth.getUser();
+  const payerId = userData?.user?.id ?? null;
+  if (userErr || !payerId) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
   const body = await req.json().catch(() => ({}));
   const orderNumber = String(body?.orderNumber || "").trim();
   const phase = String(body?.phase || "prepare");
   if (!orderNumber) return jsonResponse({ error: "orderNumber required" }, 400);
 
-  // Resolve payer identity for logging.
-  let payerId: string | null = null;
+  // Resolve payer display name for logging.
   let payerName: string | null = null;
   try {
-    const { data: u } = await userClient.auth.getUser();
-    payerId = u?.user?.id ?? null;
-    if (payerId) {
-      const { data: prof } = await adminClient.from("profiles").select("name,email").eq("user_id", payerId).maybeSingle();
-      payerName = (prof as any)?.name || (prof as any)?.email || u?.user?.email || null;
-    }
+    const { data: prof } = await adminClient.from("profiles").select("name,email").eq("user_id", payerId).maybeSingle();
+    payerName = (prof as any)?.name || (prof as any)?.email || userData.user.email || null;
   } catch (_) { /* ignore */ }
 
   const logRow = async (status: string, extra: Record<string, any>, error_message?: string) => {

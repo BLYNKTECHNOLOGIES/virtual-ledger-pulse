@@ -335,6 +335,7 @@ export function GrossProfitHistoryTab() {
                     strokeWidth={2}
                     dot={{ r: 4, fill: "#6366f1" }}
                     activeDot={{ r: 6 }}
+                    connectNulls
                   />
                 </ComposedChart>
               </ResponsiveContainer>

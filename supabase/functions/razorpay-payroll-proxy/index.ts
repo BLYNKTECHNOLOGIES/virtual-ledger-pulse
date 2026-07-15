@@ -34,11 +34,11 @@ function json(status: number, body: unknown) {
 
 async function requireAuth(req: Request): Promise<{ userId: string } | Response> {
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return json(401, { error: "Unauthorized" });
+  if (!authHeader?.toLowerCase().startsWith("bearer ")) return json(401, { error: "Unauthorized" });
   const c = createClient(SUPA_URL, ANON, { global: { headers: { Authorization: authHeader } } });
-  const { data, error } = await c.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (error || !data?.claims?.sub) return json(401, { error: "Unauthorized" });
-  return { userId: data.claims.sub as string };
+  const { data, error } = await c.auth.getUser();
+  if (error || !data?.user?.id) return json(401, { error: "Unauthorized" });
+  return { userId: data.user.id };
 }
 
 async function requirePermission(userId: string, svc: SupabaseClient) {

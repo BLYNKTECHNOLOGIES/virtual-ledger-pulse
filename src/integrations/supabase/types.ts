@@ -18546,6 +18546,7 @@ export type Database = {
         | "ra_assign"
         | "ra_dashboard_view"
         | "user_management_hr_manage"
+        | "hrms_razorpay_sync"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -18865,6 +18866,7 @@ export const Constants = {
         "ra_assign",
         "ra_dashboard_view",
         "user_management_hr_manage",
+        "hrms_razorpay_sync",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

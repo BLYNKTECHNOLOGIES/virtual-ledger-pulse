@@ -76,9 +76,15 @@ serve(async (req) => {
         ? { recipients }
         : { recipients, variant: cfg.variant, mode: cfg.is_monthly ? "monthly" : "daily" };
 
+      // Server-to-server dispatch secret — authorises the report functions
+      // to accept caller-supplied recipients from this cron dispatcher.
+      const dispatcherSecret = Deno.env.get("REPORT_DISPATCH_SECRET") || Deno.env.get("CRON_SECRET") || "";
       const { data: invokeData, error: invokeError } = await supabase.functions.invoke(
         targetFn,
-        { body: invokeBody },
+        {
+          body: invokeBody,
+          headers: dispatcherSecret ? { "x-report-dispatch-secret": dispatcherSecret } : {},
+        },
       );
 
       const ok = !invokeError;

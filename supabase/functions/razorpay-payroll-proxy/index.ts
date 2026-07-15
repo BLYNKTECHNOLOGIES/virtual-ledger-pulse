@@ -152,27 +152,17 @@ async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: 
 async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string> {
   const { first, last } = splitName(e.name || "");
   const dept = (e.department || "General").toString().trim() || "General";
-  // generate_employee_id is deterministic (max+1 style) so on rapid sequential
-  // creates it can return the same badge for multiple rows within a batch.
-  // Strategy: try the RPC-provided badge first; on unique-violation, append a
-  // numeric suffix (-2, -3, ...) or a short random suffix until it lands.
-  const maxAttempts = 10;
+  // generate_employee_id is now concurrency-safe (advisory lock) and reads
+  // from hr_employees, so each call returns a unique sequential badge.
+  // We still retry a few times in case of transient unique-collision races.
+  const maxAttempts = 5;
   let lastErr: any = null;
-  let baseBadge: string | null = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    let badgeId: string;
-    if (attempt === 0) {
-      const { data: badgeData, error: badgeErr } = await svc.rpc("generate_employee_id", {
-        dept, designation: "Employee",
-      });
-      if (badgeErr) throw new Error(`generate_employee_id failed: ${badgeErr.message}`);
-      baseBadge = String(badgeData);
-      badgeId = baseBadge;
-    } else {
-      // fallback: append short random suffix to guarantee uniqueness
-      const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-      badgeId = `${baseBadge}-${suffix}`;
-    }
+    const { data: badgeData, error: badgeErr } = await svc.rpc("generate_employee_id", {
+      dept, designation: "Employee",
+    });
+    if (badgeErr) throw new Error(`generate_employee_id failed: ${badgeErr.message}`);
+    const badgeId = String(badgeData);
     const { data, error } = await svc.from("hr_employees").insert({
       badge_id: badgeId,
       first_name: first,
@@ -181,13 +171,12 @@ async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string>
       phone: normPhone(e.phone_number),
       dob: parseDobIso(e["date-of-birth"]),
       pan_number: (e.pan || "").toString().trim().toUpperCase() || null,
-      is_active: false, // draft
+      is_active: false, // draft — will surface in Onboarding Pipeline, not Employee list
       additional_info: { source: "razorpay_import", razorpay: { status: "draft", imported_at: new Date().toISOString() } },
     }).select("id").single();
     if (!error) return data!.id as string;
     lastErr = error;
-    // Retry on any unique-violation (badge_id, email, phone, pan). For non-badge
-    // uniqueness we can't just suffix, so break and surface a clear error.
+    // Only retry on badge_id unique-violation (extremely unlikely now)
     if ((error as any).code !== "23505") break;
     if (!String(error.message).includes("badge_id")) break;
   }

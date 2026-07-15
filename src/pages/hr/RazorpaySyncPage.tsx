@@ -8,6 +8,19 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, ShieldAlert, Search, Lock } from "lucide-react";
 
+interface EnvelopeAttempt {
+  url: string;
+  http_status: number;
+  body_type: string;
+  top_level_keys: string[];
+  array_key: string | null;
+  array_length: number | null;
+  scalar_keys: string[];
+  element_field_names: string[] | null;
+  raw_length: number;
+  raw_preview: string | null;
+}
+
 interface EnvelopeShape {
   ok?: boolean;
   http_status?: number;
@@ -16,6 +29,7 @@ interface EnvelopeShape {
   array_length?: number | null;
   scalar_keys?: string[];
   element_field_names?: string[] | null;
+  attempts?: EnvelopeAttempt[];
 }
 
 interface ValidateResult {
@@ -212,6 +226,25 @@ export default function RazorpaySyncPage() {
               <div className="text-xs text-muted-foreground mt-2">
                 No employee values are stored or logged. Field names only.
               </div>
+              {envelope.attempts && envelope.attempts.length > 0 && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs text-muted-foreground">
+                    Show all {envelope.attempts.length} probe attempts
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    {envelope.attempts.map((a, i) => (
+                      <div key={i} className="rounded border p-2 text-xs font-mono space-y-0.5">
+                        <div className="break-all">{a.url}</div>
+                        <div>HTTP {a.http_status} · body_type={a.body_type} · raw_length={a.raw_length}</div>
+                        <div>top_keys: [{a.top_level_keys.join(", ")}]</div>
+                        <div>array_key: {a.array_key ?? "—"} (len {a.array_length ?? 0})</div>
+                        <div>fields: {a.element_field_names?.join(", ") || "—"}</div>
+                        {a.raw_preview && <div className="text-destructive break-all">preview: {a.raw_preview}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </CardContent>

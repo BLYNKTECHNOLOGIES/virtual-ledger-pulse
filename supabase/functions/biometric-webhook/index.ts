@@ -736,3 +736,215 @@ async function updateDeviceHeartbeat(supabase: any, serialNumber: string, punchC
     }
   }
 }
+
+// ─── OPERLOG parser: USER, FP, FACE, PALM, VEIN, USERPIC, OPLOG, BIODATA ───
+// eSSL/ZKTeco push protocol reference:
+//   USER PIN=1\tName=John\tPri=0\tPasswd=\tCard=123\tGrp=1\tTZ=1\tVerify=0\tViceCard=
+//   FP    PIN=1\tFID=0\tSize=512\tValid=1\tTMP=<b64>
+//   FACE  PIN=1\tFID=50\tSize=1024\tValid=1\tTMP=<b64>
+//   PALM  PIN=1\tFID=0\tSize=..\tValid=1\tTMP=<b64>
+//   VEIN  PIN=1\tFID=0\tSize=..\tValid=1\tTMP=<b64>
+//   USERPIC PIN=1\tSize=..\tContent=<b64>
+//   OPLOG <code>\t<adminPin>\t<yyyy-mm-dd HH:MM:SS>\t<v1>\t<v2>\t<v3>\t<v4>
+//   BIODATA Pin=1\tNo=0\tIndex=0\tValid=1\tDuress=0\tType=1\tMajorVer=0\tMinorVer=0\tFormat=0\tTmp=<b64>
+function parseKV(line: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const seg of line.split(/\t+/)) {
+    const eq = seg.indexOf("=");
+    if (eq > 0) out[seg.slice(0, eq).trim().toLowerCase()] = seg.slice(eq + 1).trim();
+  }
+  return out;
+}
+
+const OPLOG_LABELS: Record<number, string> = {
+  0: "Startup", 1: "Shutdown", 2: "Auth Failure", 3: "Alarm", 4: "Menu Enter",
+  5: "Menu Exit", 6: "Enroll User", 7: "Enroll FP", 8: "Enroll Password", 9: "Enroll Card",
+  10: "Delete User", 11: "Delete FP", 12: "Delete Password", 13: "Delete Card",
+  14: "Modify User Info", 15: "Timezone Change", 16: "Doorbell", 17: "Factory Reset",
+  18: "Clear All Data", 19: "Clear Attendance", 20: "Time Set", 21: "Admin Sign-In",
+  22: "Enroll Face", 23: "Delete Face", 24: "Enroll Palm", 25: "Delete Palm",
+};
+
+async function parseOperlog(supabase: any, serialNumber: string, body: string) {
+  const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const userUpserts = new Map<string, any>();
+  const templates: any[] = [];
+  const photos: any[] = [];
+  const oplogs: any[] = [];
+
+  for (const line of lines) {
+    try {
+      if (line.startsWith("USER ") || line.startsWith("USER\t")) {
+        const kv = parseKV(line.replace(/^USER\s+/i, ""));
+        const pin = kv["pin"];
+        if (!pin) continue;
+        userUpserts.set(pin, {
+          device_serial: serialNumber,
+          pin,
+          name: kv["name"] || null,
+          privilege: kv["pri"] ? parseInt(kv["pri"]) : null,
+          password_set: !!kv["passwd"],
+          card_no: kv["card"] || null,
+          group_no: kv["grp"] ? parseInt(kv["grp"]) : null,
+          time_zones: kv["tz"] || null,
+          verify_mode: kv["verify"] ? parseInt(kv["verify"]) : null,
+          vice_card: kv["vicecard"] || null,
+          raw_line: line.slice(0, 500),
+          last_seen_at: new Date().toISOString(),
+        });
+      } else if (/^(FP|FACE|PALM|VEIN|BIODATA)\s/i.test(line)) {
+        const [kindRaw, ...rest] = line.split(/\s+/);
+        const kv = parseKV(rest.join("\t"));
+        const pin = kv["pin"];
+        if (!pin) continue;
+        templates.push({
+          device_serial: serialNumber,
+          pin,
+          template_kind: kindRaw.toUpperCase(),
+          finger_index: kv["fid"] ? parseInt(kv["fid"]) : (kv["index"] ? parseInt(kv["index"]) : 0),
+          size_bytes: kv["size"] ? parseInt(kv["size"]) : null,
+          valid: kv["valid"] === "1",
+          duress: kv["duress"] === "1",
+          algorithm_version: kv["majorver"] ? `${kv["majorver"]}.${kv["minorver"] || 0}` : null,
+        });
+      } else if (line.startsWith("USERPIC")) {
+        const kv = parseKV(line.replace(/^USERPIC\s+/i, ""));
+        const pin = kv["pin"];
+        if (!pin) continue;
+        photos.push({
+          device_serial: serialNumber,
+          pin,
+          kind: "USERPIC",
+          size_bytes: kv["size"] ? parseInt(kv["size"]) : null,
+          photo_base64: kv["content"] || null,
+        });
+      } else if (/^OPLOG\s/i.test(line)) {
+        const parts = line.split(/\t/);
+        // OPLOG\tcode\tadminPin\ttime\tv1\tv2\tv3\tv4
+        const code = parts[1] ? parseInt(parts[1]) : null;
+        oplogs.push({
+          device_serial: serialNumber,
+          op_code: code,
+          op_label: code != null ? (OPLOG_LABELS[code] || `OP_${code}`) : null,
+          admin_pin: parts[2] || null,
+          occurred_at: parts[3] ? parseESSLTimestamp(parts[3]) : null,
+          target_pin: parts[4] || null,
+          value_1: parts[4] || null,
+          value_2: parts[5] || null,
+          value_3: parts[6] || null,
+          value_4: parts[7] || null,
+          raw_line: line.slice(0, 500),
+        });
+      }
+    } catch (e) {
+      console.warn("OPERLOG line parse error", (e as Error).message, line.slice(0, 120));
+    }
+  }
+
+  if (userUpserts.size > 0) {
+    // Mark photo_present after we know if photo came in same batch
+    for (const p of photos) {
+      const u = userUpserts.get(p.pin);
+      if (u) u.photo_present = true;
+    }
+    await supabase.from("hr_biometric_device_users").upsert(
+      Array.from(userUpserts.values()),
+      { onConflict: "device_serial,pin" }
+    );
+    // Try to auto-link to hr_employees by badge_id = pin
+    for (const pin of userUpserts.keys()) {
+      const { data: emp } = await supabase
+        .from("hr_employees").select("id").eq("badge_id", pin).maybeSingle();
+      if (emp) {
+        await supabase.from("hr_biometric_device_users")
+          .update({ matched_employee_id: emp.id })
+          .eq("device_serial", serialNumber).eq("pin", pin);
+      }
+    }
+  }
+
+  if (templates.length > 0) {
+    await supabase.from("hr_biometric_device_templates").upsert(
+      templates,
+      { onConflict: "device_serial,pin,template_kind,finger_index" }
+    );
+    // Update counts on user row
+    const bucket = new Map<string, { fp: number; face: number; palm: number; vein: number }>();
+    for (const t of templates) {
+      const b = bucket.get(t.pin) || { fp: 0, face: 0, palm: 0, vein: 0 };
+      if (t.template_kind === "FP" || t.template_kind === "BIODATA") b.fp++;
+      else if (t.template_kind === "FACE") b.face++;
+      else if (t.template_kind === "PALM") b.palm++;
+      else if (t.template_kind === "VEIN") b.vein++;
+      bucket.set(t.pin, b);
+    }
+    for (const [pin, b] of bucket) {
+      await supabase.from("hr_biometric_device_users")
+        .update({ fp_count: b.fp, face_count: b.face, palm_count: b.palm, vein_count: b.vein })
+        .eq("device_serial", serialNumber).eq("pin", pin);
+    }
+  }
+
+  if (photos.length > 0) {
+    await supabase.from("hr_biometric_device_photos").insert(photos);
+  }
+
+  if (oplogs.length > 0) {
+    await supabase.from("hr_biometric_device_operlog").insert(oplogs);
+  }
+
+  console.log(`OPERLOG parsed from ${serialNumber}: users=${userUpserts.size} tpl=${templates.length} pics=${photos.length} oplog=${oplogs.length}`);
+}
+
+async function parseAttPhoto(supabase: any, serialNumber: string, body: string) {
+  // Lines: PIN=1\tSN=xxx\tsize=nnn\tCMD=xxx\tContent=<b64>  (optionally with time)
+  const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rows: any[] = [];
+  for (const line of lines) {
+    const kv = parseKV(line);
+    if (!kv["pin"]) continue;
+    rows.push({
+      device_serial: serialNumber,
+      pin: kv["pin"],
+      kind: "ATTPHOTO",
+      size_bytes: kv["size"] ? parseInt(kv["size"]) : null,
+      photo_base64: kv["content"] || null,
+      punch_time: kv["time"] ? parseESSLTimestamp(kv["time"]) : null,
+    });
+  }
+  if (rows.length) await supabase.from("hr_biometric_device_photos").insert(rows);
+  console.log(`ATTPHOTO parsed from ${serialNumber}: ${rows.length} photos`);
+}
+
+async function parseDeviceInfo(supabase: any, serialNumber: string, body: string) {
+  // Body is INI-like key=value lines: FWVersion=..., DeviceName=..., MAC=..., Platform=..., UserCount=..., FPCount=..., FaceCount=..., TransactionCount=..., etc.
+  const info: Record<string, string> = {};
+  for (const line of body.split(/\r?\n/)) {
+    const eq = line.indexOf("=");
+    if (eq > 0) info[line.slice(0, eq).trim().toLowerCase()] = line.slice(eq + 1).trim();
+  }
+  const num = (k: string) => info[k] ? parseInt(info[k]) : null;
+  await supabase.from("hr_biometric_device_info").upsert({
+    device_serial: serialNumber,
+    firmware: info["fwversion"] || info["firmwareversion"] || null,
+    platform: info["platform"] || null,
+    device_name: info["devicename"] || null,
+    oem_vendor: info["oemvendor"] || null,
+    mac_address: info["mac"] || null,
+    ip_address: info["ipaddress"] || null,
+    push_version: info["pushversion"] || null,
+    fp_algorithm_version: info["fpversion"] || null,
+    face_algorithm_version: info["faceversion"] || null,
+    user_count: num("usercount"),
+    admin_count: num("admincount"),
+    fp_count: num("fpcount"),
+    face_count: num("facecount"),
+    palm_count: num("palmcount"),
+    password_count: num("pwdcount"),
+    card_count: num("cardcount"),
+    transaction_count: num("transactioncount"),
+    attphoto_count: num("attphotocount"),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "device_serial" });
+  console.log(`Device info updated for ${serialNumber}`);
+}

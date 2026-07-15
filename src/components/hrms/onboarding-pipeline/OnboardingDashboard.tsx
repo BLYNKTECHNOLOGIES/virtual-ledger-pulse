@@ -1,10 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Users, Clock, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 type OnboardingRecord = {
   id: string;
@@ -43,6 +55,11 @@ interface OnboardingDashboardProps {
 }
 
 export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: OnboardingDashboardProps) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [toDelete, setToDelete] = useState<OnboardingRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const { data: records, isLoading } = useQuery({
     queryKey: ["onboarding-pipeline-records"],
     queryFn: async () => {
@@ -54,6 +71,37 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
       return data as OnboardingRecord[];
     },
   });
+
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      // If a draft employee row was linked, remove it too when still inactive
+      if (toDelete.employee_id) {
+        const { data: emp } = await supabase
+          .from("hr_employees")
+          .select("id, is_active")
+          .eq("id", toDelete.employee_id)
+          .maybeSingle();
+        if (emp && emp.is_active === false) {
+          await supabase.from("hr_employees").delete().eq("id", emp.id);
+        }
+      }
+      const { error } = await supabase
+        .from("hr_employee_onboarding")
+        .delete()
+        .eq("id", toDelete.id);
+      if (error) throw error;
+      toast({ title: "Onboarding deleted", description: "The dropped onboarding record has been removed." });
+      setToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+    } catch (e: any) {
+      toast({ title: "Failed to delete", description: e?.message || "Could not delete record", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   const inProgress = records?.filter(r => !["completed", "cancelled"].includes(r.status)) || [];
   const completed = records?.filter(r => r.status === "completed") || [];
@@ -153,13 +201,26 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                         {format(new Date(r.created_at), "dd MMM yyyy")}
                       </td>
                       <td className="p-3">
-                        <Button
-                          size="sm"
-                          variant={r.status === "completed" ? "outline" : "default"}
-                          onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}
-                        >
-                          {r.status === "completed" ? "View" : "Continue"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant={r.status === "completed" ? "outline" : "default"}
+                            onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}
+                          >
+                            {r.status === "completed" ? "View" : "Continue"}
+                          </Button>
+                          {r.status !== "completed" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => { e.stopPropagation(); setToDelete(r); }}
+                              title="Delete dropped onboarding"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -169,6 +230,31 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this onboarding record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the onboarding for{" "}
+              <span className="font-medium">
+                {toDelete ? `${toDelete.first_name || ""} ${toDelete.last_name || ""}`.trim() || toDelete.email || "this candidate" : ""}
+              </span>
+              . Use this when the candidate dropped mid-onboarding. Any linked draft (inactive) employee record will also be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

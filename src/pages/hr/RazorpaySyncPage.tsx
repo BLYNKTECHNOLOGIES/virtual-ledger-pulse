@@ -66,6 +66,11 @@ export default function RazorpaySyncPage() {
   const [dryRun, setDryRun] = useState<DryRunResponse | null>(null);
   const [applied, setApplied] = useState<DryRunResponse | null>(null);
 
+  // Phase 1a — Deep pull
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<{ total: number; pulled: number; projected_writes: number; missed: number; errored: number } | null>(null);
+  const [gaps, setGaps] = useState<{ total: number; missing_pan: number; missing_doj: number; missing_dept: number; missing_designation: number; missing_bank: number; not_pulled: number } | null>(null);
+
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")

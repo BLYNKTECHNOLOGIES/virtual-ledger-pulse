@@ -40,7 +40,10 @@ Deno.serve(async (req) => {
     return [
       { device_serial: serial, command_text: `C:${now}:CHECK`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 1}:INFO`, status: "pending" },
-      { device_serial: serial, command_text: `C:${now + 2}:DATA QUERY USERINFO PIN=*`, status: "pending" },
+      // Broad USERINFO query is the most compatible with eSSL/ZKTeco ADMS firmware.
+      // Some devices ignore filtered variants like `PIN=*` but return the full
+      // roster for the unfiltered table query.
+      { device_serial: serial, command_text: `C:${now + 2}:DATA QUERY USERINFO`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 3}:DATA QUERY TEMPLATE`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 4}:DATA QUERY BIODATA`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 5}:LOG`, status: "pending" },

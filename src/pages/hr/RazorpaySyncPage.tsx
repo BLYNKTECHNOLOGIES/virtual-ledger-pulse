@@ -330,6 +330,71 @@ export default function RazorpaySyncPage() {
       toast({ title: "Bulk push failed", description: e?.message, variant: "destructive" });
     } finally { setPushApplyingBulk(false); }
   };
+
+  // ---- Phase 4 handlers (Bank & PAN) ----
+  const runBankDryRun = async () => {
+    setBankDrying(true); setBankDryResult(null);
+    try {
+      const body: any = { action: "push_bank_dry_run" };
+      if (bankRpId.trim()) body.razorpay_employee_id = bankRpId.trim();
+      const d = await invoke<BankResponse>(body);
+      setBankDryResult(d);
+      toast({
+        title: "Bank dry-run complete",
+        description: `${d.summary.planned} would change · ${d.summary.invalid} invalid · ${d.summary.no_baseline} no baseline`,
+      });
+    } catch (e: any) {
+      toast({ title: "Bank dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setBankDrying(false); }
+  };
+  const requestBankApplyOne = () => {
+    const id = bankRpId.trim();
+    if (!id) { toast({ title: "Enter a Razorpay employee ID first", variant: "destructive" }); return; }
+    const row = (bankDryResult?.rows || []).find((r) => r.razorpay_employee_id === id);
+    if (!row || row.status !== "planned") {
+      toast({ title: "Run dry-run first", description: "Only rows with status 'planned' can be pushed.", variant: "destructive" });
+      return;
+    }
+    setBankConfirm({ mode: "one", row });
+  };
+  const confirmBankApplyOne = async () => {
+    const row = bankConfirm?.row; if (!row) return;
+    setBankConfirm(null);
+    setBankApplyingOne(true); setBankApplyResult(null);
+    try {
+      const d = await invoke<BankResponse>({ action: "push_bank_apply_one", razorpay_employee_id: row.razorpay_employee_id });
+      setBankApplyResult(d);
+      toast({ title: "Bank pilot push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bank pilot push failed", description: e?.message, variant: "destructive" });
+    } finally { setBankApplyingOne(false); }
+  };
+  const runBankUnlockBulk = async () => {
+    if (!confirm("Unlock bulk bank push? After this, apply-bulk will POST bank+PAN updates for every valid row with divergence.")) return;
+    setBankUnlocking(true);
+    try {
+      await invoke({ action: "unlock_bulk_bank_push" });
+      toast({ title: "Bulk bank push unlocked" });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Unlock failed", description: e?.message, variant: "destructive" });
+    } finally { setBankUnlocking(false); }
+  };
+  const requestBankApplyBulk = () => setBankConfirm({ mode: "bulk" });
+  const confirmBankApplyBulk = async () => {
+    setBankConfirm(null);
+    setBankApplyingBulk(true); setBankApplyResult(null);
+    try {
+      const d = await invoke<BankResponse>({ action: "push_bank_apply_bulk" });
+      setBankApplyResult(d);
+      toast({ title: "Bulk bank push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed · ${d.summary.invalid} invalid` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bulk bank push failed", description: e?.message, variant: "destructive" });
+    } finally { setBankApplyingBulk(false); }
+  };
+
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
   // well under the timeout while the overall run can cover 100s of IDs.
   const CHUNK_SIZE = 20;

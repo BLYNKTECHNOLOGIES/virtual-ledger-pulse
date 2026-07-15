@@ -17745,7 +17745,7 @@ export type Database = {
         Returns: undefined
       }
       generate_employee_id: {
-        Args: { dept: string; designation: string }
+        Args: { dept: string; designation?: string }
         Returns: string
       }
       generate_off_market_purchase_order_number: {

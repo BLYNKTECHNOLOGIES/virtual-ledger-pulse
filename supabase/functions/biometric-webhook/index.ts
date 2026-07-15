@@ -70,7 +70,11 @@ Deno.serve(async (req) => {
     if (req.method === "GET" && serialNumber) {
       const options = url.searchParams.get("options");
       const requestType = url.searchParams.get("type")?.toLowerCase();
-      const isCommandPoll = requestType === "getrequest" || pathName.endsWith("/getrequest");
+      const isCommandPoll =
+        requestType === "getrequest" ||
+        pathName.endsWith("/getrequest") ||
+        pathName.endsWith("/getrequest.aspx") ||
+        pathName.includes("/getrequest.");
 
       console.log(
         `ICLOCK GET from ${serialNumber}: path=${url.pathname}, options=${options || "-"}, type=${requestType || "-"}, queryKeys=${Array.from(url.searchParams.keys()).join(",") || "-"}`
@@ -283,9 +287,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // OPERLOG — parse USER / FP / FACE / PALM / VEIN / USERPIC / OPLOG / BIODATA lines
-      if (table === "OPERLOG") {
-        await parseOperlog(supabase, serialNumber, bodyText);
+      // OPERLOG / DATA QUERY responses — parse USER / FP / FACE / PALM / VEIN / USERPIC / OPLOG / BIODATA lines.
+      // Different eSSL firmwares return roster pulls either as table=OPERLOG or table=USERINFO/TEMPLATE/BIODATA.
+      if (isRosterPayload(table, bodyText)) {
+        await parseOperlog(supabase, serialNumber, bodyText, table || undefined);
         return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
       }
 
@@ -774,14 +779,38 @@ const OPLOG_LABELS: Record<number, string> = {
   22: "Enroll Face", 23: "Delete Face", 24: "Enroll Palm", 25: "Delete Palm",
 };
 
-async function parseOperlog(supabase: any, serialNumber: string, body: string) {
+function isRosterPayload(table: string | null, body: string): boolean {
+  const normalizedTable = (table || "").toUpperCase();
+  if (["OPERLOG", "USERINFO", "USER", "TEMPLATE", "FP", "FACE", "PALM", "VEIN", "BIODATA", "USERPIC"].includes(normalizedTable)) {
+    return body.trim().length > 0;
+  }
+  return /(^|\n)\s*(USER\s|USER\t|FP\s|FACE\s|PALM\s|VEIN\s|BIODATA\s|USERPIC\s|OPLOG\s)/i.test(body);
+}
+
+function normalizeRosterLine(tableHint: string | undefined, rawLine: string): string {
+  const line = rawLine.trim();
+  if (/^(USER\s|USER\t|FP\s|FACE\s|PALM\s|VEIN\s|BIODATA\s|USERPIC\s|OPLOG\s)/i.test(line)) {
+    return line;
+  }
+
+  const table = (tableHint || "").toUpperCase();
+  if (["USERINFO", "USER"].includes(table) && /(^|\t)PIN=/i.test(line)) return `USER ${line}`;
+  if (["BIODATA"].includes(table) && /(^|\t)(PIN|Pin)=/i.test(line)) return `BIODATA ${line}`;
+  if (["FP", "TEMPLATE"].includes(table) && /(^|\t)(PIN|FID|Size|TMP)=/i.test(line)) return `FP ${line}`;
+  if (["FACE", "PALM", "VEIN", "USERPIC"].includes(table) && /(^|\t)PIN=/i.test(line)) return `${table} ${line}`;
+
+  return line;
+}
+
+async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string) {
   const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const userUpserts = new Map<string, any>();
   const templates: any[] = [];
   const photos: any[] = [];
   const oplogs: any[] = [];
 
-  for (const line of lines) {
+  for (const rawLine of lines) {
+    const line = normalizeRosterLine(tableHint, rawLine);
     try {
       if (line.startsWith("USER ") || line.startsWith("USER\t")) {
         const kv = parseKV(line.replace(/^USER\s+/i, ""));

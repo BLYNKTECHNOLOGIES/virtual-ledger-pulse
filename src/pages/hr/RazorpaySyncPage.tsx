@@ -455,6 +455,70 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
+      {/* PHASE 2 — Probe & envelope catalogue */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Phase 2 — Probe catalogue</CardTitle>
+          <CardDescription>
+            Discover which Opfin sub-types this Live tenant supports before any push work is designed.
+            Read sub-types are probed live against a pilot-verified employee. Write sub-types are listed
+            as <span className="font-medium">pending</span> — they require an operator-approved payload before Lovable calls them.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" onClick={runProbeCatalogue} disabled={probing}>
+              {probing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Run probe catalogue
+            </Button>
+            {probeId && (
+              <span className="text-xs text-muted-foreground">
+                Probing against Razorpay employee ID <code>{probeId}</code>
+              </span>
+            )}
+          </div>
+          {probeRows && probeRows.length > 0 && (
+            <div className="rounded-md border overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50">
+                  <tr className="text-left">
+                    <th className="p-2">Phase</th>
+                    <th className="p-2">Sub-type</th>
+                    <th className="p-2">Mode</th>
+                    <th className="p-2">Status</th>
+                    <th className="p-2">HTTP</th>
+                    <th className="p-2">Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {probeRows.map((r, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-2 text-muted-foreground">{r.phase}</td>
+                      <td className="p-2 font-mono">{r.key}</td>
+                      <td className="p-2">
+                        {r.mode === "read"
+                          ? <Badge variant="outline" className="text-[10px]">read</Badge>
+                          : <Badge variant="secondary" className="text-[10px]">write</Badge>}
+                      </td>
+                      <td className="p-2">
+                        {r.status === "ok" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">ok</Badge>}
+                        {r.status === "fail" && <Badge variant="destructive" className="text-[10px]">fail</Badge>}
+                        {r.status === "not_probed" && <Badge variant="outline" className="text-[10px]">pending</Badge>}
+                      </td>
+                      <td className="p-2 tabular-nums">{r.http_status ?? "—"}</td>
+                      <td className="p-2 text-muted-foreground truncate max-w-[280px]">{r.error ?? (r.status === "not_probed" ? "write sub-type — needs operator payload" : "—")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {probeRows && !probeRows.length && (
+            <p className="text-xs text-muted-foreground">No probes returned. Verify credentials and pilot-verified employee.</p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* STEP 3 — Bulk */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>

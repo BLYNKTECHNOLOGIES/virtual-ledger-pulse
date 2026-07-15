@@ -469,8 +469,7 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
             </div>
           </Tabs>
         )}
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }
 

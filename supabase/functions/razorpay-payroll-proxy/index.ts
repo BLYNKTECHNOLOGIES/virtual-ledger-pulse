@@ -432,20 +432,35 @@ Deno.serve(async (req) => {
       const subType = String(payload?.sub_type ?? "").trim();
       const data = (payload?.data && typeof payload.data === "object") ? payload.data : {};
       const READONLY = new Set([
+        // Phase 1 confirmed
         "people:view",
+        // Phase 2 read probes — safe view/list variants of every write-capable resource
         "salary:view",
         "salary-structure:view",
+        "salary-structure:list",
         "attendance:view",
+        "attendance:list",
         "payslip:view",
+        "payslip:list",
+        "payslip:download",
         "payroll:view",
+        "payroll:list",
         "payroll:status",
+        "payroll:months",
+        "payroll:runs",
+        "tds:view",
+        "tds:report",
+        "tds:list",
+        "bank-details:view",
         "webhook:view",
+        "webhook:list",
+        "people:list",
       ]);
       const key = `${resource}:${subType}`;
       if (!READONLY.has(key)) {
         return json(200, {
           ok: false, skipped: true, key,
-          reason: "probe restricted to read-only sub-types; run via Postman collection to validate writes",
+          reason: "probe restricted to read-only sub-types; write sub-types require operator-approved payload before live-tenant call",
         });
       }
       const ctrl = new AbortController();

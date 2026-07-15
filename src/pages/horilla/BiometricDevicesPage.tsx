@@ -132,11 +132,12 @@ export default function BiometricDevicesPage() {
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className={`w-2 h-2 rounded-full ${status.color}`} />{status.label}</div>
                     <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Live capture</span><Switch checked={d.is_live_capture} onCheckedChange={async (checked) => { await (supabase as any).from("hr_biometric_devices").update({ is_live_capture: checked }).eq("id", d.id); qc.invalidateQueries({ queryKey: ["hr_biometric_devices"] }); }} /></div>
                   </div>
-                  <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-info text-info hover:bg-info/10">Test</Button>
+                  <div className="flex gap-2 pt-1 flex-wrap">
+                    <Button size="sm" variant="outline" className="text-xs h-7 border-primary text-primary hover:bg-primary/10" onClick={() => setDataDevice(d)}><Database className="h-3.5 w-3.5 mr-1" />View Data</Button>
                     <Button size="sm" variant="outline" className={`text-xs h-7 ${d.is_scheduled ? "border-warning text-warning hover:bg-warning/10" : "border-info text-info hover:bg-info/10"}`} onClick={async () => { await (supabase as any).from("hr_biometric_devices").update({ is_scheduled: !d.is_scheduled }).eq("id", d.id); qc.invalidateQueries({ queryKey: ["hr_biometric_devices"] }); toast.success(d.is_scheduled ? "Unscheduled" : "Scheduled"); }}>{d.is_scheduled ? "Unschedule" : "Schedule"}</Button>
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-muted text-muted-foreground hover:bg-muted/50">Employee</Button>
+                    {d.device_serial && <span className="text-[10px] text-muted-foreground font-mono self-center">SN {d.device_serial}</span>}
                   </div>
+
                 </CardContent>
               </Card>
             );

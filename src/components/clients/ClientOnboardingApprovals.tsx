@@ -470,7 +470,37 @@ export function ClientOnboardingApprovals() {
           .order('created_at', { ascending: false })
       );
 
-      return [...allPending, ...history] as ClientOnboardingApproval[];
+      const combined = [...allPending, ...history] as ClientOnboardingApproval[];
+
+      // Exclude approvals that belong to the SELLER onboarding flow. This tab
+      // only surfaces BUYER approvals; a row whose resolved client is a
+      // seller-only account (is_seller=true AND is_buyer=false) must never
+      // appear here — those are handled in the Seller Approvals tab and
+      // otherwise bleed in as ghost buyer approvals (e.g. purchase-side
+      // counterparties backfilled from historical orders).
+      const resolvedIds = Array.from(
+        new Set(combined.map(a => a.resolved_client_id).filter((v): v is string => !!v))
+      );
+      if (resolvedIds.length === 0) return combined;
+
+      const sellerOnlyIds = new Set<string>();
+      // Chunked IN() to stay well under URL/statement limits.
+      for (let i = 0; i < resolvedIds.length; i += 500) {
+        const slice = resolvedIds.slice(i, i + 500);
+        const { data } = await supabase
+          .from('clients')
+          .select('id, is_buyer, is_seller')
+          .in('id', slice);
+        for (const c of data || []) {
+          if ((c as any).is_seller === true && (c as any).is_buyer === false) {
+            sellerOnlyIds.add((c as any).id);
+          }
+        }
+      }
+
+      return combined.filter(a =>
+        !(a.resolved_client_id && sellerOnlyIds.has(a.resolved_client_id))
+      );
     }
 
   });

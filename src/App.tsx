@@ -100,6 +100,7 @@ const FnFSettlementPage = lazy(() => import('./pages/horilla/FnFSettlementPage')
 const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumentsPage'));
 const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
 const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPage'));
+const RazorpaySyncPage = lazy(() => import('./pages/hr/RazorpaySyncPage'));
 const PenaltyAutoCalcPage = lazy(() => import('./pages/horilla/PenaltyAutoCalcPage'));
 const AssetPage = lazy(() => import('./pages/horilla/AssetPage'));
 const AssetDashboardPage = lazy(() => import('./pages/horilla/AssetDashboardPage'));
@@ -749,6 +750,7 @@ const router = createBrowserRouter([
         { path: "employee/separation", element: <SeparationPage /> },
         { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },
         { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
+        { path: "payroll/razorpay-sync", element: <RazorpaySyncPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
         
         { path: "helpdesk/policies", element: <HRPoliciesPage /> },

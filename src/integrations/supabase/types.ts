@@ -8183,6 +8183,7 @@ export type Database = {
           previous_total: number | null
           revision_reason: string | null
           revision_type: string
+          status: string
         }
         Insert: {
           approved_by?: string | null
@@ -8196,6 +8197,7 @@ export type Database = {
           previous_total?: number | null
           revision_reason?: string | null
           revision_type?: string
+          status?: string
         }
         Update: {
           approved_by?: string | null
@@ -8209,6 +8211,7 @@ export type Database = {
           previous_total?: number | null
           revision_reason?: string | null
           revision_type?: string
+          status?: string
         }
         Relationships: [
           {
@@ -16605,6 +16608,19 @@ export type Database = {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
       }
+      apply_due_scheduled_salary_revisions: { Args: never; Returns: number }
+      apply_salary_revision: {
+        Args: {
+          p_approved_by: string
+          p_effective_from: string
+          p_employee_id: string
+          p_new_basic: number
+          p_new_total: number
+          p_reason: string
+          p_revision_type: string
+        }
+        Returns: Json
+      }
       apply_salary_template: {
         Args: { p_employee_id: string; p_template_id: string }
         Returns: undefined
@@ -16744,6 +16760,10 @@ export type Database = {
       can_manage_customer_support_tickets: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      cancel_scheduled_salary_revision: {
+        Args: { p_reason?: string; p_revision_id: string }
+        Returns: undefined
       }
       check_in_terminal_appeal_case: {
         Args: { p_case_id: string; p_note?: string }

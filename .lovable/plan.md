@@ -1,70 +1,85 @@
-# Move to userNo-ONLY client matching
+# Salary Revision — Full Implementation
 
-## Goal
+## Problem
+`SalaryRevisionsPage` is read-only. The only path to change salary today is the Employee Profile → Work Info form, which:
+- Edits only `basic_salary` (not `total_salary`)
+- Has no reason, effective-date, or type inputs
+- Auto-inserts every save as `'correction'` via the `fn_salary_revision_on_change` trigger (which is why your list is full of `₹0 · correction` rows)
+- Doesn't recompute percentage/formula-based salary structure components
 
-Make Binance `userNo` the single identity key for matching an order to a client. Fetch the userNo at the moment each sales/purchase order syncs (not only via the 30-min cron / on-demand). Remove every nickname- and verified-name-based *matching* path from both the frontend and the database, leaving no dead code.
+## What we're building
 
----
+### 1. UI — "Revise Salary" on Salary Revisions page
+Add a primary **"Revise Salary"** button to `SalaryRevisionsPage.tsx` opening a dialog with:
+- **Employee** (searchable Select, active employees only) — shows current CTC / basic inline
+- **Revision type** — Increment / Hike, Promotion, Correction, Demotion / Decrease
+- **New total salary (CTC)** — number input with % delta vs current shown live
+- **New basic salary** — number input; auto-suggested from the employee's salary structure template (BASIC component %) but editable
+- **Effective from** — date picker (shadcn), defaults to today; may be future-dated
+- **Reason / notes** — textarea (mandatory for Promotion & Demotion)
+- **Live preview** — uses `computeFullBreakdown` from `src/lib/hrms/salaryComputation.ts` to show earnings, deductions, and net so the HR user sees the full recomputed structure before saving
+- **Approved by** — auto-filled from current user
 
-## Risks of userNo-only matching (you asked — read this first)
+Also add a **"Revise" button** on each row of `EmployeeProfilePage` (Work Info section) that opens the same dialog pre-selected — so it's reachable from both places.
 
-These are the genuine issues. The plan below neutralises each one; none is a blocker, but skipping the safeguards would corrupt data the opposite way (splitting one client into many).
+### 2. Behavior — scheduling by effective date
+Two cases:
 
-1. **userNo is never in the order-list payload.** It only exists in `getUserOrderDetail`. Fetching it at sync time means one extra proxy call per new order → Binance rate limits + IP-whitelist load. Mitigation: only fetch for orders whose userNo is not already cached, run with small concurrency + retry (the proxy already has retry logic).
-2. **Reveal window.** Binance only returns counterparty identity for a limited period after the order. Fetching *at sync* is actually fresher than the 30-min cron, so this improves coverage. But some orders (very old, or Binance returns null) will yield **no userNo** → they cannot auto-match and must go to the manual queue. This is safe (no contamination) but means a few orders need manual linking. We will NOT fall back to name.
-3. **Our own account IDs.** On BUY orders WE are the taker, on SELL WE are the maker — the "counterparty" side flips. The extractor already flips correctly, but we must also **exclude our own merchant/taker userNos** so we never register ourselves as a client. Requires a reliable list of our userNos (from `terminal_exchange_accounts` / known merchant IDs), mirroring today's `OUR_HANDLES` guard.
-4. **Incomplete `client_binance_usernos` backfill (the biggest risk).** Today many existing clients are linked only by nickname. If we delete nickname matching before every existing client has its userNo registered, their next order won't match → a **duplicate new client** gets created. So we must backfill `client_binance_usernos` as completely as possible from historical `order_detail_raw` / `cp_order_identity` **before** removing the nickname fallback, and report how many clients still have zero userNo.
-5. **Server-side resolution must move too.** The `create_client_onboarding_approval` trigger and any sync hooks currently resolve by nickname → verified name → phone. If we only change the frontend, the DB will keep matching by name. These must switch to userNo as well, or the change is cosmetic.
-6. **Multiple accounts = multiple clients.** userNo is per-account, so one human with two Binance accounts becomes two clients. This is correct per KYC/account distinction — no action needed, just noting it.
+**A. Effective date ≤ today (immediate):**
+- Update `hr_employees.basic_salary` and `total_salary` now
+- Trigger auto-inserts the `hr_salary_revisions` row — but we set a Postgres session var `app.revision_type`, `app.revision_reason`, `app.approved_by`, `app.effective_from` before the UPDATE via a new RPC so the existing trigger tags the row correctly (the trigger at `20260328194737_...sql:169` already reads `app.revision_type`; we extend it to read the other three)
 
----
+**B. Effective date > today (scheduled):**
+- Insert a `hr_salary_revisions` row directly with `status = 'SCHEDULED'`, target amounts, but DO NOT touch `hr_employees` yet
+- New daily cron edge function `apply-scheduled-salary-revisions` runs at 00:15 IST → for every SCHEDULED row where `effective_from <= CURRENT_DATE`, applies the change to `hr_employees` (which triggers the audit row auto-tag as APPLIED) and marks the scheduled row as `APPLIED`
 
-## Scope decision: matching vs. storage
+### 3. Schema changes (migration)
+On `hr_salary_revisions`:
+- Add `status text NOT NULL DEFAULT 'APPLIED'` — values: `SCHEDULED | APPLIED | CANCELLED`
+- Add `revision_reason` already exists; ensure `approved_by` and `effective_from` are populated by trigger
+- Add unique partial index preventing two SCHEDULED revisions for same employee/effective date
+- Widen `revision_type` CHECK: `('increment','promotion','correction','demotion')`
 
-- **Remove from matching:** all nickname/verified-name resolution logic.
-- **Keep as display/audit only:** the `client_binance_nicknames` / `client_verified_names` tables and their read-only display in `ClientOverviewPanel` (historical KYC record). We will **not** drop these tables, but nothing will *match* on them. If you'd rather I also drop the tables entirely, say so.
+Extend `fn_salary_revision_on_change` trigger to also read `app.revision_reason`, `app.approved_by`, `app.effective_from` from session vars.
 
----
+New SECURITY DEFINER RPC `apply_salary_revision(p_employee_id, p_new_basic, p_new_total, p_type, p_reason, p_effective_from, p_approved_by)`:
+- If effective_from > today → INSERT SCHEDULED row, return
+- Else → set session vars, UPDATE `hr_employees`, trigger writes history row
+- Permission-gated: caller must have `hrms_manage` (or Super Admin)
 
-## Implementation
+RLS: keep existing read policy; add INSERT/UPDATE policies scoped to `hrms_manage`.
 
-### 1. Fetch userNo during sync (real-time capture)
+### 4. Cancel scheduled revisions
+Scheduled rows on the list show an amber **"SCHEDULED · Effective DD MMM"** badge with a Cancel button (marks status = `CANCELLED`, hidden from applied history filter).
 
-- In the sales sync (`useSpotTradeSync` / terminal sales sync hooks) and purchase sync paths, after inserting/updating an order that has no cached userNo, call the existing `resolve-order-userno` logic to fetch & upsert `cp_order_identity` + `client_binance_usernos`.
-- Do it batched with small concurrency for the newly-synced orders only.
-- Keep the 30-min `capture-order-nicknames` cron as a **safety net** for anything missed (but it will now feed userNo, not drive name matching). Optionally rename its intent to nickname/userNo capture — no functional dependency on it for matching.
+### 5. Cleanup — the ₹0 corrections
+One-off migration marks all pre-existing rows where `previous_total = new_total` and `previous_basic = new_basic` as `status = 'NOOP'` (hidden from list by default, viewable via filter). The auto-trigger already guards with `IS DISTINCT FROM`, so future no-op rows shouldn't be created — but the historical ones are already in your list.
 
-### 2. Frontend: strip nickname/verified-name matching (`src/lib/clientIdentityResolver.ts`)
-
-- Delete `resolveClientId`, `resolveApprovalIdentityState`, `resolveTerminalApprovalClient`, `fetchVerifiedNameMap`, `captureVerifiedName`, `enrichVerifiedNameByNickname`, `canAttachVerifiedName`, and the sanitizers if unused elsewhere.
-- Replace with a single `resolveOrderClient(orderNumber, tradeType, exchangeAccountId)` that returns a client **only** via userNo (`resolveOrderUserNo` → `resolve_client_by_userno`). No name/nickname branches.
-
-### 3. Approval dialogs (`TerminalSalesApprovalDialog.tsx`, `TerminalPurchaseApprovalDialog.tsx`)
-
-- Remove the name/nickname auto-match effects and the "seeded pre-link re-validation/clear" blocks entirely.
-- Keep only the userNo path: on open, resolve userNo → if mapped, auto-link + lock; if not mapped, leave unlinked and force manual client pick (with `nameSuggestion` UI removed).
-- Remove `crossNameWarning`, `nameSuggestion`, `ambiguousCandidates` name-based UI.
-
-### 4. Database (migration)
-
-- Rewrite `create_client_onboarding_approval` trigger to resolve/dedup **by userNo** (via `cp_order_identity` + `client_binance_usernos`), removing the nickname → verified-name → phone precedence for *matching* (phone dedup for onboarding can stay only as a last-resort dedup guard, or be removed too — your call).
-- Drop/replace the `trg_validate_verified_name_attachment` correlation trigger if it's only there to gate name-based enrichment.
-- Ensure `link_client_userno` / `resolve_client_by_userno` remain the sole matching RPCs.
-
-### 5. Backfill + report (insert tool, run before/with cutover)
-
-- Backfill `client_binance_usernos` from all available `cp_order_identity` / `order_detail_raw`.
-- Produce a count of clients still missing any userNo so we know the manual-linking exposure before flipping off name matching.
-
-### 6. Cleanup
-
-- Remove now-unused imports, types, and any remaining references to nickname/verified-name matching across the codebase (grep for the deleted symbols and `resolvedVia`, `verifiedNameMap`, `nicknameClientMap`, etc.). No dead code left.
+### 6. Filters on the list
+Add tabs above the search: **All · Applied · Scheduled · Cancelled**. Default = Applied.
 
 ---
 
-## What I need from you before building
+## Technical touch points
 
-1. **Confirm table handling:** keep `client_binance_nicknames` / `client_verified_names` as display-only (my default), or drop them entirely? Keep them for display only.
-2. **Onboarding phone dedup:** keep phone as a last-resort dedup in the onboarding trigger, or make it strictly userNo-only? make it strictly user.
+**Files to add:**
+- `src/components/hrms/ReviseSalaryDialog.tsx` — the dialog
+- `supabase/functions/apply-scheduled-salary-revisions/index.ts` — daily cron
 
-Once you confirm, I'll run the backfill first (to size the risk), then execute the cutover.
+**Files to modify:**
+- `src/pages/horilla/SalaryRevisionsPage.tsx` — button, filter tabs, cancel action, status badges
+- `src/pages/horilla/EmployeeProfilePage.tsx` — replace inline basic-salary edit with a "Revise Salary" button opening the dialog (keeps single source of truth for salary changes; other Work Info fields still editable)
+
+**Migrations:**
+1. Add columns (`status`), CHECK on `revision_type`, extend trigger to read the extra session vars, create `apply_salary_revision` RPC, RLS policies
+2. Mark historical no-op rows as `NOOP`
+3. Cron job for `apply-scheduled-salary-revisions`
+
+**Computation reuse:** `computeFullBreakdown` from `src/lib/hrms/salaryComputation.ts` for live preview — already the payroll source of truth, so what you see in the dialog matches what payroll will actually pay.
+
+## Out of scope
+- Bulk / mass revisions (org-wide hike)
+- Employee-facing revision letter PDF
+- Multi-approver workflow (you chose "Apply immediately")
+
+Both can be layered on later without schema changes.

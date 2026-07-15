@@ -274,13 +274,22 @@ Deno.serve(async (req) => {
         });
       }
 
-      // OPERLOG or other tables — acknowledge
-      if (table === "OPERLOG" || table === "ATTPHOTO") {
-        console.log(`Received ${table} from ${serialNumber}, acknowledged`);
-        return new Response("OK", {
-          status: 200,
-          headers: { "Content-Type": "text/plain", ...corsHeaders },
-        });
+      // OPERLOG — parse USER / FP / FACE / PALM / VEIN / USERPIC / OPLOG / BIODATA lines
+      if (table === "OPERLOG") {
+        await parseOperlog(supabase, serialNumber, bodyText);
+        return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
+      }
+
+      // ATTPHOTO — attendance photo lines
+      if (table === "ATTPHOTO") {
+        await parseAttPhoto(supabase, serialNumber, bodyText);
+        return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
+      }
+
+      // OPTIONS / INFO — device pushes runtime info (firmware, counters, MAC etc.)
+      if (table === "OPTIONS" || table === "options") {
+        await parseDeviceInfo(supabase, serialNumber, bodyText);
+        return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
       }
 
       return new Response("OK", {

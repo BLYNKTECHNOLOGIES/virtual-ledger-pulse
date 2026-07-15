@@ -106,8 +106,13 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
       <div className="flex items-center gap-1 shrink-0">
         {!isMobile && (
-          <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-            <Moon className="h-5 w-5" />
+          <button
+            onClick={toggleDarkMode}
+            aria-label="Toggle dark mode"
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+          >
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
         )}
 

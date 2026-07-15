@@ -993,7 +993,7 @@ Deno.serve(async (req) => {
 
       return json(200, {
         ok: true,
-        summary: { total: maps.length, planned, unchanged, pushed, failed, skipped },
+        summary: { total: maps.length, planned, unchanged, pushed, failed, skipped, no_baseline: noBaseline },
         rows,
         pilot: {
           verified_at: settingsRow?.push_pilot_verified_at || null,

@@ -9,15 +9,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Pencil, Trash2, Wifi } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, Wifi, Database } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { BiometricDeviceDataDialog } from "@/components/hrms/BiometricDeviceDataDialog";
 
 const DEVICE_TYPES = ["ZKTeco / eSSL Biometric","Dahua Biometric","Hikvision Biometric","Anviz Biometric","Other"];
 const DEVICE_DIRECTIONS = ["System Direction(In/Out) Device","In Device","Out Device"];
-const defaultForm = { name: "", device_type: "ZKTeco / eSSL Biometric", machine_ip: "", port_no: "", password: "0", device_direction: "System Direction(In/Out) Device", company: "", is_live_capture: false, is_scheduled: false };
+const defaultForm = { name: "", device_type: "ZKTeco / eSSL Biometric", machine_ip: "", port_no: "", password: "0", device_direction: "System Direction(In/Out) Device", company: "", is_live_capture: false, is_scheduled: false, device_serial: "" };
 
 export default function BiometricDevicesPage() {
   const qc = useQueryClient();

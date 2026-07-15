@@ -8,6 +8,19 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, ShieldAlert, Search, Lock } from "lucide-react";
 
+interface EnvelopeAttempt {
+  url: string;
+  http_status: number;
+  body_type: string;
+  top_level_keys: string[];
+  array_key: string | null;
+  array_length: number | null;
+  scalar_keys: string[];
+  element_field_names: string[] | null;
+  raw_length: number;
+  raw_preview: string | null;
+}
+
 interface EnvelopeShape {
   ok?: boolean;
   http_status?: number;
@@ -16,6 +29,7 @@ interface EnvelopeShape {
   array_length?: number | null;
   scalar_keys?: string[];
   element_field_names?: string[] | null;
+  attempts?: EnvelopeAttempt[];
 }
 
 interface ValidateResult {

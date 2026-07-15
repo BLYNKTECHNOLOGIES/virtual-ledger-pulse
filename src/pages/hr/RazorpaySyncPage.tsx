@@ -56,6 +56,7 @@ export default function RazorpaySyncPage() {
   const [introspecting, setIntrospecting] = useState(false);
   const [validateResult, setValidateResult] = useState<ValidateResult | null>(null);
   const [envelope, setEnvelope] = useState<EnvelopeShape | null>(null);
+  const [probeId, setProbeId] = useState<string>("1");
 
   useEffect(() => {
     if (!canAccess) return;
@@ -73,7 +74,7 @@ export default function RazorpaySyncPage() {
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-        body: { action },
+        body: { action, employee_id: Number(probeId) || 1, employee_type: "employee" },
       });
       if (error) throw error;
       if (action === "validate_creds") {

@@ -119,16 +119,20 @@ export function GrossProfitHistoryTab() {
     },
   });
 
+  // NPM outliers to exclude from the trend line (kept in table/gross profit, only NPM line skips)
+  const NPM_OUTLIER_DATES = new Set<string>(["2026-05-27", "2026-06-22"]);
+
   const chartData = useMemo(() => {
     if (!mergedData?.length) return [];
 
     if (viewMode === "day") {
       return mergedData.map((item) => {
         const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
+        const isOutlier = NPM_OUTLIER_DATES.has(item.snapshot_date);
         return {
           date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
           value: Number(item.gross_profit),
-          npm: Number(item.total_sales_qty) > 0 ? npm : 0,
+          npm: isOutlier || Number(item.total_sales_qty) <= 0 ? null : npm,
         };
       });
     }
@@ -140,8 +144,9 @@ export function GrossProfitHistoryTab() {
       const existing = monthMap.get(monthKey) || { profit: 0, totalNpm: 0, days: 0 };
       const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
       const hasSales = Number(item.total_sales_qty) > 0;
+      const isOutlier = NPM_OUTLIER_DATES.has(item.snapshot_date);
       existing.profit += Number(item.gross_profit);
-      if (hasSales) {
+      if (hasSales && !isOutlier) {
         existing.totalNpm += npm;
         existing.days += 1;
       }
@@ -150,7 +155,7 @@ export function GrossProfitHistoryTab() {
     return Array.from(monthMap.entries()).map(([key, v]) => ({
       date: format(new Date(key + "-01"), "MMM yyyy"),
       value: v.profit,
-      npm: v.days > 0 ? v.totalNpm / v.days : 0,
+      npm: v.days > 0 ? v.totalNpm / v.days : null,
     }));
   }, [mergedData, viewMode]);
 
@@ -330,6 +335,7 @@ export function GrossProfitHistoryTab() {
                     strokeWidth={2}
                     dot={{ r: 4, fill: "#6366f1" }}
                     activeDot={{ r: 6 }}
+                    connectNulls
                   />
                 </ComposedChart>
               </ResponsiveContainer>

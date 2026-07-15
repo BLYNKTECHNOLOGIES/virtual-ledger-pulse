@@ -1,55 +1,153 @@
+# RazorpayX ↔ HRMS Integration — Phase 2+ Plan
 
-# Phase 1a — Deep pull from `people:view`
+## Grounding facts (current system)
 
-Live-only tenant confirmed; no sandbox. All work in this phase is **read-only** against Razorpay, so no live-write safeguards trigger yet. Postman JSON is skipped — we discover writable sub-types later, phase-by-phase, as they come up.
+- **ERP is the payroll engine, not Razorpay.** `fn_generate_payroll` computes attendance/LOP, penalties, loan EMIs, deposit deductions, EPF cap (₹1,800), and TDS in one Postgres function, writing `hr_payslips` and updating `hr_loan_repayments`/`hr_deposit_transactions`. Razorpay computes nothing today.
+- **Existing integration is one-way pull.** `razorpay-payroll-proxy` supports `validate_creds`, `fetch_one`, `apply_one`, `unlock_bulk`, `probe_endpoint`, `dry_run_range`, `apply_range`, `pull_person_full`. No write action exists. Enum values `push_create` / `push_update` are reserved but unused.
+- **Salary revisions are ERP-local.** `apply_salary_revision` RPC + `apply_due_scheduled_salary_revisions()` promoter mutate `hr_employees.basic_salary/total_salary` directly. Nothing reaches Razorpay.
+- **Exit flow is ERP-local.** ResignationTab → `hr_employees.last_working_day` → FnFSettlementPage → `is_active=false`. No dismiss push to Razorpay.
+- **Tenant is Live-only.** No sandbox — every probe/write must be idempotent and reversible.
 
-## Scope
+## Design principle
 
-For every mapped Razorpay employee (currently 40 drafts), fetch the full `people:view` payload, project it into ERP tables, and surface the exact gaps HR must close in the Onboarding Pipeline. Nothing is written back to Razorpay.
+**ERP is the system of record. Razorpay is the payout & statutory-filing rail.** Data flows outward from ERP to Razorpay only when a payout-adjacent trigger fires (new hire completed, salary changed, resigned, monthly payroll run finalized). Razorpay-side edits are never treated as authoritative; nightly drift walks report differences and default to ERP-wins.
 
-## Fetch
+## Phase map
 
-- New action `pull_person_full` on `razorpay-payroll-proxy` — JSON-RPC `people:view` with the widest response envelope the endpoint returns (no field cherry-picking on request; we take whatever it gives).
-- Batch driver on the client: iterate `hr_razorpay_employee_map` in 20-ID chunks (same chunking that fixed the Edge Function timeout on bulk apply).
-- Each fetched envelope is stored raw in a new column `hr_razorpay_employee_map.last_pull_snapshot jsonb` plus `last_pulled_at timestamptz` — canonical audit of what Razorpay actually returned, so future phases don't re-guess field shapes.
+```text
+Phase 1  (DONE)  Import + deep-pull, ERP-wins projection, gap dashboard
+Phase 2          Probe & envelope catalogue for every write-capable sub-type
+Phase 3          Employee-master write (people:update) with pilot-one gate
+Phase 4          Bank-details & PAN write path (highest payout-risk domain)
+Phase 5          Salary-structure sync (component mapping, structure push)
+Phase 6          Monthly attendance/LOP push (payroll-cycle input)
+Phase 7          Payroll-run orchestration (execute/status/finalize)
+Phase 8          Payslip & TDS pull-back to Storage
+Phase 9          Separation push (dismiss) + FnF close
+Phase 10         Webhook ingestion + nightly drift reconciliation
+```
 
-## Projection into ERP
+Each phase is gated: no UI, DB writes, or edge-fn write action until a `probe_endpoint` call for its sub-type returns a documented envelope, captured in `hr_razorpay_sync_log`.
 
-Deterministic mapper `projectRazorpayPerson(snapshot)` writes into three tables. Every write is an UPSERT; ERP-authored values that already exist are NEVER overwritten silently — if a field is already set in ERP and Razorpay disagrees, we log the diff into `hr_razorpay_sync_log` and leave the ERP value alone (ERP-wins, per the approved conflict matrix).
+---
 
-| Target table | Fields we attempt to populate (only those actually present in the snapshot) |
-|---|---|
-| `hr_employees` | first/last name, gender, date_of_birth, personal_email, phone, PAN (identity fields only — never touch is_active from here) |
-| `hr_employee_work_info` | date_of_joining, designation, department, employment_type, location, employee_type, reporting_manager (if resolvable to an existing employee) |
-| `hr_employee_bank_details` | account_holder_name, account_number, ifsc, bank_name, account_type |
+## Phase 2 — Probe & envelope catalogue
 
-Fields Razorpay does not return stay NULL. No dummy values, no inferred defaults, no manual overrides in the mapper.
+**Goal:** Prove which JSON-RPC sub-types this Live tenant actually accepts, before designing any push.
 
-## Gap tracking
+**Actions in `razorpay-payroll-proxy`:**
+- Extend `probe_endpoint` allowlist to include reserved write sub-types in a **dry-header-only** mode: `people:create`, `people:update`, `people:dismiss`, `salary-structure:create`, `salary-structure:update`, `salary:update`, `attendance:import`, `payroll:execute`, `payroll:finalize`, `payslip:view`, `payslip:download`, `tds:view`.
+- Each probe sends the smallest legal envelope for `type=validate` where the API supports it, otherwise a read variant of the same resource (e.g. `people:view` on the pilot map row) to confirm the resource path exists and the API key has the scope.
+- Record every probe in `hr_razorpay_sync_log` with `action='drift_check'`, `field_diff_summary={sub_type, http_status, has_error, error_class}`, no PII.
 
-- Small view `v_razorpay_import_gaps` computes per-draft which of {bank details, PAN, DOJ, department, designation} are still missing.
-- `RazorpaySyncPage` gains a "Completion readiness" strip: total drafts, drafts with each gap category, and a click-through into the filtered Onboarding Pipeline. Purely informational; the Onboarding Pipeline itself remains the single activation surface.
+**Deliverable:** a probe-results table in `RazorpaySyncPage` showing green/red per sub-type. No phase past 2 is buildable for sub-types marked red.
 
-## What this phase deliberately does NOT do
+**Guardrails:** probes hit the pilot-verified employee only (one ID). No range/loop probing.
 
-- No writes to Razorpay (no `people:update`, no bank push).
-- No changes to `is_active` — only the Onboarding Pipeline flips that.
-- No auto-merge with existing ERP employees by name/email; mapping stays 1:1 with `hr_razorpay_employee_map`.
-- No new permission enums; existing `hrms_razorpay_sync` gates the pull action.
+---
 
-## Safety carry-forwards
+## Phase 3 — Employee-master push (`people:update`)
 
-- Calls flow through the JWT-gated `razorpay-payroll-proxy`.
-- PII-safe logging: `hr_razorpay_sync_log` records field names + hash diffs only; raw PAN/account numbers never leave the snapshot column, which is RLS-locked to Super-Admin + `hrms_razorpay_sync` holders.
-- Idempotent: re-running the pull for the same employee is a no-op unless Razorpay's payload changed (compared by SHA-256 of the canonicalised snapshot).
+Trigger: ERP edit on `hr_employees` (identity: name, phone, gender, dob, pan_number, uan_number, esi_number) or `hr_employee_work_info` (department, job_position, joining_date, reporting_manager) commits.
 
-## Verification before phase closes
+**Mechanics:**
+- New DB trigger `trg_queue_razorpay_master_push` on `hr_employees` / `hr_employee_work_info` inserts into new table `hr_razorpay_push_queue` (`hr_employee_id, domain, patch_hash, status, attempts, last_error`).
+- New proxy action `flush_master_push`: dequeues, canonicalises the patch, drops fields with the same `payload_hash` already recorded (no-op skip), POSTs `people:update`, logs to `hr_razorpay_sync_log` with `action='push_update'`.
+- Only rows where `hr_razorpay_employee_map.is_pilot_verified=true` AND `hr_razorpay_settings.bulk_sync_unlocked=true` are flushed; others sit in queue.
+- Per-domain toggle in `hr_razorpay_settings` (new booleans `push_identity_enabled`, `push_work_info_enabled`, `push_bank_enabled`, `push_salary_enabled`) — every push respects its toggle.
 
-1. All 40 mapped drafts have a fresh `last_pull_snapshot` and `last_pulled_at`.
-2. Every field Razorpay returned that maps to a known ERP column is landed (spot-check 3 drafts against raw snapshot).
-3. Gap strip on `RazorpaySyncPage` matches a direct SQL count from `v_razorpay_import_gaps`.
-4. `hr_razorpay_sync_log` contains one row per pulled employee with masked field-name list.
+**Pilot-one gate:** first flush must target exactly one queued row (`apply_one`-style), operator confirms in UI, only then the queue is cleared for the rest.
 
-## Immediate next phase (proposed, not built yet)
+---
 
-Phase 1b — Onboarding gap-check UI: surface the same gap data inside the Onboarding Pipeline row-by-row and block stage completion when required fields are still empty. Approval on this plan implies Phase 1b is queued next; I will re-plan before starting it.
+## Phase 4 — Bank & PAN write
+
+Highest-blast-radius domain (wrong account = wrong payout). Isolated as its own phase behind its own toggle.
+
+- `hr_employee_bank_details` inserts/updates enqueue a `domain='bank'` push.
+- Precondition: PAN present on `hr_employees` and IFSC/account passes format checks in a new SQL function `validate_bank_details()`.
+- UI shows a diff-and-confirm dialog for every bank push (no silent flush), even after bulk unlock.
+
+---
+
+## Phase 5 — Salary-structure sync
+
+**Blocker to resolve first:** map ERP `hr_salary_components.code` → Razorpay component IDs. No mapping exists today.
+
+- New table `hr_razorpay_component_map` (`hr_component_id, razorpay_component_key, is_active`).
+- `RazorpaySyncPage` gains a "Component mapping" tab that fetches Razorpay's structure catalogue via `salary-structure:view` and lets an operator hand-pair components.
+- `hr_employee_salary_structures` changes enqueue a `domain='salary_structure'` push using the map.
+- `apply_salary_revision` gains an optional `p_push_to_razorpay boolean default false`; when true and the employee is bulk-unlocked with `push_salary_enabled`, the revision commit enqueues a push.
+
+---
+
+## Phase 6 — Monthly attendance / LOP push
+
+Trigger: `hr_payroll_runs.status` transitions to `LOP_LOCKED` (new state before `PROCESSING`).
+
+- New proxy action `push_attendance(payroll_run_id)`: for every payslip row in that run, POST `attendance:import` with `{employee_id, present_days, lop_days, working_days, overtime_hours}` from `hr_payslips`.
+- Idempotency key: `(razorpay_employee_id, pay_period_start, pay_period_end)`; retries safe.
+- Response ingested into `hr_payroll_runs.additional_info.razorpay_attendance_ack`.
+
+---
+
+## Phase 7 — Payroll-run orchestration
+
+Once attendance is pushed, ERP asks Razorpay to execute payout for the same pay period.
+
+- Actions: `payroll_execute(payroll_run_id)`, `payroll_status(payroll_run_id)`, `payroll_finalize(payroll_run_id)`.
+- Status polls populate `hr_payroll_runs.status`: `SENT_TO_RAZORPAY → PROCESSING → PAID → FAILED`.
+- ERP payslip amounts remain authoritative; Razorpay is asked to disburse `net_salary` and to handle statutory filings (EPF/ESI/TDS). Any diff on Razorpay's echoed net beyond ₹1 raises a `drift` sync log and blocks finalize.
+
+---
+
+## Phase 8 — Payslip & TDS pull-back
+
+- Nightly cron: for each `hr_payroll_runs.status='PAID'` row, call `payslip:download` per employee and `tds:view` per PAN.
+- Persist PDFs to Supabase Storage bucket `razorpay-payslips/{payroll_run_id}/{badge_id}.pdf` (private, RLS to owner + payroll admins).
+- Write `hr_payslips.payment_reference` from Razorpay's payout id.
+
+---
+
+## Phase 9 — Separation push
+
+- `hr_employees.last_working_day` set + `is_active=false` triggers `domain='dismiss'` push (`people:dismiss` or equivalent — validated in Phase 2 probe).
+- FnF settlement close only allowed after dismiss push acknowledges.
+
+---
+
+## Phase 10 — Webhook + drift reconciliation
+
+- Public endpoint `razorpay-webhook` (JWT-verified via Razorpay's HMAC secret stored via `add_secret`) receives status updates and Razorpay-side edits.
+- Any Razorpay-originated edit writes to `hr_razorpay_push_queue` with `domain='razorpay_edit'` for operator review — never auto-applied.
+- Nightly `drift_walk` action re-pulls `people:view` for every mapped row, diffs against ERP, logs field-level drift (names only, no PII).
+
+---
+
+## Cross-cutting safety
+
+- **JWT gate** on every write action (already applied on proxy — extend to new actions).
+- **Payload hash no-op skip** on every push (avoid duplicate API calls, avoid rate-limit burn).
+- **Per-domain toggles** in `hr_razorpay_settings` default OFF; each phase ships with its toggle off, activated only after pilot-one succeeds.
+- **PII discipline**: `hr_razorpay_sync_log.field_diff_summary` stores field names + hashes only, never values.
+- **No mass writes without a pilot-one** gate — extend the existing `unlock_bulk` pattern to every new domain.
+- **Rate limiting**: chunk every bulk push in groups of 15 with 500 ms spacing (matches the 30 s edge-fn budget we already established for `pull_person_full`).
+
+## Technical notes for engineers
+
+- All new proxy actions follow the JSON-RPC envelope `{ type: <action>, "sub-type": <sub_type>, data: {...} }` on `POST /api/{resource}`; no REST verbs.
+- Every new DB table adds `GRANT` block for `authenticated`/`service_role` in the same migration + RLS scoped to `has_role('hrms_razorpay_sync')` and `super_admin`.
+- Enum extensions: add `push_bank`, `push_salary_structure`, `push_attendance`, `push_dismiss`, `payroll_execute`, `payroll_finalize`, `payslip_pull`, `tds_pull`, `razorpay_edit` to `hr_razorpay_sync_action`.
+- `hr_razorpay_push_queue` uses partial unique index `(hr_employee_id, domain) WHERE status='pending'` to collapse repeated edits into one push.
+- New edge fn `razorpay-drift-walk` runs nightly via `pg_cron` calling the proxy with `action='drift_walk'`.
+- Component mapping (Phase 5) is the one manual step that cannot be automated — plan for an operator UI, not a script.
+
+## Open items requiring operator input before build
+
+1. Which Razorpay tenant fields are considered authoritative today (any HR still edits on Razorpay directly)?
+2. Should EPF/ESI filings continue via Razorpay after payroll orchestration switches, or move to a separate compliance tool?
+3. Cadence for `apply-scheduled-salary-revisions` — currently no `cron.schedule` in migrations; needs confirmation before wiring salary-push triggers.
+
+## Next step
+
+If this plan is approved, Phase 2 (probe & envelope catalogue) is the immediate build — small, read-mostly, no push risk, and it produces the green/red matrix that unlocks every subsequent phase.

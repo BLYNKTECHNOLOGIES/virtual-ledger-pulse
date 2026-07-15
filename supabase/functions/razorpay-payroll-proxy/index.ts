@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (action === "apply_range") await unlockBulkAndStampImport(svc);
+      if (action === "apply_range") await stampLastImport(svc);
 
       const summary = {
         total: rows.length,

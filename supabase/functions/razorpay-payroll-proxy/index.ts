@@ -266,8 +266,22 @@ Deno.serve(async (req) => {
         field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, pilot: true },
         actor_user_id: authed.userId,
       });
-      await unlockBulkAndStampImport(svc);
+      await stampLastImport(svc);
       return json(200, { ok: true, hr_employee_id: hrId, created, matched_by: match.matched_by });
+    }
+
+    // ---------- unlock_bulk: human gate after pilot verification ----------
+    if (action === "unlock_bulk") {
+      const { data: pilot } = await svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id").eq("is_pilot_verified", true).limit(1).maybeSingle();
+      if (!pilot) return json(400, { error: "No pilot-verified employee. Run apply_one first." });
+      await unlockBulk(svc);
+      await logSync(svc, {
+        action: "unlock_bulk", http_status: 200,
+        razorpay_employee_id: String(pilot.razorpay_employee_id),
+        actor_user_id: authed.userId,
+      });
+      return json(200, { ok: true });
     }
 
     const settings = await readSettings(svc);

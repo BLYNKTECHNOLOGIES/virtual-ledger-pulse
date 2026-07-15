@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const serialNumber = url.searchParams.get("SN");
+  const pathName = url.pathname.toLowerCase();
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -68,7 +69,8 @@ Deno.serve(async (req) => {
     // ─── ICLOCK PROTOCOL: GET requests ───
     if (req.method === "GET" && serialNumber) {
       const options = url.searchParams.get("options");
-      const requestType = url.searchParams.get("type");
+      const requestType = url.searchParams.get("type")?.toLowerCase();
+      const isCommandPoll = requestType === "getrequest" || pathName.endsWith("/getrequest");
 
       // Heartbeat: update device status on every GET
       await updateDeviceHeartbeat(supabase, serialNumber);
@@ -123,7 +125,7 @@ Deno.serve(async (req) => {
       }
 
       // 2. Device polling for commands: GET ?SN=xxx&type=getrequest
-      if (requestType === "getrequest") {
+      if (isCommandPoll) {
         const { data: commands } = await supabase
           .from("hr_biometric_device_commands")
           .select("*")
@@ -138,11 +140,14 @@ Deno.serve(async (req) => {
             .from("hr_biometric_device_commands")
             .update({ status: "sent", sent_at: new Date().toISOString() })
             .eq("id", cmd.id);
+          console.log(`ICLOCK command delivered to ${serialNumber}: ${cmd.command_text.slice(0, 120)}`);
           return new Response(cmd.command_text, {
             status: 200,
             headers: { "Content-Type": "text/plain", ...corsHeaders },
           });
         }
+
+        console.log(`ICLOCK command poll from ${serialNumber}: no pending commands`);
 
         return new Response("OK", {
           status: 200,

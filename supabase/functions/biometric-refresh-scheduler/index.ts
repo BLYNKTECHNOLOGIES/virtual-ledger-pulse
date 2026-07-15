@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     return [
       { device_serial: serial, command_text: `C:${now}:CHECK`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 1}:INFO`, status: "pending" },
-      { device_serial: serial, command_text: `C:${now + 2}:DATA QUERY USERINFO`, status: "pending" },
+      { device_serial: serial, command_text: `C:${now + 2}:DATA QUERY USERINFO PIN=*`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 3}:DATA QUERY TEMPLATE`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 4}:DATA QUERY BIODATA`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 5}:LOG`, status: "pending" },

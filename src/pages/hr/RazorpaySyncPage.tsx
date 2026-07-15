@@ -508,3 +508,16 @@ export default function RazorpaySyncPage() {
     </div>
   );
 }
+
+function GapChip({ label, value, tone }: { label: string; value: number; tone: "ok" | "warn" | "neutral" }) {
+  const cls =
+    tone === "ok" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    : tone === "warn" ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    : "border-border bg-muted/40 text-foreground";
+  return (
+    <div className={`rounded-md border px-2 py-1.5 ${cls}`}>
+      <div className="text-[10px] uppercase tracking-wide opacity-70">{label}</div>
+      <div className="text-base font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}

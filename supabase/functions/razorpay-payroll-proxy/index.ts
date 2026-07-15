@@ -172,10 +172,14 @@ async function readSettings(svc: SupabaseClient) {
 async function markCredsValidated(svc: SupabaseClient) {
   await svc.from("hr_razorpay_settings").update({ last_creds_validated_at: new Date().toISOString() }).eq("is_singleton", true);
 }
-async function unlockBulkAndStampImport(svc: SupabaseClient) {
+async function stampLastImport(svc: SupabaseClient) {
+  await svc.from("hr_razorpay_settings").update({
+    last_import_at: new Date().toISOString(),
+  }).eq("is_singleton", true);
+}
+async function unlockBulk(svc: SupabaseClient) {
   await svc.from("hr_razorpay_settings").update({
     bulk_sync_unlocked: true,
-    last_import_at: new Date().toISOString(),
   }).eq("is_singleton", true);
 }
 

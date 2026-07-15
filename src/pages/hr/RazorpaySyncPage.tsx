@@ -55,6 +55,8 @@ export default function RazorpaySyncPage() {
   const [fetching, setFetching] = useState(false);
   const [applyingPilot, setApplyingPilot] = useState(false);
   const [pilotPreview, setPilotPreview] = useState<FetchOneResponse | null>(null);
+  const [pilotApplied, setPilotApplied] = useState<{ hr_employee_id: string; created: boolean; matched_by: string | null; employee_id: number } | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
 
   // Step 3: bulk import
   const [startId, setStartId] = useState("1");

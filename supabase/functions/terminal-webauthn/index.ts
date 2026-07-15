@@ -78,17 +78,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // === SECURITY: Require a valid Supabase session on the caller ===
+    // Previously the function trusted `user_id` from the request body, which
+    // let an attacker register their own device against any user's account
+    // and mint a biometric session for that victim. Derive the acting userId
+    // from the caller's JWT instead. The Super-Admin `admin_user_id` override
+    // path (below) still re-checks the ERP role independently.
+    const authHeader = req.headers.get('Authorization') || '';
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return errorResponse('Unauthorized', 401);
+    }
+    const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: sessionUser, error: sessionErr } = await userClient.auth.getUser();
+    if (sessionErr || !sessionUser?.user?.id || !UUID_REGEX.test(sessionUser.user.id)) {
+      return errorResponse('Invalid session', 401);
+    }
+
     const body = await req.json();
     const url = new URL(req.url);
     const path = body.action || url.pathname.split('/').pop();
     const supabase = getSupabase();
 
-    // === SECURITY: Validate user_id is a valid UUID ===
-    const userId = body.user_id;
-    if (!userId || !UUID_REGEX.test(userId)) {
-      console.error('Invalid user_id:', userId);
-      return errorResponse('Invalid or missing user_id', 400);
-    }
+    // Ignore any client-supplied user_id — always act as the authenticated caller.
+    const userId = sessionUser.user.id;
+
 
     // === SECURITY: Rate limiting ===
     if (isRateLimited(userId)) {

@@ -1526,6 +1526,30 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // Recall: operator-audited override that re-opens a period for re-push. Every recall
+    // requires a reason and is logged with the actor; a subsequent push is only allowed
+    // when recall_count > successful_push_count for that (employee, period) pair.
+    if (action === "recall_attendance_period") {
+      const period = String(payload?.period || "").trim();
+      const rid = String(payload?.razorpay_employee_id || "").trim();
+      const reason = String(payload?.reason || "").trim();
+      if (!/^(\d{4})-(\d{2})$/.test(period)) return json(400, { error: "period must be YYYY-MM" });
+      if (!rid) return json(400, { error: "razorpay_employee_id required" });
+      if (reason.length < 8) return json(400, { error: "reason (min 8 chars) is required for recall" });
+      const { data: mrow } = await svc.from("hr_razorpay_employee_map")
+        .select("hr_employee_id").eq("razorpay_employee_id", rid).maybeSingle();
+      await logSync(svc, {
+        action: "push_attendance_recall",
+        http_status: 0,
+        razorpay_employee_id: rid,
+        hr_employee_id: mrow?.hr_employee_id || null,
+        field_diff_summary: { period, reason_len: reason.length, recall: true },
+        error_text: null,
+        actor_user_id: authed.userId,
+      });
+      return json(200, { ok: true });
+    }
+
     if (
       action === "push_attendance_dry_run" ||
       action === "push_attendance_apply_one" ||
@@ -1599,6 +1623,26 @@ Deno.serve(async (req) => {
       const ltMap = new Map((ltRes.data || []).map((l: any) => [l.id, l]));
       const holidayDates = new Set((holRes.data || []).map((h: any) => h.date));
 
+      // Period immutability: for each (razorpay_employee_id, period), count successful
+      // prior pushes vs recalls. A period stays LOCKED for re-push until the operator
+      // files an audited recall. Only matters on the write path — dry-runs stay open.
+      const pushedLocks = new Map<string, number>();
+      if (isWrite) {
+        const ids = maps.map((m: any) => String(m.razorpay_employee_id));
+        const { data: prior } = await svc.from("hr_razorpay_sync_log")
+          .select("action,razorpay_employee_id,field_diff_summary,http_status")
+          .in("razorpay_employee_id", ids)
+          .in("action", ["push_attendance", "push_attendance_recall"] as any);
+        for (const r of (prior || []) as any[]) {
+          const p = r?.field_diff_summary?.period;
+          if (p !== period) continue;
+          const key = `${r.razorpay_employee_id}`;
+          const delta = r.action === "push_attendance_recall" ? -1
+            : (r.http_status >= 200 && r.http_status < 300 ? 1 : 0);
+          pushedLocks.set(key, (pushedLocks.get(key) || 0) + delta);
+        }
+      }
+
       // Working days = calendar days minus Sundays minus active holidays. This is a
       // documented ERP assumption; if the tenant uses a Mon–Fri or different weekly-off
       // pattern the operator must reconcile in Razorpay after the push. The dry-run
@@ -1670,6 +1714,35 @@ Deno.serve(async (req) => {
           lop_days: lopDays,
           unpaid_matches_lop: Math.abs(unpaidCovered - unpaidLeave) < 0.01,
         };
+
+        // Explicit no-op class: zero ERP attendance AND zero leaves for the whole month
+        // means we have NO source data for this employee — do not construct a "0 present /
+        // full LOP" payload that would silently zero out their pay in Razorpay.
+        if (presentDays === 0 && paidLeave === 0 && unpaidLeave === 0) {
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "no_erp_attendance",
+            ...payload,
+            error: "No ERP attendance or leave records for this employee in the period.",
+          });
+          continue;
+        }
+
+        // Period immutability guard on the write path only.
+        if (isWrite && (pushedLocks.get(String(m.razorpay_employee_id)) || 0) > 0) {
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "blocked_period_locked",
+            ...payload,
+            error: "Period already pushed. File an audited recall (recall_attendance_period) before re-pushing.",
+          });
+          continue;
+        }
+
         planned++;
 
         if (action === "push_attendance_dry_run") {

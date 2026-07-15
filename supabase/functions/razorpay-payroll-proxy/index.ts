@@ -100,10 +100,17 @@ Deno.serve(async (req) => {
       const attempts: any[] = [];
       let picked: any = null;
       for (const c of CANDIDATES) {
-        const res = await fetch(c.url, {
-          headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
-        });
-        const raw = await res.text();
+        let res: Response | null = null;
+        let raw = "";
+        let fetchError: string | null = null;
+        try {
+          res = await fetch(c.url, {
+            headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+          });
+          raw = await res.text();
+        } catch (e) {
+          fetchError = (e as Error).message;
+        }
         let body: any = null;
         try { body = JSON.parse(raw); } catch { /* keep raw */ }
 
@@ -137,20 +144,20 @@ Deno.serve(async (req) => {
 
         const attempt = {
           url: c.url,
-          http_status: res.status,
-          body_type: isArray ? "array" : (isObj ? "object" : typeof body),
+          http_status: res?.status ?? 0,
+          body_type: fetchError ? "network_error" : (isArray ? "array" : (isObj ? "object" : typeof body)),
           top_level_keys: topKeys,
           array_key: arrayKey,
           array_length: arrayLen,
           scalar_keys: scalarKeys,
           element_field_names: elementFieldNames,
           raw_length: raw.length,
-          raw_preview: raw.slice(0, 500),
+          raw_preview: fetchError ? `NETWORK: ${fetchError}` : raw.slice(0, 500),
         };
         attempts.push(attempt);
-        console.log("[introspect_envelope]", JSON.stringify({ url: c.url, status: res.status, body_type: attempt.body_type, top_keys: topKeys, array_key: arrayKey, array_len: arrayLen, has_fields: !!elementFieldNames }));
+        console.log("[introspect_envelope]", JSON.stringify({ url: c.url, status: attempt.http_status, body_type: attempt.body_type, top_keys: topKeys, array_key: arrayKey, array_len: arrayLen, has_fields: !!elementFieldNames, err: fetchError }));
 
-        if (!picked && res.ok && elementFieldNames && elementFieldNames.length) {
+        if (!picked && res?.ok && elementFieldNames && elementFieldNames.length) {
           picked = attempt;
         }
       }

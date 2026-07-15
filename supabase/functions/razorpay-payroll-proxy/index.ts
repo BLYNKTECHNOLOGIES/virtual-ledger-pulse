@@ -1623,6 +1623,26 @@ Deno.serve(async (req) => {
       const ltMap = new Map((ltRes.data || []).map((l: any) => [l.id, l]));
       const holidayDates = new Set((holRes.data || []).map((h: any) => h.date));
 
+      // Period immutability: for each (razorpay_employee_id, period), count successful
+      // prior pushes vs recalls. A period stays LOCKED for re-push until the operator
+      // files an audited recall. Only matters on the write path — dry-runs stay open.
+      const pushedLocks = new Map<string, number>();
+      if (isWrite) {
+        const ids = maps.map((m: any) => String(m.razorpay_employee_id));
+        const { data: prior } = await svc.from("hr_razorpay_sync_log")
+          .select("action,razorpay_employee_id,field_diff_summary,http_status")
+          .in("razorpay_employee_id", ids)
+          .in("action", ["push_attendance", "push_attendance_recall"] as any);
+        for (const r of (prior || []) as any[]) {
+          const p = r?.field_diff_summary?.period;
+          if (p !== period) continue;
+          const key = `${r.razorpay_employee_id}`;
+          const delta = r.action === "push_attendance_recall" ? -1
+            : (r.http_status >= 200 && r.http_status < 300 ? 1 : 0);
+          pushedLocks.set(key, (pushedLocks.get(key) || 0) + delta);
+        }
+      }
+
       // Working days = calendar days minus Sundays minus active holidays. This is a
       // documented ERP assumption; if the tenant uses a Mon–Fri or different weekly-off
       // pattern the operator must reconcile in Razorpay after the push. The dry-run

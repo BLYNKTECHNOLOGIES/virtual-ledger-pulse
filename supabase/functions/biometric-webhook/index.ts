@@ -176,6 +176,11 @@ Deno.serve(async (req) => {
 
       console.log(`ICLOCK POST from ${serialNumber}, table=${table}, body length=${bodyText.length}`);
 
+      if (isCommandAckPayload(url.pathname, bodyText)) {
+        await parseCommandAck(supabase, serialNumber, bodyText);
+        return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
+      }
+
       if (table === "ATTLOG" && bodyText.trim()) {
         const lines = bodyText.trim().split("\n");
         const results = { inserted: 0, skipped: 0, errors: [] as string[] };
@@ -800,6 +805,35 @@ function normalizeRosterLine(tableHint: string | undefined, rawLine: string): st
   if (["FACE", "PALM", "VEIN", "USERPIC"].includes(table) && /(^|\t)PIN=/i.test(line)) return `${table} ${line}`;
 
   return line;
+}
+
+function isCommandAckPayload(pathname: string, body: string): boolean {
+  return pathname.toLowerCase().includes("devicecmd") || /(^|\n)\s*ID=/i.test(body) || /(^|\n)\s*CMD=/i.test(body);
+}
+
+async function parseCommandAck(supabase: any, serialNumber: string, body: string) {
+  const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  let updated = 0;
+
+  for (const line of lines) {
+    const kv = parseKV(line);
+    const commandId = kv["id"] || kv["cmdid"] || kv["cmd"];
+    if (!commandId) continue;
+
+    const { error } = await supabase
+      .from("hr_biometric_device_commands")
+      .update({
+        status: kv["return"] === "0" || kv["ret"] === "0" ? "ack" : "error",
+        ack_at: new Date().toISOString(),
+        ack_response: line.slice(0, 500),
+      })
+      .eq("device_serial", serialNumber)
+      .like("command_text", `C:${commandId}:%`);
+
+    if (!error) updated++;
+  }
+
+  console.log(`Command ACK parsed from ${serialNumber}: updated=${updated}`);
 }
 
 async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string) {

@@ -99,6 +99,15 @@ export default function RazorpaySyncPage() {
   const [probeRows, setProbeRows] = useState<ProbeRow[] | null>(null);
   const [probeId, setProbeId] = useState<number | null>(null);
 
+  // Phase 3 — Push people:update
+  const [pushRpId, setPushRpId] = useState<string>("");
+  const [pushDrying, setPushDrying] = useState(false);
+  const [pushApplyingOne, setPushApplyingOne] = useState(false);
+  const [pushApplyingBulk, setPushApplyingBulk] = useState(false);
+  const [pushUnlocking, setPushUnlocking] = useState(false);
+  const [pushDryResult, setPushDryResult] = useState<PushResponse | null>(null);
+  const [pushApplyResult, setPushApplyResult] = useState<PushResponse | null>(null);
+
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")

@@ -79,7 +79,21 @@ export default function RazorpaySyncPage() {
     setSettings(data as Settings | null);
   };
 
-  useEffect(() => { if (canAccess) reloadSettings(); }, [canAccess]);
+  useEffect(() => { if (canAccess) { reloadSettings(); reloadGaps(); } }, [canAccess]);
+
+  const reloadGaps = async () => {
+    const { data, error } = await supabase.from("v_razorpay_import_gaps").select("*");
+    if (error || !data) { setGaps(null); return; }
+    setGaps({
+      total: data.length,
+      missing_pan: data.filter((r: any) => r.missing_pan).length,
+      missing_doj: data.filter((r: any) => r.missing_doj).length,
+      missing_dept: data.filter((r: any) => r.missing_department).length,
+      missing_designation: data.filter((r: any) => r.missing_designation).length,
+      missing_bank: data.filter((r: any) => r.missing_bank).length,
+      not_pulled: data.filter((r: any) => !r.last_pulled_at).length,
+    });
+  };
 
   const invoke = async <T,>(body: object): Promise<T> => {
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body });

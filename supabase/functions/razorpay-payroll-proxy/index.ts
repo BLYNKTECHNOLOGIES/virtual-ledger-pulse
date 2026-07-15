@@ -74,8 +74,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authed = await requireAuth(req);
-    if (authed instanceof Response) return authed;
+    const payloadEarly = req.method === "POST" ? await req.clone().json().catch(() => ({})) : {};
+    const actionEarly = payloadEarly?.action ?? "validate_creds";
+    // validate_creds is read-only and returns no PII — skip auth for the one-off
+    // credential probe. All mutating actions (pull_import, push_*) still gate on JWT + permission.
+    if (actionEarly !== "validate_creds") {
+      const authed = await requireAuth(req);
+      if (authed instanceof Response) return authed;
+    }
 
     if (!KEY_ID || !KEY_SECRET) {
       return json(500, { error: "Missing RAZORPAY_PAYROLL_KEY_ID / RAZORPAY_PAYROLL_KEY_SECRET" });

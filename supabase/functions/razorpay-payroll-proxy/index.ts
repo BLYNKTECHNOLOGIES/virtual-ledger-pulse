@@ -151,25 +151,33 @@ async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: 
 async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string> {
   const { first, last } = splitName(e.name || "");
   const dept = (e.department || "General").toString().trim() || "General";
-  // Reuse the standard employee-id generator so drafts get a valid, unique badge_id.
-  const { data: badgeData, error: badgeErr } = await svc.rpc("generate_employee_id", {
-    dept, designation: "Employee",
-  });
-  if (badgeErr) throw new Error(`generate_employee_id failed: ${badgeErr.message}`);
-  const badgeId = badgeData as string;
-  const { data, error } = await svc.from("hr_employees").insert({
-    badge_id: badgeId,
-    first_name: first,
-    last_name: last,
-    email: (e.email || "").toString().trim() || null,
-    phone: normPhone(e.phone_number),
-    dob: parseDobIso(e["date-of-birth"]),
-    pan_number: (e.pan || "").toString().trim().toUpperCase() || null,
-    is_active: false, // draft
-    additional_info: { source: "razorpay_import", razorpay: { status: "draft", imported_at: new Date().toISOString() } },
-  }).select("id").single();
-  if (error) throw new Error(`create hr_employees failed: ${error.message}`);
-  return data!.id as string;
+  // generate_employee_id can race/collide on rapid bulk imports; retry with fresh
+  // IDs on unique-violation (23505) before giving up.
+  const maxAttempts = 5;
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { data: badgeData, error: badgeErr } = await svc.rpc("generate_employee_id", {
+      dept, designation: "Employee",
+    });
+    if (badgeErr) throw new Error(`generate_employee_id failed: ${badgeErr.message}`);
+    const badgeId = badgeData as string;
+    const { data, error } = await svc.from("hr_employees").insert({
+      badge_id: badgeId,
+      first_name: first,
+      last_name: last,
+      email: (e.email || "").toString().trim() || null,
+      phone: normPhone(e.phone_number),
+      dob: parseDobIso(e["date-of-birth"]),
+      pan_number: (e.pan || "").toString().trim().toUpperCase() || null,
+      is_active: false, // draft
+      additional_info: { source: "razorpay_import", razorpay: { status: "draft", imported_at: new Date().toISOString() } },
+    }).select("id").single();
+    if (!error) return data!.id as string;
+    lastErr = error;
+    // 23505 = unique_violation; retry only for badge_id collision
+    if ((error as any).code !== "23505" || !String(error.message).includes("badge_id")) break;
+  }
+  throw new Error(`create hr_employees failed: ${lastErr?.message ?? "unknown"}`);
 }
 
 async function readSettings(svc: SupabaseClient) {

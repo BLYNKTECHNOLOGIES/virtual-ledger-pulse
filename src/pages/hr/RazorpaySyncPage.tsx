@@ -56,6 +56,7 @@ export default function RazorpaySyncPage() {
   const [introspecting, setIntrospecting] = useState(false);
   const [validateResult, setValidateResult] = useState<ValidateResult | null>(null);
   const [envelope, setEnvelope] = useState<EnvelopeShape | null>(null);
+  const [probeId, setProbeId] = useState<string>("1");
 
   useEffect(() => {
     if (!canAccess) return;
@@ -73,7 +74,7 @@ export default function RazorpaySyncPage() {
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-        body: { action },
+        body: { action, employee_id: Number(probeId) || 1, employee_type: "employee" },
       });
       if (error) throw error;
       if (action === "validate_creds") {
@@ -153,16 +154,36 @@ export default function RazorpaySyncPage() {
         </Card>
       )}
 
+      <Alert>
+        <AlertTitle>API scope limitation</AlertTitle>
+        <AlertDescription className="text-xs">
+          RazorpayX Payroll (Opfin) exposes only per-employee <code>people/view</code> — there is
+          <b> no bulk employee-list endpoint</b>. All probes below POST a JSON envelope
+          (<code>auth</code>+<code>request</code>+<code>data</code>) to <code>https://payroll.razorpay.com/api/people</code>
+          for a single <code>employee-id</code>. Bulk import must be seeded by known IDs.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <ShieldCheck className="h-4 w-4" /> Step 1 — Validate credentials
           </CardTitle>
           <CardDescription>
-            Sends an authenticated read-only GET to the Razorpay Payroll employees list (page=1, count=1).
+            POSTs <code>people/view</code> for the employee-id below to confirm auth id/key are accepted.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">Probe employee-id:</label>
+            <input
+              type="number"
+              min={1}
+              value={probeId}
+              onChange={(e) => setProbeId(e.target.value)}
+              className="h-8 w-24 rounded border bg-background px-2 text-sm"
+            />
+          </div>
           <Button onClick={() => runAction("validate_creds")} disabled={validating}>
             {validating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Validate credentials

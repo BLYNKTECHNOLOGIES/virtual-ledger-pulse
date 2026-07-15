@@ -149,29 +149,68 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       await refetch();
 
       const r = { ...record, ...stage5Data };
-
-      // 2. Create employee in hr_employees
       const docs = r.documents || {};
-      const { data: emp, error: empErr } = await supabase
-        .from("hr_employees")
-        .insert({
-          first_name: r.first_name,
-          last_name: r.last_name || "",
-          email: r.email,
-          phone: r.phone || null,
-          gender: r.gender || null,
-          dob: r.date_of_birth || null,
-          badge_id: r.essl_badge_id,
-          total_salary: r.ctc || 0,
-          is_active: true,
-          pan_number: docs.pan?.value || null,
-          uan_number: docs.uan?.value || null,
-          esi_number: docs.esic?.value || null,
-          additional_info: docs.aadhaar?.value ? { aadhaar_number: docs.aadhaar.value } : null,
-        })
-        .select("id")
-        .single();
-      if (empErr) throw empErr;
+
+      // 2. Employee row.
+      //    If this onboarding was auto-created from a Razorpay import, an
+      //    hr_employees draft (is_active=false) already exists and is linked
+      //    via onboarding.employee_id. In that case we ACTIVATE the existing
+      //    row rather than inserting a duplicate — keeping the razorpay map
+      //    linkage intact.
+      const linkedEmployeeId = (record as any)?.employee_id as string | null;
+      let empId: string;
+
+      if (linkedEmployeeId) {
+        const priorAdditional = ((record as any)?.additional_info) || {};
+        const { error: updErr } = await supabase
+          .from("hr_employees")
+          .update({
+            first_name: r.first_name,
+            last_name: r.last_name || "",
+            email: r.email,
+            phone: r.phone || null,
+            gender: r.gender || null,
+            dob: r.date_of_birth || null,
+            badge_id: r.essl_badge_id,
+            total_salary: r.ctc || 0,
+            is_active: true,
+            pan_number: docs.pan?.value || null,
+            uan_number: docs.uan?.value || null,
+            esi_number: docs.esic?.value || null,
+            additional_info: {
+              ...priorAdditional,
+              ...(docs.aadhaar?.value ? { aadhaar_number: docs.aadhaar.value } : {}),
+              onboarding_completed_at: new Date().toISOString(),
+            },
+          })
+          .eq("id", linkedEmployeeId);
+        if (updErr) throw updErr;
+        empId = linkedEmployeeId;
+      } else {
+        const { data: emp, error: empErr } = await supabase
+          .from("hr_employees")
+          .insert({
+            first_name: r.first_name,
+            last_name: r.last_name || "",
+            email: r.email,
+            phone: r.phone || null,
+            gender: r.gender || null,
+            dob: r.date_of_birth || null,
+            badge_id: r.essl_badge_id,
+            total_salary: r.ctc || 0,
+            is_active: true,
+            pan_number: docs.pan?.value || null,
+            uan_number: docs.uan?.value || null,
+            esi_number: docs.esic?.value || null,
+            additional_info: docs.aadhaar?.value ? { aadhaar_number: docs.aadhaar.value } : null,
+          })
+          .select("id")
+          .single();
+        if (empErr) throw empErr;
+        empId = emp.id;
+      }
+
+      const emp = { id: empId };
 
       // 2b. Auto-create leave allocations for all active leave types
       try {
@@ -198,7 +237,8 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         console.warn("Auto leave allocation failed:", leaveErr);
       }
 
-      // 3. Create work info
+      // 3. Work info — clear any prior row (safe for both draft and fresh) then insert.
+      await supabase.from("hr_employee_work_info").delete().eq("employee_id", emp.id);
       await supabase.from("hr_employee_work_info").insert({
         employee_id: emp.id,
         department_id: r.department_id || null,

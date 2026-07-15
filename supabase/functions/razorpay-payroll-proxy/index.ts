@@ -86,24 +86,31 @@ Deno.serve(async (req) => {
 
     if (action === "introspect_envelope") {
       const auth = btoa(`${KEY_ID}:${KEY_SECRET}`);
-      // Try several candidate hosts/paths — the payroll.razorpay.com host serves a marketing HTML page,
-      // so we widen the search to the documented API bases.
+      // RazorpayX Payroll (Opfin) API bases. Wrap each fetch so DNS/network errors don't abort the probe.
       const CANDIDATES = [
+        { url: "https://payroll.razorpay.com/api/v1/employees?skip=0&count=10" },
+        { url: "https://payroll.razorpay.com/api/v1/employees" },
+        { url: "https://payroll.razorpay.com/api/v1/organizations" },
+        { url: "https://payroll.razorpay.com/api/v1/contractors?skip=0&count=10" },
+        { url: "https://api.opfin.com/api/v1/employees?skip=0&count=10" },
+        { url: "https://opfin.com/api/v1/employees?skip=0&count=10" },
         { url: "https://api.razorpay.com/v1/payroll/employees?skip=0&count=10" },
-        { url: "https://api.razorpay.com/v1/payroll/employees?page=1&count=10" },
-        { url: "https://api.razorpay.com/v1/payroll/employees" },
-        { url: "https://api.razorpay.com/v1/payroll/organizations" },
-        { url: "https://api.razorpay.com/v1/payroll/contractors?skip=0&count=10" },
-        { url: "https://payroll-api.razorpay.com/v1/employees?skip=0&count=10" },
         { url: "https://payroll.razorpay.com/v1/employees?skip=0&count=10" },
       ];
       const attempts: any[] = [];
       let picked: any = null;
       for (const c of CANDIDATES) {
-        const res = await fetch(c.url, {
-          headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
-        });
-        const raw = await res.text();
+        let res: Response | null = null;
+        let raw = "";
+        let fetchError: string | null = null;
+        try {
+          res = await fetch(c.url, {
+            headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+          });
+          raw = await res.text();
+        } catch (e) {
+          fetchError = (e as Error).message;
+        }
         let body: any = null;
         try { body = JSON.parse(raw); } catch { /* keep raw */ }
 
@@ -137,20 +144,20 @@ Deno.serve(async (req) => {
 
         const attempt = {
           url: c.url,
-          http_status: res.status,
-          body_type: isArray ? "array" : (isObj ? "object" : typeof body),
+          http_status: res?.status ?? 0,
+          body_type: fetchError ? "network_error" : (isArray ? "array" : (isObj ? "object" : typeof body)),
           top_level_keys: topKeys,
           array_key: arrayKey,
           array_length: arrayLen,
           scalar_keys: scalarKeys,
           element_field_names: elementFieldNames,
           raw_length: raw.length,
-          raw_preview: raw.slice(0, 500),
+          raw_preview: fetchError ? `NETWORK: ${fetchError}` : raw.slice(0, 500),
         };
         attempts.push(attempt);
-        console.log("[introspect_envelope]", JSON.stringify({ url: c.url, status: res.status, body_type: attempt.body_type, top_keys: topKeys, array_key: arrayKey, array_len: arrayLen, has_fields: !!elementFieldNames }));
+        console.log("[introspect_envelope]", JSON.stringify({ url: c.url, status: attempt.http_status, body_type: attempt.body_type, top_keys: topKeys, array_key: arrayKey, array_len: arrayLen, has_fields: !!elementFieldNames, err: fetchError }));
 
-        if (!picked && res.ok && elementFieldNames && elementFieldNames.length) {
+        if (!picked && res?.ok && elementFieldNames && elementFieldNames.length) {
           picked = attempt;
         }
       }

@@ -330,7 +330,9 @@ export function GrossProfitHistoryTab() {
                     fill="#059669"
                     fillOpacity={0.15}
                     strokeWidth={2}
+                    connectNulls
                   />
+
                   <Line
                     yAxisId="right"
                     type="monotone"

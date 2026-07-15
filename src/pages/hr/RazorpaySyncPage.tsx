@@ -164,6 +164,20 @@ export default function RazorpaySyncPage() {
   const [bankApplyResult, setBankApplyResult] = useState<BankResponse | null>(null);
   const [bankConfirm, setBankConfirm] = useState<{ mode: "one" | "bulk"; row?: BankRow } | null>(null);
 
+  // Phase 5 — Salary structure sync (write path gated behind operator-recorded envelope)
+  const [salaryRpId, setSalaryRpId] = useState<string>("");
+  const [salaryEnvelopeInput, setSalaryEnvelopeInput] = useState<string>("");
+  const [salaryDrying, setSalaryDrying] = useState(false);
+  const [salaryApplyingOne, setSalaryApplyingOne] = useState(false);
+  const [salaryApplyingBulk, setSalaryApplyingBulk] = useState(false);
+  const [salaryUnlocking, setSalaryUnlocking] = useState(false);
+  const [salaryRecording, setSalaryRecording] = useState(false);
+  const [salaryDryResult, setSalaryDryResult] = useState<SalaryResponse | null>(null);
+  const [salaryApplyResult, setSalaryApplyResult] = useState<SalaryResponse | null>(null);
+  const [salaryConfirm, setSalaryConfirm] = useState<{ mode: "one" | "bulk"; row?: SalaryRow } | null>(null);
+
+
+
 
 
   const reloadSettings = async () => {

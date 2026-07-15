@@ -282,12 +282,34 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
+      {/* PILOT CONFIRMATION — human gate */}
+      {pilotApplied && !canBulk && (
+        <Card className="border-amber-500/60 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <CheckCircle2 className="h-4 w-4" /> Pilot imported — verify before unlocking bulk
+            </CardTitle>
+            <CardDescription>
+              Razorpay employee-id <code>{pilotApplied.employee_id}</code> → HR employee <code className="text-[11px]">{pilotApplied.hr_employee_id}</code>
+              {" "}({pilotApplied.created ? "created as draft" : `matched by ${pilotApplied.matched_by ?? "n/a"}`}).
+              Verify this employee on the <b>Razorpay dashboard</b> and in <b>HRMS</b>, then unlock bulk sync.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button size="sm" onClick={runUnlockBulk} disabled={unlocking}>
+              {unlocking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Lock className="h-4 w-4 mr-2" /> Unlock bulk sync
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* STEP 3 — Bulk */}
-      <Card className={canBulk ? "" : "opacity-50 pointer-events-none"}>
+      <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step 3 — Bulk import (range)</CardTitle>
           <CardDescription>
-            Walk <code>start-id</code> → <code>max-id</code>, dry-run first, then apply. Stops after 30 consecutive misses; hard cap 1000 IDs per run.
+            Walk <code>start-id</code> → <code>max-id</code>, dry-run first (available pre-pilot), then apply (requires unlock). Stops after 30 consecutive misses; hard cap 1000 IDs per run.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -301,11 +323,12 @@ export default function RazorpaySyncPage() {
             <Button size="sm" variant="secondary" onClick={runDryRun} disabled={dryRunning}>
               {dryRunning && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Dry-run preview
             </Button>
-            <Button size="sm" onClick={runApplyBulk} disabled={applyingBulk || !dryRun?.ok}>
+            <Button size="sm" onClick={runApplyBulk} disabled={applyingBulk || !dryRun?.ok || !canBulk} title={!canBulk ? "Unlock bulk sync after pilot verification" : undefined}>
               {applyingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <CheckCircle2 className="h-4 w-4 mr-2" /> Apply import
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Apply import {!canBulk && "(locked)"}
             </Button>
           </div>
+
 
           {(dryRun || applied) && (
             <div className="text-xs text-muted-foreground">

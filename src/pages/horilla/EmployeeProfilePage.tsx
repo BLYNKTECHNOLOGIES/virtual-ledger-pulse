@@ -1195,6 +1195,7 @@ export default function EmployeeProfilePage() {
           <NotificationPreferences employeeId={emp.id} />
         )}
       </div>
+      {id && <ReviseSalaryDialog open={showReviseSalary} onOpenChange={setShowReviseSalary} presetEmployeeId={id} />}
     </div>
   );
 }

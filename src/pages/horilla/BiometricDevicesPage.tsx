@@ -117,7 +117,7 @@ export default function BiometricDevicesPage() {
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreVertical className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setEditId(d.id); setForm({ name: d.name, device_type: d.device_type, machine_ip: d.machine_ip || "", port_no: d.port_no || "", password: d.password || "0", device_direction: d.device_direction, company: d.company || "", is_live_capture: d.is_live_capture, is_scheduled: d.is_scheduled }); setShowDialog(true); }}>
+                        <DropdownMenuItem onClick={() => { setEditId(d.id); setForm({ name: d.name, device_type: d.device_type, machine_ip: d.machine_ip || "", port_no: d.port_no || "", password: d.password || "0", device_direction: d.device_direction, company: d.company || "", is_live_capture: d.is_live_capture, is_scheduled: d.is_scheduled, device_serial: d.device_serial || "" }); setShowDialog(true); }}>
                           <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(d.id)}>

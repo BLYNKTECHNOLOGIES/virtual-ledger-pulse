@@ -600,7 +600,7 @@ Deno.serve(async (req) => {
             probe_id: probeId,
             results: rows.map((r) => ({ key: r.key, status: r.status, http: r.http_status })),
           },
-          actor_user_id: authUser?.id ?? null,
+          actor_user_id: authed.userId,
         });
       } catch { /* logging is best-effort */ }
 

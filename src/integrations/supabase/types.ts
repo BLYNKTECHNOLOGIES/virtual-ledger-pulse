@@ -8251,42 +8251,57 @@ export type Database = {
       hr_razorpay_settings: {
         Row: {
           base_url: string
+          bulk_bank_push_unlocked: boolean
           bulk_push_unlocked: boolean
           bulk_sync_unlocked: boolean
           created_at: string
           id: string
           is_singleton: boolean
+          last_bank_push_at: string | null
           last_creds_validated_at: string | null
           last_import_at: string | null
           last_push_at: string | null
+          push_bank_enabled: boolean
+          push_bank_pilot_hr_employee_id: string | null
+          push_bank_pilot_verified_at: string | null
           push_pilot_hr_employee_id: string | null
           push_pilot_verified_at: string | null
           updated_at: string
         }
         Insert: {
           base_url?: string
+          bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           created_at?: string
           id?: string
           is_singleton?: boolean
+          last_bank_push_at?: string | null
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_push_at?: string | null
+          push_bank_enabled?: boolean
+          push_bank_pilot_hr_employee_id?: string | null
+          push_bank_pilot_verified_at?: string | null
           push_pilot_hr_employee_id?: string | null
           push_pilot_verified_at?: string | null
           updated_at?: string
         }
         Update: {
           base_url?: string
+          bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           created_at?: string
           id?: string
           is_singleton?: boolean
+          last_bank_push_at?: string | null
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_push_at?: string | null
+          push_bank_enabled?: boolean
+          push_bank_pilot_hr_employee_id?: string | null
+          push_bank_pilot_verified_at?: string | null
           push_pilot_hr_employee_id?: string | null
           push_pilot_verified_at?: string | null
           updated_at?: string
@@ -18775,6 +18790,10 @@ export type Database = {
           user_uuid: string
         }
         Returns: boolean
+      }
+      validate_bank_details_row: {
+        Args: { _hr_employee_id: string }
+        Returns: Json
       }
       validate_role_purchase_functions: {
         Args: { p_role_id: string }

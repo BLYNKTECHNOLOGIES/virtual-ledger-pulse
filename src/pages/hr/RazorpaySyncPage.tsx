@@ -17,6 +17,25 @@ interface Settings {
   push_pilot_hr_employee_id?: string | null;
   bulk_push_unlocked?: boolean;
   last_push_at?: string | null;
+  push_bank_pilot_verified_at?: string | null;
+  bulk_bank_push_unlocked?: boolean;
+  last_bank_push_at?: string | null;
+}
+interface BankRow {
+  razorpay_employee_id: string;
+  hr_employee_id?: string;
+  status: "planned" | "unchanged" | "pushed" | "failed" | "invalid" | "no_baseline" | "skipped_no_baseline";
+  reasons?: string[];
+  changed?: string[];
+  holder_name?: string;
+  patch_preview?: Record<string, any>;
+  error?: string;
+}
+interface BankResponse {
+  ok: boolean;
+  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number; invalid: number; no_baseline: number };
+  rows: BankRow[];
+  pilot: { verified_at: string | null; bulk_unlocked: boolean };
 }
 interface PushRow {
   razorpay_employee_id: string;
@@ -109,10 +128,22 @@ export default function RazorpaySyncPage() {
   const [pushDryResult, setPushDryResult] = useState<PushResponse | null>(null);
   const [pushApplyResult, setPushApplyResult] = useState<PushResponse | null>(null);
 
+  // Phase 4 — Bank & PAN push (isolated toggle, diff-and-confirm mandatory)
+  const [bankRpId, setBankRpId] = useState<string>("");
+  const [bankDrying, setBankDrying] = useState(false);
+  const [bankApplyingOne, setBankApplyingOne] = useState(false);
+  const [bankApplyingBulk, setBankApplyingBulk] = useState(false);
+  const [bankUnlocking, setBankUnlocking] = useState(false);
+  const [bankDryResult, setBankDryResult] = useState<BankResponse | null>(null);
+  const [bankApplyResult, setBankApplyResult] = useState<BankResponse | null>(null);
+  const [bankConfirm, setBankConfirm] = useState<{ mode: "one" | "bulk"; row?: BankRow } | null>(null);
+
+
+
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")
-      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at")
+      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at")
       .maybeSingle();
     setSettings(data as Settings | null);
   };
@@ -299,6 +330,71 @@ export default function RazorpaySyncPage() {
       toast({ title: "Bulk push failed", description: e?.message, variant: "destructive" });
     } finally { setPushApplyingBulk(false); }
   };
+
+  // ---- Phase 4 handlers (Bank & PAN) ----
+  const runBankDryRun = async () => {
+    setBankDrying(true); setBankDryResult(null);
+    try {
+      const body: any = { action: "push_bank_dry_run" };
+      if (bankRpId.trim()) body.razorpay_employee_id = bankRpId.trim();
+      const d = await invoke<BankResponse>(body);
+      setBankDryResult(d);
+      toast({
+        title: "Bank dry-run complete",
+        description: `${d.summary.planned} would change · ${d.summary.invalid} invalid · ${d.summary.no_baseline} no baseline`,
+      });
+    } catch (e: any) {
+      toast({ title: "Bank dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setBankDrying(false); }
+  };
+  const requestBankApplyOne = () => {
+    const id = bankRpId.trim();
+    if (!id) { toast({ title: "Enter a Razorpay employee ID first", variant: "destructive" }); return; }
+    const row = (bankDryResult?.rows || []).find((r) => r.razorpay_employee_id === id);
+    if (!row || row.status !== "planned") {
+      toast({ title: "Run dry-run first", description: "Only rows with status 'planned' can be pushed.", variant: "destructive" });
+      return;
+    }
+    setBankConfirm({ mode: "one", row });
+  };
+  const confirmBankApplyOne = async () => {
+    const row = bankConfirm?.row; if (!row) return;
+    setBankConfirm(null);
+    setBankApplyingOne(true); setBankApplyResult(null);
+    try {
+      const d = await invoke<BankResponse>({ action: "push_bank_apply_one", razorpay_employee_id: row.razorpay_employee_id });
+      setBankApplyResult(d);
+      toast({ title: "Bank pilot push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bank pilot push failed", description: e?.message, variant: "destructive" });
+    } finally { setBankApplyingOne(false); }
+  };
+  const runBankUnlockBulk = async () => {
+    if (!confirm("Unlock bulk bank push? After this, apply-bulk will POST bank+PAN updates for every valid row with divergence.")) return;
+    setBankUnlocking(true);
+    try {
+      await invoke({ action: "unlock_bulk_bank_push" });
+      toast({ title: "Bulk bank push unlocked" });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Unlock failed", description: e?.message, variant: "destructive" });
+    } finally { setBankUnlocking(false); }
+  };
+  const requestBankApplyBulk = () => setBankConfirm({ mode: "bulk" });
+  const confirmBankApplyBulk = async () => {
+    setBankConfirm(null);
+    setBankApplyingBulk(true); setBankApplyResult(null);
+    try {
+      const d = await invoke<BankResponse>({ action: "push_bank_apply_bulk" });
+      setBankApplyResult(d);
+      toast({ title: "Bulk bank push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed · ${d.summary.invalid} invalid` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bulk bank push failed", description: e?.message, variant: "destructive" });
+    } finally { setBankApplyingBulk(false); }
+  };
+
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
   // well under the timeout while the overall run can cover 100s of IDs.
   const CHUNK_SIZE = 20;
@@ -702,7 +798,149 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
+      {/* Phase 4 — Bank & PAN push (isolated behind own toggle + pilot + bulk unlock + diff-and-confirm) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4" /> Phase 4 — Bank & PAN push to Razorpay
+          </CardTitle>
+          <CardDescription>
+            Isolated write path for account number, IFSC, bank name, PAN and holder name. Every row is validated server-side (PAN pattern, IFSC pattern, non-empty account). Every apply requires the diff-and-confirm dialog — no silent flush.
+            {settings?.push_bank_pilot_verified_at
+              ? <> · <span className="text-emerald-600">Bank pilot verified</span></>
+              : <> · <span className="text-amber-600">Bank pilot not yet verified</span></>}
+            {settings?.bulk_bank_push_unlocked
+              ? <> · <span className="text-emerald-600">Bulk bank unlocked</span></>
+              : <> · <span className="text-muted-foreground">Bulk bank locked</span></>}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Alert variant="default" className="border-amber-500/50">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-sm">High-blast-radius domain</AlertTitle>
+            <AlertDescription className="text-xs">
+              Wrong account = wrong payout. This card intentionally does not batch silently — you must review the masked patch preview and confirm each apply.
+            </AlertDescription>
+          </Alert>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Razorpay employee ID (for pilot)"
+              value={bankRpId}
+              onChange={(e) => setBankRpId(e.target.value.replace(/[^\d]/g, ""))}
+              className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+            />
+            <Button size="sm" variant="secondary" onClick={runBankDryRun} disabled={bankDrying}>
+              {bankDrying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Dry-run preview
+            </Button>
+            <Button size="sm" onClick={requestBankApplyOne} disabled={bankApplyingOne || !bankDryResult?.ok}>
+              {bankApplyingOne && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply pilot (one)
+            </Button>
+            <Button size="sm" variant="outline" onClick={runBankUnlockBulk}
+              disabled={bankUnlocking || !settings?.push_bank_pilot_verified_at || settings?.bulk_bank_push_unlocked}>
+              {bankUnlocking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Unlock bulk bank
+            </Button>
+            <Button size="sm" variant="destructive" onClick={requestBankApplyBulk}
+              disabled={bankApplyingBulk || !settings?.bulk_bank_push_unlocked}>
+              {bankApplyingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply bulk bank
+            </Button>
+          </div>
+
+          {(bankDryResult || bankApplyResult) && (() => {
+            const r = bankApplyResult || bankDryResult!;
+            return (
+              <div className="rounded-md border overflow-x-auto">
+                <div className="p-2 text-xs bg-muted/50 flex flex-wrap gap-3">
+                  <span>Total: <b>{r.summary.total}</b></span>
+                  <span>Planned: <b>{r.summary.planned}</b></span>
+                  <span>Unchanged: <b>{r.summary.unchanged}</b></span>
+                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
+                  <span className="text-destructive">Invalid: <b>{r.summary.invalid}</b></span>
+                  {!!r.summary.no_baseline && (
+                    <span className="text-amber-600">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
+                  )}
+                </div>
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/30">
+                    <tr className="text-left">
+                      <th className="p-2">Razorpay ID</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">Holder</th>
+                      <th className="p-2">Fields changed / reasons</th>
+                      <th className="p-2">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.rows.map((row, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
+                        <td className="p-2">
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
+                          {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
+                          {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
+                          {row.status === "invalid" && <Badge variant="destructive" className="text-[10px]">invalid</Badge>}
+                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no baseline</Badge>}
+                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
+                        </td>
+                        <td className="p-2 text-muted-foreground">{row.holder_name || "—"}</td>
+                        <td className="p-2 text-muted-foreground">
+                          {row.status === "invalid"
+                            ? <span className="text-destructive">{(row.reasons || []).join(", ")}</span>
+                            : (row.changed || []).join(", ") || "—"}
+                        </td>
+                        <td className="p-2 text-destructive truncate max-w-[240px]">{row.error || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
+      {/* Bank diff-and-confirm dialog (mandatory per plan) */}
+      {bankConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-background rounded-lg shadow-xl border max-w-lg w-full p-4 space-y-3">
+            <div className="flex items-center gap-2 text-base font-semibold">
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              Confirm bank push to RazorpayX (Live)
+            </div>
+            {bankConfirm.mode === "one" && bankConfirm.row && (
+              <div className="space-y-2 text-sm">
+                <div>Razorpay employee: <b className="font-mono">{bankConfirm.row.razorpay_employee_id}</b></div>
+                <div>Holder: <b>{bankConfirm.row.holder_name || "—"}</b></div>
+                <div className="rounded-md border bg-muted/40 p-2 text-xs font-mono whitespace-pre-wrap">
+                  {JSON.stringify(bankConfirm.row.patch_preview || {}, null, 2)}
+                </div>
+                <div className="text-xs text-muted-foreground">Account number and PAN are shown masked (only the last 4 characters). The full values are transmitted directly to Razorpay from the server.</div>
+              </div>
+            )}
+            {bankConfirm.mode === "bulk" && (
+              <div className="text-sm">
+                This will apply bank + PAN updates to <b>every valid, changed, baselined</b> mapped employee. Review the dry-run table before proceeding — you cannot undo a payout-route change from here.
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button size="sm" variant="outline" onClick={() => setBankConfirm(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={bankConfirm.mode === "one" ? confirmBankApplyOne : confirmBankApplyBulk}
+              >
+                Yes, push to Razorpay
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* STEP 3 — Bulk */}
+
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step 3 — Bulk import (range)</CardTitle>

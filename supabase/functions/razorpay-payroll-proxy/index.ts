@@ -1003,10 +1003,214 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "unlock_bulk_push") {
+    // ---------- Phase 4: Bank & PAN push ----------
+    // Isolated behind its own toggle + pilot + bulk unlock. Uses the verified
+    // people:update envelope with hyphenated keys. Every candidate is validated
+    // server-side (PAN + IFSC + account) before it can be pushed, and every push
+    // requires last_pull_snapshot as a baseline (see Phase 3 no-baseline guard).
+    if (
+      action === "push_bank_dry_run" ||
+      action === "push_bank_apply_one" ||
+      action === "push_bank_apply_bulk"
+    ) {
+      const only: string[] | null = Array.isArray(payload?.razorpay_employee_ids) && payload.razorpay_employee_ids.length
+        ? payload.razorpay_employee_ids.map((v: any) => String(v))
+        : (payload?.razorpay_employee_id ? [String(payload.razorpay_employee_id)] : null);
+
+      if (action === "push_bank_apply_bulk") {
+        if (!settingsRow?.push_bank_pilot_verified_at) {
+          return json(400, { error: "Bank push pilot not yet verified. Run push_bank_apply_one on one employee first." });
+        }
+        if (!settingsRow?.bulk_bank_push_unlocked) {
+          return json(400, { error: "Bulk bank push is locked. Unlock explicitly after reviewing the dry-run." });
+        }
+      }
+      if (action === "push_bank_apply_one" && (!only || only.length !== 1)) {
+        return json(400, { error: "push_bank_apply_one requires exactly one razorpay_employee_id" });
+      }
+
+      let query = svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,hr_employee_id,last_pull_snapshot");
+      if (only) query = query.in("razorpay_employee_id", only);
+      const { data: maps, error: mapsErr } = await query;
+      if (mapsErr) return json(500, { error: mapsErr.message });
+      if (!maps?.length) return json(400, { error: "No mapped rows for the requested ids." });
+
+      const hrIds = maps.map((m: any) => m.hr_employee_id).filter(Boolean);
+      const [emps, bds] = await Promise.all([
+        svc.from("hr_employees").select("id,first_name,last_name,pan_number").in("id", hrIds),
+        svc.from("hr_employee_bank_details").select("employee_id,account_number,ifsc_code,bank_name").in("employee_id", hrIds),
+      ]);
+      const empById = new Map((emps.data || []).map((r: any) => [r.id, r]));
+      const bdById = new Map((bds.data || []).map((r: any) => [r.employee_id, r]));
+
+      function buildBankPatch(hrId: string): { patch: Record<string, any>; holderName: string } {
+        const e = empById.get(hrId) || {};
+        const b = bdById.get(hrId) || {};
+        const holderName = [e.first_name, e.last_name].filter(Boolean).join(" ").trim();
+        return {
+          patch: {
+            "pan": e.pan_number || null,
+            "bank-account-number": b.account_number || null,
+            "bank-ifsc": b.ifsc_code || null,
+            "bank-name": b.bank_name || null,
+            "bank-account-holder-name": holderName || null,
+          },
+          holderName,
+        };
+      }
+      function diffBank(incoming: Record<string, any>, snapshot: any) {
+        const changed: string[] = [];
+        const patch: Record<string, any> = {};
+        for (const k of Object.keys(incoming)) {
+          const cur = snapshot?.[k];
+          const nxt = incoming[k];
+          if (nxt === null || nxt === undefined) continue;
+          if (String(cur ?? "").trim() !== String(nxt).trim()) {
+            changed.push(k);
+            patch[k] = nxt;
+          }
+        }
+        return { changed, patch };
+      }
+      function mask(v: string | null): string | null {
+        if (!v) return v;
+        const s = String(v);
+        if (s.length <= 4) return "•".repeat(s.length);
+        return "•".repeat(Math.max(0, s.length - 4)) + s.slice(-4);
+      }
+
+      const rows: any[] = [];
+      let planned = 0, unchanged = 0, pushed = 0, failed = 0, skipped = 0, invalid = 0, noBaseline = 0;
+
+      for (const m of maps as any[]) {
+        const eid = Number(m.razorpay_employee_id);
+        if (!Number.isFinite(eid) || eid < 1 || !m.hr_employee_id) { skipped++; continue; }
+
+        // Server-side validation gate.
+        const { data: v } = await svc.rpc("validate_bank_details_row", { _hr_employee_id: m.hr_employee_id });
+        const valid = !!(v && (v as any).valid);
+        const reasons: string[] = (v as any)?.reasons || [];
+        if (!valid) {
+          invalid++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "invalid",
+            reasons,
+          });
+          continue;
+        }
+
+        const hasBaseline = !!m.last_pull_snapshot && typeof m.last_pull_snapshot === "object";
+        const { patch: incoming, holderName } = buildBankPatch(m.hr_employee_id);
+        const diff = diffBank(incoming, m.last_pull_snapshot);
+
+        if (!diff.changed.length) {
+          unchanged++;
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "unchanged", changed: [] });
+          continue;
+        }
+        planned++;
+
+        // Dry-run: return masked preview of the outbound patch (never leak full account numbers).
+        if (action === "push_bank_dry_run") {
+          const preview: Record<string, any> = { ...diff.patch };
+          if (preview["bank-account-number"]) preview["bank-account-number"] = mask(preview["bank-account-number"]);
+          if (preview["pan"]) preview["pan"] = mask(preview["pan"]);
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: hasBaseline ? "planned" : "no_baseline",
+            baseline_missing: !hasBaseline,
+            holder_name: holderName,
+            changed: diff.changed,
+            patch_preview: preview,
+          });
+          if (!hasBaseline) noBaseline++;
+          continue;
+        }
+
+        // Live push guard: refuse to write against a null baseline.
+        if (!hasBaseline) {
+          noBaseline++;
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "skipped_no_baseline",
+            error: "last_pull_snapshot is null — run Phase 1 deep-pull before pushing bank details.",
+          });
+          continue;
+        }
+
+        // Live push via the verified people:update envelope.
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        let httpStatus = 0; let ok = false; let errText: string | null = null;
+        try {
+          const res = await fetch(`${BASE}/people`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: "people", "sub-type": "update" },
+              data: { "employee-id": eid, "employee-type": "employee", ...diff.patch },
+            }),
+            signal: ctrl.signal,
+          });
+          httpStatus = res.status;
+          const raw = await res.text();
+          let body: any = null; try { body = JSON.parse(raw); } catch { /* ignore */ }
+          const rpErr = body && typeof body === "object" ? (body.error || body.message || null) : null;
+          ok = res.ok && !rpErr;
+          if (!ok) errText = rpErr || raw?.slice(0, 400) || `HTTP ${res.status}`;
+        } catch (e) {
+          errText = `NETWORK: ${(e as Error).message}`;
+        } finally { clearTimeout(t); }
+
+        await logSync(svc, {
+          action: "push_bank",
+          http_status: httpStatus,
+          razorpay_employee_id: String(eid),
+          hr_employee_id: m.hr_employee_id,
+          // PII-safe: field names only, no values.
+          field_diff_summary: { changed: diff.changed, holder_name_present: !!holderName },
+          error_text: ok ? null : errText,
+          actor_user_id: authed.userId,
+        });
+
+        if (ok) {
+          pushed++;
+          if (action === "push_bank_apply_one" && !settingsRow?.push_bank_pilot_verified_at) {
+            await svc.from("hr_razorpay_settings").update({
+              push_bank_pilot_verified_at: new Date().toISOString(),
+              push_bank_pilot_hr_employee_id: m.hr_employee_id,
+              last_bank_push_at: new Date().toISOString(),
+            }).eq("is_singleton", true);
+          } else {
+            await svc.from("hr_razorpay_settings").update({ last_bank_push_at: new Date().toISOString() }).eq("is_singleton", true);
+          }
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "pushed", changed: diff.changed });
+        } else {
+          failed++;
+          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "failed", changed: diff.changed, error: errText });
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        summary: { total: maps.length, planned, unchanged, pushed, failed, skipped, invalid, no_baseline: noBaseline },
+        rows,
+        pilot: {
+          verified_at: settingsRow?.push_bank_pilot_verified_at || null,
+          bulk_unlocked: !!settingsRow?.bulk_bank_push_unlocked,
+        },
+      });
+    }
+
+    if (action === "unlock_bulk_bank_push") {
       const s = await readSettings(svc);
-      if (!s?.push_pilot_verified_at) return json(400, { error: "Cannot unlock bulk push — pilot not verified yet." });
-      await svc.from("hr_razorpay_settings").update({ bulk_push_unlocked: true }).eq("is_singleton", true);
+      if (!s?.push_bank_pilot_verified_at) return json(400, { error: "Cannot unlock bulk bank push — bank pilot not verified yet." });
+      await svc.from("hr_razorpay_settings").update({ bulk_bank_push_unlocked: true }).eq("is_singleton", true);
       return json(200, { ok: true });
     }
 

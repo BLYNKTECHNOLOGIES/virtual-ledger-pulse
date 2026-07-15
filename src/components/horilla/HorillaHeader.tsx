@@ -17,6 +17,16 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() =>
+    typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+  );
+
+  const toggleDarkMode = () => {
+    const next = !isDark;
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch {}
+    setIsDark(next);
+  };
 
   // Fetch user's notification preferences
   const { data: preferences } = useQuery({

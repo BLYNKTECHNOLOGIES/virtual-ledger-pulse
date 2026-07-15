@@ -1543,7 +1543,7 @@ Deno.serve(async (req) => {
         http_status: 0,
         razorpay_employee_id: rid,
         hr_employee_id: mrow?.hr_employee_id || null,
-        field_diff_summary: { period, reason_hash: await sha256Hex(reason), reason_len: reason.length },
+        field_diff_summary: { period, reason_len: reason.length, recall: true },
         error_text: null,
         actor_user_id: authed.userId,
       });

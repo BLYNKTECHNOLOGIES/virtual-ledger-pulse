@@ -205,6 +205,20 @@ export default function RazorpaySyncPage() {
       toast({ title: "Deep pull failed", description: e?.message, variant: "destructive" });
     } finally { setPulling(false); }
   };
+
+  const runProbeCatalogue = async () => {
+    setProbing(true); setProbeRows(null);
+    try {
+      const d = await invoke<{ ok: boolean; probe_id: number | null; rows: ProbeRow[] }>({ action: "probe_catalogue" });
+      setProbeRows(d.rows || []);
+      setProbeId(d.probe_id ?? null);
+      const okCount = (d.rows || []).filter((r) => r.status === "ok").length;
+      const failCount = (d.rows || []).filter((r) => r.status === "fail").length;
+      toast({ title: "Probe catalogue complete", description: `${okCount} confirmed · ${failCount} failed · ${(d.rows || []).length - okCount - failCount} pending (write)` });
+    } catch (e: any) {
+      toast({ title: "Probe run failed", description: e?.message, variant: "destructive" });
+    } finally { setProbing(false); }
+  };
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
   // well under the timeout while the overall run can cover 100s of IDs.
   const CHUNK_SIZE = 20;

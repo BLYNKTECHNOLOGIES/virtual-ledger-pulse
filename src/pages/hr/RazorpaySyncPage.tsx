@@ -1066,7 +1066,178 @@ export default function RazorpaySyncPage() {
         </div>
       )}
 
+      {/* Phase 5 — Salary structure sync (discovery-first: writes blocked until envelope verified) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ListChecks className="h-4 w-4" /> Phase 5 — Salary structure sync to Razorpay
+          </CardTitle>
+          <CardDescription>
+            Pushes ERP's active salary structure (components + total) to Razorpay. Dry-run compares ERP components against Razorpay's last-known snapshot; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">people:update</code>).
+            {settings?.push_salary_endpoint_verified
+              ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_salary_envelope_key})</span></>
+              : <> · <span className="text-amber-600">Envelope not verified</span></>}
+            {settings?.push_salary_pilot_verified_at
+              ? <> · <span className="text-emerald-600">Salary pilot verified</span></>
+              : <> · <span className="text-muted-foreground">Salary pilot pending</span></>}
+            {settings?.bulk_salary_push_unlocked
+              ? <> · <span className="text-emerald-600">Bulk salary unlocked</span></>
+              : <> · <span className="text-muted-foreground">Bulk salary locked</span></>}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Alert variant="default" className="border-amber-500/50">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-sm">Discovery-first write path</AlertTitle>
+            <AlertDescription className="text-xs">
+              The live salary envelope has not been auto-verified. Probe candidate endpoints (Phase 2) with a pilot employee, and once you confirm which sub-type is accepted by Razorpay Live, record it here. Only then will apply buttons unlock.
+            </AlertDescription>
+          </Alert>
+
+          <div className="rounded-md border p-3 bg-muted/20 space-y-2">
+            <div className="text-xs font-medium">Envelope verification</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                placeholder="e.g. people:update"
+                value={salaryEnvelopeInput}
+                onChange={(e) => setSalaryEnvelopeInput(e.target.value)}
+                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+              />
+              <Button size="sm" variant="secondary" onClick={() => runRecordSalaryEnvelope(true)} disabled={salaryRecording}>
+                {salaryRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => runRecordSalaryEnvelope(false)} disabled={salaryRecording || !settings?.push_salary_endpoint_verified}>
+                Clear verification
+              </Button>
+              {settings?.push_salary_envelope_verified_at && (
+                <span className="text-xs text-muted-foreground">
+                  Verified at {new Date(settings.push_salary_envelope_verified_at).toLocaleString()}
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Changing this value automatically resets the pilot + bulk-unlock gates so a stale verification cannot re-enable pushes against a new envelope.
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Razorpay employee ID (for pilot)"
+              value={salaryRpId}
+              onChange={(e) => setSalaryRpId(e.target.value.replace(/[^\d]/g, ""))}
+              className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+            />
+            <Button size="sm" variant="secondary" onClick={runSalaryDryRun} disabled={salaryDrying}>
+              {salaryDrying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Dry-run preview
+            </Button>
+            <Button size="sm" onClick={requestSalaryApplyOne}
+              disabled={salaryApplyingOne || !salaryDryResult?.ok || !settings?.push_salary_endpoint_verified}>
+              {salaryApplyingOne && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply pilot (one)
+            </Button>
+            <Button size="sm" variant="outline" onClick={runSalaryUnlockBulk}
+              disabled={salaryUnlocking || !settings?.push_salary_pilot_verified_at || settings?.bulk_salary_push_unlocked}>
+              {salaryUnlocking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Unlock bulk salary
+            </Button>
+            <Button size="sm" variant="destructive" onClick={requestSalaryApplyBulk}
+              disabled={salaryApplyingBulk || !settings?.bulk_salary_push_unlocked}>
+              {salaryApplyingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply bulk salary
+            </Button>
+          </div>
+
+          {(salaryDryResult || salaryApplyResult) && (() => {
+            const r = salaryApplyResult || salaryDryResult!;
+            return (
+              <div className="rounded-md border overflow-x-auto">
+                <div className="p-2 text-xs bg-muted/50 flex flex-wrap gap-3">
+                  <span>Total: <b>{r.summary.total}</b></span>
+                  <span>Planned: <b>{r.summary.planned}</b></span>
+                  <span>Unchanged: <b>{r.summary.unchanged}</b></span>
+                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
+                  <span>Skipped: <b>{r.summary.skipped}</b></span>
+                  {!!r.summary.no_baseline && (
+                    <span className="text-amber-600">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
+                  )}
+                </div>
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/30">
+                    <tr className="text-left">
+                      <th className="p-2">Razorpay ID</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">ERP total</th>
+                      <th className="p-2">Components</th>
+                      <th className="p-2">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.rows.map((row, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
+                        <td className="p-2">
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
+                          {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
+                          {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
+                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no baseline</Badge>}
+                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
+                          {row.status === "no_erp_structure" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no ERP structure</Badge>}
+                        </td>
+                        <td className="p-2 font-mono">{row.erp_total !== undefined ? row.erp_total.toLocaleString() : "—"}</td>
+                        <td className="p-2 text-muted-foreground">{row.components_count ?? "—"}</td>
+                        <td className="p-2 text-destructive truncate max-w-[240px]">{row.error || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
+      {/* Salary diff-and-confirm dialog */}
+      {salaryConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-background rounded-lg shadow-xl border max-w-2xl w-full p-4 space-y-3">
+            <div className="flex items-center gap-2 text-base font-semibold">
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              Confirm salary push to RazorpayX (Live)
+            </div>
+            {salaryConfirm.mode === "one" && salaryConfirm.row && (
+              <div className="space-y-2 text-sm">
+                <div>Razorpay employee: <b className="font-mono">{salaryConfirm.row.razorpay_employee_id}</b></div>
+                <div>Envelope: <b className="font-mono">{settings?.push_salary_envelope_key}</b></div>
+                <div>ERP total: <b>{salaryConfirm.row.erp_total?.toLocaleString()}</b> · {salaryConfirm.row.components_count} components</div>
+                <div className="rounded-md border bg-muted/40 p-2 text-xs font-mono whitespace-pre-wrap max-h-64 overflow-auto">
+                  {JSON.stringify(salaryConfirm.row.erp_components || [], null, 2)}
+                </div>
+                <div className="text-xs text-muted-foreground">This ERP structure will be sent as the salary block in the recorded envelope. Razorpay's response will validate the shape.</div>
+              </div>
+            )}
+            {salaryConfirm.mode === "bulk" && (
+              <div className="text-sm">
+                This will POST salary updates to <b>every mapped employee with a divergent baseline</b> using envelope <b className="font-mono">{settings?.push_salary_envelope_key}</b>. Confirm only after the pilot response looked correct in Razorpay's UI.
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button size="sm" variant="outline" onClick={() => setSalaryConfirm(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={salaryConfirm.mode === "one" ? confirmSalaryApplyOne : confirmSalaryApplyBulk}
+              >
+                Yes, push to Razorpay
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* STEP 3 — Bulk */}
+
 
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>

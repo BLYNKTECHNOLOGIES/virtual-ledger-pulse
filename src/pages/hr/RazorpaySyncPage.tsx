@@ -663,6 +663,9 @@ export default function RazorpaySyncPage() {
                   <span>Unchanged: <b>{r.summary.unchanged}</b></span>
                   <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
                   <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
+                  {!!r.summary.no_baseline && (
+                    <span className="text-amber-600">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
+                  )}
                 </div>
                 <table className="w-full text-xs">
                   <thead className="bg-muted/30">

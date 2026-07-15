@@ -470,3 +470,144 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     </Dialog>
   );
 }
+
+// --- Manage subcomponents ---
+
+function ManageUserCard({ onSubmit, busy }: { onSubmit: (p: any) => Promise<void>; busy: boolean }) {
+  const [pin, setPin] = useState("");
+  const [name, setName] = useState("");
+  const [privilege, setPrivilege] = useState("0");
+  const [password, setPassword] = useState("");
+  const [card, setCard] = useState("");
+  const [group, setGroup] = useState("1");
+
+  const submit = async () => {
+    if (!pin.trim()) return toast.error("PIN (Badge ID) is required");
+    await onSubmit({ pin: pin.trim(), name: name.trim(), privilege: Number(privilege), password, card, group });
+    setPin(""); setName(""); setPassword(""); setCard("");
+  };
+
+  return (
+    <Card><CardContent className="p-4 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><UserPlus className="h-3.5 w-3.5" />Create / Update User on Device</div>
+      <div className="text-[11px] text-muted-foreground -mt-2">
+        Uses <code>DATA UPDATE USERINFO</code>. If PIN already exists on the device it will be updated. Name/card on device are cosmetic — HRMS links via <b>PIN → Badge ID</b> only.
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">PIN (Badge ID) *</Label><Input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="e.g. 1042" /></div>
+        <div><Label className="text-xs">Name (on device)</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Display name" /></div>
+        <div>
+          <Label className="text-xs">Privilege</Label>
+          <Select value={privilege} onValueChange={setPrivilege}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">User</SelectItem>
+              <SelectItem value="1">Enroller</SelectItem>
+              <SelectItem value="2">Admin</SelectItem>
+              <SelectItem value="3">Super Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Password</Label><Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Optional" /></div>
+        <div><Label className="text-xs">Card No</Label><Input value={card} onChange={(e) => setCard(e.target.value)} placeholder="RFID / MIFARE" /></div>
+        <div><Label className="text-xs">Group</Label><Input value={group} onChange={(e) => setGroup(e.target.value)} /></div>
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={submit} disabled={busy}>Queue push to device</Button>
+      </div>
+    </CardContent></Card>
+  );
+}
+
+function BroadcastCard({ onSubmit, busy, users }: { onSubmit: (pin: string, text: string, min?: number) => Promise<void>; busy: boolean; users: any[] }) {
+  const [pin, setPin] = useState("");
+  const [text, setText] = useState("");
+  const [minutes, setMinutes] = useState("60");
+
+  const submit = async () => {
+    if (!text.trim()) return toast.error("Message text is required");
+    await onSubmit(pin.trim(), text.trim(), Number(minutes) || 60);
+    setText("");
+  };
+
+  return (
+    <Card><CardContent className="p-4 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" />Push Message to Device Display</div>
+      <div className="text-[11px] text-muted-foreground -mt-2">
+        Personal message (PIN set) shows after that user verifies. Leave PIN empty for a broadcast to all users.
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">Target PIN (blank = broadcast)</Label><Input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="e.g. 1042" list="bio-pins" /><datalist id="bio-pins">{users.map((u: any) => <option key={u.pin} value={u.pin}>{u.name}</option>)}</datalist></div>
+        <div className="md:col-span-2"><Label className="text-xs">Message</Label><Textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="Message to display on the device screen" /></div>
+        <div><Label className="text-xs">Show for (minutes)</Label><Input type="number" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></div>
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={submit} disabled={busy}>Queue message</Button>
+      </div>
+    </CardContent></Card>
+  );
+}
+
+function DeviceOptionCard({ onSubmit, busy }: { onSubmit: (k: string, v: string) => Promise<void>; busy: boolean }) {
+  const [key, setKey] = useState("");
+  const [value, setValue] = useState("");
+  const presets = [
+    { k: "VerifyMode", v: "1", label: "Verify: FP / Pwd / Card" },
+    { k: "VerifyMode", v: "9", label: "Verify: Face" },
+    { k: "IsSupportBioPhoto", v: "1", label: "Enable attendance photo capture" },
+    { k: "AttPhotoUpload", v: "1", label: "Upload attendance photos to server" },
+  ];
+  return (
+    <Card><CardContent className="p-4 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Settings2 className="h-3.5 w-3.5" />Device Option / Setting</div>
+      <div className="text-[11px] text-muted-foreground -mt-2">
+        Sends <code>SET OPTION key=value</code>. Refer to your device firmware option keys.
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {presets.map((p) => (
+          <Button key={p.label} size="sm" variant="outline" className="text-[11px] h-7" disabled={busy} onClick={() => onSubmit(p.k, p.v)}>{p.label}</Button>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div><Label className="text-xs">Option key</Label><Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="e.g. VerifyMode" /></div>
+        <div><Label className="text-xs">Value</Label><Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 1" /></div>
+        <div className="flex items-end"><Button size="sm" onClick={() => key && value && onSubmit(key, value)} disabled={busy || !key || !value}>Queue option</Button></div>
+      </div>
+    </CardContent></Card>
+  );
+}
+
+function DangerAction({ label, desc, confirm, onConfirm, disabled, destructive, icon }: { label: string; desc: string; confirm: string; onConfirm: () => void; disabled?: boolean; destructive?: boolean; icon?: React.ReactNode }) {
+  const [typed, setTyped] = useState("");
+  const [open, setOpen] = useState(false);
+  return (
+    <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setTyped(""); }}>
+      <AlertDialogTrigger asChild>
+        <Button variant={destructive ? "destructive" : "outline"} size="sm" disabled={disabled} className="justify-start">
+          {icon || <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+          <span className="text-xs">{label}</span>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{label}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {desc}<br /><br />
+            Type <code className="font-mono px-1 py-0.5 bg-muted rounded">{confirm}</code> to confirm:
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={confirm} className="font-mono" />
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={typed !== confirm}
+            className={destructive ? "bg-destructive text-destructive-foreground" : ""}
+            onClick={() => { onConfirm(); setOpen(false); }}
+          >
+            Queue on device
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

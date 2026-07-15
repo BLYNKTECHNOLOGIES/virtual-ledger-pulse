@@ -354,21 +354,34 @@ Deno.serve(async (req) => {
         });
 
         if (action === "apply_range") {
-          let hrId = match.hr_employee_id;
-          let created = false;
-          if (!hrId) { hrId = await createDraftEmployee(svc, r.body); created = true; }
-          await upsertMap(svc, String(i), hrId!, false, created);
-          await logSync(svc, {
-            action: created ? "create_draft" : "match",
-            http_status: r.status,
-            razorpay_employee_id: String(i),
-            hr_employee_id: hrId,
-            field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, bulk: true },
-            actor_user_id: authed.userId,
-          });
-          rows[rows.length - 1].applied = true;
-          rows[rows.length - 1].created = created;
-          rows[rows.length - 1].hr_employee_id = hrId;
+          try {
+            let hrId = match.hr_employee_id;
+            let created = false;
+            if (!hrId) { hrId = await createDraftEmployee(svc, r.body); created = true; }
+            await upsertMap(svc, String(i), hrId!, false, created);
+            await logSync(svc, {
+              action: created ? "create_draft" : "match",
+              http_status: r.status,
+              razorpay_employee_id: String(i),
+              hr_employee_id: hrId,
+              field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, bulk: true },
+              actor_user_id: authed.userId,
+            });
+            rows[rows.length - 1].applied = true;
+            rows[rows.length - 1].created = created;
+            rows[rows.length - 1].hr_employee_id = hrId;
+          } catch (rowErr: any) {
+            const msg = String(rowErr?.message ?? rowErr);
+            rows[rows.length - 1].applied = false;
+            rows[rows.length - 1].error = msg;
+            await logSync(svc, {
+              action: "apply_error",
+              http_status: 500,
+              razorpay_employee_id: String(i),
+              field_diff_summary: { error: msg, bulk: true },
+              actor_user_id: authed.userId,
+            }).catch(() => {});
+          }
         }
       }
 

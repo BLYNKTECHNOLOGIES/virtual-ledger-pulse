@@ -128,6 +128,18 @@ export default function RazorpaySyncPage() {
   const [pushDryResult, setPushDryResult] = useState<PushResponse | null>(null);
   const [pushApplyResult, setPushApplyResult] = useState<PushResponse | null>(null);
 
+  // Phase 4 — Bank & PAN push (isolated toggle, diff-and-confirm mandatory)
+  const [bankRpId, setBankRpId] = useState<string>("");
+  const [bankDrying, setBankDrying] = useState(false);
+  const [bankApplyingOne, setBankApplyingOne] = useState(false);
+  const [bankApplyingBulk, setBankApplyingBulk] = useState(false);
+  const [bankUnlocking, setBankUnlocking] = useState(false);
+  const [bankDryResult, setBankDryResult] = useState<BankResponse | null>(null);
+  const [bankApplyResult, setBankApplyResult] = useState<BankResponse | null>(null);
+  const [bankConfirm, setBankConfirm] = useState<{ mode: "one" | "bulk"; row?: BankRow } | null>(null);
+
+
+
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")

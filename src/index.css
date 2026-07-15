@@ -1055,3 +1055,155 @@ html {
     box-shadow: none !important;
   }
 }
+
+/* ============================================================
+   HRMS (Horilla) — Refined Dark Theme
+   Scoped palette override: professional slate/indigo, soft
+   borders, elevated surfaces. Applies only inside .horilla-root
+   when the app is in dark mode.
+   ============================================================ */
+.dark .horilla-root {
+  /* Canvas */
+  --background: 225 28% 8%;
+  --foreground: 220 18% 92%;
+
+  /* Surfaces */
+  --card: 226 24% 12%;
+  --card-foreground: 220 18% 94%;
+  --popover: 226 26% 13%;
+  --popover-foreground: 220 18% 94%;
+
+  /* Muted / secondary tones */
+  --muted: 226 18% 17%;
+  --muted-foreground: 220 12% 68%;
+  --secondary: 226 20% 16%;
+  --secondary-foreground: 220 18% 92%;
+  --accent: 226 22% 18%;
+  --accent-foreground: 220 18% 94%;
+
+  /* Structure */
+  --border: 226 18% 20%;
+  --input: 226 18% 20%;
+  --ring: 243 82% 68%;
+
+  /* Brand */
+  --primary: 243 72% 66%;
+  --primary-foreground: 220 20% 98%;
+
+  /* Status */
+  --destructive: 0 72% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 55% 48%;
+  --warning: 38 92% 58%;
+  --info: 217 90% 62%;
+
+  color-scheme: dark;
+}
+
+/* Header + main area surface fine-tuning */
+.dark .horilla-root main {
+  background: transparent;
+}
+.dark .horilla-root header {
+  background-color: hsl(226 26% 11%);
+  border-color: hsl(226 18% 18%);
+}
+
+/* Sidebar remains dark by design; soften its dividers/hover to match */
+.dark .horilla-root aside,
+.dark .horilla-root .horilla-sidebar {
+  background-color: hsl(228 30% 9%) !important;
+}
+.dark .horilla-root [class*="border-[#2a2a40]"] {
+  border-color: hsl(226 18% 18%) !important;
+}
+.dark .horilla-root [class*="bg-[#252540]"]:hover,
+.dark .horilla-root .hover\:bg-\[\#252540\]:hover {
+  background-color: hsl(226 22% 18%) !important;
+}
+
+/* Cards: subtle elevation + hairline border */
+.dark .horilla-root .bg-card {
+  background-color: hsl(var(--card));
+  box-shadow: 0 1px 0 0 hsl(226 30% 4% / 0.6),
+              0 1px 2px 0 hsl(226 30% 4% / 0.4);
+}
+
+/* Tables: gentle row separation */
+.dark .horilla-root table thead {
+  background-color: hsl(226 22% 14%);
+}
+.dark .horilla-root table tbody tr {
+  border-color: hsl(226 18% 18%);
+}
+.dark .horilla-root table tbody tr:hover {
+  background-color: hsl(226 22% 15%);
+}
+
+/* Inputs: readable placeholder + focus ring */
+.dark .horilla-root input,
+.dark .horilla-root textarea,
+.dark .horilla-root select,
+.dark .horilla-root [role="combobox"] {
+  background-color: hsl(226 22% 14%);
+  border-color: hsl(226 18% 22%);
+  color: hsl(var(--foreground));
+}
+.dark .horilla-root input::placeholder,
+.dark .horilla-root textarea::placeholder {
+  color: hsl(220 10% 55%);
+}
+
+/* Header search field — the inline muted pill */
+.dark .horilla-root header .bg-muted\/50 {
+  background-color: hsl(226 22% 15%) !important;
+  border-color: hsl(226 18% 22%) !important;
+}
+
+/* Legacy light backgrounds inside pages (bg-white / gray-50) */
+.dark .horilla-root .bg-white,
+.dark .horilla-root .bg-gray-50,
+.dark .horilla-root .bg-slate-50,
+.dark .horilla-root .bg-\[\#f5f6fa\],
+.dark .horilla-root .bg-\[\#fafbfc\] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground));
+}
+.dark .horilla-root .text-gray-900,
+.dark .horilla-root .text-slate-900,
+.dark .horilla-root .text-black {
+  color: hsl(var(--foreground)) !important;
+}
+.dark .horilla-root .text-gray-700,
+.dark .horilla-root .text-gray-600,
+.dark .horilla-root .text-slate-700,
+.dark .horilla-root .text-slate-600 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.dark .horilla-root .border-gray-200,
+.dark .horilla-root .border-gray-100,
+.dark .horilla-root .border-slate-200 {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Brand orange (#E8604C) accents — keep, but soften pale tints so
+   they don't glow harshly on the darker canvas */
+.dark .horilla-root .bg-\[\#E8604C\]\/5 {
+  background-color: hsl(11 74% 60% / 0.08) !important;
+}
+.dark .horilla-root .bg-\[\#E8604C\]\/10 {
+  background-color: hsl(11 74% 60% / 0.14) !important;
+}
+.dark .horilla-root .border-\[\#E8604C\]\/20,
+.dark .horilla-root .border-\[\#E8604C\]\/30 {
+  border-color: hsl(11 74% 60% / 0.35) !important;
+}
+
+/* Dialogs / popovers get the elevated surface */
+.dark .horilla-root [role="dialog"],
+.dark [data-radix-popper-content-wrapper] [role="menu"],
+.dark [data-radix-popper-content-wrapper] [role="listbox"] {
+  background-color: hsl(226 26% 13%);
+  border-color: hsl(226 18% 20%);
+}
+

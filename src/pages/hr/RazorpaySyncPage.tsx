@@ -435,6 +435,93 @@ export default function RazorpaySyncPage() {
     } finally { setBankApplyingBulk(false); }
   };
 
+  // ---- Phase 5 handlers (Salary structure) ----
+  const runSalaryDryRun = async () => {
+    setSalaryDrying(true); setSalaryDryResult(null);
+    try {
+      const body: any = { action: "push_salary_dry_run" };
+      if (salaryRpId.trim()) body.razorpay_employee_id = salaryRpId.trim();
+      const d = await invoke<SalaryResponse>(body);
+      setSalaryDryResult(d);
+      toast({
+        title: "Salary dry-run complete",
+        description: `${d.summary.planned} would change · ${d.summary.unchanged} unchanged · ${d.summary.no_baseline} no baseline`,
+      });
+    } catch (e: any) {
+      toast({ title: "Salary dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setSalaryDrying(false); }
+  };
+  const runRecordSalaryEnvelope = async (verified: boolean) => {
+    if (verified && !salaryEnvelopeInput.trim()) {
+      toast({ title: "Enter the verified envelope key first (e.g. people:update)", variant: "destructive" });
+      return;
+    }
+    setSalaryRecording(true);
+    try {
+      await invoke({
+        action: "record_salary_envelope_verified",
+        verified,
+        envelope_key: salaryEnvelopeInput.trim(),
+      });
+      toast({
+        title: verified ? "Salary envelope recorded as verified" : "Salary envelope verification cleared",
+        description: verified ? "Live salary pushes are now permitted, gated by pilot + bulk unlock." : "Live salary pushes are disabled.",
+      });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Failed to record envelope", description: e?.message, variant: "destructive" });
+    } finally { setSalaryRecording(false); }
+  };
+  const requestSalaryApplyOne = () => {
+    const id = salaryRpId.trim();
+    if (!id) { toast({ title: "Enter a Razorpay employee ID first", variant: "destructive" }); return; }
+    const row = (salaryDryResult?.rows || []).find((r) => r.razorpay_employee_id === id);
+    if (!row || row.status !== "planned") {
+      toast({ title: "Run dry-run first", description: "Only rows with status 'planned' can be pushed.", variant: "destructive" });
+      return;
+    }
+    setSalaryConfirm({ mode: "one", row });
+  };
+  const confirmSalaryApplyOne = async () => {
+    const row = salaryConfirm?.row; if (!row) return;
+    setSalaryConfirm(null);
+    setSalaryApplyingOne(true); setSalaryApplyResult(null);
+    try {
+      const d = await invoke<SalaryResponse>({ action: "push_salary_apply_one", razorpay_employee_id: row.razorpay_employee_id });
+      setSalaryApplyResult(d);
+      toast({ title: "Salary pilot push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Salary pilot push failed", description: e?.message, variant: "destructive" });
+    } finally { setSalaryApplyingOne(false); }
+  };
+  const runSalaryUnlockBulk = async () => {
+    if (!confirm("Unlock bulk salary push? After this, apply-bulk will POST salary structure updates for every divergent baselined row.")) return;
+    setSalaryUnlocking(true);
+    try {
+      await invoke({ action: "unlock_bulk_salary_push" });
+      toast({ title: "Bulk salary push unlocked" });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Unlock failed", description: e?.message, variant: "destructive" });
+    } finally { setSalaryUnlocking(false); }
+  };
+  const requestSalaryApplyBulk = () => setSalaryConfirm({ mode: "bulk" });
+  const confirmSalaryApplyBulk = async () => {
+    setSalaryConfirm(null);
+    setSalaryApplyingBulk(true); setSalaryApplyResult(null);
+    try {
+      const d = await invoke<SalaryResponse>({ action: "push_salary_apply_bulk" });
+      setSalaryApplyResult(d);
+      toast({ title: "Bulk salary push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bulk salary push failed", description: e?.message, variant: "destructive" });
+    } finally { setSalaryApplyingBulk(false); }
+  };
+
+
+
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
   // well under the timeout while the overall run can cover 100s of IDs.
   const CHUNK_SIZE = 20;

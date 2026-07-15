@@ -177,6 +177,7 @@ export default function EmployeeProfilePage() {
   const [editForm, setEditForm] = useState<any>({});
   const [workInfoForm, setWorkInfoForm] = useState<any>({});
   const [noteText, setNoteText] = useState("");
+  const [showReviseSalary, setShowReviseSalary] = useState(false);
 
   // ─── Core employee data ───
   const { data: emp } = useQuery({

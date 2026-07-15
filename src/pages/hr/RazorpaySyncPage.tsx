@@ -26,7 +26,36 @@ interface Settings {
   push_salary_pilot_verified_at?: string | null;
   bulk_salary_push_unlocked?: boolean;
   last_salary_push_at?: string | null;
+  push_attendance_endpoint_verified?: boolean;
+  push_attendance_envelope_key?: string | null;
+  push_attendance_envelope_verified_at?: string | null;
+  push_attendance_pilot_verified_at?: string | null;
+  push_attendance_pilot_period?: string | null;
+  bulk_attendance_push_unlocked?: boolean;
+  last_attendance_push_at?: string | null;
 }
+interface AttendanceRow {
+  razorpay_employee_id: string;
+  hr_employee_id?: string;
+  status: "planned" | "pushed" | "failed" | "skipped";
+  period?: string;
+  working_days?: number;
+  present_days?: number;
+  paid_leave_days?: number;
+  unpaid_leave_days?: number;
+  lop_days?: number;
+  unpaid_matches_lop?: boolean;
+  error?: string;
+}
+interface AttendanceResponse {
+  ok: boolean;
+  period: string;
+  summary: { total: number; planned: number; pushed: number; failed: number; skipped: number; working_days: number };
+  rows: AttendanceRow[];
+  envelope: { verified: boolean; key: string | null };
+  pilot: { verified_at: string | null; pilot_period: string | null; bulk_unlocked: boolean };
+}
+
 interface SalaryComponent { code: string | null; name: string; type: string | null; amount: number }
 interface SalaryRow {
   razorpay_employee_id: string;

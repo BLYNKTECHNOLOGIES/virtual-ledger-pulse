@@ -1526,6 +1526,30 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // Recall: operator-audited override that re-opens a period for re-push. Every recall
+    // requires a reason and is logged with the actor; a subsequent push is only allowed
+    // when recall_count > successful_push_count for that (employee, period) pair.
+    if (action === "recall_attendance_period") {
+      const period = String(payload?.period || "").trim();
+      const rid = String(payload?.razorpay_employee_id || "").trim();
+      const reason = String(payload?.reason || "").trim();
+      if (!/^(\d{4})-(\d{2})$/.test(period)) return json(400, { error: "period must be YYYY-MM" });
+      if (!rid) return json(400, { error: "razorpay_employee_id required" });
+      if (reason.length < 8) return json(400, { error: "reason (min 8 chars) is required for recall" });
+      const { data: mrow } = await svc.from("hr_razorpay_employee_map")
+        .select("hr_employee_id").eq("razorpay_employee_id", rid).maybeSingle();
+      await logSync(svc, {
+        action: "push_attendance_recall",
+        http_status: 0,
+        razorpay_employee_id: rid,
+        hr_employee_id: mrow?.hr_employee_id || null,
+        field_diff_summary: { period, reason_hash: await sha256Hex(reason), reason_len: reason.length },
+        error_text: null,
+        actor_user_id: authed.userId,
+      });
+      return json(200, { ok: true });
+    }
+
     if (
       action === "push_attendance_dry_run" ||
       action === "push_attendance_apply_one" ||

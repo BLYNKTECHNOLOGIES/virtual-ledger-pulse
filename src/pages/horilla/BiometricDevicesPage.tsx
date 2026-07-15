@@ -70,6 +70,14 @@ export default function BiometricDevicesPage() {
     return { label: "Not-Connected", color: "bg-destructive" };
   };
 
+  if (dataDevice) {
+    return (
+      <div className="p-4 md:p-6 page-mount">
+        <BiometricDeviceDataDialog open={true} onClose={() => setDataDevice(null)} device={dataDevice} />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6 page-mount">
       <PageHeader

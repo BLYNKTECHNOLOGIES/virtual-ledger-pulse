@@ -205,17 +205,32 @@ export default function RazorpaySyncPage() {
   const [salaryApplyResult, setSalaryApplyResult] = useState<SalaryResponse | null>(null);
   const [salaryConfirm, setSalaryConfirm] = useState<{ mode: "one" | "bulk"; row?: SalaryRow } | null>(null);
 
-
-
-
+  // Phase 6 — Monthly attendance / LOP push (discovery-first, envelope-gated)
+  const [attRpId, setAttRpId] = useState<string>("");
+  const [attPeriod, setAttPeriod] = useState<string>(() => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+  const [attEnvelopeInput, setAttEnvelopeInput] = useState<string>("");
+  const [attDrying, setAttDrying] = useState(false);
+  const [attApplyingOne, setAttApplyingOne] = useState(false);
+  const [attApplyingBulk, setAttApplyingBulk] = useState(false);
+  const [attUnlocking, setAttUnlocking] = useState(false);
+  const [attRecording, setAttRecording] = useState(false);
+  const [attDryResult, setAttDryResult] = useState<AttendanceResponse | null>(null);
+  const [attApplyResult, setAttApplyResult] = useState<AttendanceResponse | null>(null);
+  const [attConfirm, setAttConfirm] = useState<{ mode: "one" | "bulk"; row?: AttendanceRow } | null>(null);
 
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")
-      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at")
+      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at")
       .maybeSingle();
     setSettings(data as Settings | null);
   };
+
 
   useEffect(() => { if (canAccess) { reloadSettings(); reloadGaps(); } }, [canAccess]);
 

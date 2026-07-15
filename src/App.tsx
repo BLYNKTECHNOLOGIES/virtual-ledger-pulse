@@ -100,6 +100,7 @@ const FnFSettlementPage = lazy(() => import('./pages/horilla/FnFSettlementPage')
 const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumentsPage'));
 const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
 const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPage'));
+const RazorpaySyncPage = lazy(() => import('./pages/hr/RazorpaySyncPage'));
 const PenaltyAutoCalcPage = lazy(() => import('./pages/horilla/PenaltyAutoCalcPage'));
 const AssetPage = lazy(() => import('./pages/horilla/AssetPage'));
 const AssetDashboardPage = lazy(() => import('./pages/horilla/AssetDashboardPage'));

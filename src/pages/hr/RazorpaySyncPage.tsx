@@ -20,7 +20,33 @@ interface Settings {
   push_bank_pilot_verified_at?: string | null;
   bulk_bank_push_unlocked?: boolean;
   last_bank_push_at?: string | null;
+  push_salary_endpoint_verified?: boolean;
+  push_salary_envelope_key?: string | null;
+  push_salary_envelope_verified_at?: string | null;
+  push_salary_pilot_verified_at?: string | null;
+  bulk_salary_push_unlocked?: boolean;
+  last_salary_push_at?: string | null;
 }
+interface SalaryComponent { code: string | null; name: string; type: string | null; amount: number }
+interface SalaryRow {
+  razorpay_employee_id: string;
+  hr_employee_id?: string;
+  status: "planned" | "unchanged" | "pushed" | "failed" | "no_baseline" | "skipped_no_baseline" | "no_erp_structure";
+  baseline_missing?: boolean;
+  erp_total?: number;
+  components_count?: number;
+  erp_components?: SalaryComponent[];
+  razorpay_snapshot?: any;
+  error?: string;
+}
+interface SalaryResponse {
+  ok: boolean;
+  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number; no_baseline: number };
+  rows: SalaryRow[];
+  envelope: { verified: boolean; key: string | null };
+  pilot: { verified_at: string | null; bulk_unlocked: boolean };
+}
+
 interface BankRow {
   razorpay_employee_id: string;
   hr_employee_id?: string;

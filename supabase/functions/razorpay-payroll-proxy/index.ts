@@ -138,14 +138,15 @@ async function logSync(svc: SupabaseClient, row: {
   await svc.from("hr_razorpay_sync_log").insert(row);
 }
 
-async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: string, isPilot: boolean) {
-  await svc.from("hr_razorpay_employee_map").upsert({
+async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: string, isPilot: boolean, created: boolean) {
+  const { error } = await svc.from("hr_razorpay_employee_map").upsert({
     razorpay_employee_id: razorpayId,
     hr_employee_id: hrEmployeeId,
-    sync_status: "synced",
+    sync_status: created ? "imported" : "matched_existing",
     is_pilot_verified: isPilot,
     last_synced_at: new Date().toISOString(),
   }, { onConflict: "razorpay_employee_id" });
+  if (error) throw new Error(`upsert map failed: ${error.message}`);
 }
 
 async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string> {
@@ -273,7 +274,7 @@ Deno.serve(async (req) => {
         hrId = await createDraftEmployee(svc, r.body);
         created = true;
       }
-      await upsertMap(svc, String(eid), hrId!, true);
+      await upsertMap(svc, String(eid), hrId!, true, created);
       await logSync(svc, {
         action: created ? "create_draft" : "match",
         http_status: r.status,
@@ -343,7 +344,7 @@ Deno.serve(async (req) => {
           let hrId = match.hr_employee_id;
           let created = false;
           if (!hrId) { hrId = await createDraftEmployee(svc, r.body); created = true; }
-          await upsertMap(svc, String(i), hrId!, false);
+          await upsertMap(svc, String(i), hrId!, false, created);
           await logSync(svc, {
             action: created ? "create_draft" : "match",
             http_status: r.status,

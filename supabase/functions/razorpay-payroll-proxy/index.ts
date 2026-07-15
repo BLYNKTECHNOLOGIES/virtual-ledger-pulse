@@ -150,7 +150,15 @@ async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: 
 
 async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string> {
   const { first, last } = splitName(e.name || "");
+  const dept = (e.department || "General").toString().trim() || "General";
+  // Reuse the standard employee-id generator so drafts get a valid, unique badge_id.
+  const { data: badgeData, error: badgeErr } = await svc.rpc("generate_employee_id", {
+    dept, designation: "Employee",
+  });
+  if (badgeErr) throw new Error(`generate_employee_id failed: ${badgeErr.message}`);
+  const badgeId = badgeData as string;
   const { data, error } = await svc.from("hr_employees").insert({
+    badge_id: badgeId,
     first_name: first,
     last_name: last,
     email: (e.email || "").toString().trim() || null,

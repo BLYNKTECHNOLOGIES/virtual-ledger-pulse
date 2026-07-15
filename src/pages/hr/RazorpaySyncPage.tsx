@@ -55,6 +55,8 @@ export default function RazorpaySyncPage() {
   const [fetching, setFetching] = useState(false);
   const [applyingPilot, setApplyingPilot] = useState(false);
   const [pilotPreview, setPilotPreview] = useState<FetchOneResponse | null>(null);
+  const [pilotApplied, setPilotApplied] = useState<{ hr_employee_id: string; created: boolean; matched_by: string | null; employee_id: number } | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
 
   // Step 3: bulk import
   const [startId, setStartId] = useState("1");
@@ -115,15 +117,32 @@ export default function RazorpaySyncPage() {
       const d = await invoke<{ ok: boolean; hr_employee_id: string; created: boolean; matched_by: string | null }>({
         action: "apply_one", employee_id: Number(pilotId),
       });
+      if (d.ok) setPilotApplied({ ...d, employee_id: Number(pilotId) });
       toast({
-        title: d.ok ? "Pilot applied" : "Apply failed",
-        description: d.ok ? `${d.created ? "Created draft" : "Matched"} (${d.matched_by ?? "new"})` : undefined,
+        title: d.ok ? "Pilot applied — please verify" : "Apply failed",
+        description: d.ok ? `${d.created ? "Created draft" : "Matched"} (${d.matched_by ?? "new"}). Bulk sync stays LOCKED until you unlock.` : undefined,
         variant: d.ok ? "default" : "destructive",
       });
       await reloadSettings();
     } catch (e: any) {
       toast({ title: "Request failed", description: e?.message, variant: "destructive" });
     } finally { setApplyingPilot(false); }
+  };
+
+  const runUnlockBulk = async () => {
+    if (!confirm("Confirm this Razorpay employee has been verified on the Razorpay dashboard AND in HRMS. Unlock bulk sync?")) return;
+    setUnlocking(true);
+    try {
+      const d = await invoke<{ ok: boolean; error?: string }>({ action: "unlock_bulk" });
+      toast({
+        title: d.ok ? "Bulk sync unlocked" : "Unlock failed",
+        description: d.ok ? "You can now run apply_range." : d.error,
+        variant: d.ok ? "default" : "destructive",
+      });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Request failed", description: e?.message, variant: "destructive" });
+    } finally { setUnlocking(false); }
   };
 
   const runDryRun = async () => {
@@ -263,12 +282,34 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
+      {/* PILOT CONFIRMATION — human gate */}
+      {pilotApplied && !canBulk && (
+        <Card className="border-amber-500/60 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <CheckCircle2 className="h-4 w-4" /> Pilot imported — verify before unlocking bulk
+            </CardTitle>
+            <CardDescription>
+              Razorpay employee-id <code>{pilotApplied.employee_id}</code> → HR employee <code className="text-[11px]">{pilotApplied.hr_employee_id}</code>
+              {" "}({pilotApplied.created ? "created as draft" : `matched by ${pilotApplied.matched_by ?? "n/a"}`}).
+              Verify this employee on the <b>Razorpay dashboard</b> and in <b>HRMS</b>, then unlock bulk sync.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button size="sm" onClick={runUnlockBulk} disabled={unlocking}>
+              {unlocking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Lock className="h-4 w-4 mr-2" /> Unlock bulk sync
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* STEP 3 — Bulk */}
-      <Card className={canBulk ? "" : "opacity-50 pointer-events-none"}>
+      <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step 3 — Bulk import (range)</CardTitle>
           <CardDescription>
-            Walk <code>start-id</code> → <code>max-id</code>, dry-run first, then apply. Stops after 30 consecutive misses; hard cap 1000 IDs per run.
+            Walk <code>start-id</code> → <code>max-id</code>, dry-run first (available pre-pilot), then apply (requires unlock). Stops after 30 consecutive misses; hard cap 1000 IDs per run.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -282,11 +323,12 @@ export default function RazorpaySyncPage() {
             <Button size="sm" variant="secondary" onClick={runDryRun} disabled={dryRunning}>
               {dryRunning && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Dry-run preview
             </Button>
-            <Button size="sm" onClick={runApplyBulk} disabled={applyingBulk || !dryRun?.ok}>
+            <Button size="sm" onClick={runApplyBulk} disabled={applyingBulk || !dryRun?.ok || !canBulk} title={!canBulk ? "Unlock bulk sync after pilot verification" : undefined}>
               {applyingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <CheckCircle2 className="h-4 w-4 mr-2" /> Apply import
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Apply import {!canBulk && "(locked)"}
             </Button>
           </div>
+
 
           {(dryRun || applied) && (
             <div className="text-xs text-muted-foreground">

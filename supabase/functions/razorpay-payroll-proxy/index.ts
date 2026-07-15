@@ -172,10 +172,14 @@ async function readSettings(svc: SupabaseClient) {
 async function markCredsValidated(svc: SupabaseClient) {
   await svc.from("hr_razorpay_settings").update({ last_creds_validated_at: new Date().toISOString() }).eq("is_singleton", true);
 }
-async function unlockBulkAndStampImport(svc: SupabaseClient) {
+async function stampLastImport(svc: SupabaseClient) {
+  await svc.from("hr_razorpay_settings").update({
+    last_import_at: new Date().toISOString(),
+  }).eq("is_singleton", true);
+}
+async function unlockBulk(svc: SupabaseClient) {
   await svc.from("hr_razorpay_settings").update({
     bulk_sync_unlocked: true,
-    last_import_at: new Date().toISOString(),
   }).eq("is_singleton", true);
 }
 
@@ -262,16 +266,30 @@ Deno.serve(async (req) => {
         field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, pilot: true },
         actor_user_id: authed.userId,
       });
-      await unlockBulkAndStampImport(svc);
+      await stampLastImport(svc);
       return json(200, { ok: true, hr_employee_id: hrId, created, matched_by: match.matched_by });
+    }
+
+    // ---------- unlock_bulk: human gate after pilot verification ----------
+    if (action === "unlock_bulk") {
+      const { data: pilot } = await svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id").eq("is_pilot_verified", true).limit(1).maybeSingle();
+      if (!pilot) return json(400, { error: "No pilot-verified employee. Run apply_one first." });
+      await unlockBulk(svc);
+      await logSync(svc, {
+        action: "unlock_bulk", http_status: 200,
+        razorpay_employee_id: String(pilot.razorpay_employee_id),
+        actor_user_id: authed.userId,
+      });
+      return json(200, { ok: true });
     }
 
     const settings = await readSettings(svc);
 
-    // ---------- dry_run_range ----------
+    // ---------- dry_run_range / apply_range ----------
     if (action === "dry_run_range" || action === "apply_range") {
-      if (!settings?.bulk_sync_unlocked) {
-        return json(403, { error: "Bulk sync locked. Run the pilot (apply_one) on one employee first." });
+      if (action === "apply_range" && !settings?.bulk_sync_unlocked) {
+        return json(403, { error: "Bulk sync locked. Unlock after pilot verification." });
       }
       const start = Math.max(1, Number(payload?.start_id ?? 1));
       const end = Math.max(start, Number(payload?.max_id ?? start));
@@ -324,7 +342,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (action === "apply_range") await unlockBulkAndStampImport(svc);
+      if (action === "apply_range") await stampLastImport(svc);
 
       const summary = {
         total: rows.length,

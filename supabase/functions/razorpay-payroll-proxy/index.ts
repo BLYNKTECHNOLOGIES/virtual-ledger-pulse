@@ -85,46 +85,84 @@ Deno.serve(async (req) => {
     const action = payload?.action ?? "validate_creds";
 
     if (action === "introspect_envelope") {
-      const base = "https://payroll.razorpay.com/v1";
       const auth = btoa(`${KEY_ID}:${KEY_SECRET}`);
-      const res = await fetch(`${base}/employees?page=1&count=1`, {
-        headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
-      });
-      const body = await res.json().catch(() => null);
-      if (!body || typeof body !== "object") {
-        return json(200, { ok: false, http_status: res.status, note: "non-object body" });
-      }
-      const topKeys = Object.keys(body);
-      // Find array key (candidate for employees list)
-      let arrayKey: string | null = null;
-      let arrayLen: number | null = null;
-      let elementFieldNames: string[] | null = null;
-      for (const k of topKeys) {
-        const v = (body as any)[k];
-        if (Array.isArray(v)) {
-          arrayKey = k;
-          arrayLen = v.length;
-          if (v.length > 0 && v[0] && typeof v[0] === "object") {
-            elementFieldNames = Object.keys(v[0]);
+      // Try several known Razorpay Payroll shapes/params to discover the right one.
+      const CANDIDATES = [
+        { url: "https://payroll.razorpay.com/v1/employees?page=1&count=10" },
+        { url: "https://payroll.razorpay.com/v1/employees?skip=0&count=10" },
+        { url: "https://payroll.razorpay.com/v1/employees" },
+        { url: "https://payroll.razorpay.com/v1/employees?status=active&count=10" },
+        { url: "https://payroll.razorpay.com/v1/organizations" },
+      ];
+      const attempts: any[] = [];
+      let picked: any = null;
+      for (const c of CANDIDATES) {
+        const res = await fetch(c.url, {
+          headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+        });
+        const raw = await res.text();
+        let body: any = null;
+        try { body = JSON.parse(raw); } catch { /* keep raw */ }
+
+        const isArray = Array.isArray(body);
+        const isObj = body && typeof body === "object" && !isArray;
+        const topKeys = isObj ? Object.keys(body) : [];
+        let arrayKey: string | null = null;
+        let arrayLen: number | null = isArray ? body.length : null;
+        let elementFieldNames: string[] | null = null;
+
+        if (isArray && body.length > 0 && typeof body[0] === "object") {
+          arrayKey = "(root)";
+          elementFieldNames = Object.keys(body[0]);
+        } else if (isObj) {
+          for (const k of topKeys) {
+            const v = body[k];
+            if (Array.isArray(v)) {
+              arrayKey = k;
+              arrayLen = v.length;
+              if (v.length > 0 && v[0] && typeof v[0] === "object") {
+                elementFieldNames = Object.keys(v[0]);
+              }
+              break;
+            }
           }
-          break;
+        }
+        const scalarKeys = isObj ? topKeys.filter((k) => {
+          const v = body[k];
+          return typeof v === "number" || typeof v === "string" || typeof v === "boolean";
+        }) : [];
+
+        const attempt = {
+          url: c.url,
+          http_status: res.status,
+          body_type: isArray ? "array" : (isObj ? "object" : typeof body),
+          top_level_keys: topKeys,
+          array_key: arrayKey,
+          array_length: arrayLen,
+          scalar_keys: scalarKeys,
+          element_field_names: elementFieldNames,
+          raw_length: raw.length,
+          raw_preview: res.ok ? null : raw.slice(0, 300),
+        };
+        attempts.push(attempt);
+        console.log("[introspect_envelope]", JSON.stringify({ url: c.url, status: res.status, body_type: attempt.body_type, top_keys: topKeys, array_key: arrayKey, array_len: arrayLen, has_fields: !!elementFieldNames }));
+
+        if (!picked && res.ok && elementFieldNames && elementFieldNames.length) {
+          picked = attempt;
         }
       }
-      // pagination/count-ish scalar keys
-      const scalarKeys = topKeys.filter((k) => {
-        const v = (body as any)[k];
-        return typeof v === "number" || typeof v === "string" || typeof v === "boolean";
+
+      const chosen = picked ?? attempts[0];
+      return json(200, {
+        ok: !!picked,
+        http_status: chosen.http_status,
+        top_level_keys: chosen.top_level_keys,
+        array_key: chosen.array_key,
+        array_length: chosen.array_length,
+        scalar_keys: chosen.scalar_keys,
+        element_field_names: chosen.element_field_names,
+        attempts,
       });
-      const shape = {
-        http_status: res.status,
-        top_level_keys: topKeys,
-        array_key: arrayKey,
-        array_length: arrayLen,
-        scalar_keys: scalarKeys,
-        element_field_names: elementFieldNames,
-      };
-      console.log("[introspect_envelope]", JSON.stringify(shape));
-      return json(200, { ok: true, ...shape });
     }
 
     if (action !== "validate_creds") {

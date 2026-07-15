@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { LeaveTab } from "@/components/hrms/LeaveTab";
 import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
 import { EmployeeSalaryStructure } from "@/components/hrms/EmployeeSalaryStructure";
+import { ReviseSalaryDialog } from "@/components/hrms/ReviseSalaryDialog";
+import { Button } from "@/components/ui/button";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
 import { Progress } from "@/components/ui/progress";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -175,6 +177,7 @@ export default function EmployeeProfilePage() {
   const [editForm, setEditForm] = useState<any>({});
   const [workInfoForm, setWorkInfoForm] = useState<any>({});
   const [noteText, setNoteText] = useState("");
+  const [showReviseSalary, setShowReviseSalary] = useState(false);
 
   // ─── Core employee data ───
   const { data: emp } = useQuery({
@@ -915,7 +918,13 @@ export default function EmployeeProfilePage() {
                     <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Basic Salary</p><p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString('en-IN')}` : "None"}</p></div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Basic Salary</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString('en-IN')}` : "None"}</p>
+                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setShowReviseSalary(true)}>Revise</Button>
+                      </div>
+                    </div>
                     <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
                   </div>
                 </div>
@@ -1186,6 +1195,7 @@ export default function EmployeeProfilePage() {
           <NotificationPreferences employeeId={emp.id} />
         )}
       </div>
+      {id && <ReviseSalaryDialog open={showReviseSalary} onOpenChange={setShowReviseSalary} presetEmployeeId={id} />}
     </div>
   );
 }

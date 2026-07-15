@@ -166,6 +166,8 @@ export default function BiometricDevicesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {dataDevice && <BiometricDeviceDataDialog open={!!dataDevice} onClose={() => setDataDevice(null)} device={dataDevice} />}
     </div>
   );
 }

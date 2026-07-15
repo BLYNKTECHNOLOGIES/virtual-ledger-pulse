@@ -4772,6 +4772,309 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_biometric_device_commands: {
+        Row: {
+          ack_at: string | null
+          ack_response: string | null
+          command_text: string
+          created_at: string
+          created_by: string | null
+          device_serial: string
+          id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          ack_at?: string | null
+          ack_response?: string | null
+          command_text: string
+          created_at?: string
+          created_by?: string | null
+          device_serial: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          ack_at?: string | null
+          ack_response?: string | null
+          command_text?: string
+          created_at?: string
+          created_by?: string | null
+          device_serial?: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      hr_biometric_device_info: {
+        Row: {
+          admin_count: number | null
+          attphoto_count: number | null
+          card_count: number | null
+          device_name: string | null
+          device_serial: string
+          face_algorithm_version: string | null
+          face_count: number | null
+          firmware: string | null
+          fp_algorithm_version: string | null
+          fp_count: number | null
+          ip_address: string | null
+          mac_address: string | null
+          oem_vendor: string | null
+          palm_count: number | null
+          password_count: number | null
+          platform: string | null
+          push_version: string | null
+          storage_used_pct: number | null
+          transaction_count: number | null
+          updated_at: string
+          user_count: number | null
+        }
+        Insert: {
+          admin_count?: number | null
+          attphoto_count?: number | null
+          card_count?: number | null
+          device_name?: string | null
+          device_serial: string
+          face_algorithm_version?: string | null
+          face_count?: number | null
+          firmware?: string | null
+          fp_algorithm_version?: string | null
+          fp_count?: number | null
+          ip_address?: string | null
+          mac_address?: string | null
+          oem_vendor?: string | null
+          palm_count?: number | null
+          password_count?: number | null
+          platform?: string | null
+          push_version?: string | null
+          storage_used_pct?: number | null
+          transaction_count?: number | null
+          updated_at?: string
+          user_count?: number | null
+        }
+        Update: {
+          admin_count?: number | null
+          attphoto_count?: number | null
+          card_count?: number | null
+          device_name?: string | null
+          device_serial?: string
+          face_algorithm_version?: string | null
+          face_count?: number | null
+          firmware?: string | null
+          fp_algorithm_version?: string | null
+          fp_count?: number | null
+          ip_address?: string | null
+          mac_address?: string | null
+          oem_vendor?: string | null
+          palm_count?: number | null
+          password_count?: number | null
+          platform?: string | null
+          push_version?: string | null
+          storage_used_pct?: number | null
+          transaction_count?: number | null
+          updated_at?: string
+          user_count?: number | null
+        }
+        Relationships: []
+      }
+      hr_biometric_device_operlog: {
+        Row: {
+          admin_pin: string | null
+          device_serial: string
+          id: string
+          ingested_at: string
+          occurred_at: string | null
+          op_code: number | null
+          op_label: string | null
+          raw_line: string | null
+          target_pin: string | null
+          value_1: string | null
+          value_2: string | null
+          value_3: string | null
+          value_4: string | null
+        }
+        Insert: {
+          admin_pin?: string | null
+          device_serial: string
+          id?: string
+          ingested_at?: string
+          occurred_at?: string | null
+          op_code?: number | null
+          op_label?: string | null
+          raw_line?: string | null
+          target_pin?: string | null
+          value_1?: string | null
+          value_2?: string | null
+          value_3?: string | null
+          value_4?: string | null
+        }
+        Update: {
+          admin_pin?: string | null
+          device_serial?: string
+          id?: string
+          ingested_at?: string
+          occurred_at?: string | null
+          op_code?: number | null
+          op_label?: string | null
+          raw_line?: string | null
+          target_pin?: string | null
+          value_1?: string | null
+          value_2?: string | null
+          value_3?: string | null
+          value_4?: string | null
+        }
+        Relationships: []
+      }
+      hr_biometric_device_photos: {
+        Row: {
+          captured_at: string
+          device_serial: string
+          id: string
+          kind: string
+          photo_base64: string | null
+          pin: string
+          punch_time: string | null
+          size_bytes: number | null
+        }
+        Insert: {
+          captured_at?: string
+          device_serial: string
+          id?: string
+          kind?: string
+          photo_base64?: string | null
+          pin: string
+          punch_time?: string | null
+          size_bytes?: number | null
+        }
+        Update: {
+          captured_at?: string
+          device_serial?: string
+          id?: string
+          kind?: string
+          photo_base64?: string | null
+          pin?: string
+          punch_time?: string | null
+          size_bytes?: number | null
+        }
+        Relationships: []
+      }
+      hr_biometric_device_templates: {
+        Row: {
+          algorithm_version: string | null
+          captured_at: string
+          device_serial: string
+          duress: boolean | null
+          finger_index: number | null
+          id: string
+          pin: string
+          size_bytes: number | null
+          template_kind: string
+          valid: boolean | null
+        }
+        Insert: {
+          algorithm_version?: string | null
+          captured_at?: string
+          device_serial: string
+          duress?: boolean | null
+          finger_index?: number | null
+          id?: string
+          pin: string
+          size_bytes?: number | null
+          template_kind: string
+          valid?: boolean | null
+        }
+        Update: {
+          algorithm_version?: string | null
+          captured_at?: string
+          device_serial?: string
+          duress?: boolean | null
+          finger_index?: number | null
+          id?: string
+          pin?: string
+          size_bytes?: number | null
+          template_kind?: string
+          valid?: boolean | null
+        }
+        Relationships: []
+      }
+      hr_biometric_device_users: {
+        Row: {
+          card_no: string | null
+          created_at: string
+          device_serial: string
+          face_count: number | null
+          first_seen_at: string
+          fp_count: number | null
+          group_no: number | null
+          id: string
+          last_seen_at: string
+          matched_employee_id: string | null
+          name: string | null
+          palm_count: number | null
+          password_set: boolean | null
+          photo_present: boolean | null
+          pin: string
+          privilege: number | null
+          raw_line: string | null
+          time_zones: string | null
+          updated_at: string
+          vein_count: number | null
+          verify_mode: number | null
+          vice_card: string | null
+        }
+        Insert: {
+          card_no?: string | null
+          created_at?: string
+          device_serial: string
+          face_count?: number | null
+          first_seen_at?: string
+          fp_count?: number | null
+          group_no?: number | null
+          id?: string
+          last_seen_at?: string
+          matched_employee_id?: string | null
+          name?: string | null
+          palm_count?: number | null
+          password_set?: boolean | null
+          photo_present?: boolean | null
+          pin: string
+          privilege?: number | null
+          raw_line?: string | null
+          time_zones?: string | null
+          updated_at?: string
+          vein_count?: number | null
+          verify_mode?: number | null
+          vice_card?: string | null
+        }
+        Update: {
+          card_no?: string | null
+          created_at?: string
+          device_serial?: string
+          face_count?: number | null
+          first_seen_at?: string
+          fp_count?: number | null
+          group_no?: number | null
+          id?: string
+          last_seen_at?: string
+          matched_employee_id?: string | null
+          name?: string | null
+          palm_count?: number | null
+          password_set?: boolean | null
+          photo_present?: boolean | null
+          pin?: string
+          privilege?: number | null
+          raw_line?: string | null
+          time_zones?: string | null
+          updated_at?: string
+          vein_count?: number | null
+          verify_mode?: number | null
+          vice_card?: string | null
+        }
+        Relationships: []
+      }
       hr_biometric_devices: {
         Row: {
           company: string | null

@@ -9,15 +9,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Pencil, Trash2, Wifi } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, Wifi, Database } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { BiometricDeviceDataDialog } from "@/components/hrms/BiometricDeviceDataDialog";
 
 const DEVICE_TYPES = ["ZKTeco / eSSL Biometric","Dahua Biometric","Hikvision Biometric","Anviz Biometric","Other"];
 const DEVICE_DIRECTIONS = ["System Direction(In/Out) Device","In Device","Out Device"];
-const defaultForm = { name: "", device_type: "ZKTeco / eSSL Biometric", machine_ip: "", port_no: "", password: "0", device_direction: "System Direction(In/Out) Device", company: "", is_live_capture: false, is_scheduled: false };
+const defaultForm = { name: "", device_type: "ZKTeco / eSSL Biometric", machine_ip: "", port_no: "", password: "0", device_direction: "System Direction(In/Out) Device", company: "", is_live_capture: false, is_scheduled: false, device_serial: "" };
 
 export default function BiometricDevicesPage() {
   const qc = useQueryClient();
@@ -25,6 +26,7 @@ export default function BiometricDevicesPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [dataDevice, setDataDevice] = useState<any | null>(null);
 
   const { data: devices = [], isLoading } = useQuery({
     queryKey: ["hr_biometric_devices"],
@@ -116,7 +118,7 @@ export default function BiometricDevicesPage() {
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreVertical className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setEditId(d.id); setForm({ name: d.name, device_type: d.device_type, machine_ip: d.machine_ip || "", port_no: d.port_no || "", password: d.password || "0", device_direction: d.device_direction, company: d.company || "", is_live_capture: d.is_live_capture, is_scheduled: d.is_scheduled }); setShowDialog(true); }}>
+                        <DropdownMenuItem onClick={() => { setEditId(d.id); setForm({ name: d.name, device_type: d.device_type, machine_ip: d.machine_ip || "", port_no: d.port_no || "", password: d.password || "0", device_direction: d.device_direction, company: d.company || "", is_live_capture: d.is_live_capture, is_scheduled: d.is_scheduled, device_serial: d.device_serial || "" }); setShowDialog(true); }}>
                           <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(d.id)}>
@@ -130,11 +132,12 @@ export default function BiometricDevicesPage() {
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className={`w-2 h-2 rounded-full ${status.color}`} />{status.label}</div>
                     <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Live capture</span><Switch checked={d.is_live_capture} onCheckedChange={async (checked) => { await (supabase as any).from("hr_biometric_devices").update({ is_live_capture: checked }).eq("id", d.id); qc.invalidateQueries({ queryKey: ["hr_biometric_devices"] }); }} /></div>
                   </div>
-                  <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-info text-info hover:bg-info/10">Test</Button>
+                  <div className="flex gap-2 pt-1 flex-wrap">
+                    <Button size="sm" variant="outline" className="text-xs h-7 border-primary text-primary hover:bg-primary/10" onClick={() => setDataDevice(d)}><Database className="h-3.5 w-3.5 mr-1" />View Data</Button>
                     <Button size="sm" variant="outline" className={`text-xs h-7 ${d.is_scheduled ? "border-warning text-warning hover:bg-warning/10" : "border-info text-info hover:bg-info/10"}`} onClick={async () => { await (supabase as any).from("hr_biometric_devices").update({ is_scheduled: !d.is_scheduled }).eq("id", d.id); qc.invalidateQueries({ queryKey: ["hr_biometric_devices"] }); toast.success(d.is_scheduled ? "Unscheduled" : "Scheduled"); }}>{d.is_scheduled ? "Unschedule" : "Schedule"}</Button>
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-muted text-muted-foreground hover:bg-muted/50">Employee</Button>
+                    {d.device_serial && <span className="text-[10px] text-muted-foreground font-mono self-center">SN {d.device_serial}</span>}
                   </div>
+
                 </CardContent>
               </Card>
             );
@@ -155,6 +158,7 @@ export default function BiometricDevicesPage() {
             <div><Label>Password</Label><Input className="h-9" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="0" /></div>
             <div><Label>Device Direction</Label><Select value={form.device_direction} onValueChange={(v) => setForm({ ...form, device_direction: v })}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent>{DEVICE_DIRECTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Company</Label><Input className="h-9" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Company name" /></div>
+            <div><Label>Device Serial (SN) <span className="text-muted-foreground text-xs">— required for iclock push</span></Label><Input className="h-9 font-mono" value={form.device_serial} onChange={(e) => setForm({ ...form, device_serial: e.target.value.trim() })} placeholder="e.g. CJXK202160002" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" className="h-9" onClick={() => setShowDialog(false)}>Cancel</Button>
@@ -162,6 +166,8 @@ export default function BiometricDevicesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {dataDevice && <BiometricDeviceDataDialog open={!!dataDevice} onClose={() => setDataDevice(null)} device={dataDevice} />}
     </div>
   );
 }

@@ -7892,6 +7892,133 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_razorpay_employee_map: {
+        Row: {
+          created_at: string
+          hr_employee_id: string
+          id: string
+          is_pilot_verified: boolean
+          last_error: string | null
+          last_payload_hash: string | null
+          last_synced_at: string | null
+          razorpay_employee_id: string
+          sync_status: Database["public"]["Enums"]["hr_razorpay_sync_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hr_employee_id: string
+          id?: string
+          is_pilot_verified?: boolean
+          last_error?: string | null
+          last_payload_hash?: string | null
+          last_synced_at?: string | null
+          razorpay_employee_id: string
+          sync_status?: Database["public"]["Enums"]["hr_razorpay_sync_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hr_employee_id?: string
+          id?: string
+          is_pilot_verified?: boolean
+          last_error?: string | null
+          last_payload_hash?: string | null
+          last_synced_at?: string | null
+          razorpay_employee_id?: string
+          sync_status?: Database["public"]["Enums"]["hr_razorpay_sync_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_employee_map_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_razorpay_settings: {
+        Row: {
+          base_url: string
+          bulk_sync_unlocked: boolean
+          created_at: string
+          id: string
+          is_singleton: boolean
+          last_creds_validated_at: string | null
+          last_import_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          base_url?: string
+          bulk_sync_unlocked?: boolean
+          created_at?: string
+          id?: string
+          is_singleton?: boolean
+          last_creds_validated_at?: string | null
+          last_import_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string
+          bulk_sync_unlocked?: boolean
+          created_at?: string
+          id?: string
+          is_singleton?: boolean
+          last_creds_validated_at?: string | null
+          last_import_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_razorpay_sync_log: {
+        Row: {
+          action: Database["public"]["Enums"]["hr_razorpay_sync_action"]
+          actor_user_id: string | null
+          created_at: string
+          error_text: string | null
+          field_diff_summary: Json | null
+          hr_employee_id: string | null
+          http_status: number | null
+          id: string
+          payload_hash: string | null
+          razorpay_employee_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["hr_razorpay_sync_action"]
+          actor_user_id?: string | null
+          created_at?: string
+          error_text?: string | null
+          field_diff_summary?: Json | null
+          hr_employee_id?: string | null
+          http_status?: number | null
+          id?: string
+          payload_hash?: string | null
+          razorpay_employee_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["hr_razorpay_sync_action"]
+          actor_user_id?: string | null
+          created_at?: string
+          error_text?: string | null
+          field_diff_summary?: Json | null
+          hr_employee_id?: string | null
+          http_status?: number | null
+          id?: string
+          payload_hash?: string | null
+          razorpay_employee_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_recruitment_managers: {
         Row: {
           created_at: string
@@ -18554,6 +18681,21 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "on_hold"
+      hr_razorpay_sync_action:
+        | "validate_creds"
+        | "introspect_envelope"
+        | "pull_import"
+        | "dry_run"
+        | "push_create"
+        | "push_update"
+        | "drift_check"
+      hr_razorpay_sync_status:
+        | "imported"
+        | "matched_existing"
+        | "in_sync"
+        | "drift"
+        | "error"
+        | "incomplete"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       mpi_data_source: "auto" | "manual"
       mpi_department:
@@ -18875,6 +19017,23 @@ export const Constants = {
         "completed",
         "cancelled",
         "on_hold",
+      ],
+      hr_razorpay_sync_action: [
+        "validate_creds",
+        "introspect_envelope",
+        "pull_import",
+        "dry_run",
+        "push_create",
+        "push_update",
+        "drift_check",
+      ],
+      hr_razorpay_sync_status: [
+        "imported",
+        "matched_existing",
+        "in_sync",
+        "drift",
+        "error",
+        "incomplete",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       mpi_data_source: ["auto", "manual"],

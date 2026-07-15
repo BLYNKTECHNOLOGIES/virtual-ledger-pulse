@@ -86,13 +86,16 @@ Deno.serve(async (req) => {
 
     if (action === "introspect_envelope") {
       const auth = btoa(`${KEY_ID}:${KEY_SECRET}`);
-      // Try several known Razorpay Payroll shapes/params to discover the right one.
+      // Try several candidate hosts/paths — the payroll.razorpay.com host serves a marketing HTML page,
+      // so we widen the search to the documented API bases.
       const CANDIDATES = [
-        { url: "https://payroll.razorpay.com/v1/employees?page=1&count=10" },
+        { url: "https://api.razorpay.com/v1/payroll/employees?skip=0&count=10" },
+        { url: "https://api.razorpay.com/v1/payroll/employees?page=1&count=10" },
+        { url: "https://api.razorpay.com/v1/payroll/employees" },
+        { url: "https://api.razorpay.com/v1/payroll/organizations" },
+        { url: "https://api.razorpay.com/v1/payroll/contractors?skip=0&count=10" },
+        { url: "https://payroll-api.razorpay.com/v1/employees?skip=0&count=10" },
         { url: "https://payroll.razorpay.com/v1/employees?skip=0&count=10" },
-        { url: "https://payroll.razorpay.com/v1/employees" },
-        { url: "https://payroll.razorpay.com/v1/employees?status=active&count=10" },
-        { url: "https://payroll.razorpay.com/v1/organizations" },
       ];
       const attempts: any[] = [];
       let picked: any = null;

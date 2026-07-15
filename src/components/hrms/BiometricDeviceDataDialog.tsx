@@ -95,12 +95,65 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     toast.success("Command queued — device will pick it up on next heartbeat");
   };
 
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const queueCmd = async (cmd: string, successMsg = "Command queued — device will pick it up on next heartbeat") => {
+    if (!serial) return;
+    setBusy(true);
+    const { error } = await (supabase as any).from("hr_biometric_device_commands").insert({
+      device_serial: serial, command_text: cmd, status: "pending",
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(successMsg);
+    qc.invalidateQueries({ queryKey: ["bio-cmds", serial] });
+  };
+
+  // eSSL/ZKTeco iclock write commands — device-side only, unrelated to HRMS
+  const escape = (v: string) => String(v ?? "").replace(/\t/g, " ").replace(/\n/g, " ");
+  const upsertUser = (p: { pin: string; name: string; privilege: number; password?: string; card?: string; group?: string }) => {
+    const parts = [
+      `PIN=${escape(p.pin)}`,
+      `Name=${escape(p.name)}`,
+      `Pri=${p.privilege ?? 0}`,
+      p.password ? `Passwd=${escape(p.password)}` : "",
+      p.card ? `Card=${escape(p.card)}` : "",
+      p.group ? `Grp=${escape(p.group)}` : "1",
+    ].filter(Boolean).join("\t");
+    return queueCmd(`C:${Date.now()}:DATA UPDATE USERINFO ${parts}`, `User ${p.pin} queued for push`);
+  };
+  const deleteUser = (pin: string) =>
+    queueCmd(`C:${Date.now()}:DATA DELETE USERINFO PIN=${escape(pin)}`, `Delete user ${pin} queued`);
+  const clearAll = (target: "DATA" | "LOG" | "PHOTO") =>
+    queueCmd(`C:${Date.now()}:CLEAR ${target}`, `CLEAR ${target} queued`);
+  const reboot = () => queueCmd(`C:${Date.now()}:REBOOT`, "Reboot queued");
+  const unlockDoor = () => queueCmd(`C:${Date.now()}:AC_UNLOCK`, "Door unlock queued");
+  const pushMessage = (pin: string, text: string, minutes = 60) => {
+    const smsId = Math.floor(Date.now() / 1000) % 2147483647;
+    const start = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+    return queueCmd(
+      `C:${Date.now()}:DATA UPDATE SMS MSG=${smsId}\tTAG=1\tUID=${smsId}\tMIN=${minutes}\tStartTime=${start}\tContent=${escape(text)}` +
+      (pin ? `\nC:${Date.now() + 1}:DATA UPDATE USER_SMS PIN=${escape(pin)}\tMSG=${smsId}` : ""),
+      pin ? `Message pushed to PIN ${pin}` : `Broadcast message queued`
+    );
+  };
+  const setOption = (key: string, value: string) =>
+    queueCmd(`C:${Date.now()}:SET OPTION ${escape(key)}=${escape(value)}`, `Option ${key}=${value} queued`);
+
+  const cmdsQ = useQuery({
+    enabled: !!serial && open,
+    queryKey: ["bio-cmds", serial],
+    queryFn: async () => (await (supabase as any).from("hr_biometric_device_commands").select("*").eq("device_serial", serial).order("created_at", { ascending: false }).limit(40)).data || [],
+  });
+
   const info = infoQ.data;
   const users = usersQ.data || [];
   const templates = tplQ.data || [];
   const oplog = oplogQ.data || [];
   const punches = punchesQ.data || [];
   const photos = photosQ.data || [];
+  const cmds = cmdsQ.data || [];
 
   const fpTotal = templates.filter((t: any) => t.template_kind === "FP" || t.template_kind === "BIODATA").length;
   const faceTotal = templates.filter((t: any) => t.template_kind === "FACE").length;

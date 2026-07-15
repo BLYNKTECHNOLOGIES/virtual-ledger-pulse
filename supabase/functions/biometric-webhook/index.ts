@@ -70,7 +70,11 @@ Deno.serve(async (req) => {
     if (req.method === "GET" && serialNumber) {
       const options = url.searchParams.get("options");
       const requestType = url.searchParams.get("type")?.toLowerCase();
-      const isCommandPoll = requestType === "getrequest" || pathName.endsWith("/getrequest");
+      const isCommandPoll =
+        requestType === "getrequest" ||
+        pathName.endsWith("/getrequest") ||
+        pathName.endsWith("/getrequest.aspx") ||
+        pathName.includes("/getrequest.");
 
       console.log(
         `ICLOCK GET from ${serialNumber}: path=${url.pathname}, options=${options || "-"}, type=${requestType || "-"}, queryKeys=${Array.from(url.searchParams.keys()).join(",") || "-"}`
@@ -283,9 +287,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // OPERLOG — parse USER / FP / FACE / PALM / VEIN / USERPIC / OPLOG / BIODATA lines
-      if (table === "OPERLOG") {
-        await parseOperlog(supabase, serialNumber, bodyText);
+      // OPERLOG / DATA QUERY responses — parse USER / FP / FACE / PALM / VEIN / USERPIC / OPLOG / BIODATA lines.
+      // Different eSSL firmwares return roster pulls either as table=OPERLOG or table=USERINFO/TEMPLATE/BIODATA.
+      if (isRosterPayload(table, bodyText)) {
+        await parseOperlog(supabase, serialNumber, bodyText, table || undefined);
         return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
       }
 

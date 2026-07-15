@@ -121,6 +121,8 @@ export function GrossProfitHistoryTab() {
 
   // NPM outliers to exclude from the trend line (kept in table/gross profit, only NPM line skips)
   const NPM_OUTLIER_DATES = new Set<string>(["2026-05-27", "2026-06-22"]);
+  // Gross Profit outliers to exclude from the chart scale (kept in table)
+  const GP_OUTLIER_DATES = new Set<string>(["2026-05-27"]);
 
   const chartData = useMemo(() => {
     if (!mergedData?.length) return [];
@@ -128,11 +130,12 @@ export function GrossProfitHistoryTab() {
     if (viewMode === "day") {
       return mergedData.map((item) => {
         const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
-        const isOutlier = NPM_OUTLIER_DATES.has(item.snapshot_date);
+        const isNpmOutlier = NPM_OUTLIER_DATES.has(item.snapshot_date);
+        const isGpOutlier = GP_OUTLIER_DATES.has(item.snapshot_date);
         return {
           date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
-          value: Number(item.gross_profit),
-          npm: isOutlier || Number(item.total_sales_qty) <= 0 ? null : npm,
+          value: isGpOutlier ? null : Number(item.gross_profit),
+          npm: isNpmOutlier || Number(item.total_sales_qty) <= 0 ? null : npm,
         };
       });
     }
@@ -144,9 +147,10 @@ export function GrossProfitHistoryTab() {
       const existing = monthMap.get(monthKey) || { profit: 0, totalNpm: 0, days: 0 };
       const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
       const hasSales = Number(item.total_sales_qty) > 0;
-      const isOutlier = NPM_OUTLIER_DATES.has(item.snapshot_date);
-      existing.profit += Number(item.gross_profit);
-      if (hasSales && !isOutlier) {
+      const isNpmOutlier = NPM_OUTLIER_DATES.has(item.snapshot_date);
+      const isGpOutlier = GP_OUTLIER_DATES.has(item.snapshot_date);
+      if (!isGpOutlier) existing.profit += Number(item.gross_profit);
+      if (hasSales && !isNpmOutlier) {
         existing.totalNpm += npm;
         existing.days += 1;
       }
@@ -158,6 +162,7 @@ export function GrossProfitHistoryTab() {
       npm: v.days > 0 ? v.totalNpm / v.days : null,
     }));
   }, [mergedData, viewMode]);
+
 
   const formatCurrency = (value: number) =>
     `₹${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -325,7 +330,9 @@ export function GrossProfitHistoryTab() {
                     fill="#059669"
                     fillOpacity={0.15}
                     strokeWidth={2}
+                    connectNulls
                   />
+
                   <Line
                     yAxisId="right"
                     type="monotone"

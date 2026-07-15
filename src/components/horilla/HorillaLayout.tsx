@@ -18,7 +18,7 @@ export function HorillaLayout() {
   };
 
   return (
-    <div className="horilla-root flex h-screen overflow-hidden bg-[#f5f6fa]">
+    <div className="horilla-root flex h-screen overflow-hidden bg-[#f5f6fa] dark:bg-[hsl(225_28%_8%)]">
       <HorillaSidebar
         collapsed={isMobile ? false : sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((prev) => !prev)}

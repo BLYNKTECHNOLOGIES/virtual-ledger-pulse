@@ -117,15 +117,32 @@ export default function RazorpaySyncPage() {
       const d = await invoke<{ ok: boolean; hr_employee_id: string; created: boolean; matched_by: string | null }>({
         action: "apply_one", employee_id: Number(pilotId),
       });
+      if (d.ok) setPilotApplied({ ...d, employee_id: Number(pilotId) });
       toast({
-        title: d.ok ? "Pilot applied" : "Apply failed",
-        description: d.ok ? `${d.created ? "Created draft" : "Matched"} (${d.matched_by ?? "new"})` : undefined,
+        title: d.ok ? "Pilot applied — please verify" : "Apply failed",
+        description: d.ok ? `${d.created ? "Created draft" : "Matched"} (${d.matched_by ?? "new"}). Bulk sync stays LOCKED until you unlock.` : undefined,
         variant: d.ok ? "default" : "destructive",
       });
       await reloadSettings();
     } catch (e: any) {
       toast({ title: "Request failed", description: e?.message, variant: "destructive" });
     } finally { setApplyingPilot(false); }
+  };
+
+  const runUnlockBulk = async () => {
+    if (!confirm("Confirm this Razorpay employee has been verified on the Razorpay dashboard AND in HRMS. Unlock bulk sync?")) return;
+    setUnlocking(true);
+    try {
+      const d = await invoke<{ ok: boolean; error?: string }>({ action: "unlock_bulk" });
+      toast({
+        title: d.ok ? "Bulk sync unlocked" : "Unlock failed",
+        description: d.ok ? "You can now run apply_range." : d.error,
+        variant: d.ok ? "default" : "destructive",
+      });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Request failed", description: e?.message, variant: "destructive" });
+    } finally { setUnlocking(false); }
   };
 
   const runDryRun = async () => {

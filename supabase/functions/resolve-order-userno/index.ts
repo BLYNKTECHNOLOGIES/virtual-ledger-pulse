@@ -89,6 +89,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const { requireAuth } = await import("../_shared/require-auth.ts");
+    const auth = await requireAuth(req, { corsHeaders });
+    if (!auth.ok) return auth.response;
+
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
     const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

@@ -1486,6 +1486,300 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---- Phase 6: Monthly attendance / LOP push -------------------------------------------
+    // Discovery-first, same pattern as Phase 5. Live pushes are BLOCKED until an operator
+    // records a probe-verified attendance envelope (e.g. `attendance:update` or
+    // `people:attendance-update` — the correct sub-type has to come from Postman verification
+    // against the Live tenant, not a guess). Dry-run computes an ERP-truth LOP breakdown per
+    // employee for a given YYYY-MM period so the operator can eyeball it before enabling
+    // the write path.
+    if (action === "record_attendance_envelope_verified") {
+      const key = String(payload?.envelope_key || "").trim();
+      const verified = !!payload?.verified;
+      if (verified && !key) return json(400, { error: "envelope_key is required when verified=true" });
+      const patch: any = {
+        push_attendance_endpoint_verified: verified,
+        push_attendance_envelope_key: verified ? key : null,
+        push_attendance_envelope_verified_at: verified ? new Date().toISOString() : null,
+        push_attendance_envelope_verified_by: verified ? authed.userId : null,
+      };
+      if (!verified || (settingsRow?.push_attendance_envelope_key && settingsRow.push_attendance_envelope_key !== key)) {
+        patch.push_attendance_pilot_verified_at = null;
+        patch.push_attendance_pilot_hr_employee_id = null;
+        patch.push_attendance_pilot_period = null;
+        patch.bulk_attendance_push_unlocked = false;
+      }
+      const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+      if (error) return json(500, { error: error.message });
+      return json(200, { ok: true });
+    }
+
+    if (action === "unlock_bulk_attendance_push") {
+      const s = await readSettings(svc);
+      if (!s?.push_attendance_endpoint_verified || !s?.push_attendance_envelope_key) {
+        return json(400, { error: "Cannot unlock — attendance envelope not yet verified. Record a probe-verified envelope first." });
+      }
+      if (!s?.push_attendance_pilot_verified_at) {
+        return json(400, { error: "Cannot unlock bulk attendance push — attendance pilot not verified yet." });
+      }
+      await svc.from("hr_razorpay_settings").update({ bulk_attendance_push_unlocked: true }).eq("is_singleton", true);
+      return json(200, { ok: true });
+    }
+
+    if (
+      action === "push_attendance_dry_run" ||
+      action === "push_attendance_apply_one" ||
+      action === "push_attendance_apply_bulk"
+    ) {
+      const isWrite = action !== "push_attendance_dry_run";
+      const period = String(payload?.period || "").trim(); // YYYY-MM
+      const periodMatch = /^(\d{4})-(\d{2})$/.exec(period);
+      if (!periodMatch) return json(400, { error: "period is required as YYYY-MM" });
+      const year = Number(periodMatch[1]);
+      const month = Number(periodMatch[2]);
+      const monthStart = new Date(Date.UTC(year, month - 1, 1));
+      const monthEnd = new Date(Date.UTC(year, month, 0)); // last day
+      const daysInMonth = monthEnd.getUTCDate();
+      const monthStartISO = monthStart.toISOString().slice(0, 10);
+      const monthEndISO = monthEnd.toISOString().slice(0, 10);
+
+      const only: string[] | null = Array.isArray(payload?.razorpay_employee_ids) && payload.razorpay_employee_ids.length
+        ? payload.razorpay_employee_ids.map((v: any) => String(v))
+        : (payload?.razorpay_employee_id ? [String(payload.razorpay_employee_id)] : null);
+
+      if (isWrite) {
+        if (!settingsRow?.push_attendance_endpoint_verified || !settingsRow?.push_attendance_envelope_key) {
+          return json(400, { error: "Attendance write path is disabled — verify the Razorpay attendance envelope via probe first, then record it." });
+        }
+        if (action === "push_attendance_apply_bulk") {
+          if (!settingsRow?.push_attendance_pilot_verified_at) {
+            return json(400, { error: "Attendance pilot not yet verified. Run push_attendance_apply_one first." });
+          }
+          if (!settingsRow?.bulk_attendance_push_unlocked) {
+            return json(400, { error: "Bulk attendance push is locked. Unlock explicitly after reviewing the dry-run." });
+          }
+        }
+        if (action === "push_attendance_apply_one" && (!only || only.length !== 1)) {
+          return json(400, { error: "push_attendance_apply_one requires exactly one razorpay_employee_id" });
+        }
+      }
+
+      let query = svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,hr_employee_id");
+      if (only) query = query.in("razorpay_employee_id", only);
+      const { data: maps, error: mapsErr } = await query;
+      if (mapsErr) return json(500, { error: mapsErr.message });
+      if (!maps?.length) return json(400, { error: "No mapped rows for the requested ids." });
+
+      const hrIds = maps.map((m: any) => m.hr_employee_id).filter(Boolean);
+
+      // Load attendance daily rows, leave requests overlapping the month, leave types,
+      // and holidays. All are ERP-truth; we do not read any Razorpay-side attendance.
+      const [attRes, leaveRes, ltRes, holRes] = await Promise.all([
+        svc.from("hr_attendance_daily")
+          .select("employee_id,attendance_date,total_hours,status")
+          .in("employee_id", hrIds)
+          .gte("attendance_date", monthStartISO)
+          .lte("attendance_date", monthEndISO),
+        svc.from("hr_leave_requests")
+          .select("employee_id,start_date,end_date,total_days,status,leave_type_id,is_half_day")
+          .in("employee_id", hrIds)
+          .in("status", ["approved", "APPROVED"])
+          .lte("start_date", monthEndISO)
+          .gte("end_date", monthStartISO),
+        svc.from("hr_leave_types").select("id,is_paid,name"),
+        svc.from("hr_holidays").select("date,is_active").eq("is_active", true)
+          .gte("date", monthStartISO).lte("date", monthEndISO),
+      ]);
+      if (attRes.error) return json(500, { error: attRes.error.message });
+      if (leaveRes.error) return json(500, { error: leaveRes.error.message });
+      if (ltRes.error) return json(500, { error: ltRes.error.message });
+      if (holRes.error) return json(500, { error: holRes.error.message });
+
+      const ltMap = new Map((ltRes.data || []).map((l: any) => [l.id, l]));
+      const holidayDates = new Set((holRes.data || []).map((h: any) => h.date));
+
+      // Working days = calendar days minus Sundays minus active holidays. This is a
+      // documented ERP assumption; if the tenant uses a Mon–Fri or different weekly-off
+      // pattern the operator must reconcile in Razorpay after the push. The dry-run
+      // exposes the assumed working_days count so the operator can catch mismatches.
+      let workingDays = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dt = new Date(Date.UTC(year, month - 1, d));
+        const iso = dt.toISOString().slice(0, 10);
+        const dow = dt.getUTCDay(); // 0 = Sunday
+        if (dow === 0) continue;
+        if (holidayDates.has(iso)) continue;
+        workingDays++;
+      }
+
+      const attByEmp = new Map<string, Set<string>>();
+      for (const r of (attRes.data || []) as any[]) {
+        const s = attByEmp.get(r.employee_id) || new Set<string>();
+        const present = (r.total_hours && r.total_hours > 0) || (r.status && String(r.status).toLowerCase() === "present");
+        if (present) s.add(r.attendance_date);
+        attByEmp.set(r.employee_id, s);
+      }
+
+      // Overlap the leave request with the month window; split into paid vs unpaid days.
+      const paidByEmp = new Map<string, number>();
+      const unpaidByEmp = new Map<string, number>();
+      for (const lr of (leaveRes.data || []) as any[]) {
+        const lt = ltMap.get(lr.leave_type_id);
+        const isPaid = lt ? !!lt.is_paid : true; // conservative: default paid to avoid over-deducting LOP
+        const ls = new Date(lr.start_date + "T00:00:00Z");
+        const le = new Date(lr.end_date + "T00:00:00Z");
+        const os = ls < monthStart ? monthStart : ls;
+        const oe = le > monthEnd ? monthEnd : le;
+        if (oe < os) continue;
+        // Count working-day overlap only.
+        let count = 0;
+        for (let t = os.getTime(); t <= oe.getTime(); t += 86400000) {
+          const dt = new Date(t);
+          const iso = dt.toISOString().slice(0, 10);
+          if (dt.getUTCDay() === 0) continue;
+          if (holidayDates.has(iso)) continue;
+          count += lr.is_half_day ? 0.5 : 1;
+        }
+        if (isPaid) paidByEmp.set(lr.employee_id, (paidByEmp.get(lr.employee_id) || 0) + count);
+        else unpaidByEmp.set(lr.employee_id, (unpaidByEmp.get(lr.employee_id) || 0) + count);
+      }
+
+      const rows: any[] = [];
+      let planned = 0, pushed = 0, failed = 0, skipped = 0;
+
+      for (const m of maps as any[]) {
+        const eid = Number(m.razorpay_employee_id);
+        if (!Number.isFinite(eid) || eid < 1 || !m.hr_employee_id) { skipped++; continue; }
+        const presentDays = (attByEmp.get(m.hr_employee_id) || new Set()).size;
+        const paidLeave = Math.round(((paidByEmp.get(m.hr_employee_id) || 0)) * 2) / 2;
+        const unpaidLeave = Math.round(((unpaidByEmp.get(m.hr_employee_id) || 0)) * 2) / 2;
+        // LOP = working days the employee neither showed up nor took paid leave for.
+        // Includes unpaid approved leave and unexplained absences.
+        const attendedOrPaid = presentDays + paidLeave;
+        const lopDays = Math.max(0, workingDays - attendedOrPaid);
+        // Sanity: unpaid_leave_days should be <= lop_days; if operator's paid_leave flag
+        // is wrong the delta will show up here.
+        const unpaidCovered = Math.min(unpaidLeave, lopDays);
+        const payload = {
+          period,
+          working_days: workingDays,
+          present_days: presentDays,
+          paid_leave_days: paidLeave,
+          unpaid_leave_days: unpaidLeave,
+          lop_days: lopDays,
+          unpaid_matches_lop: Math.abs(unpaidCovered - unpaidLeave) < 0.01,
+        };
+        planned++;
+
+        if (action === "push_attendance_dry_run") {
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "planned",
+            ...payload,
+          });
+          continue;
+        }
+
+        // Live push using the operator-verified attendance envelope key.
+        const envelopeKey = String(settingsRow!.push_attendance_envelope_key);
+        const [type, subType] = envelopeKey.split(":");
+        const body = {
+          auth: authBlock(),
+          request: { type: type || "attendance", "sub-type": subType || "update" },
+          data: {
+            "employee-id": eid,
+            "employee-type": "employee",
+            period,
+            "working-days": workingDays,
+            "present-days": presentDays,
+            "paid-leave-days": paidLeave,
+            "lop-days": lopDays,
+          },
+        };
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        let httpStatus = 0; let ok = false; let errText: string | null = null;
+        try {
+          const res = await fetch(`${BASE}/${type || "attendance"}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(body),
+            signal: ctrl.signal,
+          });
+          httpStatus = res.status;
+          const raw = await res.text();
+          let respBody: any = null; try { respBody = JSON.parse(raw); } catch { /* ignore */ }
+          const rpErr = respBody && typeof respBody === "object" ? (respBody.error || respBody.message || null) : null;
+          ok = res.ok && !rpErr;
+          if (!ok) errText = rpErr || raw?.slice(0, 400) || `HTTP ${res.status}`;
+        } catch (e) {
+          errText = `NETWORK: ${(e as Error).message}`;
+        } finally { clearTimeout(t); }
+
+        await logSync(svc, {
+          action: "push_attendance",
+          http_status: httpStatus,
+          razorpay_employee_id: String(eid),
+          hr_employee_id: m.hr_employee_id,
+          // PII-safe: only day counts + period, never per-day timestamps or leave reasons.
+          field_diff_summary: {
+            period,
+            working_days: workingDays,
+            present_days: presentDays,
+            paid_leave_days: paidLeave,
+            lop_days: lopDays,
+          },
+          error_text: ok ? null : errText,
+          actor_user_id: authed.userId,
+        });
+
+        if (ok) {
+          pushed++;
+          if (action === "push_attendance_apply_one" && !settingsRow?.push_attendance_pilot_verified_at) {
+            await svc.from("hr_razorpay_settings").update({
+              push_attendance_pilot_verified_at: new Date().toISOString(),
+              push_attendance_pilot_hr_employee_id: m.hr_employee_id,
+              push_attendance_pilot_period: period,
+              last_attendance_push_at: new Date().toISOString(),
+            }).eq("is_singleton", true);
+          } else {
+            await svc.from("hr_razorpay_settings").update({ last_attendance_push_at: new Date().toISOString() }).eq("is_singleton", true);
+          }
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "pushed",
+            ...payload,
+          });
+        } else {
+          failed++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "failed",
+            ...payload,
+            error: errText,
+          });
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        period,
+        summary: { total: maps.length, planned, pushed, failed, skipped, working_days: workingDays },
+        rows,
+        envelope: {
+          verified: !!settingsRow?.push_attendance_endpoint_verified,
+          key: settingsRow?.push_attendance_envelope_key || null,
+        },
+        pilot: {
+          verified_at: settingsRow?.push_attendance_pilot_verified_at || null,
+          pilot_period: settingsRow?.push_attendance_pilot_period || null,
+          bulk_unlocked: !!settingsRow?.bulk_attendance_push_unlocked,
+        },
+      });
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
 
   } catch (e) {
@@ -1493,3 +1787,4 @@ Deno.serve(async (req) => {
     return json(500, { error: (e as Error).message });
   }
 });
+

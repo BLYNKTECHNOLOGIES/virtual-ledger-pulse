@@ -26,7 +26,36 @@ interface Settings {
   push_salary_pilot_verified_at?: string | null;
   bulk_salary_push_unlocked?: boolean;
   last_salary_push_at?: string | null;
+  push_attendance_endpoint_verified?: boolean;
+  push_attendance_envelope_key?: string | null;
+  push_attendance_envelope_verified_at?: string | null;
+  push_attendance_pilot_verified_at?: string | null;
+  push_attendance_pilot_period?: string | null;
+  bulk_attendance_push_unlocked?: boolean;
+  last_attendance_push_at?: string | null;
 }
+interface AttendanceRow {
+  razorpay_employee_id: string;
+  hr_employee_id?: string;
+  status: "planned" | "pushed" | "failed" | "skipped";
+  period?: string;
+  working_days?: number;
+  present_days?: number;
+  paid_leave_days?: number;
+  unpaid_leave_days?: number;
+  lop_days?: number;
+  unpaid_matches_lop?: boolean;
+  error?: string;
+}
+interface AttendanceResponse {
+  ok: boolean;
+  period: string;
+  summary: { total: number; planned: number; pushed: number; failed: number; skipped: number; working_days: number };
+  rows: AttendanceRow[];
+  envelope: { verified: boolean; key: string | null };
+  pilot: { verified_at: string | null; pilot_period: string | null; bulk_unlocked: boolean };
+}
+
 interface SalaryComponent { code: string | null; name: string; type: string | null; amount: number }
 interface SalaryRow {
   razorpay_employee_id: string;
@@ -176,17 +205,32 @@ export default function RazorpaySyncPage() {
   const [salaryApplyResult, setSalaryApplyResult] = useState<SalaryResponse | null>(null);
   const [salaryConfirm, setSalaryConfirm] = useState<{ mode: "one" | "bulk"; row?: SalaryRow } | null>(null);
 
-
-
-
+  // Phase 6 — Monthly attendance / LOP push (discovery-first, envelope-gated)
+  const [attRpId, setAttRpId] = useState<string>("");
+  const [attPeriod, setAttPeriod] = useState<string>(() => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+  const [attEnvelopeInput, setAttEnvelopeInput] = useState<string>("");
+  const [attDrying, setAttDrying] = useState(false);
+  const [attApplyingOne, setAttApplyingOne] = useState(false);
+  const [attApplyingBulk, setAttApplyingBulk] = useState(false);
+  const [attUnlocking, setAttUnlocking] = useState(false);
+  const [attRecording, setAttRecording] = useState(false);
+  const [attDryResult, setAttDryResult] = useState<AttendanceResponse | null>(null);
+  const [attApplyResult, setAttApplyResult] = useState<AttendanceResponse | null>(null);
+  const [attConfirm, setAttConfirm] = useState<{ mode: "one" | "bulk"; row?: AttendanceRow } | null>(null);
 
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")
-      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at")
+      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at")
       .maybeSingle();
     setSettings(data as Settings | null);
   };
+
 
   useEffect(() => { if (canAccess) { reloadSettings(); reloadGaps(); } }, [canAccess]);
 
@@ -519,6 +563,98 @@ export default function RazorpaySyncPage() {
       toast({ title: "Bulk salary push failed", description: e?.message, variant: "destructive" });
     } finally { setSalaryApplyingBulk(false); }
   };
+
+  // ---- Phase 6 handlers ----
+  const runAttendanceDryRun = async () => {
+    if (!/^\d{4}-\d{2}$/.test(attPeriod)) {
+      toast({ title: "Enter period as YYYY-MM", variant: "destructive" }); return;
+    }
+    setAttDrying(true); setAttDryResult(null);
+    try {
+      const body: any = { action: "push_attendance_dry_run", period: attPeriod };
+      if (attRpId.trim()) body.razorpay_employee_id = attRpId.trim();
+      const d = await invoke<AttendanceResponse>(body);
+      setAttDryResult(d);
+      toast({
+        title: "Attendance dry-run complete",
+        description: `${d.summary.planned} rows · working days: ${d.summary.working_days}`,
+      });
+    } catch (e: any) {
+      toast({ title: "Attendance dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setAttDrying(false); }
+  };
+  const runRecordAttendanceEnvelope = async (verified: boolean) => {
+    if (verified && !attEnvelopeInput.trim()) {
+      toast({ title: "Enter the verified envelope key first (e.g. attendance:update)", variant: "destructive" });
+      return;
+    }
+    setAttRecording(true);
+    try {
+      await invoke({
+        action: "record_attendance_envelope_verified",
+        verified, envelope_key: attEnvelopeInput.trim(),
+      });
+      toast({
+        title: verified ? "Attendance envelope recorded as verified" : "Attendance envelope verification cleared",
+      });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Failed to record envelope", description: e?.message, variant: "destructive" });
+    } finally { setAttRecording(false); }
+  };
+  const requestAttendanceApplyOne = () => {
+    const id = attRpId.trim();
+    if (!id) { toast({ title: "Enter a Razorpay employee ID first", variant: "destructive" }); return; }
+    const row = (attDryResult?.rows || []).find((r) => r.razorpay_employee_id === id);
+    if (!row || row.status !== "planned") {
+      toast({ title: "Run dry-run first", description: "Only planned rows can be pushed.", variant: "destructive" });
+      return;
+    }
+    setAttConfirm({ mode: "one", row });
+  };
+  const confirmAttendanceApplyOne = async () => {
+    const row = attConfirm?.row; if (!row) return;
+    setAttConfirm(null);
+    setAttApplyingOne(true); setAttApplyResult(null);
+    try {
+      const d = await invoke<AttendanceResponse>({
+        action: "push_attendance_apply_one",
+        razorpay_employee_id: row.razorpay_employee_id,
+        period: attPeriod,
+      });
+      setAttApplyResult(d);
+      toast({ title: "Attendance pilot push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Attendance pilot push failed", description: e?.message, variant: "destructive" });
+    } finally { setAttApplyingOne(false); }
+  };
+  const runAttendanceUnlockBulk = async () => {
+    if (!confirm("Unlock bulk attendance push? After this, apply-bulk will POST LOP/attendance for every mapped employee for the selected period.")) return;
+    setAttUnlocking(true);
+    try {
+      await invoke({ action: "unlock_bulk_attendance_push" });
+      toast({ title: "Bulk attendance push unlocked" });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Unlock failed", description: e?.message, variant: "destructive" });
+    } finally { setAttUnlocking(false); }
+  };
+  const requestAttendanceApplyBulk = () => setAttConfirm({ mode: "bulk" });
+  const confirmAttendanceApplyBulk = async () => {
+    setAttConfirm(null);
+    setAttApplyingBulk(true); setAttApplyResult(null);
+    try {
+      const d = await invoke<AttendanceResponse>({ action: "push_attendance_apply_bulk", period: attPeriod });
+      setAttApplyResult(d);
+      toast({ title: "Bulk attendance push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bulk attendance push failed", description: e?.message, variant: "destructive" });
+    } finally { setAttApplyingBulk(false); }
+  };
+
+
 
 
 
@@ -1236,7 +1372,198 @@ export default function RazorpaySyncPage() {
         </div>
       )}
 
+      {/* Phase 6 — Monthly attendance / LOP push (discovery-first: writes blocked until envelope verified) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ListChecks className="h-4 w-4" /> Phase 6 — Monthly attendance / LOP push
+          </CardTitle>
+          <CardDescription>
+            Computes working days, present days, paid leave, and LOP from ERP (attendance + approved leave + holidays), and pushes it to Razorpay for the selected month. Dry-run works pre-verification; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">attendance:update</code>).
+            {settings?.push_attendance_endpoint_verified
+              ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_attendance_envelope_key})</span></>
+              : <> · <span className="text-amber-600">Envelope not verified</span></>}
+            {settings?.push_attendance_pilot_verified_at
+              ? <> · <span className="text-emerald-600">Attendance pilot verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""}</span></>
+              : <> · <span className="text-muted-foreground">Attendance pilot pending</span></>}
+            {settings?.bulk_attendance_push_unlocked
+              ? <> · <span className="text-emerald-600">Bulk attendance unlocked</span></>
+              : <> · <span className="text-muted-foreground">Bulk attendance locked</span></>}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Alert variant="default" className="border-amber-500/50">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-sm">Discovery-first write path</AlertTitle>
+            <AlertDescription className="text-xs">
+              The attendance envelope has not been auto-verified against Razorpay Live. Probe candidate sub-types (Phase 2), confirm which one Razorpay accepts, then record it here. LOP is computed as <code>working_days − present_days − paid_leave_days</code> using ERP truth (Sunday + active holidays excluded from working days). Half-day leaves count as 0.5 days.
+            </AlertDescription>
+          </Alert>
+
+          <div className="rounded-md border p-3 bg-muted/20 space-y-2">
+            <div className="text-xs font-medium">Envelope verification</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                placeholder="e.g. attendance:update"
+                value={attEnvelopeInput}
+                onChange={(e) => setAttEnvelopeInput(e.target.value)}
+                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+              />
+              <Button size="sm" variant="secondary" onClick={() => runRecordAttendanceEnvelope(true)} disabled={attRecording}>
+                {attRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => runRecordAttendanceEnvelope(false)} disabled={attRecording || !settings?.push_attendance_endpoint_verified}>
+                Clear verification
+              </Button>
+              {settings?.push_attendance_envelope_verified_at && (
+                <span className="text-xs text-muted-foreground">
+                  Verified at {new Date(settings.push_attendance_envelope_verified_at).toLocaleString()}
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Changing this value resets the pilot + bulk-unlock gates.
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs text-muted-foreground">Period:</label>
+            <input
+              type="month"
+              value={attPeriod}
+              onChange={(e) => setAttPeriod(e.target.value)}
+              className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Razorpay employee ID (for pilot)"
+              value={attRpId}
+              onChange={(e) => setAttRpId(e.target.value.replace(/[^\d]/g, ""))}
+              className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+            />
+            <Button size="sm" variant="secondary" onClick={runAttendanceDryRun} disabled={attDrying}>
+              {attDrying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Dry-run preview
+            </Button>
+            <Button size="sm" onClick={requestAttendanceApplyOne}
+              disabled={attApplyingOne || !attDryResult?.ok || !settings?.push_attendance_endpoint_verified}>
+              {attApplyingOne && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply pilot (one)
+            </Button>
+            <Button size="sm" variant="outline" onClick={runAttendanceUnlockBulk}
+              disabled={attUnlocking || !settings?.push_attendance_pilot_verified_at || settings?.bulk_attendance_push_unlocked}>
+              {attUnlocking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Unlock bulk attendance
+            </Button>
+            <Button size="sm" variant="destructive" onClick={requestAttendanceApplyBulk}
+              disabled={attApplyingBulk || !settings?.bulk_attendance_push_unlocked}>
+              {attApplyingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply bulk attendance
+            </Button>
+          </div>
+
+          {(attDryResult || attApplyResult) && (() => {
+            const r = attApplyResult || attDryResult!;
+            return (
+              <div className="rounded-md border overflow-x-auto">
+                <div className="p-2 text-xs bg-muted/50 flex flex-wrap gap-3">
+                  <span>Period: <b>{r.period}</b></span>
+                  <span>Working days (ERP): <b>{r.summary.working_days}</b></span>
+                  <span>Total rows: <b>{r.summary.total}</b></span>
+                  <span>Planned: <b>{r.summary.planned}</b></span>
+                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
+                  <span>Skipped: <b>{r.summary.skipped}</b></span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/30">
+                    <tr className="text-left">
+                      <th className="p-2">Razorpay ID</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">Present</th>
+                      <th className="p-2">Paid leave</th>
+                      <th className="p-2">Unpaid leave</th>
+                      <th className="p-2">LOP</th>
+                      <th className="p-2">Sanity</th>
+                      <th className="p-2">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.rows.map((row, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
+                        <td className="p-2">
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
+                          {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
+                          {row.status === "skipped" && <Badge variant="outline" className="text-[10px]">skipped</Badge>}
+                        </td>
+                        <td className="p-2 font-mono">{row.present_days ?? "—"}</td>
+                        <td className="p-2 font-mono">{row.paid_leave_days ?? "—"}</td>
+                        <td className="p-2 font-mono">{row.unpaid_leave_days ?? "—"}</td>
+                        <td className="p-2 font-mono">{row.lop_days ?? "—"}</td>
+                        <td className="p-2">
+                          {row.unpaid_matches_lop === false
+                            ? <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">unpaid mismatch</Badge>
+                            : <span className="text-muted-foreground">ok</span>}
+                        </td>
+                        <td className="p-2 text-destructive truncate max-w-[200px]">{row.error || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
+      {/* Attendance diff-and-confirm dialog */}
+      {attConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-background rounded-lg shadow-xl border max-w-lg w-full p-4 space-y-3">
+            <div className="flex items-center gap-2 text-base font-semibold">
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              Confirm attendance push to RazorpayX (Live)
+            </div>
+            {attConfirm.mode === "one" && attConfirm.row && (
+              <div className="space-y-2 text-sm">
+                <div>Razorpay employee: <b className="font-mono">{attConfirm.row.razorpay_employee_id}</b></div>
+                <div>Envelope: <b className="font-mono">{settings?.push_attendance_envelope_key}</b></div>
+                <div>Period: <b>{attPeriod}</b></div>
+                <div className="rounded-md border bg-muted/40 p-2 text-xs font-mono whitespace-pre-wrap">
+                  {JSON.stringify({
+                    working_days: attConfirm.row.working_days,
+                    present_days: attConfirm.row.present_days,
+                    paid_leave_days: attConfirm.row.paid_leave_days,
+                    unpaid_leave_days: attConfirm.row.unpaid_leave_days,
+                    lop_days: attConfirm.row.lop_days,
+                  }, null, 2)}
+                </div>
+                {attConfirm.row.unpaid_matches_lop === false && (
+                  <div className="text-xs text-amber-600">Warning: unpaid leave doesn't equal LOP. There are unexplained absences or a leave-type is-paid flag mismatch. Proceed only if that's expected.</div>
+                )}
+              </div>
+            )}
+            {attConfirm.mode === "bulk" && (
+              <div className="text-sm">
+                This will POST attendance/LOP for <b>every mapped employee</b> for <b>{attPeriod}</b> using envelope <b className="font-mono">{settings?.push_attendance_envelope_key}</b>. Confirm only after the pilot push looked correct in Razorpay's UI.
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button size="sm" variant="outline" onClick={() => setAttConfirm(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={attConfirm.mode === "one" ? confirmAttendanceApplyOne : confirmAttendanceApplyBulk}
+              >
+                Yes, push to Razorpay
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* STEP 3 — Bulk */}
+
 
 
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>

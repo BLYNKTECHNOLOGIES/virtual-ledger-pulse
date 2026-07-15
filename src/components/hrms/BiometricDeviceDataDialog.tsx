@@ -410,6 +410,59 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                   )}
                 </ScrollArea>
               </TabsContent>
+
+              {/* Manage — device-side write actions, decoupled from HRMS */}
+              <TabsContent value="manage" className="h-full m-0">
+                <ScrollArea className="h-[65vh] pr-4">
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400 flex gap-2">
+                      <AlertTriangle className="h-4 w-4 flex-none mt-0.5" />
+                      <div>
+                        These actions modify the eSSL device roster/state directly. They are <b>independent of HRMS</b> — device names, cards and PINs on the device are informational only. HRMS attendance mapping is driven solely by <b>Badge ID (PIN) → Employee</b>.
+                      </div>
+                    </div>
+
+                    <ManageUserCard onSubmit={upsertUser} busy={busy} />
+                    <BroadcastCard onSubmit={pushMessage} busy={busy} users={users} />
+                    <DeviceOptionCard onSubmit={setOption} busy={busy} />
+
+                    <Card><CardContent className="p-4 space-y-3">
+                      <div className="text-xs font-semibold text-destructive flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" />Danger Zone</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <DangerAction label="Clear all attendance logs" desc="Wipes ATTLOG on device. Punches already synced to HRMS are safe." confirm="CLEAR LOG" onConfirm={() => clearAll("LOG")} disabled={busy} />
+                        <DangerAction label="Clear all photos" desc="Wipes captured photos on device (attendance snapshots + avatars)." confirm="CLEAR PHOTO" onConfirm={() => clearAll("PHOTO")} disabled={busy} />
+                        <DangerAction label="Clear ALL device data" desc="Wipes users, templates, logs — full factory-like reset of storage." confirm="CLEAR DATA" onConfirm={() => clearAll("DATA")} disabled={busy} destructive />
+                        <DangerAction label="Reboot device" icon={<Power className="h-3.5 w-3.5" />} desc="Sends REBOOT command. Device will be offline for ~60s." confirm="REBOOT" onConfirm={reboot} disabled={busy} />
+                        <DangerAction label="Unlock door (AC)" icon={<DoorOpen className="h-3.5 w-3.5" />} desc="Triggers remote door unlock via access-control relay (if wired)." confirm="AC_UNLOCK" onConfirm={unlockDoor} disabled={busy} />
+                      </div>
+                    </CardContent></Card>
+
+                    <Card><CardContent className="p-4">
+                      <div className="text-xs font-semibold text-muted-foreground mb-3">Recent Commands ({cmds.length})</div>
+                      <Table>
+                        <TableHeader><TableRow>
+                          <TableHead>Time</TableHead><TableHead>Status</TableHead><TableHead>Command</TableHead><TableHead>Response</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                          {cmds.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No commands yet.</TableCell></TableRow>}
+                          {cmds.map((c: any) => (
+                            <TableRow key={c.id}>
+                              <TableCell className="text-xs">{fmt(c.created_at)}</TableCell>
+                              <TableCell>
+                                <Badge variant={c.status === "delivered" ? "outline" : c.status === "pending" ? "secondary" : "default"} className="text-[10px]">
+                                  {c.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-mono text-[11px] max-w-[380px] truncate" title={c.command_text}>{c.command_text}</TableCell>
+                              <TableCell className="text-[11px] text-muted-foreground max-w-[200px] truncate" title={c.response_text || ""}>{c.response_text || "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent></Card>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
             </div>
           </Tabs>
         )}

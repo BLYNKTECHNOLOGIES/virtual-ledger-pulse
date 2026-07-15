@@ -1,85 +1,142 @@
-# Salary Revision — Full Implementation
 
-## Problem
-`SalaryRevisionsPage` is read-only. The only path to change salary today is the Employee Profile → Work Info form, which:
-- Edits only `basic_salary` (not `total_salary`)
-- Has no reason, effective-date, or type inputs
-- Auto-inserts every save as `'correction'` via the `fn_salary_revision_on_change` trigger (which is why your list is full of `₹0 · correction` rows)
-- Doesn't recompute percentage/formula-based salary structure components
+# RazorpayX Payroll Integration — Phase 1 (Employee Sync) — Revised
 
-## What we're building
+## Guiding principles
 
-### 1. UI — "Revise Salary" on Salary Revisions page
-Add a primary **"Revise Salary"** button to `SalaryRevisionsPage.tsx` opening a dialog with:
-- **Employee** (searchable Select, active employees only) — shows current CTC / basic inline
-- **Revision type** — Increment / Hike, Promotion, Correction, Demotion / Decrease
-- **New total salary (CTC)** — number input with % delta vs current shown live
-- **New basic salary** — number input; auto-suggested from the employee's salary structure template (BASIC component %) but editable
-- **Effective from** — date picker (shadcn), defaults to today; may be future-dated
-- **Reason / notes** — textarea (mandatory for Promotion & Demotion)
-- **Live preview** — uses `computeFullBreakdown` from `src/lib/hrms/salaryComputation.ts` to show earnings, deductions, and net so the HR user sees the full recomputed structure before saving
-- **Approved by** — auto-filled from current user
+- **RazorpayX Payroll is the current system of record** for employees (verified: `hr_employees`=2 rows, `hr_employee_bank_details`=0, `hr_employee_work_info`=2; live payroll roster lives on Razorpay).
+- HRMS becomes a **frontend/mirror** — both sides must match structurally so identical inputs produce identical outputs.
+- Phase 1 is split: **1a = Razorpay → ERP import (seed)**, then **1b = ERP → Razorpay push (ongoing)**. Payroll runs, payouts, contractors, webhooks stay out of Phase 1.
+- Payout stays **manual** later ("Send to Razorpay" button, wired in a later phase).
+- Live keys from day one → guardrails (dry-run, per-record confirmation, PII-safe audit log, hard pilot gate, no destructive deletes on Razorpay) are mandatory.
 
-Also add a **"Revise" button** on each row of `EmployeeProfilePage` (Work Info section) that opens the same dialog pre-selected — so it's reachable from both places.
+## Phase 1a — Razorpay → ERP import (seed the HRMS)
 
-### 2. Behavior — scheduling by effective date
-Two cases:
+Since the real roster lives on Razorpay, we import first. The drift-puller from the earlier draft is **promoted to the initial seeder**.
 
-**A. Effective date ≤ today (immediate):**
-- Update `hr_employees.basic_salary` and `total_salary` now
-- Trigger auto-inserts the `hr_salary_revisions` row — but we set a Postgres session var `app.revision_type`, `app.revision_reason`, `app.approved_by`, `app.effective_from` before the UPDATE via a new RPC so the existing trigger tags the row correctly (the trigger at `20260328194737_...sql:169` already reads `app.revision_type`; we extend it to read the other three)
+Flow:
 
-**B. Effective date > today (scheduled):**
-- Insert a `hr_salary_revisions` row directly with `status = 'SCHEDULED'`, target amounts, but DO NOT touch `hr_employees` yet
-- New daily cron edge function `apply-scheduled-salary-revisions` runs at 00:15 IST → for every SCHEDULED row where `effective_from <= CURRENT_DATE`, applies the change to `hr_employees` (which triggers the audit row auto-tag as APPLIED) and marks the scheduled row as `APPLIED`
+```text
+Enter live keys (secure form)
+   │
+   ▼
+Read-only GET validation
+   │  (list first page of employees; verifies base URL, auth, org id)
+   ├─ fail ─► stop, surface exact HTTP status + error body
+   ▼
+Paginated pull of full Razorpay employee list
+   │
+   ▼
+Preview table in HRMS
+   │  columns: name, email, phone, PAN (masked), DOJ, dept, designation,
+   │  bank a/c (masked last-4), IFSC, → will create / will update
+   │
+   ▼
+HR confirms  ──►  Upsert into ERP:
+     • hr_employees                (get-or-update by razorpay_employee_id in map, else by PAN → email → phone)
+     • hr_employee_bank_details    (one row per employee)
+     • hr_employee_work_info       (department, designation, DOJ, employment type)
+     • hr_departments / hr_positions get-or-created by name (case-insensitive, trimmed)
+     • hr_razorpay_employee_map    (razorpay_employee_id, sync_status='imported',
+                                    last_synced_at, last_payload_hash)
+```
 
-### 3. Schema changes (migration)
-On `hr_salary_revisions`:
-- Add `status text NOT NULL DEFAULT 'APPLIED'` — values: `SCHEDULED | APPLIED | CANCELLED`
-- Add `revision_reason` already exists; ensure `approved_by` and `effective_from` are populated by trigger
-- Add unique partial index preventing two SCHEDULED revisions for same employee/effective date
-- Widen `revision_type` CHECK: `('increment','promotion','correction','demotion')`
+Rules:
+- Import is **idempotent** — re-running never duplicates. Map row is the anchor.
+- Department / designation resolution is **get-or-create by name**; audit log notes when a new one is minted.
+- If a Razorpay employee is missing PAN / bank / IFSC, it still imports but gets flagged `incomplete` on the map; it won't be eligible for 1b push until fixed.
+- No writes to Razorpay in Phase 1a.
 
-Extend `fn_salary_revision_on_change` trigger to also read `app.revision_reason`, `app.approved_by`, `app.effective_from` from session vars.
+## Phase 1b — ERP → Razorpay push (ongoing sync)
 
-New SECURITY DEFINER RPC `apply_salary_revision(p_employee_id, p_new_basic, p_new_total, p_type, p_reason, p_effective_from, p_approved_by)`:
-- If effective_from > today → INSERT SCHEDULED row, return
-- Else → set session vars, UPDATE `hr_employees`, trigger writes history row
-- Permission-gated: caller must have `hrms_manage` (or Super Admin)
+Enabled only after 1a completes. Enforces **match-before-create**.
 
-RLS: keep existing read policy; add INSERT/UPDATE policies scoped to `hrms_manage`.
+Match resolution order for any ERP employee not already mapped:
+1. `razorpay_employee_id` in `hr_razorpay_employee_map` (already linked) → **update path**.
+2. PAN exact match against Razorpay roster → link as `matched_existing`, **update path only**.
+3. Email exact match (case-insensitive) → link as `matched_existing`, **update path only**.
+4. Phone (normalized, last-10 digits) → link as `matched_existing`, **update path only**.
+5. No match → **create path**, but only via an explicit **"Create new on Razorpay"** confirmation in the dialog (separate button from "Update on Razorpay"). Creation is the exception, never the default.
 
-### 4. Cancel scheduled revisions
-Scheduled rows on the list show an amber **"SCHEDULED · Effective DD MMM"** badge with a Cancel button (marks status = `CANCELLED`, hidden from applied history filter).
+Every push:
+- Runs **dry-run first**: edge fn returns field-level diff + validation errors; HR must confirm before the real POST/PATCH.
+- Validates PAN / IFSC / account number regex client + server side.
+- Concurrency cap 5, exponential backoff on 429.
+- **No delete/archive on Razorpay from ERP** in Phase 1.
 
-### 5. Cleanup — the ₹0 corrections
-One-off migration marks all pre-existing rows where `previous_total = new_total` and `previous_basic = new_basic` as `status = 'NOOP'` (hidden from list by default, viewable via filter). The auto-trigger already guards with `IS DISTINCT FROM`, so future no-op rows shouldn't be created — but the historical ones are already in your list.
+### Hard pilot gate (live-keys discipline)
 
-### 6. Filters on the list
-Add tabs above the search: **All · Applied · Scheduled · Cancelled**. Default = Applied.
+- The **first** ERP → Razorpay push is limited to **exactly one employee**, end-to-end.
+- HR must verify the result on the Razorpay dashboard and tick a "Pilot verified" flag (stored in a small settings row / map column).
+- Bulk sync drawer stays **disabled** until the pilot flag flips true.
+- Enforced server-side in the proxy edge function, not just UI.
 
----
+## User surface
 
-## Technical touch points
+- **Employees list**: status pill per row — `Imported`, `In sync`, `Drift`, `Error`, `Razorpay-only`, `ERP-only`, `Incomplete`.
+- **Employee profile**: "Sync to Razorpay" panel with dry-run diff dialog; separate "Create new on Razorpay" button behind confirmation when no match resolves.
+- **Bulk sync drawer** on the list — gated by the pilot flag; shows progress per row with the same diff-then-confirm cycle.
+- **Razorpay Sync admin page** (HRMS): credential status, last drift-check run, pilot-gate state, import history, per-employee sync log filter.
+- Nightly drift job (existing plan) flags mismatches (badge only, read-only).
 
-**Files to add:**
-- `src/components/hrms/ReviseSalaryDialog.tsx` — the dialog
-- `supabase/functions/apply-scheduled-salary-revisions/index.ts` — daily cron
+## Field mapping (both directions)
 
-**Files to modify:**
-- `src/pages/horilla/SalaryRevisionsPage.tsx` — button, filter tabs, cancel action, status badges
-- `src/pages/horilla/EmployeeProfilePage.tsx` — replace inline basic-salary edit with a "Revise Salary" button opening the dialog (keeps single source of truth for salary changes; other Work Info fields still editable)
+Mapped between Razorpay employee ↔ `hr_employees` + `hr_employee_bank_details` + `hr_employee_work_info`:
 
-**Migrations:**
-1. Add columns (`status`), CHECK on `revision_type`, extend trigger to read the extra session vars, create `apply_salary_revision` RPC, RLS policies
-2. Mark historical no-op rows as `NOOP`
-3. Cron job for `apply-scheduled-salary-revisions`
+- name, personal email, personal phone
+- date_of_joining, date_of_birth, gender
+- department (name), designation, employee_id / badge_id
+- PAN, Aadhaar (masked last-4 in UI + logs), address
+- bank account number, IFSC, account holder name
+- CTC / gross (informational only — no salary-structure sync in Phase 1)
 
-**Computation reuse:** `computeFullBreakdown` from `src/lib/hrms/salaryComputation.ts` for live preview — already the payroll source of truth, so what you see in the dialog matches what payroll will actually pay.
+Rows missing any Razorpay-required field surface in a "Not ready to sync" list with the reason. No partial pushes.
 
-## Out of scope
-- Bulk / mass revisions (org-wide hike)
-- Employee-facing revision letter PDF
-- Multi-approver workflow (you chose "Apply immediately")
+## PII-safe audit log
 
-Both can be layered on later without schema changes.
+`hr_razorpay_sync_log` **does NOT** store raw request/response bodies. It stores:
+
+- `actor_user_id`, `entity_type`, `entity_id`
+- `action` — `validate_creds` | `pull_import` | `pull_drift` | `dry_run` | `push_create` | `push_update`
+- `http_status`
+- `payload_hash` (sha256 of the outbound body)
+- `field_diff_summary` (jsonb): `{ field, before_masked, after_masked, changed }[]`, where PAN / Aadhaar / bank account are **masked to last-4** everywhere before persistence.
+- `error_text` (short string only — never the full body).
+
+Full request/response bodies live only in **ephemeral edge function logs** (Supabase functions logs), never in the DB table.
+
+## Tables (single migration)
+
+- `hr_razorpay_employee_map` — `hr_employee_id` (unique), `razorpay_employee_id` (unique), `sync_status` enum (`imported` | `matched_existing` | `in_sync` | `drift` | `error` | `incomplete`), `is_pilot_verified` bool (per-row marker for the pilot employee), `last_synced_at`, `last_payload_hash`, `last_error`, timestamps.
+- `hr_razorpay_sync_log` — schema exactly as above (no raw bodies).
+- `hr_razorpay_settings` — singleton row: `base_url`, `bulk_sync_unlocked` bool (the hard pilot gate), `last_creds_validated_at`, `last_import_at`.
+
+RLS: authenticated reads gated by permission `hrms_razorpay_sync` (also Super Admin / Admin). All writes only via service_role from the edge function.
+
+## Edge functions
+
+- `razorpay-payroll-proxy` — validates JWT + `hrms_razorpay_sync` permission, performs Razorpay calls, enforces the pilot gate server-side, writes the masked audit log, returns dry-run diff or result. Actions: `validate_creds`, `pull_import`, `dry_run`, `push_create`, `push_update`.
+- `razorpay-payroll-drift-check` — pg_cron nightly, paginates Razorpay employees, updates the map.
+
+## Permissions
+
+- New granular permission `hrms_razorpay_sync` inserted into `system_functions`; wired into `usePermissions`. Only Super Admin + explicit grantees can push or import.
+
+## Secrets
+
+Requested via secure form at the start of build:
+- `RAZORPAY_PAYROLL_KEY_ID`
+- `RAZORPAY_PAYROLL_KEY_SECRET`
+- `RAZORPAY_PAYROLL_ORG_ID` (if applicable to your account)
+
+## Base URL
+
+**Not** pre-confirmed — the Postman doc fetch failed. The **read-only GET validation** call in Phase 1a is the gate that confirms base URL + auth + org id. If it fails, we stop and surface the exact HTTP status and error body to you; no UI wiring proceeds until this passes.
+
+## Out of scope this phase
+
+Payroll run push, payout execution, webhooks, contractor/vendor payouts, salary-structure sync, statutory sync (TDS/PF/ESI/PT), Form 16 pull. Roadmap Phases 2–4 from the prior plan stand unchanged.
+
+## What I need from you next
+
+1. Approve this revised plan.
+2. In build I will (a) open the secure secret form for the three Razorpay secrets, (b) run the read-only validation GET, (c) surface the result to you before any table/UI work.

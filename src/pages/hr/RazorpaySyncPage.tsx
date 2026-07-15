@@ -17,6 +17,25 @@ interface Settings {
   push_pilot_hr_employee_id?: string | null;
   bulk_push_unlocked?: boolean;
   last_push_at?: string | null;
+  push_bank_pilot_verified_at?: string | null;
+  bulk_bank_push_unlocked?: boolean;
+  last_bank_push_at?: string | null;
+}
+interface BankRow {
+  razorpay_employee_id: string;
+  hr_employee_id?: string;
+  status: "planned" | "unchanged" | "pushed" | "failed" | "invalid" | "no_baseline" | "skipped_no_baseline";
+  reasons?: string[];
+  changed?: string[];
+  holder_name?: string;
+  patch_preview?: Record<string, any>;
+  error?: string;
+}
+interface BankResponse {
+  ok: boolean;
+  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number; invalid: number; no_baseline: number };
+  rows: BankRow[];
+  pilot: { verified_at: string | null; bulk_unlocked: boolean };
 }
 interface PushRow {
   razorpay_employee_id: string;

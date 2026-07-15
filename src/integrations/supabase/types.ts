@@ -8251,6 +8251,7 @@ export type Database = {
       hr_razorpay_settings: {
         Row: {
           base_url: string
+          bulk_attendance_push_unlocked: boolean
           bulk_bank_push_unlocked: boolean
           bulk_push_unlocked: boolean
           bulk_salary_push_unlocked: boolean
@@ -8258,11 +8259,19 @@ export type Database = {
           created_at: string
           id: string
           is_singleton: boolean
+          last_attendance_push_at: string | null
           last_bank_push_at: string | null
           last_creds_validated_at: string | null
           last_import_at: string | null
           last_push_at: string | null
           last_salary_push_at: string | null
+          push_attendance_endpoint_verified: boolean
+          push_attendance_envelope_key: string | null
+          push_attendance_envelope_verified_at: string | null
+          push_attendance_envelope_verified_by: string | null
+          push_attendance_pilot_hr_employee_id: string | null
+          push_attendance_pilot_period: string | null
+          push_attendance_pilot_verified_at: string | null
           push_bank_enabled: boolean
           push_bank_pilot_hr_employee_id: string | null
           push_bank_pilot_verified_at: string | null
@@ -8278,6 +8287,7 @@ export type Database = {
         }
         Insert: {
           base_url?: string
+          bulk_attendance_push_unlocked?: boolean
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
           bulk_salary_push_unlocked?: boolean
@@ -8285,11 +8295,19 @@ export type Database = {
           created_at?: string
           id?: string
           is_singleton?: boolean
+          last_attendance_push_at?: string | null
           last_bank_push_at?: string | null
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          push_attendance_endpoint_verified?: boolean
+          push_attendance_envelope_key?: string | null
+          push_attendance_envelope_verified_at?: string | null
+          push_attendance_envelope_verified_by?: string | null
+          push_attendance_pilot_hr_employee_id?: string | null
+          push_attendance_pilot_period?: string | null
+          push_attendance_pilot_verified_at?: string | null
           push_bank_enabled?: boolean
           push_bank_pilot_hr_employee_id?: string | null
           push_bank_pilot_verified_at?: string | null
@@ -8305,6 +8323,7 @@ export type Database = {
         }
         Update: {
           base_url?: string
+          bulk_attendance_push_unlocked?: boolean
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
           bulk_salary_push_unlocked?: boolean
@@ -8312,11 +8331,19 @@ export type Database = {
           created_at?: string
           id?: string
           is_singleton?: boolean
+          last_attendance_push_at?: string | null
           last_bank_push_at?: string | null
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          push_attendance_endpoint_verified?: boolean
+          push_attendance_envelope_key?: string | null
+          push_attendance_envelope_verified_at?: string | null
+          push_attendance_envelope_verified_by?: string | null
+          push_attendance_pilot_hr_employee_id?: string | null
+          push_attendance_pilot_period?: string | null
+          push_attendance_pilot_verified_at?: string | null
           push_bank_enabled?: boolean
           push_bank_pilot_hr_employee_id?: string | null
           push_bank_pilot_verified_at?: string | null

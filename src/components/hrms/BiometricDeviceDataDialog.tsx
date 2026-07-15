@@ -473,7 +473,7 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
 
 // --- Manage subcomponents ---
 
-function ManageUserCard({ onSubmit, busy }: { onSubmit: (p: any) => Promise<void>; busy: boolean }) {
+function ManageUserCard({ onSubmit, busy }: { onSubmit: (p: any) => Promise<any>; busy: boolean }) {
   const [pin, setPin] = useState("");
   const [name, setName] = useState("");
   const [privilege, setPrivilege] = useState("0");
@@ -519,7 +519,7 @@ function ManageUserCard({ onSubmit, busy }: { onSubmit: (p: any) => Promise<void
   );
 }
 
-function BroadcastCard({ onSubmit, busy, users }: { onSubmit: (pin: string, text: string, min?: number) => Promise<void>; busy: boolean; users: any[] }) {
+function BroadcastCard({ onSubmit, busy, users }: { onSubmit: (pin: string, text: string, min?: number) => Promise<any>; busy: boolean; users: any[] }) {
   const [pin, setPin] = useState("");
   const [text, setText] = useState("");
   const [minutes, setMinutes] = useState("60");
@@ -548,7 +548,7 @@ function BroadcastCard({ onSubmit, busy, users }: { onSubmit: (pin: string, text
   );
 }
 
-function DeviceOptionCard({ onSubmit, busy }: { onSubmit: (k: string, v: string) => Promise<void>; busy: boolean }) {
+function DeviceOptionCard({ onSubmit, busy }: { onSubmit: (k: string, v: string) => Promise<any>; busy: boolean }) {
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const presets = [

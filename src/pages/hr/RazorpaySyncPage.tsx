@@ -21,7 +21,8 @@ interface Settings {
 interface PushRow {
   razorpay_employee_id: string;
   hr_employee_id?: string;
-  status: "planned" | "unchanged" | "pushed" | "failed";
+  status: "planned" | "unchanged" | "pushed" | "failed" | "no_baseline" | "skipped_no_baseline";
+  baseline_missing?: boolean;
   changed: string[];
   conflicts?: string[];
   payload_field_names?: string[];
@@ -29,7 +30,7 @@ interface PushRow {
 }
 interface PushResponse {
   ok: boolean;
-  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number };
+  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number; no_baseline?: number };
   rows: PushRow[];
   pilot: { verified_at: string | null; bulk_unlocked: boolean };
 }

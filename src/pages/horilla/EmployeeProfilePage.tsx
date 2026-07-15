@@ -918,7 +918,13 @@ export default function EmployeeProfilePage() {
                     <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Basic Salary</p><p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString('en-IN')}` : "None"}</p></div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Basic Salary</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString('en-IN')}` : "None"}</p>
+                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setShowReviseSalary(true)}>Revise</Button>
+                      </div>
+                    </div>
                     <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
                   </div>
                 </div>

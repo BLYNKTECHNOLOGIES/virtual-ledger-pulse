@@ -564,6 +564,98 @@ export default function RazorpaySyncPage() {
     } finally { setSalaryApplyingBulk(false); }
   };
 
+  // ---- Phase 6 handlers ----
+  const runAttendanceDryRun = async () => {
+    if (!/^\d{4}-\d{2}$/.test(attPeriod)) {
+      toast({ title: "Enter period as YYYY-MM", variant: "destructive" }); return;
+    }
+    setAttDrying(true); setAttDryResult(null);
+    try {
+      const body: any = { action: "push_attendance_dry_run", period: attPeriod };
+      if (attRpId.trim()) body.razorpay_employee_id = attRpId.trim();
+      const d = await invoke<AttendanceResponse>(body);
+      setAttDryResult(d);
+      toast({
+        title: "Attendance dry-run complete",
+        description: `${d.summary.planned} rows · working days: ${d.summary.working_days}`,
+      });
+    } catch (e: any) {
+      toast({ title: "Attendance dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setAttDrying(false); }
+  };
+  const runRecordAttendanceEnvelope = async (verified: boolean) => {
+    if (verified && !attEnvelopeInput.trim()) {
+      toast({ title: "Enter the verified envelope key first (e.g. attendance:update)", variant: "destructive" });
+      return;
+    }
+    setAttRecording(true);
+    try {
+      await invoke({
+        action: "record_attendance_envelope_verified",
+        verified, envelope_key: attEnvelopeInput.trim(),
+      });
+      toast({
+        title: verified ? "Attendance envelope recorded as verified" : "Attendance envelope verification cleared",
+      });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Failed to record envelope", description: e?.message, variant: "destructive" });
+    } finally { setAttRecording(false); }
+  };
+  const requestAttendanceApplyOne = () => {
+    const id = attRpId.trim();
+    if (!id) { toast({ title: "Enter a Razorpay employee ID first", variant: "destructive" }); return; }
+    const row = (attDryResult?.rows || []).find((r) => r.razorpay_employee_id === id);
+    if (!row || row.status !== "planned") {
+      toast({ title: "Run dry-run first", description: "Only planned rows can be pushed.", variant: "destructive" });
+      return;
+    }
+    setAttConfirm({ mode: "one", row });
+  };
+  const confirmAttendanceApplyOne = async () => {
+    const row = attConfirm?.row; if (!row) return;
+    setAttConfirm(null);
+    setAttApplyingOne(true); setAttApplyResult(null);
+    try {
+      const d = await invoke<AttendanceResponse>({
+        action: "push_attendance_apply_one",
+        razorpay_employee_id: row.razorpay_employee_id,
+        period: attPeriod,
+      });
+      setAttApplyResult(d);
+      toast({ title: "Attendance pilot push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Attendance pilot push failed", description: e?.message, variant: "destructive" });
+    } finally { setAttApplyingOne(false); }
+  };
+  const runAttendanceUnlockBulk = async () => {
+    if (!confirm("Unlock bulk attendance push? After this, apply-bulk will POST LOP/attendance for every mapped employee for the selected period.")) return;
+    setAttUnlocking(true);
+    try {
+      await invoke({ action: "unlock_bulk_attendance_push" });
+      toast({ title: "Bulk attendance push unlocked" });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Unlock failed", description: e?.message, variant: "destructive" });
+    } finally { setAttUnlocking(false); }
+  };
+  const requestAttendanceApplyBulk = () => setAttConfirm({ mode: "bulk" });
+  const confirmAttendanceApplyBulk = async () => {
+    setAttConfirm(null);
+    setAttApplyingBulk(true); setAttApplyResult(null);
+    try {
+      const d = await invoke<AttendanceResponse>({ action: "push_attendance_apply_bulk", period: attPeriod });
+      setAttApplyResult(d);
+      toast({ title: "Bulk attendance push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bulk attendance push failed", description: e?.message, variant: "destructive" });
+    } finally { setAttApplyingBulk(false); }
+  };
+
+
+
 
 
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays

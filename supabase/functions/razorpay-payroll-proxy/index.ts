@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
           scalar_keys: scalarKeys,
           element_field_names: elementFieldNames,
           raw_length: raw.length,
-          raw_preview: res.ok ? null : raw.slice(0, 300),
+          raw_preview: raw.slice(0, 500),
         };
         attempts.push(attempt);
         console.log("[introspect_envelope]", JSON.stringify({ url: c.url, status: res.status, body_type: attempt.body_type, top_keys: topKeys, array_key: arrayKey, array_len: arrayLen, has_fields: !!elementFieldNames }));

@@ -85,9 +85,10 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       if (!newTotal) throw new Error("Enter the new total salary");
       if (reasonRequired && !reason.trim()) throw new Error("Reason is mandatory for Promotion / Demotion");
 
+      const u = user as any;
       const approvedBy =
-        [user?.first_name, user?.last_name].filter(Boolean).join(" ") ||
-        (user as any)?.email ||
+        [u?.firstName, u?.lastName].filter(Boolean).join(" ") ||
+        u?.email ||
         "System";
 
       const { data, error } = await (supabase as any).rpc("apply_salary_revision", {

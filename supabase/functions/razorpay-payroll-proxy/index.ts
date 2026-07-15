@@ -432,20 +432,35 @@ Deno.serve(async (req) => {
       const subType = String(payload?.sub_type ?? "").trim();
       const data = (payload?.data && typeof payload.data === "object") ? payload.data : {};
       const READONLY = new Set([
+        // Phase 1 confirmed
         "people:view",
+        // Phase 2 read probes — safe view/list variants of every write-capable resource
         "salary:view",
         "salary-structure:view",
+        "salary-structure:list",
         "attendance:view",
+        "attendance:list",
         "payslip:view",
+        "payslip:list",
+        "payslip:download",
         "payroll:view",
+        "payroll:list",
         "payroll:status",
+        "payroll:months",
+        "payroll:runs",
+        "tds:view",
+        "tds:report",
+        "tds:list",
+        "bank-details:view",
         "webhook:view",
+        "webhook:list",
+        "people:list",
       ]);
       const key = `${resource}:${subType}`;
       if (!READONLY.has(key)) {
         return json(200, {
           ok: false, skipped: true, key,
-          reason: "probe restricted to read-only sub-types; run via Postman collection to validate writes",
+          reason: "probe restricted to read-only sub-types; write sub-types require operator-approved payload before live-tenant call",
         });
       }
       const ctrl = new AbortController();
@@ -478,6 +493,121 @@ Deno.serve(async (req) => {
         return json(200, { ok: false, key, http_status: 0, error: (e as Error).message });
       } finally { clearTimeout(t); }
     }
+
+    // ---------- probe_catalogue: batch probe every phase's sub-types ----------
+    // Phase 2 deliverable. Iterates a hard-coded catalogue, probes read sub-types
+    // via a real POST to Opfin, records write sub-types as "not_probed" (writes
+    // require an operator-approved payload before any Live-tenant call).
+    if (action === "probe_catalogue") {
+      type Row = {
+        phase: string; key: string; mode: "read" | "write";
+        status: "ok" | "fail" | "not_probed"; http_status: number | null;
+        error: string | null; top_level_keys: string[] | null;
+      };
+      const CATALOGUE: Array<{ phase: string; key: string; mode: "read" | "write" }> = [
+        { phase: "Phase 1 — Import", key: "people:view", mode: "read" },
+        { phase: "Phase 1 — Import", key: "people:list", mode: "read" },
+        { phase: "Phase 3 — Master push", key: "people:update", mode: "write" },
+        { phase: "Phase 3 — Master push", key: "people:create", mode: "write" },
+        { phase: "Phase 4 — Bank & PAN", key: "bank-details:view", mode: "read" },
+        { phase: "Phase 5 — Salary structure", key: "salary:view", mode: "read" },
+        { phase: "Phase 5 — Salary structure", key: "salary-structure:view", mode: "read" },
+        { phase: "Phase 5 — Salary structure", key: "salary-structure:list", mode: "read" },
+        { phase: "Phase 5 — Salary structure", key: "salary-structure:create", mode: "write" },
+        { phase: "Phase 5 — Salary structure", key: "salary-structure:update", mode: "write" },
+        { phase: "Phase 5 — Salary structure", key: "salary:update", mode: "write" },
+        { phase: "Phase 6 — Attendance/LOP", key: "attendance:view", mode: "read" },
+        { phase: "Phase 6 — Attendance/LOP", key: "attendance:list", mode: "read" },
+        { phase: "Phase 6 — Attendance/LOP", key: "attendance:import", mode: "write" },
+        { phase: "Phase 7 — Payroll orchestration", key: "payroll:view", mode: "read" },
+        { phase: "Phase 7 — Payroll orchestration", key: "payroll:list", mode: "read" },
+        { phase: "Phase 7 — Payroll orchestration", key: "payroll:status", mode: "read" },
+        { phase: "Phase 7 — Payroll orchestration", key: "payroll:months", mode: "read" },
+        { phase: "Phase 7 — Payroll orchestration", key: "payroll:runs", mode: "read" },
+        { phase: "Phase 7 — Payroll orchestration", key: "payroll:execute", mode: "write" },
+        { phase: "Phase 7 — Payroll orchestration", key: "payroll:finalize", mode: "write" },
+        { phase: "Phase 8 — Payslip & TDS pull", key: "payslip:view", mode: "read" },
+        { phase: "Phase 8 — Payslip & TDS pull", key: "payslip:list", mode: "read" },
+        { phase: "Phase 8 — Payslip & TDS pull", key: "payslip:download", mode: "read" },
+        { phase: "Phase 8 — Payslip & TDS pull", key: "tds:view", mode: "read" },
+        { phase: "Phase 8 — Payslip & TDS pull", key: "tds:report", mode: "read" },
+        { phase: "Phase 9 — Separation", key: "people:dismiss", mode: "write" },
+        { phase: "Phase 10 — Webhooks", key: "webhook:view", mode: "read" },
+        { phase: "Phase 10 — Webhooks", key: "webhook:list", mode: "read" },
+      ];
+
+      // Find a pilot-verified employee to attach to probes that require an ID.
+      const { data: pilot } = await svc
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("is_pilot_verified", true)
+        .limit(1).maybeSingle();
+      const probeId = pilot?.razorpay_employee_id ?? null;
+
+      const rows: Row[] = [];
+      for (const item of CATALOGUE) {
+        if (item.mode === "write") {
+          rows.push({
+            ...item, status: "not_probed", http_status: null, error: null, top_level_keys: null,
+          });
+          continue;
+        }
+        const [resource, subType] = item.key.split(":");
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 12000);
+        try {
+          const body: any = { auth: authBlock(), request: { type: resource, "sub-type": subType } };
+          if (probeId && ["people", "salary", "salary-structure", "attendance", "payslip", "bank-details", "tds"].includes(resource)) {
+            body.data = { employee_id: probeId };
+          }
+          const res = await fetch(`${BASE}/${resource}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(body),
+            signal: ctrl.signal,
+          });
+          const raw = await res.text();
+          let parsed: any = null;
+          try { parsed = JSON.parse(raw); } catch { /* keep raw */ }
+          const topKeys = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+            ? Object.keys(parsed).slice(0, 20) : null;
+          const errText = parsed && typeof parsed === "object" ? (parsed.error || parsed.message || null) : null;
+          const looksMissing = res.status === 404
+            || (typeof errText === "string" && /unknown|not\s*found|invalid\s*sub[-_ ]?type/i.test(errText));
+          rows.push({
+            ...item,
+            status: !looksMissing && res.ok && !errText ? "ok" : (looksMissing ? "fail" : "fail"),
+            http_status: res.status,
+            error: errText ? String(errText).slice(0, 200) : null,
+            top_level_keys: topKeys,
+          });
+        } catch (e) {
+          rows.push({ ...item, status: "fail", http_status: 0, error: (e as Error).message.slice(0, 200), top_level_keys: null });
+        } finally {
+          clearTimeout(t);
+        }
+        // gentle spacing between probes
+        await new Promise((r) => setTimeout(r, 250));
+      }
+
+      // Log probe run (PII-safe: sub-types + status only).
+      try {
+        await svc.from("hr_razorpay_sync_log").insert({
+          action: "drift_check",
+          http_status: 200,
+          field_diff_summary: {
+            probe_run: true,
+            probe_id: probeId,
+            results: rows.map((r) => ({ key: r.key, status: r.status, http: r.http_status })),
+          },
+          actor_user_id: authed.userId,
+        });
+      } catch { /* logging is best-effort */ }
+
+      return json(200, { ok: true, probe_id: probeId, rows });
+    }
+
+
 
     const settings = await readSettings(svc);
 

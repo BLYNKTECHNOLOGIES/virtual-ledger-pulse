@@ -171,13 +171,14 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
           </div>
         ) : (
           <Tabs defaultValue="overview" className="flex-1 min-h-0 flex flex-col">
-            <TabsList className="grid grid-cols-6 w-full">
+            <TabsList className="grid grid-cols-7 w-full">
               <TabsTrigger value="overview"><Activity className="h-3.5 w-3.5 mr-1" />Overview</TabsTrigger>
               <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1" />Users ({users.length})</TabsTrigger>
               <TabsTrigger value="bio"><Fingerprint className="h-3.5 w-3.5 mr-1" />Biometrics ({templates.length})</TabsTrigger>
               <TabsTrigger value="punches"><Wifi className="h-3.5 w-3.5 mr-1" />Punches ({punches.length})</TabsTrigger>
               <TabsTrigger value="oplog"><ScrollText className="h-3.5 w-3.5 mr-1" />Operator Log ({oplog.length})</TabsTrigger>
               <TabsTrigger value="photos"><ImageIcon className="h-3.5 w-3.5 mr-1" />Photos ({photos.length})</TabsTrigger>
+              <TabsTrigger value="manage"><Settings2 className="h-3.5 w-3.5 mr-1" />Manage</TabsTrigger>
             </TabsList>
 
             <div className="flex-1 min-h-0 overflow-hidden mt-3">

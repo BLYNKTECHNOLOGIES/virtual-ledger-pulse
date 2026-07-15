@@ -260,10 +260,11 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                         <TableHead className="text-center">Palm</TableHead>
                         <TableHead>Employee</TableHead>
                         <TableHead>Last Seen</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No user roster received yet. On the device panel: Data Mgmt → Upload All Data → Users.</TableCell></TableRow>}
+                      {users.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">No user roster received yet. On the device panel: Data Mgmt → Upload All Data → Users.</TableCell></TableRow>}
                       {users.map((u: any) => (
                         <TableRow key={u.id}>
                           <TableCell className="font-mono">{u.pin}</TableCell>
@@ -277,6 +278,25 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                           <TableCell className="text-center">{u.palm_count || 0}</TableCell>
                           <TableCell>{u.matched_employee_id ? <Badge variant="outline" className="text-xs">Linked</Badge> : <Badge variant="destructive" className="text-xs">Unlinked</Badge>}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmt(u.last_seen_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete user from device?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This queues a <code>DATA DELETE USERINFO PIN={u.pin}</code> command on the device. Fingerprint/face/card templates for this PIN will also be removed on the device. This does NOT affect HRMS employee records.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteUser(u.pin)} className="bg-destructive text-destructive-foreground">Delete on device</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

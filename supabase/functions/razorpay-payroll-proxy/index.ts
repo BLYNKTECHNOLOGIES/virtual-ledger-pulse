@@ -84,6 +84,49 @@ Deno.serve(async (req) => {
     const payload = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const action = payload?.action ?? "validate_creds";
 
+    if (action === "introspect_envelope") {
+      const base = "https://payroll.razorpay.com/v1";
+      const auth = btoa(`${KEY_ID}:${KEY_SECRET}`);
+      const res = await fetch(`${base}/employees?page=1&count=1`, {
+        headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+      });
+      const body = await res.json().catch(() => null);
+      if (!body || typeof body !== "object") {
+        return json(200, { ok: false, http_status: res.status, note: "non-object body" });
+      }
+      const topKeys = Object.keys(body);
+      // Find array key (candidate for employees list)
+      let arrayKey: string | null = null;
+      let arrayLen: number | null = null;
+      let elementFieldNames: string[] | null = null;
+      for (const k of topKeys) {
+        const v = (body as any)[k];
+        if (Array.isArray(v)) {
+          arrayKey = k;
+          arrayLen = v.length;
+          if (v.length > 0 && v[0] && typeof v[0] === "object") {
+            elementFieldNames = Object.keys(v[0]);
+          }
+          break;
+        }
+      }
+      // pagination/count-ish scalar keys
+      const scalarKeys = topKeys.filter((k) => {
+        const v = (body as any)[k];
+        return typeof v === "number" || typeof v === "string" || typeof v === "boolean";
+      });
+      const shape = {
+        http_status: res.status,
+        top_level_keys: topKeys,
+        array_key: arrayKey,
+        array_length: arrayLen,
+        scalar_keys: scalarKeys,
+        element_field_names: elementFieldNames,
+      };
+      console.log("[introspect_envelope]", JSON.stringify(shape));
+      return json(200, { ok: true, ...shape });
+    }
+
     if (action !== "validate_creds") {
       return json(400, { error: `Unsupported action: ${action}` });
     }

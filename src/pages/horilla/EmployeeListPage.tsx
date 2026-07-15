@@ -121,12 +121,21 @@ export default function EmployeeListPage() {
   const { data: employees, isLoading } = useQuery({
     queryKey: ["hr_employees_list"],
     queryFn: async () => {
+      // Exclude Razorpay-imported drafts (is_active=false + source='razorpay_import').
+      // Those are surfaced in the Onboarding Pipeline until HR finishes onboarding
+      // and activates the employee — at that point they'll appear here.
       const { data, error } = await supabase
         .from("hr_employees")
         .select("*")
+        .not("additional_info->>source", "eq", "razorpay_import")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as HrEmployee[];
+      // Extra safety: also drop any inactive rows tagged as razorpay_import
+      // that slip past the JSON filter (older/malformed additional_info shape).
+      return ((data || []) as any[]).filter((r) => {
+        const src = r?.additional_info?.source;
+        return !(src === "razorpay_import" && r?.is_active === false);
+      }) as HrEmployee[];
     },
   });
 

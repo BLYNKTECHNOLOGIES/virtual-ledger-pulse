@@ -145,12 +145,47 @@ export default function RazorpaySyncPage() {
     } finally { setUnlocking(false); }
   };
 
+  // Chunk large ranges into smaller batches to avoid the 30s client-side
+  // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
+  // well under the timeout while the overall run can cover 100s of IDs.
+  const CHUNK_SIZE = 20;
+  const runChunked = async (
+    action: "dry_run_range" | "apply_range",
+    from: number,
+    to: number,
+  ): Promise<DryRunResponse> => {
+    const agg: DryRunResponse = {
+      ok: true,
+      summary: { total: 0, hits: 0, matches: 0, creates: 0, misses: 0, stopped: false },
+      rows: [],
+    };
+    let consecutiveMisses = 0;
+    for (let s = from; s <= to; s += CHUNK_SIZE) {
+      const e = Math.min(s + CHUNK_SIZE - 1, to);
+      const d = await invoke<DryRunResponse>({ action, start_id: s, max_id: e });
+      agg.rows.push(...d.rows);
+      agg.summary.total += d.summary.total;
+      agg.summary.hits += d.summary.hits;
+      agg.summary.matches += d.summary.matches;
+      agg.summary.creates += d.summary.creates;
+      agg.summary.misses += d.summary.misses;
+      // Emulate server-side consecutive-miss stop across chunks.
+      for (const r of d.rows) {
+        if (r.status === "miss") consecutiveMisses++;
+        else if (r.status === "hit") consecutiveMisses = 0;
+      }
+      if (d.summary.stopped || consecutiveMisses >= 30) {
+        agg.summary.stopped = true;
+        break;
+      }
+    }
+    return agg;
+  };
+
   const runDryRun = async () => {
     setDryRunning(true); setDryRun(null); setApplied(null);
     try {
-      const d = await invoke<DryRunResponse>({
-        action: "dry_run_range", start_id: Number(startId), max_id: Number(maxId),
-      });
+      const d = await runChunked("dry_run_range", Number(startId), Number(maxId));
       setDryRun(d);
       toast({ title: "Dry-run complete", description: `${d.summary.hits} hits · ${d.summary.matches} matches · ${d.summary.creates} new drafts` });
     } catch (e: any) {
@@ -162,9 +197,7 @@ export default function RazorpaySyncPage() {
     if (!confirm(`Apply import for employees ${startId}..${maxId}?\n\nThis will create draft rows for unmatched employees.`)) return;
     setApplyingBulk(true);
     try {
-      const d = await invoke<DryRunResponse>({
-        action: "apply_range", start_id: Number(startId), max_id: Number(maxId),
-      });
+      const d = await runChunked("apply_range", Number(startId), Number(maxId));
       setApplied(d);
       toast({ title: "Import applied", description: `${d.summary.hits} employees written.` });
       await reloadSettings();

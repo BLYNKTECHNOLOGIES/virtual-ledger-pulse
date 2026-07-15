@@ -33,6 +33,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.biometric-webhook]
     verify_jwt = false
+  [functions.biometric-refresh-scheduler]
+    verify_jwt = false
   [functions.capture-beneficiaries]
     verify_jwt = false
   [functions.enrich-order-names]

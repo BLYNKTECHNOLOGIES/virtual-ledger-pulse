@@ -1714,6 +1714,35 @@ Deno.serve(async (req) => {
           lop_days: lopDays,
           unpaid_matches_lop: Math.abs(unpaidCovered - unpaidLeave) < 0.01,
         };
+
+        // Explicit no-op class: zero ERP attendance AND zero leaves for the whole month
+        // means we have NO source data for this employee — do not construct a "0 present /
+        // full LOP" payload that would silently zero out their pay in Razorpay.
+        if (presentDays === 0 && paidLeave === 0 && unpaidLeave === 0) {
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "no_erp_attendance",
+            ...payload,
+            error: "No ERP attendance or leave records for this employee in the period.",
+          });
+          continue;
+        }
+
+        // Period immutability guard on the write path only.
+        if (isWrite && (pushedLocks.get(String(m.razorpay_employee_id)) || 0) > 0) {
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "blocked_period_locked",
+            ...payload,
+            error: "Period already pushed. File an audited recall (recall_attendance_period) before re-pushing.",
+          });
+          continue;
+        }
+
         planned++;
 
         if (action === "push_attendance_dry_run") {

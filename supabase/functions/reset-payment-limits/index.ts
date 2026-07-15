@@ -35,6 +35,22 @@ interface Database {
 }
 
 serve(async (req) => {
+  // Require either the shared cron secret (server-to-server) or an
+  // authenticated Super Admin. Prevents any anonymous caller from
+  // resetting anti-fraud usage counters on demand.
+  const cronSecret = Deno.env.get('RESET_PAYMENT_LIMITS_CRON_SECRET') || Deno.env.get('CRON_SECRET');
+  const providedSecret = req.headers.get('x-cron-secret') || '';
+  const authorized = !!(cronSecret && providedSecret && providedSecret === cronSecret);
+
+  if (!authorized) {
+    const { requireAuth } = await import('../_shared/require-auth.ts');
+    const auth = await requireAuth(req, {
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      requireSuperAdmin: true,
+    });
+    if (!auth.ok) return auth.response;
+  }
+
   const supabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''

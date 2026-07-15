@@ -8203,6 +8203,8 @@ export type Database = {
           is_pilot_verified: boolean
           last_error: string | null
           last_payload_hash: string | null
+          last_pull_snapshot: Json | null
+          last_pulled_at: string | null
           last_synced_at: string | null
           razorpay_employee_id: string
           sync_status: Database["public"]["Enums"]["hr_razorpay_sync_status"]
@@ -8215,6 +8217,8 @@ export type Database = {
           is_pilot_verified?: boolean
           last_error?: string | null
           last_payload_hash?: string | null
+          last_pull_snapshot?: Json | null
+          last_pulled_at?: string | null
           last_synced_at?: string | null
           razorpay_employee_id: string
           sync_status?: Database["public"]["Enums"]["hr_razorpay_sync_status"]
@@ -8227,6 +8231,8 @@ export type Database = {
           is_pilot_verified?: boolean
           last_error?: string | null
           last_payload_hash?: string | null
+          last_pull_snapshot?: Json | null
+          last_pulled_at?: string | null
           last_synced_at?: string | null
           razorpay_employee_id?: string
           sync_status?: Database["public"]["Enums"]["hr_razorpay_sync_status"]
@@ -17028,6 +17034,30 @@ export type Database = {
           },
         ]
       }
+      v_razorpay_import_gaps: {
+        Row: {
+          badge_id: string | null
+          full_name: string | null
+          hr_employee_id: string | null
+          is_active: boolean | null
+          last_pulled_at: string | null
+          missing_bank: boolean | null
+          missing_department: boolean | null
+          missing_designation: boolean | null
+          missing_doj: boolean | null
+          missing_pan: boolean | null
+          razorpay_employee_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_employee_map_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_terminal_appeal_note: {
@@ -18999,6 +19029,7 @@ export type Database = {
         | "push_create"
         | "push_update"
         | "drift_check"
+        | "pull_person"
       hr_razorpay_sync_status:
         | "imported"
         | "matched_existing"
@@ -19336,6 +19367,7 @@ export const Constants = {
         "push_create",
         "push_update",
         "drift_check",
+        "pull_person",
       ],
       hr_razorpay_sync_status: [
         "imported",

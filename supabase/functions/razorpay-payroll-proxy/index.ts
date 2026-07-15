@@ -303,6 +303,62 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // ---------- probe_endpoint: gated read-only sub-type validator ----------
+    // Used by Phase-planning to prove which Opfin sub-types exist against the
+    // live tenant BEFORE any Phase B/C/... UI is wired to them. Writes are
+    // NEVER allowed here — only an allowlist of read-only sub-types can run.
+    if (action === "probe_endpoint") {
+      const resource = String(payload?.resource ?? "").trim();
+      const subType = String(payload?.sub_type ?? "").trim();
+      const data = (payload?.data && typeof payload.data === "object") ? payload.data : {};
+      const READONLY = new Set([
+        "people:view",
+        "salary:view",
+        "salary-structure:view",
+        "attendance:view",
+        "payslip:view",
+        "payroll:view",
+        "payroll:status",
+        "webhook:view",
+      ]);
+      const key = `${resource}:${subType}`;
+      if (!READONLY.has(key)) {
+        return json(200, {
+          ok: false, skipped: true, key,
+          reason: "probe restricted to read-only sub-types; run via Postman collection to validate writes",
+        });
+      }
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      try {
+        const res = await fetch(`${BASE}/${resource}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type: resource, "sub-type": subType },
+            data,
+          }),
+          signal: ctrl.signal,
+        });
+        const raw = await res.text();
+        let body: any = null;
+        try { body = JSON.parse(raw); } catch { /* keep raw */ }
+        const topKeys = body && typeof body === "object" && !Array.isArray(body)
+          ? Object.keys(body).slice(0, 30) : null;
+        const errText = body && typeof body === "object" ? (body.error || body.message || null) : null;
+        return json(200, {
+          ok: res.ok && !errText,
+          key, http_status: res.status,
+          top_level_keys: topKeys,
+          error: errText,
+          raw_preview: raw.slice(0, 400),
+        });
+      } catch (e) {
+        return json(200, { ok: false, key, http_status: 0, error: (e as Error).message });
+      } finally { clearTimeout(t); }
+    }
+
     const settings = await readSettings(svc);
 
     // ---------- dry_run_range / apply_range ----------

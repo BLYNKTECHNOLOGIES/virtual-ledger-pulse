@@ -121,19 +121,19 @@ export default function EmployeeListPage() {
   const { data: employees, isLoading } = useQuery({
     queryKey: ["hr_employees_list"],
     queryFn: async () => {
-      // Exclude Razorpay-imported drafts (is_active=false + source='razorpay_import').
-      // Those are surfaced in the Onboarding Pipeline until HR finishes onboarding
-      // and activates the employee — at that point they'll appear here.
+      // Fetch all employees. Razorpay-imported records are only hidden while
+      // they are still drafts (is_active=false). Once the Onboarding Pipeline
+      // activates them, they must appear in this list — do NOT filter by
+      // source alone on the server, that permanently hides activated hires.
       const { data, error } = await supabase
         .from("hr_employees")
         .select("*")
-        .not("additional_info->>source", "eq", "razorpay_import")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      // Extra safety: also drop any inactive rows tagged as razorpay_import
-      // that slip past the JSON filter (older/malformed additional_info shape).
       return ((data || []) as any[]).filter((r) => {
         const src = r?.additional_info?.source;
+        // Hide ONLY inactive Razorpay drafts. Everything else (including
+        // activated Razorpay-imported employees) stays visible.
         return !(src === "razorpay_import" && r?.is_active === false);
       }) as HrEmployee[];
     },

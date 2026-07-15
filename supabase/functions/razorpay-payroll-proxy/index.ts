@@ -344,7 +344,7 @@ Deno.serve(async (req) => {
           let hrId = match.hr_employee_id;
           let created = false;
           if (!hrId) { hrId = await createDraftEmployee(svc, r.body); created = true; }
-          await upsertMap(svc, String(i), hrId!, false);
+          await upsertMap(svc, String(i), hrId!, false, created);
           await logSync(svc, {
             action: created ? "create_draft" : "match",
             http_status: r.status,

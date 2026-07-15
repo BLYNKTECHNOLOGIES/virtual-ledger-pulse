@@ -154,14 +154,17 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
   const adminTotal = users.filter((u: any) => (u.privilege ?? 0) >= 2).length;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Cpu className="h-4 w-4" /> {device?.name}
-            <span className="text-xs font-normal text-muted-foreground ml-2">SN: {serial || "—"}</span>
-          </DialogTitle>
-        </DialogHeader>
+    <div className="w-full space-y-4">
+      <div className="flex items-center gap-3 border-b pb-3">
+        <Button variant="ghost" size="sm" onClick={onClose} className="gap-1">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+        <div className="flex items-center gap-2">
+          <Cpu className="h-4 w-4" />
+          <span className="font-semibold text-foreground">{device?.name}</span>
+          <span className="text-xs font-normal text-muted-foreground ml-2">SN: {serial || "—"}</span>
+        </div>
+      </div>
 
         {!serial ? (
           <div className="text-sm text-muted-foreground p-6">

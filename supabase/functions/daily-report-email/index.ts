@@ -1117,6 +1117,19 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Auth: allow either a shared dispatcher secret (used by scheduled cron /
+    // dispatch-report-emails), or an authenticated staff session. This blocks
+    // anonymous callers from reading the confidential P&L/KYC report via
+    // dryRun and from redirecting the email to arbitrary recipients.
+    const dispatcherSecret = Deno.env.get("REPORT_DISPATCH_SECRET") || Deno.env.get("CRON_SECRET");
+    const providedSecret = req.headers.get("x-report-dispatch-secret") || "";
+    const dispatcherAuthorized = !!(dispatcherSecret && providedSecret && providedSecret === dispatcherSecret);
+    if (!dispatcherAuthorized) {
+      const { requireAuth } = await import("../_shared/require-auth.ts");
+      const authRes = await requireAuth(req, { corsHeaders });
+      if (!authRes.ok) return authRes.response;
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -1125,7 +1138,13 @@ serve(async (req) => {
     try { body = await req.json(); } catch { /* no body */ }
 
     const isMonthly = body.mode === "monthly";
-    const recipients: string[] = body.recipients || RECIPIENTS;
+    // Recipients: only honour caller-supplied recipients when authorized via
+    // dispatcher secret (server-to-server). Otherwise force the configured
+    // hard-coded HR/Finance list so authenticated users cannot exfiltrate the
+    // report to an attacker-controlled address.
+    const recipients: string[] = dispatcherAuthorized && Array.isArray(body.recipients) && body.recipients.length
+      ? body.recipients
+      : RECIPIENTS;
     // Report content variant: 'profit' (default, full report) | 'operations' (no P&L / asset totals).
     const variant: string = body.variant === "operations" ? "operations" : "profit";
 

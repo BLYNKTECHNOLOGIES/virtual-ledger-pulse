@@ -13,7 +13,7 @@ const ADMIN_PERMISSIONS = [
   'ra_assign', 'ra_dashboard_view',
   'leads_view', 'leads_manage',
   'user_management_view', 'user_management_manage', 'user_management_hr_manage',
-  'hrms_view', 'hrms_manage',
+  'hrms_view', 'hrms_manage', 'hrms_razorpay_sync',
   'payroll_view', 'payroll_manage',
   'compliance_view', 'compliance_manage',
   'stock_view', 'stock_manage',

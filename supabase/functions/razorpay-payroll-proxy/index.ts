@@ -1214,7 +1214,280 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // ---- Phase 5: Salary structure sync ---------------------------------------------------
+    // Discovery-first: writes are BLOCKED until the operator records a verified salary
+    // envelope (Postman probe result). Dry-run works without verification so an operator
+    // can review the ERP-derived structure vs Razorpay's last-known snapshot before
+    // deciding whether to enable the write path.
+    if (action === "record_salary_envelope_verified") {
+      const key = String(payload?.envelope_key || "").trim();
+      const verified = !!payload?.verified;
+      if (verified && !key) return json(400, { error: "envelope_key is required when verified=true" });
+      const patch: any = {
+        push_salary_endpoint_verified: verified,
+        push_salary_envelope_key: verified ? key : null,
+        push_salary_envelope_verified_at: verified ? new Date().toISOString() : null,
+        push_salary_envelope_verified_by: verified ? authed.userId : null,
+      };
+      // Any change to envelope verification RESETS pilot + bulk gates. This prevents a
+      // stale pilot verification (against an old envelope) from re-enabling live pushes.
+      if (!verified || (settingsRow?.push_salary_envelope_key && settingsRow.push_salary_envelope_key !== key)) {
+        patch.push_salary_pilot_verified_at = null;
+        patch.push_salary_pilot_hr_employee_id = null;
+        patch.bulk_salary_push_unlocked = false;
+      }
+      const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+      if (error) return json(500, { error: error.message });
+      return json(200, { ok: true });
+    }
+
+    if (action === "unlock_bulk_salary_push") {
+      const s = await readSettings(svc);
+      if (!s?.push_salary_endpoint_verified || !s?.push_salary_envelope_key) {
+        return json(400, { error: "Cannot unlock — salary envelope not yet verified. Record a probe-verified envelope first." });
+      }
+      if (!s?.push_salary_pilot_verified_at) {
+        return json(400, { error: "Cannot unlock bulk salary push — salary pilot not verified yet." });
+      }
+      await svc.from("hr_razorpay_settings").update({ bulk_salary_push_unlocked: true }).eq("is_singleton", true);
+      return json(200, { ok: true });
+    }
+
+    if (
+      action === "push_salary_dry_run" ||
+      action === "push_salary_apply_one" ||
+      action === "push_salary_apply_bulk"
+    ) {
+      const isWrite = action !== "push_salary_dry_run";
+      const only: string[] | null = Array.isArray(payload?.razorpay_employee_ids) && payload.razorpay_employee_ids.length
+        ? payload.razorpay_employee_ids.map((v: any) => String(v))
+        : (payload?.razorpay_employee_id ? [String(payload.razorpay_employee_id)] : null);
+
+      if (isWrite) {
+        if (!settingsRow?.push_salary_endpoint_verified || !settingsRow?.push_salary_envelope_key) {
+          return json(400, { error: "Salary write path is disabled — verify the Razorpay salary envelope via probe first, then record it." });
+        }
+        if (action === "push_salary_apply_bulk") {
+          if (!settingsRow?.push_salary_pilot_verified_at) {
+            return json(400, { error: "Salary pilot not yet verified. Run push_salary_apply_one first." });
+          }
+          if (!settingsRow?.bulk_salary_push_unlocked) {
+            return json(400, { error: "Bulk salary push is locked. Unlock explicitly after reviewing the dry-run." });
+          }
+        }
+        if (action === "push_salary_apply_one" && (!only || only.length !== 1)) {
+          return json(400, { error: "push_salary_apply_one requires exactly one razorpay_employee_id" });
+        }
+      }
+
+      let query = svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,hr_employee_id,last_pull_snapshot");
+      if (only) query = query.in("razorpay_employee_id", only);
+      const { data: maps, error: mapsErr } = await query;
+      if (mapsErr) return json(500, { error: mapsErr.message });
+      if (!maps?.length) return json(400, { error: "No mapped rows for the requested ids." });
+
+      const hrIds = maps.map((m: any) => m.hr_employee_id).filter(Boolean);
+      const [structs, comps] = await Promise.all([
+        svc.from("hr_employee_salary_structures")
+          .select("employee_id,component_id,amount,is_active")
+          .in("employee_id", hrIds)
+          .eq("is_active", true),
+        svc.from("hr_salary_components").select("id,name,code,component_type,is_taxable"),
+      ]);
+      const compById = new Map((comps.data || []).map((c: any) => [c.id, c]));
+      const byEmp = new Map<string, any[]>();
+      for (const s of (structs.data || []) as any[]) {
+        const arr = byEmp.get(s.employee_id) || [];
+        arr.push(s);
+        byEmp.set(s.employee_id, arr);
+      }
+
+      // Build normalized ERP salary structure for one employee. This is what we DIFF
+      // against the last pulled Razorpay snapshot; the actual outbound envelope is
+      // shaped only after the operator supplies a verified envelope key.
+      function buildErpSalary(hrId: string) {
+        const rows = byEmp.get(hrId) || [];
+        const components = rows.map((r) => {
+          const c = compById.get(r.component_id) || {};
+          return {
+            code: c.code || null,
+            name: c.name || "Unknown",
+            type: c.component_type || null,
+            amount: Number(r.amount || 0),
+          };
+        }).sort((a, b) => (a.code || "").localeCompare(b.code || ""));
+        const total = components.reduce((s, c) => s + (Number.isFinite(c.amount) ? c.amount : 0), 0);
+        return { total, components };
+      }
+
+      function normalizeSnapshot(snap: any) {
+        // Razorpay's people snapshot may expose salary under different keys depending
+        // on tenant. We look at common shapes and expose whatever we find so the
+        // operator can eyeball the diff without us guessing.
+        if (!snap || typeof snap !== "object") return null;
+        const s = snap.salary ?? snap["salary-structure"] ?? snap["salary_structure"] ?? null;
+        if (!s) return null;
+        return s;
+      }
+
+      const rows: any[] = [];
+      let planned = 0, unchanged = 0, pushed = 0, failed = 0, skipped = 0, noBaseline = 0;
+
+      for (const m of maps as any[]) {
+        const eid = Number(m.razorpay_employee_id);
+        if (!Number.isFinite(eid) || eid < 1 || !m.hr_employee_id) { skipped++; continue; }
+
+        const erp = buildErpSalary(m.hr_employee_id);
+        const hasBaseline = !!m.last_pull_snapshot && typeof m.last_pull_snapshot === "object";
+        const rpSalary = normalizeSnapshot(m.last_pull_snapshot);
+
+        if (!erp.components.length) {
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "no_erp_structure",
+            error: "No active salary structure in ERP for this employee.",
+          });
+          continue;
+        }
+
+        // Structural diff: JSON-stringify both sides for a coarse comparison. This is
+        // intentionally coarse — a granular per-field diff needs the verified envelope
+        // shape which we don't have yet.
+        const erpSig = JSON.stringify(erp);
+        const rpSig = rpSalary ? JSON.stringify(rpSalary) : null;
+        const differs = !rpSig || rpSig !== erpSig;
+
+        if (!differs) {
+          unchanged++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "unchanged",
+            erp_total: erp.total,
+            components_count: erp.components.length,
+          });
+          continue;
+        }
+        planned++;
+
+        if (action === "push_salary_dry_run") {
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: hasBaseline ? "planned" : "no_baseline",
+            baseline_missing: !hasBaseline,
+            erp_total: erp.total,
+            components_count: erp.components.length,
+            erp_components: erp.components,
+            razorpay_snapshot: rpSalary,
+          });
+          if (!hasBaseline) noBaseline++;
+          continue;
+        }
+
+        if (!hasBaseline) {
+          noBaseline++; skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "skipped_no_baseline",
+            error: "last_pull_snapshot is null — run Phase 1 deep-pull before pushing salary.",
+          });
+          continue;
+        }
+
+        // Live push using the operator-verified envelope key. Body shape follows the
+        // hyphenated-keys convention shared with people:update / bank push.
+        const envelopeKey = String(settingsRow!.push_salary_envelope_key);
+        const [type, subType] = envelopeKey.split(":");
+        const salaryPayload = {
+          "ctc-annual": erp.total,
+          components: erp.components.map((c) => ({
+            code: c.code, name: c.name, type: c.type, amount: c.amount,
+          })),
+        };
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        let httpStatus = 0; let ok = false; let errText: string | null = null;
+        try {
+          const res = await fetch(`${BASE}/${type || "people"}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: type || "people", "sub-type": subType || "update" },
+              data: { "employee-id": eid, "employee-type": "employee", salary: salaryPayload },
+            }),
+            signal: ctrl.signal,
+          });
+          httpStatus = res.status;
+          const raw = await res.text();
+          let body: any = null; try { body = JSON.parse(raw); } catch { /* ignore */ }
+          const rpErr = body && typeof body === "object" ? (body.error || body.message || null) : null;
+          ok = res.ok && !rpErr;
+          if (!ok) errText = rpErr || raw?.slice(0, 400) || `HTTP ${res.status}`;
+        } catch (e) {
+          errText = `NETWORK: ${(e as Error).message}`;
+        } finally { clearTimeout(t); }
+
+        await logSync(svc, {
+          action: "push_salary",
+          http_status: httpStatus,
+          razorpay_employee_id: String(eid),
+          hr_employee_id: m.hr_employee_id,
+          field_diff_summary: { components_count: erp.components.length, erp_total: erp.total },
+          error_text: ok ? null : errText,
+          actor_user_id: authed.userId,
+        });
+
+        if (ok) {
+          pushed++;
+          if (action === "push_salary_apply_one" && !settingsRow?.push_salary_pilot_verified_at) {
+            await svc.from("hr_razorpay_settings").update({
+              push_salary_pilot_verified_at: new Date().toISOString(),
+              push_salary_pilot_hr_employee_id: m.hr_employee_id,
+              last_salary_push_at: new Date().toISOString(),
+            }).eq("is_singleton", true);
+          } else {
+            await svc.from("hr_razorpay_settings").update({ last_salary_push_at: new Date().toISOString() }).eq("is_singleton", true);
+          }
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "pushed",
+            erp_total: erp.total,
+            components_count: erp.components.length,
+          });
+        } else {
+          failed++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "failed",
+            erp_total: erp.total,
+            components_count: erp.components.length,
+            error: errText,
+          });
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        summary: { total: maps.length, planned, unchanged, pushed, failed, skipped, no_baseline: noBaseline },
+        rows,
+        envelope: {
+          verified: !!settingsRow?.push_salary_endpoint_verified,
+          key: settingsRow?.push_salary_envelope_key || null,
+        },
+        pilot: {
+          verified_at: settingsRow?.push_salary_pilot_verified_at || null,
+          bulk_unlocked: !!settingsRow?.bulk_salary_push_unlocked,
+        },
+      });
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
+
   } catch (e) {
     console.error("razorpay-payroll-proxy error", e);
     return json(500, { error: (e as Error).message });

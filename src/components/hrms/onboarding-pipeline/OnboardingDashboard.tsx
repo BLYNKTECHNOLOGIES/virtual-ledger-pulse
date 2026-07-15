@@ -55,6 +55,11 @@ interface OnboardingDashboardProps {
 }
 
 export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: OnboardingDashboardProps) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [toDelete, setToDelete] = useState<OnboardingRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const { data: records, isLoading } = useQuery({
     queryKey: ["onboarding-pipeline-records"],
     queryFn: async () => {
@@ -66,6 +71,37 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
       return data as OnboardingRecord[];
     },
   });
+
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      // If a draft employee row was linked, remove it too when still inactive
+      if (toDelete.employee_id) {
+        const { data: emp } = await supabase
+          .from("hr_employees")
+          .select("id, is_active")
+          .eq("id", toDelete.employee_id)
+          .maybeSingle();
+        if (emp && emp.is_active === false) {
+          await supabase.from("hr_employees").delete().eq("id", emp.id);
+        }
+      }
+      const { error } = await supabase
+        .from("hr_employee_onboarding")
+        .delete()
+        .eq("id", toDelete.id);
+      if (error) throw error;
+      toast({ title: "Onboarding deleted", description: "The dropped onboarding record has been removed." });
+      setToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+    } catch (e: any) {
+      toast({ title: "Failed to delete", description: e?.message || "Could not delete record", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   const inProgress = records?.filter(r => !["completed", "cancelled"].includes(r.status)) || [];
   const completed = records?.filter(r => r.status === "completed") || [];

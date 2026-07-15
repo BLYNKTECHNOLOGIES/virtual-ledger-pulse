@@ -286,10 +286,10 @@ Deno.serve(async (req) => {
 
     const settings = await readSettings(svc);
 
-    // ---------- dry_run_range ----------
+    // ---------- dry_run_range / apply_range ----------
     if (action === "dry_run_range" || action === "apply_range") {
-      if (!settings?.bulk_sync_unlocked) {
-        return json(403, { error: "Bulk sync locked. Run the pilot (apply_one) on one employee first." });
+      if (action === "apply_range" && !settings?.bulk_sync_unlocked) {
+        return json(403, { error: "Bulk sync locked. Unlock after pilot verification." });
       }
       const start = Math.max(1, Number(payload?.start_id ?? 1));
       const end = Math.max(start, Number(payload?.max_id ?? start));

@@ -598,6 +598,104 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
+      {/* PHASE 3 — Employee-master push (ERP → Razorpay) */}
+      <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Phase 3 — Push identity to Razorpay</CardTitle>
+          <CardDescription>
+            Push ERP identity/metadata diffs back to RazorpayX via <code>people:update</code>.
+            Only <em>name, phone, email, gender, DOB, department, title, DOJ, employee-type</em> are pushed
+            (bank &amp; PAN are handled in Phase 4). Requires a dry-run, then a single pilot push, then explicit bulk unlock.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Push pilot:</span>
+              <Badge variant={settings?.push_pilot_verified_at ? "default" : "secondary"}>
+                {settings?.push_pilot_verified_at ? "Verified" : "Not verified"}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Bulk push:</span>
+              <Badge variant={settings?.bulk_push_unlocked ? "default" : "secondary"}>
+                {settings?.bulk_push_unlocked ? "Unlocked" : "Locked"}
+              </Badge>
+            </div>
+            {settings?.last_push_at && (
+              <div className="text-muted-foreground">Last push: {new Date(settings.last_push_at).toLocaleString()}</div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs text-muted-foreground">Razorpay employee ID (optional — leave blank for all mapped):</label>
+            <input
+              type="number" min={1} value={pushRpId} onChange={(e) => setPushRpId(e.target.value)}
+              className="h-8 w-28 rounded border bg-background px-2 text-sm text-foreground"
+              placeholder="e.g. 1"
+            />
+            <Button size="sm" variant="outline" onClick={runPushDryRun} disabled={pushDrying}>
+              {pushDrying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Dry-run diff
+            </Button>
+            <Button size="sm" onClick={runPushApplyOne} disabled={pushApplyingOne || !pushRpId.trim()}>
+              {pushApplyingOne && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Push pilot (one)
+            </Button>
+            {settings?.push_pilot_verified_at && !settings?.bulk_push_unlocked && (
+              <Button size="sm" variant="secondary" onClick={runPushUnlockBulk} disabled={pushUnlocking}>
+                {pushUnlocking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Unlock bulk push
+              </Button>
+            )}
+            {settings?.bulk_push_unlocked && (
+              <Button size="sm" variant="destructive" onClick={runPushApplyBulk} disabled={pushApplyingBulk}>
+                {pushApplyingBulk && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply bulk push
+              </Button>
+            )}
+          </div>
+
+          {(pushDryResult || pushApplyResult) && (() => {
+            const r = pushApplyResult || pushDryResult!;
+            return (
+              <div className="rounded-md border overflow-x-auto">
+                <div className="p-2 text-xs bg-muted/50 flex flex-wrap gap-3">
+                  <span>Total: <b>{r.summary.total}</b></span>
+                  <span>Planned: <b>{r.summary.planned}</b></span>
+                  <span>Unchanged: <b>{r.summary.unchanged}</b></span>
+                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/30">
+                    <tr className="text-left">
+                      <th className="p-2">Razorpay ID</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">Fields changed</th>
+                      <th className="p-2">Conflicts</th>
+                      <th className="p-2">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.rows.map((row, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
+                        <td className="p-2">
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
+                          {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
+                          {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
+                        </td>
+                        <td className="p-2 text-muted-foreground">{row.changed.join(", ") || "—"}</td>
+                        <td className="p-2 text-amber-600">{row.conflicts?.join(", ") || "—"}</td>
+                        <td className="p-2 text-destructive truncate max-w-[240px]">{row.error || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* STEP 3 — Bulk */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>

@@ -558,7 +558,8 @@ Deno.serve(async (req) => {
         try {
           const body: any = { auth: authBlock(), request: { type: resource, "sub-type": subType } };
           if (probeId && ["people", "salary", "salary-structure", "attendance", "payslip", "bank-details", "tds"].includes(resource)) {
-            body.data = { employee_id: probeId };
+            // Match the verified people:view envelope exactly: hyphenated keys.
+            body.data = { "employee-id": probeId, "employee-type": "employee" };
           }
           const res = await fetch(`${BASE}/${resource}`, {
             method: "POST",
@@ -899,9 +900,11 @@ Deno.serve(async (req) => {
       const rows: any[] = [];
       let planned = 0, unchanged = 0, pushed = 0, failed = 0, skipped = 0;
 
+      let noBaseline = 0;
       for (const m of maps) {
         const eid = Number(m.razorpay_employee_id);
         if (!Number.isFinite(eid) || eid < 1 || !m.hr_employee_id) { skipped++; continue; }
+        const hasBaseline = !!m.last_pull_snapshot && typeof m.last_pull_snapshot === "object";
         const incoming = buildIncoming(m.hr_employee_id);
         const diff = diffPayload(incoming, m.last_pull_snapshot);
         if (!diff.changed.length) {
@@ -914,10 +917,23 @@ Deno.serve(async (req) => {
           rows.push({
             razorpay_employee_id: m.razorpay_employee_id,
             hr_employee_id: m.hr_employee_id,
-            status: "planned",
+            status: hasBaseline ? "planned" : "no_baseline",
+            baseline_missing: !hasBaseline,
             changed: diff.changed,
             conflicts: diff.conflicts,
             payload_field_names: Object.keys(diff.patch).sort(),
+          });
+          if (!hasBaseline) noBaseline++;
+          continue;
+        }
+        // Live push guard: refuse to write against a null baseline — force deep-pull first.
+        if (!hasBaseline) {
+          noBaseline++;
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: "skipped_no_baseline",
+            error: "last_pull_snapshot is null — run Phase 1 deep-pull before pushing.",
           });
           continue;
         }
@@ -978,7 +994,7 @@ Deno.serve(async (req) => {
 
       return json(200, {
         ok: true,
-        summary: { total: maps.length, planned, unchanged, pushed, failed, skipped },
+        summary: { total: maps.length, planned, unchanged, pushed, failed, skipped, no_baseline: noBaseline },
         rows,
         pilot: {
           verified_at: settingsRow?.push_pilot_verified_at || null,

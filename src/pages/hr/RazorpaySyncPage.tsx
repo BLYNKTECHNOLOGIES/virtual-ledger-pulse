@@ -21,7 +21,8 @@ interface Settings {
 interface PushRow {
   razorpay_employee_id: string;
   hr_employee_id?: string;
-  status: "planned" | "unchanged" | "pushed" | "failed";
+  status: "planned" | "unchanged" | "pushed" | "failed" | "no_baseline" | "skipped_no_baseline";
+  baseline_missing?: boolean;
   changed: string[];
   conflicts?: string[];
   payload_field_names?: string[];
@@ -29,7 +30,7 @@ interface PushRow {
 }
 interface PushResponse {
   ok: boolean;
-  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number };
+  summary: { total: number; planned: number; unchanged: number; pushed: number; failed: number; skipped: number; no_baseline?: number };
   rows: PushRow[];
   pilot: { verified_at: string | null; bulk_unlocked: boolean };
 }
@@ -662,6 +663,9 @@ export default function RazorpaySyncPage() {
                   <span>Unchanged: <b>{r.summary.unchanged}</b></span>
                   <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
                   <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
+                  {!!r.summary.no_baseline && (
+                    <span className="text-amber-600">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
+                  )}
                 </div>
                 <table className="w-full text-xs">
                   <thead className="bg-muted/30">
@@ -682,6 +686,8 @@ export default function RazorpaySyncPage() {
                           {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
                           {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
                           {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
+                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no baseline</Badge>}
+                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
                         </td>
                         <td className="p-2 text-muted-foreground">{row.changed.join(", ") || "—"}</td>
                         <td className="p-2 text-amber-600">{row.conflicts?.join(", ") || "—"}</td>

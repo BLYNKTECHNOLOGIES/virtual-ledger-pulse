@@ -8253,6 +8253,7 @@ export type Database = {
           base_url: string
           bulk_bank_push_unlocked: boolean
           bulk_push_unlocked: boolean
+          bulk_salary_push_unlocked: boolean
           bulk_sync_unlocked: boolean
           created_at: string
           id: string
@@ -8261,17 +8262,25 @@ export type Database = {
           last_creds_validated_at: string | null
           last_import_at: string | null
           last_push_at: string | null
+          last_salary_push_at: string | null
           push_bank_enabled: boolean
           push_bank_pilot_hr_employee_id: string | null
           push_bank_pilot_verified_at: string | null
           push_pilot_hr_employee_id: string | null
           push_pilot_verified_at: string | null
+          push_salary_endpoint_verified: boolean
+          push_salary_envelope_key: string | null
+          push_salary_envelope_verified_at: string | null
+          push_salary_envelope_verified_by: string | null
+          push_salary_pilot_hr_employee_id: string | null
+          push_salary_pilot_verified_at: string | null
           updated_at: string
         }
         Insert: {
           base_url?: string
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
+          bulk_salary_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           created_at?: string
           id?: string
@@ -8280,17 +8289,25 @@ export type Database = {
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_push_at?: string | null
+          last_salary_push_at?: string | null
           push_bank_enabled?: boolean
           push_bank_pilot_hr_employee_id?: string | null
           push_bank_pilot_verified_at?: string | null
           push_pilot_hr_employee_id?: string | null
           push_pilot_verified_at?: string | null
+          push_salary_endpoint_verified?: boolean
+          push_salary_envelope_key?: string | null
+          push_salary_envelope_verified_at?: string | null
+          push_salary_envelope_verified_by?: string | null
+          push_salary_pilot_hr_employee_id?: string | null
+          push_salary_pilot_verified_at?: string | null
           updated_at?: string
         }
         Update: {
           base_url?: string
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
+          bulk_salary_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           created_at?: string
           id?: string
@@ -8299,11 +8316,18 @@ export type Database = {
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_push_at?: string | null
+          last_salary_push_at?: string | null
           push_bank_enabled?: boolean
           push_bank_pilot_hr_employee_id?: string | null
           push_bank_pilot_verified_at?: string | null
           push_pilot_hr_employee_id?: string | null
           push_pilot_verified_at?: string | null
+          push_salary_endpoint_verified?: boolean
+          push_salary_envelope_key?: string | null
+          push_salary_envelope_verified_at?: string | null
+          push_salary_envelope_verified_by?: string | null
+          push_salary_pilot_hr_employee_id?: string | null
+          push_salary_pilot_verified_at?: string | null
           updated_at?: string
         }
         Relationships: []

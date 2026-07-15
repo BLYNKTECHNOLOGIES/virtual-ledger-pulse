@@ -26,6 +26,7 @@ export default function BiometricDevicesPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [dataDevice, setDataDevice] = useState<any | null>(null);
 
   const { data: devices = [], isLoading } = useQuery({
     queryKey: ["hr_biometric_devices"],

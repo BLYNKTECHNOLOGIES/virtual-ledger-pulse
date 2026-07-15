@@ -86,15 +86,15 @@ Deno.serve(async (req) => {
 
     if (action === "introspect_envelope") {
       const auth = btoa(`${KEY_ID}:${KEY_SECRET}`);
-      // Try several candidate hosts/paths — the payroll.razorpay.com host serves a marketing HTML page,
-      // so we widen the search to the documented API bases.
+      // RazorpayX Payroll (Opfin) API bases. Wrap each fetch so DNS/network errors don't abort the probe.
       const CANDIDATES = [
+        { url: "https://payroll.razorpay.com/api/v1/employees?skip=0&count=10" },
+        { url: "https://payroll.razorpay.com/api/v1/employees" },
+        { url: "https://payroll.razorpay.com/api/v1/organizations" },
+        { url: "https://payroll.razorpay.com/api/v1/contractors?skip=0&count=10" },
+        { url: "https://api.opfin.com/api/v1/employees?skip=0&count=10" },
+        { url: "https://opfin.com/api/v1/employees?skip=0&count=10" },
         { url: "https://api.razorpay.com/v1/payroll/employees?skip=0&count=10" },
-        { url: "https://api.razorpay.com/v1/payroll/employees?page=1&count=10" },
-        { url: "https://api.razorpay.com/v1/payroll/employees" },
-        { url: "https://api.razorpay.com/v1/payroll/organizations" },
-        { url: "https://api.razorpay.com/v1/payroll/contractors?skip=0&count=10" },
-        { url: "https://payroll-api.razorpay.com/v1/employees?skip=0&count=10" },
         { url: "https://payroll.razorpay.com/v1/employees?skip=0&count=10" },
       ];
       const attempts: any[] = [];

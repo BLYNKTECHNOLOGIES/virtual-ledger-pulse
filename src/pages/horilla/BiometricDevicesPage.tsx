@@ -158,6 +158,7 @@ export default function BiometricDevicesPage() {
             <div><Label>Password</Label><Input className="h-9" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="0" /></div>
             <div><Label>Device Direction</Label><Select value={form.device_direction} onValueChange={(v) => setForm({ ...form, device_direction: v })}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent>{DEVICE_DIRECTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Company</Label><Input className="h-9" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Company name" /></div>
+            <div><Label>Device Serial (SN) <span className="text-muted-foreground text-xs">— required for iclock push</span></Label><Input className="h-9 font-mono" value={form.device_serial} onChange={(e) => setForm({ ...form, device_serial: e.target.value.trim() })} placeholder="e.g. CJXK202160002" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" className="h-9" onClick={() => setShowDialog(false)}>Cancel</Button>

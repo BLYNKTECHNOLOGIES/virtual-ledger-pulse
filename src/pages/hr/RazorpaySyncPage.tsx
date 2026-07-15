@@ -164,7 +164,38 @@ export default function RazorpaySyncPage() {
     } finally { setUnlocking(false); }
   };
 
-  // Chunk large ranges into smaller batches to avoid the 30s client-side
+  // Deep pull: iterate mapped ids in chunks to stay within edge fn timeout.
+  const runDeepPull = async () => {
+    if (!confirm("Deep-pull people:view for every mapped Razorpay employee and project into HRMS?\n\nERP-authored fields are never overwritten; only empty fields are filled.")) return;
+    setPulling(true); setPullResult(null);
+    try {
+      const { data: maps, error } = await supabase
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .order("razorpay_employee_id");
+      if (error) throw error;
+      const ids = (maps || []).map((r: any) => r.razorpay_employee_id);
+      const CHUNK = 15;
+      const agg = { total: 0, pulled: 0, projected_writes: 0, missed: 0, errored: 0 };
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const d = await invoke<{ ok: boolean; summary: typeof agg }>({
+          action: "pull_person_full",
+          razorpay_employee_ids: slice,
+        });
+        agg.total += d.summary.total;
+        agg.pulled += d.summary.pulled;
+        agg.projected_writes += d.summary.projected_writes;
+        agg.missed += d.summary.missed;
+        agg.errored += d.summary.errored;
+      }
+      setPullResult(agg);
+      toast({ title: "Deep pull complete", description: `${agg.pulled} pulled · ${agg.projected_writes} employees updated · ${agg.missed} missed` });
+      await reloadGaps();
+    } catch (e: any) {
+      toast({ title: "Deep pull failed", description: e?.message, variant: "destructive" });
+    } finally { setPulling(false); }
+  };
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
   // well under the timeout while the overall run can cover 100s of IDs.
   const CHUNK_SIZE = 20;

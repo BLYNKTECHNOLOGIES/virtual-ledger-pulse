@@ -387,6 +387,51 @@ export default function RazorpaySyncPage() {
         </Card>
       )}
 
+      {/* PHASE 1a — Deep pull + Completion readiness */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Phase 1a — Deep pull &amp; completion readiness</CardTitle>
+          <CardDescription>
+            Re-fetch <code>people:view</code> for every mapped Razorpay employee and project the payload
+            into <code>hr_employees</code> / <code>hr_employee_work_info</code> / <code>hr_employee_bank_details</code>.
+            ERP-authored values are never overwritten — only NULL/empty fields are filled.
+            Nothing is pushed back to Razorpay.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" onClick={runDeepPull} disabled={pulling}>
+              {pulling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Run deep pull for all mapped IDs
+            </Button>
+            {pullResult && (
+              <span className="text-xs text-muted-foreground">
+                {pullResult.pulled} pulled · {pullResult.projected_writes} employees updated · {pullResult.missed} missed · {pullResult.errored} errored
+              </span>
+            )}
+          </div>
+          {gaps && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2">
+              <GapChip label="Mapped drafts" value={gaps.total} tone="neutral" />
+              <GapChip label="Not yet pulled" value={gaps.not_pulled} tone={gaps.not_pulled ? "warn" : "ok"} />
+              <GapChip label="Missing PAN" value={gaps.missing_pan} tone={gaps.missing_pan ? "warn" : "ok"} />
+              <GapChip label="Missing bank" value={gaps.missing_bank} tone={gaps.missing_bank ? "warn" : "ok"} />
+              <GapChip label="Missing DOJ" value={gaps.missing_doj} tone={gaps.missing_doj ? "warn" : "ok"} />
+              <GapChip label="Missing dept/role" value={gaps.missing_dept + gaps.missing_designation} tone={(gaps.missing_dept + gaps.missing_designation) ? "warn" : "ok"} />
+            </div>
+          )}
+          {gaps && (gaps.missing_pan || gaps.missing_bank || gaps.missing_doj || gaps.missing_dept || gaps.missing_designation) > 0 && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="text-xs">Onboarding gaps remain</AlertTitle>
+              <AlertDescription className="text-xs">
+                RazorpayX did not supply every required field. HR must complete these in the Onboarding Pipeline before activating drafts. Bulk ERP→Razorpay push does not open until zero drafts have missing bank / PAN / DOJ / department fields.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
       {/* STEP 3 — Bulk */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>

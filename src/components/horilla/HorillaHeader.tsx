@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Bell, Moon, Menu, User, Check } from "lucide-react";
+import { Search, Bell, Moon, Sun, Menu, User, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,16 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() =>
+    typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+  );
+
+  const toggleDarkMode = () => {
+    const next = !isDark;
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch {}
+    setIsDark(next);
+  };
 
   // Fetch user's notification preferences
   const { data: preferences } = useQuery({
@@ -96,8 +106,13 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
       <div className="flex items-center gap-1 shrink-0">
         {!isMobile && (
-          <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-            <Moon className="h-5 w-5" />
+          <button
+            onClick={toggleDarkMode}
+            aria-label="Toggle dark mode"
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+          >
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
         )}
 

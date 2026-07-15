@@ -71,6 +71,15 @@ export default function RazorpaySyncPage() {
   const [pullResult, setPullResult] = useState<{ total: number; pulled: number; projected_writes: number; missed: number; errored: number } | null>(null);
   const [gaps, setGaps] = useState<{ total: number; missing_pan: number; missing_doj: number; missing_dept: number; missing_designation: number; missing_bank: number; not_pulled: number } | null>(null);
 
+  // Phase 2 — Probe catalogue
+  type ProbeRow = {
+    phase: string; key: string; mode: "read" | "write";
+    status: "ok" | "fail" | "not_probed"; http_status: number | null; error: string | null;
+  };
+  const [probing, setProbing] = useState(false);
+  const [probeRows, setProbeRows] = useState<ProbeRow[] | null>(null);
+  const [probeId, setProbeId] = useState<number | null>(null);
+
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")

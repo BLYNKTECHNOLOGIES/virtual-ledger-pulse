@@ -86,14 +86,6 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     queryFn: async () => (await (supabase as any).from("hr_biometric_device_photos").select("id,pin,kind,size_bytes,photo_base64,punch_time,captured_at").eq("device_serial", serial).order("captured_at", { ascending: false }).limit(60)).data || [],
   });
 
-  const queueCmd = async (cmd: string) => {
-    if (!serial) return;
-    const { error } = await (supabase as any).from("hr_biometric_device_commands").insert({
-      device_serial: serial, command_text: cmd, status: "pending",
-    });
-    if (error) return toast.error(error.message);
-    toast.success("Command queued — device will pick it up on next heartbeat");
-  };
 
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);

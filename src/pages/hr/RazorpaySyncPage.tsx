@@ -247,6 +247,57 @@ export default function RazorpaySyncPage() {
       toast({ title: "Probe run failed", description: e?.message, variant: "destructive" });
     } finally { setProbing(false); }
   };
+
+  // ---- Phase 3 handlers ----
+  const runPushDryRun = async () => {
+    setPushDrying(true); setPushDryResult(null);
+    try {
+      const body: any = { action: "push_person_dry_run" };
+      if (pushRpId.trim()) body.razorpay_employee_id = pushRpId.trim();
+      const d = await invoke<PushResponse>(body);
+      setPushDryResult(d);
+      toast({ title: "Push dry-run complete", description: `${d.summary.planned} would change · ${d.summary.unchanged} unchanged` });
+    } catch (e: any) {
+      toast({ title: "Push dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setPushDrying(false); }
+  };
+  const runPushApplyOne = async () => {
+    const id = pushRpId.trim();
+    if (!id) { toast({ title: "Enter a Razorpay employee ID first", variant: "destructive" }); return; }
+    if (!confirm(`Push ERP → Razorpay for employee ${id}?\n\nThis writes to Live RazorpayX Payroll.`)) return;
+    setPushApplyingOne(true); setPushApplyResult(null);
+    try {
+      const d = await invoke<PushResponse>({ action: "push_person_apply_one", razorpay_employee_id: id });
+      setPushApplyResult(d);
+      toast({ title: "Pilot push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Pilot push failed", description: e?.message, variant: "destructive" });
+    } finally { setPushApplyingOne(false); }
+  };
+  const runPushUnlockBulk = async () => {
+    if (!confirm("Unlock bulk push to Razorpay?\n\nAfter this, apply-bulk will POST people:update for every mapped employee whose ERP state has diverged.")) return;
+    setPushUnlocking(true);
+    try {
+      await invoke({ action: "unlock_bulk_push" });
+      toast({ title: "Bulk push unlocked" });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Unlock failed", description: e?.message, variant: "destructive" });
+    } finally { setPushUnlocking(false); }
+  };
+  const runPushApplyBulk = async () => {
+    if (!confirm("Apply bulk push to Razorpay for ALL mapped employees with divergent identity fields?")) return;
+    setPushApplyingBulk(true); setPushApplyResult(null);
+    try {
+      const d = await invoke<PushResponse>({ action: "push_person_apply_bulk" });
+      setPushApplyResult(d);
+      toast({ title: "Bulk push complete", description: `${d.summary.pushed} pushed · ${d.summary.failed} failed · ${d.summary.unchanged} unchanged` });
+      await reloadSettings();
+    } catch (e: any) {
+      toast({ title: "Bulk push failed", description: e?.message, variant: "destructive" });
+    } finally { setPushApplyingBulk(false); }
+  };
   // fetch timeout (see src/integrations/supabase/client.ts). Each chunk stays
   // well under the timeout while the overall run can cover 100s of IDs.
   const CHUNK_SIZE = 20;

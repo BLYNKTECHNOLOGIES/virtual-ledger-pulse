@@ -1603,6 +1603,7 @@ export default function RazorpaySyncPage() {
       )}
 
       {/* Step F · Send monthly attendance & LOP to RazorpayX (discovery-first: writes blocked until envelope verified) */}
+      <Station letter="F" title="Send monthly attendance & LOP" subtitle="HRMS totals working, present, paid-leave and LOP days, then pushes them for payroll." status={stationStatus("F")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">

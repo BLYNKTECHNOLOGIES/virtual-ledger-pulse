@@ -1278,7 +1278,6 @@ export default function RazorpaySyncPage() {
       {/* ▼ Payroll Sync Journey — sticky roadmap navigator (two rails: A–E setup, F–J monthly) */}
       <RoadmapJourneyNav steps={stationSteps} railBreakAfter="E" />
 
-      {/* ── One-time setup rail (Stations A–E) ── */}
       {(() => {
         const setupFullyDone = (SETUP_LETTERS as readonly string[]).every(
           (l) => stationSteps.find((s) => s.letter === l)?.status === "done"
@@ -1304,15 +1303,10 @@ export default function RazorpaySyncPage() {
           </div>
         );
       })()}
-      {(() => {
-        const setupFullyDone = (SETUP_LETTERS as readonly string[]).every(
-          (l) => stationSteps.find((s) => s.letter === l)?.status === "done"
-        );
-        const collapsed = setupCollapsedManual === null ? setupFullyDone : setupCollapsedManual;
-        return collapsed ? null : <SetupRailContent />;
-      })()}
-      {/* Legacy inline content follows; wrap into fragment via IIFE component below */}
-      <SetupRailStart />
+      {(setupCollapsedManual === null
+        ? !(SETUP_LETTERS as readonly string[]).every((l) => stationSteps.find((s) => s.letter === l)?.status === "done")
+        : !setupCollapsedManual) && (
+      <>
       {/* Step A — Deep pull + Completion readiness */}
       <Station letter="A" title="Get latest employee info from RazorpayX" subtitle="Copies employee details into HRMS. Only fills empty fields. Nothing is sent out." status={stationStatus("A")} />
       <Card>

@@ -1777,9 +1777,9 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
         </div>
 
         {run && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
-            <GapChip label="Status" value={0} tone="neutral" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
+
               <div className="text-[10px] uppercase tracking-wide opacity-70">Status</div>
               <div className="text-base font-semibold">{run.status}</div>
             </div>

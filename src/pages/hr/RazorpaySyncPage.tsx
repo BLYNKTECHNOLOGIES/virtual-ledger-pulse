@@ -628,7 +628,7 @@ export default function RazorpaySyncPage() {
       setAttDryResult(d);
       toast({
         title: "Attendance dry-run complete",
-        description: `${d.summary.planned} rows · working days: ${d.summary.working_days}`,
+        description: `${d.summary.planned} rows · working days: ${d.summary.working_days_range ? `${d.summary.working_days_range.min}–${d.summary.working_days_range.max}` : (d.summary.working_days ?? "—")}${d.tenant_warnings?.length ? ` · ${d.tenant_warnings.length} warning(s)` : ""}`,
       });
     } catch (e: any) {
       toast({ title: "Attendance dry-run failed", description: e?.message, variant: "destructive" });

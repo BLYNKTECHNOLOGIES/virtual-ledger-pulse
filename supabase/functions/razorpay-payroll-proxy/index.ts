@@ -259,6 +259,37 @@ function pickPatch<T extends Record<string, any>>(current: T | null, incoming: R
   return { patch, wrote, conflicts };
 }
 
+// Resolve a positions.id by case-/whitespace-insensitive title match,
+// creating the row on first sight so RazorpayX titles never end up unlinked.
+async function resolveOrCreatePositionId(svc: SupabaseClient, rawTitle: string): Promise<string | null> {
+  const canonical = (rawTitle || "").trim();
+  if (!canonical) return null;
+  const norm = canonical.toLowerCase();
+  const { data: existing } = await svc
+    .from("positions")
+    .select("id,title")
+    .ilike("title", canonical)
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+  // Extra safety: scan for any title whose trimmed lowercase equals ours (handles
+  // legacy rows with embedded whitespace). If found, reuse; otherwise create.
+  const { data: fuzzy } = await svc
+    .from("positions")
+    .select("id,title")
+    .ilike("title", `%${canonical}%`)
+    .limit(20);
+  const hit = (fuzzy || []).find((p: any) => (p.title || "").trim().toLowerCase() === norm);
+  if (hit?.id) return hit.id as string;
+  const { data: created, error } = await svc
+    .from("positions")
+    .insert({ title: canonical, is_active: true, hierarchy_level: 5 })
+    .select("id")
+    .maybeSingle();
+  if (error || !created?.id) return null;
+  return created.id as string;
+}
+
 async function projectSnapshotIntoErp(
   svc: SupabaseClient,
   hrId: string,
@@ -286,12 +317,11 @@ async function projectSnapshotIntoErp(
   let departmentId: string | null = null;
   let jobPositionId: string | null = null;
   if (deptName) {
-    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName).limit(1).maybeSingle();
+    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName.trim()).limit(1).maybeSingle();
     if (d?.id) departmentId = d.id;
   }
   if (jobTitle) {
-    const { data: p } = await svc.from("positions").select("id").ilike("title", jobTitle).limit(1).maybeSingle();
-    if (p?.id) jobPositionId = p.id;
+    jobPositionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
   const wiIncoming: Record<string, any> = {
     joining_date: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
@@ -353,12 +383,11 @@ async function projectSnapshotIntoOnboarding(
   let departmentId: string | null = null;
   let positionId: string | null = null;
   if (deptName) {
-    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName).limit(1).maybeSingle();
+    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName.trim()).limit(1).maybeSingle();
     if (d?.id) departmentId = d.id;
   }
   if (jobTitle) {
-    const { data: p } = await svc.from("positions").select("id").ilike("title", jobTitle).limit(1).maybeSingle();
-    if (p?.id) positionId = p.id;
+    positionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
 
   const incoming: Record<string, any> = {
@@ -1876,8 +1905,10 @@ Deno.serve(async (req) => {
       const hrIds = maps.map((m: any) => m.hr_employee_id).filter(Boolean);
 
       // Load attendance daily rows, leave requests overlapping the month, leave types,
-      // and holidays. All are ERP-truth; we do not read any Razorpay-side attendance.
-      const [attRes, leaveRes, ltRes, holRes] = await Promise.all([
+      // holidays (in-month + recurring across years), weekly-off patterns, and
+      // per-employee weekly-off overrides. All are ERP-truth; we do not read any
+      // Razorpay-side attendance.
+      const [attRes, leaveRes, ltRes, holInMonthRes, holRecurRes, patRes, empOffRes] = await Promise.all([
         svc.from("hr_attendance_daily")
           .select("employee_id,attendance_date,total_hours,status")
           .in("employee_id", hrIds)
@@ -1890,49 +1921,53 @@ Deno.serve(async (req) => {
           .lte("start_date", monthEndISO)
           .gte("end_date", monthStartISO),
         svc.from("hr_leave_types").select("id,is_paid,name"),
-        svc.from("hr_holidays").select("date,is_active").eq("is_active", true)
+        svc.from("hr_holidays").select("date,name,is_active,recurring").eq("is_active", true)
           .gte("date", monthStartISO).lte("date", monthEndISO),
+        svc.from("hr_holidays").select("date,name,is_active,recurring").eq("is_active", true).eq("recurring", true),
+        svc.from("hr_weekly_off_patterns").select("id,name,weekly_offs,is_active").eq("is_active", true),
+        svc.from("hr_employee_weekly_off").select("employee_id,pattern_id,effective_from,is_current")
+          .in("employee_id", hrIds).eq("is_current", true).lte("effective_from", monthEndISO),
       ]);
       if (attRes.error) return json(500, { error: attRes.error.message });
       if (leaveRes.error) return json(500, { error: leaveRes.error.message });
       if (ltRes.error) return json(500, { error: ltRes.error.message });
-      if (holRes.error) return json(500, { error: holRes.error.message });
+      if (holInMonthRes.error) return json(500, { error: holInMonthRes.error.message });
+      if (holRecurRes.error) return json(500, { error: holRecurRes.error.message });
+      if (patRes.error) return json(500, { error: patRes.error.message });
+      if (empOffRes.error) return json(500, { error: empOffRes.error.message });
 
       const ltMap = new Map((ltRes.data || []).map((l: any) => [l.id, l]));
-      const holidayDates = new Set((holRes.data || []).map((h: any) => h.date));
-
-      // Period immutability: for each (razorpay_employee_id, period), count successful
-      // prior pushes vs recalls. A period stays LOCKED for re-push until the operator
-      // files an audited recall. Only matters on the write path — dry-runs stay open.
-      const pushedLocks = new Map<string, number>();
-      if (isWrite) {
-        const ids = maps.map((m: any) => String(m.razorpay_employee_id));
-        const { data: prior } = await svc.from("hr_razorpay_sync_log")
-          .select("action,razorpay_employee_id,field_diff_summary,http_status")
-          .in("razorpay_employee_id", ids)
-          .in("action", ["push_attendance", "push_attendance_recall"] as any);
-        for (const r of (prior || []) as any[]) {
-          const p = r?.field_diff_summary?.period;
-          if (p !== period) continue;
-          const key = `${r.razorpay_employee_id}`;
-          const delta = r.action === "push_attendance_recall" ? -1
-            : (r.http_status >= 200 && r.http_status < 300 ? 1 : 0);
-          pushedLocks.set(key, (pushedLocks.get(key) || 0) + delta);
+      // Holidays: in-month rows + recurring rows whose month-day falls in this month.
+      const holidayDates = new Set<string>();
+      const holidayNames = new Map<string, string>();
+      for (const h of (holInMonthRes.data || []) as any[]) {
+        holidayDates.add(h.date);
+        holidayNames.set(h.date, h.name);
+      }
+      for (const h of (holRecurRes.data || []) as any[]) {
+        if (!h.date) continue;
+        const md = String(h.date).slice(5); // MM-DD
+        const iso = `${year}-${md}`;
+        // Ensure the recurring date is actually in this month
+        if (iso >= monthStartISO && iso <= monthEndISO) {
+          holidayDates.add(iso);
+          if (!holidayNames.has(iso)) holidayNames.set(iso, h.name);
         }
       }
 
-      // Working days = calendar days minus Sundays minus active holidays. This is a
-      // documented ERP assumption; if the tenant uses a Mon–Fri or different weekly-off
-      // pattern the operator must reconcile in Razorpay after the push. The dry-run
-      // exposes the assumed working_days count so the operator can catch mismatches.
-      let workingDays = 0;
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dt = new Date(Date.UTC(year, month - 1, d));
-        const iso = dt.toISOString().slice(0, 10);
-        const dow = dt.getUTCDay(); // 0 = Sunday
-        if (dow === 0) continue;
-        if (holidayDates.has(iso)) continue;
-        workingDays++;
+      // Pattern lookup. Default = Sunday-only off ([0]) if no active patterns exist.
+      const patternMap = new Map<string, number[]>();
+      let defaultPattern: number[] = [0];
+      for (const p of (patRes.data || []) as any[]) {
+        const arr = Array.isArray(p.weekly_offs) ? p.weekly_offs.map((n: any) => Number(n)).filter((n: number) => n >= 0 && n <= 6) : [];
+        patternMap.set(p.id, arr);
+        // First active pattern becomes the tenant default when no per-employee override exists.
+        if (defaultPattern.length === 1 && defaultPattern[0] === 0 && arr.length) defaultPattern = arr;
+      }
+      const empPatternMap = new Map<string, number[]>();
+      for (const r of (empOffRes.data || []) as any[]) {
+        const arr = patternMap.get(r.pattern_id);
+        if (arr && arr.length) empPatternMap.set(r.employee_id, arr);
       }
 
       const attByEmp = new Map<string, Set<string>>();
@@ -1943,28 +1978,72 @@ Deno.serve(async (req) => {
         attByEmp.set(r.employee_id, s);
       }
 
-      // Overlap the leave request with the month window; split into paid vs unpaid days.
+      // Per-employee working-day + leave computation (weekly-off pattern varies per emp).
+      const workingDaysByEmp = new Map<string, number>();
       const paidByEmp = new Map<string, number>();
       const unpaidByEmp = new Map<string, number>();
+      const configErrorsByEmp = new Map<string, string[]>();
+
+      const leavesByEmp = new Map<string, any[]>();
       for (const lr of (leaveRes.data || []) as any[]) {
-        const lt = ltMap.get(lr.leave_type_id);
-        const isPaid = lt ? !!lt.is_paid : true; // conservative: default paid to avoid over-deducting LOP
-        const ls = new Date(lr.start_date + "T00:00:00Z");
-        const le = new Date(lr.end_date + "T00:00:00Z");
-        const os = ls < monthStart ? monthStart : ls;
-        const oe = le > monthEnd ? monthEnd : le;
-        if (oe < os) continue;
-        // Count working-day overlap only.
-        let count = 0;
-        for (let t = os.getTime(); t <= oe.getTime(); t += 86400000) {
-          const dt = new Date(t);
+        const list = leavesByEmp.get(lr.employee_id) || [];
+        list.push(lr);
+        leavesByEmp.set(lr.employee_id, list);
+      }
+
+      for (const hrId of hrIds) {
+        const offDays = new Set<number>(empPatternMap.get(hrId) || defaultPattern);
+        // Working days for this employee
+        let wd = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dt = new Date(Date.UTC(year, month - 1, d));
           const iso = dt.toISOString().slice(0, 10);
-          if (dt.getUTCDay() === 0) continue;
+          if (offDays.has(dt.getUTCDay())) continue;
           if (holidayDates.has(iso)) continue;
-          count += lr.is_half_day ? 0.5 : 1;
+          wd++;
         }
-        if (isPaid) paidByEmp.set(lr.employee_id, (paidByEmp.get(lr.employee_id) || 0) + count);
-        else unpaidByEmp.set(lr.employee_id, (unpaidByEmp.get(lr.employee_id) || 0) + count);
+        workingDaysByEmp.set(hrId, wd);
+
+        // Leaves (working-day overlap only), split paid vs unpaid; unresolved is_paid = config error.
+        let paid = 0, unpaid = 0;
+        const errs: string[] = [];
+        for (const lr of leavesByEmp.get(hrId) || []) {
+          const lt = ltMap.get(lr.leave_type_id);
+          if (!lt || lt.is_paid === null || lt.is_paid === undefined) {
+            errs.push(`Leave type "${lt?.name || lr.leave_type_id}" has no paid/unpaid setting — fix it in Leave Types before payroll.`);
+            continue;
+          }
+          const isPaid = !!lt.is_paid;
+          const ls = new Date(lr.start_date + "T00:00:00Z");
+          const le = new Date(lr.end_date + "T00:00:00Z");
+          const os = ls < monthStart ? monthStart : ls;
+          const oe = le > monthEnd ? monthEnd : le;
+          if (oe < os) continue;
+          let count = 0;
+          for (let t = os.getTime(); t <= oe.getTime(); t += 86400000) {
+            const dt = new Date(t);
+            const iso = dt.toISOString().slice(0, 10);
+            if (offDays.has(dt.getUTCDay())) continue;
+            if (holidayDates.has(iso)) continue;
+            count += lr.is_half_day ? 0.5 : 1;
+          }
+          if (isPaid) paid += count; else unpaid += count;
+        }
+        paidByEmp.set(hrId, paid);
+        unpaidByEmp.set(hrId, unpaid);
+        if (errs.length) configErrorsByEmp.set(hrId, Array.from(new Set(errs)));
+      }
+
+      // Tenant-level advisory flags surfaced in the summary so an operator can spot silent
+      // config drift (0 holidays, no explicit weekly-off pattern, etc.) at a glance.
+      const tenantWarnings: string[] = [];
+      if (holidayDates.size === 0) {
+        tenantWarnings.push(`No holidays configured for ${period}. LOP will treat every non-weekly-off day as a working day — verify hr_holidays before applying.`);
+      }
+      if (!empOffRes.data?.length && (!patRes.data?.length)) {
+        tenantWarnings.push("No weekly-off patterns configured. Defaulting to Sunday-only off for every employee.");
+      } else if (!empOffRes.data?.length) {
+        tenantWarnings.push(`No per-employee weekly-off overrides — using tenant default pattern [${defaultPattern.join(",")}] (0=Sun … 6=Sat) for everyone.`);
       }
 
       const rows: any[] = [];
@@ -1973,16 +2052,18 @@ Deno.serve(async (req) => {
       for (const m of maps as any[]) {
         const eid = Number(m.razorpay_employee_id);
         if (!Number.isFinite(eid) || eid < 1 || !m.hr_employee_id) { skipped++; continue; }
+        const workingDays = workingDaysByEmp.get(m.hr_employee_id) || 0;
         const presentDays = (attByEmp.get(m.hr_employee_id) || new Set()).size;
         const paidLeave = Math.round(((paidByEmp.get(m.hr_employee_id) || 0)) * 2) / 2;
         const unpaidLeave = Math.round(((unpaidByEmp.get(m.hr_employee_id) || 0)) * 2) / 2;
+        const cfgErrs = configErrorsByEmp.get(m.hr_employee_id) || [];
         // LOP = working days the employee neither showed up nor took paid leave for.
         // Includes unpaid approved leave and unexplained absences.
         const attendedOrPaid = presentDays + paidLeave;
         const lopDays = Math.max(0, workingDays - attendedOrPaid);
-        // Sanity: unpaid_leave_days should be <= lop_days; if operator's paid_leave flag
-        // is wrong the delta will show up here.
         const unpaidCovered = Math.min(unpaidLeave, lopDays);
+        const empPatternUsed = empPatternMap.get(m.hr_employee_id) || defaultPattern;
+        const formula = `LOP = WD ${workingDays} − (present ${presentDays} + paid_leave ${paidLeave}) = ${lopDays}`;
         const payload = {
           period,
           working_days: workingDays,
@@ -1991,7 +2072,27 @@ Deno.serve(async (req) => {
           unpaid_leave_days: unpaidLeave,
           lop_days: lopDays,
           unpaid_matches_lop: Math.abs(unpaidCovered - unpaidLeave) < 0.01,
+          formula,
+          weekly_off_days: empPatternUsed,
+          weekly_off_source: empPatternMap.has(m.hr_employee_id) ? "per_employee" : (patRes.data?.length ? "tenant_default_pattern" : "hardcoded_sunday"),
+          holidays_in_month: holidayDates.size,
+          config_errors: cfgErrs,
         };
+
+        // Loud, non-silent guard: any leave type this employee touched had a NULL
+        // is_paid setting. Block the row rather than pick a silent default in either
+        // direction — money math must not paper over a configuration error.
+        if (cfgErrs.length) {
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "blocked_config_error",
+            ...payload,
+            error: cfgErrs.join(" "),
+          });
+          continue;
+        }
 
         // Explicit no-op class: zero ERP attendance AND zero leaves for the whole month
         // means we have NO source data for this employee — do not construct a "0 present /
@@ -2123,7 +2224,16 @@ Deno.serve(async (req) => {
       return json(200, {
         ok: true,
         period,
-        summary: { total: maps.length, planned, pushed, failed, skipped, working_days: workingDays },
+        summary: {
+          total: maps.length, planned, pushed, failed, skipped,
+          working_days_range: (() => {
+            const vals = Array.from(workingDaysByEmp.values());
+            if (!vals.length) return { min: 0, max: 0 };
+            return { min: Math.min(...vals), max: Math.max(...vals) };
+          })(),
+          holidays_in_month: holidayDates.size,
+        },
+        tenant_warnings: tenantWarnings,
         rows,
         envelope: {
           verified: !!settingsRow?.push_attendance_endpoint_verified,

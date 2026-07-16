@@ -592,7 +592,7 @@ Deno.serve(async (req) => {
     if (action === "probe_catalogue") {
       type Row = {
         phase: string; key: string; mode: "read" | "write";
-        status: "ok" | "fail" | "not_probed"; http_status: number | null;
+        status: "ok" | "fail" | "not_probed" | "skipped"; http_status: number | null;
         error: string | null; top_level_keys: string[] | null;
       };
       // Verified against RazorpayX Payroll Postman collection (Opfin).
@@ -617,13 +617,29 @@ Deno.serve(async (req) => {
         { phase: "Advance salary", key: "advance-salary:create", mode: "write" },
       ];
 
-      // Find a pilot-verified employee to attach to probes that require an ID.
-      const { data: pilot } = await svc
-        .from("hr_razorpay_employee_map")
-        .select("razorpay_employee_id")
-        .eq("is_pilot_verified", true)
-        .limit(1).maybeSingle();
-      const probeId = pilot?.razorpay_employee_id ?? null;
+      // Pilot IDs: prefer operator-configured probe IDs from settings, else
+      // fall back to any pilot-verified employee already mapped.
+      const { data: settingsRow } = await svc
+        .from("hr_razorpay_settings")
+        .select("probe_pilot_employee_id, probe_pilot_contractor_id")
+        .eq("is_singleton", true)
+        .maybeSingle();
+      const configuredEmpId = settingsRow?.probe_pilot_employee_id
+        ? String(settingsRow.probe_pilot_employee_id).trim() || null : null;
+      const configuredContractorId = settingsRow?.probe_pilot_contractor_id
+        ? String(settingsRow.probe_pilot_contractor_id).trim() || null : null;
+
+      let fallbackEmpId: string | null = null;
+      if (!configuredEmpId) {
+        const { data: pilot } = await svc
+          .from("hr_razorpay_employee_map")
+          .select("razorpay_employee_id")
+          .eq("is_pilot_verified", true)
+          .limit(1).maybeSingle();
+        fallbackEmpId = pilot?.razorpay_employee_id ? String(pilot.razorpay_employee_id) : null;
+      }
+      const probeEmployeeId = configuredEmpId ?? fallbackEmpId;
+      const probeContractorId = configuredContractorId;
 
       const rows: Row[] = [];
       for (const item of CATALOGUE) {
@@ -634,11 +650,6 @@ Deno.serve(async (req) => {
           continue;
         }
         const [resource, subType] = item.key.split(":");
-        // URL path in the doc doesn't always match the body's `type` field:
-        //   contractor-payment (body) → /api/contractorPayment (URL)
-        //   advance-salary     (body) → /api/advanceSalary     (URL)
-        //   attendance / att   (body) → /api/att               (URL)
-        // For probe keys we accept both spellings as the map key.
         const URL_MAP: Record<string, string> = {
           "contractor-payment": "contractorPayment",
           "advance-salary": "advanceSalary",
@@ -647,14 +658,37 @@ Deno.serve(async (req) => {
         };
         const bodyType = resource === "att" ? "attendance" : resource;
         const urlPath = URL_MAP[resource] ?? resource;
+
+        // Skip early when the sub-type requires an ID we don't have configured.
+        const needsEmployee = (bodyType === "people") || (bodyType === "attendance");
+        const needsContractor = (bodyType === "contractor-payment" && subType === "get-status");
+        if (needsEmployee && !probeEmployeeId) {
+          rows.push({
+            ...item, status: "skipped", http_status: null,
+            error: "No pilot employee configured — set one in probe settings above.",
+            top_level_keys: null,
+          });
+          continue;
+        }
+        if (needsContractor && !probeContractorId) {
+          rows.push({
+            ...item, status: "skipped", http_status: null,
+            error: "No pilot contractor configured — set one in probe settings above.",
+            top_level_keys: null,
+          });
+          continue;
+        }
+
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 12000);
         try {
           const body: any = { auth: authBlock(), request: { type: bodyType, "sub-type": subType } };
-          if (probeId && bodyType === "people") {
-            body.data = { "employee-id": probeId, "employee-type": "employee" };
-          } else if (probeId && bodyType === "contractor-payment" && subType === "get-status") {
-            body.data = { "employee-id": probeId };
+          if (bodyType === "people" && probeEmployeeId) {
+            body.data = { "employee-id": probeEmployeeId, "employee-type": "employee" };
+          } else if (bodyType === "attendance" && probeEmployeeId) {
+            body.data = { "employee-id": probeEmployeeId };
+          } else if (bodyType === "contractor-payment" && subType === "get-status" && probeContractorId) {
+            body.data = { "contractor-payment-id": probeContractorId };
           }
           const res = await fetch(`${BASE}/${urlPath}`, {
             method: "POST",
@@ -669,15 +703,32 @@ Deno.serve(async (req) => {
             ? Object.keys(parsed).slice(0, 20) : null;
           const errRaw = parsed && typeof parsed === "object" ? (parsed.error ?? parsed.message ?? null) : null;
           const errText = errRaw == null ? null : (typeof errRaw === "string" ? errRaw : JSON.stringify(errRaw));
-          const looksMissing = res.status === 404
-            || (typeof errText === "string" && /unknown|not\s*found|invalid\s*sub[-_ ]?type/i.test(errText));
-          rows.push({
-            ...item,
-            status: !looksMissing && res.ok && !errText ? "ok" : (looksMissing ? "fail" : "fail"),
-            http_status: res.status,
-            error: errText ? String(errText).slice(0, 200) : null,
-            top_level_keys: topKeys,
-          });
+
+          const looksMissingSubType = res.status === 404
+            || (typeof errText === "string" && /unknown|invalid\s*sub[-_ ]?type/i.test(errText));
+          // "No seed data on tenant" signatures: Opfin PHP surface returns
+          // these when the requested resource simply has nothing to enumerate
+          // (empty payroll month, no contractors, empty listing). Treat as
+          // skipped so operators aren't misled into thinking auth is broken.
+          const looksEmptySeed = typeof errText === "string" && (
+            /Undefined property:\s*stdClass::\$data/i.test(errText) ||
+            /foreach\(\)\s*argument\s*must\s*be\s*of\s*type\s*array/i.test(errText) ||
+            /no\s*(records|data|results)\s*found/i.test(errText)
+          );
+
+          let status: Row["status"];
+          let note = errText ? String(errText).slice(0, 200) : null;
+          if (!errText && res.ok) {
+            status = "ok";
+          } else if (looksEmptySeed) {
+            status = "skipped";
+            note = "Endpoint reachable — no seed data on this tenant to probe against.";
+          } else if (looksMissingSubType) {
+            status = "fail";
+          } else {
+            status = "fail";
+          }
+          rows.push({ ...item, status, http_status: res.status, error: note, top_level_keys: topKeys });
         } catch (e) {
           rows.push({ ...item, status: "fail", http_status: 0, error: (e as Error).message.slice(0, 200), top_level_keys: null });
         } finally {
@@ -694,14 +745,39 @@ Deno.serve(async (req) => {
           http_status: 200,
           field_diff_summary: {
             probe_run: true,
-            probe_id: probeId,
+            probe_employee_id: probeEmployeeId,
+            probe_contractor_id: probeContractorId,
             results: rows.map((r) => ({ key: r.key, status: r.status, http: r.http_status })),
           },
           actor_user_id: authed.userId,
         });
       } catch { /* logging is best-effort */ }
 
-      return json(200, { ok: true, probe_id: probeId, rows });
+      return json(200, {
+        ok: true,
+        probe_id: probeEmployeeId,
+        probe_employee_id: probeEmployeeId,
+        probe_contractor_id: probeContractorId,
+        rows,
+      });
+    }
+
+    // ---------- save_probe_pilots: operator sets probe pilot IDs ----------
+    if (action === "save_probe_pilots") {
+      const empId = typeof payload?.probe_pilot_employee_id === "string"
+        ? payload.probe_pilot_employee_id.trim() : "";
+      const conId = typeof payload?.probe_pilot_contractor_id === "string"
+        ? payload.probe_pilot_contractor_id.trim() : "";
+      const { error } = await svc.from("hr_razorpay_settings").update({
+        probe_pilot_employee_id: empId || null,
+        probe_pilot_contractor_id: conId || null,
+      }).eq("is_singleton", true);
+      if (error) return json(500, { error: error.message });
+      return json(200, {
+        ok: true,
+        probe_pilot_employee_id: empId || null,
+        probe_pilot_contractor_id: conId || null,
+      });
     }
 
 

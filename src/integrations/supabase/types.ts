@@ -9048,6 +9048,8 @@ export type Database = {
           last_salary_push_at: string | null
           last_taxdocs_pull_at: string | null
           ledger_recon_signoff_locked: boolean
+          probe_pilot_contractor_id: string | null
+          probe_pilot_employee_id: string | null
           pull_payouts_endpoint_verified: boolean
           pull_payouts_envelope_key: string | null
           pull_payouts_envelope_verified_at: string | null
@@ -9106,6 +9108,8 @@ export type Database = {
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
           ledger_recon_signoff_locked?: boolean
+          probe_pilot_contractor_id?: string | null
+          probe_pilot_employee_id?: string | null
           pull_payouts_endpoint_verified?: boolean
           pull_payouts_envelope_key?: string | null
           pull_payouts_envelope_verified_at?: string | null
@@ -9164,6 +9168,8 @@ export type Database = {
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
           ledger_recon_signoff_locked?: boolean
+          probe_pilot_contractor_id?: string | null
+          probe_pilot_employee_id?: string | null
           pull_payouts_endpoint_verified?: boolean
           pull_payouts_envelope_key?: string | null
           pull_payouts_envelope_verified_at?: string | null

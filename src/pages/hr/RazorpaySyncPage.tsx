@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -33,6 +34,8 @@ interface Settings {
   push_attendance_pilot_period?: string | null;
   bulk_attendance_push_unlocked?: boolean;
   last_attendance_push_at?: string | null;
+  probe_pilot_employee_id?: string | null;
+  probe_pilot_contractor_id?: string | null;
 }
 interface AttendanceRow {
   razorpay_employee_id: string;
@@ -176,11 +179,14 @@ export default function RazorpaySyncPage() {
   // Step B · Check which RazorpayX features are available
   type ProbeRow = {
     phase: string; key: string; mode: "read" | "write";
-    status: "ok" | "fail" | "not_probed"; http_status: number | null; error: string | null;
+    status: "ok" | "fail" | "not_probed" | "skipped"; http_status: number | null; error: string | null;
   };
   const [probing, setProbing] = useState(false);
   const [probeRows, setProbeRows] = useState<ProbeRow[] | null>(null);
-  const [probeId, setProbeId] = useState<number | null>(null);
+  const [probeId, setProbeId] = useState<string | number | null>(null);
+  const [probePilotEmpId, setProbePilotEmpId] = useState("");
+  const [probePilotContractorId, setProbePilotContractorId] = useState("");
+  const [savingProbePilots, setSavingProbePilots] = useState(false);
 
   // Phase 3 — Push people:update
   const [pushRpId, setPushRpId] = useState<string>("");
@@ -234,9 +240,12 @@ export default function RazorpaySyncPage() {
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")
-      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at")
+      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at,probe_pilot_employee_id,probe_pilot_contractor_id")
       .maybeSingle();
-    setSettings(data as Settings | null);
+    const s = data as Settings | null;
+    setSettings(s);
+    setProbePilotEmpId(s?.probe_pilot_employee_id ?? "");
+    setProbePilotContractorId(s?.probe_pilot_contractor_id ?? "");
   };
 
 
@@ -361,15 +370,33 @@ export default function RazorpaySyncPage() {
   const runProbeCatalogue = async () => {
     setProbing(true); setProbeRows(null);
     try {
-      const d = await invoke<{ ok: boolean; probe_id: number | null; rows: ProbeRow[] }>({ action: "probe_catalogue" });
+      const d = await invoke<{ ok: boolean; probe_id: string | number | null; rows: ProbeRow[] }>({ action: "probe_catalogue" });
       setProbeRows(d.rows || []);
       setProbeId(d.probe_id ?? null);
-      const okCount = (d.rows || []).filter((r) => r.status === "ok").length;
-      const failCount = (d.rows || []).filter((r) => r.status === "fail").length;
-      toast({ title: "Probe catalogue complete", description: `${okCount} confirmed · ${failCount} failed · ${(d.rows || []).length - okCount - failCount} pending (write)` });
+      const rowsArr = d.rows || [];
+      const okCount = rowsArr.filter((r) => r.status === "ok").length;
+      const failCount = rowsArr.filter((r) => r.status === "fail").length;
+      const skipCount = rowsArr.filter((r) => r.status === "skipped").length;
+      const pendingCount = rowsArr.filter((r) => r.status === "not_probed").length;
+      toast({ title: "Probe catalogue complete", description: `${okCount} confirmed · ${failCount} failed · ${skipCount} skipped · ${pendingCount} pending (write)` });
     } catch (e: any) {
       toast({ title: "Probe run failed", description: e?.message, variant: "destructive" });
     } finally { setProbing(false); }
+  };
+
+  const saveProbePilots = async () => {
+    setSavingProbePilots(true);
+    try {
+      await invoke({
+        action: "save_probe_pilots",
+        probe_pilot_employee_id: probePilotEmpId.trim(),
+        probe_pilot_contractor_id: probePilotContractorId.trim(),
+      });
+      await reloadSettings();
+      toast({ title: "Probe pilots saved", description: "Run the probe catalogue again to re-check the read endpoints." });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e?.message, variant: "destructive" });
+    } finally { setSavingProbePilots(false); }
   };
 
   // ---- Phase 3 handlers ----
@@ -1001,6 +1028,46 @@ export default function RazorpaySyncPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Probe pilot IDs — operator-provided seed IDs so read endpoints can resolve. */}
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="text-xs font-medium">Probe pilot IDs (optional)</div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Read endpoints like <code>people:view</code>, <code>attendance:fetch</code> and <code>contractor-payment:get-status</code> need a real ID on this tenant to probe against.
+              If left blank, those rows will be marked <span className="font-medium">skipped</span> instead of <span className="font-medium">failed</span>.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] text-muted-foreground">Pilot Razorpay employee ID</label>
+                <Input
+                  value={probePilotEmpId}
+                  onChange={(e) => setProbePilotEmpId(e.target.value)}
+                  placeholder="e.g. 39412345"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground">Pilot contractor-payment ID</label>
+                <Input
+                  value={probePilotContractorId}
+                  onChange={(e) => setProbePilotContractorId(e.target.value)}
+                  placeholder="e.g. 987654"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={saveProbePilots} disabled={savingProbePilots}>
+                {savingProbePilots && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save pilot IDs
+              </Button>
+              {(settings?.probe_pilot_employee_id || settings?.probe_pilot_contractor_id) && (
+                <span className="text-[11px] text-muted-foreground">
+                  Saved: emp <code>{settings?.probe_pilot_employee_id ?? "—"}</code> · contractor <code>{settings?.probe_pilot_contractor_id ?? "—"}</code>
+                </span>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" onClick={runProbeCatalogue} disabled={probing}>
               {probing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -1039,6 +1106,7 @@ export default function RazorpaySyncPage() {
                         {r.status === "ok" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">ok</Badge>}
                         {r.status === "fail" && <Badge variant="destructive" className="text-[10px]">fail</Badge>}
                         {r.status === "not_probed" && <Badge variant="outline" className="text-[10px]">pending</Badge>}
+                        {r.status === "skipped" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
                       </td>
                       <td className="p-2 tabular-nums">{r.http_status ?? "—"}</td>
                       <td className="p-2 text-muted-foreground truncate max-w-[280px]">{r.error ?? (r.status === "not_probed" ? "write sub-type — needs operator payload" : "—")}</td>

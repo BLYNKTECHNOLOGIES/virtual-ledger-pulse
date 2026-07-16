@@ -137,7 +137,19 @@ async function logSync(svc: SupabaseClient, row: {
   action: string; http_status: number; razorpay_employee_id: string;
   hr_employee_id?: string | null; field_diff_summary?: any; error_text?: string | null; actor_user_id: string;
 }) {
-  await svc.from("hr_razorpay_sync_log").insert(row);
+  const { error } = await svc.from("hr_razorpay_sync_log").insert(row);
+  if (error) {
+    // Loud failure: an audit trail that fails silently is worse than none.
+    // Surfacing lets us catch enum drift, RLS, or constraint issues immediately.
+    console.error("[logSync] insert failed", {
+      action: row.action,
+      http_status: row.http_status,
+      razorpay_employee_id: row.razorpay_employee_id,
+      error: error.message,
+      code: (error as any).code,
+      details: (error as any).details,
+    });
+  }
 }
 
 async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: string, isPilot: boolean, created: boolean) {

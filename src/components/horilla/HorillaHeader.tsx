@@ -85,24 +85,26 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   });
 
   return (
-    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-3 md:px-4 shrink-0 gap-2">
+    <header className="h-12 md:h-14 bg-card/90 backdrop-blur-sm border-b border-border flex items-center justify-between px-2 md:px-4 shrink-0 gap-2 supports-[padding:max(0px)]:pt-[max(0px,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
         <button
           onClick={onToggleSidebar}
-          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0"
+          aria-label="Toggle sidebar"
+          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0 active:scale-95"
         >
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 min-w-0 w-full sm:w-64 sm:max-w-none max-w-[220px]">
+        <div className="flex items-center bg-muted/60 rounded-lg border border-border px-3 py-1.5 min-w-0 w-full sm:w-64 sm:max-w-none max-w-[220px] focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
           <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
           <input
             type="text"
-            placeholder="Search anything..."
-            className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full min-w-0"
+            placeholder="Search…"
+            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full min-w-0"
           />
         </div>
       </div>
+
 
       <div className="flex items-center gap-1 shrink-0">
         {!isMobile && (
@@ -164,10 +166,12 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
         <button
           onClick={() => navigate("/dashboard")}
-          className="ml-1 w-9 h-9 rounded-full bg-[#6C63FF] flex items-center justify-center text-primary-foreground hover:bg-[#5a52e0] transition-colors"
+          aria-label="Open ERP dashboard"
+          className="ml-1 w-8 h-8 md:w-9 md:h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 active:scale-95 transition-all shadow-sm"
         >
-          <User className="h-5 w-5" />
+          <User className="h-4 w-4 md:h-5 md:w-5" />
         </button>
+
       </div>
     </header>
   );

@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, ShieldAlert, Lock, Play, ListChecks, CheckCircle2, DownloadCloud, AlertTriangle } from "lucide-react";
+import { Station, type StationStatus } from "./RoadmapStation";
+import { RoadmapJourneyNav } from "./RoadmapJourneyNav";
 
 interface Settings {
   base_url: string;
@@ -770,6 +772,33 @@ export default function RazorpaySyncPage() {
   const canBulk = !!settings?.bulk_sync_unlocked;
   const rowsToShow = applied?.rows ?? dryRun?.rows ?? [];
 
+  // Roadmap step statuses — derived from settings/pilot/unlock flags.
+  const stationSteps: { letter: string; title: string; status: StationStatus }[] = (() => {
+    const s = settings || ({} as any);
+    const done = (v: any) => !!v;
+    const arr: { letter: string; title: string; status: StationStatus }[] = [
+      { letter: "A", title: "Refresh from RazorpayX",   status: done(s.last_import_at) ? "done" : (canPilot ? "active" : "ready") },
+      { letter: "B", title: "Check available features", status: done(s.last_creds_validated_at) ? "done" : (canPilot ? "active" : "ready") },
+      { letter: "C", title: "Send name & contact",      status: done(s.bulk_push_unlocked) ? "done" : (done(s.push_pilot_verified_at) ? "active" : (canPilot ? "ready" : "locked")) },
+      { letter: "D", title: "Send bank & PAN",          status: done(s.bulk_bank_push_unlocked) ? "done" : (done(s.push_bank_pilot_verified_at) ? "active" : (canPilot ? "ready" : "locked")) },
+      { letter: "E", title: "Send salary structures",   status: done(s.bulk_salary_push_unlocked) ? "done" : (done(s.push_salary_pilot_verified_at) ? "active" : (canPilot ? "ready" : "locked")) },
+      { letter: "F", title: "Send attendance & LOP",    status: done(s.bulk_attendance_push_unlocked) ? "done" : (done(s.push_attendance_pilot_verified_at) ? "active" : (canPilot ? "ready" : "locked")) },
+      { letter: "G", title: "Run monthly payroll",      status: canBulk ? "ready" : "locked" },
+      { letter: "H", title: "Match payouts",            status: canBulk ? "ready" : "locked" },
+      { letter: "I", title: "Payslips & tax docs",      status: canBulk ? "ready" : "locked" },
+      { letter: "J", title: "Reconcile with ledger",    status: canBulk ? "ready" : "locked" },
+    ];
+    // Promote the first non-done step to "active" if no explicit active exists.
+    if (!arr.some(x => x.status === "active")) {
+      const idx = arr.findIndex(x => x.status !== "done" && x.status !== "locked");
+      if (idx >= 0) arr[idx].status = "active";
+    }
+    return arr;
+  })();
+  const stationStatus = (letter: string): StationStatus =>
+    stationSteps.find(s => s.letter === letter)?.status ?? "ready";
+
+
   return (
     <div className="space-y-6 p-6 max-w-6xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -984,8 +1013,13 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
+      {/* ▼ Payroll Sync Journey — sticky roadmap navigator */}
+      <RoadmapJourneyNav steps={stationSteps} />
+
       {/* Step A — Deep pull + Completion readiness */}
+      <Station letter="A" title="Refresh employee details from RazorpayX" subtitle="Pull the latest employee data — fills blanks only, never sends anything back." status={stationStatus("A")} />
       <Card>
+
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Step A · Refresh employee details from RazorpayX</CardTitle>
           <CardDescription>
@@ -1031,6 +1065,7 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {/* PHASE 2 — Probe & envelope catalogue */}
+      <Station letter="B" title="Check which RazorpayX features are available" subtitle="Confirms which read/write features your account can use. Read-only." status={stationStatus("B")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step B · Check which RazorpayX features are available</CardTitle>

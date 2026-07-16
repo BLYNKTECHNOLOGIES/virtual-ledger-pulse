@@ -1416,9 +1416,9 @@ export default function RazorpaySyncPage() {
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">Waiting for setup confirmation</AlertTitle>
+            <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
-              The live salary envelope has not been auto-verified. Probe candidate endpoints (Phase 2) with a pilot employee, and once you confirm which sub-type is accepted by Razorpay Live, record it here. Only then will apply buttons unlock.
+              We need to confirm which API name RazorpayX accepts for salary updates. Go to <b>Step B</b>, run "Check features", then type the working name (e.g. <code>people:update</code>) into the box below and save. After that, Preview will still work as before, and the "Send" buttons will unlock.
             </AlertDescription>
           </Alert>
 

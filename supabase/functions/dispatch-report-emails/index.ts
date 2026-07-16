@@ -41,7 +41,6 @@ serve(async (req) => {
     try { body = await req.json(); } catch { /* no body */ }
 
     const { date: today, minutes: nowMin } = istNow();
-    const WINDOW = 5; // cron cadence in minutes
 
     const { data: configs, error } = await supabase
       .from("report_email_configs")
@@ -56,8 +55,10 @@ serve(async (req) => {
         if (!cfg.enabled) continue;
         const cfgMin = parseHHMM(cfg.send_time);
         if (cfgMin === null) continue;
-        // Fire once when the current IST minute falls in [send_time, send_time+WINDOW).
-        if (!(nowMin >= cfgMin && nowMin < cfgMin + WINDOW)) continue;
+        // Catch-up semantics: fire once per IST day as soon as we're past send_time
+        // AND today's send hasn't been recorded. This survives short outages,
+        // deploy gaps, and transient 401s during the exact 5-minute cron slot.
+        if (nowMin < cfgMin) continue;
         if (cfg.last_sent_on === today) continue;
       }
 

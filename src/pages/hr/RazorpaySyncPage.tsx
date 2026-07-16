@@ -1638,6 +1638,8 @@ export default function RazorpaySyncPage() {
           )}
         </CardContent>
       </Card>
+
+      <PayrollRunSection invoke={invoke} />
     </div>
   );
 }

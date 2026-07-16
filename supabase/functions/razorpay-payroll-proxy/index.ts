@@ -1944,26 +1944,56 @@ Deno.serve(async (req) => {
       }
 
       // ---- recall_payroll_period ----------------------------------------
+      // Audited override that un-locks a period for re-push. Only meaningful for
+      // runs that already reached the wire (pilot_applied / bulk_applied / locked).
+      // Recall clears applied/failed line push_status so a subsequent apply can
+      // legitimately re-push the affected employees; source_snapshot is preserved
+      // for the audit trail. Also blocked if a Phase-10 ledger period is signed off
+      // for the same month — reopen ledger first.
       if (action === "recall_payroll_period") {
         if (!runRow) return json(404, { error: "No payroll run for that period." });
+        if (!["pilot_applied", "bulk_applied", "locked"].includes(runRow.status)) {
+          return json(400, {
+            error: `Recall is only valid for pilot_applied / bulk_applied / locked runs (current: ${runRow.status}). Use compute_payroll_run to redraft an earlier-stage run.`,
+          });
+        }
         const reason = String(payload?.reason || "").trim();
         if (reason.length < 12) return json(400, { error: "reason (min 12 chars) is required for recall" });
+
+        // Refuse if ledger period for this month is signed off.
+        const { data: ledgerPeriod } = await svc
+          .from("hr_razorpay_ledger_periods").select("status")
+          .eq("period_month", periodMonthISO).maybeSingle();
+        if (ledgerPeriod?.status === "signed_off") {
+          return json(400, {
+            error: "Ledger period for this month is signed off. Reopen the ledger period before recalling payroll.",
+          });
+        }
+
         await svc.from("hr_razorpay_payroll_runs").update({
           status: "recalled",
           recall_reason: reason,
           recalled_by: authed.userId,
           recalled_at: new Date().toISOString(),
         }).eq("id", runRow.id);
+
+        // Re-open applied/failed lines so a subsequent apply can re-push them.
+        // Preserve the source_snapshot for audit; only clear volatile push state.
+        await svc.from("hr_razorpay_payroll_run_lines")
+          .update({ push_status: "dry_run_ok", push_response: null, applied_at: null })
+          .eq("run_id", runRow.id)
+          .in("push_status", ["applied", "failed"]);
+
         await logSync(svc, {
           action: "payroll_recall",
           http_status: 0,
           razorpay_employee_id: "",
           hr_employee_id: null,
-          field_diff_summary: { period_month: periodMonthISO, reason_len: reason.length, run_id: runRow.id },
+          field_diff_summary: { period_month: periodMonthISO, reason_len: reason.length, run_id: runRow.id, prior_status: runRow.status },
           error_text: null,
           actor_user_id: authed.userId,
         });
-        return json(200, { ok: true });
+        return json(200, { ok: true, prior_status: runRow.status });
       }
 
       // Every remaining action mutates the run. Reject on locked periods.

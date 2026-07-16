@@ -1266,9 +1266,9 @@ export default function RazorpaySyncPage() {
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">High-blast-radius domain</AlertTitle>
+            <AlertTitle className="text-sm">⚠ This one changes where salary lands</AlertTitle>
             <AlertDescription className="text-xs">
-              Wrong account = wrong payout. This card intentionally does not batch silently — you must review the masked patch preview and confirm each apply.
+              Wrong account number = salary in wrong hands. For that reason this step never sends changes silently — you'll always see a masked preview and have to click "Confirm" for each apply.
             </AlertDescription>
           </Alert>
           <div className="flex flex-wrap items-center gap-2">

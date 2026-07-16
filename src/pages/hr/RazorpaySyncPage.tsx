@@ -1896,6 +1896,16 @@ export default function RazorpaySyncPage() {
           </div>
         </div>
       )}
+      </>
+      )}
+
+      {/* ── Monthly cycle rail (Stations F–J) ── */}
+      <div className="flex items-center gap-2 pt-2">
+        <div className="h-px w-6 bg-primary/40" />
+        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+          Monthly cycle · Steps F–J
+        </div>
+      </div>
 
       {/* Step F · Send monthly attendance & LOP to RazorpayX (discovery-first: writes blocked until envelope verified) */}
       <Station letter="F" title="Send monthly attendance & unpaid leaves" subtitle="HRMS adds up working days, present days, paid leave and unpaid leave (LOP) — then sends them for salary calculation." status={stationStatus("F")} />

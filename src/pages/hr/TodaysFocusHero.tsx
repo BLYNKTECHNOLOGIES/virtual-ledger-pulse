@@ -40,19 +40,6 @@ const COPY: Record<string, {
 
 type Activity = { at: string; action: string; label: string };
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  match: "Matched an employee to RazorpayX",
-  create_draft: "Imported an employee as draft",
-  apply_error: "An import failed — needs attention",
-  bulk_apply: "Imported employees in bulk",
-  pilot_apply: "Pilot imported a single employee",
-  validate_credentials: "Checked RazorpayX connection",
-  auto_verify_step_envelopes: "Configured RazorpayX endpoints automatically",
-  attendance_push: "Sent monthly attendance to RazorpayX",
-  payroll_run: "Ran this month's payroll",
-  payout_verify: "Verified payouts against RazorpayX",
-};
-
 function timeAgo(iso: string): string {
   const now = Date.now();
   const t = new Date(iso).getTime();
@@ -66,17 +53,34 @@ function timeAgo(iso: string): string {
   return `${d}d ago`;
 }
 
-function currentPeriodContext(): { period: string; nudge: string } {
+/**
+ * Nudge is derived from the focused step (not calendar day alone) so the
+ * pill and the focus card speak with one voice. If the calendar timing is
+ * clearly off for that step, we suppress the nudge instead of contradicting.
+ */
+function nudgeForStep(letter: string | undefined): { period: string; nudge: string | null } {
   const today = new Date();
   const day = today.getDate();
   const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const period = prev.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-  let nudge: string;
-  if (day <= 3) nudge = `It's the ${day}${day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"} — a good day to send ${period} attendance.`;
-  else if (day <= 7) nudge = `Early ${today.toLocaleDateString(undefined, { month: "long" })} — most companies close ${period} payroll now.`;
-  else if (day <= 15) nudge = `Mid-month — verify ${period} payouts and download payslips.`;
-  else nudge = `Later in the month — reconcile ${period} with your books.`;
-  return { period, nudge };
+  if (!letter) return { period, nudge: null };
+
+  switch (letter) {
+    case "F": // Send attendance — early-month task
+      return { period, nudge: day <= 7
+        ? `Early ${today.toLocaleDateString(undefined, { month: "long" })} — a good time to send ${period} attendance.`
+        : `${period} attendance is still pending — send it to unlock the salary run.` };
+    case "G": // Run payroll
+      return { period, nudge: `Ready to run ${period} salary. Calculate → practice → pilot → all.` };
+    case "H": // Verify payouts
+      return { period, nudge: `${period} salaries sent — verify the payouts landed correctly.` };
+    case "I": // Download papers
+      return { period, nudge: `Payslips and tax papers for ${period} are ready to download.` };
+    case "J": // Reconcile
+      return { period, nudge: `Match ${period} salary expense with your books.` };
+    default:
+      return { period, nudge: null };
+  }
 }
 
 export function TodaysFocusHero({ steps, onJumpToStation }: Props) {

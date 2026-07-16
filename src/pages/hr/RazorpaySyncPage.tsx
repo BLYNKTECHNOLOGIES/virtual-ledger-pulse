@@ -369,15 +369,33 @@ export default function RazorpaySyncPage() {
   const runProbeCatalogue = async () => {
     setProbing(true); setProbeRows(null);
     try {
-      const d = await invoke<{ ok: boolean; probe_id: number | null; rows: ProbeRow[] }>({ action: "probe_catalogue" });
+      const d = await invoke<{ ok: boolean; probe_id: string | number | null; rows: ProbeRow[] }>({ action: "probe_catalogue" });
       setProbeRows(d.rows || []);
       setProbeId(d.probe_id ?? null);
-      const okCount = (d.rows || []).filter((r) => r.status === "ok").length;
-      const failCount = (d.rows || []).filter((r) => r.status === "fail").length;
-      toast({ title: "Probe catalogue complete", description: `${okCount} confirmed · ${failCount} failed · ${(d.rows || []).length - okCount - failCount} pending (write)` });
+      const rowsArr = d.rows || [];
+      const okCount = rowsArr.filter((r) => r.status === "ok").length;
+      const failCount = rowsArr.filter((r) => r.status === "fail").length;
+      const skipCount = rowsArr.filter((r) => r.status === "skipped").length;
+      const pendingCount = rowsArr.filter((r) => r.status === "not_probed").length;
+      toast({ title: "Probe catalogue complete", description: `${okCount} confirmed · ${failCount} failed · ${skipCount} skipped · ${pendingCount} pending (write)` });
     } catch (e: any) {
       toast({ title: "Probe run failed", description: e?.message, variant: "destructive" });
     } finally { setProbing(false); }
+  };
+
+  const saveProbePilots = async () => {
+    setSavingProbePilots(true);
+    try {
+      await invoke({
+        action: "save_probe_pilots",
+        probe_pilot_employee_id: probePilotEmpId.trim(),
+        probe_pilot_contractor_id: probePilotContractorId.trim(),
+      });
+      await reloadSettings();
+      toast({ title: "Probe pilots saved", description: "Run the probe catalogue again to re-check the read endpoints." });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e?.message, variant: "destructive" });
+    } finally { setSavingProbePilots(false); }
   };
 
   // ---- Phase 3 handlers ----

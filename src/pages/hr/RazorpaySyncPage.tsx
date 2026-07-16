@@ -921,6 +921,53 @@ export default function RazorpaySyncPage() {
         </div>
       </div>
 
+      {/* R6 — Setup progress summary. Plain-English "N of 10 done · next: X". */}
+      {(() => {
+        const total = stationSteps.length;
+        const done = stationSteps.filter(s => s.status === "done").length;
+        const active = stationSteps.find(s => s.status === "active");
+        const next = active ?? stationSteps.find(s => s.status === "ready");
+        const pct = Math.round((done / total) * 100);
+        return (
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Setup progress</div>
+                  <div className="text-sm font-medium mt-0.5">
+                    {done} of {total} steps complete
+                    {next && (
+                      <span className="text-muted-foreground font-normal">
+                        {" · "}next: <span className="text-foreground font-medium">Step {next.letter} — {next.title}</span>
+                      </span>
+                    )}
+                    {done === total && <span className="text-emerald-600 dark:text-emerald-400"> · all set 🎉</span>}
+                  </div>
+                </div>
+                <div className="w-32 shrink-0">
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-[10px] text-muted-foreground text-right mt-0.5">{pct}%</div>
+                </div>
+                {next && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById(`station-${next.letter}`);
+                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className="text-xs font-medium px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition"
+                  >
+                    Go to step {next.letter} →
+                  </button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {simpleMode ? (
         <Alert>
           <AlertTitle>How this works</AlertTitle>

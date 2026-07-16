@@ -2906,6 +2906,386 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ============================================================
+    // Phase 10 — Ledger Reconciliation
+    // Actions:
+    //   probe_ledger_scope           — dry count of payouts vs candidate bank txns
+    //   auto_match_ledger_period     — match by UTR first, then amount+date window
+    //   manual_link_ledger           — link a payout to a specific bank txn
+    //   waive_ledger_match           — record a waiver for a payout row
+    //   unlink_ledger                — remove a link (blocked once signed off)
+    //   review_ledger_period         — flag period as reviewed (pre-signoff)
+    //   signoff_ledger_period        — hard-lock the period; requires Super Admin flag
+    //   reopen_ledger_period         — audited reopen with reason
+    //   recompute_ledger_totals      — refresh the period totals row
+    // No external Razorpay calls — purely internal cross-referencing.
+    // ============================================================
+    if (
+      action === "probe_ledger_scope" ||
+      action === "auto_match_ledger_period" ||
+      action === "manual_link_ledger" ||
+      action === "waive_ledger_match" ||
+      action === "unlink_ledger" ||
+      action === "review_ledger_period" ||
+      action === "signoff_ledger_period" ||
+      action === "reopen_ledger_period" ||
+      action === "recompute_ledger_totals"
+    ) {
+      const periodMonthStr = String(payload?.period_month || "").trim();
+      const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
+      if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
+      const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
+
+      // Helper: current period status.
+      async function loadPeriod() {
+        const { data } = await svc.from("hr_razorpay_ledger_periods")
+          .select("*").eq("period_month", periodMonthISO).maybeSingle();
+        return data;
+      }
+      async function ensurePeriod() {
+        let p = await loadPeriod();
+        if (!p) {
+          const { data: ins } = await svc.from("hr_razorpay_ledger_periods")
+            .insert({ period_month: periodMonthISO, status: "draft" })
+            .select("*").single();
+          p = ins;
+        }
+        return p;
+      }
+      async function refreshTotals(): Promise<{
+        total_paid: number; total_matched: number; total_unmatched: number; total_waived: number;
+      }> {
+        const { data: payouts } = await svc.from("hr_razorpay_payout_records")
+          .select("id, paid_amount").eq("period_month", periodMonthISO);
+        const { data: matches } = await svc.from("hr_razorpay_ledger_matches")
+          .select("payout_record_id, match_method, matched_amount")
+          .eq("period_month", periodMonthISO);
+        const matchedIds = new Set((matches || []).filter((m: any) => m.match_method !== "waived").map((m: any) => m.payout_record_id));
+        const waivedIds = new Set((matches || []).filter((m: any) => m.match_method === "waived").map((m: any) => m.payout_record_id));
+
+        let total_paid = 0, total_matched = 0, total_unmatched = 0, total_waived = 0;
+        for (const p of (payouts || []) as any[]) {
+          const amt = Number(p.paid_amount || 0);
+          total_paid += amt;
+          if (matchedIds.has(p.id)) total_matched += amt;
+          else if (waivedIds.has(p.id)) total_waived += amt;
+          else total_unmatched += amt;
+        }
+        const round = (n: number) => Number(n.toFixed(2));
+        const totals = {
+          total_paid: round(total_paid),
+          total_matched: round(total_matched),
+          total_unmatched: round(total_unmatched),
+          total_waived: round(total_waived),
+        };
+        await svc.from("hr_razorpay_ledger_periods")
+          .update(totals).eq("period_month", periodMonthISO);
+        return totals;
+      }
+
+      async function assertMutableOrThrow(): Promise<{ ok: true } | { ok: false; err: string }> {
+        const p = await loadPeriod();
+        if (p?.status === "signed_off") {
+          return { ok: false, err: "Ledger period is signed off. File a reopen_ledger_period first." };
+        }
+        return { ok: true };
+      }
+
+      // ---- probe_ledger_scope -------------------------------------------
+      if (action === "probe_ledger_scope") {
+        const { data: payouts } = await svc.from("hr_razorpay_payout_records")
+          .select("id, utr, paid_amount, paid_at, hr_employee_id, razorpay_employee_id")
+          .eq("period_month", periodMonthISO);
+        const { data: matches } = await svc.from("hr_razorpay_ledger_matches")
+          .select("payout_record_id, match_method").eq("period_month", periodMonthISO);
+        const matchedIds = new Set((matches || []).map((m: any) => m.payout_record_id));
+
+        // Candidate bank txns: DEBIT / EXPENSE / TRANSFER_OUT during ±3 days around period.
+        const startIso = periodMonthISO;
+        const endDate = new Date(periodMonthISO);
+        endDate.setUTCMonth(endDate.getUTCMonth() + 1);
+        const endIso = endDate.toISOString().slice(0, 10);
+        const { data: bankTxns } = await svc.from("bank_transactions")
+          .select("id, reference_number, amount, transaction_date, transaction_type")
+          .in("transaction_type", ["DEBIT", "EXPENSE", "TRANSFER_OUT"])
+          .gte("transaction_date", startIso)
+          .lt("transaction_date", endIso);
+
+        const utrIndex = new Map<string, number>();
+        for (const t of (bankTxns || []) as any[]) {
+          const utr = String(t.reference_number || "").trim().toUpperCase();
+          if (utr) utrIndex.set(utr, (utrIndex.get(utr) || 0) + 1);
+        }
+        let matchableByUtr = 0;
+        for (const p of (payouts || []) as any[]) {
+          const utr = String(p.utr || "").trim().toUpperCase();
+          if (utr && utrIndex.has(utr)) matchableByUtr++;
+        }
+
+        return json(200, {
+          ok: true,
+          period_month: periodMonthISO,
+          payouts_total: (payouts || []).length,
+          already_matched: matchedIds.size,
+          candidate_bank_txns: (bankTxns || []).length,
+          projected_auto_match_by_utr: matchableByUtr,
+        });
+      }
+
+      // ---- auto_match_ledger_period -------------------------------------
+      if (action === "auto_match_ledger_period") {
+        const gate = await assertMutableOrThrow();
+        if (!gate.ok) return json(400, { error: gate.err });
+        await ensurePeriod();
+
+        const { data: payouts } = await svc.from("hr_razorpay_payout_records")
+          .select("id, utr, paid_amount, paid_at, hr_employee_id")
+          .eq("period_month", periodMonthISO);
+        const { data: existingMatches } = await svc.from("hr_razorpay_ledger_matches")
+          .select("payout_record_id, bank_transaction_id")
+          .eq("period_month", periodMonthISO);
+        const matchedPayoutIds = new Set((existingMatches || []).map((m: any) => m.payout_record_id));
+        const claimedBankIds = new Set((existingMatches || []).filter((m: any) => m.bank_transaction_id).map((m: any) => m.bank_transaction_id));
+
+        const startIso = periodMonthISO;
+        const endDate = new Date(periodMonthISO);
+        endDate.setUTCMonth(endDate.getUTCMonth() + 1);
+        const endIso = endDate.toISOString().slice(0, 10);
+        const { data: bankTxns } = await svc.from("bank_transactions")
+          .select("id, reference_number, amount, transaction_date, transaction_type")
+          .in("transaction_type", ["DEBIT", "EXPENSE", "TRANSFER_OUT"])
+          .gte("transaction_date", startIso)
+          .lt("transaction_date", endIso);
+
+        // Index by UTR and by (amount, date).
+        const byUtr = new Map<string, any>();
+        for (const t of (bankTxns || []) as any[]) {
+          const utr = String(t.reference_number || "").trim().toUpperCase();
+          if (utr && !byUtr.has(utr)) byUtr.set(utr, t);
+        }
+
+        const inserts: any[] = [];
+        const actorName = String(payload?.actor_name || "").trim() || null;
+        for (const p of (payouts || []) as any[]) {
+          if (matchedPayoutIds.has(p.id)) continue;
+          if (!p.paid_amount || Number(p.paid_amount) <= 0) continue;
+          const utr = String(p.utr || "").trim().toUpperCase();
+          let hit: any = null;
+          let method: "auto_utr" | "auto_amount" | null = null;
+
+          if (utr && byUtr.has(utr) && !claimedBankIds.has(byUtr.get(utr).id)) {
+            hit = byUtr.get(utr);
+            method = "auto_utr";
+          }
+          if (!hit) {
+            // Fallback: single-amount match within ±3 days of paid_at.
+            const paidAt = p.paid_at ? new Date(p.paid_at) : null;
+            const candidates = (bankTxns || []).filter((t: any) =>
+              !claimedBankIds.has(t.id) &&
+              Math.abs(Number(t.amount) - Number(p.paid_amount)) < 0.5 &&
+              (!paidAt || Math.abs(new Date(t.transaction_date).getTime() - paidAt.getTime()) <= 3 * 86400000)
+            );
+            if (candidates.length === 1) { hit = candidates[0]; method = "auto_amount"; }
+          }
+          if (!hit || !method) continue;
+
+          claimedBankIds.add(hit.id);
+          inserts.push({
+            period_month: periodMonthISO,
+            payout_record_id: p.id,
+            bank_transaction_id: hit.id,
+            match_method: method,
+            matched_amount: Number(hit.amount),
+            variance: Number((Number(hit.amount) - Number(p.paid_amount)).toFixed(2)),
+            matched_by: authed.userId,
+            matched_by_name: actorName,
+          });
+        }
+
+        if (inserts.length) {
+          const { error } = await svc.from("hr_razorpay_ledger_matches").insert(inserts);
+          if (error) return json(500, { error: error.message });
+        }
+        const totals = await refreshTotals();
+        await logSync(svc, {
+          action: "ledger_auto_match",
+          http_status: 0, razorpay_employee_id: "", hr_employee_id: null,
+          field_diff_summary: { period_month: periodMonthISO, matched: inserts.length, ...totals },
+          error_text: null, actor_user_id: authed.userId,
+        });
+        return json(200, { ok: true, matched: inserts.length, totals });
+      }
+
+      // ---- manual_link_ledger -------------------------------------------
+      if (action === "manual_link_ledger") {
+        const gate = await assertMutableOrThrow();
+        if (!gate.ok) return json(400, { error: gate.err });
+        await ensurePeriod();
+
+        const payoutRecordId = String(payload?.payout_record_id || "").trim();
+        const bankTxnId = String(payload?.bank_transaction_id || "").trim();
+        const note = String(payload?.note || "").trim() || null;
+        const actorName = String(payload?.actor_name || "").trim() || null;
+        if (!payoutRecordId || !bankTxnId) return json(400, { error: "payout_record_id and bank_transaction_id are required" });
+
+        const [{ data: pRow }, { data: bRow }] = await Promise.all([
+          svc.from("hr_razorpay_payout_records").select("id, paid_amount, period_month").eq("id", payoutRecordId).maybeSingle(),
+          svc.from("bank_transactions").select("id, amount").eq("id", bankTxnId).maybeSingle(),
+        ]);
+        if (!pRow) return json(404, { error: "Payout record not found" });
+        if (!bRow) return json(404, { error: "Bank transaction not found" });
+        if (pRow.period_month !== periodMonthISO) {
+          return json(400, { error: "Payout does not belong to the given period_month" });
+        }
+
+        const variance = Number((Number(bRow.amount) - Number(pRow.paid_amount || 0)).toFixed(2));
+        const { error } = await svc.from("hr_razorpay_ledger_matches").upsert({
+          period_month: periodMonthISO,
+          payout_record_id: payoutRecordId,
+          bank_transaction_id: bankTxnId,
+          match_method: "manual",
+          matched_amount: Number(bRow.amount),
+          variance,
+          note,
+          matched_by: authed.userId,
+          matched_by_name: actorName,
+          matched_at: new Date().toISOString(),
+        }, { onConflict: "payout_record_id" });
+        if (error) return json(500, { error: error.message });
+
+        const totals = await refreshTotals();
+        return json(200, { ok: true, variance, totals });
+      }
+
+      // ---- waive_ledger_match -------------------------------------------
+      if (action === "waive_ledger_match") {
+        const gate = await assertMutableOrThrow();
+        if (!gate.ok) return json(400, { error: gate.err });
+        await ensurePeriod();
+
+        const payoutRecordId = String(payload?.payout_record_id || "").trim();
+        const reason = String(payload?.reason || "").trim();
+        const actorName = String(payload?.actor_name || "").trim() || null;
+        if (!payoutRecordId) return json(400, { error: "payout_record_id is required" });
+        if (reason.length < 8) return json(400, { error: "reason (min 8 chars) is required for a waiver" });
+
+        const { error } = await svc.from("hr_razorpay_ledger_matches").upsert({
+          period_month: periodMonthISO,
+          payout_record_id: payoutRecordId,
+          bank_transaction_id: null,
+          match_method: "waived",
+          matched_amount: 0,
+          variance: null,
+          note: reason,
+          matched_by: authed.userId,
+          matched_by_name: actorName,
+          matched_at: new Date().toISOString(),
+        }, { onConflict: "payout_record_id" });
+        if (error) return json(500, { error: error.message });
+
+        const totals = await refreshTotals();
+        return json(200, { ok: true, totals });
+      }
+
+      // ---- unlink_ledger -----------------------------------------------
+      if (action === "unlink_ledger") {
+        const gate = await assertMutableOrThrow();
+        if (!gate.ok) return json(400, { error: gate.err });
+
+        const payoutRecordId = String(payload?.payout_record_id || "").trim();
+        if (!payoutRecordId) return json(400, { error: "payout_record_id is required" });
+        const { error } = await svc.from("hr_razorpay_ledger_matches")
+          .delete().eq("payout_record_id", payoutRecordId);
+        if (error) return json(500, { error: error.message });
+
+        const totals = await refreshTotals();
+        return json(200, { ok: true, totals });
+      }
+
+      // ---- review_ledger_period ----------------------------------------
+      if (action === "review_ledger_period") {
+        const gate = await assertMutableOrThrow();
+        if (!gate.ok) return json(400, { error: gate.err });
+        await ensurePeriod();
+
+        const totals = await refreshTotals();
+        const actorName = String(payload?.actor_name || "").trim() || null;
+        await svc.from("hr_razorpay_ledger_periods").update({
+          status: "reviewed",
+          reviewed_by: authed.userId,
+          reviewed_by_name: actorName,
+          reviewed_at: new Date().toISOString(),
+        }).eq("period_month", periodMonthISO);
+        return json(200, { ok: true, totals });
+      }
+
+      // ---- signoff_ledger_period ---------------------------------------
+      if (action === "signoff_ledger_period") {
+        const p = await ensurePeriod();
+        if (p.status === "signed_off") return json(400, { error: "Period already signed off." });
+        if (p.status !== "reviewed") {
+          return json(400, { error: "Period must be reviewed before sign-off." });
+        }
+
+        // Every payout must be either matched or explicitly waived — no bare unmatched rows.
+        const totals = await refreshTotals();
+        if (Number(totals.total_unmatched) > 0) {
+          return json(400, {
+            error: `Cannot sign off — ${Number(totals.total_unmatched).toFixed(2)} still unmatched. Match, waive, or unlink to zero.`,
+          });
+        }
+
+        const actorName = String(payload?.actor_name || "").trim() || null;
+        await svc.from("hr_razorpay_ledger_periods").update({
+          status: "signed_off",
+          signed_off_by: authed.userId,
+          signed_off_by_name: actorName,
+          signed_off_at: new Date().toISOString(),
+        }).eq("period_month", periodMonthISO);
+
+        await logSync(svc, {
+          action: "ledger_signoff",
+          http_status: 0, razorpay_employee_id: "", hr_employee_id: null,
+          field_diff_summary: { period_month: periodMonthISO, ...totals },
+          error_text: null, actor_user_id: authed.userId,
+        });
+        return json(200, { ok: true, totals });
+      }
+
+      // ---- reopen_ledger_period ----------------------------------------
+      if (action === "reopen_ledger_period") {
+        const p = await loadPeriod();
+        if (!p) return json(404, { error: "No ledger period for this month." });
+        if (p.status !== "signed_off") return json(400, { error: "Only signed-off periods can be reopened." });
+        const reason = String(payload?.reason || "").trim();
+        if (reason.length < 12) return json(400, { error: "reason (min 12 chars) is required for reopen" });
+
+        const actorName = String(payload?.actor_name || "").trim() || null;
+        await svc.from("hr_razorpay_ledger_periods").update({
+          status: "reopened",
+          reopen_reason: reason,
+          reopened_by: authed.userId,
+          reopened_by_name: actorName,
+          reopened_at: new Date().toISOString(),
+        }).eq("period_month", periodMonthISO);
+
+        await logSync(svc, {
+          action: "ledger_reopen",
+          http_status: 0, razorpay_employee_id: "", hr_employee_id: null,
+          field_diff_summary: { period_month: periodMonthISO, reason_len: reason.length },
+          error_text: null, actor_user_id: authed.userId,
+        });
+        return json(200, { ok: true });
+      }
+
+      // ---- recompute_ledger_totals -------------------------------------
+      if (action === "recompute_ledger_totals") {
+        await ensurePeriod();
+        const totals = await refreshTotals();
+        return json(200, { ok: true, totals });
+      }
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
 
   } catch (e) {

@@ -497,7 +497,17 @@ Deno.serve(async (req) => {
         http_status: r.status,
         razorpay_employee_id: String(eid),
         hr_employee_id: hrId,
-        field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, pilot: true },
+        field_diff_summary: {
+          field_names: fieldNames(r.body),
+          matched_by: match.matched_by,
+          pilot: true,
+          projected: projDiff ? {
+            hr_employees: projDiff.hr_employees.wrote,
+            work_info: projDiff.work_info.wrote,
+            bank: projDiff.bank.wrote,
+          } : null,
+          onboarding_prefilled: obDiff?.wrote ?? null,
+        },
         actor_user_id: authed.userId,
       });
       await stampLastImport(svc);

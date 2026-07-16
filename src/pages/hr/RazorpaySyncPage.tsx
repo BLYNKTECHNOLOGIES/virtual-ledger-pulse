@@ -267,6 +267,26 @@ export default function RazorpaySyncPage() {
 
   useEffect(() => { if (canAccess) { reloadSettings(); reloadGaps(); } }, [canAccess]);
 
+  // Auto-verify Step E (salary) + Step F (attendance) API names once creds are
+  // validated. HR should never need to type an envelope key — the correct
+  // values are Postman-verified constants baked into the proxy.
+  useEffect(() => {
+    if (!canAccess || !settings) return;
+    if (!settings.last_creds_validated_at) return;
+    const needsSalary = !settings.push_salary_endpoint_verified;
+    const needsAttendance = !settings.push_attendance_endpoint_verified;
+    if (!needsSalary && !needsAttendance) return;
+    (async () => {
+      try {
+        await invoke({ action: "auto_verify_step_envelopes" });
+        await reloadSettings();
+      } catch {
+        // Silent — Advanced view still exposes the manual override.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canAccess, settings?.last_creds_validated_at, settings?.push_salary_endpoint_verified, settings?.push_attendance_endpoint_verified]);
+
   const reloadGaps = async () => {
     const { data, error } = await supabase.from("v_razorpay_import_gaps").select("*");
     if (error || !data) { setGaps(null); return; }

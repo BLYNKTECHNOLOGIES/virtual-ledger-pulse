@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Clock, CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { BulkCompletionPanel } from "./BulkCompletionPanel";
 import { format } from "date-fns";
 import {
   AlertDialog,

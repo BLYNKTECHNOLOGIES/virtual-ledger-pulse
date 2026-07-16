@@ -1035,9 +1035,11 @@ export default function RazorpaySyncPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step B · Check which RazorpayX features are available</CardTitle>
           <CardDescription>
-            Discover which Opfin sub-types this Live tenant supports before any push work is designed.
-            Read sub-types are probed live against a pilot-verified employee. Write sub-types are listed
-            as <span className="font-medium">pending</span> — they require an operator-approved payload before Lovable calls them.
+            <b>What this does:</b> checks which RazorpayX features your account is allowed to use — so we know in advance which of the next steps will work.
+            <br />
+            <b>Is it safe?</b> Yes — this only <em>reads</em> from RazorpayX. Write features are listed as <b>pending</b> and will never be called on their own.
+            <br />
+            <b>Tip:</b> if a row shows <b>skipped</b>, it just means RazorpayX has no sample data to check against (e.g. no payroll run yet). That's not an error.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

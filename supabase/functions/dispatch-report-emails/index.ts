@@ -79,13 +79,30 @@ serve(async (req) => {
       // Server-to-server dispatch secret — authorises the report functions
       // to accept caller-supplied recipients from this cron dispatcher.
       const dispatcherSecret = Deno.env.get("REPORT_DISPATCH_SECRET") || Deno.env.get("CRON_SECRET") || "";
-      const { data: invokeData, error: invokeError } = await supabase.functions.invoke(
-        targetFn,
-        {
-          body: invokeBody,
-          headers: dispatcherSecret ? { "x-report-dispatch-secret": dispatcherSecret } : {},
-        },
-      );
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supaUrl = Deno.env.get("SUPABASE_URL")!;
+      let invokeData: any = null;
+      let invokeError: { message: string } | null = null;
+      try {
+        const resp = await fetch(`${supaUrl}/functions/v1/${targetFn}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+            "apikey": serviceKey,
+            ...(dispatcherSecret ? { "x-report-dispatch-secret": dispatcherSecret } : {}),
+          },
+          body: JSON.stringify(invokeBody),
+        });
+        const text = await resp.text();
+        if (!resp.ok) {
+          invokeError = { message: `HTTP ${resp.status}: ${text.slice(0, 300)}` };
+        } else {
+          try { invokeData = JSON.parse(text); } catch { invokeData = text; }
+        }
+      } catch (e) {
+        invokeError = { message: (e as Error).message };
+      }
 
       const ok = !invokeError;
       // Only stamp last_sent_on for scheduled runs (manual sends can be repeated).

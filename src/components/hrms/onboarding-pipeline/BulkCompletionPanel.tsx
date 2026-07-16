@@ -268,7 +268,7 @@ export function BulkCompletionPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(r => {
+                  {visibleRows.map(r => {
                     const isChecked = selected.has(r.employee_id!);
                     return (
                       <tr key={r.onboarding_id} className="border-b hover:bg-muted/20">

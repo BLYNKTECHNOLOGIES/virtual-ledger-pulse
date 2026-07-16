@@ -216,6 +216,29 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                           {r.status.replace("_", " ")}
                         </Badge>
                       </td>
+                      <td className="p-3">
+                        {(() => {
+                          const c = r.employee_id ? completeness?.[r.employee_id] : undefined;
+                          const item = (label: string, ok: boolean | undefined) => (
+                            <span
+                              key={label}
+                              title={`${label}: ${ok ? "complete" : "missing"}`}
+                              className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${
+                                ok ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {ok ? "✓" : "○"} {label}
+                            </span>
+                          );
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {item("Bank", c?.has_bank)}
+                              {item("Salary", c?.has_salary)}
+                              {item("DOJ", c?.has_doj)}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="p-3 text-muted-foreground">
                         {format(new Date(r.created_at), "dd MMM yyyy")}
                       </td>

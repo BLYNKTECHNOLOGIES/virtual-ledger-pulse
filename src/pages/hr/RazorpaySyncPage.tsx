@@ -849,8 +849,8 @@ export default function RazorpaySyncPage() {
       {/* STEP 2 — Pilot */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Play className="h-4 w-4" /> Step 2 — Pilot (one employee)</CardTitle>
-          <CardDescription>Fetch a single Razorpay employee-id, preview the match, then apply. Unlocks bulk import.</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Play className="h-4 w-4" /> {simpleMode ? "Step 2 — Import one test employee" : "Step 2 — Pilot (one employee)"}</CardTitle>
+          <CardDescription>{simpleMode ? "Enter any RazorpayX employee ID (start with 1), preview them, then import. This unlocks the full import." : "Fetch a single Razorpay employee-id, preview the match, then apply. Unlocks bulk import."}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2 flex-wrap">

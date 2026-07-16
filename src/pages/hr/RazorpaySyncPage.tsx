@@ -1017,7 +1017,7 @@ export default function RazorpaySyncPage() {
       {/* PHASE 3 — Employee-master push (ERP → Razorpay) */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Step C · Send name Phase 3 — Push identity to Razorpay contact updates to RazorpayX</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Step C · Send name & contact updates to RazorpayX</CardTitle>
           <CardDescription>
             Push ERP identity/metadata diffs back to RazorpayX via <code>people:update</code>.
             Only <em>name, phone, email, gender, DOB, department, title, DOJ, employee-type</em> are pushed

@@ -161,7 +161,16 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       let empId: string;
 
       if (linkedEmployeeId) {
-        const priorAdditional = ((record as any)?.additional_info) || {};
+        // Load prior additional_info from the linked hr_employees row (NOT
+        // from the onboarding record — that table has no additional_info
+        // column). This preserves the `source: "razorpay_import"` marker and
+        // any imported-at audit data set by the Razorpay import proxy.
+        const { data: existingEmp } = await supabase
+          .from("hr_employees")
+          .select("additional_info")
+          .eq("id", linkedEmployeeId)
+          .maybeSingle();
+        const priorAdditional = ((existingEmp as any)?.additional_info) || {};
         const { error: updErr } = await supabase
           .from("hr_employees")
           .update({

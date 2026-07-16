@@ -102,10 +102,13 @@ export default function EmployeeListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  // No default filter — imported drafts (is_active=false) must be visible so
-  // operators can review and activate them. Users can filter by Is active
-  // manually from the filter panel.
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  // Default to active employees only so HR doesn't see ex-employees in the
+  // main list. Razorpay-imported drafts (is_active=false) are hidden by the
+  // query-level filter regardless. Users can remove this filter from the
+  // filter panel to view inactive/terminated staff.
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
+    { field: "is_active", label: "Is active", value: "true", displayValue: "True" },
+  ]);
   const [pendingFilterField, setPendingFilterField] = useState("");
   const [pendingFilterValue, setPendingFilterValue] = useState("");
   const [sort, setSort] = useState<SortState>({ column: null, direction: null });

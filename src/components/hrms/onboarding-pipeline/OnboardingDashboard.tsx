@@ -172,6 +172,9 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
         </Card>
       </div>
 
+      {/* Bulk Completion fast-lane (fills data only, never activates) */}
+      <BulkCompletionPanel />
+
       {/* Records Table */}
       <Card>
         <CardHeader className="py-3 px-4">

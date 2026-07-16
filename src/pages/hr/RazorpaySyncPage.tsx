@@ -42,7 +42,7 @@ interface Settings {
 interface AttendanceRow {
   razorpay_employee_id: string;
   hr_employee_id?: string;
-  status: "planned" | "pushed" | "failed" | "skipped";
+  status: "planned" | "pushed" | "failed" | "skipped" | "blocked_config_error" | "no_erp_attendance" | "blocked_period_locked";
   period?: string;
   working_days?: number;
   present_days?: number;
@@ -50,12 +50,24 @@ interface AttendanceRow {
   unpaid_leave_days?: number;
   lop_days?: number;
   unpaid_matches_lop?: boolean;
+  formula?: string;
+  weekly_off_days?: number[];
+  weekly_off_source?: "per_employee" | "tenant_default_pattern" | "hardcoded_sunday";
+  holidays_in_month?: number;
+  config_errors?: string[];
   error?: string;
 }
 interface AttendanceResponse {
   ok: boolean;
   period: string;
-  summary: { total: number; planned: number; pushed: number; failed: number; skipped: number; working_days: number };
+  summary: {
+    total: number; planned: number; pushed: number; failed: number; skipped: number;
+    working_days_range?: { min: number; max: number };
+    holidays_in_month?: number;
+    // legacy
+    working_days?: number;
+  };
+  tenant_warnings?: string[];
   rows: AttendanceRow[];
   envelope: { verified: boolean; key: string | null };
   pilot: { verified_at: string | null; pilot_period: string | null; bulk_unlocked: boolean };

@@ -727,6 +727,7 @@ Deno.serve(async (req) => {
         matches: rows.filter((r) => r.action_planned === "match").length,
         creates: rows.filter((r) => r.action_planned === "create_draft").length,
         misses: rows.filter((r) => r.status === "miss").length,
+        skipped_dismissed: rows.filter((r) => r.status === "skipped_dismissed").length,
         errors: rows.filter((r) => r.error).length,
         stopped: rows.some((r) => r.status === "stopped"),
       };

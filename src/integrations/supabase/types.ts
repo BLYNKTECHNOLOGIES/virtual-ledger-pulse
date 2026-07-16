@@ -19711,6 +19711,28 @@ export type Database = {
         | "push_update"
         | "drift_check"
         | "pull_person"
+        | "push_person"
+        | "push_bank"
+        | "push_salary"
+        | "push_attendance"
+        | "push_attendance_recall"
+        | "pull_payouts"
+        | "pull_payslips"
+        | "pull_taxdocs"
+        | "ledger_auto_match"
+        | "ledger_signoff"
+        | "ledger_reopen"
+        | "match"
+        | "create_draft"
+        | "apply_error"
+        | "unlock_bulk"
+        | "payroll_recall"
+        | "compute_payroll_run"
+        | "dry_run_payroll_run"
+        | "apply_payroll_pilot"
+        | "apply_payroll_bulk"
+        | "lock_payroll_period"
+        | "probe_payroll_run"
       hr_razorpay_sync_status:
         | "imported"
         | "matched_existing"
@@ -20065,6 +20087,28 @@ export const Constants = {
         "push_update",
         "drift_check",
         "pull_person",
+        "push_person",
+        "push_bank",
+        "push_salary",
+        "push_attendance",
+        "push_attendance_recall",
+        "pull_payouts",
+        "pull_payslips",
+        "pull_taxdocs",
+        "ledger_auto_match",
+        "ledger_signoff",
+        "ledger_reopen",
+        "match",
+        "create_draft",
+        "apply_error",
+        "unlock_bulk",
+        "payroll_recall",
+        "compute_payroll_run",
+        "dry_run_payroll_run",
+        "apply_payroll_pilot",
+        "apply_payroll_bulk",
+        "lock_payroll_period",
+        "probe_payroll_run",
       ],
       hr_razorpay_sync_status: [
         "imported",

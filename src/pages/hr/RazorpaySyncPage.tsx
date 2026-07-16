@@ -1027,6 +1027,46 @@ export default function RazorpaySyncPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Probe pilot IDs — operator-provided seed IDs so read endpoints can resolve. */}
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="text-xs font-medium">Probe pilot IDs (optional)</div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Read endpoints like <code>people:view</code>, <code>attendance:fetch</code> and <code>contractor-payment:get-status</code> need a real ID on this tenant to probe against.
+              If left blank, those rows will be marked <span className="font-medium">skipped</span> instead of <span className="font-medium">failed</span>.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] text-muted-foreground">Pilot Razorpay employee ID</label>
+                <Input
+                  value={probePilotEmpId}
+                  onChange={(e) => setProbePilotEmpId(e.target.value)}
+                  placeholder="e.g. 39412345"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground">Pilot contractor-payment ID</label>
+                <Input
+                  value={probePilotContractorId}
+                  onChange={(e) => setProbePilotContractorId(e.target.value)}
+                  placeholder="e.g. 987654"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={saveProbePilots} disabled={savingProbePilots}>
+                {savingProbePilots && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save pilot IDs
+              </Button>
+              {(settings?.probe_pilot_employee_id || settings?.probe_pilot_contractor_id) && (
+                <span className="text-[11px] text-muted-foreground">
+                  Saved: emp <code>{settings?.probe_pilot_employee_id ?? "—"}</code> · contractor <code>{settings?.probe_pilot_contractor_id ?? "—"}</code>
+                </span>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" onClick={runProbeCatalogue} disabled={probing}>
               {probing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -1065,6 +1105,7 @@ export default function RazorpaySyncPage() {
                         {r.status === "ok" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">ok</Badge>}
                         {r.status === "fail" && <Badge variant="destructive" className="text-[10px]">fail</Badge>}
                         {r.status === "not_probed" && <Badge variant="outline" className="text-[10px]">pending</Badge>}
+                        {r.status === "skipped" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
                       </td>
                       <td className="p-2 tabular-nums">{r.http_status ?? "—"}</td>
                       <td className="p-2 text-muted-foreground truncate max-w-[280px]">{r.error ?? (r.status === "not_probed" ? "write sub-type — needs operator payload" : "—")}</td>

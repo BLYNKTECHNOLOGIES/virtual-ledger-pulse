@@ -259,6 +259,37 @@ function pickPatch<T extends Record<string, any>>(current: T | null, incoming: R
   return { patch, wrote, conflicts };
 }
 
+// Resolve a positions.id by case-/whitespace-insensitive title match,
+// creating the row on first sight so RazorpayX titles never end up unlinked.
+async function resolveOrCreatePositionId(svc: SupabaseClient, rawTitle: string): Promise<string | null> {
+  const canonical = (rawTitle || "").trim();
+  if (!canonical) return null;
+  const norm = canonical.toLowerCase();
+  const { data: existing } = await svc
+    .from("positions")
+    .select("id,title")
+    .ilike("title", canonical)
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+  // Extra safety: scan for any title whose trimmed lowercase equals ours (handles
+  // legacy rows with embedded whitespace). If found, reuse; otherwise create.
+  const { data: fuzzy } = await svc
+    .from("positions")
+    .select("id,title")
+    .ilike("title", `%${canonical}%`)
+    .limit(20);
+  const hit = (fuzzy || []).find((p: any) => (p.title || "").trim().toLowerCase() === norm);
+  if (hit?.id) return hit.id as string;
+  const { data: created, error } = await svc
+    .from("positions")
+    .insert({ title: canonical, is_active: true, hierarchy_level: 5 })
+    .select("id")
+    .maybeSingle();
+  if (error || !created?.id) return null;
+  return created.id as string;
+}
+
 async function projectSnapshotIntoErp(
   svc: SupabaseClient,
   hrId: string,

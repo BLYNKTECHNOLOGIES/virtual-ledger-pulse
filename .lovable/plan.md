@@ -1,120 +1,87 @@
-# Phase 7 — Payroll-Run Orchestration
+## Goal
 
-Goal: orchestrate a full monthly payroll cycle against RazorpayX from the ERP — compute → preview → finalize → lock — while keeping every write hard-gated behind endpoint verification and a human pilot, matching the discipline established in Phases 3–6.
+Bring `razorpay-payroll-proxy` and its probe UI into exact alignment with the RazorpayX Payroll (Opfin) Postman collection you provided. Fix the wrong sub-types / paths we're currently calling, drop the ghost endpoint, and expose the 12 real endpoints we never wired.
 
-## Scope (this phase)
-
-In: Payroll run lifecycle (create → compute → review → finalize → lock), CTC + attendance/LOP composition into gross/net, dry-run preview against RazorpayX, endpoint-verified apply, per-employee skip labels, period immutability, recall-with-reason.
-
-Out (later phases): actual disbursement/payouts (Phase 8), payslip PDF ingest (Phase 9), ledger reconciliation (Phase 10).
-
-## Sources of truth
-
-- CTC + components: `hr_employee_salary_structures` + `hr_salary_components` (ERP-truth, already in use for salary push).
-- Attendance / LOP: month roll-up from Phase 6 (`working_days`, `present_days`, `paid_leave_days`, `lop_days`).
-- Deductions/loans: `hr_loans` + `hr_loan_repayments` outstanding EMI due for the period.
-- Reimbursements/one-offs: `hr_salary_revisions` effective in period (already applied to structure) + explicit "one-off" line items entered on the run (this phase adds a small entry table).
-
-No new "shadow" salary math — Phase 7 assembles rows from existing structures; it does not invent numbers.
-
-## Data model (migration)
+## The 18 real endpoints (source of truth from your Postman JSON)
 
 ```text
-hr_razorpay_payroll_runs           one row per (period_month, exchange_scope)
-  period_month DATE (1st of month), status ENUM
-    draft | computed | dry_run_ok | pilot_applied | bulk_applied | locked | recalled
-  totals_gross, totals_deductions, totals_net (numeric, computed)
-  envelope_verified BOOL, envelope_verified_by UUID, envelope_verified_at
-  dry_run_response JSONB, apply_response JSONB
-  locked_at, locked_by, recall_reason, recalled_by, recalled_at
-  created_by, created_at, updated_at
-
-hr_razorpay_payroll_run_lines      one row per (run_id, employee_id)
-  gross_earnings, lop_amount, other_deductions, loan_emi,
-  net_pay, skip_label TEXT NULL       -- 'no_structure' | 'no_attendance'
-                                      -- | 'no_bank' | 'no_pan' | 'terminated'
-  source_snapshot JSONB               -- freeze of structure+attendance used
-  push_status ENUM draft|dry_run_ok|applied|failed|skipped
-  push_response JSONB, applied_at
-
-hr_razorpay_payroll_run_one_offs   optional per-line adjustments
-  run_id, employee_id, kind (bonus|reimbursement|deduction), amount, note
-
-Unique indexes:
-  (period_month) on hr_razorpay_payroll_runs
-  (run_id, employee_id) on lines
-
-RLS: hrms_razorpay_sync permission (existing) for select/insert/update.
-GRANT authenticated (select/insert/update/delete), service_role ALL.
+POST /api/people             people/create, people/edit, people/view, people/set-salary, people/dismiss
+POST /api/payroll            payroll/view-payroll, payroll/add-additions, payroll/add-deduction,
+                             payroll/reset-modifications, payroll/do-not-pay
+POST /api/contractorPayment  contractor-payment/create, contractor-payment/delete,
+                             contractor-payment/list-pending, contractor-payment/get-status
+POST /api/att                attendance/modify, attendance/fetch
+PATCH /api/att               attendance/modify
+POST /api/advanceSalary      advance-salary/create
 ```
 
-Settings additions on `hr_razorpay_settings`:
-- `push_payroll_envelope_key TEXT` (verified probe response key, e.g. `payroll_run:apply`)
-- `push_payroll_endpoint_verified BOOL`
-- `push_payroll_envelope_verified_by UUID`
-- `push_payroll_pilot_unlocked BOOL`, `push_payroll_bulk_unlocked BOOL` (independent from Phase 5/6 gates)
+Everything else our proxy currently references (`people/update`, `attendance/update`, `payroll/run`, `payouts/view`, `salary-structure/*`, `payslip/*`, `tds/*`, `webhook/*`, `bank-details/view`) does not exist in the Opfin API.
 
-## Proxy actions (razorpay-payroll-proxy)
+## Changes
 
-All hard-gated server-side on `push_payroll_endpoint_verified=true` for any write action.
+### 1. Fix wrong sub-types / paths (in place, no UI change)
+- `people/update` → `people/edit` (three call sites in the proxy).
+- Attendance default envelope `attendance/update` on `/api/attendance` → `attendance/modify` on `/api/att`. Operator-set envelope override is preserved but normalized to the doc's path when the sub-type is `modify`.
 
-- `probe_payroll_run` — GET on RazorpayX payroll list/run endpoint, records raw envelope for human eyeball.
-- `compute_payroll_run { period_month }` — pure ERP: builds lines from structures + Phase 6 attendance roll-up + due EMIs; no external call. Emits skip labels for `no_structure`, `no_attendance`, `no_bank`, `no_pan`. Idempotent per period (upserts lines).
-- `dry_run_payroll_run { run_id }` — POSTs computed payload with `dry_run: true` (or provider equivalent); stores response; flips status to `dry_run_ok` on success.
-- `apply_payroll_pilot { run_id, employee_ids[] }` — requires `pilot_unlocked`; applies for 1–3 named employees; NEVER flips bulk_unlock.
-- `apply_payroll_bulk { run_id }` — requires `bulk_unlocked` AND `dry_run_ok`; applies remaining lines.
-- `lock_payroll_period { run_id }` — flips status to `locked`; blocks any further apply/recompute.
-- `recall_payroll_period { run_id, reason }` — same discipline as Phase 6 attendance recall: mandatory reason, actor logged, moves status back to `dry_run_ok`, does not delete history.
+### 2. Drop the ghost `payouts/view` endpoint
+Phase 8 `pull_payouts` currently calls `POST /api/payouts` — that URL is not in the doc. Rewire it to:
+- Employees → `payroll/view-payroll` for the target period (returns per-employee net + payout status).
+- Contractors (future) → `contractor-payment/get-status`.
 
-Server-side hard-blocks (reject with clear error):
-- Any write while `push_payroll_endpoint_verified=false`.
-- `apply_payroll_bulk` while `push_payroll_bulk_unlocked=false`.
-- Any compute/dry-run/apply on a `locked` period without prior recall.
-- Attendance period for the same month not yet finalized (Phase 6 gate) → refuse compute.
+No DB schema change. Existing `hr_razorpay_payout_records` rows keep their meaning; only the fetch source changes.
 
-## UI — RazorpaySyncPage: "Payroll Run" tab
+### 3. Rewrite the probe catalogue to the 18 real endpoints
+- `probe_endpoint` READONLY allowlist replaced with only endpoints that have a real read variant: `people/view`, `payroll/view-payroll`, `contractor-payment/list-pending`, `contractor-payment/get-status`, `attendance/fetch`.
+- `probe_catalogue` CATALOGUE replaced with the 18-row matrix above, phased as:
+  - Phase 1 — Import: `people/view`
+  - Phase 3 — Master push: `people/create`, `people/edit`
+  - Phase 5 — Salary: `people/set-salary`
+  - Phase 6 — Attendance: `attendance/fetch` (read), `attendance/modify` (write)
+  - Phase 7 — Payroll: `payroll/view-payroll` (read), plus `add-additions`, `add-deduction`, `reset-modifications`, `do-not-pay` (writes, not_probed)
+  - Phase 8 — Payout: `payroll/view-payroll` (read reuse), `contractor-payment/get-status` (read)
+  - Phase 9 — Separation: `people/dismiss` (write)
+  - Contractor Payments (new panel in Advanced view): all 4 sub-types
+  - Advance Salary (new panel): `advance-salary/create` (write)
+- Everything else previously listed (`salary-structure:*`, `payslip:*`, `tds:*`, `webhook:*`, `bank-details:view`, `people:list`) is removed — those were the "fails" HR was seeing.
 
-- Month picker (defaults to previous month, capped by `today - 1 day`).
-- Card 1 — Preflight: shows attendance-finalized badge, endpoint-verified badge, unlock states. All writes disabled until greens.
-- Card 2 — Compute: `Compute run` button → table of lines with sortable columns (badge, name, gross, LOP, deductions, net, skip label). Filter chips for each skip label. Totals footer.
-- Card 3 — Dry run: `Run dry-run` → shows RazorpayX preview response side-by-side with ERP net; highlights any mismatch > ₹1.
-- Card 4 — Pilot: employee multi-select (2–3 max), `Apply pilot` (audit-logged). Result table with success/fail per line.
-- Card 5 — Bulk apply: enabled only after `bulk_unlocked` toggled by a Super Admin AND `dry_run_ok`. Confirmation dialog with total headcount + net amount.
-- Card 6 — Lock / Recall: `Lock period` after bulk_applied; `Recall` requires reason textarea (min 12 chars) and logs actor.
+### 4. Expose the 12 missing actions
 
-Reuses existing `RazorpaySyncPage` shell + design tokens; no new palettes.
+Add these top-level proxy actions, each a thin wrapper that hits the correct path with the correct sub-type and validates gates (endpoint-verified where applicable):
 
-## Skip-label semantics (labeled no-op, not silent)
+```text
+people_create              people/create           gated: identity endpoint verified
+people_dismiss             people/dismiss          gated: identity endpoint verified + explicit ack
+payroll_view               payroll/view-payroll    read, no gate
+payroll_add_additions      payroll/add-additions   gated: payroll endpoint verified
+payroll_add_deduction      payroll/add-deduction   gated: payroll endpoint verified
+payroll_reset_modifications payroll/reset-modifications gated: payroll endpoint verified
+payroll_do_not_pay         payroll/do-not-pay      gated: payroll endpoint verified
+contractor_payment_create  contractor-payment/create gated: payout endpoint verified
+contractor_payment_delete  contractor-payment/delete gated: payout endpoint verified
+contractor_payment_list_pending contractor-payment/list-pending read, no gate
+contractor_payment_status  contractor-payment/get-status read, no gate
+advance_salary_create      advance-salary/create   gated: payroll endpoint verified
+attendance_fetch           attendance/fetch        read, no gate
+```
 
-Every line without complete inputs is emitted with `push_status='skipped'` and a `skip_label`. Skipped lines never hit RazorpayX. UI surfaces them in a dedicated "Not pushed" section with per-label counts, matching Phase 3/6 discipline.
+Every write action appends a row to `hr_razorpay_sync_log` (existing table) with actor, action, target IDs, and response summary — same discipline as the existing writes.
 
-## Audit & idempotency
+### 5. UI
 
-- Every proxy write appends to `hr_razorpay_sync_log` (existing) with action, run_id, actor, employee_ids, response summary.
-- `apply_*` is idempotent per (run_id, employee_id): re-apply on a line already `applied` returns the stored `push_response`, no external call.
-- `recall_*` writes an audit row before flipping status.
+- Simple view: no visible change (still Check / Test one / Import everyone).
+- Advanced view: probe catalogue now shows the 18 endpoints only; the "many fails" you were seeing disappear because the ghost sub-types are gone. No new tabs are added in this pass — the 12 new actions are available via the proxy for follow-up UI phases (contractor payments panel, advance salary panel).
 
-## Verification checklist before shipping
+## Not in this pass
 
-1. Compute produces correct net for a hand-picked employee (structure + full attendance).
-2. LOP-only employee produces LOP-labeled deduction, not a skip.
-3. Employee with no structure OR no bank OR no PAN produces `skipped` + label.
-4. Locked period rejects all writes with a clear error.
-5. Recall requires reason, is audit-logged, and reverts to `dry_run_ok`.
-6. Bulk-apply refuses without `bulk_unlocked=true`.
-7. Any write with `endpoint_verified=false` returns 4xx server-side (not just UI-hidden).
+- No new UI panels for contractor payments / advance salary / payroll modifications — that's a follow-up once you decide which HR roles operate them.
+- No DB schema changes.
+- No behavioral change to Phases 1–6 for existing verified envelopes — only defaults and wrong sub-types are corrected.
 
-## Deliverables
+## Verification
 
-- 1 migration (tables + settings columns + RLS + grants).
-- Update `supabase/functions/razorpay-payroll-proxy/index.ts` with 7 new actions.
-- New `PayrollRunTab.tsx` under `src/components/hrms/razorpay/` + wire into `RazorpaySyncPage.tsx`.
-- Sync log entries for every write; UI viewer already exists.
+- `probe_catalogue` returns 18 rows, no `[object Object]` errors, no 404s for reads that exist.
+- `people/edit` (the corrected identity write) passes envelope verification for a pilot employee.
+- `pull_payouts` reads from `payroll/view-payroll` for the current month without touching the ghost path.
+- Existing verified envelopes on the DB remain valid; anything using the wrong sub-type is auto-migrated on save.
 
-## Not doing in this phase
-
-- Real disbursement (that's Phase 8).
-- Editing salary structure from this screen (goes through existing Salary Revision flow).
-- Cross-month back-adjustments (must go through a fresh run on a new period, or Phase 10 reconciliation).
-
-Ready to implement on approval.
+Approve and I'll implement in one pass.

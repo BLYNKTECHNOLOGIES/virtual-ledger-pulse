@@ -194,6 +194,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <th className="text-left p-3 font-medium">Email</th>
                     <th className="text-left p-3 font-medium">Stage</th>
                     <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">Checklist</th>
                     <th className="text-left p-3 font-medium">Started</th>
                     <th className="text-left p-3 font-medium">Action</th>
                   </tr>

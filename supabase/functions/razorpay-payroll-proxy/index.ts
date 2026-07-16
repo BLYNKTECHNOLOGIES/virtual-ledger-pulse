@@ -3337,6 +3337,80 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---------------------------------------------------------------------
+    // Direct action bridge for RazorpayX Payroll endpoints that don't need a
+    // dedicated phase workflow (contractor payments, advance salary, payroll
+    // modifications, dismiss, attendance fetch, payroll view). Every action
+    // is gated on the master switches operators toggle in Razorpay Sync:
+    //   READ    → requires an existing verified credential pair
+    //   WRITE   → additionally requires push_payroll_endpoint_verified = true
+    // Requests hit /api/<type> with the exact sub-type the doc specifies;
+    // callers pass `data` verbatim so we don't hide any field-shape drift.
+    // ---------------------------------------------------------------------
+    const DIRECT: Record<string, {
+      type: string; sub_type: string; write: boolean; logAs: string;
+    }> = {
+      people_dismiss:              { type: "people",              sub_type: "dismiss",             write: true,  logAs: "people_dismiss" },
+      payroll_view_payroll:        { type: "payroll",             sub_type: "view-payroll",        write: false, logAs: "payroll_view_payroll" },
+      payroll_add_additions:       { type: "payroll",             sub_type: "add-additions",       write: true,  logAs: "payroll_add_additions" },
+      payroll_add_deduction:       { type: "payroll",             sub_type: "add-deduction",       write: true,  logAs: "payroll_add_deduction" },
+      payroll_reset_modifications: { type: "payroll",             sub_type: "reset-modifications", write: true,  logAs: "payroll_reset_modifications" },
+      payroll_do_not_pay:          { type: "payroll",             sub_type: "do-not-pay",          write: true,  logAs: "payroll_do_not_pay" },
+      contractor_payment_create:   { type: "contractor-payment",  sub_type: "create",              write: true,  logAs: "contractor_payment_create" },
+      contractor_payment_delete:   { type: "contractor-payment",  sub_type: "delete",              write: true,  logAs: "contractor_payment_delete" },
+      contractor_payment_list:     { type: "contractor-payment",  sub_type: "list-pending",        write: false, logAs: "contractor_payment_list" },
+      contractor_payment_status:   { type: "contractor-payment",  sub_type: "get-status",          write: false, logAs: "contractor_payment_status" },
+      advance_salary_create:       { type: "advance-salary",      sub_type: "create",              write: true,  logAs: "advance_salary_create" },
+      attendance_fetch:            { type: "att",                 sub_type: "fetch",               write: false, logAs: "attendance_fetch" },
+    };
+
+    if (action in DIRECT) {
+      const spec = DIRECT[action];
+      const s = await readSettings(svc);
+      if (spec.write && !s?.push_payroll_endpoint_verified) {
+        return json(403, { error: "Payroll write gate is locked (push_payroll_endpoint_verified=false)." });
+      }
+      const data = (payload && typeof payload === "object" && payload.data && typeof payload.data === "object")
+        ? payload.data : {};
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 25000);
+      let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
+      try {
+        const res = await fetch(`${BASE}/${spec.type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type: spec.type, "sub-type": spec.sub_type },
+            data,
+          }),
+          signal: ctrl.signal,
+        });
+        httpStatus = res.status;
+        const raw = await res.text();
+        try { bodyOut = JSON.parse(raw); } catch { bodyOut = { raw: raw.slice(0, 800) }; }
+        const rpErr = bodyOut && typeof bodyOut === "object" ? (bodyOut.error ?? bodyOut.message ?? null) : null;
+        if (!res.ok || rpErr) {
+          errText = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
+        }
+      } catch (e) {
+        errText = `NETWORK: ${(e as Error).message}`;
+      } finally { clearTimeout(t); }
+
+      const rpEid = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
+        ? String(data["employee-id"]) : "";
+      await logSync(svc, {
+        action: spec.logAs as any,
+        http_status: httpStatus,
+        razorpay_employee_id: rpEid,
+        hr_employee_id: null,
+        field_diff_summary: { endpoint: `${spec.type}/${spec.sub_type}`, data_keys: Object.keys(data).slice(0, 20) },
+        error_text: errText,
+        actor_user_id: authed.userId,
+      });
+      return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
 
   } catch (e) {

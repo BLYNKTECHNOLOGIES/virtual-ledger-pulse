@@ -565,9 +565,10 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 12000);
         try {
           const body: any = { auth: authBlock(), request: { type: resource, "sub-type": subType } };
-          if (probeId && ["people", "salary", "salary-structure", "attendance", "payslip", "bank-details", "tds"].includes(resource)) {
-            // Match the verified people:view envelope exactly: hyphenated keys.
+          if (probeId && resource === "people") {
             body.data = { "employee-id": probeId, "employee-type": "employee" };
+          } else if (probeId && resource === "contractor-payment" && subType === "get-status") {
+            body.data = { "employee-id": probeId };
           }
           const res = await fetch(`${BASE}/${resource}`, {
             method: "POST",

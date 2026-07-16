@@ -1617,6 +1617,7 @@ export default function RazorpaySyncPage() {
           </div>
         </div>
       )}
+      </>)}
 
       {/* STEP 3 — Bulk */}
 

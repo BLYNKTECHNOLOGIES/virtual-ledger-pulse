@@ -1189,7 +1189,7 @@ Deno.serve(async (req) => {
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               auth: authBlock(),
-              request: { type: "people", "sub-type": "update" },
+              request: { type: "people", "sub-type": "edit" },
               data: { "employee-id": eid, "employee-type": "employee", ...diff.patch },
             }),
             signal: ctrl.signal,

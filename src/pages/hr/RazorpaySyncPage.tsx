@@ -267,6 +267,26 @@ export default function RazorpaySyncPage() {
 
   useEffect(() => { if (canAccess) { reloadSettings(); reloadGaps(); } }, [canAccess]);
 
+  // Auto-verify Step E (salary) + Step F (attendance) API names once creds are
+  // validated. HR should never need to type an envelope key — the correct
+  // values are Postman-verified constants baked into the proxy.
+  useEffect(() => {
+    if (!canAccess || !settings) return;
+    if (!settings.last_creds_validated_at) return;
+    const needsSalary = !settings.push_salary_endpoint_verified;
+    const needsAttendance = !settings.push_attendance_endpoint_verified;
+    if (!needsSalary && !needsAttendance) return;
+    (async () => {
+      try {
+        await invoke({ action: "auto_verify_step_envelopes" });
+        await reloadSettings();
+      } catch {
+        // Silent — Advanced view still exposes the manual override.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canAccess, settings?.last_creds_validated_at, settings?.push_salary_endpoint_verified, settings?.push_attendance_endpoint_verified]);
+
   const reloadGaps = async () => {
     const { data, error } = await supabase.from("v_razorpay_import_gaps").select("*");
     if (error || !data) { setGaps(null); return; }
@@ -1596,36 +1616,40 @@ export default function RazorpaySyncPage() {
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
-              We need to confirm which API name RazorpayX accepts for salary updates. Go to <b>Step B</b>, run "Check features", then type the working name (e.g. <code>people:update</code>) into the box below and save. After that, Preview will still work as before, and the "Send" buttons will unlock.
+              {settings?.push_salary_endpoint_verified
+                ? <>API name for salary updates is set up automatically ✅ — no action needed. Preview and "Send pilot" are ready.</>
+                : <>API name for salary updates will be set up automatically once you finish <b>Step A</b> (validate connection). Preview works either way.</>}
             </AlertDescription>
           </Alert>
 
-          <div className="rounded-md border p-3 bg-muted/20 space-y-2">
-            <div className="text-xs font-medium">Confirm the API endpoint RazorpayX accepts</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                placeholder="e.g. people:update"
-                value={salaryEnvelopeInput}
-                onChange={(e) => setSalaryEnvelopeInput(e.target.value)}
-                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
-              />
-              <Button size="sm" variant="secondary" onClick={() => runRecordSalaryEnvelope(true)} disabled={salaryRecording}>
-                {salaryRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => runRecordSalaryEnvelope(false)} disabled={salaryRecording || !settings?.push_salary_endpoint_verified}>
-                Clear verification
-              </Button>
-              {settings?.push_salary_envelope_verified_at && (
-                <span className="text-xs text-muted-foreground">
-                  Verified at {new Date(settings.push_salary_envelope_verified_at).toLocaleString()}
-                </span>
-              )}
+          {!simpleMode && (
+            <div className="rounded-md border p-3 bg-muted/20 space-y-2">
+              <div className="text-xs font-medium">Override API endpoint (advanced)</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. people:set-salary"
+                  value={salaryEnvelopeInput}
+                  onChange={(e) => setSalaryEnvelopeInput(e.target.value)}
+                  className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+                />
+                <Button size="sm" variant="secondary" onClick={() => runRecordSalaryEnvelope(true)} disabled={salaryRecording}>
+                  {salaryRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => runRecordSalaryEnvelope(false)} disabled={salaryRecording || !settings?.push_salary_endpoint_verified}>
+                  Clear verification
+                </Button>
+                {settings?.push_salary_envelope_verified_at && (
+                  <span className="text-xs text-muted-foreground">
+                    Verified at {new Date(settings.push_salary_envelope_verified_at).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Changing this value automatically resets the pilot + bulk-unlock gates so a stale verification cannot re-enable pushes against a new envelope.
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              Changing this value automatically resets the pilot + bulk-unlock gates so a stale verification cannot re-enable pushes against a new envelope.
-            </div>
-          </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -1775,36 +1799,40 @@ export default function RazorpaySyncPage() {
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
-              We need to confirm which API name RazorpayX accepts for attendance/LOP updates. Run <b>Step B</b> to see the options, then type the working name into the box below and save. Preview / dry-run works even without this — only "Send" is locked.
+              {settings?.push_attendance_endpoint_verified
+                ? <>API name for attendance/LOP updates is set up automatically ✅ — no action needed. Preview and "Send pilot" are ready.</>
+                : <>API name for attendance/LOP updates will be set up automatically once you finish <b>Step A</b> (validate connection). Preview works either way.</>}
             </AlertDescription>
           </Alert>
 
-          <div className="rounded-md border p-3 bg-muted/20 space-y-2">
-            <div className="text-xs font-medium">Confirm the API endpoint RazorpayX accepts</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                placeholder="e.g. attendance:update"
-                value={attEnvelopeInput}
-                onChange={(e) => setAttEnvelopeInput(e.target.value)}
-                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
-              />
-              <Button size="sm" variant="secondary" onClick={() => runRecordAttendanceEnvelope(true)} disabled={attRecording}>
-                {attRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => runRecordAttendanceEnvelope(false)} disabled={attRecording || !settings?.push_attendance_endpoint_verified}>
-                Clear verification
-              </Button>
-              {settings?.push_attendance_envelope_verified_at && (
-                <span className="text-xs text-muted-foreground">
-                  Verified at {new Date(settings.push_attendance_envelope_verified_at).toLocaleString()}
-                </span>
-              )}
+          {!simpleMode && (
+            <div className="rounded-md border p-3 bg-muted/20 space-y-2">
+              <div className="text-xs font-medium">Override API endpoint (advanced)</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. attendance:modify"
+                  value={attEnvelopeInput}
+                  onChange={(e) => setAttEnvelopeInput(e.target.value)}
+                  className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+                />
+                <Button size="sm" variant="secondary" onClick={() => runRecordAttendanceEnvelope(true)} disabled={attRecording}>
+                  {attRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => runRecordAttendanceEnvelope(false)} disabled={attRecording || !settings?.push_attendance_endpoint_verified}>
+                  Clear verification
+                </Button>
+                {settings?.push_attendance_envelope_verified_at && (
+                  <span className="text-xs text-muted-foreground">
+                    Verified at {new Date(settings.push_attendance_envelope_verified_at).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Changing this value resets the pilot + bulk-unlock gates.
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              Changing this value resets the pilot + bulk-unlock gates.
-            </div>
-          </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs text-muted-foreground">Period:</label>

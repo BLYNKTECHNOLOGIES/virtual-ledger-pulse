@@ -1279,6 +1279,7 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {/* Phase 4 — Bank & PAN push (isolated behind own toggle + pilot + bulk unlock + diff-and-confirm) */}
+      <Station letter="D" title="Send bank & PAN updates to RazorpayX" subtitle="Isolated push — masked preview + confirmation for every send. PAN & IFSC validated." status={stationStatus("D")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">

@@ -463,30 +463,16 @@ Deno.serve(async (req) => {
       const resource = String(payload?.resource ?? "").trim();
       const subType = String(payload?.sub_type ?? "").trim();
       const data = (payload?.data && typeof payload.data === "object") ? payload.data : {};
+      // Only read variants that actually exist in the Opfin API (verified against
+      // the Postman collection). Everything else — salary-structure/*, payslip/*,
+      // tds/*, webhook/*, bank-details/*, people:list, payroll:list/status/months/runs
+      // — is not in the doc and is intentionally rejected here.
       const READONLY = new Set([
-        // Phase 1 confirmed
         "people:view",
-        // Phase 2 read probes — safe view/list variants of every write-capable resource
-        "salary:view",
-        "salary-structure:view",
-        "salary-structure:list",
-        "attendance:view",
-        "attendance:list",
-        "payslip:view",
-        "payslip:list",
-        "payslip:download",
-        "payroll:view",
-        "payroll:list",
-        "payroll:status",
-        "payroll:months",
-        "payroll:runs",
-        "tds:view",
-        "tds:report",
-        "tds:list",
-        "bank-details:view",
-        "webhook:view",
-        "webhook:list",
-        "people:list",
+        "payroll:view-payroll",
+        "attendance:fetch",
+        "contractor-payment:list-pending",
+        "contractor-payment:get-status",
       ]);
       const key = `${resource}:${subType}`;
       if (!READONLY.has(key)) {
@@ -536,36 +522,26 @@ Deno.serve(async (req) => {
         status: "ok" | "fail" | "not_probed"; http_status: number | null;
         error: string | null; top_level_keys: string[] | null;
       };
+      // Verified against RazorpayX Payroll Postman collection (Opfin).
+      // Each entry maps to a real endpoint that exists in the doc.
       const CATALOGUE: Array<{ phase: string; key: string; mode: "read" | "write" }> = [
-        { phase: "Phase 1 — Import", key: "people:view", mode: "read" },
-        { phase: "Phase 1 — Import", key: "people:list", mode: "read" },
-        { phase: "Phase 3 — Master push", key: "people:update", mode: "write" },
-        { phase: "Phase 3 — Master push", key: "people:create", mode: "write" },
-        { phase: "Phase 4 — Bank & PAN", key: "bank-details:view", mode: "read" },
-        { phase: "Phase 5 — Salary structure", key: "salary:view", mode: "read" },
-        { phase: "Phase 5 — Salary structure", key: "salary-structure:view", mode: "read" },
-        { phase: "Phase 5 — Salary structure", key: "salary-structure:list", mode: "read" },
-        { phase: "Phase 5 — Salary structure", key: "salary-structure:create", mode: "write" },
-        { phase: "Phase 5 — Salary structure", key: "salary-structure:update", mode: "write" },
-        { phase: "Phase 5 — Salary structure", key: "salary:update", mode: "write" },
-        { phase: "Phase 6 — Attendance/LOP", key: "attendance:view", mode: "read" },
-        { phase: "Phase 6 — Attendance/LOP", key: "attendance:list", mode: "read" },
-        { phase: "Phase 6 — Attendance/LOP", key: "attendance:import", mode: "write" },
-        { phase: "Phase 7 — Payroll orchestration", key: "payroll:view", mode: "read" },
-        { phase: "Phase 7 — Payroll orchestration", key: "payroll:list", mode: "read" },
-        { phase: "Phase 7 — Payroll orchestration", key: "payroll:status", mode: "read" },
-        { phase: "Phase 7 — Payroll orchestration", key: "payroll:months", mode: "read" },
-        { phase: "Phase 7 — Payroll orchestration", key: "payroll:runs", mode: "read" },
-        { phase: "Phase 7 — Payroll orchestration", key: "payroll:execute", mode: "write" },
-        { phase: "Phase 7 — Payroll orchestration", key: "payroll:finalize", mode: "write" },
-        { phase: "Phase 8 — Payslip & TDS pull", key: "payslip:view", mode: "read" },
-        { phase: "Phase 8 — Payslip & TDS pull", key: "payslip:list", mode: "read" },
-        { phase: "Phase 8 — Payslip & TDS pull", key: "payslip:download", mode: "read" },
-        { phase: "Phase 8 — Payslip & TDS pull", key: "tds:view", mode: "read" },
-        { phase: "Phase 8 — Payslip & TDS pull", key: "tds:report", mode: "read" },
-        { phase: "Phase 9 — Separation", key: "people:dismiss", mode: "write" },
-        { phase: "Phase 10 — Webhooks", key: "webhook:view", mode: "read" },
-        { phase: "Phase 10 — Webhooks", key: "webhook:list", mode: "read" },
+        { phase: "People", key: "people:view", mode: "read" },
+        { phase: "People", key: "people:create", mode: "write" },
+        { phase: "People", key: "people:edit", mode: "write" },
+        { phase: "People", key: "people:set-salary", mode: "write" },
+        { phase: "People", key: "people:dismiss", mode: "write" },
+        { phase: "Attendance", key: "att:fetch", mode: "read" },
+        { phase: "Attendance", key: "att:modify", mode: "write" },
+        { phase: "Payroll modifications", key: "payroll:add-additions", mode: "write" },
+        { phase: "Payroll modifications", key: "payroll:add-deduction", mode: "write" },
+        { phase: "Payroll modifications", key: "payroll:reset-modifications", mode: "write" },
+        { phase: "Payroll modifications", key: "payroll:do-not-pay", mode: "write" },
+        { phase: "Payroll pull", key: "payroll:view-payroll", mode: "read" },
+        { phase: "Contractor payments", key: "contractor-payment:create", mode: "write" },
+        { phase: "Contractor payments", key: "contractor-payment:list-pending", mode: "read" },
+        { phase: "Contractor payments", key: "contractor-payment:get-status", mode: "read" },
+        { phase: "Contractor payments", key: "contractor-payment:delete", mode: "write" },
+        { phase: "Advance salary", key: "advance-salary:create", mode: "write" },
       ];
 
       // Find a pilot-verified employee to attach to probes that require an ID.
@@ -589,9 +565,10 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 12000);
         try {
           const body: any = { auth: authBlock(), request: { type: resource, "sub-type": subType } };
-          if (probeId && ["people", "salary", "salary-structure", "attendance", "payslip", "bank-details", "tds"].includes(resource)) {
-            // Match the verified people:view envelope exactly: hyphenated keys.
+          if (probeId && resource === "people") {
             body.data = { "employee-id": probeId, "employee-type": "employee" };
+          } else if (probeId && resource === "contractor-payment" && subType === "get-status") {
+            body.data = { "employee-id": probeId };
           }
           const res = await fetch(`${BASE}/${resource}`, {
             method: "POST",
@@ -1008,7 +985,7 @@ Deno.serve(async (req) => {
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               auth: authBlock(),
-              request: { type: "people", "sub-type": "update" },
+              request: { type: "people", "sub-type": "edit" },
               data: { "employee-id": eid, "employee-type": "employee", ...diff.patch },
             }),
             signal: ctrl.signal,
@@ -1212,7 +1189,7 @@ Deno.serve(async (req) => {
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               auth: authBlock(),
-              request: { type: "people", "sub-type": "update" },
+              request: { type: "people", "sub-type": "edit" },
               data: { "employee-id": eid, "employee-type": "employee", ...diff.patch },
             }),
             signal: ctrl.signal,
@@ -1460,8 +1437,13 @@ Deno.serve(async (req) => {
 
         // Live push using the operator-verified envelope key. Body shape follows the
         // hyphenated-keys convention shared with people:update / bank push.
+        // Live push using the operator-verified envelope key. Documented endpoint
+        // is POST /api/people with sub-type "set-salary" — normalize legacy
+        // "salary:update" / "people:update" envelopes to that.
         const envelopeKey = String(settingsRow!.push_salary_envelope_key);
-        const [type, subType] = envelopeKey.split(":");
+        let [type, subType] = envelopeKey.split(":");
+        if (!type || type === "salary") type = "people";
+        if (!subType || subType === "update") subType = "set-salary";
         const salaryPayload = {
           "ctc-annual": erp.total,
           components: erp.components.map((c) => ({
@@ -1472,12 +1454,12 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
         try {
-          const res = await fetch(`${BASE}/${type || "people"}`, {
+          const res = await fetch(`${BASE}/${type}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               auth: authBlock(),
-              request: { type: type || "people", "sub-type": subType || "update" },
+              request: { type, "sub-type": subType },
               data: { "employee-id": eid, "employee-type": "employee", salary: salaryPayload },
             }),
             signal: ctrl.signal,
@@ -1816,11 +1798,15 @@ Deno.serve(async (req) => {
         }
 
         // Live push using the operator-verified attendance envelope key.
+        // Documented endpoint is POST /api/att with sub-type "modify"; older
+        // envelopes stored "attendance:update" — normalize both to the doc.
         const envelopeKey = String(settingsRow!.push_attendance_envelope_key);
-        const [type, subType] = envelopeKey.split(":");
+        let [type, subType] = envelopeKey.split(":");
+        if (!type || type === "attendance") type = "att";
+        if (!subType || subType === "update") subType = "modify";
         const body = {
           auth: authBlock(),
-          request: { type: type || "attendance", "sub-type": subType || "update" },
+          request: { type, "sub-type": subType },
           data: {
             "employee-id": eid,
             "employee-type": "employee",
@@ -1835,7 +1821,7 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
         try {
-          const res = await fetch(`${BASE}/${type || "attendance"}`, {
+          const res = await fetch(`${BASE}/${type}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify(body),
@@ -2527,8 +2513,13 @@ Deno.serve(async (req) => {
           });
         }
 
+        // Documented endpoint for pulling payouts is POST /api/payroll with
+        // sub-type "view-payroll" (Opfin) — normalize legacy "payouts:view"
+        // envelopes, which target a ghost endpoint.
         const envelopeKey = String(poSettings.pull_payouts_envelope_key);
-        const [type, subType] = envelopeKey.split(":");
+        let [type, subType] = envelopeKey.split(":");
+        if (!type || type === "payouts") type = "payroll";
+        if (!subType || subType === "view") subType = "view-payroll";
 
         // Pull payouts. Actual shape is Razorpay-tenant-specific; whatever comes
         // back is stored verbatim in source_payload and normalised best-effort.
@@ -2536,13 +2527,13 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 30000);
         let httpStatus = 0; let bodyOut: any = null;
         try {
-          const res = await fetch(`${BASE}/${type || "payouts"}`, {
+          const res = await fetch(`${BASE}/${type}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               auth: authBlock(),
-              request: { type: type || "payouts", "sub-type": subType || "view" },
-              data: { period: periodMonthStr },
+              request: { type, "sub-type": subType },
+              data: { period: periodMonthStr, "payroll-month": periodMonthStr },
             }),
             signal: ctrl.signal,
           });
@@ -3344,6 +3335,80 @@ Deno.serve(async (req) => {
         const totals = await refreshTotals();
         return json(200, { ok: true, totals });
       }
+    }
+
+    // ---------------------------------------------------------------------
+    // Direct action bridge for RazorpayX Payroll endpoints that don't need a
+    // dedicated phase workflow (contractor payments, advance salary, payroll
+    // modifications, dismiss, attendance fetch, payroll view). Every action
+    // is gated on the master switches operators toggle in Razorpay Sync:
+    //   READ    → requires an existing verified credential pair
+    //   WRITE   → additionally requires push_payroll_endpoint_verified = true
+    // Requests hit /api/<type> with the exact sub-type the doc specifies;
+    // callers pass `data` verbatim so we don't hide any field-shape drift.
+    // ---------------------------------------------------------------------
+    const DIRECT: Record<string, {
+      type: string; sub_type: string; write: boolean; logAs: string;
+    }> = {
+      people_dismiss:              { type: "people",              sub_type: "dismiss",             write: true,  logAs: "people_dismiss" },
+      payroll_view_payroll:        { type: "payroll",             sub_type: "view-payroll",        write: false, logAs: "payroll_view_payroll" },
+      payroll_add_additions:       { type: "payroll",             sub_type: "add-additions",       write: true,  logAs: "payroll_add_additions" },
+      payroll_add_deduction:       { type: "payroll",             sub_type: "add-deduction",       write: true,  logAs: "payroll_add_deduction" },
+      payroll_reset_modifications: { type: "payroll",             sub_type: "reset-modifications", write: true,  logAs: "payroll_reset_modifications" },
+      payroll_do_not_pay:          { type: "payroll",             sub_type: "do-not-pay",          write: true,  logAs: "payroll_do_not_pay" },
+      contractor_payment_create:   { type: "contractor-payment",  sub_type: "create",              write: true,  logAs: "contractor_payment_create" },
+      contractor_payment_delete:   { type: "contractor-payment",  sub_type: "delete",              write: true,  logAs: "contractor_payment_delete" },
+      contractor_payment_list:     { type: "contractor-payment",  sub_type: "list-pending",        write: false, logAs: "contractor_payment_list" },
+      contractor_payment_status:   { type: "contractor-payment",  sub_type: "get-status",          write: false, logAs: "contractor_payment_status" },
+      advance_salary_create:       { type: "advance-salary",      sub_type: "create",              write: true,  logAs: "advance_salary_create" },
+      attendance_fetch:            { type: "att",                 sub_type: "fetch",               write: false, logAs: "attendance_fetch" },
+    };
+
+    if (action in DIRECT) {
+      const spec = DIRECT[action];
+      const s = await readSettings(svc);
+      if (spec.write && !s?.push_payroll_endpoint_verified) {
+        return json(403, { error: "Payroll write gate is locked (push_payroll_endpoint_verified=false)." });
+      }
+      const data = (payload && typeof payload === "object" && payload.data && typeof payload.data === "object")
+        ? payload.data : {};
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 25000);
+      let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
+      try {
+        const res = await fetch(`${BASE}/${spec.type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type: spec.type, "sub-type": spec.sub_type },
+            data,
+          }),
+          signal: ctrl.signal,
+        });
+        httpStatus = res.status;
+        const raw = await res.text();
+        try { bodyOut = JSON.parse(raw); } catch { bodyOut = { raw: raw.slice(0, 800) }; }
+        const rpErr = bodyOut && typeof bodyOut === "object" ? (bodyOut.error ?? bodyOut.message ?? null) : null;
+        if (!res.ok || rpErr) {
+          errText = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
+        }
+      } catch (e) {
+        errText = `NETWORK: ${(e as Error).message}`;
+      } finally { clearTimeout(t); }
+
+      const rpEid = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
+        ? String(data["employee-id"]) : "";
+      await logSync(svc, {
+        action: spec.logAs as any,
+        http_status: httpStatus,
+        razorpay_employee_id: rpEid,
+        hr_employee_id: null,
+        field_diff_summary: { endpoint: `${spec.type}/${spec.sub_type}`, data_keys: Object.keys(data).slice(0, 20) },
+        error_text: errText,
+        actor_user_id: authed.userId,
+      });
+      return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
     }
 
     return json(400, { error: `Unsupported action: ${action}` });

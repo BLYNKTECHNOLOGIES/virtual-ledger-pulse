@@ -1793,11 +1793,15 @@ Deno.serve(async (req) => {
         }
 
         // Live push using the operator-verified attendance envelope key.
+        // Documented endpoint is POST /api/att with sub-type "modify"; older
+        // envelopes stored "attendance:update" — normalize both to the doc.
         const envelopeKey = String(settingsRow!.push_attendance_envelope_key);
-        const [type, subType] = envelopeKey.split(":");
+        let [type, subType] = envelopeKey.split(":");
+        if (!type || type === "attendance") type = "att";
+        if (!subType || subType === "update") subType = "modify";
         const body = {
           auth: authBlock(),
-          request: { type: type || "attendance", "sub-type": subType || "update" },
+          request: { type, "sub-type": subType },
           data: {
             "employee-id": eid,
             "employee-type": "employee",
@@ -1812,7 +1816,7 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
         try {
-          const res = await fetch(`${BASE}/${type || "attendance"}`, {
+          const res = await fetch(`${BASE}/${type}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify(body),

@@ -1642,6 +1642,8 @@ export default function RazorpaySyncPage() {
       <PayrollRunSection invoke={invoke} />
 
       <PayoutReconciliationSection invoke={invoke} />
+
+      <PayslipTaxDocSection invoke={invoke} />
     </div>
   );
 }
@@ -2156,6 +2158,342 @@ function PayoutReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
             </div>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9 — Payslip & Tax-document ingestion
+// Pulls per-employee payslips (monthly) and yearly tax documents (Form 16 etc.)
+// from Razorpay. Read-only against Razorpay; envelope-gated.
+// ---------------------------------------------------------------------------
+interface PayslipRow {
+  id: string;
+  period_month: string;
+  razorpay_employee_id: string;
+  hr_employee_id: string | null;
+  gross_earnings: number | null;
+  total_deductions: number | null;
+  net_pay: number | null;
+  tds_amount: number | null;
+  expected_net: number | null;
+  variance: number | null;
+  pdf_url: string | null;
+  razorpay_payslip_id: string | null;
+  pulled_at: string;
+}
+interface TaxDocRow {
+  id: string;
+  fiscal_year: string;
+  doc_type: string;
+  razorpay_employee_id: string;
+  hr_employee_id: string | null;
+  razorpay_document_id: string | null;
+  pdf_url: string | null;
+  gross_annual: number | null;
+  total_tds: number | null;
+  pulled_at: string;
+}
+
+function PayslipTaxDocSection({ invoke }: { invoke: <T,>(body: object) => Promise<T> }) {
+  const [period, setPeriod] = useState<string>(() => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+  const [fiscalYear, setFiscalYear] = useState<string>(() => {
+    const d = new Date();
+    const y = d.getUTCMonth() >= 3 ? d.getUTCFullYear() : d.getUTCFullYear() - 1;
+    return `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
+  });
+  const [docType, setDocType] = useState("form16");
+  const [settings, setSettings] = useState<any>(null);
+  const [payslips, setPayslips] = useState<PayslipRow[]>([]);
+  const [taxDocs, setTaxDocs] = useState<TaxDocRow[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  // Payslip envelope discovery
+  const [psProbeType, setPsProbeType] = useState("payslip");
+  const [psProbeSub, setPsProbeSub] = useState("view");
+  const [psEnvelope, setPsEnvelope] = useState("");
+  const [psProbeResult, setPsProbeResult] = useState<any>(null);
+
+  // Tax-doc envelope discovery
+  const [tdProbeType, setTdProbeType] = useState("form16");
+  const [tdProbeSub, setTdProbeSub] = useState("view");
+  const [tdEnvelope, setTdEnvelope] = useState("");
+  const [tdProbeResult, setTdProbeResult] = useState<any>(null);
+
+  const [filter, setFilter] = useState<"all" | "mismatched" | "no_pdf">("all");
+
+  const reload = async () => {
+    const { data: s } = await supabase.from("hr_razorpay_settings")
+      .select("pull_payslips_endpoint_verified,pull_payslips_envelope_key,last_payslips_pull_at,pull_taxdocs_endpoint_verified,pull_taxdocs_envelope_key,last_taxdocs_pull_at")
+      .maybeSingle();
+    setSettings(s);
+    const iso = `${period}-01`;
+    const { data: ps } = await (supabase.from("hr_razorpay_payslip_records") as any)
+      .select("id,period_month,razorpay_employee_id,hr_employee_id,gross_earnings,total_deductions,net_pay,tds_amount,expected_net,variance,pdf_url,razorpay_payslip_id,pulled_at")
+      .eq("period_month", iso)
+      .order("variance", { ascending: false, nullsFirst: false });
+    setPayslips((ps || []) as PayslipRow[]);
+    const { data: td } = await (supabase.from("hr_razorpay_taxdoc_records") as any)
+      .select("id,fiscal_year,doc_type,razorpay_employee_id,hr_employee_id,razorpay_document_id,pdf_url,gross_annual,total_tds,pulled_at")
+      .eq("fiscal_year", fiscalYear)
+      .eq("doc_type", docType);
+    setTaxDocs((td || []) as TaxDocRow[]);
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [period, fiscalYear, docType]);
+
+  const call = async (action: string, body: any = {}) => {
+    setBusy(action);
+    try {
+      const d = await invoke<any>({ action, ...body });
+      if (action === "probe_payslips_endpoint") {
+        setPsProbeResult(d);
+        toast({ title: d?.ok ? `Probe ok · HTTP ${d.http_status}` : `Probe failed · HTTP ${d?.http_status ?? 0}`, variant: d?.ok ? "default" : "destructive" });
+      } else if (action === "probe_taxdocs_endpoint") {
+        setTdProbeResult(d);
+        toast({ title: d?.ok ? `Probe ok · HTTP ${d.http_status}` : `Probe failed · HTTP ${d?.http_status ?? 0}`, variant: d?.ok ? "default" : "destructive" });
+      } else if (action === "pull_payslips_for_period") {
+        const s = d?.summary;
+        toast({ title: "Payslip pull complete", description: s ? `total ${s.total} · with PDF ${s.withPdf} · mismatched ${s.mismatched}` : "done" });
+      } else if (action === "pull_taxdocs_for_year") {
+        const s = d?.summary;
+        toast({ title: "Tax-doc pull complete", description: s ? `total ${s.total} · with PDF ${s.withPdf}` : "done" });
+      } else {
+        toast({ title: `${action} · ok` });
+      }
+      await reload();
+    } catch (e: any) {
+      toast({ title: `${action} failed`, description: e?.message, variant: "destructive" });
+    } finally { setBusy(null); }
+  };
+
+  const psVerified = !!settings?.pull_payslips_endpoint_verified;
+  const tdVerified = !!settings?.pull_taxdocs_endpoint_verified;
+
+  const shownPs = payslips.filter((r) => {
+    if (filter === "mismatched") return r.variance != null && Math.abs(r.variance) >= 0.5;
+    if (filter === "no_pdf") return !r.pdf_url;
+    return true;
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <DownloadCloud className="h-4 w-4" /> Phase 9 — Payslip &amp; tax-doc ingestion
+        </CardTitle>
+        <CardDescription>
+          Pull monthly payslips and yearly tax documents (Form 16, Form 12BA) from Razorpay.
+          Read-only against Razorpay; both envelopes are independently gated.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* --------------------------- Payslips --------------------------- */}
+        <div className="space-y-3">
+          <div className="text-sm font-semibold">Monthly payslips</div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Period (YYYY-MM)</label>
+              <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)}
+                className="block h-9 rounded-md border bg-background px-2 text-sm" />
+            </div>
+            <Button size="sm"
+              onClick={() => call("pull_payslips_for_period", { period_month: period })}
+              disabled={!!busy || !psVerified}>
+              {busy === "pull_payslips_for_period" ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+              Pull payslips
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              Envelope: {psVerified
+                ? <Badge variant="default">verified · {settings?.pull_payslips_envelope_key}</Badge>
+                : <Badge variant="outline">not verified</Badge>}
+              {settings?.last_payslips_pull_at && (
+                <span className="ml-2">Last pull: {new Date(settings.last_payslips_pull_at).toLocaleString()}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-md border p-3 space-y-2">
+            <div className="text-sm font-medium flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Payslip envelope discovery</div>
+            <div className="flex flex-wrap items-end gap-2">
+              <input placeholder="type (e.g. payslip)" value={psProbeType} onChange={(e) => setPsProbeType(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm w-40" />
+              <input placeholder="sub-type (e.g. view)" value={psProbeSub} onChange={(e) => setPsProbeSub(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm w-40" />
+              <Button size="sm" variant="outline"
+                onClick={() => call("probe_payslips_endpoint", { type: psProbeType, sub_type: psProbeSub, period_month: period })}
+                disabled={!!busy}>Probe</Button>
+              <input placeholder="verified envelope key (e.g. payslip:view)" value={psEnvelope}
+                onChange={(e) => setPsEnvelope(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm flex-1 min-w-[220px]" />
+              <Button size="sm" variant="outline"
+                onClick={() => call("record_payslips_envelope_verified", { envelope_key: psEnvelope, verified: true })}
+                disabled={!!busy || !psEnvelope.trim()}>Record verified</Button>
+              <Button size="sm" variant="ghost"
+                onClick={() => call("record_payslips_envelope_verified", { verified: false })}
+                disabled={!!busy || !psVerified}>Revoke</Button>
+            </div>
+            {psProbeResult && (
+              <pre className="text-[10px] bg-muted/40 p-2 rounded max-h-48 overflow-auto">
+                {JSON.stringify(psProbeResult, null, 2)}
+              </pre>
+            )}
+          </div>
+
+          {payslips.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="text-sm">Payslips: <strong>{payslips.length}</strong></div>
+                <div className="ml-auto flex gap-1">
+                  {(["all", "mismatched", "no_pdf"] as const).map((f) => (
+                    <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} onClick={() => setFilter(f)}>
+                      {f.replace("_", " ")}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md border overflow-x-auto max-h-[420px] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr className="text-left">
+                      <th className="p-2">RP ID</th>
+                      <th className="p-2">Gross</th>
+                      <th className="p-2">Deductions</th>
+                      <th className="p-2">Net</th>
+                      <th className="p-2">TDS</th>
+                      <th className="p-2">Expected</th>
+                      <th className="p-2">Variance</th>
+                      <th className="p-2">PDF</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shownPs.slice(0, 500).map((r) => {
+                      const bad = r.variance != null && Math.abs(r.variance) >= 0.5;
+                      return (
+                        <tr key={r.id} className="border-t">
+                          <td className="p-2 font-mono">{r.razorpay_employee_id}</td>
+                          <td className="p-2 tabular-nums">{r.gross_earnings != null ? `₹${Math.round(r.gross_earnings).toLocaleString()}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.total_deductions != null ? `₹${Math.round(r.total_deductions).toLocaleString()}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.net_pay != null ? `₹${Math.round(r.net_pay).toLocaleString()}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.tds_amount != null ? `₹${Math.round(r.tds_amount).toLocaleString()}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.expected_net != null ? `₹${Math.round(r.expected_net).toLocaleString()}` : "—"}</td>
+                          <td className={`p-2 tabular-nums ${bad ? "text-destructive font-semibold" : ""}`}>
+                            {r.variance != null ? `₹${Math.round(r.variance).toLocaleString()}` : "—"}
+                          </td>
+                          <td className="p-2">
+                            {r.pdf_url
+                              ? <a href={r.pdf_url} target="_blank" rel="noreferrer" className="text-primary underline">open</a>
+                              : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* --------------------------- Tax documents ---------------------- */}
+        <div className="space-y-3 pt-2 border-t">
+          <div className="text-sm font-semibold">Yearly tax documents</div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Fiscal year (YYYY-YY)</label>
+              <input type="text" value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}
+                placeholder="2025-26"
+                className="block h-9 rounded-md border bg-background px-2 text-sm w-32" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Document type</label>
+              <select value={docType} onChange={(e) => setDocType(e.target.value)}
+                className="block h-9 rounded-md border bg-background px-2 text-sm">
+                <option value="form16">Form 16</option>
+                <option value="form12ba">Form 12BA</option>
+                <option value="tds_report">TDS report</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <Button size="sm"
+              onClick={() => call("pull_taxdocs_for_year", { fiscal_year: fiscalYear, doc_type: docType })}
+              disabled={!!busy || !tdVerified}>
+              {busy === "pull_taxdocs_for_year" ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+              Pull tax docs
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              Envelope: {tdVerified
+                ? <Badge variant="default">verified · {settings?.pull_taxdocs_envelope_key}</Badge>
+                : <Badge variant="outline">not verified</Badge>}
+              {settings?.last_taxdocs_pull_at && (
+                <span className="ml-2">Last pull: {new Date(settings.last_taxdocs_pull_at).toLocaleString()}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-md border p-3 space-y-2">
+            <div className="text-sm font-medium flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Tax-doc envelope discovery</div>
+            <div className="flex flex-wrap items-end gap-2">
+              <input placeholder="type (e.g. form16)" value={tdProbeType} onChange={(e) => setTdProbeType(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm w-40" />
+              <input placeholder="sub-type (e.g. view)" value={tdProbeSub} onChange={(e) => setTdProbeSub(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm w-40" />
+              <Button size="sm" variant="outline"
+                onClick={() => call("probe_taxdocs_endpoint", { type: tdProbeType, sub_type: tdProbeSub, fiscal_year: fiscalYear })}
+                disabled={!!busy}>Probe</Button>
+              <input placeholder="verified envelope key (e.g. form16:view)" value={tdEnvelope}
+                onChange={(e) => setTdEnvelope(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm flex-1 min-w-[220px]" />
+              <Button size="sm" variant="outline"
+                onClick={() => call("record_taxdocs_envelope_verified", { envelope_key: tdEnvelope, verified: true })}
+                disabled={!!busy || !tdEnvelope.trim()}>Record verified</Button>
+              <Button size="sm" variant="ghost"
+                onClick={() => call("record_taxdocs_envelope_verified", { verified: false })}
+                disabled={!!busy || !tdVerified}>Revoke</Button>
+            </div>
+            {tdProbeResult && (
+              <pre className="text-[10px] bg-muted/40 p-2 rounded max-h-48 overflow-auto">
+                {JSON.stringify(tdProbeResult, null, 2)}
+              </pre>
+            )}
+          </div>
+
+          {taxDocs.length > 0 && (
+            <div className="rounded-md border overflow-x-auto max-h-[360px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr className="text-left">
+                    <th className="p-2">RP ID</th>
+                    <th className="p-2">Doc ID</th>
+                    <th className="p-2">Gross annual</th>
+                    <th className="p-2">Total TDS</th>
+                    <th className="p-2">PDF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {taxDocs.map((r) => (
+                    <tr key={r.id} className="border-t">
+                      <td className="p-2 font-mono">{r.razorpay_employee_id}</td>
+                      <td className="p-2 font-mono">{r.razorpay_document_id || "—"}</td>
+                      <td className="p-2 tabular-nums">{r.gross_annual != null ? `₹${Math.round(r.gross_annual).toLocaleString()}` : "—"}</td>
+                      <td className="p-2 tabular-nums">{r.total_tds != null ? `₹${Math.round(r.total_tds).toLocaleString()}` : "—"}</td>
+                      <td className="p-2">
+                        {r.pdf_url
+                          ? <a href={r.pdf_url} target="_blank" rel="noreferrer" className="text-primary underline">open</a>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

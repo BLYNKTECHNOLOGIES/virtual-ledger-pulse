@@ -8495,6 +8495,87 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_razorpay_payslip_records: {
+        Row: {
+          created_at: string
+          expected_net: number | null
+          gross_earnings: number | null
+          hr_employee_id: string | null
+          id: string
+          net_pay: number | null
+          pdf_storage_path: string | null
+          pdf_url: string | null
+          period_month: string
+          pulled_at: string
+          pulled_by: string | null
+          razorpay_employee_id: string
+          razorpay_payslip_id: string | null
+          run_id: string | null
+          source_payload: Json | null
+          tds_amount: number | null
+          total_deductions: number | null
+          updated_at: string
+          variance: number | null
+        }
+        Insert: {
+          created_at?: string
+          expected_net?: number | null
+          gross_earnings?: number | null
+          hr_employee_id?: string | null
+          id?: string
+          net_pay?: number | null
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          period_month: string
+          pulled_at?: string
+          pulled_by?: string | null
+          razorpay_employee_id: string
+          razorpay_payslip_id?: string | null
+          run_id?: string | null
+          source_payload?: Json | null
+          tds_amount?: number | null
+          total_deductions?: number | null
+          updated_at?: string
+          variance?: number | null
+        }
+        Update: {
+          created_at?: string
+          expected_net?: number | null
+          gross_earnings?: number | null
+          hr_employee_id?: string | null
+          id?: string
+          net_pay?: number | null
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          period_month?: string
+          pulled_at?: string
+          pulled_by?: string | null
+          razorpay_employee_id?: string
+          razorpay_payslip_id?: string | null
+          run_id?: string | null
+          source_payload?: Json | null
+          tds_amount?: number | null
+          total_deductions?: number | null
+          updated_at?: string
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_razorpay_settings: {
         Row: {
           base_url: string
@@ -8511,12 +8592,22 @@ export type Database = {
           last_creds_validated_at: string | null
           last_import_at: string | null
           last_payouts_pull_at: string | null
+          last_payslips_pull_at: string | null
           last_push_at: string | null
           last_salary_push_at: string | null
+          last_taxdocs_pull_at: string | null
           pull_payouts_endpoint_verified: boolean
           pull_payouts_envelope_key: string | null
           pull_payouts_envelope_verified_at: string | null
           pull_payouts_envelope_verified_by: string | null
+          pull_payslips_endpoint_verified: boolean
+          pull_payslips_envelope_key: string | null
+          pull_payslips_envelope_verified_at: string | null
+          pull_payslips_envelope_verified_by: string | null
+          pull_taxdocs_endpoint_verified: boolean
+          pull_taxdocs_envelope_key: string | null
+          pull_taxdocs_envelope_verified_at: string | null
+          pull_taxdocs_envelope_verified_by: string | null
           push_attendance_endpoint_verified: boolean
           push_attendance_envelope_key: string | null
           push_attendance_envelope_verified_at: string | null
@@ -8558,12 +8649,22 @@ export type Database = {
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_payouts_pull_at?: string | null
+          last_payslips_pull_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          last_taxdocs_pull_at?: string | null
           pull_payouts_endpoint_verified?: boolean
           pull_payouts_envelope_key?: string | null
           pull_payouts_envelope_verified_at?: string | null
           pull_payouts_envelope_verified_by?: string | null
+          pull_payslips_endpoint_verified?: boolean
+          pull_payslips_envelope_key?: string | null
+          pull_payslips_envelope_verified_at?: string | null
+          pull_payslips_envelope_verified_by?: string | null
+          pull_taxdocs_endpoint_verified?: boolean
+          pull_taxdocs_envelope_key?: string | null
+          pull_taxdocs_envelope_verified_at?: string | null
+          pull_taxdocs_envelope_verified_by?: string | null
           push_attendance_endpoint_verified?: boolean
           push_attendance_envelope_key?: string | null
           push_attendance_envelope_verified_at?: string | null
@@ -8605,12 +8706,22 @@ export type Database = {
           last_creds_validated_at?: string | null
           last_import_at?: string | null
           last_payouts_pull_at?: string | null
+          last_payslips_pull_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          last_taxdocs_pull_at?: string | null
           pull_payouts_endpoint_verified?: boolean
           pull_payouts_envelope_key?: string | null
           pull_payouts_envelope_verified_at?: string | null
           pull_payouts_envelope_verified_by?: string | null
+          pull_payslips_endpoint_verified?: boolean
+          pull_payslips_envelope_key?: string | null
+          pull_payslips_envelope_verified_at?: string | null
+          pull_payslips_envelope_verified_by?: string | null
+          pull_taxdocs_endpoint_verified?: boolean
+          pull_taxdocs_envelope_key?: string | null
+          pull_taxdocs_envelope_verified_at?: string | null
+          pull_taxdocs_envelope_verified_by?: string | null
           push_attendance_endpoint_verified?: boolean
           push_attendance_envelope_key?: string | null
           push_attendance_envelope_verified_at?: string | null
@@ -8679,6 +8790,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_razorpay_taxdoc_records: {
+        Row: {
+          created_at: string
+          doc_type: string
+          fiscal_year: string
+          gross_annual: number | null
+          hr_employee_id: string | null
+          id: string
+          pdf_storage_path: string | null
+          pdf_url: string | null
+          pulled_at: string
+          pulled_by: string | null
+          razorpay_document_id: string | null
+          razorpay_employee_id: string
+          source_payload: Json | null
+          total_tds: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          fiscal_year: string
+          gross_annual?: number | null
+          hr_employee_id?: string | null
+          id?: string
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          pulled_at?: string
+          pulled_by?: string | null
+          razorpay_document_id?: string | null
+          razorpay_employee_id: string
+          source_payload?: Json | null
+          total_tds?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          fiscal_year?: string
+          gross_annual?: number | null
+          hr_employee_id?: string | null
+          id?: string
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          pulled_at?: string
+          pulled_by?: string | null
+          razorpay_document_id?: string | null
+          razorpay_employee_id?: string
+          source_payload?: Json | null
+          total_tds?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_taxdoc_records_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"

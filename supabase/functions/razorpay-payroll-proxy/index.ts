@@ -2579,6 +2579,290 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ============================================================
+    // Phase 9 — Payslip & Tax-document ingestion
+    // Actions:
+    //   probe_payslips_endpoint             — sniff a candidate GET envelope for payslips
+    //   record_payslips_envelope_verified   — operator marks verified envelope
+    //   pull_payslips_for_period            — pull per-employee payslips for a YYYY-MM
+    //   probe_taxdocs_endpoint              — sniff Form-16 / TDS report envelope
+    //   record_taxdocs_envelope_verified    — operator marks verified envelope
+    //   pull_taxdocs_for_year               — pull yearly tax docs for a fiscal year
+    // Read-only against Razorpay; writes are into
+    // hr_razorpay_payslip_records / hr_razorpay_taxdoc_records only.
+    // ============================================================
+    if (
+      action === "probe_payslips_endpoint" ||
+      action === "record_payslips_envelope_verified" ||
+      action === "pull_payslips_for_period" ||
+      action === "probe_taxdocs_endpoint" ||
+      action === "record_taxdocs_envelope_verified" ||
+      action === "pull_taxdocs_for_year"
+    ) {
+      const { data: p9Settings } = await svc
+        .from("hr_razorpay_settings").select("*").eq("is_singleton", true).maybeSingle();
+
+      // Shared probe helper
+      async function razorpayPost(type: string, subType: string, data: any) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 30000);
+        let httpStatus = 0; let raw = ""; let parsed: any = null;
+        try {
+          const res = await fetch(`${BASE}/${type}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ auth: authBlock(), request: { type, "sub-type": subType }, data }),
+            signal: ctrl.signal,
+          });
+          httpStatus = res.status;
+          raw = await res.text();
+          try { parsed = JSON.parse(raw); } catch { parsed = null; }
+        } catch (e) {
+          return { networkError: (e as Error).message, httpStatus: 0, parsed: null, raw: "" };
+        } finally { clearTimeout(t); }
+        return { httpStatus, parsed, raw };
+      }
+
+      function pickNum(o: any, keys: string[]) {
+        for (const k of keys) { const v = o?.[k]; if (v != null && Number.isFinite(Number(v))) return Number(v); }
+        return null;
+      }
+      function pickStr(o: any, keys: string[]) {
+        for (const k of keys) { const v = o?.[k]; if (v != null && String(v).length) return String(v); }
+        return null;
+      }
+      function extractList(bodyOut: any): any[] {
+        if (Array.isArray(bodyOut)) return bodyOut;
+        if (bodyOut && typeof bodyOut === "object") {
+          return bodyOut.data || bodyOut.payslips || bodyOut.documents ||
+                 bodyOut.list || bodyOut.result || bodyOut.records || [];
+        }
+        return [];
+      }
+
+      // ---- probe_payslips_endpoint / probe_taxdocs_endpoint ----
+      if (action === "probe_payslips_endpoint" || action === "probe_taxdocs_endpoint") {
+        const isPayslip = action === "probe_payslips_endpoint";
+        const type = String(payload?.type || (isPayslip ? "payslip" : "form16")).trim();
+        const subType = String(payload?.sub_type || "view").trim();
+        const periodMonth = String(payload?.period_month || "").trim();
+        const fiscalYear = String(payload?.fiscal_year || "").trim();
+        const data: any = {};
+        if (periodMonth) data.period = periodMonth;
+        if (fiscalYear) data["fiscal-year"] = fiscalYear;
+        if (payload?.employee_id) data["employee-id"] = payload.employee_id;
+
+        const r = await razorpayPost(type, subType, data);
+        if ((r as any).networkError) {
+          return json(200, { ok: false, error: `NETWORK: ${(r as any).networkError}` });
+        }
+        return json(200, {
+          ok: r.httpStatus >= 200 && r.httpStatus < 300,
+          http_status: r.httpStatus,
+          envelope_key: `${type}:${subType}`,
+          body_preview: r.parsed ?? { raw: (r.raw || "").slice(0, 800) },
+        });
+      }
+
+      // ---- record_payslips_envelope_verified / record_taxdocs_envelope_verified ----
+      if (action === "record_payslips_envelope_verified" || action === "record_taxdocs_envelope_verified") {
+        const isPayslip = action === "record_payslips_envelope_verified";
+        const key = String(payload?.envelope_key || "").trim();
+        const verified = !!payload?.verified;
+        if (verified && !key) return json(400, { error: "envelope_key is required when verified=true" });
+        const prefix = isPayslip ? "pull_payslips" : "pull_taxdocs";
+        const patch: any = {
+          [`${prefix}_endpoint_verified`]: verified,
+          [`${prefix}_envelope_key`]: verified ? key : null,
+          [`${prefix}_envelope_verified_at`]: verified ? new Date().toISOString() : null,
+          [`${prefix}_envelope_verified_by`]: verified ? authed.userId : null,
+        };
+        const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+        if (error) return json(500, { error: error.message });
+        return json(200, { ok: true });
+      }
+
+      // ---- pull_payslips_for_period ----
+      if (action === "pull_payslips_for_period") {
+        if (!p9Settings?.pull_payslips_endpoint_verified || !p9Settings?.pull_payslips_envelope_key) {
+          return json(400, { error: "Payslip envelope not verified. Record a probe-verified envelope first." });
+        }
+        const periodMonthStr = String(payload?.period_month || "").trim();
+        const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
+        if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
+        const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
+        const [type, subType] = String(p9Settings.pull_payslips_envelope_key).split(":");
+
+        const r = await razorpayPost(type || "payslip", subType || "view", { period: periodMonthStr });
+        if ((r as any).networkError) return json(502, { error: `NETWORK: ${(r as any).networkError}` });
+        if (r.httpStatus < 200 || r.httpStatus >= 300) {
+          return json(502, { error: "Razorpay returned non-2xx", http_status: r.httpStatus, body: r.parsed });
+        }
+        const rawList = extractList(r.parsed);
+
+        // Load expected net from the payroll run for the same period, for variance.
+        const { data: runRow } = await svc.from("hr_razorpay_payroll_runs")
+          .select("id").eq("period_month", periodMonthISO).maybeSingle();
+        const runId = runRow?.id || null;
+        const expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();
+        if (runId) {
+          const { data: lineRows } = await svc.from("hr_razorpay_payroll_run_lines")
+            .select("employee_id,net_pay").eq("run_id", runId);
+          const hrIds = (lineRows || []).map((l: any) => l.employee_id);
+          if (hrIds.length) {
+            const { data: maps } = await svc.from("hr_razorpay_employee_map")
+              .select("hr_employee_id,razorpay_employee_id").in("hr_employee_id", hrIds);
+            const rpByHr = new Map((maps || []).map((m: any) => [m.hr_employee_id, String(m.razorpay_employee_id)]));
+            for (const l of (lineRows || []) as any[]) {
+              const rpId = rpByHr.get(l.employee_id);
+              if (rpId) expectedByRpId.set(rpId, { hr_employee_id: l.employee_id, net_pay: Number(l.net_pay || 0) });
+            }
+          }
+        }
+
+        const upserts: any[] = [];
+        for (const p of rawList) {
+          const rpId = pickStr(p, ["employee-id", "employee_id", "employeeId", "emp-id"]);
+          if (!rpId) continue;
+          const gross = pickNum(p, ["gross-earnings", "gross_earnings", "gross", "total-earnings"]);
+          const deductions = pickNum(p, ["total-deductions", "total_deductions", "deductions"]);
+          const net = pickNum(p, ["net-pay", "net_pay", "netPay", "net-amount", "net"]);
+          const tds = pickNum(p, ["tds", "tds-amount", "tds_amount", "income-tax", "incomeTax"]);
+          const psId = pickStr(p, ["payslip-id", "payslip_id", "id"]);
+          const pdf = pickStr(p, ["pdf-url", "pdf_url", "download-url", "url"]);
+          const exp = expectedByRpId.get(String(rpId));
+          const expNet = exp?.net_pay ?? null;
+          const variance = (net != null && expNet != null) ? Number((net - expNet).toFixed(2)) : null;
+          upserts.push({
+            run_id: runId,
+            period_month: periodMonthISO,
+            razorpay_employee_id: String(rpId),
+            hr_employee_id: exp?.hr_employee_id || null,
+            gross_earnings: gross,
+            total_deductions: deductions,
+            net_pay: net,
+            tds_amount: tds,
+            expected_net: expNet,
+            variance,
+            razorpay_payslip_id: psId,
+            pdf_url: pdf,
+            source_payload: p,
+            pulled_by: authed.userId,
+          });
+        }
+
+        if (upserts.length) {
+          for (let i = 0; i < upserts.length; i += 200) {
+            const chunk = upserts.slice(i, i + 200);
+            const { error: upErr } = await svc.from("hr_razorpay_payslip_records")
+              .upsert(chunk, { onConflict: "period_month,razorpay_employee_id" });
+            if (upErr) return json(500, { error: upErr.message });
+          }
+        }
+        await svc.from("hr_razorpay_settings")
+          .update({ last_payslips_pull_at: new Date().toISOString() }).eq("is_singleton", true);
+
+        let withPdf = 0, mismatched = 0, missingExpected = 0;
+        for (const u of upserts) {
+          if (u.pdf_url) withPdf++;
+          if (u.variance != null && Math.abs(u.variance) >= 0.5) mismatched++;
+          if (u.expected_net == null) missingExpected++;
+        }
+
+        await logSync(svc, {
+          action: "pull_payslips",
+          http_status: 200,
+          razorpay_employee_id: "",
+          hr_employee_id: null,
+          field_diff_summary: {
+            period_month: periodMonthISO,
+            total: upserts.length, withPdf, mismatched, missingExpected,
+          },
+          error_text: null,
+          actor_user_id: authed.userId,
+        });
+
+        return json(200, {
+          ok: true,
+          period_month: periodMonthISO,
+          summary: { total: upserts.length, withPdf, mismatched, missingExpected },
+        });
+      }
+
+      // ---- pull_taxdocs_for_year ----
+      if (action === "pull_taxdocs_for_year") {
+        if (!p9Settings?.pull_taxdocs_endpoint_verified || !p9Settings?.pull_taxdocs_envelope_key) {
+          return json(400, { error: "Tax-docs envelope not verified. Record a probe-verified envelope first." });
+        }
+        const fiscalYear = String(payload?.fiscal_year || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(fiscalYear)) return json(400, { error: "fiscal_year must be YYYY-YY (e.g. 2025-26)" });
+        const docType = String(payload?.doc_type || "form16").trim();
+        const [type, subType] = String(p9Settings.pull_taxdocs_envelope_key).split(":");
+
+        const r = await razorpayPost(type || docType, subType || "view", { "fiscal-year": fiscalYear });
+        if ((r as any).networkError) return json(502, { error: `NETWORK: ${(r as any).networkError}` });
+        if (r.httpStatus < 200 || r.httpStatus >= 300) {
+          return json(502, { error: "Razorpay returned non-2xx", http_status: r.httpStatus, body: r.parsed });
+        }
+        const rawList = extractList(r.parsed);
+
+        // Load hr_employee mapping for enrichment.
+        const { data: maps } = await svc.from("hr_razorpay_employee_map")
+          .select("hr_employee_id,razorpay_employee_id");
+        const hrByRp = new Map((maps || []).map((m: any) => [String(m.razorpay_employee_id), m.hr_employee_id]));
+
+        const upserts: any[] = [];
+        for (const p of rawList) {
+          const rpId = pickStr(p, ["employee-id", "employee_id", "employeeId"]);
+          if (!rpId) continue;
+          const docId = pickStr(p, ["document-id", "document_id", "id", "form16-id"]);
+          const pdf = pickStr(p, ["pdf-url", "pdf_url", "download-url", "url"]);
+          const gross = pickNum(p, ["gross-annual", "gross_annual", "gross", "total-earnings"]);
+          const tds = pickNum(p, ["total-tds", "total_tds", "tds", "tds-deducted"]);
+          upserts.push({
+            fiscal_year: fiscalYear,
+            doc_type: docType,
+            razorpay_employee_id: String(rpId),
+            hr_employee_id: hrByRp.get(String(rpId)) || null,
+            razorpay_document_id: docId,
+            pdf_url: pdf,
+            gross_annual: gross,
+            total_tds: tds,
+            source_payload: p,
+            pulled_by: authed.userId,
+          });
+        }
+
+        if (upserts.length) {
+          for (let i = 0; i < upserts.length; i += 200) {
+            const chunk = upserts.slice(i, i + 200);
+            const { error: upErr } = await svc.from("hr_razorpay_taxdoc_records")
+              .upsert(chunk, { onConflict: "fiscal_year,razorpay_employee_id,doc_type" });
+            if (upErr) return json(500, { error: upErr.message });
+          }
+        }
+        await svc.from("hr_razorpay_settings")
+          .update({ last_taxdocs_pull_at: new Date().toISOString() }).eq("is_singleton", true);
+
+        await logSync(svc, {
+          action: "pull_taxdocs",
+          http_status: 200,
+          razorpay_employee_id: "",
+          hr_employee_id: null,
+          field_diff_summary: { fiscal_year: fiscalYear, doc_type: docType, total: upserts.length },
+          error_text: null,
+          actor_user_id: authed.userId,
+        });
+
+        return json(200, {
+          ok: true,
+          fiscal_year: fiscalYear,
+          doc_type: docType,
+          summary: { total: upserts.length, withPdf: upserts.filter((u) => u.pdf_url).length },
+        });
+      }
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
 
   } catch (e) {

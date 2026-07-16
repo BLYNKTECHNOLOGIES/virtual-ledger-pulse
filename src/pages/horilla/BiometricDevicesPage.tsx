@@ -135,6 +135,32 @@ export default function BiometricDevicesPage() {
         <Input placeholder="Search devices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
       </div>
 
+      {alarms.length > 0 && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-destructive font-medium text-sm">
+            <AlertTriangle className="h-4 w-4" />
+            Attention needed — punches may be dropping silently
+          </div>
+          <div className="space-y-1.5 text-xs">
+            {alarms.map(({ device, reasons }) => (
+              <div key={device.id} className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-medium text-foreground">{device.name}</span>
+                  <span className="text-muted-foreground"> — {reasons.join(" · ")}</span>
+                </div>
+                <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => setDataDevice(device)}>
+                  Fix mapping
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Open a device → <b>Users</b> tab → link each device PIN to the correct employee. Rejected-punch counter resets on the next successful punch.
+          </p>
+        </div>
+      )}
+
+
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1,2,3].map(i => <CardSkeleton key={i} />)}

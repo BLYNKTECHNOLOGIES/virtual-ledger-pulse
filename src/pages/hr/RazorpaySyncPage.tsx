@@ -139,6 +139,14 @@ export default function RazorpaySyncPage() {
   const canAccess = hasPermission("hrms_razorpay_sync");
 
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("razorpay_sync_simple_mode") !== "false";
+  });
+  const toggleSimpleMode = (v: boolean) => {
+    setSimpleMode(v);
+    try { localStorage.setItem("razorpay_sync_simple_mode", v ? "true" : "false"); } catch {}
+  };
 
   // Step 1: validation
   const [validating, setValidating] = useState(false);

@@ -332,7 +332,7 @@ export function BulkCompletionPanel() {
       {bankTarget && (
         <BankQuickDialog
           row={bankTarget}
-          nextRow={rows.find(r => !r.has_bank && r.employee_id !== bankTarget.employee_id) || null}
+          nextRow={visibleRows.find(r => !r.has_bank && r.employee_id !== bankTarget.employee_id) || null}
           onClose={() => setBankTarget(null)}
           onDone={() => { setBankTarget(null); invalidate(); }}
           onSaveAndNext={(next) => { setBankTarget(next); invalidate(); }}

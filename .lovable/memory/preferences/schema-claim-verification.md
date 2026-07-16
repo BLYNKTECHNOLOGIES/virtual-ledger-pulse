@@ -1,10 +1,15 @@
 ---
 name: Schema claim verification
-description: Never claim a table/column/enum/permission/endpoint as confirmed without checking source; NEW enum values written by code must be pre-verified against pg_enum in the same pass.
+description: Never claim a schema object as confirmed without checking source; every schema identifier written by new code (columns, NEW./OLD. fields, enum literals, permissions, endpoints) must be pre-verified in the same pass.
 type: preference
 ---
 Never state a schema object as "confirmed" without checking information_schema / pg_enum / source.
 
-**Extension (enum-drift class, 3rd recurrence):** Any NEW enum value that code (trigger/function/edge fn) WRITES must be verified against `pg_enum` in the same pass — a failing trigger aborts the whole statement, so an invalid enum write silently arms a landmine that fires later once data flows.
+**Generalized rule (4 recurrences: enum-drift + plpgsql late-binding column ref):** EVERY schema identifier appearing in newly written code must be verified against the live schema in the same pass. plpgsql resolves `NEW.<field>` at runtime, so a wrong column name compiles clean and only fires later — same landmine shape as an invalid enum literal.
 
-**How to apply:** Before shipping any `UPDATE ... SET status = 'xyz'` or `INSERT ... 'xyz'` where the column is an enum, run `SELECT enumlabel FROM pg_enum WHERE enumtypid = 'type_name'::regtype` and confirm the literal exists — or `ALTER TYPE ... ADD VALUE` in the same migration.
+**Checklist before shipping any SQL / trigger / edge fn:**
+- Table names → `information_schema.tables`
+- Column names (incl. every `NEW.x` / `OLD.x` in triggers) → `information_schema.columns`
+- Enum literals written by code → `pg_enum` (or `ALTER TYPE ADD VALUE` in same migration)
+- Permission strings → `app_permission` enum
+- API endpoints → source collection/doc

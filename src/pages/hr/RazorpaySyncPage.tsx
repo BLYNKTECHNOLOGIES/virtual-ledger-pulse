@@ -2239,8 +2239,9 @@ function PayoutReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
           <DownloadCloud className="h-4 w-4" /> Step H · Match payouts (read-only)
         </CardTitle>
         <CardDescription>
-          Pull actual disbursements from Razorpay for a period and reconcile against the ERP payroll run.
-          Read-only against Razorpay; no writes are ever pushed here.
+          <b>What this does:</b> pulls the actual salary payouts RazorpayX made for the chosen month and compares them against what HRMS expected to pay. Flags any mismatches (missing, extra, or wrong amount).
+          <br />
+          <b>Is it safe?</b> Yes — this step only reads from RazorpayX. Nothing is sent or changed.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

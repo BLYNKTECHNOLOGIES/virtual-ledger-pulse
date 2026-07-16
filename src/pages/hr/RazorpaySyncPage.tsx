@@ -1958,8 +1958,9 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
           <ListChecks className="h-4 w-4" /> Step G · Run monthly payroll
         </CardTitle>
         <CardDescription>
-          Compute the ERP-truth payroll for a period, dry-run, then push a pilot before bulk apply.
-          Writes are hard-blocked until a probe-verified payroll envelope is recorded.
+          <b>What this does:</b> calculates the full monthly payroll (gross, deductions, net pay) using HRMS as the source of truth, then pushes it to RazorpayX for actual disbursement.
+          <br />
+          <b>Flow:</b> Compute → Preview → Test one employee → Send to all. The "Send" buttons stay locked until the API name is confirmed (same one-time setup as Step E/F).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

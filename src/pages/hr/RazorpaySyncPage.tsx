@@ -1642,6 +1642,8 @@ export default function RazorpaySyncPage() {
       <PayrollRunSection invoke={invoke} />
 
       <PayoutReconciliationSection invoke={invoke} />
+
+      <PayslipTaxDocSection invoke={invoke} />
     </div>
   );
 }

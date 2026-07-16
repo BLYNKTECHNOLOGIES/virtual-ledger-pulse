@@ -8248,6 +8248,135 @@ export type Database = {
           },
         ]
       }
+      hr_razorpay_ledger_matches: {
+        Row: {
+          bank_transaction_id: string | null
+          created_at: string
+          id: string
+          match_method: string
+          matched_amount: number | null
+          matched_at: string
+          matched_by: string | null
+          matched_by_name: string | null
+          note: string | null
+          payout_record_id: string
+          period_month: string
+          updated_at: string
+          variance: number | null
+        }
+        Insert: {
+          bank_transaction_id?: string | null
+          created_at?: string
+          id?: string
+          match_method: string
+          matched_amount?: number | null
+          matched_at?: string
+          matched_by?: string | null
+          matched_by_name?: string | null
+          note?: string | null
+          payout_record_id: string
+          period_month: string
+          updated_at?: string
+          variance?: number | null
+        }
+        Update: {
+          bank_transaction_id?: string | null
+          created_at?: string
+          id?: string
+          match_method?: string
+          matched_amount?: number | null
+          matched_at?: string
+          matched_by?: string | null
+          matched_by_name?: string | null
+          note?: string | null
+          payout_record_id?: string
+          period_month?: string
+          updated_at?: string
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_ledger_matches_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_ledger_matches_payout_record_id_fkey"
+            columns: ["payout_record_id"]
+            isOneToOne: true
+            referencedRelation: "hr_razorpay_payout_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_razorpay_ledger_periods: {
+        Row: {
+          created_at: string
+          id: string
+          period_month: string
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          reopened_by_name: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewed_by_name: string | null
+          signed_off_at: string | null
+          signed_off_by: string | null
+          signed_off_by_name: string | null
+          status: string
+          total_matched: number
+          total_paid: number
+          total_unmatched: number
+          total_waived: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          period_month: string
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          reopened_by_name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          signed_off_by_name?: string | null
+          status?: string
+          total_matched?: number
+          total_paid?: number
+          total_unmatched?: number
+          total_waived?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          period_month?: string
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          reopened_by_name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          signed_off_by_name?: string | null
+          status?: string
+          total_matched?: number
+          total_paid?: number
+          total_unmatched?: number
+          total_waived?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_razorpay_payout_records: {
         Row: {
           created_at: string
@@ -8596,6 +8725,7 @@ export type Database = {
           last_push_at: string | null
           last_salary_push_at: string | null
           last_taxdocs_pull_at: string | null
+          ledger_recon_signoff_locked: boolean
           pull_payouts_endpoint_verified: boolean
           pull_payouts_envelope_key: string | null
           pull_payouts_envelope_verified_at: string | null
@@ -8653,6 +8783,7 @@ export type Database = {
           last_push_at?: string | null
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
+          ledger_recon_signoff_locked?: boolean
           pull_payouts_endpoint_verified?: boolean
           pull_payouts_envelope_key?: string | null
           pull_payouts_envelope_verified_at?: string | null
@@ -8710,6 +8841,7 @@ export type Database = {
           last_push_at?: string | null
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
+          ledger_recon_signoff_locked?: boolean
           pull_payouts_endpoint_verified?: boolean
           pull_payouts_envelope_key?: string | null
           pull_payouts_envelope_verified_at?: string | null

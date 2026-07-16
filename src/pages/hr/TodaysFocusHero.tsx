@@ -111,7 +111,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
     steps.find((s) => s.status === "ready");
 
   const allDone = steps.every((s) => s.status === "done");
-  const { period, nudge } = currentPeriodContext();
+  const { period, nudge } = nudgeForStep(next?.letter);
 
   if (allDone) {
     return (

@@ -764,10 +764,10 @@ Deno.serve(async (req) => {
 
     // ---------- save_probe_pilots: operator sets probe pilot IDs ----------
     if (action === "save_probe_pilots") {
-      const empId = typeof body?.probe_pilot_employee_id === "string"
-        ? body.probe_pilot_employee_id.trim() : "";
-      const conId = typeof body?.probe_pilot_contractor_id === "string"
-        ? body.probe_pilot_contractor_id.trim() : "";
+      const empId = typeof payload?.probe_pilot_employee_id === "string"
+        ? payload.probe_pilot_employee_id.trim() : "";
+      const conId = typeof payload?.probe_pilot_contractor_id === "string"
+        ? payload.probe_pilot_contractor_id.trim() : "";
       const { error } = await svc.from("hr_razorpay_settings").update({
         probe_pilot_employee_id: empId || null,
         probe_pilot_contractor_id: conId || null,

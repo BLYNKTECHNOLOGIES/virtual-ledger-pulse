@@ -789,25 +789,66 @@ Deno.serve(async (req) => {
       if (action === "apply_range" && !settings?.bulk_sync_unlocked) {
         return json(403, { error: "Bulk sync locked. Unlock after pilot verification." });
       }
-      const start = Math.max(1, Number(payload?.start_id ?? 1));
-      const end = Math.max(start, Number(payload?.max_id ?? start));
-      const HARD_CAP = 1000;
-      if (end - start + 1 > HARD_CAP) return json(400, { error: `Range too wide (max ${HARD_CAP})` });
+
+      // `only_ids` powers the "Retry failed IDs" affordance: iterate ONLY the
+      // supplied Razorpay IDs, skip the consecutive-miss stop (they were
+      // hand-picked), and stamp every audit row with retry:true so #70's story
+      // reads end-to-end under the same apply_error / create_draft / match
+      // actions as the original run.
+      const onlyIdsRaw: any[] = Array.isArray(payload?.only_ids) ? payload.only_ids : [];
+      const onlyIds: number[] = onlyIdsRaw
+        .map((v) => Number(v))
+        .filter((n) => Number.isFinite(n) && n >= 1);
+      const isRetry = onlyIds.length > 0;
+
+      let start = 1, end = 1;
+      if (isRetry) {
+        if (onlyIds.length > 200) return json(400, { error: "Retry batch too wide (max 200 IDs)" });
+      } else {
+        start = Math.max(1, Number(payload?.start_id ?? 1));
+        end = Math.max(start, Number(payload?.max_id ?? start));
+        const HARD_CAP = 1000;
+        if (end - start + 1 > HARD_CAP) return json(400, { error: `Range too wide (max ${HARD_CAP})` });
+      }
 
       const rows: any[] = [];
       let consecutiveMisses = 0;
       const STOP_AFTER = 30;
 
-      for (let i = start; i <= end; i++) {
+      const iterIds: number[] = isRetry ? onlyIds : [];
+      const iterLen = isRetry ? iterIds.length : (end - start + 1);
+      for (let idx = 0; idx < iterLen; idx++) {
+        const i = isRetry ? iterIds[idx] : (start + idx);
         const r = await opfinView(i);
         if (!r.ok) {
           consecutiveMisses++;
-          rows.push({ employee_id: i, status: "miss", http_status: r.status });
-          if (consecutiveMisses >= STOP_AFTER) {
+          const isServerErr = r.status === 0 || r.status >= 500;
+          const snippet = (r.raw || r.errText || `HTTP ${r.status}`).toString().slice(0, 800);
+          rows.push({
+            employee_id: i,
+            status: "miss",
+            http_status: r.status,
+            error: isServerErr ? snippet : undefined,
+          });
+          // Only server-side / network errors deserve an audit row — genuine
+          // 404-style misses on unused IDs would flood the log otherwise.
+          if (action === "apply_range" && isServerErr) {
+            await logSync(svc, {
+              action: "apply_error",
+              http_status: r.status || 500,
+              razorpay_employee_id: String(i),
+              field_diff_summary: { bulk: true, phase: "view", retry: isRetry },
+              error_text: snippet,
+              actor_user_id: authed.userId,
+            }).catch(() => {});
+          }
+          // Retry runs are explicit — never trip the range-mode auto-stop.
+          if (!isRetry && consecutiveMisses >= STOP_AFTER) {
             rows.push({ employee_id: null, status: "stopped", note: `${STOP_AFTER} consecutive misses` });
             break;
           }
           continue;
+
         }
         consecutiveMisses = 0;
 

@@ -1275,9 +1275,44 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
-      {/* ▼ Payroll Sync Journey — sticky roadmap navigator */}
-      <RoadmapJourneyNav steps={stationSteps} />
+      {/* ▼ Payroll Sync Journey — sticky roadmap navigator (two rails: A–E setup, F–J monthly) */}
+      <RoadmapJourneyNav steps={stationSteps} railBreakAfter="E" />
 
+      {/* ── One-time setup rail (Stations A–E) ── */}
+      {(() => {
+        const setupFullyDone = (SETUP_LETTERS as readonly string[]).every(
+          (l) => stationSteps.find((s) => s.letter === l)?.status === "done"
+        );
+        const collapsed = setupCollapsedManual === null ? setupFullyDone : setupCollapsedManual;
+        return (
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <div className="flex items-center gap-2">
+              <div className="h-px w-6 bg-amber-500/40" />
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-400">
+                One-time setup · Steps A–E
+              </div>
+            </div>
+            {setupFullyDone && (
+              <button
+                type="button"
+                onClick={() => persistSetupCollapsed(!collapsed)}
+                className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                {collapsed ? "Show setup steps" : "Hide setup steps"}
+              </button>
+            )}
+          </div>
+        );
+      })()}
+      {(() => {
+        const setupFullyDone = (SETUP_LETTERS as readonly string[]).every(
+          (l) => stationSteps.find((s) => s.letter === l)?.status === "done"
+        );
+        const collapsed = setupCollapsedManual === null ? setupFullyDone : setupCollapsedManual;
+        return collapsed ? null : <SetupRailContent />;
+      })()}
+      {/* Legacy inline content follows; wrap into fragment via IIFE component below */}
+      <SetupRailStart />
       {/* Step A — Deep pull + Completion readiness */}
       <Station letter="A" title="Get latest employee info from RazorpayX" subtitle="Copies employee details into HRMS. Only fills empty fields. Nothing is sent out." status={stationStatus("A")} />
       <Card>

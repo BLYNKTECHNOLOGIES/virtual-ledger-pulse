@@ -132,6 +132,8 @@ interface DryRunRow {
   hr_employee_id?: string | null;
   applied?: boolean; created?: boolean;
   note?: string;
+  /** Populated by the edge fn on server errors / apply exceptions. */
+  error?: string;
 }
 interface DryRunResponse {
   ok: boolean;
@@ -754,6 +756,48 @@ export default function RazorpaySyncPage() {
       toast({ title: "Apply failed", description: e?.message, variant: "destructive" });
     } finally { setApplyingBulk(false); }
   };
+
+  // Retry-failed chip: re-runs apply_range for the exact IDs that errored on
+  // the last apply run. Logged under the same apply_error / create_draft /
+  // match actions with retry:true so the audit trail reads end-to-end.
+  const failedApplyIds: number[] = (applied?.rows ?? [])
+    .filter(r => r.employee_id != null && !!r.error)
+    .map(r => r.employee_id as number);
+  const [retryingFailed, setRetryingFailed] = useState(false);
+  const runRetryFailed = async () => {
+    if (failedApplyIds.length === 0) return;
+    setRetryingFailed(true);
+    try {
+      const d = await invoke<DryRunResponse>({ action: "apply_range", only_ids: failedApplyIds });
+      // Merge: replace rows for retried IDs with the new outcome, keep the rest.
+      setApplied(prev => {
+        if (!prev) return d;
+        const retried = new Set(failedApplyIds);
+        const kept = prev.rows.filter(r => !(r.employee_id != null && retried.has(r.employee_id as number)));
+        const mergedRows = [...kept, ...d.rows];
+        return {
+          ok: prev.ok && d.ok,
+          summary: {
+            total: mergedRows.length,
+            hits: mergedRows.filter(r => r.status === "hit").length,
+            matches: mergedRows.filter(r => r.action_planned === "match").length,
+            creates: mergedRows.filter(r => r.action_planned === "create_draft").length,
+            misses: mergedRows.filter(r => r.status === "miss").length,
+            stopped: prev.summary.stopped,
+          },
+          rows: mergedRows,
+        };
+      });
+      const stillFailing = d.rows.filter(r => r.error).length;
+      toast({
+        title: "Retry complete",
+        description: `${failedApplyIds.length - stillFailing} recovered · ${stillFailing} still failing`,
+      });
+    } catch (e: any) {
+      toast({ title: "Retry failed", description: e?.message, variant: "destructive" });
+    } finally { setRetryingFailed(false); }
+  };
+
 
   if (permLoading) {
     return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -1834,13 +1878,27 @@ export default function RazorpaySyncPage() {
 
 
           {(dryRun || applied) && (
-            <div className="text-xs text-muted-foreground">
-              {applied ? "Applied · " : "Dry-run · "}
-              hits: {(applied ?? dryRun)!.summary.hits} ·
-              matches: {(applied ?? dryRun)!.summary.matches} ·
-              new drafts: {(applied ?? dryRun)!.summary.creates} ·
-              misses: {(applied ?? dryRun)!.summary.misses}
-              {(applied ?? dryRun)!.summary.stopped && " · stopped early"}
+            <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>
+                {applied ? "Applied · " : "Dry-run · "}
+                hits: {(applied ?? dryRun)!.summary.hits} ·
+                matches: {(applied ?? dryRun)!.summary.matches} ·
+                new drafts: {(applied ?? dryRun)!.summary.creates} ·
+                misses: {(applied ?? dryRun)!.summary.misses}
+                {(applied ?? dryRun)!.summary.stopped && " · stopped early"}
+              </span>
+              {applied && failedApplyIds.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  disabled={retryingFailed}
+                  onClick={runRetryFailed}
+                  title={`IDs: ${failedApplyIds.slice(0, 10).join(", ")}${failedApplyIds.length > 10 ? "…" : ""}`}
+                >
+                  {retryingFailed ? "Retrying…" : `Retry failed IDs (${failedApplyIds.length})`}
+                </Button>
+              )}
             </div>
           )}
 
@@ -1856,14 +1914,21 @@ export default function RazorpaySyncPage() {
                 </thead>
                 <tbody>
                   {rowsToShow.map((r, i) => (
-                    <tr key={i} className="border-t">
+                    <tr key={i} className={`border-t ${r.error ? "bg-destructive/5" : ""}`}>
                       <td className="p-2 font-mono">{r.employee_id ?? "—"}</td>
                       <td className="p-2">
                         {r.status === "hit" && <Badge variant="default" className="text-[10px]">hit</Badge>}
-                        {r.status === "miss" && <Badge variant="outline" className="text-[10px]">miss {r.http_status}</Badge>}
+                        {r.status === "miss" && <Badge variant={r.error ? "destructive" : "outline"} className="text-[10px]">{r.error ? "failed" : "miss"} {r.http_status}</Badge>}
                         {r.status === "stopped" && <Badge variant="secondary" className="text-[10px]">stopped</Badge>}
                       </td>
-                      <td className="p-2">{r.name ?? r.note ?? "—"}</td>
+                      <td className="p-2">
+                        {r.name ?? r.note ?? "—"}
+                        {r.error && (
+                          <div className="mt-0.5 text-[10px] text-destructive/90 font-mono line-clamp-2" title={r.error}>
+                            {r.error}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-2">{r.title ?? "—"}</td>
                       <td className="p-2">{r.department ?? "—"}</td>
                       <td className="p-2">{r.matched_by ?? "—"}</td>
@@ -1878,6 +1943,7 @@ export default function RazorpaySyncPage() {
               </table>
             </div>
           )}
+
         </CardContent>
       </Card>
 

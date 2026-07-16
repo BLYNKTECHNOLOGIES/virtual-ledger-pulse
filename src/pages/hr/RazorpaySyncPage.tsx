@@ -1395,16 +1395,22 @@ export default function RazorpaySyncPage() {
             <ListChecks className="h-4 w-4" /> Step E · Send salary structures to RazorpayX
           </CardTitle>
           <CardDescription>
-            Pushes ERP's active salary structure (components + total) to Razorpay. Dry-run compares ERP components against Razorpay's last-known snapshot; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">people:update</code>).
+            <b>What this does:</b> sends each employee's salary break-up (Basic, HRA, allowances, etc. and the total CTC) from HRMS to RazorpayX.
+            <br />
+            <b>One-time setup:</b> we need you to confirm the exact API name RazorpayX expects. Until you do that, the "Send" buttons stay locked — Preview / dry-run still works.
+            <br />
+            <b>Status:</b>{" "}
             {settings?.push_salary_endpoint_verified
-              ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_salary_envelope_key})</span></>
-              : <> · <span className="text-amber-600">Endpoint not confirmed yet</span></>}
+              ? <span className="text-emerald-600">API name confirmed ({settings?.push_salary_envelope_key}) ✅</span>
+              : <span className="text-amber-600">API name not confirmed yet</span>}
+            {" · "}
             {settings?.push_salary_pilot_verified_at
-              ? <> · <span className="text-emerald-600">Salary pilot verified</span></>
-              : <> · <span className="text-muted-foreground">Test employee not run yet</span></>}
+              ? <span className="text-emerald-600">Test employee verified ✅</span>
+              : <span className="text-muted-foreground">Test employee not run yet</span>}
+            {" · "}
             {settings?.bulk_salary_push_unlocked
-              ? <> · <span className="text-emerald-600">Bulk salary unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk send locked</span></>}
+              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

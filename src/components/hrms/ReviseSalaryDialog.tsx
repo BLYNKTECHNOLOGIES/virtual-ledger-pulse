@@ -111,6 +111,10 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           ? `Revision scheduled for ${data.effective_from}`
           : "Salary revision applied",
       );
+      // ERP is source of truth → push new/future-dated structure to Razorpay now.
+      if (employeeId) {
+        import("@/lib/razorpayPushback").then(m => m.pushSalaryToRazorpay(employeeId));
+      }
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message),

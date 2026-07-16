@@ -183,7 +183,8 @@ Deno.serve(async (req) => {
 
       if (table === "ATTLOG" && bodyText.trim()) {
         const lines = bodyText.trim().split("\n");
-        const results = { inserted: 0, skipped: 0, errors: [] as string[] };
+        const results = { inserted: 0, skipped: 0, unmatched: 0, errors: [] as string[] };
+        const unmatchedPins = new Set<string>();
         let maxPunchDate: Date | null = null;
 
         // Cutoff: only process punches from the last 7 days
@@ -198,7 +199,7 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            const badge_id = parts[0].trim();
+            const pin = parts[0].trim(); // ESSL sends the device PIN, not the ERP badge_id
             const punch_time_str = parts[1].trim();
             const raw_status = parts.length > 2 ? parseInt(parts[2]) : null;
             const verify_type = parts.length > 3 ? parseInt(parts[3]) : null;
@@ -224,12 +225,51 @@ Deno.serve(async (req) => {
             const punch_type = raw_status === 1 || raw_status === 2 || raw_status === 5
               ? "out" : "in";
 
-            // ── Deduplication: skip if same badge punched within last 2 minutes ──
+            // ── Resolve device PIN → employee UUID ──
+            // Primary path: hr_biometric_device_users.matched_employee_id (mapped by HR).
+            // Fallback: legacy hr_employees.badge_id = pin (for sites where PIN==badge).
+            const { data: mapped } = await supabase
+              .from("hr_biometric_device_users")
+              .select("matched_employee_id")
+              .eq("device_serial", serialNumber)
+              .eq("pin", pin)
+              .maybeSingle();
+
+            let employeeUUID: string | null = mapped?.matched_employee_id ?? null;
+            let badge_id: string | null = null;
+
+            if (!employeeUUID) {
+              const { data: byBadge } = await supabase
+                .from("hr_employees")
+                .select("id, badge_id")
+                .eq("badge_id", pin)
+                .maybeSingle();
+              if (byBadge) {
+                employeeUUID = byBadge.id;
+                badge_id = byBadge.badge_id;
+              }
+            } else {
+              const { data: emp } = await supabase
+                .from("hr_employees")
+                .select("badge_id")
+                .eq("id", employeeUUID)
+                .maybeSingle();
+              badge_id = emp?.badge_id ?? null;
+            }
+
+            if (!employeeUUID) {
+              results.unmatched++;
+              unmatchedPins.add(pin);
+              results.errors.push(`Unmapped device PIN=${pin} — link it in Biometric Devices → Users`);
+              continue;
+            }
+
+            // ── Deduplication: skip if same employee punched within last 2 minutes ──
             const dedup_window = new Date(punchDateObj.getTime() - 2 * 60 * 1000).toISOString();
             const { data: recentPunch } = await supabase
               .from("hr_attendance_punches")
               .select("id")
-              .eq("badge_id", badge_id)
+              .eq("employee_id", employeeUUID)
               .gte("punch_time", dedup_window)
               .lte("punch_time", punchISO)
               .limit(1)
@@ -240,23 +280,9 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // 1. Resolve badge_id → employee UUID
-            const { data: empLookup } = await supabase
-              .from("hr_employees")
-              .select("id")
-              .eq("badge_id", badge_id)
-              .maybeSingle();
-
-            if (!empLookup) {
-              results.errors.push(`No employee found for badge_id=${badge_id}`);
-              continue;
-            }
-
-            const employeeUUID = empLookup.id;
-
-            // 2. Store raw punch with UUID employee_id
+            // Store raw punch
             const { error: punchError } = await supabase.from("hr_attendance_punches").insert({
-              badge_id,
+              badge_id: badge_id ?? pin,
               employee_id: employeeUUID,
               punch_time: punchISO,
               punch_type,
@@ -271,9 +297,7 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // 3. Process attendance records (pass UUID directly)
-            await processAttendance(supabase, badge_id, punchISO, punchDate, punch_type, employeeUUID);
-
+            await processAttendance(supabase, badge_id ?? pin, punchISO, punchDate, punch_type, employeeUUID);
             results.inserted++;
           } catch (lineErr) {
             results.errors.push(`Line parse error: ${(lineErr as Error).message}`);
@@ -284,7 +308,25 @@ Deno.serve(async (req) => {
         const newStamp = maxPunchDate ? formatESSLStamp(maxPunchDate) : undefined;
         await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, newStamp);
 
-        console.log(`Processed ${results.inserted} new, ${results.skipped} skipped (old) out of ${lines.length} from ${serialNumber}`);
+        // Silence-alarm bookkeeping: record unmatched PINs so the Biometric page can shout.
+        if (results.unmatched > 0) {
+          await supabase
+            .from("hr_biometric_devices")
+            .update({
+              unmatched_pin_count: results.unmatched,
+              last_rejection_at: new Date().toISOString(),
+              last_rejection_pins: Array.from(unmatchedPins).slice(0, 20).join(","),
+            })
+            .eq("device_serial", serialNumber);
+        } else if (results.inserted > 0) {
+          // Clear the alarm once punches start landing again.
+          await supabase
+            .from("hr_biometric_devices")
+            .update({ unmatched_pin_count: 0, last_rejection_pins: null })
+            .eq("device_serial", serialNumber);
+        }
+
+        console.log(`ATTLOG from ${serialNumber}: inserted=${results.inserted}, unmatched=${results.unmatched}, skipped=${results.skipped}, total=${lines.length}`);
 
         return new Response("OK", {
           status: 200,

@@ -178,11 +178,14 @@ export default function RazorpaySyncPage() {
   // Step B · Check which RazorpayX features are available
   type ProbeRow = {
     phase: string; key: string; mode: "read" | "write";
-    status: "ok" | "fail" | "not_probed"; http_status: number | null; error: string | null;
+    status: "ok" | "fail" | "not_probed" | "skipped"; http_status: number | null; error: string | null;
   };
   const [probing, setProbing] = useState(false);
   const [probeRows, setProbeRows] = useState<ProbeRow[] | null>(null);
-  const [probeId, setProbeId] = useState<number | null>(null);
+  const [probeId, setProbeId] = useState<string | number | null>(null);
+  const [probePilotEmpId, setProbePilotEmpId] = useState("");
+  const [probePilotContractorId, setProbePilotContractorId] = useState("");
+  const [savingProbePilots, setSavingProbePilots] = useState(false);
 
   // Phase 3 — Push people:update
   const [pushRpId, setPushRpId] = useState<string>("");

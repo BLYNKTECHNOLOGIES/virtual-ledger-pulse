@@ -193,8 +193,12 @@ export default function HorillaDashboard() {
         ))}
       </div>
 
+      {/* Data completeness — HR manager's daily "what next" home base */}
+      <HRDashboardCompletenessCard />
+
       {/* M7: Actionable Widgets Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
         {/* Pending Leave Requests - Actionable */}
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between mb-3">

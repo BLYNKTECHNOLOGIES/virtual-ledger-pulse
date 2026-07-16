@@ -1253,7 +1253,7 @@ export default function RazorpaySyncPage() {
         </Card>
       )}
 
-      {!simpleMode && (<>
+      {(!simpleMode || showJourney) && (<>
       {/* Plain-English guide for HR — persistent glossary so jargon in the phase cards has a friendly reference */}
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader className="pb-3">
@@ -2270,7 +2270,7 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
-      {!simpleMode && (<>
+      {(!simpleMode || showJourney) && (<>
         <Station letter="G" title="Run this month's salary" subtitle="Calculate → practice run → try one employee → run for everyone. HRMS attendance decides unpaid days." status={stationStatus("G")} />
         <PayrollRunSection invoke={invoke} />
         <Station letter="H" title="Check that salaries were paid (read-only)" subtitle="Compares each payout in RazorpayX with the record in HRMS. Never changes any payment." status={stationStatus("H")} />

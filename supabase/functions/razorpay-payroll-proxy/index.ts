@@ -918,6 +918,7 @@ Deno.serve(async (req) => {
                 field_names: fieldNames(r.body),
                 matched_by: match.matched_by,
                 bulk: true,
+                retry: isRetry,
                 projected: projDiff ? {
                   hr_employees: projDiff.hr_employees.wrote,
                   work_info: projDiff.work_info.wrote,
@@ -932,14 +933,15 @@ Deno.serve(async (req) => {
             rows[rows.length - 1].hr_employee_id = hrId;
             rows[rows.length - 1].onboarding_prefilled = obDiff?.wrote?.length ?? 0;
           } catch (rowErr: any) {
-            const msg = String(rowErr?.message ?? rowErr);
+            const msg = String(rowErr?.message ?? rowErr).slice(0, 800);
             rows[rows.length - 1].applied = false;
             rows[rows.length - 1].error = msg;
             await logSync(svc, {
               action: "apply_error",
               http_status: 500,
               razorpay_employee_id: String(i),
-              field_diff_summary: { error: msg, bulk: true },
+              field_diff_summary: { bulk: true, phase: "apply", retry: isRetry },
+              error_text: msg,
               actor_user_id: authed.userId,
             }).catch(() => {});
           }

@@ -60,3 +60,58 @@ export function getStatus(raw: string | null | undefined): StatusEntry {
   if (!raw) return { raw: "unknown", label: "Unknown", tooltip: "No status reported.", tone: "default" };
   return PAYROLL_STATUS[raw] ?? { raw, label: raw.replace(/_/g, " "), tooltip: `Raw code: ${raw}`, tone: "default" };
 }
+
+/**
+ * Activity labels for hr_razorpay_sync_log.action (hr_razorpay_sync_action enum).
+ * Verified against pg_enum — keep aligned when new actions are added.
+ * Add here — do not sprinkle synonyms across components.
+ */
+export const ACTIVITY_LABELS: Record<string, string> = {
+  validate_creds: "Checked RazorpayX connection",
+  introspect_envelope: "Configured RazorpayX endpoints",
+  pull_import: "Imported employees from RazorpayX",
+  pull_person: "Refreshed employee details from RazorpayX",
+  push_person: "Updated name & contact on RazorpayX",
+  push_bank: "Updated bank & PAN on RazorpayX",
+  push_salary: "Updated salary break-up on RazorpayX",
+  dry_run: "Previewed changes (nothing sent)",
+  push_create: "Created record on RazorpayX",
+  push_update: "Updated record on RazorpayX",
+  drift_check: "Checked for changes since last sync",
+  match: "Matched an employee to RazorpayX",
+  create_draft: "Imported an employee as draft",
+  apply_error: "An action failed — needs attention",
+  unlock_bulk: "Unlocked bulk actions",
+  people_dismiss: "Marked an employee as dismissed",
+  push_attendance: "Sent monthly attendance to RazorpayX",
+  push_attendance_recall: "Recalled attendance from RazorpayX",
+  attendance_fetch: "Fetched attendance from RazorpayX",
+  compute_payroll_run: "Calculated this month's salary",
+  dry_run_payroll_run: "Practice ran the payroll",
+  apply_payroll_pilot: "Ran payroll for a single employee",
+  apply_payroll_bulk: "Ran payroll for everyone",
+  lock_payroll_period: "Locked the payroll period",
+  probe_payroll_run: "Checked payroll run status",
+  payroll_recall: "Recalled a payroll run",
+  payroll_view_payroll: "Opened payroll details",
+  payroll_add_additions: "Added a payroll addition",
+  payroll_add_deduction: "Added a payroll deduction",
+  payroll_reset_modifications: "Reset payroll modifications",
+  payroll_do_not_pay: "Marked an employee as do-not-pay",
+  pull_payouts: "Verified payouts against RazorpayX",
+  pull_payslips: "Downloaded payslips",
+  pull_taxdocs: "Downloaded tax papers",
+  ledger_auto_match: "Auto-matched with accounting books",
+  ledger_signoff: "Signed off the ledger period",
+  ledger_reopen: "Reopened the ledger period",
+  contractor_payment_create: "Created a contractor payment",
+  contractor_payment_delete: "Deleted a contractor payment",
+  contractor_payment_list: "Listed contractor payments",
+  contractor_payment_status: "Checked contractor payment status",
+  advance_salary_create: "Created a salary advance",
+};
+
+export function getActivityLabel(action: string | null | undefined): string {
+  if (!action) return "Activity";
+  return ACTIVITY_LABELS[action] ?? action.replace(/_/g, " ");
+}

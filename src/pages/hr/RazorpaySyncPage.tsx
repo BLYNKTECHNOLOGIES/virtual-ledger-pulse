@@ -1640,6 +1640,8 @@ export default function RazorpaySyncPage() {
       </Card>
 
       <PayrollRunSection invoke={invoke} />
+
+      <PayoutReconciliationSection invoke={invoke} />
     </div>
   );
 }
@@ -1931,6 +1933,224 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8 — Payout & Disbursement sync
+// Pulls actuals from Razorpay for a period and reconciles them against the
+// Phase 7 payroll_run_lines. Read-only against Razorpay; envelope-gated.
+// ---------------------------------------------------------------------------
+interface PayoutRow {
+  id: string;
+  run_id: string | null;
+  period_month: string;
+  razorpay_employee_id: string;
+  hr_employee_id: string | null;
+  payout_status: string | null;
+  paid_amount: number | null;
+  expected_amount: number | null;
+  variance: number | null;
+  utr: string | null;
+  paid_at: string | null;
+  reconciled_at: string | null;
+}
+
+function PayoutReconciliationSection({ invoke }: { invoke: <T,>(body: object) => Promise<T> }) {
+  const [period, setPeriod] = useState<string>(() => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+  const [envelopeKey, setEnvelopeKey] = useState("");
+  const [probeType, setProbeType] = useState("payouts");
+  const [probeSubType, setProbeSubType] = useState("view");
+  const [settings, setSettings] = useState<any>(null);
+  const [rows, setRows] = useState<PayoutRow[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [probeResult, setProbeResult] = useState<any>(null);
+  const [filter, setFilter] = useState<"all" | "mismatched" | "failed" | "unreconciled">("all");
+
+  const reload = async () => {
+    const { data: s } = await supabase.from("hr_razorpay_settings")
+      .select("pull_payouts_endpoint_verified,pull_payouts_envelope_key,pull_payouts_envelope_verified_at,last_payouts_pull_at")
+      .maybeSingle();
+    setSettings(s);
+    const iso = `${period}-01`;
+    const { data: r } = await supabase.from("hr_razorpay_payout_records")
+      .select("id,run_id,period_month,razorpay_employee_id,hr_employee_id,payout_status,paid_amount,expected_amount,variance,utr,paid_at,reconciled_at")
+      .eq("period_month", iso).order("variance", { ascending: false, nullsFirst: false });
+    setRows((r || []) as PayoutRow[]);
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [period]);
+
+  const call = async (action: string, body: any = {}) => {
+    setBusy(action);
+    try {
+      const d = await invoke<any>({ action, ...body });
+      if (action === "probe_payouts_endpoint") {
+        setProbeResult(d);
+        toast({
+          title: d?.ok ? `Probe ok · HTTP ${d.http_status}` : `Probe failed · HTTP ${d?.http_status ?? 0}`,
+          variant: d?.ok ? "default" : "destructive",
+        });
+      } else if (action === "pull_payouts_for_period") {
+        const s = d?.summary;
+        toast({
+          title: "Pull complete",
+          description: s ? `total ${s.total} · paid ${s.paid} · mismatched ${s.mismatched} · failed ${s.failed}` : "done",
+        });
+      } else {
+        toast({ title: `${action} · ok` });
+      }
+      await reload();
+    } catch (e: any) {
+      toast({ title: `${action} failed`, description: e?.message, variant: "destructive" });
+    } finally { setBusy(null); }
+  };
+
+  const verified = !!settings?.pull_payouts_endpoint_verified;
+  const shown = rows.filter((r) => {
+    if (filter === "mismatched") return r.variance != null && Math.abs(r.variance) >= 0.5;
+    if (filter === "failed") return /fail|reject|bounce/i.test(r.payout_status || "");
+    if (filter === "unreconciled") return !r.reconciled_at;
+    return true;
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <DownloadCloud className="h-4 w-4" /> Phase 8 — Payout reconciliation
+        </CardTitle>
+        <CardDescription>
+          Pull actual disbursements from Razorpay for a period and reconcile against the ERP payroll run.
+          Read-only against Razorpay; no writes are ever pushed here.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground">Period (YYYY-MM)</label>
+            <input
+              type="month"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="block h-9 rounded-md border bg-background px-2 text-sm"
+            />
+          </div>
+          <Button size="sm"
+            onClick={() => call("pull_payouts_for_period", { period_month: period })}
+            disabled={!!busy || !verified}
+          >
+            {busy === "pull_payouts_for_period" ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+            Pull actuals
+          </Button>
+          <div className="text-xs text-muted-foreground">
+            Envelope: {verified
+              ? <Badge variant="default">verified · {settings?.pull_payouts_envelope_key}</Badge>
+              : <Badge variant="outline">not verified</Badge>}
+            {settings?.last_payouts_pull_at && (
+              <span className="ml-2">Last pull: {new Date(settings.last_payouts_pull_at).toLocaleString()}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Probe + verify */}
+        <div className="rounded-md border p-3 space-y-2">
+          <div className="text-sm font-medium flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" /> Discovery
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <input placeholder="type (e.g. payouts)"
+              value={probeType} onChange={(e) => setProbeType(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm w-40" />
+            <input placeholder="sub-type (e.g. view)"
+              value={probeSubType} onChange={(e) => setProbeSubType(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm w-40" />
+            <Button size="sm" variant="outline"
+              onClick={() => call("probe_payouts_endpoint", { type: probeType, sub_type: probeSubType, period_month: period })}
+              disabled={!!busy}>Probe</Button>
+            <input placeholder="verified envelope key (e.g. payouts:view)"
+              value={envelopeKey} onChange={(e) => setEnvelopeKey(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm flex-1 min-w-[220px]" />
+            <Button size="sm" variant="outline"
+              onClick={() => call("record_payouts_envelope_verified", { envelope_key: envelopeKey, verified: true })}
+              disabled={!!busy || !envelopeKey.trim()}>Record verified</Button>
+            <Button size="sm" variant="ghost"
+              onClick={() => call("record_payouts_envelope_verified", { verified: false })}
+              disabled={!!busy || !verified}>Revoke</Button>
+          </div>
+          {probeResult && (
+            <pre className="text-[10px] bg-muted/40 p-2 rounded max-h-48 overflow-auto">
+              {JSON.stringify(probeResult, null, 2)}
+            </pre>
+          )}
+        </div>
+
+        {rows.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="text-sm">Records: <strong>{rows.length}</strong></div>
+              <div className="ml-auto flex gap-1">
+                {(["all", "mismatched", "failed", "unreconciled"] as const).map((f) => (
+                  <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} onClick={() => setFilter(f)}>
+                    {f}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-md border overflow-x-auto max-h-[420px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr className="text-left">
+                    <th className="p-2">RP ID</th>
+                    <th className="p-2">Status</th>
+                    <th className="p-2">Expected</th>
+                    <th className="p-2">Paid</th>
+                    <th className="p-2">Variance</th>
+                    <th className="p-2">UTR</th>
+                    <th className="p-2">Paid at</th>
+                    <th className="p-2">Reconciled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.slice(0, 500).map((r) => {
+                    const bad = r.variance != null && Math.abs(r.variance) >= 0.5;
+                    const failed = /fail|reject|bounce/i.test(r.payout_status || "");
+                    return (
+                      <tr key={r.id} className="border-t">
+                        <td className="p-2 font-mono">{r.razorpay_employee_id}</td>
+                        <td className="p-2">
+                          <Badge variant={failed ? "destructive" : /paid|success|processed/i.test(r.payout_status || "") ? "default" : "outline"} className="text-[10px]">
+                            {r.payout_status || "—"}
+                          </Badge>
+                        </td>
+                        <td className="p-2 tabular-nums">{r.expected_amount != null ? `₹${Math.round(r.expected_amount).toLocaleString()}` : "—"}</td>
+                        <td className="p-2 tabular-nums">{r.paid_amount != null ? `₹${Math.round(r.paid_amount).toLocaleString()}` : "—"}</td>
+                        <td className={`p-2 tabular-nums ${bad ? "text-destructive font-semibold" : ""}`}>
+                          {r.variance != null ? `₹${Math.round(r.variance).toLocaleString()}` : "—"}
+                        </td>
+                        <td className="p-2 font-mono">{r.utr || "—"}</td>
+                        <td className="p-2">{r.paid_at ? new Date(r.paid_at).toLocaleDateString() : "—"}</td>
+                        <td className="p-2">
+                          {r.reconciled_at
+                            ? <Badge variant="default" className="text-[10px]">✓</Badge>
+                            : <Button size="sm" variant="ghost" className="h-6 text-[10px]"
+                                onClick={() => call("reconcile_payout", { id: r.id })}
+                                disabled={!!busy}>Reconcile</Button>}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

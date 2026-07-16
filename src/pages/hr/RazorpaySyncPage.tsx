@@ -2280,6 +2280,8 @@ export default function RazorpaySyncPage() {
 
         <LedgerReconciliationSection invoke={invoke} />
       </>)}
+      </>
+      )}
     </div>
   );
 }

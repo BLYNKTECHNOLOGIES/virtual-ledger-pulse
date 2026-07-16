@@ -90,16 +90,42 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
-  const queueCmd = async (cmd: string, successMsg = "Command queued — device will pick it up on next heartbeat") => {
-    if (!serial) return;
+  const queueCmd = async (cmd: string, successMsg = "Command queued — device will pick it up on next heartbeat"): Promise<string | null> => {
+    if (!serial) return null;
     setBusy(true);
-    const { error } = await (supabase as any).from("hr_biometric_device_commands").insert({
-      device_serial: serial, command_text: cmd, status: "pending",
-    });
+    const { data, error } = await (supabase as any)
+      .from("hr_biometric_device_commands")
+      .insert({ device_serial: serial, command_text: cmd, status: "pending" })
+      .select("id")
+      .single();
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return null; }
     toast.success(successMsg);
     qc.invalidateQueries({ queryKey: ["bio-cmds", serial] });
+    return data?.id ?? null;
+  };
+
+  // Poll a queued command until the device acks/errors or the timeout elapses.
+  // Devices poll every 10–30s via ?type=getrequest; give it ~90s.
+  const awaitCommandAck = async (commandId: string, timeoutMs = 90_000): Promise<"ack" | "error" | "timeout" | "sent"> => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const { data } = await (supabase as any)
+        .from("hr_biometric_device_commands")
+        .select("status")
+        .eq("id", commandId)
+        .maybeSingle();
+      const s = data?.status;
+      if (s === "ack" || s === "error") return s;
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+    // Was it at least delivered?
+    const { data } = await (supabase as any)
+      .from("hr_biometric_device_commands")
+      .select("status")
+      .eq("id", commandId)
+      .maybeSingle();
+    return data?.status === "sent" ? "sent" : "timeout";
   };
 
   // eSSL/ZKTeco iclock write commands — device-side only, unrelated to HRMS
@@ -115,8 +141,36 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     ].filter(Boolean).join("\t");
     return queueCmd(`C:${Date.now()}:DATA UPDATE USERINFO ${parts}`, `User ${p.pin} queued for push`);
   };
-  const deleteUser = (pin: string) =>
-    queueCmd(`C:${Date.now()}:DATA DELETE USERINFO PIN=${escape(pin)}`, `Delete user ${pin} queued`);
+
+  const deleteUser = async (pin: string) => {
+    if (!serial) return;
+    const commandId = await queueCmd(
+      `C:${Date.now()}:DATA DELETE USERINFO PIN=${escape(pin)}`,
+      `Delete user ${pin} queued — waiting for device confirmation…`,
+    );
+    if (!commandId) return;
+
+    const toastId = toast.loading(`Waiting for device to confirm delete of PIN ${pin}…`);
+    const outcome = await awaitCommandAck(commandId);
+    qc.invalidateQueries({ queryKey: ["bio-cmds", serial] });
+
+    if (outcome === "ack") {
+      // Device confirmed. Clean local roster/templates/photos for this PIN so the UI reflects reality.
+      await (supabase as any).from("hr_biometric_device_templates").delete().eq("device_serial", serial).eq("pin", pin);
+      await (supabase as any).from("hr_biometric_device_photos").delete().eq("device_serial", serial).eq("pin", pin);
+      await (supabase as any).from("hr_biometric_device_users").delete().eq("device_serial", serial).eq("pin", pin);
+      qc.invalidateQueries({ queryKey: ["bio-users", serial] });
+      qc.invalidateQueries({ queryKey: ["bio-tpl", serial] });
+      qc.invalidateQueries({ queryKey: ["bio-photos", serial] });
+      toast.success(`PIN ${pin} deleted from device`, { id: toastId });
+    } else if (outcome === "error") {
+      toast.error(`Device rejected delete of PIN ${pin}. Check operator log for the reason.`, { id: toastId });
+    } else if (outcome === "sent") {
+      toast.warning(`Delete for PIN ${pin} was delivered but the device hasn't acknowledged yet. It will clear on the next sync.`, { id: toastId });
+    } else {
+      toast.error(`Device did not pick up the delete command for PIN ${pin}. Confirm the device is online (heartbeat) and try again.`, { id: toastId });
+    }
+  };
   const clearAll = (target: "DATA" | "LOG" | "PHOTO") =>
     queueCmd(`C:${Date.now()}:CLEAR ${target}`, `CLEAR ${target} queued`);
   const reboot = () => queueCmd(`C:${Date.now()}:REBOOT`, "Reboot queued");

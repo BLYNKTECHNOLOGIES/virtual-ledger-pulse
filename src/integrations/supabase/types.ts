@@ -19244,6 +19244,10 @@ export type Database = {
           scope: string
         }[]
       }
+      hr_match_employee_by_normalized_name: {
+        Args: { p_name: string }
+        Returns: string
+      }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:
         | {

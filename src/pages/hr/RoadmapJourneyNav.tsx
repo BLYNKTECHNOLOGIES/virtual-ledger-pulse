@@ -10,6 +10,13 @@ interface Step {
 
 interface Props {
   steps: Step[];
+  /**
+   * Optional letter after which to draw a visual rail break with labels.
+   * Used to separate one-time setup (A–E) from the monthly cycle (F–J).
+   */
+  railBreakAfter?: string;
+  leftRailLabel?: string;
+  rightRailLabel?: string;
 }
 
 const DOT: Record<StationStatus, string> = {

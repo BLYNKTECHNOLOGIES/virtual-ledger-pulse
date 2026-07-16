@@ -239,9 +239,12 @@ export default function RazorpaySyncPage() {
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")
-      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at")
+      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at,probe_pilot_employee_id,probe_pilot_contractor_id")
       .maybeSingle();
-    setSettings(data as Settings | null);
+    const s = data as Settings | null;
+    setSettings(s);
+    setProbePilotEmpId(s?.probe_pilot_employee_id ?? "");
+    setProbePilotContractorId(s?.probe_pilot_contractor_id ?? "");
   };
 
 

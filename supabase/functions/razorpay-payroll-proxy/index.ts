@@ -883,9 +883,11 @@ Deno.serve(async (req) => {
           }).eq("razorpay_employee_id", m.razorpay_employee_id);
 
           let diff: any = null;
+          let obDiff: any = null;
           if (!unchanged) {
             diff = await projectSnapshotIntoErp(svc, m.hr_employee_id, r.body);
-            const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length;
+            obDiff = await projectSnapshotIntoOnboarding(svc, m.hr_employee_id, r.body);
+            const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length + (obDiff?.wrote?.length ?? 0);
             if (wroteCount) wroteAny++;
           }
 
@@ -900,11 +902,13 @@ Deno.serve(async (req) => {
                 hr_employees: diff.hr_employees.wrote,
                 work_info: diff.work_info.wrote,
                 bank: diff.bank.wrote,
+                onboarding: obDiff?.wrote ?? [],
               } : null,
               conflicts: diff ? {
                 hr_employees: diff.hr_employees.conflicts,
                 work_info: diff.work_info.conflicts,
                 bank: diff.bank.conflicts,
+                onboarding: obDiff?.conflicts ?? [],
               } : null,
               field_names: fieldNames(r.body),
             },
@@ -919,8 +923,9 @@ Deno.serve(async (req) => {
               hr_employees: diff.hr_employees.wrote.length,
               work_info: diff.work_info.wrote.length,
               bank: diff.bank.wrote.length,
+              onboarding: obDiff?.wrote?.length ?? 0,
             } : null,
-            conflicts: diff ? diff.hr_employees.conflicts.length + diff.work_info.conflicts.length + diff.bank.conflicts.length : 0,
+            conflicts: diff ? diff.hr_employees.conflicts.length + diff.work_info.conflicts.length + diff.bank.conflicts.length + (obDiff?.conflicts?.length ?? 0) : 0,
           });
         } catch (rowErr: any) {
           errored++;

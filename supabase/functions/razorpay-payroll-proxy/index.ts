@@ -561,16 +561,29 @@ Deno.serve(async (req) => {
           continue;
         }
         const [resource, subType] = item.key.split(":");
+        // URL path in the doc doesn't always match the body's `type` field:
+        //   contractor-payment (body) → /api/contractorPayment (URL)
+        //   advance-salary     (body) → /api/advanceSalary     (URL)
+        //   attendance / att   (body) → /api/att               (URL)
+        // For probe keys we accept both spellings as the map key.
+        const URL_MAP: Record<string, string> = {
+          "contractor-payment": "contractorPayment",
+          "advance-salary": "advanceSalary",
+          "att": "att",
+          "attendance": "att",
+        };
+        const bodyType = resource === "att" ? "attendance" : resource;
+        const urlPath = URL_MAP[resource] ?? resource;
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 12000);
         try {
-          const body: any = { auth: authBlock(), request: { type: resource, "sub-type": subType } };
-          if (probeId && resource === "people") {
+          const body: any = { auth: authBlock(), request: { type: bodyType, "sub-type": subType } };
+          if (probeId && bodyType === "people") {
             body.data = { "employee-id": probeId, "employee-type": "employee" };
-          } else if (probeId && resource === "contractor-payment" && subType === "get-status") {
+          } else if (probeId && bodyType === "contractor-payment" && subType === "get-status") {
             body.data = { "employee-id": probeId };
           }
-          const res = await fetch(`${BASE}/${resource}`, {
+          const res = await fetch(`${BASE}/${urlPath}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify(body),

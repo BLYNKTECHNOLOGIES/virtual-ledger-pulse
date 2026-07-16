@@ -2830,7 +2830,11 @@ function LedgerReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
         <CardTitle className="flex items-center gap-2">
           <Lock className="h-4 w-4" /> Step J · Reconcile with accounting ledger
         </CardTitle>
-        <CardDescription>Match Razorpay payouts against bank_transactions, waive with reason, and hard-lock the month.</CardDescription>
+        <CardDescription>
+          <b>What this does:</b> matches each RazorpayX payout against the corresponding entry in your bank statement (accounting ledger). If something can't be matched, you can waive it with a written reason. Once everything is clean, you can lock the month so no further edits happen.
+          <br />
+          <b>Is it safe?</b> Yes — reconciliation only reads. Waiving and locking are audit-logged with your reason and user.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">

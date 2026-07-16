@@ -2195,7 +2195,16 @@ Deno.serve(async (req) => {
       return json(200, {
         ok: true,
         period,
-        summary: { total: maps.length, planned, pushed, failed, skipped, working_days: workingDays },
+        summary: {
+          total: maps.length, planned, pushed, failed, skipped,
+          working_days_range: (() => {
+            const vals = Array.from(workingDaysByEmp.values());
+            if (!vals.length) return { min: 0, max: 0 };
+            return { min: Math.min(...vals), max: Math.max(...vals) };
+          })(),
+          holidays_in_month: holidayDates.size,
+        },
+        tenant_warnings: tenantWarnings,
         rows,
         envelope: {
           verified: !!settingsRow?.push_attendance_endpoint_verified,

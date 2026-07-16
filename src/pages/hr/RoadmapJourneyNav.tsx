@@ -10,6 +10,13 @@ interface Step {
 
 interface Props {
   steps: Step[];
+  /**
+   * Optional letter after which to draw a visual rail break with labels.
+   * Used to separate one-time setup (A–E) from the monthly cycle (F–J).
+   */
+  railBreakAfter?: string;
+  leftRailLabel?: string;
+  rightRailLabel?: string;
 }
 
 const DOT: Record<StationStatus, string> = {
@@ -19,13 +26,19 @@ const DOT: Record<StationStatus, string> = {
   locked: "bg-muted text-muted-foreground border-border/60",
 };
 
-export function RoadmapJourneyNav({ steps }: Props) {
+export function RoadmapJourneyNav({
+  steps,
+  railBreakAfter,
+  leftRailLabel = "One-time setup",
+  rightRailLabel = "Monthly cycle",
+}: Props) {
   const completed = steps.filter((s) => s.status === "done").length;
   const currentIdx = steps.findIndex((s) => s.status === "active");
   const currentLabel =
     currentIdx >= 0 ? steps[currentIdx].title : steps[completed]?.title ?? "All steps complete";
   const currentNum = currentIdx >= 0 ? currentIdx + 1 : Math.min(completed + 1, steps.length);
   const pct = Math.round((completed / steps.length) * 100);
+  const breakIdx = railBreakAfter ? steps.findIndex((s) => s.letter === railBreakAfter) : -1;
 
   const scrollTo = (letter: string) => {
     document.getElementById(`station-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -59,11 +72,21 @@ export function RoadmapJourneyNav({ steps }: Props) {
         </div>
       </div>
 
+      {/* Optional rail labels */}
+      {breakIdx >= 0 && (
+        <div className="hidden sm:flex items-center gap-0 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="flex-1 pr-3 truncate">{leftRailLabel}</div>
+          <div className="w-4" aria-hidden />
+          <div className="flex-1 pl-3 truncate">{rightRailLabel}</div>
+        </div>
+      )}
+
       {/* Rail with connecting track */}
       <div className="relative overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
         <div className="relative flex items-center gap-0 min-w-max">
           {steps.map((s, i) => {
             const nextDone = steps[i + 1]?.status === "done" || s.status === "done";
+            const isBreak = breakIdx >= 0 && i === breakIdx;
             return (
               <div key={s.letter} className="flex items-center">
                 <button
@@ -84,13 +107,20 @@ export function RoadmapJourneyNav({ steps }: Props) {
                   )}
                 </button>
                 {i < steps.length - 1 && (
-                  <div
-                    aria-hidden
-                    className={cn(
-                      "h-0.5 w-6 sm:w-8",
-                      nextDone ? "bg-emerald-500" : "bg-border"
-                    )}
-                  />
+                  isBreak ? (
+                    <div
+                      aria-hidden
+                      className="mx-1 h-6 w-px border-l border-dashed border-border/80"
+                    />
+                  ) : (
+                    <div
+                      aria-hidden
+                      className={cn(
+                        "h-0.5 w-6 sm:w-8",
+                        nextDone ? "bg-emerald-500" : "bg-border"
+                      )}
+                    />
+                  )
                 )}
               </div>
             );

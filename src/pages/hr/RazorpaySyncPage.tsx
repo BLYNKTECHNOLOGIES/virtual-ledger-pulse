@@ -2494,8 +2494,9 @@ function PayslipTaxDocSection({ invoke }: { invoke: <T,>(body: object) => Promis
           <DownloadCloud className="h-4 w-4" /> Step I · Download payslips & tax documents
         </CardTitle>
         <CardDescription>
-          Pull monthly payslips and yearly tax documents (Form 16, Form 12BA) from Razorpay.
-          Read-only against Razorpay; both envelopes are independently gated.
+          <b>What this does:</b> downloads monthly payslips and yearly tax documents (Form 16, Form 12BA) that RazorpayX has generated, and saves them into HRMS for employees to access.
+          <br />
+          <b>Is it safe?</b> Yes — read-only. Payslips and tax documents each have their own switch, so you can enable one without the other.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

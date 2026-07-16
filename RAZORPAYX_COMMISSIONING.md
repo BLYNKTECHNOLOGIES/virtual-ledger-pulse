@@ -35,16 +35,15 @@ Any envelope re-verified after change **auto-revokes** its domain's bulk-unlock 
 Two consecutive months, both must pass with variance ≤ ₹1/employee and 100% ledger match.
 - [ ] **Cycle N (parallel):** RazorpayX run alongside legacy; both disbursed via legacy. Compare.
 - [ ] **Cycle N+1 (parallel-primary):** RazorpayX run is primary disbursement; legacy shadow-only.
-- [ ] Ledger sign-off recorded in `hrms_payroll_ledger_signoffs` for both cycles.
+- [ ] Sign-off recorded by flipping `hr_razorpay_ledger_periods.status='signed_off'` (+ `signed_off_by`, `signed_off_at`) for both period rows. There is no separate signoffs table — the period row IS the sign-off ledger.
 
 ## 5. Access Revocation (definition of "live")
-- [ ] Revoke `hrms_razorpay_dashboard` from all HR ops users.
-- [ ] Retain `hrms_payroll_execute` on payroll manager(s) only (separate from `hrms_razorpay_sync`).
+- [ ] Retain `hrms_razorpay_sync` on payroll manager(s) only. **Correction to earlier B3:** there is no distinct `hrms_payroll_execute` permission — `hrms_razorpay_sync` is the single gate for identity/salary/attendance/payroll-run/payout/recon/signoff actions (verified against `pg_enum` and every `razorpay-*-proxy` handler). Owner must decide before go-live: keep the single gate, or split out an `hrms_payroll_execute` enum value + code migration in a follow-up phase. As shipped, this checklist adopts the single gate.
 - [ ] Rotate RazorpayX API keys post-cutover; store new keys in Supabase secrets.
 
 ## 6. Ongoing Safeguards (already in code, verify enabled)
 - [ ] `dispatch-report-emails` catch-up + self-alert active.
 - [ ] Envelope-change cascade revocation covers identity/salary/attendance/payroll/payout/recon.
-- [ ] Phase 10 reconciliation is **read-only** against `bank_transactions` and ERP ledger.
+- [ ] Phase 10 reconciliation is **read-only** against `bank_transactions` and the ERP ledger (`wallet_transactions`, `bank_ledger_*`). All writes land only in `hr_razorpay_ledger_matches`, `hr_razorpay_ledger_periods`, and `reconciliation_exception_state` — verified against the codebase; no earlier-cited `hrms_payroll_reconciliations` / `hrms_payroll_ledger_signoffs` tables exist.
 
-Production-ready = every box above ticked, sign-off row in `hrms_payroll_ledger_signoffs` for two consecutive months, and access revocation applied.
+Production-ready = every box above ticked, `hr_razorpay_ledger_periods.status='signed_off'` for two consecutive months, and access revocation applied.

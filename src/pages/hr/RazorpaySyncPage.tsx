@@ -1616,36 +1616,40 @@ export default function RazorpaySyncPage() {
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
-              We need to confirm which API name RazorpayX accepts for salary updates. Go to <b>Step B</b>, run "Check features", then type the working name (e.g. <code>people:update</code>) into the box below and save. After that, Preview will still work as before, and the "Send" buttons will unlock.
+              {settings?.push_salary_endpoint_verified
+                ? <>API name for salary updates is set up automatically ✅ — no action needed. Preview and "Send pilot" are ready.</>
+                : <>API name for salary updates will be set up automatically once you finish <b>Step A</b> (validate connection). Preview works either way.</>}
             </AlertDescription>
           </Alert>
 
-          <div className="rounded-md border p-3 bg-muted/20 space-y-2">
-            <div className="text-xs font-medium">Confirm the API endpoint RazorpayX accepts</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                placeholder="e.g. people:update"
-                value={salaryEnvelopeInput}
-                onChange={(e) => setSalaryEnvelopeInput(e.target.value)}
-                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
-              />
-              <Button size="sm" variant="secondary" onClick={() => runRecordSalaryEnvelope(true)} disabled={salaryRecording}>
-                {salaryRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => runRecordSalaryEnvelope(false)} disabled={salaryRecording || !settings?.push_salary_endpoint_verified}>
-                Clear verification
-              </Button>
-              {settings?.push_salary_envelope_verified_at && (
-                <span className="text-xs text-muted-foreground">
-                  Verified at {new Date(settings.push_salary_envelope_verified_at).toLocaleString()}
-                </span>
-              )}
+          {!simpleMode && (
+            <div className="rounded-md border p-3 bg-muted/20 space-y-2">
+              <div className="text-xs font-medium">Override API endpoint (advanced)</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. people:set-salary"
+                  value={salaryEnvelopeInput}
+                  onChange={(e) => setSalaryEnvelopeInput(e.target.value)}
+                  className="h-9 rounded-md border bg-background px-3 text-sm text-foreground w-56"
+                />
+                <Button size="sm" variant="secondary" onClick={() => runRecordSalaryEnvelope(true)} disabled={salaryRecording}>
+                  {salaryRecording && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Record as verified
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => runRecordSalaryEnvelope(false)} disabled={salaryRecording || !settings?.push_salary_endpoint_verified}>
+                  Clear verification
+                </Button>
+                {settings?.push_salary_envelope_verified_at && (
+                  <span className="text-xs text-muted-foreground">
+                    Verified at {new Date(settings.push_salary_envelope_verified_at).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Changing this value automatically resets the pilot + bulk-unlock gates so a stale verification cannot re-enable pushes against a new envelope.
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              Changing this value automatically resets the pilot + bulk-unlock gates so a stale verification cannot re-enable pushes against a new envelope.
-            </div>
-          </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <input

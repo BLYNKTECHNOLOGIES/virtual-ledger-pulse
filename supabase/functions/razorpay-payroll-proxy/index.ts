@@ -2513,8 +2513,13 @@ Deno.serve(async (req) => {
           });
         }
 
+        // Documented endpoint for pulling payouts is POST /api/payroll with
+        // sub-type "view-payroll" (Opfin) — normalize legacy "payouts:view"
+        // envelopes, which target a ghost endpoint.
         const envelopeKey = String(poSettings.pull_payouts_envelope_key);
-        const [type, subType] = envelopeKey.split(":");
+        let [type, subType] = envelopeKey.split(":");
+        if (!type || type === "payouts") type = "payroll";
+        if (!subType || subType === "view") subType = "view-payroll";
 
         // Pull payouts. Actual shape is Razorpay-tenant-specific; whatever comes
         // back is stored verbatim in source_payload and normalised best-effort.
@@ -2522,13 +2527,13 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 30000);
         let httpStatus = 0; let bodyOut: any = null;
         try {
-          const res = await fetch(`${BASE}/${type || "payouts"}`, {
+          const res = await fetch(`${BASE}/${type}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               auth: authBlock(),
-              request: { type: type || "payouts", "sub-type": subType || "view" },
-              data: { period: periodMonthStr },
+              request: { type, "sub-type": subType },
+              data: { period: periodMonthStr, "payroll-month": periodMonthStr },
             }),
             signal: ctrl.signal,
           });

@@ -1020,14 +1020,28 @@ async function parseOperlog(supabase: any, serialNumber: string, body: string, t
       Array.from(userUpserts.values()),
       { onConflict: "device_serial,pin" }
     );
-    // Try to auto-link to hr_employees by badge_id = pin
-    for (const pin of userUpserts.keys()) {
-      const { data: emp } = await supabase
+    // Try to auto-link to hr_employees:
+    //   (a) exact badge_id = pin (legacy where PIN==badge)
+    //   (b) fuzzy match on normalized name (case/space/punct insensitive)
+    for (const [pin, u] of userUpserts) {
+      let empId: string | null = null;
+      const { data: byBadge } = await supabase
         .from("hr_employees").select("id").eq("badge_id", pin).maybeSingle();
-      if (emp) {
+      if (byBadge) empId = byBadge.id;
+
+      if (!empId && u.name) {
+        const norm = String(u.name).toLowerCase().replace(/[^a-z0-9]+/g, "");
+        if (norm.length >= 3) {
+          const { data: byName } = await supabase.rpc("hr_match_employee_by_normalized_name", { p_name: norm });
+          if (byName && typeof byName === "string") empId = byName;
+        }
+      }
+
+      if (empId) {
         await supabase.from("hr_biometric_device_users")
-          .update({ matched_employee_id: emp.id })
-          .eq("device_serial", serialNumber).eq("pin", pin);
+          .update({ matched_employee_id: empId })
+          .eq("device_serial", serialNumber).eq("pin", pin)
+          .is("matched_employee_id", null);
       }
     }
   }

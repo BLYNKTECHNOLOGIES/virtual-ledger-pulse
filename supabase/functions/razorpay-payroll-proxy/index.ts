@@ -777,17 +777,43 @@ Deno.serve(async (req) => {
             let created = false;
             if (!hrId) { hrId = await createDraftEmployee(svc, r.body); created = true; }
             await upsertMap(svc, String(i), hrId!, false, created);
+            // Project full snapshot into ERP + onboarding row so the
+            // onboarding wizard opens pre-filled with Razorpay data.
+            let projDiff: any = null;
+            let obDiff: any = null;
+            try {
+              projDiff = await projectSnapshotIntoErp(svc, hrId!, r.body);
+              obDiff = await projectSnapshotIntoOnboarding(svc, hrId!, r.body);
+              await svc.from("hr_razorpay_employee_map").update({
+                last_pull_snapshot: r.body,
+                last_pulled_at: new Date().toISOString(),
+                last_payload_hash: await canonicalHash(r.body),
+              }).eq("razorpay_employee_id", String(i));
+            } catch (projErr) {
+              console.error("[apply_range] project failed", (projErr as Error).message);
+            }
             await logSync(svc, {
               action: created ? "create_draft" : "match",
               http_status: r.status,
               razorpay_employee_id: String(i),
               hr_employee_id: hrId,
-              field_diff_summary: { field_names: fieldNames(r.body), matched_by: match.matched_by, bulk: true },
+              field_diff_summary: {
+                field_names: fieldNames(r.body),
+                matched_by: match.matched_by,
+                bulk: true,
+                projected: projDiff ? {
+                  hr_employees: projDiff.hr_employees.wrote,
+                  work_info: projDiff.work_info.wrote,
+                  bank: projDiff.bank.wrote,
+                } : null,
+                onboarding_prefilled: obDiff?.wrote ?? null,
+              },
               actor_user_id: authed.userId,
             });
             rows[rows.length - 1].applied = true;
             rows[rows.length - 1].created = created;
             rows[rows.length - 1].hr_employee_id = hrId;
+            rows[rows.length - 1].onboarding_prefilled = obDiff?.wrote?.length ?? 0;
           } catch (rowErr: any) {
             const msg = String(rowErr?.message ?? rowErr);
             rows[rows.length - 1].applied = false;

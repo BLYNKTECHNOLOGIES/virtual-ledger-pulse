@@ -46,9 +46,12 @@ type Row = {
 
 export function BulkCompletionPanel() {
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const gapFilter = searchParams.get("gap") as "bank" | "salary" | "doj" | "designation" | null;
   const [selected, setSelected] = useState<Set<string>>(new Set()); // employee_ids
   const [dialog, setDialog] = useState<null | "salary" | "workinfo" | "bank">(null);
   const [bankTarget, setBankTarget] = useState<Row | null>(null);
+
 
   // ── DATA ──────────────────────────────────────────────────
   const { data: rows = [], isLoading } = useQuery<Row[]>({

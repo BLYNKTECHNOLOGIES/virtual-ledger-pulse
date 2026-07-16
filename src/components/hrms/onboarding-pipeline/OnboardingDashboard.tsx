@@ -63,12 +63,30 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
   const { data: records, isLoading } = useQuery({
     queryKey: ["onboarding-pipeline-records"],
     queryFn: async () => {
+      // Self-heal: create draft onboarding rows for any inactive employees that lack one
+      try { await supabase.rpc("ensure_onboarding_for_orphans" as any); } catch {}
       const { data, error } = await supabase
         .from("hr_employee_onboarding")
         .select("id, first_name, last_name, email, status, current_stage, department_id, created_at, employee_id")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as OnboardingRecord[];
+    },
+  });
+
+  const employeeIds = (records || []).map(r => r.employee_id).filter(Boolean) as string[];
+  const { data: completeness } = useQuery({
+    queryKey: ["onboarding-completeness", employeeIds.sort().join(",")],
+    enabled: employeeIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_employee_completeness" as any)
+        .select("employee_id, has_bank, has_salary, has_doj, has_designation")
+        .in("employee_id", employeeIds);
+      if (error) throw error;
+      const map: Record<string, { has_bank: boolean; has_salary: boolean; has_doj: boolean; has_designation: boolean }> = {};
+      for (const row of (data || []) as any[]) map[row.employee_id] = row;
+      return map;
     },
   });
 

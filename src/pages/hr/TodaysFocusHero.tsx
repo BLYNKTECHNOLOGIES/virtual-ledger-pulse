@@ -189,7 +189,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
               <div className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
                 {copy?.helper}
               </div>
-              {isMonthly && (
+              {isMonthly && nudge && (
                 <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground bg-background/60 border border-border/60 rounded-full px-2 py-1">
                   <CalendarClock className="h-3 w-3" />
                   <span>{nudge}</span>

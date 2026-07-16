@@ -352,12 +352,11 @@ async function projectSnapshotIntoOnboarding(
   let departmentId: string | null = null;
   let positionId: string | null = null;
   if (deptName) {
-    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName).limit(1).maybeSingle();
+    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName.trim()).limit(1).maybeSingle();
     if (d?.id) departmentId = d.id;
   }
   if (jobTitle) {
-    const { data: p } = await svc.from("positions").select("id").ilike("title", jobTitle).limit(1).maybeSingle();
-    if (p?.id) positionId = p.id;
+    positionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
 
   const incoming: Record<string, any> = {

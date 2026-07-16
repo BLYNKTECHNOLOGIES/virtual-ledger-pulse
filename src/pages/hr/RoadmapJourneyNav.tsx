@@ -72,11 +72,21 @@ export function RoadmapJourneyNav({
         </div>
       </div>
 
+      {/* Optional rail labels */}
+      {breakIdx >= 0 && (
+        <div className="hidden sm:flex items-center gap-0 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="flex-1 pr-3 truncate">{leftRailLabel}</div>
+          <div className="w-4" aria-hidden />
+          <div className="flex-1 pl-3 truncate">{rightRailLabel}</div>
+        </div>
+      )}
+
       {/* Rail with connecting track */}
       <div className="relative overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
         <div className="relative flex items-center gap-0 min-w-max">
           {steps.map((s, i) => {
             const nextDone = steps[i + 1]?.status === "done" || s.status === "done";
+            const isBreak = breakIdx >= 0 && i === breakIdx;
             return (
               <div key={s.letter} className="flex items-center">
                 <button
@@ -97,19 +107,29 @@ export function RoadmapJourneyNav({
                   )}
                 </button>
                 {i < steps.length - 1 && (
-                  <div
-                    aria-hidden
-                    className={cn(
-                      "h-0.5 w-6 sm:w-8",
-                      nextDone ? "bg-emerald-500" : "bg-border"
-                    )}
-                  />
+                  isBreak ? (
+                    <div
+                      aria-hidden
+                      className="mx-1 h-6 w-px border-l border-dashed border-border/80"
+                    />
+                  ) : (
+                    <div
+                      aria-hidden
+                      className={cn(
+                        "h-0.5 w-6 sm:w-8",
+                        nextDone ? "bg-emerald-500" : "bg-border"
+                      )}
+                    />
+                  )
                 )}
               </div>
             );
           })}
         </div>
       </div>
+    </div>
+  );
+}
     </div>
   );
 }

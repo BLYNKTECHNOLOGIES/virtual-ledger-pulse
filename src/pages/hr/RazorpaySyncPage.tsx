@@ -1625,9 +1625,11 @@ export default function RazorpaySyncPage() {
 
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step 3 — Bulk import (range)</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> {simpleMode ? "Step 3 — Import everyone" : "Step 3 — Bulk import (range)"}</CardTitle>
           <CardDescription>
-            Walk <code>start-id</code> → <code>max-id</code>, dry-run first (available pre-pilot), then apply (requires unlock). Stops after 30 consecutive misses; hard cap 1000 IDs per run.
+            {simpleMode
+              ? <>Pick a range of RazorpayX employee IDs (e.g. From <b>1</b> To <b>100</b>). Preview first, then click <b>Apply import</b>. The tool automatically stops after 30 empty IDs in a row and imports up to 1,000 at a time.</>
+              : <>Walk <code>start-id</code> → <code>max-id</code>, dry-run first (available pre-pilot), then apply (requires unlock). Stops after 30 consecutive misses; hard cap 1000 IDs per run.</>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

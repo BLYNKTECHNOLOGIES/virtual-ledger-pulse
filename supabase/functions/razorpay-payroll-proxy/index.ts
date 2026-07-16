@@ -3354,36 +3354,53 @@ Deno.serve(async (req) => {
 
     // ---------------------------------------------------------------------
     // Direct action bridge for RazorpayX Payroll endpoints that don't need a
-    // dedicated phase workflow (contractor payments, advance salary, payroll
-    // modifications, dismiss, attendance fetch, payroll view). Every action
-    // is gated on the master switches operators toggle in Razorpay Sync:
-    //   READ    → requires an existing verified credential pair
-    //   WRITE   → additionally requires push_payroll_endpoint_verified = true
-    // Requests hit /api/<type> with the exact sub-type the doc specifies;
-    // callers pass `data` verbatim so we don't hide any field-shape drift.
+    // dedicated phase workflow. Verified against the Postman collection:
+    // URL path and body `type` deliberately differ for three families —
+    //   contractor-payment (body) → /api/contractorPayment (URL)
+    //   advance-salary     (body) → /api/advanceSalary     (URL)
+    //   attendance         (body) → /api/att               (URL)
+    // Per-domain gating (aligned with the RazorpayX commissioning plan):
+    //   people_dismiss                         → push_salary_endpoint_verified
+    //                                            + explicit `ack:"CONFIRM_DISMISS"`
+    //   payroll modifications (add/reset/dnp) → push_payroll_endpoint_verified
+    //   contractor payments / advance salary   → pull_payouts_endpoint_verified
+    //                                            (payout-domain gate)
+    //   read actions                           → auth + hrms_razorpay_sync
+    //                                            (no additional envelope gate)
     // ---------------------------------------------------------------------
+    type Gate = "payroll" | "payouts" | "salary" | "none";
     const DIRECT: Record<string, {
-      type: string; sub_type: string; write: boolean; logAs: string;
+      urlPath: string; bodyType: string; sub_type: string;
+      write: boolean; gate: Gate; requireAck?: boolean; logAs: string;
     }> = {
-      people_dismiss:              { type: "people",              sub_type: "dismiss",             write: true,  logAs: "people_dismiss" },
-      payroll_view_payroll:        { type: "payroll",             sub_type: "view-payroll",        write: false, logAs: "payroll_view_payroll" },
-      payroll_add_additions:       { type: "payroll",             sub_type: "add-additions",       write: true,  logAs: "payroll_add_additions" },
-      payroll_add_deduction:       { type: "payroll",             sub_type: "add-deduction",       write: true,  logAs: "payroll_add_deduction" },
-      payroll_reset_modifications: { type: "payroll",             sub_type: "reset-modifications", write: true,  logAs: "payroll_reset_modifications" },
-      payroll_do_not_pay:          { type: "payroll",             sub_type: "do-not-pay",          write: true,  logAs: "payroll_do_not_pay" },
-      contractor_payment_create:   { type: "contractor-payment",  sub_type: "create",              write: true,  logAs: "contractor_payment_create" },
-      contractor_payment_delete:   { type: "contractor-payment",  sub_type: "delete",              write: true,  logAs: "contractor_payment_delete" },
-      contractor_payment_list:     { type: "contractor-payment",  sub_type: "list-pending",        write: false, logAs: "contractor_payment_list" },
-      contractor_payment_status:   { type: "contractor-payment",  sub_type: "get-status",          write: false, logAs: "contractor_payment_status" },
-      advance_salary_create:       { type: "advance-salary",      sub_type: "create",              write: true,  logAs: "advance_salary_create" },
-      attendance_fetch:            { type: "att",                 sub_type: "fetch",               write: false, logAs: "attendance_fetch" },
+      people_dismiss:              { urlPath: "people",             bodyType: "people",             sub_type: "dismiss",             write: true,  gate: "salary",  requireAck: true, logAs: "people_dismiss" },
+      payroll_view_payroll:        { urlPath: "payroll",            bodyType: "payroll",            sub_type: "view-payroll",        write: false, gate: "none",    logAs: "payroll_view_payroll" },
+      payroll_add_additions:       { urlPath: "payroll",            bodyType: "payroll",            sub_type: "add-additions",       write: true,  gate: "payroll", logAs: "payroll_add_additions" },
+      payroll_add_deduction:       { urlPath: "payroll",            bodyType: "payroll",            sub_type: "add-deduction",       write: true,  gate: "payroll", logAs: "payroll_add_deduction" },
+      payroll_reset_modifications: { urlPath: "payroll",            bodyType: "payroll",            sub_type: "reset-modifications", write: true,  gate: "payroll", logAs: "payroll_reset_modifications" },
+      payroll_do_not_pay:          { urlPath: "payroll",            bodyType: "payroll",            sub_type: "do-not-pay",          write: true,  gate: "payroll", logAs: "payroll_do_not_pay" },
+      contractor_payment_create:   { urlPath: "contractorPayment",  bodyType: "contractor-payment", sub_type: "create",              write: true,  gate: "payouts", logAs: "contractor_payment_create" },
+      contractor_payment_delete:   { urlPath: "contractorPayment",  bodyType: "contractor-payment", sub_type: "delete",              write: true,  gate: "payouts", logAs: "contractor_payment_delete" },
+      contractor_payment_list:     { urlPath: "contractorPayment",  bodyType: "contractor-payment", sub_type: "list-pending",        write: false, gate: "none",    logAs: "contractor_payment_list" },
+      contractor_payment_status:   { urlPath: "contractorPayment",  bodyType: "contractor-payment", sub_type: "get-status",          write: false, gate: "none",    logAs: "contractor_payment_status" },
+      advance_salary_create:       { urlPath: "advanceSalary",      bodyType: "advance-salary",     sub_type: "create",              write: true,  gate: "payouts", logAs: "advance_salary_create" },
+      attendance_fetch:            { urlPath: "att",                bodyType: "attendance",         sub_type: "fetch",               write: false, gate: "none",    logAs: "attendance_fetch" },
     };
 
     if (action in DIRECT) {
       const spec = DIRECT[action];
       const s = await readSettings(svc);
-      if (spec.write && !s?.push_payroll_endpoint_verified) {
-        return json(403, { error: "Payroll write gate is locked (push_payroll_endpoint_verified=false)." });
+      if (spec.gate === "payroll" && !s?.push_payroll_endpoint_verified) {
+        return json(403, { error: "Payroll-write gate locked (push_payroll_endpoint_verified=false)." });
+      }
+      if (spec.gate === "payouts" && !s?.pull_payouts_endpoint_verified) {
+        return json(403, { error: "Payout-domain gate locked (pull_payouts_endpoint_verified=false)." });
+      }
+      if (spec.gate === "salary" && !s?.push_salary_endpoint_verified) {
+        return json(403, { error: "People/salary gate locked (push_salary_endpoint_verified=false)." });
+      }
+      if (spec.requireAck && String(payload?.ack || "") !== "CONFIRM_DISMISS") {
+        return json(403, { error: "Missing ack. Send { ack: 'CONFIRM_DISMISS' } to authorise this destructive action." });
       }
       const data = (payload && typeof payload === "object" && payload.data && typeof payload.data === "object")
         ? payload.data : {};
@@ -3391,12 +3408,12 @@ Deno.serve(async (req) => {
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
       try {
-        const res = await fetch(`${BASE}/${spec.type}`, {
+        const res = await fetch(`${BASE}/${spec.urlPath}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({
             auth: authBlock(),
-            request: { type: spec.type, "sub-type": spec.sub_type },
+            request: { type: spec.bodyType, "sub-type": spec.sub_type },
             data,
           }),
           signal: ctrl.signal,
@@ -3419,10 +3436,12 @@ Deno.serve(async (req) => {
         http_status: httpStatus,
         razorpay_employee_id: rpEid,
         hr_employee_id: null,
-        field_diff_summary: { endpoint: `${spec.type}/${spec.sub_type}`, data_keys: Object.keys(data).slice(0, 20) },
+        field_diff_summary: { url: `/${spec.urlPath}`, body_type: spec.bodyType, sub_type: spec.sub_type, data_keys: Object.keys(data).slice(0, 20) },
         error_text: errText,
         actor_user_id: authed.userId,
       });
+      return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
+    }
       return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
     }
 

@@ -1644,6 +1644,8 @@ export default function RazorpaySyncPage() {
       <PayoutReconciliationSection invoke={invoke} />
 
       <PayslipTaxDocSection invoke={invoke} />
+
+      <LedgerReconciliationSection invoke={invoke} />
     </div>
   );
 }
@@ -2493,6 +2495,223 @@ function PayslipTaxDocSection({ invoke }: { invoke: <T,>(body: object) => Promis
               </table>
             </div>
           )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================
+// Phase 10 — Ledger Reconciliation
+// Cross-references hr_razorpay_payout_records against bank_transactions.
+// Draft → reviewed → signed_off, with reopen for audited re-work.
+// ============================================================
+interface PayoutLedgerRow {
+  id: string;
+  hr_employee_id: string | null;
+  razorpay_employee_id: string | null;
+  paid_amount: number | null;
+  utr: string | null;
+  paid_at: string | null;
+  match?: {
+    match_method: string;
+    matched_amount: number | null;
+    variance: number | null;
+    note: string | null;
+    matched_by_name: string | null;
+    bank_transaction_id: string | null;
+  } | null;
+}
+interface LedgerPeriodRow {
+  status: "draft" | "reviewed" | "signed_off" | "reopened";
+  total_paid: number | null;
+  total_matched: number | null;
+  total_unmatched: number | null;
+  total_waived: number | null;
+  signed_off_by_name: string | null;
+  signed_off_at: string | null;
+  reviewed_by_name: string | null;
+  reviewed_at: string | null;
+  reopen_reason: string | null;
+}
+
+function LedgerReconciliationSection({ invoke }: { invoke: <T,>(body: object) => Promise<T> }) {
+  const [periodMonth, setPeriodMonth] = useState<string>(() => {
+    const d = new Date(); d.setUTCMonth(d.getUTCMonth() - 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+  const [busy, setBusy] = useState(false);
+  const [rows, setRows] = useState<PayoutLedgerRow[]>([]);
+  const [period, setPeriod] = useState<LedgerPeriodRow | null>(null);
+  const periodISO = `${periodMonth}-01`;
+  const locked = period?.status === "signed_off";
+
+  async function loadPeriod() {
+    const { data: p } = await supabase.from("hr_razorpay_ledger_periods")
+      .select("status,total_paid,total_matched,total_unmatched,total_waived,signed_off_by_name,signed_off_at,reviewed_by_name,reviewed_at,reopen_reason")
+      .eq("period_month", periodISO).maybeSingle();
+    setPeriod((p as unknown as LedgerPeriodRow) || null);
+  }
+  async function loadRows() {
+    const { data: payouts } = await supabase.from("hr_razorpay_payout_records")
+      .select("id,hr_employee_id,razorpay_employee_id,paid_amount,utr,paid_at")
+      .eq("period_month", periodISO)
+      .order("paid_at", { ascending: true });
+    const { data: matches } = await supabase.from("hr_razorpay_ledger_matches")
+      .select("payout_record_id,match_method,matched_amount,variance,note,matched_by_name,bank_transaction_id")
+      .eq("period_month", periodISO);
+    const mapByPayout = new Map<string, PayoutLedgerRow["match"]>();
+    for (const m of (matches || []) as { payout_record_id: string; match_method: string; matched_amount: number | null; variance: number | null; note: string | null; matched_by_name: string | null; bank_transaction_id: string | null }[]) {
+      mapByPayout.set(m.payout_record_id, {
+        match_method: m.match_method,
+        matched_amount: m.matched_amount,
+        variance: m.variance,
+        note: m.note,
+        matched_by_name: m.matched_by_name,
+        bank_transaction_id: m.bank_transaction_id,
+      });
+    }
+    setRows(((payouts || []) as PayoutLedgerRow[]).map((r) => ({ ...r, match: mapByPayout.get(r.id) || null })));
+  }
+  async function refreshAll() { await Promise.all([loadPeriod(), loadRows()]); }
+  useEffect(() => { void refreshAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [periodMonth]);
+
+  async function run(action: string, extra: Record<string, unknown> = {}) {
+    setBusy(true);
+    try {
+      const r = await invoke<{ ok?: boolean; error?: string; matched?: number; totals?: { total_matched: number; total_unmatched: number } }>({ action, period_month: periodMonth, ...extra });
+      if (r?.error) throw new Error(r.error);
+      toast({ title: action.replace(/_/g, " "), description: r?.matched != null ? `Auto-matched ${r.matched}` : "OK" });
+      await refreshAll();
+    } catch (e) {
+      toast({ variant: "destructive", title: action, description: (e as Error).message });
+    } finally { setBusy(false); }
+  }
+
+  async function manualLink(payoutId: string) {
+    const bank = window.prompt("Bank transaction ID (UUID) to link to this payout:");
+    if (!bank) return;
+    const note = window.prompt("Optional note:") || "";
+    await run("manual_link_ledger", { payout_record_id: payoutId, bank_transaction_id: bank.trim(), note });
+  }
+  async function waive(payoutId: string) {
+    const reason = window.prompt("Waiver reason (min 8 chars):") || "";
+    if (reason.trim().length < 8) { toast({ variant: "destructive", title: "Reason too short" }); return; }
+    await run("waive_ledger_match", { payout_record_id: payoutId, reason });
+  }
+  async function unlink(payoutId: string) {
+    if (!window.confirm("Remove existing match/waiver for this payout?")) return;
+    await run("unlink_ledger", { payout_record_id: payoutId });
+  }
+  async function signOff() {
+    if (!window.confirm("Sign off this period? This hard-locks payouts, payslips and payroll for the month.")) return;
+    await run("signoff_ledger_period");
+  }
+  async function reopen() {
+    const reason = window.prompt("Reopen reason (min 12 chars):") || "";
+    if (reason.trim().length < 12) { toast({ variant: "destructive", title: "Reason too short" }); return; }
+    await run("reopen_ledger_period", { reason });
+  }
+
+  const money = (n: number | null | undefined) => (n == null ? "—" : Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 }));
+  const statusTone = period?.status === "signed_off" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    : period?.status === "reviewed" ? "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+    : period?.status === "reopened" ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    : "border-border bg-muted/40 text-foreground";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Lock className="h-4 w-4" /> Phase 10 — Ledger reconciliation
+        </CardTitle>
+        <CardDescription>Match Razorpay payouts against bank_transactions, waive with reason, and hard-lock the month.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-sm text-muted-foreground">Period</label>
+          <input
+            type="month"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={periodMonth}
+            onChange={(e) => setPeriodMonth(e.target.value)}
+          />
+          <Badge variant="outline" className={statusTone}>{period?.status || "draft"}</Badge>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => run("probe_ledger_scope")}>Probe scope</Button>
+          <Button size="sm" disabled={busy || locked} onClick={() => run("auto_match_ledger_period")}>Auto-match</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => run("recompute_ledger_totals")}>Recompute totals</Button>
+          {period?.status !== "signed_off" && (
+            <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => run("review_ledger_period")}>Mark reviewed</Button>
+          )}
+          {period?.status === "reviewed" && (
+            <Button size="sm" disabled={busy} onClick={signOff}>Sign off</Button>
+          )}
+          {period?.status === "signed_off" && (
+            <Button size="sm" variant="destructive" disabled={busy} onClick={reopen}>Reopen</Button>
+          )}
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <GapChip label="Paid" value={Number(period?.total_paid || 0)} tone="neutral" />
+          <GapChip label="Matched" value={Number(period?.total_matched || 0)} tone="ok" />
+          <GapChip label="Unmatched" value={Number(period?.total_unmatched || 0)} tone={Number(period?.total_unmatched || 0) > 0 ? "warn" : "ok"} />
+          <GapChip label="Waived" value={Number(period?.total_waived || 0)} tone="neutral" />
+        </div>
+
+        {locked && (
+          <Alert>
+            <ShieldCheck className="h-4 w-4" />
+            <AlertTitle>Period signed off</AlertTitle>
+            <AlertDescription>
+              Locked by {period?.signed_off_by_name || "—"} on {period?.signed_off_at ? new Date(period.signed_off_at).toLocaleString() : "—"}.
+              Reopen (with reason) to make further changes.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="p-2 text-left">Employee</th>
+                <th className="p-2 text-right">Paid</th>
+                <th className="p-2 text-left">UTR</th>
+                <th className="p-2 text-left">Paid at</th>
+                <th className="p-2 text-left">Match</th>
+                <th className="p-2 text-right">Variance</th>
+                <th className="p-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={7} className="p-3 text-center text-muted-foreground">No payouts for this period.</td></tr>
+              )}
+              {rows.map((r) => {
+                const m = r.match;
+                const tone = !m ? "text-amber-600 dark:text-amber-400"
+                  : m.match_method === "waived" ? "text-muted-foreground"
+                  : "text-emerald-600 dark:text-emerald-400";
+                return (
+                  <tr key={r.id} className="border-t">
+                    <td className="p-2 font-mono text-xs">{r.hr_employee_id?.slice(0, 8) || r.razorpay_employee_id || "—"}</td>
+                    <td className="p-2 text-right font-medium">₹{money(r.paid_amount)}</td>
+                    <td className="p-2 font-mono text-xs">{r.utr || "—"}</td>
+                    <td className="p-2 text-xs text-muted-foreground">{r.paid_at ? new Date(r.paid_at).toLocaleDateString() : "—"}</td>
+                    <td className={`p-2 text-xs ${tone}`}>{m ? `${m.match_method}${m.matched_by_name ? ` · ${m.matched_by_name}` : ""}` : "unmatched"}</td>
+                    <td className="p-2 text-right font-mono text-xs">{m?.variance != null ? money(m.variance) : "—"}</td>
+                    <td className="p-2 text-right">
+                      <div className="inline-flex gap-1">
+                        <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => manualLink(r.id)}>Link</Button>
+                        <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => waive(r.id)}>Waive</Button>
+                        {m && <Button size="sm" variant="ghost" disabled={busy || locked} onClick={() => unlink(r.id)}>Unlink</Button>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </CardContent>
     </Card>

@@ -163,7 +163,12 @@ export function BulkCompletionPanel() {
     </span>
   );
 
-  const selectedRows = rows.filter(r => selected.has(r.employee_id!));
+  const selectedRows = visibleRows.filter(r => selected.has(r.employee_id!));
+
+  const gapLabel = gapFilter
+    ? ({ bank: "Bank details", salary: "Salary", doj: "Joining date", designation: "Designation" } as const)[gapFilter]
+    : null;
+
 
   return (
     <Card>

@@ -937,37 +937,49 @@ export default function RazorpaySyncPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-primary" />
-            How to read this page
+            How this page works (read me first)
           </CardTitle>
           <CardDescription>
-            Advanced view shows every step of the RazorpayX sync in order (A → J). Complete them top-to-bottom. Every step follows the same safety pattern:
+            This page is a checklist. Steps A → J run in order — finish one before starting the next. Every step uses the same 4-stage safety pattern so you can never accidentally send wrong data to RazorpayX.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
-          <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">1. Dry-run preview</div>
-            <div className="text-muted-foreground">Shows what would change. Nothing is sent to RazorpayX yet.</div>
+        <CardContent className="space-y-4 text-xs">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">1️⃣ Preview</div>
+              <div className="text-muted-foreground">See what <em>would</em> change. Nothing is sent yet — totally safe to click.</div>
+            </div>
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">2️⃣ Test one</div>
+              <div className="text-muted-foreground">Send the change for a single employee. You confirm it looks correct on RazorpayX before doing everyone.</div>
+            </div>
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">3️⃣ Turn on for everyone</div>
+              <div className="text-muted-foreground">A one-time switch that unlocks the "send to all" button. Only appears after test one succeeds.</div>
+            </div>
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">4️⃣ Send to all</div>
+              <div className="text-muted-foreground">Applies the confirmed change to every matched employee.</div>
+            </div>
           </div>
+
           <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">2. Test with one employee (“pilot”)</div>
-            <div className="text-muted-foreground">Sends the change for a single employee so you can confirm it worked correctly before doing everyone.</div>
+            <div className="font-medium mb-2">Words you'll see, in plain English</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div><b>Dry-run</b> — same as "Preview". Try it fearlessly.</div>
+              <div><b>Pilot</b> — same as "Test one employee".</div>
+              <div><b>Bulk unlock</b> — the switch that turns on "Send to all".</div>
+              <div><b>Apply</b> — actually send the change to RazorpayX.</div>
+              <div><b>Baseline</b> — the last copy of the employee we pulled from RazorpayX. If a row says <em>"no baseline"</em>, run <b>Step A</b> first — it fetches fresh data.</div>
+              <div><b>Drift</b> — HRMS and RazorpayX disagree on a value. That row is ready to push.</div>
+              <div><b>Endpoint / envelope</b> — the exact API name RazorpayX expects (e.g. <code>people:update</code>). You confirm it once per step. Buttons stay <em>locked</em> until you do — that's a safety catch, not a bug.</div>
+              <div><b>Locked</b> — the previous safety check hasn't been done yet. Read the hint next to the button and complete that first.</div>
+            </div>
           </div>
-          <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">3. Unlock bulk send</div>
-            <div className="text-muted-foreground">Only after a successful pilot. This opens the “apply to everyone” button.</div>
-          </div>
-          <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">4. Apply to everyone</div>
-            <div className="text-muted-foreground">Sends the confirmed change for all mapped employees.</div>
-          </div>
-          <div className="sm:col-span-2 lg:col-span-4 rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">A few terms explained</div>
-            <ul className="text-muted-foreground space-y-1 list-disc pl-4">
-              <li><b>Endpoint / envelope</b> — the specific RazorpayX API name (like <code>people:update</code>) that our system must use. You confirm it once per step; the buttons stay locked until then so we can’t send data to a wrong address.</li>
-              <li><b>Baseline</b> — the last known snapshot from RazorpayX. Needed so we can show a before/after diff. If a row says “no baseline”, refresh employee details first (Step A).</li>
-              <li><b>Drift</b> — the ERP value differs from RazorpayX. That row is a candidate to push.</li>
-              <li><b>Locked</b> — the button is intentionally disabled until the previous safety check passes. That’s expected — just complete the step it points to.</li>
-            </ul>
+
+          <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3">
+            <div className="font-medium mb-1">✅ Rule of thumb for HR</div>
+            <div className="text-muted-foreground">If a button feels scary, hit <b>Preview / Dry-run</b> first. It <em>never</em> changes data on RazorpayX. Everything that actually sends is clearly labelled <b>Apply</b>, <b>Push</b>, or <b>Send</b> and asks for confirmation.</div>
           </div>
         </CardContent>
       </Card>
@@ -977,10 +989,11 @@ export default function RazorpaySyncPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Step A · Refresh employee details from RazorpayX</CardTitle>
           <CardDescription>
-            Re-fetch <code>people:view</code> for every mapped Razorpay employee and project the payload
-            into <code>hr_employees</code> / <code>hr_employee_work_info</code> / <code>hr_employee_bank_details</code>.
-            ERP-authored values are never overwritten — only NULL/empty fields are filled.
-            Nothing is pushed back to Razorpay.
+            <b>What this does:</b> re-downloads the latest details of every mapped employee from RazorpayX (name, phone, email, department, bank, etc.) and fills any <em>blank</em> fields in HRMS.
+            <br />
+            <b>Is it safe?</b> Yes — it never overwrites values that HR has already entered, and it does not send anything to RazorpayX.
+            <br />
+            <b>When to run:</b> after adding new employees on RazorpayX, or when a later step complains about "no baseline".
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1022,9 +1035,11 @@ export default function RazorpaySyncPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step B · Check which RazorpayX features are available</CardTitle>
           <CardDescription>
-            Discover which Opfin sub-types this Live tenant supports before any push work is designed.
-            Read sub-types are probed live against a pilot-verified employee. Write sub-types are listed
-            as <span className="font-medium">pending</span> — they require an operator-approved payload before Lovable calls them.
+            <b>What this does:</b> checks which RazorpayX features your account is allowed to use — so we know in advance which of the next steps will work.
+            <br />
+            <b>Is it safe?</b> Yes — this only <em>reads</em> from RazorpayX. Write features are listed as <b>pending</b> and will never be called on their own.
+            <br />
+            <b>Tip:</b> if a row shows <b>skipped</b>, it just means RazorpayX has no sample data to check against (e.g. no payroll run yet). That's not an error.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1127,9 +1142,11 @@ export default function RazorpaySyncPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Step C · Send name & contact updates to RazorpayX</CardTitle>
           <CardDescription>
-            Push ERP identity/metadata diffs back to RazorpayX via <code>people:update</code>.
-            Only <em>name, phone, email, gender, DOB, department, title, DOJ, employee-type</em> are pushed
-            (bank &amp; PAN are handled in Phase 4). Requires a dry-run, then a single pilot push, then explicit bulk unlock.
+            <b>What this does:</b> sends employee <em>identity</em> updates you've made in HRMS back to RazorpayX — name, phone, work email, gender, DOB, department, designation, joining date, employment type.
+            <br />
+            <b>Not included here:</b> bank account and PAN (those live in Step D, on their own switch, because a wrong bank = wrong payout).
+            <br />
+            <b>Flow:</b> Preview → Test one employee → Turn on for everyone → Send to all.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1232,21 +1249,26 @@ export default function RazorpaySyncPage() {
             <ShieldAlert className="h-4 w-4" /> Step D · Send bank & PAN updates to RazorpayX
           </CardTitle>
           <CardDescription>
-            Isolated write path for account number, IFSC, bank name, PAN and holder name. Every row is validated server-side (PAN pattern, IFSC pattern, non-empty account). Every apply requires the diff-and-confirm dialog — no silent flush.
+            <b>What this does:</b> updates account number, IFSC, bank name, PAN and account holder name on RazorpayX. Kept separate from Step C because a wrong bank means salary lands in the wrong account.
+            <br />
+            <b>Safety catches:</b> PAN and IFSC formats are validated, empty account numbers are rejected, and every send shows a masked before/after preview that you must confirm — nothing goes out silently.
+            <br />
+            <b>Status:</b>{" "}
             {settings?.push_bank_pilot_verified_at
-              ? <> · <span className="text-emerald-600">Bank pilot verified</span></>
-              : <> · <span className="text-amber-600">Bank pilot not yet verified</span></>}
+              ? <span className="text-emerald-600">Test employee verified ✅</span>
+              : <span className="text-amber-600">Test employee not yet run</span>}
+            {" · "}
             {settings?.bulk_bank_push_unlocked
-              ? <> · <span className="text-emerald-600">Bulk bank unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk bank locked</span></>}
+              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">High-blast-radius domain</AlertTitle>
+            <AlertTitle className="text-sm">⚠ This one changes where salary lands</AlertTitle>
             <AlertDescription className="text-xs">
-              Wrong account = wrong payout. This card intentionally does not batch silently — you must review the masked patch preview and confirm each apply.
+              Wrong account number = salary in wrong hands. For that reason this step never sends changes silently — you'll always see a masked preview and have to click "Confirm" for each apply.
             </AlertDescription>
           </Alert>
           <div className="flex flex-wrap items-center gap-2">
@@ -1373,24 +1395,30 @@ export default function RazorpaySyncPage() {
             <ListChecks className="h-4 w-4" /> Step E · Send salary structures to RazorpayX
           </CardTitle>
           <CardDescription>
-            Pushes ERP's active salary structure (components + total) to Razorpay. Dry-run compares ERP components against Razorpay's last-known snapshot; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">people:update</code>).
+            <b>What this does:</b> sends each employee's salary break-up (Basic, HRA, allowances, etc. and the total CTC) from HRMS to RazorpayX.
+            <br />
+            <b>One-time setup:</b> we need you to confirm the exact API name RazorpayX expects. Until you do that, the "Send" buttons stay locked — Preview / dry-run still works.
+            <br />
+            <b>Status:</b>{" "}
             {settings?.push_salary_endpoint_verified
-              ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_salary_envelope_key})</span></>
-              : <> · <span className="text-amber-600">Endpoint not confirmed yet</span></>}
+              ? <span className="text-emerald-600">API name confirmed ({settings?.push_salary_envelope_key}) ✅</span>
+              : <span className="text-amber-600">API name not confirmed yet</span>}
+            {" · "}
             {settings?.push_salary_pilot_verified_at
-              ? <> · <span className="text-emerald-600">Salary pilot verified</span></>
-              : <> · <span className="text-muted-foreground">Test employee not run yet</span></>}
+              ? <span className="text-emerald-600">Test employee verified ✅</span>
+              : <span className="text-muted-foreground">Test employee not run yet</span>}
+            {" · "}
             {settings?.bulk_salary_push_unlocked
-              ? <> · <span className="text-emerald-600">Bulk salary unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk send locked</span></>}
+              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">Waiting for setup confirmation</AlertTitle>
+            <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
-              The live salary envelope has not been auto-verified. Probe candidate endpoints (Phase 2) with a pilot employee, and once you confirm which sub-type is accepted by Razorpay Live, record it here. Only then will apply buttons unlock.
+              We need to confirm which API name RazorpayX accepts for salary updates. Go to <b>Step B</b>, run "Check features", then type the working name (e.g. <code>people:update</code>) into the box below and save. After that, Preview will still work as before, and the "Send" buttons will unlock.
             </AlertDescription>
           </Alert>
 
@@ -1543,24 +1571,32 @@ export default function RazorpaySyncPage() {
             <ListChecks className="h-4 w-4" /> Step F · Send monthly attendance & LOP to RazorpayX
           </CardTitle>
           <CardDescription>
-            Computes working days, present days, paid leave, and LOP from ERP (attendance + approved leave + holidays), and pushes it to Razorpay for the selected month. Dry-run works pre-verification; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">attendance:update</code>).
+            <b>What this does:</b> for a chosen month, HRMS totals up working days, days present, paid leave, and loss-of-pay (LOP) days from your attendance and approved leaves — then sends those numbers to RazorpayX so payroll uses the correct amounts.
+            <br />
+            <b>How LOP is calculated:</b> working days minus present days minus paid leave. Sundays and active holidays are excluded from working days. Half-day leaves count as 0.5.
+            <br />
+            <b>One-time setup:</b> confirm the API name RazorpayX expects (e.g. <code>attendance:update</code>) before "Send" unlocks. Preview works without it.
+            <br />
+            <b>Status:</b>{" "}
             {settings?.push_attendance_endpoint_verified
-              ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_attendance_envelope_key})</span></>
-              : <> · <span className="text-amber-600">Endpoint not confirmed yet</span></>}
+              ? <span className="text-emerald-600">API name confirmed ({settings?.push_attendance_envelope_key}) ✅</span>
+              : <span className="text-amber-600">API name not confirmed yet</span>}
+            {" · "}
             {settings?.push_attendance_pilot_verified_at
-              ? <> · <span className="text-emerald-600">Attendance pilot verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""}</span></>
-              : <> · <span className="text-muted-foreground">Test employee not run yet</span></>}
+              ? <span className="text-emerald-600">Test employee verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""} ✅</span>
+              : <span className="text-muted-foreground">Test employee not run yet</span>}
+            {" · "}
             {settings?.bulk_attendance_push_unlocked
-              ? <> · <span className="text-emerald-600">Bulk attendance unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk send locked</span></>}
+              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">Waiting for setup confirmation</AlertTitle>
+            <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
-              The attendance envelope has not been auto-verified against Razorpay Live. Probe candidate sub-types (Phase 2), confirm which one Razorpay accepts, then record it here. LOP is computed as <code>working_days − present_days − paid_leave_days</code> using ERP truth (Sunday + active holidays excluded from working days). Half-day leaves count as 0.5 days.
+              We need to confirm which API name RazorpayX accepts for attendance/LOP updates. Run <b>Step B</b> to see the options, then type the working name into the box below and save. Preview / dry-run works even without this — only "Send" is locked.
             </AlertDescription>
           </Alert>
 
@@ -1922,8 +1958,9 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
           <ListChecks className="h-4 w-4" /> Step G · Run monthly payroll
         </CardTitle>
         <CardDescription>
-          Compute the ERP-truth payroll for a period, dry-run, then push a pilot before bulk apply.
-          Writes are hard-blocked until a probe-verified payroll envelope is recorded.
+          <b>What this does:</b> calculates the full monthly payroll (gross, deductions, net pay) using HRMS as the source of truth, then pushes it to RazorpayX for actual disbursement.
+          <br />
+          <b>Flow:</b> Compute → Preview → Test one employee → Send to all. The "Send" buttons stay locked until the API name is confirmed (same one-time setup as Step E/F).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -2202,8 +2239,9 @@ function PayoutReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
           <DownloadCloud className="h-4 w-4" /> Step H · Match payouts (read-only)
         </CardTitle>
         <CardDescription>
-          Pull actual disbursements from Razorpay for a period and reconcile against the ERP payroll run.
-          Read-only against Razorpay; no writes are ever pushed here.
+          <b>What this does:</b> pulls the actual salary payouts RazorpayX made for the chosen month and compares them against what HRMS expected to pay. Flags any mismatches (missing, extra, or wrong amount).
+          <br />
+          <b>Is it safe?</b> Yes — this step only reads from RazorpayX. Nothing is sent or changed.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -2456,8 +2494,9 @@ function PayslipTaxDocSection({ invoke }: { invoke: <T,>(body: object) => Promis
           <DownloadCloud className="h-4 w-4" /> Step I · Download payslips & tax documents
         </CardTitle>
         <CardDescription>
-          Pull monthly payslips and yearly tax documents (Form 16, Form 12BA) from Razorpay.
-          Read-only against Razorpay; both envelopes are independently gated.
+          <b>What this does:</b> downloads monthly payslips and yearly tax documents (Form 16, Form 12BA) that RazorpayX has generated, and saves them into HRMS for employees to access.
+          <br />
+          <b>Is it safe?</b> Yes — read-only. Payslips and tax documents each have their own switch, so you can enable one without the other.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -2791,7 +2830,11 @@ function LedgerReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
         <CardTitle className="flex items-center gap-2">
           <Lock className="h-4 w-4" /> Step J · Reconcile with accounting ledger
         </CardTitle>
-        <CardDescription>Match Razorpay payouts against bank_transactions, waive with reason, and hard-lock the month.</CardDescription>
+        <CardDescription>
+          <b>What this does:</b> matches each RazorpayX payout against the corresponding entry in your bank statement (accounting ledger). If something can't be matched, you can waive it with a written reason. Once everything is clean, you can lock the month so no further edits happen.
+          <br />
+          <b>Is it safe?</b> Yes — reconciliation only reads. Waiving and locking are audit-logged with your reason and user.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">

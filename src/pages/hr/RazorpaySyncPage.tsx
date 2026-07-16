@@ -1065,7 +1065,7 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {/* PHASE 2 — Probe & envelope catalogue */}
-      <Station letter="B" title="Check which RazorpayX features are available" subtitle="Confirms which read/write features your account can use. Read-only." status={stationStatus("B")} />
+      <Station letter="B" title="Check what your RazorpayX account can do" subtitle="Tests which actions your account is allowed to use. Only reads — makes no changes." status={stationStatus("B")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step B · Check which RazorpayX features are available</CardTitle>

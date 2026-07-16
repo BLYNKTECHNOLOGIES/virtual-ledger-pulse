@@ -3442,8 +3442,6 @@ Deno.serve(async (req) => {
       });
       return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
     }
-      return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
-    }
 
     return json(400, { error: `Unsupported action: ${action}` });
 

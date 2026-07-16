@@ -613,8 +613,8 @@ function BulkWorkInfoDialog({
 // Per-employee Bank quick dialog (no full wizard needed)
 // ══════════════════════════════════════════════════════════════
 function BankQuickDialog({
-  row, onClose, onDone,
-}: { row: Row; onClose: () => void; onDone: () => void }) {
+  row, nextRow, onClose, onDone, onSaveAndNext,
+}: { row: Row; nextRow?: Row | null; onClose: () => void; onDone: () => void; onSaveAndNext?: (next: Row) => void }) {
   const [form, setForm] = useState({ account_number: "", ifsc_code: "", bank_name: "", branch: "" });
   const [saving, setSaving] = useState(false);
 
@@ -633,14 +633,16 @@ function BankQuickDialog({
           bank_name: data.bank_name || "",
           branch: data.branch || "",
         });
+      } else {
+        setForm({ account_number: "", ifsc_code: "", bank_name: "", branch: "" });
       }
       return data;
     },
     enabled: !!row.employee_id,
   });
 
-  const save = async () => {
-    if (!form.account_number.trim()) { toast.error("Account number required"); return; }
+  const persist = async () => {
+    if (!form.account_number.trim()) { toast.error("Account number required"); return false; }
     setSaving(true);
     try {
       const { data: existing } = await supabase
@@ -661,13 +663,21 @@ function BankQuickDialog({
         if (error) throw error;
       }
       toast.success("Bank details saved");
-      onDone();
+      return true;
     } catch (e: any) {
       toast.error(e.message);
+      return false;
     } finally {
       setSaving(false);
     }
   };
+
+  const save = async () => { if (await persist()) onDone(); };
+  const saveAndNext = async () => {
+    if (!nextRow || !onSaveAndNext) return;
+    if (await persist()) onSaveAndNext(nextRow);
+  };
+
 
   return (
     <Dialog open onOpenChange={onClose}>

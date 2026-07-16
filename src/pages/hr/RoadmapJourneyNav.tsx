@@ -26,13 +26,19 @@ const DOT: Record<StationStatus, string> = {
   locked: "bg-muted text-muted-foreground border-border/60",
 };
 
-export function RoadmapJourneyNav({ steps }: Props) {
+export function RoadmapJourneyNav({
+  steps,
+  railBreakAfter,
+  leftRailLabel = "One-time setup",
+  rightRailLabel = "Monthly cycle",
+}: Props) {
   const completed = steps.filter((s) => s.status === "done").length;
   const currentIdx = steps.findIndex((s) => s.status === "active");
   const currentLabel =
     currentIdx >= 0 ? steps[currentIdx].title : steps[completed]?.title ?? "All steps complete";
   const currentNum = currentIdx >= 0 ? currentIdx + 1 : Math.min(completed + 1, steps.length);
   const pct = Math.round((completed / steps.length) * 100);
+  const breakIdx = railBreakAfter ? steps.findIndex((s) => s.letter === railBreakAfter) : -1;
 
   const scrollTo = (letter: string) => {
     document.getElementById(`station-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });

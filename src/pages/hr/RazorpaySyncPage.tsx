@@ -1882,13 +1882,14 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {!simpleMode && (<>
-        <Station letter="G" title="Run monthly payroll" subtitle="Compute → dry-run → pilot → run. Uses HRMS attendance as the source of truth for LOP." status={stationStatus("G")} />
+        <Station letter="G" title="Run this month's salary" subtitle="Calculate → practice run → try one employee → run for everyone. HRMS attendance decides unpaid days." status={stationStatus("G")} />
         <PayrollRunSection invoke={invoke} />
-        <Station letter="H" title="Match payouts (read-only)" subtitle="Reconcile RazorpayX payout status against HRMS records. Never mutates payouts." status={stationStatus("H")} />
+        <Station letter="H" title="Check that salaries were paid (read-only)" subtitle="Compares each payout in RazorpayX with the record in HRMS. Never changes any payment." status={stationStatus("H")} />
         <PayoutReconciliationSection invoke={invoke} />
-        <Station letter="I" title="Download payslips & tax documents" subtitle="Fetch payslips, Form 16 and TDS statements when RazorpayX has generated them." status={stationStatus("I")} />
+        <Station letter="I" title="Download payslips & tax papers" subtitle="Get payslips, Form 16 and TDS statements once RazorpayX has prepared them." status={stationStatus("I")} />
         <PayslipTaxDocSection invoke={invoke} />
-        <Station letter="J" title="Reconcile with accounting ledger" subtitle="Match payroll expense to your GL / bank ledger and flag drift." status={stationStatus("J")} />
+        <Station letter="J" title="Match with accounting books" subtitle="Compare salary expense with your accounting ledger and bank statement, and flag anything that doesn't match." status={stationStatus("J")} />
+
         <LedgerReconciliationSection invoke={invoke} />
       </>)}
     </div>

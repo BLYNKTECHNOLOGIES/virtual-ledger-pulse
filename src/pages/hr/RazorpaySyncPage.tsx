@@ -904,6 +904,7 @@ export default function RazorpaySyncPage() {
         </Card>
       )}
 
+      {!simpleMode && (<>
       {/* PHASE 1a — Deep pull + Completion readiness */}
       <Card>
         <CardHeader>

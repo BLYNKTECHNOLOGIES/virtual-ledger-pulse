@@ -174,6 +174,7 @@ export default function RazorpaySyncPage() {
   // so post-commissioning HR sees the monthly rhythm as the daily home.
   const SETUP_LETTERS = ["A", "B", "C", "D", "E"] as const;
   const MONTHLY_LETTERS = ["F", "G", "H", "I", "J"] as const;
+  const [showJourney, setShowJourney] = useState<boolean>(false);
   const [setupCollapsedManual, setSetupCollapsedManual] = useState<boolean | null>(() => {
     if (typeof window === "undefined") return null;
     const raw = localStorage.getItem("razorpay_sync_setup_collapsed");

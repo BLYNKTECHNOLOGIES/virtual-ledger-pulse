@@ -1437,8 +1437,13 @@ Deno.serve(async (req) => {
 
         // Live push using the operator-verified envelope key. Body shape follows the
         // hyphenated-keys convention shared with people:update / bank push.
+        // Live push using the operator-verified envelope key. Documented endpoint
+        // is POST /api/people with sub-type "set-salary" — normalize legacy
+        // "salary:update" / "people:update" envelopes to that.
         const envelopeKey = String(settingsRow!.push_salary_envelope_key);
-        const [type, subType] = envelopeKey.split(":");
+        let [type, subType] = envelopeKey.split(":");
+        if (!type || type === "salary") type = "people";
+        if (!subType || subType === "update") subType = "set-salary";
         const salaryPayload = {
           "ctc-annual": erp.total,
           components: erp.components.map((c) => ({
@@ -1449,12 +1454,12 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
         try {
-          const res = await fetch(`${BASE}/${type || "people"}`, {
+          const res = await fetch(`${BASE}/${type}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               auth: authBlock(),
-              request: { type: type || "people", "sub-type": subType || "update" },
+              request: { type, "sub-type": subType },
               data: { "employee-id": eid, "employee-type": "employee", salary: salaryPayload },
             }),
             signal: ctrl.signal,

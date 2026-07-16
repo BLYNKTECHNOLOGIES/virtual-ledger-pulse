@@ -398,6 +398,10 @@ export default function EmployeeProfilePage() {
       toast.success("Updated successfully");
       setEditing(false);
       queryClient.invalidateQueries({ queryKey: ["hr_employee_detail"] });
+      // ERP is source of truth → nudge Razorpay to match (About / identity fields).
+      if (activeTab === "About" && id) {
+        import("@/lib/razorpayPushback").then(m => m.pushIdentityToRazorpay(id));
+      }
     },
     onError: () => toast.error("Failed to save"),
   });

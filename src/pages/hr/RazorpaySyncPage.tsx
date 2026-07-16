@@ -1017,7 +1017,7 @@ export default function RazorpaySyncPage() {
       <RoadmapJourneyNav steps={stationSteps} />
 
       {/* Step A — Deep pull + Completion readiness */}
-      <Station letter="A" title="Refresh employee details from RazorpayX" subtitle="Pull the latest employee data — fills blanks only, never sends anything back." status={stationStatus("A")} />
+      <Station letter="A" title="Get latest employee info from RazorpayX" subtitle="Copies employee details into HRMS. Only fills empty fields. Nothing is sent out." status={stationStatus("A")} />
       <Card>
 
         <CardHeader>
@@ -1065,7 +1065,7 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {/* PHASE 2 — Probe & envelope catalogue */}
-      <Station letter="B" title="Check which RazorpayX features are available" subtitle="Confirms which read/write features your account can use. Read-only." status={stationStatus("B")} />
+      <Station letter="B" title="Check what your RazorpayX account can do" subtitle="Tests which actions your account is allowed to use. Only reads — makes no changes." status={stationStatus("B")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step B · Check which RazorpayX features are available</CardTitle>
@@ -1173,7 +1173,7 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {/* PHASE 3 — Employee-master push (ERP → Razorpay) */}
-      <Station letter="C" title="Send name & contact updates to RazorpayX" subtitle="Push identity edits (name, phone, email, DOB, department). Preview → Test one → Send to all." status={stationStatus("C")} />
+      <Station letter="C" title="Update employee name & contact on RazorpayX" subtitle="Send changes to name, phone, email, date of birth and department. Preview, then try one, then send all." status={stationStatus("C")} />
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Step C · Send name & contact updates to RazorpayX</CardTitle>
@@ -1279,7 +1279,7 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {/* Phase 4 — Bank & PAN push (isolated behind own toggle + pilot + bulk unlock + diff-and-confirm) */}
-      <Station letter="D" title="Send bank & PAN updates to RazorpayX" subtitle="Isolated push — masked preview + confirmation for every send. PAN & IFSC validated." status={stationStatus("D")} />
+      <Station letter="D" title="Update bank account & PAN on RazorpayX" subtitle="Sent separately for safety. Account numbers stay masked, and every send needs your confirmation. PAN and IFSC are checked first." status={stationStatus("D")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -1426,7 +1426,7 @@ export default function RazorpaySyncPage() {
       )}
 
       {/* Phase 5 — Salary structure sync (discovery-first: writes blocked until envelope verified) */}
-      <Station letter="E" title="Send salary structures to RazorpayX" subtitle="Confirm API name once, then preview → test one → send to all salary break-ups." status={stationStatus("E")} />
+      <Station letter="E" title="Update salary break-up on RazorpayX" subtitle="Set the salary structure name once, then preview, try one employee, and send to everyone." status={stationStatus("E")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -1603,7 +1603,7 @@ export default function RazorpaySyncPage() {
       )}
 
       {/* Step F · Send monthly attendance & LOP to RazorpayX (discovery-first: writes blocked until envelope verified) */}
-      <Station letter="F" title="Send monthly attendance & LOP" subtitle="HRMS totals working, present, paid-leave and LOP days, then pushes them for payroll." status={stationStatus("F")} />
+      <Station letter="F" title="Send monthly attendance & unpaid leaves" subtitle="HRMS adds up working days, present days, paid leave and unpaid leave (LOP) — then sends them for salary calculation." status={stationStatus("F")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -1882,13 +1882,14 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {!simpleMode && (<>
-        <Station letter="G" title="Run monthly payroll" subtitle="Compute → dry-run → pilot → run. Uses HRMS attendance as the source of truth for LOP." status={stationStatus("G")} />
+        <Station letter="G" title="Run this month's salary" subtitle="Calculate → practice run → try one employee → run for everyone. HRMS attendance decides unpaid days." status={stationStatus("G")} />
         <PayrollRunSection invoke={invoke} />
-        <Station letter="H" title="Match payouts (read-only)" subtitle="Reconcile RazorpayX payout status against HRMS records. Never mutates payouts." status={stationStatus("H")} />
+        <Station letter="H" title="Check that salaries were paid (read-only)" subtitle="Compares each payout in RazorpayX with the record in HRMS. Never changes any payment." status={stationStatus("H")} />
         <PayoutReconciliationSection invoke={invoke} />
-        <Station letter="I" title="Download payslips & tax documents" subtitle="Fetch payslips, Form 16 and TDS statements when RazorpayX has generated them." status={stationStatus("I")} />
+        <Station letter="I" title="Download payslips & tax papers" subtitle="Get payslips, Form 16 and TDS statements once RazorpayX has prepared them." status={stationStatus("I")} />
         <PayslipTaxDocSection invoke={invoke} />
-        <Station letter="J" title="Reconcile with accounting ledger" subtitle="Match payroll expense to your GL / bank ledger and flag drift." status={stationStatus("J")} />
+        <Station letter="J" title="Match with accounting books" subtitle="Compare salary expense with your accounting ledger and bank statement, and flag anything that doesn't match." status={stationStatus("J")} />
+
         <LedgerReconciliationSection invoke={invoke} />
       </>)}
     </div>

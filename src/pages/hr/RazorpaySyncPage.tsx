@@ -905,7 +905,47 @@ export default function RazorpaySyncPage() {
       )}
 
       {!simpleMode && (<>
-      {/* PHASE 1a — Deep pull + Completion readiness */}
+      {/* Plain-English guide for HR — persistent glossary so jargon in the phase cards has a friendly reference */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            How to read this page
+          </CardTitle>
+          <CardDescription>
+            Advanced view shows every step of the RazorpayX sync in order (A → J). Complete them top-to-bottom. Every step follows the same safety pattern:
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
+          <div className="rounded-md border bg-background p-3">
+            <div className="font-medium mb-1">1. Dry-run preview</div>
+            <div className="text-muted-foreground">Shows what would change. Nothing is sent to RazorpayX yet.</div>
+          </div>
+          <div className="rounded-md border bg-background p-3">
+            <div className="font-medium mb-1">2. Test with one employee (“pilot”)</div>
+            <div className="text-muted-foreground">Sends the change for a single employee so you can confirm it worked correctly before doing everyone.</div>
+          </div>
+          <div className="rounded-md border bg-background p-3">
+            <div className="font-medium mb-1">3. Unlock bulk send</div>
+            <div className="text-muted-foreground">Only after a successful pilot. This opens the “apply to everyone” button.</div>
+          </div>
+          <div className="rounded-md border bg-background p-3">
+            <div className="font-medium mb-1">4. Apply to everyone</div>
+            <div className="text-muted-foreground">Sends the confirmed change for all mapped employees.</div>
+          </div>
+          <div className="sm:col-span-2 lg:col-span-4 rounded-md border bg-background p-3">
+            <div className="font-medium mb-1">A few terms explained</div>
+            <ul className="text-muted-foreground space-y-1 list-disc pl-4">
+              <li><b>Endpoint / envelope</b> — the specific RazorpayX API name (like <code>people:update</code>) that our system must use. You confirm it once per step; the buttons stay locked until then so we can’t send data to a wrong address.</li>
+              <li><b>Baseline</b> — the last known snapshot from RazorpayX. Needed so we can show a before/after diff. If a row says “no baseline”, refresh employee details first (Step A).</li>
+              <li><b>Drift</b> — the ERP value differs from RazorpayX. That row is a candidate to push.</li>
+              <li><b>Locked</b> — the button is intentionally disabled until the previous safety check passes. That’s expected — just complete the step it points to.</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Step A — Deep pull + Completion readiness */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Step A · Refresh employee details from RazorpayX</CardTitle>

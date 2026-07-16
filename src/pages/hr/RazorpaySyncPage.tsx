@@ -757,6 +757,48 @@ export default function RazorpaySyncPage() {
     } finally { setApplyingBulk(false); }
   };
 
+  // Retry-failed chip: re-runs apply_range for the exact IDs that errored on
+  // the last apply run. Logged under the same apply_error / create_draft /
+  // match actions with retry:true so the audit trail reads end-to-end.
+  const failedApplyIds: number[] = (applied?.rows ?? [])
+    .filter(r => r.employee_id != null && !!r.error)
+    .map(r => r.employee_id as number);
+  const [retryingFailed, setRetryingFailed] = useState(false);
+  const runRetryFailed = async () => {
+    if (failedApplyIds.length === 0) return;
+    setRetryingFailed(true);
+    try {
+      const d = await invoke<DryRunResponse>({ action: "apply_range", only_ids: failedApplyIds });
+      // Merge: replace rows for retried IDs with the new outcome, keep the rest.
+      setApplied(prev => {
+        if (!prev) return d;
+        const retried = new Set(failedApplyIds);
+        const kept = prev.rows.filter(r => !(r.employee_id != null && retried.has(r.employee_id as number)));
+        const mergedRows = [...kept, ...d.rows];
+        return {
+          ok: prev.ok && d.ok,
+          summary: {
+            total: mergedRows.length,
+            hits: mergedRows.filter(r => r.status === "hit").length,
+            matches: mergedRows.filter(r => r.action_planned === "match").length,
+            creates: mergedRows.filter(r => r.action_planned === "create_draft").length,
+            misses: mergedRows.filter(r => r.status === "miss").length,
+            stopped: prev.summary.stopped,
+          },
+          rows: mergedRows,
+        };
+      });
+      const stillFailing = d.rows.filter(r => r.error).length;
+      toast({
+        title: "Retry complete",
+        description: `${failedApplyIds.length - stillFailing} recovered · ${stillFailing} still failing`,
+      });
+    } catch (e: any) {
+      toast({ title: "Retry failed", description: e?.message, variant: "destructive" });
+    } finally { setRetryingFailed(false); }
+  };
+
+
   if (permLoading) {
     return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }

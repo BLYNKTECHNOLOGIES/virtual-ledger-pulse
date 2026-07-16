@@ -19737,6 +19737,18 @@ export type Database = {
         | "apply_payroll_bulk"
         | "lock_payroll_period"
         | "probe_payroll_run"
+        | "people_dismiss"
+        | "payroll_view_payroll"
+        | "payroll_add_additions"
+        | "payroll_add_deduction"
+        | "payroll_reset_modifications"
+        | "payroll_do_not_pay"
+        | "contractor_payment_create"
+        | "contractor_payment_delete"
+        | "contractor_payment_list"
+        | "contractor_payment_status"
+        | "advance_salary_create"
+        | "attendance_fetch"
       hr_razorpay_sync_status:
         | "imported"
         | "matched_existing"
@@ -20113,6 +20125,18 @@ export const Constants = {
         "apply_payroll_bulk",
         "lock_payroll_period",
         "probe_payroll_run",
+        "people_dismiss",
+        "payroll_view_payroll",
+        "payroll_add_additions",
+        "payroll_add_deduction",
+        "payroll_reset_modifications",
+        "payroll_do_not_pay",
+        "contractor_payment_create",
+        "contractor_payment_delete",
+        "contractor_payment_list",
+        "contractor_payment_status",
+        "advance_salary_create",
+        "attendance_fetch",
       ],
       hr_razorpay_sync_status: [
         "imported",

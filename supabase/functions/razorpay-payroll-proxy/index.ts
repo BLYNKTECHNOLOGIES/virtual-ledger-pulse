@@ -286,12 +286,11 @@ async function projectSnapshotIntoErp(
   let departmentId: string | null = null;
   let jobPositionId: string | null = null;
   if (deptName) {
-    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName).limit(1).maybeSingle();
+    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName.trim()).limit(1).maybeSingle();
     if (d?.id) departmentId = d.id;
   }
   if (jobTitle) {
-    const { data: p } = await svc.from("positions").select("id").ilike("title", jobTitle).limit(1).maybeSingle();
-    if (p?.id) jobPositionId = p.id;
+    jobPositionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
   const wiIncoming: Record<string, any> = {
     joining_date: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),

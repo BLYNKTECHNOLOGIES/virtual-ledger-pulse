@@ -5055,6 +5055,7 @@ export type Database = {
           last_seen_at: string
           matched_employee_id: string | null
           name: string | null
+          normalized_name: string | null
           palm_count: number | null
           password_set: boolean | null
           photo_present: boolean | null
@@ -5079,6 +5080,7 @@ export type Database = {
           last_seen_at?: string
           matched_employee_id?: string | null
           name?: string | null
+          normalized_name?: string | null
           palm_count?: number | null
           password_set?: boolean | null
           photo_present?: boolean | null
@@ -5103,6 +5105,7 @@ export type Database = {
           last_seen_at?: string
           matched_employee_id?: string | null
           name?: string | null
+          normalized_name?: string | null
           palm_count?: number | null
           password_set?: boolean | null
           photo_present?: boolean | null
@@ -5130,12 +5133,15 @@ export type Database = {
           is_live_capture: boolean
           is_scheduled: boolean
           last_push_count: number | null
+          last_rejection_at: string | null
+          last_rejection_pins: string | null
           last_stamp: string | null
           last_sync_at: string | null
           machine_ip: string | null
           name: string
           password: string | null
           port_no: string | null
+          unmatched_pin_count: number
           updated_at: string
         }
         Insert: {
@@ -5150,12 +5156,15 @@ export type Database = {
           is_live_capture?: boolean
           is_scheduled?: boolean
           last_push_count?: number | null
+          last_rejection_at?: string | null
+          last_rejection_pins?: string | null
           last_stamp?: string | null
           last_sync_at?: string | null
           machine_ip?: string | null
           name: string
           password?: string | null
           port_no?: string | null
+          unmatched_pin_count?: number
           updated_at?: string
         }
         Update: {
@@ -5170,12 +5179,15 @@ export type Database = {
           is_live_capture?: boolean
           is_scheduled?: boolean
           last_push_count?: number | null
+          last_rejection_at?: string | null
+          last_rejection_pins?: string | null
           last_stamp?: string | null
           last_sync_at?: string | null
           machine_ip?: string | null
           name?: string
           password?: string | null
           port_no?: string | null
+          unmatched_pin_count?: number
           updated_at?: string
         }
         Relationships: []
@@ -19231,6 +19243,10 @@ export type Database = {
           old_balance: number
           scope: string
         }[]
+      }
+      hr_match_employee_by_normalized_name: {
+        Args: { p_name: string }
+        Returns: string
       }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:

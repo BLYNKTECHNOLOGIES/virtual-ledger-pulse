@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Pencil, Trash2, Wifi, Database } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, Wifi, Database, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -36,6 +36,39 @@ export default function BiometricDevicesPage() {
       return data || [];
     },
   });
+
+  // Silence-alarm health probe per device — surfaces unmapped users & rejected punches.
+  const { data: health = [] } = useQuery({
+    queryKey: ["hr_biometric_device_health"],
+    queryFn: async () => {
+      const { data: users } = await (supabase as any)
+        .from("hr_biometric_device_users")
+        .select("device_serial, matched_employee_id");
+      const byDev = new Map<string, { users: number; unlinked: number }>();
+      for (const u of users || []) {
+        const k = u.device_serial;
+        if (!k) continue;
+        const row = byDev.get(k) || { users: 0, unlinked: 0 };
+        row.users += 1;
+        if (!u.matched_employee_id) row.unlinked += 1;
+        byDev.set(k, row);
+      }
+      return Array.from(byDev.entries()).map(([serial, v]) => ({ serial, ...v }));
+    },
+    refetchInterval: 60_000,
+  });
+
+  const alarms = devices
+    .map((d: any) => {
+      const h = health.find((x: any) => x.serial === d.device_serial);
+      const unlinked = h?.unlinked ?? 0;
+      const rejected = d.unmatched_pin_count ?? 0;
+      const reasons: string[] = [];
+      if (unlinked > 0) reasons.push(`${unlinked} device user${unlinked === 1 ? "" : "s"} not linked to any employee`);
+      if (rejected > 0) reasons.push(`${rejected} punch${rejected === 1 ? "" : "es"} rejected — unmapped PIN`);
+      return reasons.length ? { device: d, reasons } : null;
+    })
+    .filter(Boolean) as { device: any; reasons: string[] }[];
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -101,6 +134,32 @@ export default function BiometricDevicesPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search devices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
       </div>
+
+      {alarms.length > 0 && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-destructive font-medium text-sm">
+            <AlertTriangle className="h-4 w-4" />
+            Attention needed — punches may be dropping silently
+          </div>
+          <div className="space-y-1.5 text-xs">
+            {alarms.map(({ device, reasons }) => (
+              <div key={device.id} className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-medium text-foreground">{device.name}</span>
+                  <span className="text-muted-foreground"> — {reasons.join(" · ")}</span>
+                </div>
+                <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => setDataDevice(device)}>
+                  Fix mapping
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Open a device → <b>Users</b> tab → link each device PIN to the correct employee. Rejected-punch counter resets on the next successful punch.
+          </p>
+        </div>
+      )}
+
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

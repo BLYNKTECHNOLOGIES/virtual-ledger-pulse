@@ -37,32 +37,20 @@ export default function BiometricDevicesPage() {
     },
   });
 
-  // Silence-alarm health probe per device — shouts when punches are not landing
-  // even though users exist and the device is talking.
+  // Silence-alarm health probe per device — surfaces unmapped users & rejected punches.
   const { data: health = [] } = useQuery({
     queryKey: ["hr_biometric_device_health"],
     queryFn: async () => {
       const { data: users } = await (supabase as any)
         .from("hr_biometric_device_users")
         .select("device_serial, matched_employee_id");
-      const { data: recent } = await (supabase as any)
-        .from("hr_attendance_punches")
-        .select("device_serial, punch_time")
-        .gte("punch_time", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
-      const byDev = new Map<string, { users: number; unlinked: number; punches24h: number }>();
+      const byDev = new Map<string, { users: number; unlinked: number }>();
       for (const u of users || []) {
         const k = u.device_serial;
         if (!k) continue;
-        const row = byDev.get(k) || { users: 0, unlinked: 0, punches24h: 0 };
+        const row = byDev.get(k) || { users: 0, unlinked: 0 };
         row.users += 1;
         if (!u.matched_employee_id) row.unlinked += 1;
-        byDev.set(k, row);
-      }
-      for (const p of recent || []) {
-        const k = p.device_serial;
-        if (!k) continue;
-        const row = byDev.get(k) || { users: 0, unlinked: 0, punches24h: 0 };
-        row.punches24h += 1;
         byDev.set(k, row);
       }
       return Array.from(byDev.entries()).map(([serial, v]) => ({ serial, ...v }));
@@ -73,12 +61,11 @@ export default function BiometricDevicesPage() {
   const alarms = devices
     .map((d: any) => {
       const h = health.find((x: any) => x.serial === d.device_serial);
-      if (!h) return null;
-      const isTalking = d.is_connected && d.last_sync_at && (Date.now() - new Date(d.last_sync_at).getTime() < 6 * 3600 * 1000);
+      const unlinked = h?.unlinked ?? 0;
+      const rejected = d.unmatched_pin_count ?? 0;
       const reasons: string[] = [];
-      if (h.unlinked > 0) reasons.push(`${h.unlinked} device user${h.unlinked === 1 ? "" : "s"} not linked to any employee`);
-      if ((d.unmatched_pin_count ?? 0) > 0) reasons.push(`${d.unmatched_pin_count} punch${d.unmatched_pin_count === 1 ? "" : "es"} rejected — unmapped PIN`);
-      if (isTalking && h.users > 0 && h.punches24h === 0) reasons.push(`Device is online but no punches in 24 h`);
+      if (unlinked > 0) reasons.push(`${unlinked} device user${unlinked === 1 ? "" : "s"} not linked to any employee`);
+      if (rejected > 0) reasons.push(`${rejected} punch${rejected === 1 ? "" : "es"} rejected — unmapped PIN`);
       return reasons.length ? { device: d, reasons } : null;
     })
     .filter(Boolean) as { device: any; reasons: string[] }[];

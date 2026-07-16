@@ -33,6 +33,8 @@ interface Settings {
   push_attendance_pilot_period?: string | null;
   bulk_attendance_push_unlocked?: boolean;
   last_attendance_push_at?: string | null;
+  probe_pilot_employee_id?: string | null;
+  probe_pilot_contractor_id?: string | null;
 }
 interface AttendanceRow {
   razorpay_employee_id: string;

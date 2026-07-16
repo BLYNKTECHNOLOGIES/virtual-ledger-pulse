@@ -1173,6 +1173,7 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {/* PHASE 3 — Employee-master push (ERP → Razorpay) */}
+      <Station letter="C" title="Send name & contact updates to RazorpayX" subtitle="Push identity edits (name, phone, email, DOB, department). Preview → Test one → Send to all." status={stationStatus("C")} />
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Step C · Send name & contact updates to RazorpayX</CardTitle>

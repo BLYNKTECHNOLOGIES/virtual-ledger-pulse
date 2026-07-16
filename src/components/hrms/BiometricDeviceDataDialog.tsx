@@ -90,6 +90,12 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
+  const cmdsQ = useQuery({
+    enabled: !!serial && open,
+    queryKey: ["bio-cmds", serial],
+    queryFn: async () => (await (supabase as any).from("hr_biometric_device_commands").select("*").eq("device_serial", serial).order("created_at", { ascending: false }).limit(40)).data || [],
+  });
+
   const queueCmd = async (cmd: string, successMsg = "Command queued — device will pick it up on next heartbeat"): Promise<string | null> => {
     if (!serial) return null;
     setBusy(true);
@@ -216,12 +222,6 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
   };
   const setOption = (key: string, value: string) =>
     queueCmd(`C:${Date.now()}:SET OPTION ${escape(key)}=${escape(value)}`, `Option ${key}=${value} queued`);
-
-  const cmdsQ = useQuery({
-    enabled: !!serial && open,
-    queryKey: ["bio-cmds", serial],
-    queryFn: async () => (await (supabase as any).from("hr_biometric_device_commands").select("*").eq("device_serial", serial).order("created_at", { ascending: false }).limit(40)).data || [],
-  });
 
   const info = infoQ.data;
   const users = usersQ.data || [];

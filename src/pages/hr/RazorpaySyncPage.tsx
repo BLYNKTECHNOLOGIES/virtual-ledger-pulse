@@ -1142,9 +1142,11 @@ export default function RazorpaySyncPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Step C · Send name & contact updates to RazorpayX</CardTitle>
           <CardDescription>
-            Push ERP identity/metadata diffs back to RazorpayX via <code>people:update</code>.
-            Only <em>name, phone, email, gender, DOB, department, title, DOJ, employee-type</em> are pushed
-            (bank &amp; PAN are handled in Phase 4). Requires a dry-run, then a single pilot push, then explicit bulk unlock.
+            <b>What this does:</b> sends employee <em>identity</em> updates you've made in HRMS back to RazorpayX — name, phone, work email, gender, DOB, department, designation, joining date, employment type.
+            <br />
+            <b>Not included here:</b> bank account and PAN (those live in Step D, on their own switch, because a wrong bank = wrong payout).
+            <br />
+            <b>Flow:</b> Preview → Test one employee → Turn on for everyone → Send to all.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

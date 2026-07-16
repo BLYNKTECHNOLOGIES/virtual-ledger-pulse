@@ -1426,7 +1426,7 @@ export default function RazorpaySyncPage() {
       )}
 
       {/* Phase 5 — Salary structure sync (discovery-first: writes blocked until envelope verified) */}
-      <Station letter="E" title="Send salary structures to RazorpayX" subtitle="Confirm API name once, then preview → test one → send to all salary break-ups." status={stationStatus("E")} />
+      <Station letter="E" title="Update salary break-up on RazorpayX" subtitle="Set the salary structure name once, then preview, try one employee, and send to everyone." status={stationStatus("E")} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">

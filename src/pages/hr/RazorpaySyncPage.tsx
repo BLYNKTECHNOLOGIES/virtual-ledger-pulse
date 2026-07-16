@@ -956,50 +956,136 @@ export default function RazorpaySyncPage() {
         </div>
       </div>
 
-      {/* R6 — Setup progress summary. Plain-English "N of 10 done · next: X". */}
+      {/* Two-Rail Overview — recurring monthly cycle on top of one-time setup. */}
       {(() => {
-        const total = stationSteps.length;
-        const done = stationSteps.filter(s => s.status === "done").length;
-        const active = stationSteps.find(s => s.status === "active");
-        const next = active ?? stationSteps.find(s => s.status === "ready");
-        const pct = Math.round((done / total) * 100);
-        return (
-          <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
-            <CardContent className="py-3 px-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
+        const setup = stationSteps.filter((s) => (SETUP_LETTERS as readonly string[]).includes(s.letter));
+        const monthly = stationSteps.filter((s) => (MONTHLY_LETTERS as readonly string[]).includes(s.letter));
+        const setupDone = setup.filter((s) => s.status === "done").length;
+        const monthlyDone = monthly.filter((s) => s.status === "done").length;
+        const setupNext = setup.find((s) => s.status === "active") ?? setup.find((s) => s.status === "ready");
+        const monthlyNext = monthly.find((s) => s.status === "active") ?? monthly.find((s) => s.status === "ready");
+        const setupPct = Math.round((setupDone / setup.length) * 100);
+        const monthlyPct = Math.round((monthlyDone / monthly.length) * 100);
+        const setupFullyDone = setupDone === setup.length;
+        const period = (() => {
+          const d = new Date();
+          d.setDate(1);
+          d.setMonth(d.getMonth() - 1);
+          return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        })();
+        const scrollToStation = (letter: string) => {
+          document.getElementById(`station-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        };
+        const RailCard = ({
+          eyebrow, title, subtitle, done, total, pct, next, tone, cta,
+        }: {
+          eyebrow: string; title: string; subtitle: string;
+          done: number; total: number; pct: number;
+          next?: { letter: string; title: string };
+          tone: "setup" | "monthly";
+          cta: string;
+        }) => (
+          <Card className={cn(
+            "relative overflow-hidden border transition",
+            tone === "setup"
+              ? "border-amber-500/25 bg-gradient-to-br from-amber-500/[0.05] to-transparent"
+              : "border-primary/25 bg-gradient-to-br from-primary/[0.06] to-transparent"
+          )}>
+            <CardContent className="py-4 px-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Setup progress</div>
-                  <div className="text-sm font-medium mt-0.5">
-                    {done} of {total} steps complete
-                    {next && (
-                      <span className="text-muted-foreground font-normal">
-                        {" · "}next: <span className="text-foreground font-medium">Step {next.letter} — {next.title}</span>
-                      </span>
-                    )}
-                    {done === total && <span className="text-emerald-600 dark:text-emerald-400"> · all set 🎉</span>}
-                  </div>
+                  <div className={cn(
+                    "text-[10px] font-bold uppercase tracking-[0.14em]",
+                    tone === "setup" ? "text-amber-700 dark:text-amber-400" : "text-primary"
+                  )}>{eyebrow}</div>
+                  <div className="text-base font-semibold mt-0.5 truncate">{title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{subtitle}</div>
                 </div>
-                <div className="w-32 shrink-0">
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="text-[10px] text-muted-foreground text-right mt-0.5">{pct}%</div>
+                <div className="text-right shrink-0">
+                  <div className="text-lg font-bold tabular-nums leading-none">{done}<span className="text-muted-foreground font-normal">/{total}</span></div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{pct}%</div>
                 </div>
-                {next && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById(`station-${next.letter}`);
-                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
-                    className="text-xs font-medium px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition"
-                  >
-                    Go to step {next.letter} →
-                  </button>
-                )}
               </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-500",
+                    tone === "setup"
+                      ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                      : "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                  )}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              {next ? (
+                <button
+                  type="button"
+                  onClick={() => scrollToStation(next.letter)}
+                  className={cn(
+                    "w-full text-left text-xs rounded-md px-3 py-2 border transition",
+                    tone === "setup"
+                      ? "bg-background hover:bg-amber-500/10 border-amber-500/30"
+                      : "bg-background hover:bg-primary/10 border-primary/30"
+                  )}
+                >
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Up next</div>
+                  <div className="font-medium mt-0.5">Step {next.letter} — {next.title}</div>
+                  <div className={cn(
+                    "text-[11px] mt-1",
+                    tone === "setup" ? "text-amber-700 dark:text-amber-400" : "text-primary"
+                  )}>{cta} →</div>
+                </button>
+              ) : (
+                <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                  ✅ All done — no action needed
+                </div>
+              )}
             </CardContent>
           </Card>
+        );
+        return (
+          <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <RailCard
+                eyebrow="Monthly cycle"
+                title={period}
+                subtitle="Runs every payroll period — attendance → compute → approve → pay → reconcile."
+                done={monthlyDone}
+                total={monthly.length}
+                pct={monthlyPct}
+                next={monthlyNext}
+                tone="monthly"
+                cta="Open this month's payroll"
+              />
+              <RailCard
+                eyebrow="One-time setup"
+                title={setupFullyDone ? "Setup complete" : "Company setup"}
+                subtitle={setupFullyDone
+                  ? "All setup steps done. This rail collapses below."
+                  : "Do these once. They'll fold away when finished."}
+                done={setupDone}
+                total={setup.length}
+                pct={setupPct}
+                next={setupNext}
+                tone="setup"
+                cta="Continue setup"
+              />
+            </div>
+            {setupFullyDone && setupCollapsedManual !== false && (
+              <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs flex items-center justify-between gap-2">
+                <div className="text-emerald-700 dark:text-emerald-400">
+                  ✅ One-time setup is complete — steps A–E are hidden by default.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => persistSetupCollapsed(false)}
+                  className="text-[11px] font-medium underline underline-offset-2 hover:opacity-80"
+                >
+                  Show setup steps
+                </button>
+              </div>
+            )}
+          </div>
         );
       })()}
 

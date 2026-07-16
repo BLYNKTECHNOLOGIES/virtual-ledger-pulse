@@ -125,9 +125,16 @@ export function BulkCompletionPanel() {
       return data || [];
     },
   });
+  // Optional URL-driven gap filter (from HR dashboard deep-links).
+  const visibleRows = useMemo(() => {
+    if (!gapFilter) return rows;
+    const key = ({ bank: "has_bank", salary: "has_salary", doj: "has_doj", designation: "has_designation" } as const)[gapFilter];
+    return rows.filter(r => !(r as any)[key]);
+  }, [rows, gapFilter]);
 
   // ── SELECTION ─────────────────────────────────────────────
-  const allIds = useMemo(() => rows.map(r => r.employee_id!).filter(Boolean), [rows]);
+  const allIds = useMemo(() => visibleRows.map(r => r.employee_id!).filter(Boolean), [visibleRows]);
+
   const allSelected = allIds.length > 0 && selected.size === allIds.length;
   const toggleAll = () =>
     setSelected(allSelected ? new Set() : new Set(allIds));

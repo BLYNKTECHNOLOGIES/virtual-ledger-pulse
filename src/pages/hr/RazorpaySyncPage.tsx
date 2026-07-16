@@ -989,10 +989,11 @@ export default function RazorpaySyncPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Step A · Refresh employee details from RazorpayX</CardTitle>
           <CardDescription>
-            Re-fetch <code>people:view</code> for every mapped Razorpay employee and project the payload
-            into <code>hr_employees</code> / <code>hr_employee_work_info</code> / <code>hr_employee_bank_details</code>.
-            ERP-authored values are never overwritten — only NULL/empty fields are filled.
-            Nothing is pushed back to Razorpay.
+            <b>What this does:</b> re-downloads the latest details of every mapped employee from RazorpayX (name, phone, email, department, bank, etc.) and fills any <em>blank</em> fields in HRMS.
+            <br />
+            <b>Is it safe?</b> Yes — it never overwrites values that HR has already entered, and it does not send anything to RazorpayX.
+            <br />
+            <b>When to run:</b> after adding new employees on RazorpayX, or when a later step complains about "no baseline".
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

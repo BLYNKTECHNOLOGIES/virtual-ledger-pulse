@@ -1796,9 +1796,25 @@ export default function RazorpaySyncPage() {
             const r = attApplyResult || attDryResult!;
             return (
               <div className="rounded-md border overflow-x-auto">
+                {!!r.tenant_warnings?.length && (
+                  <div className="p-2 text-xs bg-amber-500/10 border-b border-amber-500/30 text-amber-700 dark:text-amber-400 space-y-1">
+                    {r.tenant_warnings.map((w, i) => (
+                      <div key={i} className="flex gap-2"><ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" /><span>{w}</span></div>
+                    ))}
+                  </div>
+                )}
                 <div className="p-2 text-xs bg-muted/50 flex flex-wrap gap-3">
                   <span>Period: <b>{r.period}</b></span>
-                  <span>Working days (ERP): <b>{r.summary.working_days}</b></span>
+                  <span>
+                    Working days (ERP): <b>
+                      {r.summary.working_days_range
+                        ? (r.summary.working_days_range.min === r.summary.working_days_range.max
+                            ? r.summary.working_days_range.min
+                            : `${r.summary.working_days_range.min}–${r.summary.working_days_range.max}`)
+                        : (r.summary.working_days ?? "—")}
+                    </b>
+                  </span>
+                  <span>Holidays in month: <b className={r.summary.holidays_in_month === 0 ? "text-amber-600" : ""}>{r.summary.holidays_in_month ?? "—"}</b></span>
                   <span>Total rows: <b>{r.summary.total}</b></span>
                   <span>Planned: <b>{r.summary.planned}</b></span>
                   <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
@@ -1810,34 +1826,43 @@ export default function RazorpaySyncPage() {
                     <tr className="text-left">
                       <th className="p-2">Razorpay ID</th>
                       <th className="p-2">Status</th>
+                      <th className="p-2">WD</th>
                       <th className="p-2">Present</th>
                       <th className="p-2">Paid leave</th>
                       <th className="p-2">Unpaid leave</th>
                       <th className="p-2">LOP</th>
-                      <th className="p-2">Sanity</th>
-                      <th className="p-2">Error</th>
+                      <th className="p-2">Formula</th>
+                      <th className="p-2">Sanity / Note</th>
                     </tr>
                   </thead>
                   <tbody>
                     {r.rows.map((row, i) => (
-                      <tr key={i} className="border-t">
+                      <tr key={i} className="border-t align-top">
                         <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
                         <td className="p-2">
                           {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
                           {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
                           {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
                           {row.status === "skipped" && <Badge variant="outline" className="text-[10px]">skipped</Badge>}
+                          {row.status === "blocked_config_error" && <Badge variant="destructive" className="text-[10px]">config error</Badge>}
+                          {row.status === "no_erp_attendance" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no ERP data</Badge>}
+                          {row.status === "blocked_period_locked" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">period locked</Badge>}
                         </td>
+                        <td className="p-2 font-mono">{row.working_days ?? "—"}</td>
                         <td className="p-2 font-mono">{row.present_days ?? "—"}</td>
                         <td className="p-2 font-mono">{row.paid_leave_days ?? "—"}</td>
                         <td className="p-2 font-mono">{row.unpaid_leave_days ?? "—"}</td>
                         <td className="p-2 font-mono">{row.lop_days ?? "—"}</td>
-                        <td className="p-2">
-                          {row.unpaid_matches_lop === false
-                            ? <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">unpaid mismatch</Badge>
-                            : <span className="text-muted-foreground">ok</span>}
+                        <td className="p-2 font-mono text-muted-foreground whitespace-nowrap">{row.formula || "—"}</td>
+                        <td className="p-2 max-w-[260px]">
+                          {row.status === "blocked_config_error"
+                            ? <span className="text-destructive">{row.error}</span>
+                            : row.unpaid_matches_lop === false
+                              ? <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">unpaid mismatch</Badge>
+                              : row.error
+                                ? <span className="text-destructive truncate block">{row.error}</span>
+                                : <span className="text-muted-foreground">ok</span>}
                         </td>
-                        <td className="p-2 text-destructive truncate max-w-[200px]">{row.error || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

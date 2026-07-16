@@ -2345,6 +2345,240 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ============================================================
+    // Phase 8 — Payout & Disbursement sync
+    // Actions:
+    //   probe_payouts_endpoint           — sniff a candidate GET endpoint, no writes
+    //   record_payouts_envelope_verified — operator marks a verified GET envelope
+    //   pull_payouts_for_period          — pull actuals, upsert reconciliation rows
+    //   reconcile_payout                 — human sign-off on a row
+    // Read-only against Razorpay; the only writes are into
+    // hr_razorpay_payout_records inside this project.
+    // ============================================================
+    if (
+      action === "probe_payouts_endpoint" ||
+      action === "record_payouts_envelope_verified" ||
+      action === "pull_payouts_for_period" ||
+      action === "reconcile_payout"
+    ) {
+      const { data: poSettings } = await svc
+        .from("hr_razorpay_settings").select("*").eq("is_singleton", true).maybeSingle();
+
+      // ---- probe_payouts_endpoint ---------------------------------------
+      if (action === "probe_payouts_endpoint") {
+        const type = String(payload?.type || "payouts").trim();
+        const subType = String(payload?.sub_type || "view").trim();
+        const periodMonthStr = String(payload?.period_month || "").trim();
+        const body = {
+          auth: authBlock(),
+          request: { type, "sub-type": subType },
+          data: periodMonthStr ? { period: periodMonthStr } : {},
+        };
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        let httpStatus = 0; let raw = ""; let parsed: any = null;
+        try {
+          const res = await fetch(`${BASE}/${type}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(body),
+            signal: ctrl.signal,
+          });
+          httpStatus = res.status;
+          raw = await res.text();
+          try { parsed = JSON.parse(raw); } catch { parsed = null; }
+        } catch (e) {
+          return json(200, { ok: false, error: `NETWORK: ${(e as Error).message}` });
+        } finally { clearTimeout(t); }
+        return json(200, {
+          ok: httpStatus >= 200 && httpStatus < 300,
+          http_status: httpStatus,
+          envelope_key: `${type}:${subType}`,
+          body_preview: parsed ?? { raw: raw.slice(0, 800) },
+        });
+      }
+
+      // ---- record_payouts_envelope_verified -----------------------------
+      if (action === "record_payouts_envelope_verified") {
+        const key = String(payload?.envelope_key || "").trim();
+        const verified = !!payload?.verified;
+        if (verified && !key) return json(400, { error: "envelope_key is required when verified=true" });
+        const patch: any = {
+          pull_payouts_endpoint_verified: verified,
+          pull_payouts_envelope_key: verified ? key : null,
+          pull_payouts_envelope_verified_at: verified ? new Date().toISOString() : null,
+          pull_payouts_envelope_verified_by: verified ? authed.userId : null,
+        };
+        const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+        if (error) return json(500, { error: error.message });
+        return json(200, { ok: true });
+      }
+
+      // ---- pull_payouts_for_period --------------------------------------
+      if (action === "pull_payouts_for_period") {
+        if (!poSettings?.pull_payouts_endpoint_verified || !poSettings?.pull_payouts_envelope_key) {
+          return json(400, { error: "Payouts envelope not verified. Record a probe-verified envelope first." });
+        }
+        const periodMonthStr = String(payload?.period_month || "").trim();
+        const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
+        if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
+        const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
+
+        const envelopeKey = String(poSettings.pull_payouts_envelope_key);
+        const [type, subType] = envelopeKey.split(":");
+
+        // Pull payouts. Actual shape is Razorpay-tenant-specific; whatever comes
+        // back is stored verbatim in source_payload and normalised best-effort.
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 30000);
+        let httpStatus = 0; let bodyOut: any = null;
+        try {
+          const res = await fetch(`${BASE}/${type || "payouts"}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: type || "payouts", "sub-type": subType || "view" },
+              data: { period: periodMonthStr },
+            }),
+            signal: ctrl.signal,
+          });
+          httpStatus = res.status;
+          const raw = await res.text();
+          try { bodyOut = JSON.parse(raw); } catch { bodyOut = { raw: raw.slice(0, 800) }; }
+        } catch (e) {
+          return json(502, { error: `NETWORK: ${(e as Error).message}` });
+        } finally { clearTimeout(t); }
+
+        if (httpStatus < 200 || httpStatus >= 300) {
+          return json(502, { error: "Razorpay returned non-2xx", http_status: httpStatus, body: bodyOut });
+        }
+
+        // Try common list shapes: array | { data: [] } | { payouts: [] } | { list: [] }
+        let rawList: any[] = [];
+        if (Array.isArray(bodyOut)) rawList = bodyOut;
+        else if (bodyOut && typeof bodyOut === "object") {
+          rawList = bodyOut.data || bodyOut.payouts || bodyOut.list || bodyOut.result || [];
+        }
+        if (!Array.isArray(rawList)) rawList = [];
+
+        // Load expected amounts from the payroll run for this period.
+        const { data: runRow } = await svc.from("hr_razorpay_payroll_runs")
+          .select("id").eq("period_month", periodMonthISO).maybeSingle();
+        const runId = runRow?.id || null;
+
+        let expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();
+        if (runId) {
+          const { data: lineRows } = await svc.from("hr_razorpay_payroll_run_lines")
+            .select("employee_id,net_pay,run_id").eq("run_id", runId);
+          const hrIds = (lineRows || []).map((l: any) => l.employee_id);
+          if (hrIds.length) {
+            const { data: maps } = await svc.from("hr_razorpay_employee_map")
+              .select("hr_employee_id,razorpay_employee_id").in("hr_employee_id", hrIds);
+            const rpByHr = new Map((maps || []).map((m: any) => [m.hr_employee_id, String(m.razorpay_employee_id)]));
+            for (const l of (lineRows || []) as any[]) {
+              const rpId = rpByHr.get(l.employee_id);
+              if (!rpId) continue;
+              expectedByRpId.set(rpId, { hr_employee_id: l.employee_id, net_pay: Number(l.net_pay || 0) });
+            }
+          }
+        }
+
+        // Normalise each row best-effort. Unknown fields land in source_payload.
+        function pickNum(o: any, keys: string[]) {
+          for (const k of keys) { const v = o?.[k]; if (v != null && Number.isFinite(Number(v))) return Number(v); }
+          return null;
+        }
+        function pickStr(o: any, keys: string[]) {
+          for (const k of keys) { const v = o?.[k]; if (v != null && String(v).length) return String(v); }
+          return null;
+        }
+
+        const upserts: any[] = [];
+        for (const p of rawList) {
+          const rpId = pickStr(p, ["employee-id", "employee_id", "employeeId", "id"]);
+          if (!rpId) continue;
+          const paid = pickNum(p, ["paid-amount", "paid_amount", "net-pay", "netPay", "amount", "paidAmount"]);
+          const status = pickStr(p, ["payout-status", "payout_status", "status", "state"]) || "unknown";
+          const utr = pickStr(p, ["utr", "UTR", "transaction-id", "transactionId"]);
+          const paidAt = pickStr(p, ["paid-at", "paid_at", "paidAt", "processed-at", "processedAt"]);
+          const exp = expectedByRpId.get(String(rpId));
+          const expected = exp?.net_pay ?? null;
+          const variance = (paid != null && expected != null) ? Number((paid - expected).toFixed(2)) : null;
+          upserts.push({
+            run_id: runId,
+            period_month: periodMonthISO,
+            razorpay_employee_id: String(rpId),
+            hr_employee_id: exp?.hr_employee_id || null,
+            payout_status: status,
+            paid_amount: paid,
+            expected_amount: expected,
+            variance,
+            utr,
+            paid_at: paidAt ? new Date(paidAt).toISOString() : null,
+            source_payload: p,
+          });
+        }
+
+        if (upserts.length) {
+          for (let i = 0; i < upserts.length; i += 200) {
+            const chunk = upserts.slice(i, i + 200);
+            const { error: upErr } = await svc.from("hr_razorpay_payout_records")
+              .upsert(chunk, { onConflict: "period_month,razorpay_employee_id" });
+            if (upErr) return json(500, { error: upErr.message });
+          }
+        }
+
+        await svc.from("hr_razorpay_settings")
+          .update({ last_payouts_pull_at: new Date().toISOString() })
+          .eq("is_singleton", true);
+
+        // Summary counters
+        let paid = 0, processing = 0, failed = 0, mismatched = 0, unknown = 0, unexpected = 0;
+        for (const r of upserts) {
+          const s = String(r.payout_status || "").toLowerCase();
+          if (s.includes("paid") || s.includes("success") || s.includes("processed")) paid++;
+          else if (s.includes("processing") || s.includes("pending") || s.includes("initiated")) processing++;
+          else if (s.includes("fail") || s.includes("reject") || s.includes("bounce")) failed++;
+          else unknown++;
+          if (r.variance != null && Math.abs(r.variance) >= 0.5) mismatched++;
+          if (r.expected_amount == null) unexpected++;
+        }
+
+        await logSync(svc, {
+          action: "pull_payouts",
+          http_status: 200,
+          razorpay_employee_id: "",
+          hr_employee_id: null,
+          field_diff_summary: {
+            period_month: periodMonthISO,
+            total: upserts.length,
+            paid, processing, failed, unknown, mismatched, unexpected,
+          },
+          error_text: null,
+          actor_user_id: authed.userId,
+        });
+
+        return json(200, {
+          ok: true,
+          period_month: periodMonthISO,
+          summary: { total: upserts.length, paid, processing, failed, unknown, mismatched, unexpected },
+        });
+      }
+
+      // ---- reconcile_payout --------------------------------------------
+      if (action === "reconcile_payout") {
+        const id = String(payload?.id || "").trim();
+        if (!id) return json(400, { error: "id is required" });
+        const { error } = await svc.from("hr_razorpay_payout_records").update({
+          reconciled_at: new Date().toISOString(),
+          reconciled_by: authed.userId,
+        }).eq("id", id);
+        if (error) return json(500, { error: error.message });
+        return json(200, { ok: true });
+      }
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
 
   } catch (e) {

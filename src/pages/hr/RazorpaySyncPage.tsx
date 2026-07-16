@@ -1571,24 +1571,32 @@ export default function RazorpaySyncPage() {
             <ListChecks className="h-4 w-4" /> Step F · Send monthly attendance & LOP to RazorpayX
           </CardTitle>
           <CardDescription>
-            Computes working days, present days, paid leave, and LOP from ERP (attendance + approved leave + holidays), and pushes it to Razorpay for the selected month. Dry-run works pre-verification; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">attendance:update</code>).
+            <b>What this does:</b> for a chosen month, HRMS totals up working days, days present, paid leave, and loss-of-pay (LOP) days from your attendance and approved leaves — then sends those numbers to RazorpayX so payroll uses the correct amounts.
+            <br />
+            <b>How LOP is calculated:</b> working days minus present days minus paid leave. Sundays and active holidays are excluded from working days. Half-day leaves count as 0.5.
+            <br />
+            <b>One-time setup:</b> confirm the API name RazorpayX expects (e.g. <code>attendance:update</code>) before "Send" unlocks. Preview works without it.
+            <br />
+            <b>Status:</b>{" "}
             {settings?.push_attendance_endpoint_verified
-              ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_attendance_envelope_key})</span></>
-              : <> · <span className="text-amber-600">Endpoint not confirmed yet</span></>}
+              ? <span className="text-emerald-600">API name confirmed ({settings?.push_attendance_envelope_key}) ✅</span>
+              : <span className="text-amber-600">API name not confirmed yet</span>}
+            {" · "}
             {settings?.push_attendance_pilot_verified_at
-              ? <> · <span className="text-emerald-600">Attendance pilot verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""}</span></>
-              : <> · <span className="text-muted-foreground">Test employee not run yet</span></>}
+              ? <span className="text-emerald-600">Test employee verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""} ✅</span>
+              : <span className="text-muted-foreground">Test employee not run yet</span>}
+            {" · "}
             {settings?.bulk_attendance_push_unlocked
-              ? <> · <span className="text-emerald-600">Bulk attendance unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk send locked</span></>}
+              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">Waiting for setup confirmation</AlertTitle>
+            <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
-              The attendance envelope has not been auto-verified against Razorpay Live. Probe candidate sub-types (Phase 2), confirm which one Razorpay accepts, then record it here. LOP is computed as <code>working_days − present_days − paid_leave_days</code> using ERP truth (Sunday + active holidays excluded from working days). Half-day leaves count as 0.5 days.
+              We need to confirm which API name RazorpayX accepts for attendance/LOP updates. Run <b>Step B</b> to see the options, then type the working name into the box below and save. Preview / dry-run works even without this — only "Send" is locked.
             </AlertDescription>
           </Alert>
 

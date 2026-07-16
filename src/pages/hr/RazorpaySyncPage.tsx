@@ -1638,6 +1638,8 @@ export default function RazorpaySyncPage() {
           )}
         </CardContent>
       </Card>
+
+      <PayrollRunSection invoke={invoke} />
     </div>
   );
 }
@@ -1652,5 +1654,289 @@ function GapChip({ label, value, tone }: { label: string; value: number; tone: "
       <div className="text-[10px] uppercase tracking-wide opacity-70">{label}</div>
       <div className="text-base font-semibold tabular-nums">{value}</div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7 — Payroll-run orchestration
+// Sits on top of Phase 6 attendance/LOP. Compute → dry-run → pilot → bulk.
+// Every write is server-gated on push_payroll_endpoint_verified.
+// ---------------------------------------------------------------------------
+interface PayrollLine {
+  id: string;
+  employee_id: string;
+  gross_earnings: number;
+  lop_amount: number;
+  other_deductions: number;
+  loan_emi: number;
+  net_pay: number;
+  skip_label: string | null;
+  push_status: string;
+  source_snapshot?: any;
+}
+interface PayrollRun {
+  id: string;
+  period_month: string;
+  status: string;
+  totals_gross: number | null;
+  totals_deductions: number | null;
+  totals_net: number | null;
+  headcount_included: number | null;
+  headcount_skipped: number | null;
+}
+
+function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T> }) {
+  const [period, setPeriod] = useState<string>(() => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+  const [envelopeKey, setEnvelopeKey] = useState("");
+  const [settings, setSettings] = useState<any>(null);
+  const [run, setRun] = useState<PayrollRun | null>(null);
+  const [lines, setLines] = useState<PayrollLine[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [pilotIds, setPilotIds] = useState("");
+  const [recallReason, setRecallReason] = useState("");
+
+  const reload = async () => {
+    const { data: s } = await supabase.from("hr_razorpay_settings")
+      .select("push_payroll_endpoint_verified,push_payroll_envelope_key,push_payroll_envelope_verified_at,push_payroll_pilot_unlocked,push_payroll_bulk_unlocked")
+      .maybeSingle();
+    setSettings(s);
+    const iso = `${period}-01`;
+    const { data: r } = await supabase.from("hr_razorpay_payroll_runs")
+      .select("*").eq("period_month", iso).maybeSingle();
+    setRun(r as PayrollRun | null);
+    if (r) {
+      const { data: ls } = await supabase.from("hr_razorpay_payroll_run_lines")
+        .select("*").eq("run_id", (r as any).id).order("skip_label", { ascending: true });
+      setLines((ls || []) as PayrollLine[]);
+    } else {
+      setLines([]);
+    }
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [period]);
+
+  const call = async (action: string, body: any = {}) => {
+    setBusy(action);
+    try {
+      const d = await invoke<any>({ action, period_month: period, ...body });
+      toast({ title: `${action} · ok`, description: d?.summary
+        ? `pushed ${d.summary.pushed} · failed ${d.summary.failed}`
+        : d?.totals ? `net ₹${Math.round(d.totals.net).toLocaleString()}` : "done" });
+      await reload();
+    } catch (e: any) {
+      toast({ title: `${action} failed`, description: e?.message, variant: "destructive" });
+    } finally { setBusy(null); }
+  };
+
+  const envelopeVerified = !!settings?.push_payroll_endpoint_verified;
+  const pilotUnlocked = !!settings?.push_payroll_pilot_unlocked;
+  const bulkUnlocked = !!settings?.push_payroll_bulk_unlocked;
+  const locked = run?.status === "locked";
+  const canDry = !!run && envelopeVerified && !locked;
+  const canPilot = canDry && pilotUnlocked && (run?.status === "dry_run_ok" || run?.status === "pilot_applied");
+  const canBulk = canDry && bulkUnlocked && (run?.status === "dry_run_ok" || run?.status === "pilot_applied");
+
+  const skips = lines.filter((l) => l.skip_label);
+  const pushable = lines.filter((l) => !l.skip_label);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <ListChecks className="h-4 w-4" /> Phase 7 — Payroll run
+        </CardTitle>
+        <CardDescription>
+          Compute the ERP-truth payroll for a period, dry-run, then push a pilot before bulk apply.
+          Writes are hard-blocked until a probe-verified payroll envelope is recorded.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground">Period (YYYY-MM)</label>
+            <input
+              type="month"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="block h-9 rounded-md border bg-background px-2 text-sm"
+            />
+          </div>
+          <Button size="sm" onClick={() => call("compute_payroll_run")} disabled={!!busy}>
+            {busy === "compute_payroll_run" ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+            Compute
+          </Button>
+          <div className="text-xs text-muted-foreground">
+            Envelope: {envelopeVerified
+              ? <Badge variant="default">verified · {settings?.push_payroll_envelope_key}</Badge>
+              : <Badge variant="outline">not verified</Badge>}
+          </div>
+        </div>
+
+        {run && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
+            <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
+
+              <div className="text-[10px] uppercase tracking-wide opacity-70">Status</div>
+              <div className="text-base font-semibold">{run.status}</div>
+            </div>
+            <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
+              <div className="text-[10px] uppercase tracking-wide opacity-70">Included</div>
+              <div className="text-base font-semibold tabular-nums">{run.headcount_included ?? 0}</div>
+            </div>
+            <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
+              <div className="text-[10px] uppercase tracking-wide opacity-70">Skipped</div>
+              <div className="text-base font-semibold tabular-nums">{run.headcount_skipped ?? 0}</div>
+            </div>
+            <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
+              <div className="text-[10px] uppercase tracking-wide opacity-70">Gross</div>
+              <div className="text-base font-semibold tabular-nums">₹{Math.round(run.totals_gross ?? 0).toLocaleString()}</div>
+            </div>
+            <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
+              <div className="text-[10px] uppercase tracking-wide opacity-70">Net</div>
+              <div className="text-base font-semibold tabular-nums">₹{Math.round(run.totals_net ?? 0).toLocaleString()}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Envelope verification */}
+        <div className="rounded-md border p-3 space-y-2">
+          <div className="text-sm font-medium flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" /> Payroll envelope
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <input
+              placeholder="e.g. payroll:run"
+              value={envelopeKey}
+              onChange={(e) => setEnvelopeKey(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm flex-1 min-w-[200px]"
+            />
+            <Button size="sm" variant="outline"
+              onClick={() => call("record_payroll_envelope_verified", { envelope_key: envelopeKey, verified: true })}
+              disabled={!!busy || !envelopeKey.trim()}
+            >Record verified</Button>
+            <Button size="sm" variant="ghost"
+              onClick={() => call("record_payroll_envelope_verified", { verified: false })}
+              disabled={!!busy || !envelopeVerified}
+            >Revoke</Button>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline"
+              onClick={() => call("unlock_bulk_payroll_push", { scope: "pilot" })}
+              disabled={!!busy || !envelopeVerified || pilotUnlocked}
+            >Unlock pilot</Button>
+            <Button size="sm" variant="outline"
+              onClick={() => call("unlock_bulk_payroll_push", { scope: "bulk" })}
+              disabled={!!busy || !envelopeVerified || bulkUnlocked}
+            >Unlock bulk</Button>
+            <Badge variant={pilotUnlocked ? "default" : "outline"}>pilot {pilotUnlocked ? "unlocked" : "locked"}</Badge>
+            <Badge variant={bulkUnlocked ? "default" : "outline"}>bulk {bulkUnlocked ? "unlocked" : "locked"}</Badge>
+          </div>
+        </div>
+
+        {/* Dry-run + apply */}
+        {run && (
+          <div className="rounded-md border p-3 space-y-2">
+            <div className="text-sm font-medium">Push controls</div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => call("dry_run_payroll_run")} disabled={!!busy || !canDry}>Dry-run</Button>
+              <input
+                placeholder="pilot: employee UUIDs, comma-separated (1–3)"
+                value={pilotIds}
+                onChange={(e) => setPilotIds(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm flex-1 min-w-[280px]"
+              />
+              <Button size="sm" variant="secondary"
+                onClick={() => {
+                  const ids = pilotIds.split(",").map((s) => s.trim()).filter(Boolean);
+                  if (ids.length < 1 || ids.length > 3) {
+                    toast({ title: "Pilot needs 1–3 employee IDs", variant: "destructive" });
+                    return;
+                  }
+                  if (!confirm(`Push pilot for ${ids.length} employee(s)? This POSTs to Razorpay.`)) return;
+                  call("apply_payroll_pilot", { employee_ids: ids });
+                }}
+                disabled={!!busy || !canPilot}
+              >Apply pilot</Button>
+              <Button size="sm" variant="destructive"
+                onClick={() => {
+                  if (!confirm("Bulk-apply payroll for ALL non-skipped employees? This POSTs each line to Razorpay.")) return;
+                  call("apply_payroll_bulk");
+                }}
+                disabled={!!busy || !canBulk}
+              >Apply bulk</Button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2 border-t">
+              <Button size="sm" variant="outline"
+                onClick={() => confirm("Lock this period against further changes?") && call("lock_payroll_period")}
+                disabled={!!busy || !run || locked || (run.status !== "pilot_applied" && run.status !== "bulk_applied")}
+              >Lock period</Button>
+              <input
+                placeholder="Recall reason (min 12 chars)"
+                value={recallReason}
+                onChange={(e) => setRecallReason(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-sm flex-1 min-w-[240px]"
+              />
+              <Button size="sm" variant="ghost"
+                onClick={() => {
+                  if (recallReason.trim().length < 12) {
+                    toast({ title: "Recall reason must be ≥12 characters", variant: "destructive" });
+                    return;
+                  }
+                  if (!confirm("File an audited recall for this period?")) return;
+                  call("recall_payroll_period", { reason: recallReason });
+                }}
+                disabled={!!busy || !run}
+              >Recall</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Lines table */}
+        {lines.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm">
+              Pushable: <strong>{pushable.length}</strong> · Skipped: <strong>{skips.length}</strong>
+            </div>
+            <div className="rounded-md border overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr className="text-left">
+                    <th className="p-2">Employee</th>
+                    <th className="p-2">Gross</th>
+                    <th className="p-2">LOP</th>
+                    <th className="p-2">EMI</th>
+                    <th className="p-2">Other −</th>
+                    <th className="p-2">Net</th>
+                    <th className="p-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.slice(0, 300).map((l) => (
+                    <tr key={l.id} className="border-t">
+                      <td className="p-2 font-mono">{l.employee_id.slice(0, 8)}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.gross_earnings).toLocaleString()}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.lop_amount).toLocaleString()}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.loan_emi).toLocaleString()}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.other_deductions).toLocaleString()}</td>
+                      <td className="p-2 tabular-nums font-semibold">₹{Math.round(l.net_pay).toLocaleString()}</td>
+                      <td className="p-2">
+                        {l.skip_label
+                          ? <Badge variant="outline" className="text-[10px]">{l.skip_label}</Badge>
+                          : <Badge variant={l.push_status === "applied" ? "default" : "secondary"} className="text-[10px]">{l.push_status}</Badge>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

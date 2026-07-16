@@ -1853,6 +1853,498 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ============================================================
+    // Phase 7 — Payroll-run orchestration
+    // Actions:
+    //   record_payroll_envelope_verified
+    //   unlock_bulk_payroll_push
+    //   compute_payroll_run
+    //   dry_run_payroll_run
+    //   apply_payroll_pilot
+    //   apply_payroll_bulk
+    //   lock_payroll_period
+    //   recall_payroll_period
+    // Every write is server-gated on push_payroll_endpoint_verified=true.
+    // Locked periods reject any compute / dry_run / apply until recalled.
+    // ============================================================
+    if (
+      action === "record_payroll_envelope_verified" ||
+      action === "unlock_bulk_payroll_push" ||
+      action === "compute_payroll_run" ||
+      action === "dry_run_payroll_run" ||
+      action === "apply_payroll_pilot" ||
+      action === "apply_payroll_bulk" ||
+      action === "lock_payroll_period" ||
+      action === "recall_payroll_period"
+    ) {
+      // Full settings row — readSettings() only pulls a couple of columns.
+      const { data: pSettings } = await svc
+        .from("hr_razorpay_settings").select("*").eq("is_singleton", true).maybeSingle();
+
+      // ---- record_payroll_envelope_verified -----------------------------
+      if (action === "record_payroll_envelope_verified") {
+        const key = String(payload?.envelope_key || "").trim();
+        const verified = !!payload?.verified;
+        if (verified && !key) return json(400, { error: "envelope_key is required when verified=true" });
+        const patch: any = {
+          push_payroll_endpoint_verified: verified,
+          push_payroll_envelope_key: verified ? key : null,
+          push_payroll_envelope_verified_at: verified ? new Date().toISOString() : null,
+          push_payroll_envelope_verified_by: verified ? authed.userId : null,
+        };
+        // Any change to envelope revokes all downstream unlocks.
+        if (!verified || (pSettings?.push_payroll_envelope_key && pSettings.push_payroll_envelope_key !== key)) {
+          patch.push_payroll_pilot_unlocked = false;
+          patch.push_payroll_bulk_unlocked = false;
+        }
+        const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+        if (error) return json(500, { error: error.message });
+        return json(200, { ok: true });
+      }
+
+      // ---- unlock_bulk_payroll_push -------------------------------------
+      if (action === "unlock_bulk_payroll_push") {
+        if (!pSettings?.push_payroll_endpoint_verified || !pSettings?.push_payroll_envelope_key) {
+          return json(400, { error: "Cannot unlock — payroll envelope not yet verified." });
+        }
+        const scope = String(payload?.scope || "");
+        const patch: any = {};
+        if (scope === "pilot") patch.push_payroll_pilot_unlocked = true;
+        else if (scope === "bulk") patch.push_payroll_bulk_unlocked = true;
+        else return json(400, { error: "scope must be 'pilot' or 'bulk'" });
+        await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+        return json(200, { ok: true, scope });
+      }
+
+      // ---- period_month resolution & lock check -------------------------
+      const periodMonthStr = String(payload?.period_month || "").trim();
+      const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
+      if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
+      const pYear = parseInt(pmMatch[1], 10);
+      const pMonth = parseInt(pmMatch[2], 10);
+      const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
+
+      // Load or create the run row for this period.
+      let { data: runRow } = await svc.from("hr_razorpay_payroll_runs")
+        .select("*").eq("period_month", periodMonthISO).maybeSingle();
+
+      // ---- lock_payroll_period ------------------------------------------
+      if (action === "lock_payroll_period") {
+        if (!runRow) return json(404, { error: "No payroll run for that period." });
+        if (runRow.status === "locked") return json(400, { error: "Period is already locked." });
+        if (runRow.status !== "bulk_applied" && runRow.status !== "pilot_applied") {
+          return json(400, { error: "Only pilot_applied or bulk_applied runs can be locked." });
+        }
+        await svc.from("hr_razorpay_payroll_runs").update({
+          status: "locked",
+          locked_at: new Date().toISOString(),
+          locked_by: authed.userId,
+        }).eq("id", runRow.id);
+        return json(200, { ok: true });
+      }
+
+      // ---- recall_payroll_period ----------------------------------------
+      if (action === "recall_payroll_period") {
+        if (!runRow) return json(404, { error: "No payroll run for that period." });
+        const reason = String(payload?.reason || "").trim();
+        if (reason.length < 12) return json(400, { error: "reason (min 12 chars) is required for recall" });
+        await svc.from("hr_razorpay_payroll_runs").update({
+          status: "recalled",
+          recall_reason: reason,
+          recalled_by: authed.userId,
+          recalled_at: new Date().toISOString(),
+        }).eq("id", runRow.id);
+        await logSync(svc, {
+          action: "payroll_recall",
+          http_status: 0,
+          razorpay_employee_id: "",
+          hr_employee_id: null,
+          field_diff_summary: { period_month: periodMonthISO, reason_len: reason.length, run_id: runRow.id },
+          error_text: null,
+          actor_user_id: authed.userId,
+        });
+        return json(200, { ok: true });
+      }
+
+      // Every remaining action mutates the run. Reject on locked periods.
+      if (runRow?.status === "locked") {
+        return json(400, { error: "Period is locked. File a recall_payroll_period before further changes." });
+      }
+
+      // ---- compute_payroll_run ------------------------------------------
+      if (action === "compute_payroll_run") {
+        // Preflight: attendance envelope must be verified (Phase 6). If ops has not
+        // wired attendance yet, compute is refused with a clear message — otherwise
+        // LOP would silently be zero for everyone.
+        if (!pSettings?.push_attendance_endpoint_verified) {
+          return json(400, {
+            error: "Attendance envelope not verified (Phase 6). Payroll compute requires attendance to be usable first.",
+          });
+        }
+
+        // Create the run row if missing.
+        if (!runRow) {
+          const { data: ins, error: insErr } = await svc.from("hr_razorpay_payroll_runs").insert({
+            period_month: periodMonthISO,
+            status: "draft",
+            created_by: authed.userId,
+          }).select("*").single();
+          if (insErr) return json(500, { error: insErr.message });
+          runRow = ins;
+        }
+
+        // ---- Attendance window --------------------------------------------
+        const daysInMonth = new Date(Date.UTC(pYear, pMonth, 0)).getUTCDate();
+        const monthStart = new Date(Date.UTC(pYear, pMonth - 1, 1));
+        const monthEnd = new Date(Date.UTC(pYear, pMonth - 1, daysInMonth, 23, 59, 59));
+        const startIso = monthStart.toISOString().slice(0, 10);
+        const endIso = monthEnd.toISOString().slice(0, 10);
+
+        const [attRes, leaveRes, ltRes, holRes] = await Promise.all([
+          svc.from("hr_attendance_daily")
+            .select("employee_id,attendance_date,total_hours,status")
+            .gte("attendance_date", startIso).lte("attendance_date", endIso),
+          svc.from("hr_leave_requests")
+            .select("employee_id,leave_type_id,start_date,end_date,is_half_day,status")
+            .eq("status", "approved")
+            .gte("end_date", startIso).lte("start_date", endIso),
+          svc.from("hr_leave_types").select("id,is_paid"),
+          svc.from("hr_holidays").select("date").eq("is_active", true).gte("date", startIso).lte("date", endIso),
+        ]);
+        if (attRes.error) return json(500, { error: attRes.error.message });
+
+        const ltMap = new Map((ltRes.data || []).map((l: any) => [l.id, l]));
+        const holidayDates = new Set((holRes.data || []).map((h: any) => h.date));
+
+        // Working days = calendar - Sundays - active holidays (ERP standard, same as Phase 6).
+        let workingDays = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dt = new Date(Date.UTC(pYear, pMonth - 1, d));
+          if (dt.getUTCDay() === 0) continue;
+          if (holidayDates.has(dt.toISOString().slice(0, 10))) continue;
+          workingDays++;
+        }
+
+        const attByEmp = new Map<string, Set<string>>();
+        for (const r of (attRes.data || []) as any[]) {
+          const s = attByEmp.get(r.employee_id) || new Set<string>();
+          const present = (r.total_hours && r.total_hours > 0) || (r.status && String(r.status).toLowerCase() === "present");
+          if (present) s.add(r.attendance_date);
+          attByEmp.set(r.employee_id, s);
+        }
+
+        const paidByEmp = new Map<string, number>();
+        const unpaidByEmp = new Map<string, number>();
+        for (const lr of (leaveRes.data || []) as any[]) {
+          const lt: any = ltMap.get(lr.leave_type_id);
+          const isPaid = lt ? !!lt.is_paid : true;
+          const ls = new Date(lr.start_date + "T00:00:00Z");
+          const le = new Date(lr.end_date + "T00:00:00Z");
+          const os = ls < monthStart ? monthStart : ls;
+          const oe = le > monthEnd ? monthEnd : le;
+          if (oe < os) continue;
+          let count = 0;
+          for (let t = os.getTime(); t <= oe.getTime(); t += 86400000) {
+            const dt = new Date(t);
+            if (dt.getUTCDay() === 0) continue;
+            if (holidayDates.has(dt.toISOString().slice(0, 10))) continue;
+            count += lr.is_half_day ? 0.5 : 1;
+          }
+          if (isPaid) paidByEmp.set(lr.employee_id, (paidByEmp.get(lr.employee_id) || 0) + count);
+          else unpaidByEmp.set(lr.employee_id, (unpaidByEmp.get(lr.employee_id) || 0) + count);
+        }
+
+        // ---- Employees, structures, bank/pan, loans, one-offs --------------
+        const { data: maps } = await svc.from("hr_razorpay_employee_map")
+          .select("razorpay_employee_id,hr_employee_id");
+        const hrIds = (maps || []).map((m: any) => m.hr_employee_id).filter(Boolean);
+        if (!hrIds.length) return json(400, { error: "No mapped employees to compute." });
+
+        const [empRes, structRes, bankRes, loanRes, oneOffRes] = await Promise.all([
+          svc.from("hr_employees").select("id,badge_id,first_name,last_name,pan_number,is_active").in("id", hrIds),
+          svc.from("hr_employee_salary_structures").select("employee_id,amount,is_active").in("employee_id", hrIds).eq("is_active", true),
+          svc.from("hr_employee_bank_details").select("employee_id,account_number").in("employee_id", hrIds),
+          svc.from("hr_loan_repayments").select("loan_id,employee_id,amount,due_date,status")
+            .in("employee_id", hrIds).gte("due_date", startIso).lte("due_date", endIso),
+          svc.from("hr_razorpay_payroll_run_one_offs").select("employee_id,kind,amount").eq("run_id", runRow.id),
+        ]);
+
+        const empById = new Map((empRes.data || []).map((e: any) => [e.id, e]));
+        const grossByEmp = new Map<string, number>();
+        for (const s of (structRes.data || []) as any[]) {
+          grossByEmp.set(s.employee_id, (grossByEmp.get(s.employee_id) || 0) + Number(s.amount || 0));
+        }
+        const bankByEmp = new Map((bankRes.data || []).map((b: any) => [b.employee_id, b]));
+        const loanByEmp = new Map<string, number>();
+        for (const l of (loanRes.data || []) as any[]) {
+          if (String(l.status || "").toLowerCase() === "paid") continue;
+          loanByEmp.set(l.employee_id, (loanByEmp.get(l.employee_id) || 0) + Number(l.amount || 0));
+        }
+        const oneOffByEmp = new Map<string, { bonus: number; reimb: number; ded: number }>();
+        for (const o of (oneOffRes.data || []) as any[]) {
+          const cur = oneOffByEmp.get(o.employee_id) || { bonus: 0, reimb: 0, ded: 0 };
+          if (o.kind === "bonus") cur.bonus += Number(o.amount || 0);
+          else if (o.kind === "reimbursement") cur.reimb += Number(o.amount || 0);
+          else if (o.kind === "deduction") cur.ded += Number(o.amount || 0);
+          oneOffByEmp.set(o.employee_id, cur);
+        }
+
+        // ---- Build lines ---------------------------------------------------
+        const lines: any[] = [];
+        let totalsGross = 0, totalsDed = 0, totalsNet = 0, included = 0, skippedCount = 0;
+
+        for (const m of (maps || []) as any[]) {
+          if (!m.hr_employee_id) continue;
+          const emp: any = empById.get(m.hr_employee_id);
+          if (!emp) continue;
+
+          const presentDays = (attByEmp.get(m.hr_employee_id) || new Set()).size;
+          const paidLeave = paidByEmp.get(m.hr_employee_id) || 0;
+          const unpaidLeave = unpaidByEmp.get(m.hr_employee_id) || 0;
+          const lopDays = Math.max(0, workingDays - (presentDays + paidLeave));
+          const gross = Number((grossByEmp.get(m.hr_employee_id) || 0).toFixed(2));
+          const loanEmi = Number((loanByEmp.get(m.hr_employee_id) || 0).toFixed(2));
+          const oneOffs = oneOffByEmp.get(m.hr_employee_id) || { bonus: 0, reimb: 0, ded: 0 };
+
+          const snapshot = {
+            working_days: workingDays,
+            present_days: presentDays,
+            paid_leave_days: paidLeave,
+            unpaid_leave_days: unpaidLeave,
+            lop_days: lopDays,
+            monthly_gross_from_structure: gross,
+            one_offs: oneOffs,
+          };
+
+          // Skip-label rules (labeled no-op, never silent).
+          let skipLabel: string | null = null;
+          if (emp.is_active === false) skipLabel = "terminated";
+          else if (!gross) skipLabel = "no_structure";
+          else if (!bankByEmp.get(m.hr_employee_id)?.account_number) skipLabel = "no_bank";
+          else if (!emp.pan_number) skipLabel = "no_pan";
+          else if (presentDays === 0 && paidLeave === 0 && unpaidLeave === 0) skipLabel = "no_attendance";
+
+          const lopAmount = workingDays > 0 ? Number(((lopDays / workingDays) * gross).toFixed(2)) : 0;
+          const otherDed = Number(oneOffs.ded.toFixed(2));
+          const netPay = Number((gross - lopAmount - loanEmi - otherDed + oneOffs.bonus + oneOffs.reimb).toFixed(2));
+
+          const line = {
+            run_id: runRow.id,
+            employee_id: m.hr_employee_id,
+            gross_earnings: gross,
+            lop_amount: lopAmount,
+            other_deductions: otherDed,
+            loan_emi: loanEmi,
+            net_pay: skipLabel ? 0 : netPay,
+            skip_label: skipLabel,
+            source_snapshot: snapshot,
+            push_status: skipLabel ? "skipped" : "draft",
+          };
+          lines.push(line);
+
+          if (skipLabel) skippedCount++;
+          else {
+            included++;
+            totalsGross += gross;
+            totalsDed += lopAmount + loanEmi + otherDed;
+            totalsNet += netPay;
+          }
+        }
+
+        // Upsert lines (idempotent per run_id, employee_id).
+        // First wipe non-applied lines for a clean recompute, then insert.
+        await svc.from("hr_razorpay_payroll_run_lines")
+          .delete().eq("run_id", runRow.id).neq("push_status", "applied");
+        if (lines.length) {
+          // Chunk to avoid oversized payloads.
+          for (let i = 0; i < lines.length; i += 200) {
+            const chunk = lines.slice(i, i + 200);
+            const { error: linesErr } = await svc.from("hr_razorpay_payroll_run_lines")
+              .upsert(chunk, { onConflict: "run_id,employee_id", ignoreDuplicates: false });
+            if (linesErr) return json(500, { error: linesErr.message });
+          }
+        }
+
+        await svc.from("hr_razorpay_payroll_runs").update({
+          status: "computed",
+          totals_gross: Number(totalsGross.toFixed(2)),
+          totals_deductions: Number(totalsDed.toFixed(2)),
+          totals_net: Number(totalsNet.toFixed(2)),
+          headcount_included: included,
+          headcount_skipped: skippedCount,
+        }).eq("id", runRow.id);
+
+        return json(200, {
+          ok: true,
+          run_id: runRow.id,
+          period_month: periodMonthISO,
+          totals: { gross: totalsGross, deductions: totalsDed, net: totalsNet },
+          headcount: { included, skipped: skippedCount, total: included + skippedCount },
+          working_days: workingDays,
+        });
+      }
+
+      // For the write actions below, the run must exist and be beyond compute.
+      if (!runRow) return json(404, { error: "No payroll run for that period. Call compute_payroll_run first." });
+
+      // Server-side hard-block: writes require verified envelope.
+      const isWriteAction = action === "apply_payroll_pilot" || action === "apply_payroll_bulk";
+      if ((action === "dry_run_payroll_run" || isWriteAction) && !pSettings?.push_payroll_endpoint_verified) {
+        return json(400, {
+          error: "Payroll envelope not verified. Record a probe-verified envelope before any dry-run or apply.",
+        });
+      }
+      if (action === "apply_payroll_pilot" && !pSettings?.push_payroll_pilot_unlocked) {
+        return json(400, { error: "Payroll pilot writes are locked. Unlock via unlock_bulk_payroll_push with scope=pilot." });
+      }
+      if (action === "apply_payroll_bulk") {
+        if (!pSettings?.push_payroll_bulk_unlocked) return json(400, { error: "Payroll bulk writes are locked." });
+        if (runRow.status !== "dry_run_ok" && runRow.status !== "pilot_applied") {
+          return json(400, { error: "Bulk apply requires a successful dry-run first." });
+        }
+      }
+
+      // Load lines for this run.
+      const { data: allLines } = await svc.from("hr_razorpay_payroll_run_lines")
+        .select("*").eq("run_id", runRow.id);
+      const pushableLines = (allLines || []).filter((l: any) => l.push_status !== "skipped");
+
+      // ---- dry_run_payroll_run ------------------------------------------
+      if (action === "dry_run_payroll_run") {
+        // Discovery-first: no external POST until an operator has explicitly named a
+        // payroll envelope key AND we have a live payroll endpoint verified via Postman.
+        // For now the dry-run is ERP-truth-only and marks the run as dry_run_ok so the
+        // human pilot gate can proceed.
+        await svc.from("hr_razorpay_payroll_runs").update({
+          status: "dry_run_ok",
+          dry_run_response: { at: new Date().toISOString(), pushable: pushableLines.length },
+        }).eq("id", runRow.id);
+        await svc.from("hr_razorpay_payroll_run_lines")
+          .update({ push_status: "dry_run_ok" })
+          .eq("run_id", runRow.id).eq("push_status", "draft");
+        return json(200, { ok: true, run_id: runRow.id, dryable: pushableLines.length });
+      }
+
+      // ---- apply_payroll_pilot / apply_payroll_bulk ---------------------
+      if (isWriteAction) {
+        const envelopeKey = String(pSettings?.push_payroll_envelope_key || "").trim();
+        if (!envelopeKey) return json(400, { error: "Missing verified payroll envelope key." });
+        const [type, subType] = envelopeKey.split(":");
+
+        let targetLines: any[] = [];
+        if (action === "apply_payroll_pilot") {
+          const ids: string[] = Array.isArray(payload?.employee_ids)
+            ? payload.employee_ids.map((v: any) => String(v)) : [];
+          if (ids.length < 1 || ids.length > 3) {
+            return json(400, { error: "apply_payroll_pilot requires 1–3 employee_ids" });
+          }
+          targetLines = pushableLines.filter((l: any) => ids.includes(l.employee_id));
+          if (!targetLines.length) return json(400, { error: "No pushable lines match the given employee_ids" });
+        } else {
+          // bulk: everything not yet applied
+          targetLines = pushableLines.filter((l: any) => l.push_status !== "applied");
+        }
+
+        // Map hr_employee_id -> razorpay_employee_id
+        const { data: mapRows } = await svc.from("hr_razorpay_employee_map")
+          .select("hr_employee_id,razorpay_employee_id")
+          .in("hr_employee_id", targetLines.map((l: any) => l.employee_id));
+        const rpIdByHr = new Map((mapRows || []).map((r: any) => [r.hr_employee_id, r.razorpay_employee_id]));
+
+        const results: any[] = [];
+        let pushed = 0, failed = 0;
+
+        for (const line of targetLines) {
+          // Idempotency: already applied lines return cached response, no external call.
+          if (line.push_status === "applied") {
+            results.push({ employee_id: line.employee_id, status: "applied_cached", push_response: line.push_response });
+            continue;
+          }
+          const rpId = rpIdByHr.get(line.employee_id);
+          if (!rpId) {
+            failed++;
+            results.push({ employee_id: line.employee_id, status: "failed", error: "No Razorpay mapping for this employee." });
+            continue;
+          }
+
+          const eid = Number(rpId);
+          const runPayload = {
+            "employee-id": eid,
+            "employee-type": "employee",
+            period: periodMonthISO,
+            "gross-earnings": Number(line.gross_earnings || 0),
+            "lop-amount": Number(line.lop_amount || 0),
+            "other-deductions": Number(line.other_deductions || 0),
+            "loan-emi": Number(line.loan_emi || 0),
+            "net-pay": Number(line.net_pay || 0),
+          };
+
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 20000);
+          let httpStatus = 0; let ok = false; let errText: string | null = null; let bodyOut: any = null;
+          try {
+            const res = await fetch(`${BASE}/${type || "payroll"}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                auth: authBlock(),
+                request: { type: type || "payroll", "sub-type": subType || "run" },
+                data: runPayload,
+              }),
+              signal: ctrl.signal,
+            });
+            httpStatus = res.status;
+            const raw = await res.text();
+            try { bodyOut = JSON.parse(raw); } catch { bodyOut = { raw: raw.slice(0, 500) }; }
+            const rpErr = bodyOut && typeof bodyOut === "object" ? (bodyOut.error || bodyOut.message || null) : null;
+            ok = res.ok && !rpErr;
+            if (!ok) errText = rpErr || `HTTP ${res.status}`;
+          } catch (e) {
+            errText = `NETWORK: ${(e as Error).message}`;
+          } finally { clearTimeout(t); }
+
+          await logSync(svc, {
+            action: action === "apply_payroll_pilot" ? "push_payroll_pilot" : "push_payroll_bulk",
+            http_status: httpStatus,
+            razorpay_employee_id: String(rpId),
+            hr_employee_id: line.employee_id,
+            field_diff_summary: { run_id: runRow.id, period_month: periodMonthISO, net_pay: line.net_pay },
+            error_text: ok ? null : errText,
+            actor_user_id: authed.userId,
+          });
+
+          if (ok) {
+            pushed++;
+            await svc.from("hr_razorpay_payroll_run_lines").update({
+              push_status: "applied",
+              push_response: bodyOut,
+              applied_at: new Date().toISOString(),
+            }).eq("id", line.id);
+            results.push({ employee_id: line.employee_id, status: "applied" });
+          } else {
+            failed++;
+            await svc.from("hr_razorpay_payroll_run_lines").update({
+              push_status: "failed", push_response: bodyOut,
+            }).eq("id", line.id);
+            results.push({ employee_id: line.employee_id, status: "failed", error: errText });
+          }
+        }
+
+        // Advance run status.
+        const nextStatus = action === "apply_payroll_pilot" ? "pilot_applied" : "bulk_applied";
+        await svc.from("hr_razorpay_payroll_runs").update({
+          status: nextStatus,
+          apply_response: { at: new Date().toISOString(), pushed, failed, scope: action },
+        }).eq("id", runRow.id);
+
+        return json(200, {
+          ok: true, run_id: runRow.id,
+          summary: { attempted: targetLines.length, pushed, failed },
+          results,
+        });
+      }
+    }
+
     return json(400, { error: `Unsupported action: ${action}` });
 
   } catch (e) {

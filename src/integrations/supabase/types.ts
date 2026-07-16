@@ -8248,6 +8248,181 @@ export type Database = {
           },
         ]
       }
+      hr_razorpay_payroll_run_lines: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          employee_id: string
+          gross_earnings: number
+          id: string
+          loan_emi: number
+          lop_amount: number
+          net_pay: number
+          other_deductions: number
+          push_response: Json | null
+          push_status: Database["public"]["Enums"]["hr_razorpay_payroll_line_status"]
+          run_id: string
+          skip_label: string | null
+          source_snapshot: Json | null
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          employee_id: string
+          gross_earnings?: number
+          id?: string
+          loan_emi?: number
+          lop_amount?: number
+          net_pay?: number
+          other_deductions?: number
+          push_response?: Json | null
+          push_status?: Database["public"]["Enums"]["hr_razorpay_payroll_line_status"]
+          run_id: string
+          skip_label?: string | null
+          source_snapshot?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          employee_id?: string
+          gross_earnings?: number
+          id?: string
+          loan_emi?: number
+          lop_amount?: number
+          net_pay?: number
+          other_deductions?: number
+          push_response?: Json | null
+          push_status?: Database["public"]["Enums"]["hr_razorpay_payroll_line_status"]
+          run_id?: string
+          skip_label?: string | null
+          source_snapshot?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_payroll_run_lines_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_razorpay_payroll_run_one_offs: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          kind: string
+          note: string | null
+          run_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          kind: string
+          note?: string | null
+          run_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_payroll_run_one_offs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_razorpay_payroll_runs: {
+        Row: {
+          apply_response: Json | null
+          created_at: string
+          created_by: string | null
+          dry_run_response: Json | null
+          envelope_verified: boolean
+          envelope_verified_at: string | null
+          envelope_verified_by: string | null
+          headcount_included: number
+          headcount_skipped: number
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          period_month: string
+          recall_reason: string | null
+          recalled_at: string | null
+          recalled_by: string | null
+          status: Database["public"]["Enums"]["hr_razorpay_payroll_run_status"]
+          totals_deductions: number
+          totals_gross: number
+          totals_net: number
+          updated_at: string
+        }
+        Insert: {
+          apply_response?: Json | null
+          created_at?: string
+          created_by?: string | null
+          dry_run_response?: Json | null
+          envelope_verified?: boolean
+          envelope_verified_at?: string | null
+          envelope_verified_by?: string | null
+          headcount_included?: number
+          headcount_skipped?: number
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          period_month: string
+          recall_reason?: string | null
+          recalled_at?: string | null
+          recalled_by?: string | null
+          status?: Database["public"]["Enums"]["hr_razorpay_payroll_run_status"]
+          totals_deductions?: number
+          totals_gross?: number
+          totals_net?: number
+          updated_at?: string
+        }
+        Update: {
+          apply_response?: Json | null
+          created_at?: string
+          created_by?: string | null
+          dry_run_response?: Json | null
+          envelope_verified?: boolean
+          envelope_verified_at?: string | null
+          envelope_verified_by?: string | null
+          headcount_included?: number
+          headcount_skipped?: number
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          period_month?: string
+          recall_reason?: string | null
+          recalled_at?: string | null
+          recalled_by?: string | null
+          status?: Database["public"]["Enums"]["hr_razorpay_payroll_run_status"]
+          totals_deductions?: number
+          totals_gross?: number
+          totals_net?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_razorpay_settings: {
         Row: {
           base_url: string
@@ -8275,6 +8450,12 @@ export type Database = {
           push_bank_enabled: boolean
           push_bank_pilot_hr_employee_id: string | null
           push_bank_pilot_verified_at: string | null
+          push_payroll_bulk_unlocked: boolean
+          push_payroll_endpoint_verified: boolean
+          push_payroll_envelope_key: string | null
+          push_payroll_envelope_verified_at: string | null
+          push_payroll_envelope_verified_by: string | null
+          push_payroll_pilot_unlocked: boolean
           push_pilot_hr_employee_id: string | null
           push_pilot_verified_at: string | null
           push_salary_endpoint_verified: boolean
@@ -8311,6 +8492,12 @@ export type Database = {
           push_bank_enabled?: boolean
           push_bank_pilot_hr_employee_id?: string | null
           push_bank_pilot_verified_at?: string | null
+          push_payroll_bulk_unlocked?: boolean
+          push_payroll_endpoint_verified?: boolean
+          push_payroll_envelope_key?: string | null
+          push_payroll_envelope_verified_at?: string | null
+          push_payroll_envelope_verified_by?: string | null
+          push_payroll_pilot_unlocked?: boolean
           push_pilot_hr_employee_id?: string | null
           push_pilot_verified_at?: string | null
           push_salary_endpoint_verified?: boolean
@@ -8347,6 +8534,12 @@ export type Database = {
           push_bank_enabled?: boolean
           push_bank_pilot_hr_employee_id?: string | null
           push_bank_pilot_verified_at?: string | null
+          push_payroll_bulk_unlocked?: boolean
+          push_payroll_endpoint_verified?: boolean
+          push_payroll_envelope_key?: string | null
+          push_payroll_envelope_verified_at?: string | null
+          push_payroll_envelope_verified_by?: string | null
+          push_payroll_pilot_unlocked?: boolean
           push_pilot_hr_employee_id?: string | null
           push_pilot_verified_at?: string | null
           push_salary_endpoint_verified?: boolean
@@ -19103,6 +19296,20 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "on_hold"
+      hr_razorpay_payroll_line_status:
+        | "draft"
+        | "dry_run_ok"
+        | "applied"
+        | "failed"
+        | "skipped"
+      hr_razorpay_payroll_run_status:
+        | "draft"
+        | "computed"
+        | "dry_run_ok"
+        | "pilot_applied"
+        | "bulk_applied"
+        | "locked"
+        | "recalled"
       hr_razorpay_sync_action:
         | "validate_creds"
         | "introspect_envelope"
@@ -19440,6 +19647,22 @@ export const Constants = {
         "completed",
         "cancelled",
         "on_hold",
+      ],
+      hr_razorpay_payroll_line_status: [
+        "draft",
+        "dry_run_ok",
+        "applied",
+        "failed",
+        "skipped",
+      ],
+      hr_razorpay_payroll_run_status: [
+        "draft",
+        "computed",
+        "dry_run_ok",
+        "pilot_applied",
+        "bulk_applied",
+        "locked",
+        "recalled",
       ],
       hr_razorpay_sync_action: [
         "validate_creds",

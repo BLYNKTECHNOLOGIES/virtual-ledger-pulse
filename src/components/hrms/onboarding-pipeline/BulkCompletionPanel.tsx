@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,9 +46,12 @@ type Row = {
 
 export function BulkCompletionPanel() {
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const gapFilter = searchParams.get("gap") as "bank" | "salary" | "doj" | "designation" | null;
   const [selected, setSelected] = useState<Set<string>>(new Set()); // employee_ids
   const [dialog, setDialog] = useState<null | "salary" | "workinfo" | "bank">(null);
   const [bankTarget, setBankTarget] = useState<Row | null>(null);
+
 
   // ── DATA ──────────────────────────────────────────────────
   const { data: rows = [], isLoading } = useQuery<Row[]>({
@@ -121,9 +125,16 @@ export function BulkCompletionPanel() {
       return data || [];
     },
   });
+  // Optional URL-driven gap filter (from HR dashboard deep-links).
+  const visibleRows = useMemo(() => {
+    if (!gapFilter) return rows;
+    const key = ({ bank: "has_bank", salary: "has_salary", doj: "has_doj", designation: "has_designation" } as const)[gapFilter];
+    return rows.filter(r => !(r as any)[key]);
+  }, [rows, gapFilter]);
 
   // ── SELECTION ─────────────────────────────────────────────
-  const allIds = useMemo(() => rows.map(r => r.employee_id!).filter(Boolean), [rows]);
+  const allIds = useMemo(() => visibleRows.map(r => r.employee_id!).filter(Boolean), [visibleRows]);
+
   const allSelected = allIds.length > 0 && selected.size === allIds.length;
   const toggleAll = () =>
     setSelected(allSelected ? new Set() : new Set(allIds));
@@ -152,7 +163,12 @@ export function BulkCompletionPanel() {
     </span>
   );
 
-  const selectedRows = rows.filter(r => selected.has(r.employee_id!));
+  const selectedRows = visibleRows.filter(r => selected.has(r.employee_id!));
+
+  const gapLabel = gapFilter
+    ? ({ bank: "Bank details", salary: "Salary", doj: "Joining date", designation: "Designation" } as const)[gapFilter]
+    : null;
+
 
   return (
     <Card>
@@ -177,9 +193,9 @@ export function BulkCompletionPanel() {
       <CardContent className="p-0">
         {isLoading ? (
           <div className="p-6 text-center text-xs text-muted-foreground">Loading…</div>
-        ) : rows.length === 0 ? (
+        ) : visibleRows.length === 0 ? (
           <div className="p-6 text-center text-xs text-muted-foreground">
-            🎉 No incomplete drafts. Everyone linked to onboarding has bank, salary,
+            🎉 No incomplete drafts{gapLabel ? ` missing ${gapLabel.toLowerCase()}` : ""}. Everyone linked to onboarding has bank, salary,
             DOJ and designation on file.
           </div>
         ) : (
@@ -187,8 +203,26 @@ export function BulkCompletionPanel() {
             {/* Action bar */}
             <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2 bg-muted/30">
               <Badge variant="secondary" className="text-xs">
-                {selected.size} selected / {rows.length} incomplete
+                {selected.size} selected / {visibleRows.length} incomplete
               </Badge>
+              {gapFilter && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  Filter: missing {gapLabel?.toLowerCase()}
+                  <button
+                    type="button"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.delete("gap");
+                      setSearchParams(next, { replace: true });
+                    }}
+                    aria-label="Clear filter"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+
               <div className="ml-auto flex flex-wrap gap-2">
                 <Button
                   size="sm"
@@ -234,7 +268,7 @@ export function BulkCompletionPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(r => {
+                  {visibleRows.map(r => {
                     const isChecked = selected.has(r.employee_id!);
                     return (
                       <tr key={r.onboarding_id} className="border-b hover:bg-muted/20">
@@ -298,7 +332,7 @@ export function BulkCompletionPanel() {
       {bankTarget && (
         <BankQuickDialog
           row={bankTarget}
-          nextRow={rows.find(r => !r.has_bank && r.employee_id !== bankTarget.employee_id) || null}
+          nextRow={visibleRows.find(r => !r.has_bank && r.employee_id !== bankTarget.employee_id) || null}
           onClose={() => setBankTarget(null)}
           onDone={() => { setBankTarget(null); invalidate(); }}
           onSaveAndNext={(next) => { setBankTarget(next); invalidate(); }}

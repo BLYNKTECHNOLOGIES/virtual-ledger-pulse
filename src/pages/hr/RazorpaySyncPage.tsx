@@ -1696,13 +1696,12 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
-      <PayrollRunSection invoke={invoke} />
-
-      <PayoutReconciliationSection invoke={invoke} />
-
-      <PayslipTaxDocSection invoke={invoke} />
-
-      <LedgerReconciliationSection invoke={invoke} />
+      {!simpleMode && (<>
+        <PayrollRunSection invoke={invoke} />
+        <PayoutReconciliationSection invoke={invoke} />
+        <PayslipTaxDocSection invoke={invoke} />
+        <LedgerReconciliationSection invoke={invoke} />
+      </>)}
     </div>
   );
 }

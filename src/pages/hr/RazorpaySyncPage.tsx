@@ -1017,7 +1017,7 @@ export default function RazorpaySyncPage() {
       <RoadmapJourneyNav steps={stationSteps} />
 
       {/* Step A — Deep pull + Completion readiness */}
-      <Station letter="A" title="Refresh employee details from RazorpayX" subtitle="Pull the latest employee data — fills blanks only, never sends anything back." status={stationStatus("A")} />
+      <Station letter="A" title="Get latest employee info from RazorpayX" subtitle="Copies employee details into HRMS. Only fills empty fields. Nothing is sent out." status={stationStatus("A")} />
       <Card>
 
         <CardHeader>

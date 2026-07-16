@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { getActivityLabel } from "@/lib/hrms/statusVocabulary";
 import type { StationStatus } from "./RoadmapStation";
 import {
   ArrowRight, CalendarClock, CheckCircle2, Sparkles, Clock,

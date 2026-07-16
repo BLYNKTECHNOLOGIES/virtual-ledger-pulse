@@ -90,6 +90,12 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
+  const cmdsQ = useQuery({
+    enabled: !!serial && open,
+    queryKey: ["bio-cmds", serial],
+    queryFn: async () => (await (supabase as any).from("hr_biometric_device_commands").select("*").eq("device_serial", serial).order("created_at", { ascending: false }).limit(40)).data || [],
+  });
+
   const queueCmd = async (cmd: string, successMsg = "Command queued — device will pick it up on next heartbeat"): Promise<string | null> => {
     if (!serial) return null;
     setBusy(true);
@@ -142,6 +148,32 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     return queueCmd(`C:${Date.now()}:DATA UPDATE USERINFO ${parts}`, `User ${p.pin} queued for push`);
   };
 
+  const refetchDeviceData = async () => {
+    await Promise.all([
+      usersQ.refetch(),
+      tplQ.refetch(),
+      photosQ.refetch(),
+      cmdsQ.refetch(),
+    ]);
+  };
+
+  const cleanupConfirmedDelete = async (pin: string, commandId: string) => {
+    const { data, error } = await (supabase as any).rpc("cleanup_biometric_device_pin_after_ack", {
+      _device_serial: serial,
+      _pin: pin,
+      _command_id: commandId,
+    });
+
+    if (error) throw error;
+    if (data && data.ok === false) throw new Error(data.message || "Device delete is not acknowledged yet");
+
+    qc.setQueryData(["bio-users", serial], (old: any[] = []) => old.filter((u: any) => String(u.pin) !== String(pin)));
+    qc.setQueryData(["bio-tpl", serial], (old: any[] = []) => old.filter((t: any) => String(t.pin) !== String(pin)));
+    qc.setQueryData(["bio-photos", serial], (old: any[] = []) => old.filter((p: any) => String(p.pin) !== String(pin)));
+    await refetchDeviceData();
+    return data;
+  };
+
   const deleteUser = async (pin: string) => {
     if (!serial) return;
     const commandId = await queueCmd(
@@ -152,22 +184,26 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
 
     const toastId = toast.loading(`Waiting for device to confirm delete of PIN ${pin}…`);
     const outcome = await awaitCommandAck(commandId);
-    qc.invalidateQueries({ queryKey: ["bio-cmds", serial] });
+    await cmdsQ.refetch();
 
     if (outcome === "ack") {
-      // Device confirmed. Clean local roster/templates/photos for this PIN so the UI reflects reality.
-      await (supabase as any).from("hr_biometric_device_templates").delete().eq("device_serial", serial).eq("pin", pin);
-      await (supabase as any).from("hr_biometric_device_photos").delete().eq("device_serial", serial).eq("pin", pin);
-      await (supabase as any).from("hr_biometric_device_users").delete().eq("device_serial", serial).eq("pin", pin);
-      qc.invalidateQueries({ queryKey: ["bio-users", serial] });
-      qc.invalidateQueries({ queryKey: ["bio-tpl", serial] });
-      qc.invalidateQueries({ queryKey: ["bio-photos", serial] });
-      toast.success(`PIN ${pin} deleted from device`, { id: toastId });
+      try {
+        const cleaned = await cleanupConfirmedDelete(pin, commandId);
+        toast.success(
+          `PIN ${pin} deleted from eSSL and removed from ERP roster (${cleaned?.users_deleted ?? 0} user row, ${cleaned?.templates_deleted ?? 0} templates).`,
+          { id: toastId },
+        );
+      } catch (e: any) {
+        await refetchDeviceData();
+        toast.error(`eSSL acknowledged delete, but ERP cleanup failed: ${e?.message || "Unknown error"}`, { id: toastId });
+      }
     } else if (outcome === "error") {
       toast.error(`Device rejected delete of PIN ${pin}. Check operator log for the reason.`, { id: toastId });
     } else if (outcome === "sent") {
-      toast.warning(`Delete for PIN ${pin} was delivered but the device hasn't acknowledged yet. It will clear on the next sync.`, { id: toastId });
+      await refetchDeviceData();
+      toast.warning(`Delete for PIN ${pin} was delivered to eSSL but not acknowledged yet. The ERP roster will clear only after ACK is received.`, { id: toastId });
     } else {
+      await refetchDeviceData();
       toast.error(`Device did not pick up the delete command for PIN ${pin}. Confirm the device is online (heartbeat) and try again.`, { id: toastId });
     }
   };
@@ -186,12 +222,6 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
   };
   const setOption = (key: string, value: string) =>
     queueCmd(`C:${Date.now()}:SET OPTION ${escape(key)}=${escape(value)}`, `Option ${key}=${value} queued`);
-
-  const cmdsQ = useQuery({
-    enabled: !!serial && open,
-    queryKey: ["bio-cmds", serial],
-    queryFn: async () => (await (supabase as any).from("hr_biometric_device_commands").select("*").eq("device_serial", serial).order("created_at", { ascending: false }).limit(40)).data || [],
-  });
 
   const info = infoQ.data;
   const users = usersQ.data || [];
@@ -506,12 +536,12 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                             <TableRow key={c.id}>
                               <TableCell className="text-xs">{fmt(c.created_at)}</TableCell>
                               <TableCell>
-                                <Badge variant={c.status === "delivered" ? "outline" : c.status === "pending" ? "secondary" : "default"} className="text-[10px]">
+                                <Badge variant={c.status === "ack" ? "default" : c.status === "sent" ? "outline" : c.status === "pending" ? "secondary" : "destructive"} className="text-[10px]">
                                   {c.status}
                                 </Badge>
                               </TableCell>
                               <TableCell className="font-mono text-[11px] max-w-[380px] truncate" title={c.command_text}>{c.command_text}</TableCell>
-                              <TableCell className="text-[11px] text-muted-foreground max-w-[200px] truncate" title={c.response_text || ""}>{c.response_text || "—"}</TableCell>
+                              <TableCell className="text-[11px] text-muted-foreground max-w-[200px] truncate" title={c.ack_response || ""}>{c.ack_response || "—"}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

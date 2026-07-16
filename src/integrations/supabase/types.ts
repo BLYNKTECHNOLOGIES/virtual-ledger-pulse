@@ -17906,6 +17906,10 @@ export type Database = {
         Args: { p_retention_days?: number }
         Returns: number
       }
+      cleanup_biometric_device_pin_after_ack: {
+        Args: { _command_id?: string; _device_serial: string; _pin: string }
+        Returns: Json
+      }
       cleanup_expired_records: { Args: never; Returns: undefined }
       cleanup_ghost_synthetic_clients: {
         Args: never

@@ -758,11 +758,46 @@ export default function RazorpaySyncPage() {
   };
 
   // Retry-failed chip: re-runs apply_range for the exact IDs that errored on
-  // the last apply run. Logged under the same apply_error / create_draft /
-  // match actions with retry:true so the audit trail reads end-to-end.
-  const failedApplyIds: number[] = (applied?.rows ?? [])
+  // the last apply run OR historical apply_error rows that were never
+  // recovered by a later create_draft/match. Logged under the same
+  // apply_error / create_draft / match actions with retry:true so the audit
+  // trail reads end-to-end across sessions.
+  const sessionFailedIds: number[] = (applied?.rows ?? [])
     .filter(r => r.employee_id != null && !!r.error)
     .map(r => r.employee_id as number);
+  const [historicalFailedIds, setHistoricalFailedIds] = useState<number[]>([]);
+  const failedApplyIds: number[] = Array.from(
+    new Set<number>([...sessionFailedIds, ...historicalFailedIds])
+  ).sort((a, b) => a - b);
+
+  const reloadHistoricalFailedIds = async () => {
+    // Pull recent sync-log rows and derive: apply_error IDs with no later
+    // create_draft/match for the same razorpay_employee_id.
+    const { data, error } = await supabase
+      .from("hr_razorpay_sync_log")
+      .select("action, razorpay_employee_id, created_at")
+      .in("action", ["apply_error", "create_draft", "match"])
+      .order("created_at", { ascending: true })
+      .limit(2000);
+    if (error || !data) { setHistoricalFailedIds([]); return; }
+    const lastByAction = new Map<string, { action: string; at: string }>();
+    for (const r of data as any[]) {
+      const id = String(r.razorpay_employee_id ?? "");
+      if (!id) continue;
+      const prev = lastByAction.get(id);
+      if (!prev || r.created_at > prev.at) lastByAction.set(id, { action: r.action, at: r.created_at });
+    }
+    const unresolved: number[] = [];
+    for (const [id, v] of lastByAction) {
+      if (v.action === "apply_error") {
+        const n = Number(id);
+        if (Number.isFinite(n)) unresolved.push(n);
+      }
+    }
+    setHistoricalFailedIds(unresolved.sort((a, b) => a - b));
+  };
+  useEffect(() => { if (canAccess) void reloadHistoricalFailedIds(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [canAccess]);
+
   const [retryingFailed, setRetryingFailed] = useState(false);
   const runRetryFailed = async () => {
     if (failedApplyIds.length === 0) return;
@@ -771,19 +806,19 @@ export default function RazorpaySyncPage() {
       const d = await invoke<DryRunResponse>({ action: "apply_range", only_ids: failedApplyIds });
       // Merge: replace rows for retried IDs with the new outcome, keep the rest.
       setApplied(prev => {
-        if (!prev) return d;
+        const base = prev ?? { ok: true, summary: { total: 0, hits: 0, matches: 0, creates: 0, misses: 0, stopped: false }, rows: [] as any[] };
         const retried = new Set(failedApplyIds);
-        const kept = prev.rows.filter(r => !(r.employee_id != null && retried.has(r.employee_id as number)));
+        const kept = base.rows.filter(r => !(r.employee_id != null && retried.has(r.employee_id as number)));
         const mergedRows = [...kept, ...d.rows];
         return {
-          ok: prev.ok && d.ok,
+          ok: base.ok && d.ok,
           summary: {
             total: mergedRows.length,
             hits: mergedRows.filter(r => r.status === "hit").length,
             matches: mergedRows.filter(r => r.action_planned === "match").length,
             creates: mergedRows.filter(r => r.action_planned === "create_draft").length,
             misses: mergedRows.filter(r => r.status === "miss").length,
-            stopped: prev.summary.stopped,
+            stopped: base.summary.stopped,
           },
           rows: mergedRows,
         };
@@ -793,6 +828,8 @@ export default function RazorpaySyncPage() {
         title: "Retry complete",
         description: `${failedApplyIds.length - stillFailing} recovered · ${stillFailing} still failing`,
       });
+      // Refresh historical list so recovered IDs drop off the chip.
+      void reloadHistoricalFailedIds();
     } catch (e: any) {
       toast({ title: "Retry failed", description: e?.message, variant: "destructive" });
     } finally { setRetryingFailed(false); }

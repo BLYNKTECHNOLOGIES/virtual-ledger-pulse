@@ -99,7 +99,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
         (data as any[]).map((r) => ({
           at: r.created_at as string,
           action: r.action as string,
-          label: ACTIVITY_LABELS[r.action as string] ?? r.action,
+          label: getActivityLabel(r.action as string),
         }))
       );
     })();

@@ -401,6 +401,26 @@ Deno.serve(async (req) => {
       const r = await opfinView(eid);
       if (!r.ok) return json(200, { ok: false, http_status: r.status, error: r.errText || "Not found" });
 
+      // Block dismissed / inactive Razorpay employees from entering the ERP.
+      const rp = r.body || {};
+      const rpStatus = String(rp.status || "").toLowerCase();
+      if (
+        rpStatus === "dismissed" ||
+        rpStatus === "terminated" ||
+        rpStatus === "resigned" ||
+        rp.is_active === false ||
+        !!rp.date_of_leaving ||
+        !!rp.dismissed_at
+      ) {
+        return json(200, {
+          ok: false,
+          http_status: r.status,
+          skipped: "dismissed",
+          error: "Razorpay employee is dismissed/inactive — import blocked.",
+          razorpay_status: rp.status ?? null,
+        });
+      }
+
       let match = await matchEmployee(svc, r.body);
       let hrId = match.hr_employee_id;
       let created = false;
@@ -650,6 +670,32 @@ Deno.serve(async (req) => {
           continue;
         }
         consecutiveMisses = 0;
+
+        // Skip dismissed / inactive Razorpay employees. Razorpay flags
+        // separated staff via status="dismissed", is_active=false, or by
+        // populating date_of_leaving/dismissed_at. We do NOT import or
+        // match these — they must not appear in the ERP employee master.
+        const rp = r.body || {};
+        const rpStatus = String(rp.status || "").toLowerCase();
+        const isDismissed =
+          rpStatus === "dismissed" ||
+          rpStatus === "terminated" ||
+          rpStatus === "resigned" ||
+          rp.is_active === false ||
+          !!rp.date_of_leaving ||
+          !!rp.dismissed_at;
+        if (isDismissed) {
+          rows.push({
+            employee_id: i,
+            status: "skipped_dismissed",
+            name: rp.name, title: rp.title, department: rp.department,
+            is_active: rp.is_active,
+            razorpay_status: rp.status ?? null,
+            date_of_leaving: rp.date_of_leaving ?? null,
+          });
+          continue;
+        }
+
         const match = await matchEmployee(svc, r.body);
         rows.push({
           employee_id: i,
@@ -701,6 +747,7 @@ Deno.serve(async (req) => {
         matches: rows.filter((r) => r.action_planned === "match").length,
         creates: rows.filter((r) => r.action_planned === "create_draft").length,
         misses: rows.filter((r) => r.status === "miss").length,
+        skipped_dismissed: rows.filter((r) => r.status === "skipped_dismissed").length,
         errors: rows.filter((r) => r.error).length,
         stopped: rows.some((r) => r.status === "stopped"),
       };

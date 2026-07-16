@@ -937,37 +937,49 @@ export default function RazorpaySyncPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-primary" />
-            How to read this page
+            How this page works (read me first)
           </CardTitle>
           <CardDescription>
-            Advanced view shows every step of the RazorpayX sync in order (A → J). Complete them top-to-bottom. Every step follows the same safety pattern:
+            This page is a checklist. Steps A → J run in order — finish one before starting the next. Every step uses the same 4-stage safety pattern so you can never accidentally send wrong data to RazorpayX.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
-          <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">1. Dry-run preview</div>
-            <div className="text-muted-foreground">Shows what would change. Nothing is sent to RazorpayX yet.</div>
+        <CardContent className="space-y-4 text-xs">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">1️⃣ Preview</div>
+              <div className="text-muted-foreground">See what <em>would</em> change. Nothing is sent yet — totally safe to click.</div>
+            </div>
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">2️⃣ Test one</div>
+              <div className="text-muted-foreground">Send the change for a single employee. You confirm it looks correct on RazorpayX before doing everyone.</div>
+            </div>
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">3️⃣ Turn on for everyone</div>
+              <div className="text-muted-foreground">A one-time switch that unlocks the "send to all" button. Only appears after test one succeeds.</div>
+            </div>
+            <div className="rounded-md border bg-background p-3">
+              <div className="font-medium mb-1">4️⃣ Send to all</div>
+              <div className="text-muted-foreground">Applies the confirmed change to every matched employee.</div>
+            </div>
           </div>
+
           <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">2. Test with one employee (“pilot”)</div>
-            <div className="text-muted-foreground">Sends the change for a single employee so you can confirm it worked correctly before doing everyone.</div>
+            <div className="font-medium mb-2">Words you'll see, in plain English</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div><b>Dry-run</b> — same as "Preview". Try it fearlessly.</div>
+              <div><b>Pilot</b> — same as "Test one employee".</div>
+              <div><b>Bulk unlock</b> — the switch that turns on "Send to all".</div>
+              <div><b>Apply</b> — actually send the change to RazorpayX.</div>
+              <div><b>Baseline</b> — the last copy of the employee we pulled from RazorpayX. If a row says <em>"no baseline"</em>, run <b>Step A</b> first — it fetches fresh data.</div>
+              <div><b>Drift</b> — HRMS and RazorpayX disagree on a value. That row is ready to push.</div>
+              <div><b>Endpoint / envelope</b> — the exact API name RazorpayX expects (e.g. <code>people:update</code>). You confirm it once per step. Buttons stay <em>locked</em> until you do — that's a safety catch, not a bug.</div>
+              <div><b>Locked</b> — the previous safety check hasn't been done yet. Read the hint next to the button and complete that first.</div>
+            </div>
           </div>
-          <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">3. Unlock bulk send</div>
-            <div className="text-muted-foreground">Only after a successful pilot. This opens the “apply to everyone” button.</div>
-          </div>
-          <div className="rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">4. Apply to everyone</div>
-            <div className="text-muted-foreground">Sends the confirmed change for all mapped employees.</div>
-          </div>
-          <div className="sm:col-span-2 lg:col-span-4 rounded-md border bg-background p-3">
-            <div className="font-medium mb-1">A few terms explained</div>
-            <ul className="text-muted-foreground space-y-1 list-disc pl-4">
-              <li><b>Endpoint / envelope</b> — the specific RazorpayX API name (like <code>people:update</code>) that our system must use. You confirm it once per step; the buttons stay locked until then so we can’t send data to a wrong address.</li>
-              <li><b>Baseline</b> — the last known snapshot from RazorpayX. Needed so we can show a before/after diff. If a row says “no baseline”, refresh employee details first (Step A).</li>
-              <li><b>Drift</b> — the ERP value differs from RazorpayX. That row is a candidate to push.</li>
-              <li><b>Locked</b> — the button is intentionally disabled until the previous safety check passes. That’s expected — just complete the step it points to.</li>
-            </ul>
+
+          <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3">
+            <div className="font-medium mb-1">✅ Rule of thumb for HR</div>
+            <div className="text-muted-foreground">If a button feels scary, hit <b>Preview / Dry-run</b> first. It <em>never</em> changes data on RazorpayX. Everything that actually sends is clearly labelled <b>Apply</b>, <b>Push</b>, or <b>Send</b> and asks for confirmation.</div>
           </div>
         </CardContent>
       </Card>

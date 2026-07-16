@@ -2454,6 +2454,19 @@ Deno.serve(async (req) => {
         if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
         const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
 
+        // Gap-fix: variance is meaningless against an unapplied run. Refuse the pull
+        // unless the payroll run for this month has reached the wire.
+        const { data: preRunRow } = await svc.from("hr_razorpay_payroll_runs")
+          .select("status").eq("period_month", periodMonthISO).maybeSingle();
+        if (!preRunRow) {
+          return json(400, { error: "No payroll run found for this period. Compute and apply payroll first." });
+        }
+        if (!["bulk_applied", "locked", "recalled"].includes(preRunRow.status)) {
+          return json(400, {
+            error: `Payout pull requires the payroll run to be bulk_applied (or later). Current status: ${preRunRow.status}.`,
+          });
+        }
+
         const envelopeKey = String(poSettings.pull_payouts_envelope_key);
         const [type, subType] = envelopeKey.split(":");
 

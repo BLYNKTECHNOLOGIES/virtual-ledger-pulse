@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, ShieldAlert, Lock, Play, ListChecks, CheckCircle2, DownloadCloud, AlertTriangle } from "lucide-react";
 import { Station, type StationStatus } from "./RoadmapStation";
 import { RoadmapJourneyNav } from "./RoadmapJourneyNav";
+import { cn } from "@/lib/utils";
 
 interface Settings {
   base_url: string;

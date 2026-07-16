@@ -1914,24 +1914,26 @@ export default function RazorpaySyncPage() {
           </div>
 
 
-          {(dryRun || applied) && (
+          {(dryRun || applied || failedApplyIds.length > 0) && (
             <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>
-                {applied ? "Applied · " : "Dry-run · "}
-                hits: {(applied ?? dryRun)!.summary.hits} ·
-                matches: {(applied ?? dryRun)!.summary.matches} ·
-                new drafts: {(applied ?? dryRun)!.summary.creates} ·
-                misses: {(applied ?? dryRun)!.summary.misses}
-                {(applied ?? dryRun)!.summary.stopped && " · stopped early"}
-              </span>
-              {applied && failedApplyIds.length > 0 && (
+              {(dryRun || applied) && (
+                <span>
+                  {applied ? "Applied · " : "Dry-run · "}
+                  hits: {(applied ?? dryRun)!.summary.hits} ·
+                  matches: {(applied ?? dryRun)!.summary.matches} ·
+                  new drafts: {(applied ?? dryRun)!.summary.creates} ·
+                  misses: {(applied ?? dryRun)!.summary.misses}
+                  {(applied ?? dryRun)!.summary.stopped && " · stopped early"}
+                </span>
+              )}
+              {failedApplyIds.length > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-7 border-destructive/40 text-destructive hover:bg-destructive/10"
-                  disabled={retryingFailed}
+                  disabled={retryingFailed || !canBulk}
                   onClick={runRetryFailed}
-                  title={`IDs: ${failedApplyIds.slice(0, 10).join(", ")}${failedApplyIds.length > 10 ? "…" : ""}`}
+                  title={`IDs: ${failedApplyIds.slice(0, 10).join(", ")}${failedApplyIds.length > 10 ? "…" : ""}${!applied && historicalFailedIds.length > 0 ? " (from earlier runs)" : ""}`}
                 >
                   {retryingFailed ? "Retrying…" : `Retry failed IDs (${failedApplyIds.length})`}
                 </Button>

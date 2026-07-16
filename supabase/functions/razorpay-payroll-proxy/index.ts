@@ -334,6 +334,53 @@ async function projectSnapshotIntoErp(
   return { hr_employees: empPick, work_info: wiPick, bank: bdPick };
 }
 
+// Mirror the Razorpay snapshot into the onboarding row so the wizard form
+// opens pre-filled with everything Razorpay knows about the employee.
+// ERP-wins: only fills fields that are currently NULL on the onboarding row.
+async function projectSnapshotIntoOnboarding(
+  svc: SupabaseClient,
+  hrId: string,
+  snap: any,
+): Promise<{ wrote: string[]; conflicts: string[] } | null> {
+  const { data: ob } = await svc.from("hr_employee_onboarding")
+    .select("id,first_name,last_name,email,phone,gender,date_of_birth,department_id,position_id,job_role,employee_type,date_of_joining")
+    .eq("employee_id", hrId).maybeSingle();
+  if (!ob) return null;
+
+  const { first, last } = splitName(snap?.name || "");
+  const deptName = pickString(snap?.department);
+  const jobTitle = pickString(snap?.title, snap?.designation, snap?.job_title);
+  let departmentId: string | null = null;
+  let positionId: string | null = null;
+  if (deptName) {
+    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName).limit(1).maybeSingle();
+    if (d?.id) departmentId = d.id;
+  }
+  if (jobTitle) {
+    const { data: p } = await svc.from("positions").select("id").ilike("title", jobTitle).limit(1).maybeSingle();
+    if (p?.id) positionId = p.id;
+  }
+
+  const incoming: Record<string, any> = {
+    first_name: pickString(snap?.first_name, first) || null,
+    last_name: pickString(snap?.last_name, last) || null,
+    email: pickString(snap?.email)?.toLowerCase() || null,
+    phone: normPhone(snap?.phone_number ?? snap?.phone),
+    gender: pickString(snap?.gender)?.toLowerCase() || null,
+    date_of_birth: parseDobIso(snap?.["date-of-birth"] ?? snap?.date_of_birth ?? snap?.dob),
+    department_id: departmentId,
+    position_id: positionId,
+    job_role: jobTitle,
+    employee_type: pickString(snap?.employee_type, snap?.employment_type),
+    date_of_joining: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
+  };
+  const picked = pickPatch(ob as any, incoming);
+  if (Object.keys(picked.patch).length) {
+    await svc.from("hr_employee_onboarding").update(picked.patch).eq("id", (ob as any).id);
+  }
+  return picked;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {

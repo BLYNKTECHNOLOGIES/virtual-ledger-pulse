@@ -706,12 +706,18 @@ function BankQuickDialog({
             <Input value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))} />
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>
+          <Button onClick={save} disabled={saving} variant={nextRow ? "outline" : "default"}>
             {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-            Save
+            Save & Close
           </Button>
+          {nextRow && (
+            <Button onClick={saveAndNext} disabled={saving}>
+              {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Save & Next →
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

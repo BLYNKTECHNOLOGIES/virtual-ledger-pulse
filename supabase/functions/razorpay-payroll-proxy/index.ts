@@ -1798,15 +1798,17 @@ Deno.serve(async (req) => {
         }
 
         // Live push using the operator-verified attendance envelope key.
-        // Documented endpoint is POST /api/att with sub-type "modify"; older
-        // envelopes stored "attendance:update" — normalize both to the doc.
+        // Documented endpoint is POST /api/att with body type "attendance",
+        // sub-type "modify" (URL path and body type intentionally differ per
+        // the Postman collection). Normalize legacy envelopes to that.
         const envelopeKey = String(settingsRow!.push_attendance_envelope_key);
-        let [type, subType] = envelopeKey.split(":");
-        if (!type || type === "attendance") type = "att";
+        let [bodyType, subType] = envelopeKey.split(":");
+        if (!bodyType || bodyType === "att") bodyType = "attendance";
         if (!subType || subType === "update") subType = "modify";
+        const urlPath = "att"; // doc: URL is always /api/att for attendance ops
         const body = {
           auth: authBlock(),
-          request: { type, "sub-type": subType },
+          request: { type: bodyType, "sub-type": subType },
           data: {
             "employee-id": eid,
             "employee-type": "employee",
@@ -1821,7 +1823,7 @@ Deno.serve(async (req) => {
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
         try {
-          const res = await fetch(`${BASE}/${type}`, {
+          const res = await fetch(`${BASE}/${urlPath}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify(body),

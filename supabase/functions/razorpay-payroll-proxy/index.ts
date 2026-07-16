@@ -463,30 +463,16 @@ Deno.serve(async (req) => {
       const resource = String(payload?.resource ?? "").trim();
       const subType = String(payload?.sub_type ?? "").trim();
       const data = (payload?.data && typeof payload.data === "object") ? payload.data : {};
+      // Only read variants that actually exist in the Opfin API (verified against
+      // the Postman collection). Everything else — salary-structure/*, payslip/*,
+      // tds/*, webhook/*, bank-details/*, people:list, payroll:list/status/months/runs
+      // — is not in the doc and is intentionally rejected here.
       const READONLY = new Set([
-        // Phase 1 confirmed
         "people:view",
-        // Phase 2 read probes — safe view/list variants of every write-capable resource
-        "salary:view",
-        "salary-structure:view",
-        "salary-structure:list",
-        "attendance:view",
-        "attendance:list",
-        "payslip:view",
-        "payslip:list",
-        "payslip:download",
-        "payroll:view",
-        "payroll:list",
-        "payroll:status",
-        "payroll:months",
-        "payroll:runs",
-        "tds:view",
-        "tds:report",
-        "tds:list",
-        "bank-details:view",
-        "webhook:view",
-        "webhook:list",
-        "people:list",
+        "payroll:view-payroll",
+        "attendance:fetch",
+        "contractor-payment:list-pending",
+        "contractor-payment:get-status",
       ]);
       const key = `${resource}:${subType}`;
       if (!READONLY.has(key)) {

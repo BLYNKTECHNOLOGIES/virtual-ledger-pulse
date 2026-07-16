@@ -2050,6 +2050,21 @@ Deno.serve(async (req) => {
           config_errors: cfgErrs,
         };
 
+        // Loud, non-silent guard: any leave type this employee touched had a NULL
+        // is_paid setting. Block the row rather than pick a silent default in either
+        // direction — money math must not paper over a configuration error.
+        if (cfgErrs.length) {
+          skipped++;
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            hr_employee_id: m.hr_employee_id,
+            status: "blocked_config_error",
+            ...payload,
+            error: cfgErrs.join(" "),
+          });
+          continue;
+        }
+
         // Explicit no-op class: zero ERP attendance AND zero leaves for the whole month
         // means we have NO source data for this employee — do not construct a "0 present /
         // full LOP" payload that would silently zero out their pay in Razorpay.

@@ -139,6 +139,14 @@ export default function RazorpaySyncPage() {
   const canAccess = hasPermission("hrms_razorpay_sync");
 
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("razorpay_sync_simple_mode") !== "false";
+  });
+  const toggleSimpleMode = (v: boolean) => {
+    setSimpleMode(v);
+    try { localStorage.setItem("razorpay_sync_simple_mode", v ? "true" : "false"); } catch {}
+  };
 
   // Step 1: validation
   const [validating, setValidating] = useState(false);
@@ -737,37 +745,75 @@ export default function RazorpaySyncPage() {
 
   return (
     <div className="space-y-6 p-6 max-w-6xl">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">RazorpayX Payroll Sync</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Phase 1a — pilot-gated import from Opfin. One employee first, then bulk range with dry-run preview.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">RazorpayX Payroll Sync</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {simpleMode
+              ? "Import your employees from RazorpayX into HRMS. Follow the three steps below."
+              : "Advanced view — every phase, probe, and envelope-gated push is visible."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => toggleSimpleMode(true)}
+            className={`px-3 py-1.5 rounded-md transition ${simpleMode ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Simple view
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleSimpleMode(false)}
+            className={`px-3 py-1.5 rounded-md transition ${!simpleMode ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Advanced view
+          </button>
+        </div>
       </div>
 
-      <Alert>
-        <AlertTitle>API scope</AlertTitle>
-        <AlertDescription className="text-xs">
-          RazorpayX Payroll (Opfin) has no bulk list endpoint — only <code>people/view</code> by <code>employee-id</code>.
-          The importer walks IDs sequentially with a max-id cap and stops after 30 consecutive misses.
-          Bank / work-info fields are logged as field-names only; only <code>first_name, last_name, email, phone, dob, pan_number</code> are written to <code>hr_employees</code>.
-          Unmatched Razorpay employees are created as <b>draft</b> (<code>is_active=false</code>).
-        </AlertDescription>
-      </Alert>
+      {simpleMode ? (
+        <Alert>
+          <AlertTitle>How this works</AlertTitle>
+          <AlertDescription className="text-xs leading-relaxed">
+            RazorpayX only lets us look up one employee at a time by their Razorpay ID. So the tool walks through IDs one by one to bring everyone into HRMS.
+            <br /><br />
+            <b>Step 1</b> — check the RazorpayX connection is healthy. <b>Step 2</b> — import a single test employee so you can verify it looks right. <b>Step 3</b> — import everyone else in one go.
+            <br /><br />
+            Employees who don't match anyone in HRMS are saved as <b>drafts</b> (inactive) so you can review them before they go live. Dismissed / resigned employees on RazorpayX are automatically skipped.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert>
+          <AlertTitle>API scope</AlertTitle>
+          <AlertDescription className="text-xs">
+            RazorpayX Payroll (Opfin) has no bulk list endpoint — only <code>people/view</code> by <code>employee-id</code>.
+            The importer walks IDs sequentially with a max-id cap and stops after 30 consecutive misses.
+            Bank / work-info fields are logged as field-names only; only <code>first_name, last_name, email, phone, dob, pan_number</code> are written to <code>hr_employees</code>.
+            Unmatched Razorpay employees are created as <b>draft</b> (<code>is_active=false</code>).
+          </AlertDescription>
+        </Alert>
+      )}
 
       {settings && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" /> Integration status</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              {simpleMode ? "Connection status" : "Integration status"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
-              <div className="text-muted-foreground text-xs uppercase">Bulk sync</div>
+              <div className="text-muted-foreground text-xs uppercase">{simpleMode ? "Import mode" : "Bulk sync"}</div>
               <Badge variant={settings.bulk_sync_unlocked ? "default" : "secondary"}>
-                {settings.bulk_sync_unlocked ? "Unlocked" : "Locked (pilot required)"}
+                {settings.bulk_sync_unlocked
+                  ? (simpleMode ? "Ready for everyone" : "Unlocked")
+                  : (simpleMode ? "Test one first" : "Locked (pilot required)")}
               </Badge>
             </div>
             <div>
-              <div className="text-muted-foreground text-xs uppercase">Creds validated</div>
+              <div className="text-muted-foreground text-xs uppercase">{simpleMode ? "Connection checked" : "Creds validated"}</div>
               <div className="text-xs">{settings.last_creds_validated_at ? new Date(settings.last_creds_validated_at).toLocaleString() : "—"}</div>
             </div>
             <div>
@@ -781,21 +827,30 @@ export default function RazorpaySyncPage() {
       {/* STEP 1 — Validate */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Step 1 — Validate credentials</CardTitle>
-          <CardDescription>Confirms <code>auth.id</code> / <code>auth.key</code> against a single <code>people/view</code>.</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            {simpleMode ? "Step 1 — Check RazorpayX connection" : "Step 1 — Validate credentials"}
+          </CardTitle>
+          <CardDescription>
+            {simpleMode
+              ? "Confirms the RazorpayX keys are working. Run this first."
+              : <>Confirms <code>auth.id</code> / <code>auth.key</code> against a single <code>people/view</code>.</>}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={runValidate} disabled={validating}>
-            {validating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Validate credentials
+            {validating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {simpleMode ? "Check connection" : "Validate credentials"}
           </Button>
         </CardContent>
       </Card>
 
+
       {/* STEP 2 — Pilot */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Play className="h-4 w-4" /> Step 2 — Pilot (one employee)</CardTitle>
-          <CardDescription>Fetch a single Razorpay employee-id, preview the match, then apply. Unlocks bulk import.</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Play className="h-4 w-4" /> {simpleMode ? "Step 2 — Import one test employee" : "Step 2 — Pilot (one employee)"}</CardTitle>
+          <CardDescription>{simpleMode ? "Enter any RazorpayX employee ID (start with 1), preview them, then import. This unlocks the full import." : "Fetch a single Razorpay employee-id, preview the match, then apply. Unlocks bulk import."}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
@@ -849,6 +904,7 @@ export default function RazorpaySyncPage() {
         </Card>
       )}
 
+      {!simpleMode && (<>
       {/* PHASE 1a — Deep pull + Completion readiness */}
       <Card>
         <CardHeader>
@@ -1561,6 +1617,7 @@ export default function RazorpaySyncPage() {
           </div>
         </div>
       )}
+      </>)}
 
       {/* STEP 3 — Bulk */}
 
@@ -1568,9 +1625,11 @@ export default function RazorpaySyncPage() {
 
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step 3 — Bulk import (range)</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> {simpleMode ? "Step 3 — Import everyone" : "Step 3 — Bulk import (range)"}</CardTitle>
           <CardDescription>
-            Walk <code>start-id</code> → <code>max-id</code>, dry-run first (available pre-pilot), then apply (requires unlock). Stops after 30 consecutive misses; hard cap 1000 IDs per run.
+            {simpleMode
+              ? <>Pick a range of RazorpayX employee IDs (e.g. From <b>1</b> To <b>100</b>). Preview first, then click <b>Apply import</b>. The tool automatically stops after 30 empty IDs in a row and imports up to 1,000 at a time.</>
+              : <>Walk <code>start-id</code> → <code>max-id</code>, dry-run first (available pre-pilot), then apply (requires unlock). Stops after 30 consecutive misses; hard cap 1000 IDs per run.</>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1639,13 +1698,12 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
-      <PayrollRunSection invoke={invoke} />
-
-      <PayoutReconciliationSection invoke={invoke} />
-
-      <PayslipTaxDocSection invoke={invoke} />
-
-      <LedgerReconciliationSection invoke={invoke} />
+      {!simpleMode && (<>
+        <PayrollRunSection invoke={invoke} />
+        <PayoutReconciliationSection invoke={invoke} />
+        <PayslipTaxDocSection invoke={invoke} />
+        <LedgerReconciliationSection invoke={invoke} />
+      </>)}
     </div>
   );
 }

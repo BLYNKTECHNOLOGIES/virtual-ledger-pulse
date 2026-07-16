@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, ShieldAlert, Lock, Play, ListChecks, CheckCircle2, DownloadCloud, AlertTriangle } from "lucide-react";
 import { Station, type StationStatus } from "./RoadmapStation";
 import { RoadmapJourneyNav } from "./RoadmapJourneyNav";
+import { TodaysFocusHero } from "./TodaysFocusHero";
 import { cn } from "@/lib/utils";
 
 interface Settings {
@@ -173,6 +174,7 @@ export default function RazorpaySyncPage() {
   // so post-commissioning HR sees the monthly rhythm as the daily home.
   const SETUP_LETTERS = ["A", "B", "C", "D", "E"] as const;
   const MONTHLY_LETTERS = ["F", "G", "H", "I", "J"] as const;
+  const [showJourney, setShowJourney] = useState<boolean>(false);
   const [setupCollapsedManual, setSetupCollapsedManual] = useState<boolean | null>(() => {
     if (typeof window === "undefined") return null;
     const raw = localStorage.getItem("razorpay_sync_setup_collapsed");
@@ -957,7 +959,36 @@ export default function RazorpaySyncPage() {
         </div>
       </div>
 
+      {/* Today's Focus — the one thing HR should do right now. Simple mode only. */}
+      {simpleMode && (
+        <>
+          <TodaysFocusHero
+            steps={stationSteps}
+            onJumpToStation={(letter) => {
+              setShowJourney(true);
+              setTimeout(() => {
+                document.getElementById(`station-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 60);
+            }}
+          />
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="text-[11px] text-muted-foreground">
+              {showJourney ? "Showing the full payroll journey below." : "Everything else is neatly tucked below."}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowJourney((v) => !v)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md border border-border hover:bg-muted transition"
+            >
+              {showJourney ? "Hide all payroll steps" : "See all payroll steps"}
+            </button>
+          </div>
+        </>
+      )}
+
       {/* Two-Rail Overview — recurring monthly cycle on top of one-time setup. */}
+      {(!simpleMode || showJourney) && (
+      <>
       {(() => {
         const setup = stationSteps.filter((s) => (SETUP_LETTERS as readonly string[]).includes(s.letter));
         const monthly = stationSteps.filter((s) => (MONTHLY_LETTERS as readonly string[]).includes(s.letter));
@@ -1222,7 +1253,7 @@ export default function RazorpaySyncPage() {
         </Card>
       )}
 
-      {!simpleMode && (<>
+      {(!simpleMode || showJourney) && (<>
       {/* Plain-English guide for HR — persistent glossary so jargon in the phase cards has a friendly reference */}
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader className="pb-3">
@@ -2239,7 +2270,7 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
-      {!simpleMode && (<>
+      {(!simpleMode || showJourney) && (<>
         <Station letter="G" title="Run this month's salary" subtitle="Calculate → practice run → try one employee → run for everyone. HRMS attendance decides unpaid days." status={stationStatus("G")} />
         <PayrollRunSection invoke={invoke} />
         <Station letter="H" title="Check that salaries were paid (read-only)" subtitle="Compares each payout in RazorpayX with the record in HRMS. Never changes any payment." status={stationStatus("H")} />
@@ -2250,6 +2281,8 @@ export default function RazorpaySyncPage() {
 
         <LedgerReconciliationSection invoke={invoke} />
       </>)}
+      </>
+      )}
     </div>
   );
 }

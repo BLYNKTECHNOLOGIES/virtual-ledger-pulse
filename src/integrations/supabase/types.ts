@@ -8248,6 +8248,78 @@ export type Database = {
           },
         ]
       }
+      hr_razorpay_payout_records: {
+        Row: {
+          created_at: string
+          expected_amount: number | null
+          hr_employee_id: string | null
+          id: string
+          paid_amount: number | null
+          paid_at: string | null
+          payout_status: string | null
+          period_month: string
+          razorpay_employee_id: string
+          reconciled_at: string | null
+          reconciled_by: string | null
+          run_id: string | null
+          source_payload: Json | null
+          updated_at: string
+          utr: string | null
+          variance: number | null
+        }
+        Insert: {
+          created_at?: string
+          expected_amount?: number | null
+          hr_employee_id?: string | null
+          id?: string
+          paid_amount?: number | null
+          paid_at?: string | null
+          payout_status?: string | null
+          period_month: string
+          razorpay_employee_id: string
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          run_id?: string | null
+          source_payload?: Json | null
+          updated_at?: string
+          utr?: string | null
+          variance?: number | null
+        }
+        Update: {
+          created_at?: string
+          expected_amount?: number | null
+          hr_employee_id?: string | null
+          id?: string
+          paid_amount?: number | null
+          paid_at?: string | null
+          payout_status?: string | null
+          period_month?: string
+          razorpay_employee_id?: string
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          run_id?: string | null
+          source_payload?: Json | null
+          updated_at?: string
+          utr?: string | null
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_payout_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payout_records_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_razorpay_payroll_run_lines: {
         Row: {
           applied_at: string | null
@@ -8438,8 +8510,13 @@ export type Database = {
           last_bank_push_at: string | null
           last_creds_validated_at: string | null
           last_import_at: string | null
+          last_payouts_pull_at: string | null
           last_push_at: string | null
           last_salary_push_at: string | null
+          pull_payouts_endpoint_verified: boolean
+          pull_payouts_envelope_key: string | null
+          pull_payouts_envelope_verified_at: string | null
+          pull_payouts_envelope_verified_by: string | null
           push_attendance_endpoint_verified: boolean
           push_attendance_envelope_key: string | null
           push_attendance_envelope_verified_at: string | null
@@ -8480,8 +8557,13 @@ export type Database = {
           last_bank_push_at?: string | null
           last_creds_validated_at?: string | null
           last_import_at?: string | null
+          last_payouts_pull_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          pull_payouts_endpoint_verified?: boolean
+          pull_payouts_envelope_key?: string | null
+          pull_payouts_envelope_verified_at?: string | null
+          pull_payouts_envelope_verified_by?: string | null
           push_attendance_endpoint_verified?: boolean
           push_attendance_envelope_key?: string | null
           push_attendance_envelope_verified_at?: string | null
@@ -8522,8 +8604,13 @@ export type Database = {
           last_bank_push_at?: string | null
           last_creds_validated_at?: string | null
           last_import_at?: string | null
+          last_payouts_pull_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          pull_payouts_endpoint_verified?: boolean
+          pull_payouts_envelope_key?: string | null
+          pull_payouts_envelope_verified_at?: string | null
+          pull_payouts_envelope_verified_by?: string | null
           push_attendance_endpoint_verified?: boolean
           push_attendance_envelope_key?: string | null
           push_attendance_envelope_verified_at?: string | null

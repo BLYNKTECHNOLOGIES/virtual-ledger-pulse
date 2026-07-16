@@ -1821,6 +1821,61 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // Auto-verify Step E (salary) + Step F (attendance) envelopes using the
+    // Postman-verified constants. HR-facing simplification: they should never
+    // have to type an API name. Gated on credentials being validated first so
+    // we don't stamp against an unreachable tenant.
+    if (action === "auto_verify_step_envelopes") {
+      const s = settingsRow ?? {};
+      if (!s.last_creds_validated_at) {
+        return json(400, { error: "Validate the RazorpayX connection first (Step A)." });
+      }
+      const SALARY_KEY = "people:set-salary";
+      const ATTENDANCE_KEY = "attendance:modify";
+      const nowIso = new Date().toISOString();
+      const patch: any = {};
+      const verified: string[] = [];
+
+      if (!s.push_salary_endpoint_verified || s.push_salary_envelope_key !== SALARY_KEY) {
+        patch.push_salary_endpoint_verified = true;
+        patch.push_salary_envelope_key = SALARY_KEY;
+        patch.push_salary_envelope_verified_at = nowIso;
+        patch.push_salary_envelope_verified_by = authed.userId;
+        // If a different key was previously stored, reset pilot gates.
+        if (s.push_salary_envelope_key && s.push_salary_envelope_key !== SALARY_KEY) {
+          patch.push_salary_pilot_verified_at = null;
+          patch.push_salary_pilot_hr_employee_id = null;
+          patch.bulk_salary_push_unlocked = false;
+        }
+        verified.push("salary");
+      }
+
+      if (!s.push_attendance_endpoint_verified || s.push_attendance_envelope_key !== ATTENDANCE_KEY) {
+        patch.push_attendance_endpoint_verified = true;
+        patch.push_attendance_envelope_key = ATTENDANCE_KEY;
+        patch.push_attendance_envelope_verified_at = nowIso;
+        patch.push_attendance_envelope_verified_by = authed.userId;
+        if (s.push_attendance_envelope_key && s.push_attendance_envelope_key !== ATTENDANCE_KEY) {
+          patch.push_attendance_pilot_verified_at = null;
+          patch.push_attendance_pilot_hr_employee_id = null;
+          patch.push_attendance_pilot_period = null;
+          patch.bulk_attendance_push_unlocked = false;
+        }
+        verified.push("attendance");
+      }
+
+      if (Object.keys(patch).length > 0) {
+        const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+        if (error) return json(500, { error: error.message });
+      }
+      return json(200, {
+        ok: true,
+        verified,
+        salary_envelope_key: SALARY_KEY,
+        attendance_envelope_key: ATTENDANCE_KEY,
+      });
+    }
+
     if (action === "unlock_bulk_attendance_push") {
       const s = await readSettings(svc);
       if (!s?.push_attendance_endpoint_verified || !s?.push_attendance_envelope_key) {

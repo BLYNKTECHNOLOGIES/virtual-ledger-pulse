@@ -768,7 +768,7 @@ async function updateDeviceHeartbeat(supabase: any, serialNumber: string, punchC
 //   BIODATA Pin=1\tNo=0\tIndex=0\tValid=1\tDuress=0\tType=1\tMajorVer=0\tMinorVer=0\tFormat=0\tTmp=<b64>
 function parseKV(line: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const seg of line.split(/\t+/)) {
+  for (const seg of line.split(/[\t&]+/)) {
     const eq = seg.indexOf("=");
     if (eq > 0) out[seg.slice(0, eq).trim().toLowerCase()] = seg.slice(eq + 1).trim();
   }
@@ -814,26 +814,81 @@ function isCommandAckPayload(pathname: string, body: string): boolean {
 async function parseCommandAck(supabase: any, serialNumber: string, body: string) {
   const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   let updated = 0;
+  let cleaned = 0;
 
   for (const line of lines) {
     const kv = parseKV(line);
-    const commandId = kv["id"] || kv["cmdid"] || kv["cmd"];
+    const commandId = cleanCommandAckId(kv["id"] || kv["cmdid"] || kv["cmd"]);
     if (!commandId) continue;
 
-    const { error } = await supabase
+    const returnCode = kv["return"] ?? kv["ret"] ?? kv["result"] ?? "0";
+    const status = returnCode === "0" || /^ok$/i.test(returnCode) ? "ack" : "error";
+
+    const { data: matchedCommands, error } = await supabase
       .from("hr_biometric_device_commands")
       .update({
-        status: kv["return"] === "0" || kv["ret"] === "0" ? "ack" : "error",
+        status,
         ack_at: new Date().toISOString(),
         ack_response: line.slice(0, 500),
       })
       .eq("device_serial", serialNumber)
-      .like("command_text", `C:${commandId}:%`);
+      .like("command_text", `C:${commandId}:%`)
+      .select("id, command_text");
 
-    if (!error) updated++;
+    if (error) {
+      console.warn(`Command ACK update failed for ${serialNumber}/${commandId}: ${error.message}`);
+      continue;
+    }
+
+    updated += matchedCommands?.length || 0;
+
+    if (status === "ack") {
+      for (const cmd of matchedCommands || []) {
+        cleaned += await applyAckedCommandSideEffects(supabase, serialNumber, cmd.command_text);
+      }
+    }
   }
 
-  console.log(`Command ACK parsed from ${serialNumber}: updated=${updated}`);
+  console.log(`Command ACK parsed from ${serialNumber}: updated=${updated}, cleaned=${cleaned}`);
+}
+
+function cleanCommandAckId(value?: string): string | null {
+  if (!value) return null;
+  const match = String(value).match(/\d+/);
+  return match?.[0] || null;
+}
+
+async function applyAckedCommandSideEffects(supabase: any, serialNumber: string, commandText: string): Promise<number> {
+  const deleteUserMatch = commandText.match(/DATA\s+DELETE\s+USERINFO\s+PIN=([^\t\r\n\s]+)/i);
+  if (!deleteUserMatch) return 0;
+
+  const pin = deleteUserMatch[1]?.trim();
+  if (!pin || pin === "*" || /^all$/i.test(pin)) return 0;
+
+  const tables = [
+    "hr_biometric_device_templates",
+    "hr_biometric_device_photos",
+    "hr_biometric_device_users",
+  ];
+
+  let deleted = 0;
+  for (const table of tables) {
+    const { data, error } = await supabase
+      .from(table)
+      .delete()
+      .eq("device_serial", serialNumber)
+      .eq("pin", pin)
+      .select("id");
+
+    if (error) {
+      console.warn(`Failed to clean ${table} for ${serialNumber}/PIN ${pin}: ${error.message}`);
+      continue;
+    }
+
+    deleted += data?.length || 0;
+  }
+
+  return deleted;
 }
 
 async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string) {

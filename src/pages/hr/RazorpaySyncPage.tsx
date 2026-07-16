@@ -167,6 +167,21 @@ export default function RazorpaySyncPage() {
     try { localStorage.setItem("razorpay_sync_simple_mode", v ? "true" : "false"); } catch {}
   };
 
+  // Two-rail split: one-time setup (A–E) vs monthly cycle (F–J).
+  // The setup rail auto-collapses into a green strip once every setup station is done,
+  // so post-commissioning HR sees the monthly rhythm as the daily home.
+  const SETUP_LETTERS = ["A", "B", "C", "D", "E"] as const;
+  const MONTHLY_LETTERS = ["F", "G", "H", "I", "J"] as const;
+  const [setupCollapsedManual, setSetupCollapsedManual] = useState<boolean | null>(() => {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem("razorpay_sync_setup_collapsed");
+    return raw === null ? null : raw === "true";
+  });
+  const persistSetupCollapsed = (v: boolean) => {
+    setSetupCollapsedManual(v);
+    try { localStorage.setItem("razorpay_sync_setup_collapsed", v ? "true" : "false"); } catch {}
+  };
+
   // Step 1: validation
   const [validating, setValidating] = useState(false);
   const [validated, setValidated] = useState(false);

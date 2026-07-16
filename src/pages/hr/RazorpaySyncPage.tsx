@@ -1882,9 +1882,13 @@ export default function RazorpaySyncPage() {
       </Card>
 
       {!simpleMode && (<>
+        <Station letter="G" title="Run monthly payroll" subtitle="Compute → dry-run → pilot → run. Uses HRMS attendance as the source of truth for LOP." status={stationStatus("G")} />
         <PayrollRunSection invoke={invoke} />
+        <Station letter="H" title="Match payouts (read-only)" subtitle="Reconcile RazorpayX payout status against HRMS records. Never mutates payouts." status={stationStatus("H")} />
         <PayoutReconciliationSection invoke={invoke} />
+        <Station letter="I" title="Download payslips & tax documents" subtitle="Fetch payslips, Form 16 and TDS statements when RazorpayX has generated them." status={stationStatus("I")} />
         <PayslipTaxDocSection invoke={invoke} />
+        <Station letter="J" title="Reconcile with accounting ledger" subtitle="Match payroll expense to your GL / bank ledger and flag drift." status={stationStatus("J")} />
         <LedgerReconciliationSection invoke={invoke} />
       </>)}
     </div>

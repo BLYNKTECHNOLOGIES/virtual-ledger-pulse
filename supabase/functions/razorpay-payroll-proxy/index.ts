@@ -401,6 +401,26 @@ Deno.serve(async (req) => {
       const r = await opfinView(eid);
       if (!r.ok) return json(200, { ok: false, http_status: r.status, error: r.errText || "Not found" });
 
+      // Block dismissed / inactive Razorpay employees from entering the ERP.
+      const rp = r.body || {};
+      const rpStatus = String(rp.status || "").toLowerCase();
+      if (
+        rpStatus === "dismissed" ||
+        rpStatus === "terminated" ||
+        rpStatus === "resigned" ||
+        rp.is_active === false ||
+        !!rp.date_of_leaving ||
+        !!rp.dismissed_at
+      ) {
+        return json(200, {
+          ok: false,
+          http_status: r.status,
+          skipped: "dismissed",
+          error: "Razorpay employee is dismissed/inactive — import blocked.",
+          razorpay_status: rp.status ?? null,
+        });
+      }
+
       let match = await matchEmployee(svc, r.body);
       let hrId = match.hr_employee_id;
       let created = false;

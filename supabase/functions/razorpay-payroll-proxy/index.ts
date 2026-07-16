@@ -476,6 +476,22 @@ Deno.serve(async (req) => {
         created = true;
       }
       await upsertMap(svc, String(eid), hrId!, true, created);
+      // Project the full Razorpay snapshot into ERP + onboarding row so HR
+      // opens the wizard pre-filled (gender, DOB, department, designation,
+      // DOJ, work_email, bank details when Razorpay returns them).
+      let projDiff: any = null;
+      let obDiff: any = null;
+      try {
+        projDiff = await projectSnapshotIntoErp(svc, hrId!, r.body);
+        obDiff = await projectSnapshotIntoOnboarding(svc, hrId!, r.body);
+        await svc.from("hr_razorpay_employee_map").update({
+          last_pull_snapshot: r.body,
+          last_pulled_at: new Date().toISOString(),
+          last_payload_hash: await canonicalHash(r.body),
+        }).eq("razorpay_employee_id", String(eid));
+      } catch (projErr) {
+        console.error("[apply_one] project failed", (projErr as Error).message);
+      }
       await logSync(svc, {
         action: created ? "create_draft" : "match",
         http_status: r.status,

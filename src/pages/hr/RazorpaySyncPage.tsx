@@ -1249,13 +1249,18 @@ export default function RazorpaySyncPage() {
             <ShieldAlert className="h-4 w-4" /> Step D · Send bank & PAN updates to RazorpayX
           </CardTitle>
           <CardDescription>
-            Isolated write path for account number, IFSC, bank name, PAN and holder name. Every row is validated server-side (PAN pattern, IFSC pattern, non-empty account). Every apply requires the diff-and-confirm dialog — no silent flush.
+            <b>What this does:</b> updates account number, IFSC, bank name, PAN and account holder name on RazorpayX. Kept separate from Step C because a wrong bank means salary lands in the wrong account.
+            <br />
+            <b>Safety catches:</b> PAN and IFSC formats are validated, empty account numbers are rejected, and every send shows a masked before/after preview that you must confirm — nothing goes out silently.
+            <br />
+            <b>Status:</b>{" "}
             {settings?.push_bank_pilot_verified_at
-              ? <> · <span className="text-emerald-600">Bank pilot verified</span></>
-              : <> · <span className="text-amber-600">Bank pilot not yet verified</span></>}
+              ? <span className="text-emerald-600">Test employee verified ✅</span>
+              : <span className="text-amber-600">Test employee not yet run</span>}
+            {" · "}
             {settings?.bulk_bank_push_unlocked
-              ? <> · <span className="text-emerald-600">Bulk bank unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk bank locked</span></>}
+              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

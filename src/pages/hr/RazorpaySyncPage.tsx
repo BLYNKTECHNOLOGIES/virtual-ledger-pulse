@@ -173,7 +173,7 @@ export default function RazorpaySyncPage() {
   const [pullResult, setPullResult] = useState<{ total: number; pulled: number; projected_writes: number; missed: number; errored: number } | null>(null);
   const [gaps, setGaps] = useState<{ total: number; missing_pan: number; missing_doj: number; missing_dept: number; missing_designation: number; missing_bank: number; not_pulled: number } | null>(null);
 
-  // Phase 2 — Probe catalogue
+  // Step B · Check which RazorpayX features are available
   type ProbeRow = {
     phase: string; key: string; mode: "read" | "write";
     status: "ok" | "fail" | "not_probed"; http_status: number | null; error: string | null;
@@ -213,7 +213,7 @@ export default function RazorpaySyncPage() {
   const [salaryApplyResult, setSalaryApplyResult] = useState<SalaryResponse | null>(null);
   const [salaryConfirm, setSalaryConfirm] = useState<{ mode: "one" | "bulk"; row?: SalaryRow } | null>(null);
 
-  // Phase 6 — Monthly attendance / LOP push (discovery-first, envelope-gated)
+  // Step F · Send monthly attendance & LOP to RazorpayX (discovery-first, envelope-gated)
   const [attRpId, setAttRpId] = useState<string>("");
   const [attPeriod, setAttPeriod] = useState<string>(() => {
     const d = new Date();
@@ -908,7 +908,7 @@ export default function RazorpaySyncPage() {
       {/* PHASE 1a — Deep pull + Completion readiness */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Phase 1a — Deep pull &amp; completion readiness</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4" /> Step A · Refresh employee details from RazorpayX</CardTitle>
           <CardDescription>
             Re-fetch <code>people:view</code> for every mapped Razorpay employee and project the payload
             into <code>hr_employees</code> / <code>hr_employee_work_info</code> / <code>hr_employee_bank_details</code>.
@@ -953,7 +953,7 @@ export default function RazorpaySyncPage() {
       {/* PHASE 2 — Probe & envelope catalogue */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Phase 2 — Probe catalogue</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Step B · Check which RazorpayX features are available</CardTitle>
           <CardDescription>
             Discover which Opfin sub-types this Live tenant supports before any push work is designed.
             Read sub-types are probed live against a pilot-verified employee. Write sub-types are listed
@@ -1017,7 +1017,7 @@ export default function RazorpaySyncPage() {
       {/* PHASE 3 — Employee-master push (ERP → Razorpay) */}
       <Card className={canPilot ? "" : "opacity-50 pointer-events-none"}>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Phase 3 — Push identity to Razorpay</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><DownloadCloud className="h-4 w-4 rotate-180" /> Step C · Send name Phase 3 — Push identity to Razorpay contact updates to RazorpayX</CardTitle>
           <CardDescription>
             Push ERP identity/metadata diffs back to RazorpayX via <code>people:update</code>.
             Only <em>name, phone, email, gender, DOB, department, title, DOJ, employee-type</em> are pushed
@@ -1121,7 +1121,7 @@ export default function RazorpaySyncPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4" /> Phase 4 — Bank & PAN push to Razorpay
+            <ShieldAlert className="h-4 w-4" /> Step D · Send bank & PAN updates to RazorpayX
           </CardTitle>
           <CardDescription>
             Isolated write path for account number, IFSC, bank name, PAN and holder name. Every row is validated server-side (PAN pattern, IFSC pattern, non-empty account). Every apply requires the diff-and-confirm dialog — no silent flush.
@@ -1262,32 +1262,32 @@ export default function RazorpaySyncPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ListChecks className="h-4 w-4" /> Phase 5 — Salary structure sync to Razorpay
+            <ListChecks className="h-4 w-4" /> Step E · Send salary structures to RazorpayX
           </CardTitle>
           <CardDescription>
             Pushes ERP's active salary structure (components + total) to Razorpay. Dry-run compares ERP components against Razorpay's last-known snapshot; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">people:update</code>).
             {settings?.push_salary_endpoint_verified
               ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_salary_envelope_key})</span></>
-              : <> · <span className="text-amber-600">Envelope not verified</span></>}
+              : <> · <span className="text-amber-600">Endpoint not confirmed yet</span></>}
             {settings?.push_salary_pilot_verified_at
               ? <> · <span className="text-emerald-600">Salary pilot verified</span></>
-              : <> · <span className="text-muted-foreground">Salary pilot pending</span></>}
+              : <> · <span className="text-muted-foreground">Test employee not run yet</span></>}
             {settings?.bulk_salary_push_unlocked
               ? <> · <span className="text-emerald-600">Bulk salary unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk salary locked</span></>}
+              : <> · <span className="text-muted-foreground">Bulk send locked</span></>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">Discovery-first write path</AlertTitle>
+            <AlertTitle className="text-sm">Waiting for setup confirmation</AlertTitle>
             <AlertDescription className="text-xs">
               The live salary envelope has not been auto-verified. Probe candidate endpoints (Phase 2) with a pilot employee, and once you confirm which sub-type is accepted by Razorpay Live, record it here. Only then will apply buttons unlock.
             </AlertDescription>
           </Alert>
 
           <div className="rounded-md border p-3 bg-muted/20 space-y-2">
-            <div className="text-xs font-medium">Envelope verification</div>
+            <div className="text-xs font-medium">Confirm the API endpoint RazorpayX accepts</div>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
@@ -1428,36 +1428,36 @@ export default function RazorpaySyncPage() {
         </div>
       )}
 
-      {/* Phase 6 — Monthly attendance / LOP push (discovery-first: writes blocked until envelope verified) */}
+      {/* Step F · Send monthly attendance & LOP to RazorpayX (discovery-first: writes blocked until envelope verified) */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ListChecks className="h-4 w-4" /> Phase 6 — Monthly attendance / LOP push
+            <ListChecks className="h-4 w-4" /> Step F · Send monthly attendance & LOP to RazorpayX
           </CardTitle>
           <CardDescription>
             Computes working days, present days, paid leave, and LOP from ERP (attendance + approved leave + holidays), and pushes it to Razorpay for the selected month. Dry-run works pre-verification; live pushes are blocked until an operator records a probe-verified envelope key (e.g. <code className="text-xs px-1 rounded bg-muted">attendance:update</code>).
             {settings?.push_attendance_endpoint_verified
               ? <> · <span className="text-emerald-600">Envelope verified ({settings?.push_attendance_envelope_key})</span></>
-              : <> · <span className="text-amber-600">Envelope not verified</span></>}
+              : <> · <span className="text-amber-600">Endpoint not confirmed yet</span></>}
             {settings?.push_attendance_pilot_verified_at
               ? <> · <span className="text-emerald-600">Attendance pilot verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""}</span></>
-              : <> · <span className="text-muted-foreground">Attendance pilot pending</span></>}
+              : <> · <span className="text-muted-foreground">Test employee not run yet</span></>}
             {settings?.bulk_attendance_push_unlocked
               ? <> · <span className="text-emerald-600">Bulk attendance unlocked</span></>
-              : <> · <span className="text-muted-foreground">Bulk attendance locked</span></>}
+              : <> · <span className="text-muted-foreground">Bulk send locked</span></>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">Discovery-first write path</AlertTitle>
+            <AlertTitle className="text-sm">Waiting for setup confirmation</AlertTitle>
             <AlertDescription className="text-xs">
               The attendance envelope has not been auto-verified against Razorpay Live. Probe candidate sub-types (Phase 2), confirm which one Razorpay accepts, then record it here. LOP is computed as <code>working_days − present_days − paid_leave_days</code> using ERP truth (Sunday + active holidays excluded from working days). Half-day leaves count as 0.5 days.
             </AlertDescription>
           </Alert>
 
           <div className="rounded-md border p-3 bg-muted/20 space-y-2">
-            <div className="text-xs font-medium">Envelope verification</div>
+            <div className="text-xs font-medium">Confirm the API endpoint RazorpayX accepts</div>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
@@ -1811,7 +1811,7 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <ListChecks className="h-4 w-4" /> Phase 7 — Payroll run
+          <ListChecks className="h-4 w-4" /> Step G · Run monthly payroll
         </CardTitle>
         <CardDescription>
           Compute the ERP-truth payroll for a period, dry-run, then push a pilot before bulk apply.
@@ -2091,7 +2091,7 @@ function PayoutReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <DownloadCloud className="h-4 w-4" /> Phase 8 — Payout reconciliation
+          <DownloadCloud className="h-4 w-4" /> Step H · Match payouts (read-only)
         </CardTitle>
         <CardDescription>
           Pull actual disbursements from Razorpay for a period and reconcile against the ERP payroll run.
@@ -2345,7 +2345,7 @@ function PayslipTaxDocSection({ invoke }: { invoke: <T,>(body: object) => Promis
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <DownloadCloud className="h-4 w-4" /> Phase 9 — Payslip &amp; tax-doc ingestion
+          <DownloadCloud className="h-4 w-4" /> Step I · Download payslips & tax documents
         </CardTitle>
         <CardDescription>
           Pull monthly payslips and yearly tax documents (Form 16, Form 12BA) from Razorpay.
@@ -2681,7 +2681,7 @@ function LedgerReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Lock className="h-4 w-4" /> Phase 10 — Ledger reconciliation
+          <Lock className="h-4 w-4" /> Step J · Reconcile with accounting ledger
         </CardTitle>
         <CardDescription>Match Razorpay payouts against bank_transactions, waive with reason, and hard-lock the month.</CardDescription>
       </CardHeader>

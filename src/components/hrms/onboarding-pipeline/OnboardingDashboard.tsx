@@ -63,12 +63,30 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
   const { data: records, isLoading } = useQuery({
     queryKey: ["onboarding-pipeline-records"],
     queryFn: async () => {
+      // Self-heal: create draft onboarding rows for any inactive employees that lack one
+      try { await supabase.rpc("ensure_onboarding_for_orphans" as any); } catch {}
       const { data, error } = await supabase
         .from("hr_employee_onboarding")
         .select("id, first_name, last_name, email, status, current_stage, department_id, created_at, employee_id")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as OnboardingRecord[];
+    },
+  });
+
+  const employeeIds = (records || []).map(r => r.employee_id).filter(Boolean) as string[];
+  const { data: completeness } = useQuery({
+    queryKey: ["onboarding-completeness", employeeIds.sort().join(",")],
+    enabled: employeeIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_employee_completeness" as any)
+        .select("employee_id, has_bank, has_salary, has_doj, has_designation")
+        .in("employee_id", employeeIds);
+      if (error) throw error;
+      const map: Record<string, { has_bank: boolean; has_salary: boolean; has_doj: boolean; has_designation: boolean }> = {};
+      for (const row of (data || []) as any[]) map[row.employee_id] = row;
+      return map;
     },
   });
 
@@ -176,6 +194,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <th className="text-left p-3 font-medium">Email</th>
                     <th className="text-left p-3 font-medium">Stage</th>
                     <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">Checklist</th>
                     <th className="text-left p-3 font-medium">Started</th>
                     <th className="text-left p-3 font-medium">Action</th>
                   </tr>
@@ -196,6 +215,29 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                         <Badge className={`text-xs ${STATUS_COLORS[r.status] || ""}`}>
                           {r.status.replace("_", " ")}
                         </Badge>
+                      </td>
+                      <td className="p-3">
+                        {(() => {
+                          const c = r.employee_id ? completeness?.[r.employee_id] : undefined;
+                          const item = (label: string, ok: boolean | undefined) => (
+                            <span
+                              key={label}
+                              title={`${label}: ${ok ? "complete" : "missing"}`}
+                              className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${
+                                ok ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {ok ? "✓" : "○"} {label}
+                            </span>
+                          );
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {item("Bank", c?.has_bank)}
+                              {item("Salary", c?.has_salary)}
+                              {item("DOJ", c?.has_doj)}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="p-3 text-muted-foreground">
                         {format(new Date(r.created_at), "dd MMM yyyy")}

@@ -66,6 +66,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
     if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
+    // Payability warning (S2): confirm activation of an employee who can't be paid yet
+    const docs = (onboardingRecord?.documents as any) || {};
+    const hasBank = !!docs.bank_details?.value;
+    const hasSalary = !!(onboardingRecord?.salary_template_id || Number(onboardingRecord?.ctc) > 0);
+    if (!hasBank || !hasSalary) {
+      const missing = [!hasBank && "Bank details", !hasSalary && "Salary/CTC"].filter(Boolean).join(" & ");
+      if (!window.confirm(`${missing} missing. Activate anyway? Payroll will fail until these are filled.`)) {
+        return false;
+      }
+    }
     return true;
   };
 

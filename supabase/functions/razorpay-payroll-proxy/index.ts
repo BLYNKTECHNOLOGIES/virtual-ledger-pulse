@@ -604,7 +604,8 @@ Deno.serve(async (req) => {
           try { parsed = JSON.parse(raw); } catch { /* keep raw */ }
           const topKeys = parsed && typeof parsed === "object" && !Array.isArray(parsed)
             ? Object.keys(parsed).slice(0, 20) : null;
-          const errText = parsed && typeof parsed === "object" ? (parsed.error || parsed.message || null) : null;
+          const errRaw = parsed && typeof parsed === "object" ? (parsed.error ?? parsed.message ?? null) : null;
+          const errText = errRaw == null ? null : (typeof errRaw === "string" ? errRaw : JSON.stringify(errRaw));
           const looksMissing = res.status === 404
             || (typeof errText === "string" && /unknown|not\s*found|invalid\s*sub[-_ ]?type/i.test(errText));
           rows.push({

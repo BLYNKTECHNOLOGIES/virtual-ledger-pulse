@@ -193,9 +193,9 @@ export function BulkCompletionPanel() {
       <CardContent className="p-0">
         {isLoading ? (
           <div className="p-6 text-center text-xs text-muted-foreground">Loading…</div>
-        ) : rows.length === 0 ? (
+        ) : visibleRows.length === 0 ? (
           <div className="p-6 text-center text-xs text-muted-foreground">
-            🎉 No incomplete drafts. Everyone linked to onboarding has bank, salary,
+            🎉 No incomplete drafts{gapLabel ? ` missing ${gapLabel.toLowerCase()}` : ""}. Everyone linked to onboarding has bank, salary,
             DOJ and designation on file.
           </div>
         ) : (
@@ -203,8 +203,26 @@ export function BulkCompletionPanel() {
             {/* Action bar */}
             <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2 bg-muted/30">
               <Badge variant="secondary" className="text-xs">
-                {selected.size} selected / {rows.length} incomplete
+                {selected.size} selected / {visibleRows.length} incomplete
               </Badge>
+              {gapFilter && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  Filter: missing {gapLabel?.toLowerCase()}
+                  <button
+                    type="button"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.delete("gap");
+                      setSearchParams(next, { replace: true });
+                    }}
+                    aria-label="Clear filter"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+
               <div className="ml-auto flex flex-wrap gap-2">
                 <Button
                   size="sm"

@@ -1,87 +1,66 @@
-## Goal
+# HRMS UI Refinement — Medium Refresh
 
-Bring `razorpay-payroll-proxy` and its probe UI into exact alignment with the RazorpayX Payroll (Opfin) Postman collection you provided. Fix the wrong sub-types / paths we're currently calling, drop the ghost endpoint, and expose the 12 real endpoints we never wired.
+Refine every major HRMS surface with a consistent visual language. No business logic, permissions, data flows, or workflow changes — presentation only. All colors go through semantic tokens so light and dark themes stay aligned.
 
-## The 18 real endpoints (source of truth from your Postman JSON)
+## Design language (applied everywhere)
 
-```text
-POST /api/people             people/create, people/edit, people/view, people/set-salary, people/dismiss
-POST /api/payroll            payroll/view-payroll, payroll/add-additions, payroll/add-deduction,
-                             payroll/reset-modifications, payroll/do-not-pay
-POST /api/contractorPayment  contractor-payment/create, contractor-payment/delete,
-                             contractor-payment/list-pending, contractor-payment/get-status
-POST /api/att                attendance/modify, attendance/fetch
-PATCH /api/att               attendance/modify
-POST /api/advanceSalary      advance-salary/create
-```
+- **Section anatomy**: eyebrow (uppercase 10px tracked) → title → helper line → content. Consistent card padding (`p-4 sm:p-6`), 12–14px radius, hairline border, optional soft tinted gradient by state.
+- **Status system**: emerald = done/ok, primary = active/in-progress, amber = pending/attention, destructive = failed, muted = locked/neutral. Same pill shape everywhere: rounded-full, 10px uppercase, bordered, tinted 10% bg.
+- **Numbers**: `tabular-nums` on every metric, count, percentage, currency. Stat cards get a single accent glyph, a large tabular number, and a one-line delta.
+- **Typography rhythm**: page H1 24/28 semibold tracking-tight; section H2 18 semibold; card title 15/16 semibold; body 13–14; helper 12 muted. Line-height slightly relaxed for helpers.
+- **Density**: keep information density but add breathing room between grouped controls (`gap-3`) and between sections (`space-y-6`). Sticky sub-headers where lists get long.
+- **Motion**: 150–200ms transitions on hover/active, subtle scale-95 on tap, no bounce.
 
-Everything else our proxy currently references (`people/update`, `attendance/update`, `payroll/run`, `payouts/view`, `salary-structure/*`, `payslip/*`, `tds/*`, `webhook/*`, `bank-details/view`) does not exist in the Opfin API.
+## Scope by area
 
-## Changes
+### 1. HR shell (HorillaHeader, HRMS layout, home dashboard)
 
-### 1. Fix wrong sub-types / paths (in place, no UI change)
-- `people/update` → `people/edit` (three call sites in the proxy).
-- Attendance default envelope `attendance/update` on `/api/attendance` → `attendance/modify` on `/api/att`. Operator-set envelope override is preserved but normalized to the doc's path when the sub-type is `modify`.
+- Refine `HorillaHeader`: tighter height on mobile, clearer active-route indicator, cleaner dark-mode toggle grouping with the profile menu, and a compact breadcrumb slot.
+- Left rail: unified active-state (left accent bar + tinted row), consistent icon size, collapsible on desktop with tooltips, off-canvas drawer on mobile.
+- HR home cards: convert to a bento-style grid (2 cols on mobile, 3–4 on desktop) with tokenized stat cards, delta chips, and an "Alerts" strip for onboarding gaps and pending approvals.
 
-### 2. Drop the ghost `payouts/view` endpoint
-Phase 8 `pull_payouts` currently calls `POST /api/payouts` — that URL is not in the doc. Rewire it to:
-- Employees → `payroll/view-payroll` for the target period (returns per-employee net + payout status).
-- Contractors (future) → `contractor-payment/get-status`.
+### 2. Onboarding & Employee list
 
-No DB schema change. Existing `hr_razorpay_payout_records` rows keep their meaning; only the fetch source changes.
+- Onboarding dashboard header: page title, description, and primary actions in a single sticky bar; secondary filters collapse under a "Filters" chevron on mobile.
+- Completeness pills: single unified pill component (DOJ • Designation • Bank • Salary • Identity) with a tri-state (missing / partial / done); tap to jump to the missing section.
+- Bulk Completion Panel: split into three quiet cards (Salary, Work info, Bank) each with an inline preview row of what will change; footer summary always visible on mobile.
+- Employee list rows: avatar + name + subtitle (badge id · department), status pill on the right, completeness dots underneath on mobile. Swipe row → open profile drawer on mobile.
+- Employee profile: consistent tabbed header (Overview / Work / Payroll / Bank / History) using shadcn tabs, hero card with avatar + key facts, and section cards below.
 
-### 3. Rewrite the probe catalogue to the 18 real endpoints
-- `probe_endpoint` READONLY allowlist replaced with only endpoints that have a real read variant: `people/view`, `payroll/view-payroll`, `contractor-payment/list-pending`, `contractor-payment/get-status`, `attendance/fetch`.
-- `probe_catalogue` CATALOGUE replaced with the 18-row matrix above, phased as:
-  - Phase 1 — Import: `people/view`
-  - Phase 3 — Master push: `people/create`, `people/edit`
-  - Phase 5 — Salary: `people/set-salary`
-  - Phase 6 — Attendance: `attendance/fetch` (read), `attendance/modify` (write)
-  - Phase 7 — Payroll: `payroll/view-payroll` (read), plus `add-additions`, `add-deduction`, `reset-modifications`, `do-not-pay` (writes, not_probed)
-  - Phase 8 — Payout: `payroll/view-payroll` (read reuse), `contractor-payment/get-status` (read)
-  - Phase 9 — Separation: `people/dismiss` (write)
-  - Contractor Payments (new panel in Advanced view): all 4 sub-types
-  - Advance Salary (new panel): `advance-salary/create` (write)
-- Everything else previously listed (`salary-structure:*`, `payslip:*`, `tds:*`, `webhook:*`, `bank-details:view`, `people:list`) is removed — those were the "fails" HR was seeing.
+### 3. Attendance & Biometric
 
-### 4. Expose the 12 missing actions
+- Attendance tabs: sticky month/team filters, day cells with tokenized state colors (present / absent / leave / holiday / weekly-off), legend in a collapsible accordion.
+- Punch view: two-column timeline (in / out) with device chip, replacing the current text-heavy list.
+- Biometric Devices page: card grid with device status dot (online/offline/never-seen), last-heartbeat relative time, and a compact "commands queue" strip. Details drawer instead of full-page modals.
+- Biometric Device Data Dialog: staged progress (Fetch → Acknowledge → Cleanup) with a linear stepper and live counts.
 
-Add these top-level proxy actions, each a thin wrapper that hits the correct path with the correct sub-type and validates gates (endpoint-verified where applicable):
+### 4. Payroll & RazorpayX Sync
 
-```text
-people_create              people/create           gated: identity endpoint verified
-people_dismiss             people/dismiss          gated: identity endpoint verified + explicit ack
-payroll_view               payroll/view-payroll    read, no gate
-payroll_add_additions      payroll/add-additions   gated: payroll endpoint verified
-payroll_add_deduction      payroll/add-deduction   gated: payroll endpoint verified
-payroll_reset_modifications payroll/reset-modifications gated: payroll endpoint verified
-payroll_do_not_pay         payroll/do-not-pay      gated: payroll endpoint verified
-contractor_payment_create  contractor-payment/create gated: payout endpoint verified
-contractor_payment_delete  contractor-payment/delete gated: payout endpoint verified
-contractor_payment_list_pending contractor-payment/list-pending read, no gate
-contractor_payment_status  contractor-payment/get-status read, no gate
-advance_salary_create      advance-salary/create   gated: payroll endpoint verified
-attendance_fetch           attendance/fetch        read, no gate
-```
+- Salary Revision Dialog: three-step layout (Effective date → New CTC & break-up → Review), sticky footer with primary action, mobile full-height.
+- Payroll pages: run-month picker as a segmented control, KPI strip (headcount • gross • net • tax • pending) using the shared stat card.
+- RazorpayX Sync page: keep the station roadmap already refined; align surrounding cards to the new anatomy (eyebrow + title + helper), unify the "How this page works" glossary as a dismissible callout, and give the Simple/Advanced toggle a segmented control style.
+- Bulk Push confirmation dialogs: consistent masked-value chips and a diff-preview list with additions/removals color-tokenized.
 
-Every write action appends a row to `hr_razorpay_sync_log` (existing table) with actor, action, target IDs, and response summary — same discipline as the existing writes.
+## Order of execution
 
-### 5. UI
+1. HR shell + shared primitives (StatCard, SectionHeader, StatusPill, CompletenessPill, Stepper) — 1 pass, unlocks the rest.
+2. RazorpayX Sync + Salary Revision (payroll cluster).
+3. Onboarding dashboard, Bulk Completion, Employee list & profile.
+4. Attendance tabs, Punch view, Biometric devices.
 
-- Simple view: no visible change (still Check / Test one / Import everyone).
-- Advanced view: probe catalogue now shows the 18 endpoints only; the "many fails" you were seeing disappear because the ghost sub-types are gone. No new tabs are added in this pass — the 12 new actions are available via the proxy for follow-up UI phases (contractor payments panel, advance salary panel).
+Each step is a self-contained batch; the app stays functional between batches.
 
-## Not in this pass
+## Technical notes
 
-- No new UI panels for contractor payments / advance salary / payroll modifications — that's a follow-up once you decide which HR roles operate them.
-- No DB schema changes.
-- No behavioral change to Phases 1–6 for existing verified envelopes — only defaults and wrong sub-types are corrected.
+- Add reusable primitives under `src/components/hrms/` (SectionHeader, StatCard, StatusPill, CompletenessPill, Stepper, KpiStrip). All use `cn` + semantic tokens, no hardcoded colors.
+- Extend `index.css` only if a new token is truly missing (e.g. `--warning`, `--warning-foreground`). Prefer using existing `--primary`, `--muted`, `--accent`, `--destructive`, `--emerald-*` via tailwind's palette for status accents.
+- Zero changes to: routes, permissions, RPCs, edge functions, database, react-query keys, forms' validation, or any business rule (payroll math, LOP, KYC, RazorpayX pilots, biometric ack, etc.).
+- Mobile: every long list gets `overflow-x-auto no-scrollbar` rails or vertical stacks; every dialog fills the viewport on `sm` down; every sticky bar respects safe-area insets.
 
-## Verification
+## Out of scope
 
-- `probe_catalogue` returns 18 rows, no `[object Object]` errors, no 404s for reads that exist.
-- `people/edit` (the corrected identity write) passes envelope verification for a pilot employee.
-- `pull_payouts` reads from `payroll/view-payroll` for the current month without touching the ghost path.
-- Existing verified envelopes on the DB remain valid; anything using the wrong sub-type is auto-migrated on save.
+- No new features, no data-model or API changes.
+- No changes to notification behavior, toasts copy, or existing dialogs' fields.
+- No changes to auth, RLS, or edge functions.
 
-Approve and I'll implement in one pass.
+I'll start with step 1 (shell + shared primitives) once you approve.

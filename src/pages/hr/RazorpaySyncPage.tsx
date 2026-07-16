@@ -132,6 +132,8 @@ interface DryRunRow {
   hr_employee_id?: string | null;
   applied?: boolean; created?: boolean;
   note?: string;
+  /** Populated by the edge fn on server errors / apply exceptions. */
+  error?: string;
 }
 interface DryRunResponse {
   ok: boolean;

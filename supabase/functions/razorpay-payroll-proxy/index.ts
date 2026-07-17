@@ -106,18 +106,31 @@ async function opfinSalary(employeeId: number): Promise<{
 
   // Razorpay Opfin exposes the salary block under a few different envelope
   // shapes depending on tenant / product version. Try each until one returns
-  // a usable annual CTC. Silent on individual failures.
+  // a usable annual CTC. We log EVERY attempt (not just the last) so a single
+  // Deep Pull run reveals which envelope this tenant actually accepts.
   const attempts: Array<{ urlPath: string; type: string; subType: string }> = [
-    { urlPath: "people", type: "people", subType: "view-salary" },
-    { urlPath: "people", type: "people", subType: "salary" },
-    { urlPath: "people", type: "salary", subType: "view" },
-    { urlPath: "salary", type: "salary", subType: "view" },
-    { urlPath: "salary", type: "salary", subType: "view-salary" },
+    // Documented Postman variants
+    { urlPath: "people",           type: "people",           subType: "view-salary" },
+    { urlPath: "people",           type: "people",           subType: "view-emp-salary" },
+    { urlPath: "people",           type: "people",           subType: "get-salary" },
+    { urlPath: "people",           type: "people",           subType: "salary" },
+    // Salary-structure surface
+    { urlPath: "salaryStructure",  type: "salary-structure", subType: "view" },
+    { urlPath: "salaryStructure",  type: "salary-structure", subType: "get" },
+    { urlPath: "salaryStructure",  type: "salary-structure", subType: "view-structure" },
+    { urlPath: "salary-structure", type: "salary-structure", subType: "view" },
+    // Salary surface
+    { urlPath: "salary",           type: "salary",           subType: "view" },
+    { urlPath: "salary",           type: "salary",           subType: "get" },
+    // Legacy shapes retained for completeness
+    { urlPath: "people",           type: "salary",           subType: "view" },
+    { urlPath: "salary",           type: "salary",           subType: "view-salary" },
   ];
 
   let lastErr: string | null = null;
   let lastStatus = 0;
   let lastRaw: any = null;
+  const perAttempt: string[] = [];
 
   for (const a of attempts) {
     const ctrl = new AbortController();
@@ -137,50 +150,70 @@ async function opfinSalary(employeeId: number): Promise<{
       let body: any = null; try { body = JSON.parse(raw); } catch { /* keep raw */ }
       lastStatus = res.status;
       lastRaw = body ?? raw;
+      const tag = `${a.urlPath}:${a.type}/${a.subType}`;
+
       if (!res.ok || !body || typeof body !== "object") {
-        lastErr = `HTTP ${res.status} @ ${a.urlPath}:${a.type}/${a.subType} ${String(raw).slice(0, 200)}`;
+        // Collapse HTML 404 pages to a compact marker
+        const isHtml = typeof raw === "string" && raw.trim().startsWith("<");
+        const snip = isHtml ? "<HTML>" : String(raw).slice(0, 120);
+        const line = `HTTP ${res.status} @ ${tag} ${snip}`;
+        perAttempt.push(line);
+        lastErr = line;
         continue;
       }
       const rpErr = body.error || body.message || null;
       if (rpErr) {
-        lastErr = `${a.urlPath}:${a.type}/${a.subType} ${typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr).slice(0, 200)}`;
+        const line = `RPERR @ ${tag} ${typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr).slice(0, 150)}`;
+        perAttempt.push(line);
+        lastErr = line;
         continue;
       }
 
-      // Walk a few plausible containers for the salary block.
+      // Walk plausible containers for the salary block.
       const containers = [
         body,
         body.salary,
         body["salary-structure"],
         body.salary_structure,
+        body.structure,
         body.data,
         body?.data?.salary,
+        body?.data?.["salary-structure"],
         body?.response,
         body?.response?.salary,
+        body?.result,
+        body?.result?.salary,
       ].filter((x) => x && typeof x === "object");
 
       let annual: number | null = null;
       let monthly: number | null = null;
       let comps: any[] = [];
       for (const c of containers) {
-        if (annual == null) annual = readNum(c, ["ctc-annual", "ctc_annual", "annual_ctc", "annual-ctc", "ctc", "ctc-yearly", "annual-salary"]);
-        if (monthly == null) monthly = readNum(c, ["monthly-gross", "monthly_gross", "gross", "gross-monthly", "monthly-ctc"]);
+        if (annual == null) annual = readNum(c, ["ctc-annual", "ctc_annual", "annual_ctc", "annual-ctc", "ctc", "ctc-yearly", "annual-salary", "annual-gross"]);
+        if (monthly == null) monthly = readNum(c, ["monthly-gross", "monthly_gross", "gross", "gross-monthly", "monthly-ctc", "monthly-salary"]);
         if (!comps.length && Array.isArray((c as any).components)) comps = (c as any).components;
+        if (!comps.length && Array.isArray((c as any).earnings)) comps = (c as any).earnings;
       }
-      // Fallback: infer annual from monthly if only monthly is present.
       if (annual == null && monthly && monthly > 0) annual = Math.round(monthly * 12);
 
       if (annual || monthly || comps.length) {
+        console.log(`[opfinSalary] emp=${employeeId} MATCH @ ${tag} annual=${annual} monthly=${monthly} comps=${comps.length}`);
         return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: comps, raw: body, http_status: res.status, err: null };
       }
-      lastErr = `no salary fields @ ${a.urlPath}:${a.type}/${a.subType} keys=${Object.keys(body).slice(0, 15).join(",")}`;
+      const line = `no salary fields @ ${tag} keys=${Object.keys(body).slice(0, 15).join(",")}`;
+      perAttempt.push(line);
+      lastErr = line;
     } catch (e) {
-      lastErr = `NETWORK ${a.urlPath}: ${(e as Error).message}`;
+      const line = `NETWORK ${a.urlPath}: ${(e as Error).message}`;
+      perAttempt.push(line);
+      lastErr = line;
     } finally { clearTimeout(t); }
   }
-  console.log(`[opfinSalary] emp=${employeeId} all attempts failed: ${lastErr}`);
+  // Emit ALL attempts on a single line so the failure surface is visible without hunting through logs.
+  console.log(`[opfinSalary] emp=${employeeId} ALL ATTEMPTS FAILED | ${perAttempt.join(" || ")}`);
   return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr };
 }
+
 
 
 
@@ -495,15 +528,28 @@ async function projectSnapshotIntoOnboarding(
 
   // CTC comes from the salary sub-response injected onto snap.__salary by the
   // pull flow. Fall back to any legacy salary block that may already be on the
-  // snapshot root.
-  const salaryBlock = snap?.__salary || snap?.salary || null;
-  const ctcAnnual: number | null =
-    (salaryBlock && (
-      Number(salaryBlock.annual_ctc) ||
-      Number(salaryBlock["ctc-annual"]) ||
-      Number(salaryBlock.ctc_annual) ||
-      Number(salaryBlock.ctc)
-    )) || null;
+  // snapshot root, and finally to top-level fields (some tenants inline salary
+  // keys directly on person view).
+  const readNumAny = (obj: any, keys: string[]): number | null => {
+    if (!obj || typeof obj !== "object") return null;
+    for (const k of keys) {
+      const v = obj[k];
+      const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : v;
+      if (typeof n === "number" && Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+  };
+  const CTC_KEYS = ["annual_ctc","ctc-annual","ctc_annual","ctc","annual-ctc","ctc-yearly","annual-salary","annual-gross"];
+  const MONTHLY_KEYS = ["monthly-gross","monthly_gross","gross","monthly-ctc","monthly-salary"];
+  const salaryBlock = snap?.__salary || snap?.salary || snap?.["salary-structure"] || snap?.salary_structure || null;
+  let ctcAnnual: number | null =
+    readNumAny(salaryBlock, CTC_KEYS) ||
+    readNumAny(snap, CTC_KEYS);
+  if (!ctcAnnual) {
+    const monthly = readNumAny(salaryBlock, MONTHLY_KEYS) || readNumAny(snap, MONTHLY_KEYS);
+    if (monthly && monthly > 0) ctcAnnual = Math.round(monthly * 12);
+  }
+
 
   const incoming: Record<string, any> = {
     first_name: pickString(snap?.first_name, first) || null,

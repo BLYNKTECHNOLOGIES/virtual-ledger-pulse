@@ -33,17 +33,48 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
   const [emailSending, setEmailSending] = useState(false);
   const [mailReceivedDate, setMailReceivedDate] = useState("");
 
-  const [docs, setDocs] = useState<Record<string, { received: boolean; value: string }>>({});
+  const [docs, setDocs] = useState<Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }>>({});
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   useEffect(() => {
     const existing = (data?.documents && typeof data.documents === "object") ? data.documents : {};
-    const init: Record<string, { received: boolean; value: string }> = {};
+    const init: Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }> = {};
     DOC_FIELDS.forEach(f => {
-      init[f.key] = { received: existing[f.key]?.received || false, value: existing[f.key]?.value || "" };
+      init[f.key] = {
+        received: existing[f.key]?.received || false,
+        value: existing[f.key]?.value || "",
+        file_url: existing[f.key]?.file_url || "",
+        file_name: existing[f.key]?.file_name || "",
+      };
     });
     setDocs(init);
     setMailReceivedDate(data?.document_mail_received_at || "");
   }, [data]);
+
+  const handleUpload = async (key: string, file: File) => {
+    if (!file) return;
+    setUploadingKey(key);
+    try {
+      const empId = onboardingData?.id || onboardingData?.employee_id || "onboarding";
+      const safe = file.name.replace(/[^\w.\-]+/g, "_").slice(-120);
+      const path = `onboarding/${empId}/${key}/${Date.now()}_${safe}`;
+      const uploaded = await smartUpload({ bucket: "employee-documents", path, file, contentType: file.type || undefined });
+      const { data: urlD } = supabase.storage.from("employee-documents").getPublicUrl(uploaded);
+      setDocs(prev => ({
+        ...prev,
+        [key]: { ...prev[key], received: true, file_url: urlD?.publicUrl || "", file_name: file.name },
+      }));
+      toast.success(`${file.name} uploaded`);
+    } catch (err: any) {
+      toast.error(err?.message || "Upload failed");
+    } finally {
+      setUploadingKey(null);
+    }
+  };
+
+  const removeFile = (key: string) => {
+    setDocs(prev => ({ ...prev, [key]: { ...prev[key], file_url: "", file_name: "" } }));
+  };
 
   const sendDocRequestEmail = async () => {
     if (!onboardingData?.email || !onboardingData?.first_name) {

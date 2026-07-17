@@ -51,6 +51,40 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     enabled: !!linkedEmpId,
   });
 
+  // Auto-pull bank/IFSC from Razorpay for pending onboardings that were imported
+  // from Razorpay but haven't had their bank details projected yet. Runs once
+  // per open of the wizard, silently — if it fails (permissions, offline
+  // employee, or no Razorpay bank block) the operator can still type manually.
+  const queryClient = useQueryClient();
+  const pulledRef = useRef(false);
+  useEffect(() => {
+    if (pulledRef.current) return;
+    if (!linkedEmpId) return;
+    if (existingBank?.account_number) return; // already have it
+    let cancelled = false;
+    (async () => {
+      const { data: mapRow } = await supabase
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", linkedEmpId)
+        .maybeSingle();
+      const rpId = (mapRow as any)?.razorpay_employee_id;
+      if (!rpId || cancelled) return;
+      pulledRef.current = true;
+      try {
+        await supabase.functions.invoke("razorpay-payroll-proxy", {
+          body: { action: "pull_person_full", razorpay_employee_ids: [String(rpId)] },
+        });
+        if (!cancelled) {
+          queryClient.invalidateQueries({ queryKey: ["stage5-bank", linkedEmpId] });
+        }
+      } catch {
+        // Silent — form still lets operator enter bank details manually.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [linkedEmpId, existingBank, queryClient]);
+
   useEffect(() => {
     if (onboardingRecord) {
       const bd = (onboardingRecord.bank_details as any) || {};

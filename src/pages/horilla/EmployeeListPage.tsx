@@ -674,6 +674,39 @@ export default function EmployeeListPage() {
           Select ({sorted.length})
         </button>
 
+        {/* Quick view toggle: Active / Separated / All */}
+        {(() => {
+          const activeVal = activeFilters.find(f => f.field === "is_active")?.value;
+          const current = activeVal === "true" ? "active" : activeVal === "false" ? "separated" : "all";
+          const setView = (view: "active" | "separated" | "all") => {
+            const rest = activeFilters.filter(f => f.field !== "is_active");
+            if (view === "active") setActiveFilters([...rest, { field: "is_active", label: "Is active", value: "true", displayValue: "True" }]);
+            else if (view === "separated") setActiveFilters([...rest, { field: "is_active", label: "Is active", value: "false", displayValue: "False" }]);
+            else setActiveFilters(rest);
+          };
+          const btn = (view: "active" | "separated" | "all", label: string) => (
+            <button
+              key={view}
+              onClick={() => setView(view)}
+              className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                current === view
+                  ? "bg-[#00bcd4] text-white border-[#00bcd4]"
+                  : "bg-card text-foreground border-border hover:border-[#00bcd4]/50"
+              }`}
+            >
+              {label}
+            </button>
+          );
+          return (
+            <div className="flex items-center gap-1">
+              {btn("active", "Active")}
+              {btn("separated", "Separated")}
+              {btn("all", "All")}
+            </div>
+          );
+        })()}
+
+
         {/* Active filters */}
         {activeFilters.length > 0 && (
           <>

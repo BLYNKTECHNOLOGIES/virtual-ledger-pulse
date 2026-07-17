@@ -308,6 +308,33 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
       await logAudit(recordId, 5, "finalized", { employee_id: emp.id });
 
+      // 6b. Optionally create employee in RazorpayX Payroll.
+      //     Only if the operator toggled it on Stage 5 AND we have no prior
+      //     mapping (guard also enforced server-side). Non-fatal on failure —
+      //     the ERP employee is already created; HR can retry from the profile.
+      if (stage5Data?.create_in_razorpay) {
+        try {
+          const { data: rpRes, error: rpErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+            body: { action: "create_person", hr_employee_id: emp.id },
+          });
+          if (rpErr) throw new Error(rpErr.message || "Razorpay create failed");
+          if (rpRes?.ok === false) {
+            const detail = rpRes?.missing?.length
+              ? `Missing: ${rpRes.missing.join(", ")}`
+              : (rpRes?.error || rpRes?.reason || "Razorpay rejected the request");
+            throw new Error(detail);
+          }
+          await logAudit(recordId, 5, "razorpay_person_created", {
+            razorpay_employee_id: rpRes?.razorpay_employee_id,
+          });
+          toast.success(`Created in Razorpay (ID: ${rpRes?.razorpay_employee_id})`);
+        } catch (rpErr: any) {
+          console.error("Razorpay create failed:", rpErr);
+          toast.error(`Razorpay: ${rpErr.message}`);
+          await logAudit(recordId, 5, "razorpay_person_failed", { error: rpErr.message });
+        }
+      }
+
       // 7. ERP account creation if create_erp_account is true
       if (r.create_erp_account && r.erp_role_id) {
         try {

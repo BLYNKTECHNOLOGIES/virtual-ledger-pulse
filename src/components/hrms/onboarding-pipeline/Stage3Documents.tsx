@@ -178,27 +178,89 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         {/* Document checklist */}
         <div className="space-y-3">
           <p className="text-sm font-medium">Document Checklist</p>
-          {DOC_FIELDS.map(f => (
-            <div key={f.key} className="flex items-center gap-3 p-2 rounded border">
-              <Switch
-                checked={docs[f.key]?.received || false}
-                onCheckedChange={() => toggleDoc(f.key)}
-                disabled={readOnly}
-              />
-              <div className="flex-1">
-                <span className="text-sm">{f.label}</span>
-                {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
+          {DOC_FIELDS.map(f => {
+            const d = docs[f.key];
+            const isUploading = uploadingKey === f.key;
+            return (
+              <div key={f.key} className="p-3 rounded border space-y-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Switch
+                    checked={d?.received || false}
+                    onCheckedChange={() => toggleDoc(f.key)}
+                    disabled={readOnly}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm">{f.label}</span>
+                    {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
+                  </div>
+                  {mode === "manual" && !readOnly && (
+                    <Input
+                      placeholder={`${f.label} number`}
+                      className="max-w-[180px] h-8"
+                      value={d?.value || ""}
+                      onChange={e => updateDocValue(f.key, e.target.value)}
+                    />
+                  )}
+                </div>
+                {!readOnly && (
+                  <div className="flex items-center gap-2 flex-wrap pl-1">
+                    {d?.file_url ? (
+                      <>
+                        <a
+                          href={d.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary underline flex items-center gap-1 max-w-[220px] truncate"
+                        >
+                          <Paperclip className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{d.file_name || "View file"}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => removeFile(f.key)}
+                        >
+                          <X className="h-3 w-3 mr-1" /> Remove
+                        </Button>
+                      </>
+                    ) : (
+                      <label className="inline-flex items-center gap-1 text-xs cursor-pointer text-muted-foreground hover:text-foreground border border-dashed rounded px-2 py-1">
+                        {isUploading ? (
+                          <><Loader2 className="h-3 w-3 animate-spin" /> Uploading...</>
+                        ) : (
+                          <><Upload className="h-3 w-3" /> Upload file</>
+                        )}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                          disabled={isUploading}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleUpload(f.key, file);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
+                {readOnly && d?.file_url && (
+                  <a
+                    href={d.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary underline flex items-center gap-1 pl-1"
+                  >
+                    <Paperclip className="h-3 w-3" /> {d.file_name || "View file"}
+                  </a>
+                )}
               </div>
-              {mode === "manual" && !readOnly && (
-                <Input
-                  placeholder={`${f.label} number/details`}
-                  className="max-w-[200px]"
-                  value={docs[f.key]?.value || ""}
-                  onChange={e => updateDocValue(f.key, e.target.value)}
-                />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Mail received date */}

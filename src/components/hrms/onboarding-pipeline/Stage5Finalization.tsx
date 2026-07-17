@@ -411,6 +411,50 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
 
 
 
+        {/* RazorpayX Payroll — create employee record */}
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Cloud className="h-4 w-4 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Also create in RazorpayX Payroll</p>
+              <p className="text-xs text-muted-foreground">
+                {alreadyInRazorpay
+                  ? "Already linked to a Razorpay employee — no action needed."
+                  : "Provisions this employee directly in Razorpay Payroll so they show up in the next payroll run."}
+              </p>
+            </div>
+            <Switch
+              checked={form.create_in_razorpay}
+              onCheckedChange={v => setForm(p => ({ ...p, create_in_razorpay: v }))}
+              disabled={readOnly || alreadyInRazorpay}
+            />
+          </div>
+          {form.create_in_razorpay && !alreadyInRazorpay && (
+            <div className="pl-2 border-l-2 ml-1 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Razorpay create checklist</p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                {razorpayChecklist.items.map(it => (
+                  <li key={it.key} className="flex items-center gap-1.5">
+                    {it.ok
+                      ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                      : <XCircle className="h-3 w-3 text-destructive shrink-0" />}
+                    <span className={it.ok ? "" : "text-destructive"}>{it.label}</span>
+                  </li>
+                ))}
+              </ul>
+              {!razorpayChecklist.allOk && (
+                <p className="text-xs text-destructive flex items-start gap-1">
+                  <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                  <span>Fill the missing fields above (Stage 3 for PAN, Stage 1 for department, this stage for DOJ/bank) before enabling.</span>
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Razorpay will trigger a penny-drop verification on the bank account; payouts remain blocked until it clears.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* ERP Account */}
         <div className="rounded-lg border p-4 space-y-3">
           <div className="flex items-center gap-3">

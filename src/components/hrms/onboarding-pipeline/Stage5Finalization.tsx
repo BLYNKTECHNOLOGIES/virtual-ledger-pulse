@@ -243,6 +243,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         create_erp_account: form.create_erp_account,
         erp_role_id: form.erp_role_id,
         reporting_manager_id: form.reporting_manager_id,
+        create_in_razorpay: form.create_in_razorpay && !alreadyInRazorpay,
       };
       if (hasBankInput) {
         payload.bank_details = {

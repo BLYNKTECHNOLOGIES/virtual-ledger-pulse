@@ -35,11 +35,14 @@ Deno.serve(async (req) => {
   try {
     // ─── AUTHENTICATE ICLOCK DEVICE REQUESTS (GET/POST with ?SN=) ───
     // Prevents anyone who guesses a serial number from forging attendance data.
+    // Resolve the calling device once — used both for auth and for direction
+    // enforcement further down. A device flagged as "In Device" / "Out Device"
+    // forces every push it emits to that direction, regardless of raw_status.
+    let deviceRow: { id: string; device_direction: string | null } | null = null;
     if (serialNumber) {
-      // 1. Only registered devices may talk to this endpoint.
       const { data: knownDevice } = await supabase
         .from("hr_biometric_devices")
-        .select("id")
+        .select("id, device_direction")
         .eq("device_serial", serialNumber)
         .maybeSingle();
 
@@ -50,9 +53,8 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "text/plain", ...corsHeaders },
         });
       }
+      deviceRow = knownDevice as any;
 
-      // 2. When a shared secret is configured, require it on every device request.
-      //    Configure devices to append `&token=<BIOMETRIC_WEBHOOK_SECRET>` to their server URL.
       const deviceToken = Deno.env.get("BIOMETRIC_WEBHOOK_SECRET");
       const providedToken =
         url.searchParams.get("token") ?? req.headers.get("x-webhook-secret");
@@ -65,6 +67,13 @@ Deno.serve(async (req) => {
         });
       }
     }
+
+    const forcedDirection: "in" | "out" | null =
+      deviceRow?.device_direction === "In Device"
+        ? "in"
+        : deviceRow?.device_direction === "Out Device"
+        ? "out"
+        : null;
 
     // ─── ICLOCK PROTOCOL: GET requests ───
     if (req.method === "GET" && serialNumber) {
@@ -217,8 +226,12 @@ Deno.serve(async (req) => {
             const punchDate = getPunchDateFromESSLTimestamp(punch_time_str);
             if (!maxPunchDate || punchDateObj > maxPunchDate) maxPunchDate = punchDateObj;
             if (punchDateObj < cutoffDate) { results.skipped++; continue; }
-            const punch_type: "in" | "out" =
+            const derivedDirection: "in" | "out" =
               raw_status === 1 || raw_status === 2 || raw_status === 5 ? "out" : "in";
+            // Device-role override — an "In Device" always writes IN, an
+            // "Out Device" always writes OUT. Only "System Direction" devices
+            // fall through to raw_status-derived direction.
+            const punch_type: "in" | "out" = forcedDirection ?? derivedDirection;
             parsed.push({ pin, punchISO, punchDateObj, punchDate, punch_type, raw_status, verify_type, work_code, raw_line: line });
             pinsInBatch.add(pin);
           } catch (lineErr) {
@@ -286,19 +299,68 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Batch inserts. The unique index on (employee_id, punch_time) — combined
-        // with ON CONFLICT DO NOTHING — handles the 2-min dedup that used to
-        // require a per-line SELECT round-trip.
+        // ── Cross-device same-direction cooldown dedup ─────────────────────
+        // With two devices in play, an employee waving their finger on both
+        // in quick succession (or a device re-transmitting a batch) can push
+        // duplicate same-direction punches a few seconds apart. Collapse any
+        // matched insert that is within COOLDOWN_SEC of an existing same-
+        // direction punch for the same employee, from EITHER device.
+        const COOLDOWN_SEC = 90;
+        const dedupedInserts: any[] = [];
+        const dedupedForProcess: typeof matchedForProcess = [];
         if (punchInserts.length > 0) {
+          // Load recent same-direction punches once per (employee, direction) pair.
+          const empDirPairs = new Map<string, Set<"in" | "out">>();
+          for (const pi of punchInserts) {
+            if (!empDirPairs.has(pi.employee_id)) empDirPairs.set(pi.employee_id, new Set());
+            empDirPairs.get(pi.employee_id)!.add(pi.punch_type);
+          }
+          const earliestBatch = new Date(Math.min(...punchInserts.map((x) => new Date(x.punch_time).getTime())));
+          const windowStart = new Date(earliestBatch.getTime() - COOLDOWN_SEC * 1000).toISOString();
+          const empIds = Array.from(empDirPairs.keys());
+          const { data: recentPunches } = await supabase
+            .from("hr_attendance_punches")
+            .select("employee_id, punch_time, punch_type")
+            .in("employee_id", empIds)
+            .gte("punch_time", windowStart);
+
+          // Group existing punches by employee+direction for O(1) proximity checks.
+          const existing: Record<string, number[]> = {};
+          (recentPunches ?? []).forEach((r: any) => {
+            const key = `${r.employee_id}|${r.punch_type}`;
+            (existing[key] ||= []).push(new Date(r.punch_time).getTime());
+          });
+          const batchSeen: Record<string, number[]> = {};
+
+          for (let i = 0; i < punchInserts.length; i++) {
+            const pi = punchInserts[i];
+            const key = `${pi.employee_id}|${pi.punch_type}`;
+            const t = new Date(pi.punch_time).getTime();
+            const near = (arr?: number[]) =>
+              !!arr && arr.some((x) => Math.abs(x - t) < COOLDOWN_SEC * 1000);
+            if (near(existing[key]) || near(batchSeen[key])) {
+              results.skipped++;
+              continue;
+            }
+            (batchSeen[key] ||= []).push(t);
+            dedupedInserts.push(pi);
+            dedupedForProcess.push(matchedForProcess[i]);
+          }
+        }
+
+        // Batch inserts. Unique index (employee_id, punch_time, punch_type)
+        // + ON CONFLICT DO NOTHING covers exact-timestamp duplicates; the
+        // cooldown pass above handles near-duplicates across devices.
+        if (dedupedInserts.length > 0) {
           const { error: batchErr, data: inserted } = await supabase
             .from("hr_attendance_punches")
-            .upsert(punchInserts, { onConflict: "employee_id,punch_time", ignoreDuplicates: true })
+            .upsert(dedupedInserts, { onConflict: "employee_id,punch_time,punch_type", ignoreDuplicates: true })
             .select("id, employee_id, punch_time");
           if (batchErr) {
             results.errors.push(`Batch punch insert error: ${batchErr.message}`);
           } else {
             results.inserted += (inserted ?? []).length;
-            results.skipped += punchInserts.length - (inserted ?? []).length;
+            results.skipped += dedupedInserts.length - (inserted ?? []).length;
           }
         }
         if (quarantineInserts.length > 0) {
@@ -312,7 +374,7 @@ Deno.serve(async (req) => {
         // Roll up daily aggregates for matched rows (still sequential, but
         // only for matched punches — the expensive path is only paid for
         // real work).
-        for (const m of matchedForProcess) {
+        for (const m of dedupedForProcess) {
           try { await processAttendance(supabase, m.badge_id, m.punchISO, m.punchDate, m.punch_type, m.employeeUUID); }
           catch (e) { results.errors.push(`processAttendance: ${(e as Error).message}`); }
         }
@@ -419,6 +481,21 @@ Deno.serve(async (req) => {
         const device_serial = punch.device_serial || punch.serialNumber || null;
         const raw_status = punch.status ?? punch.raw_status ?? null;
 
+        // Same directional override as the ICLOCK path — if the pushing device
+        // is registered as an "In Device" or "Out Device", force punch_type to
+        // match its role regardless of what the caller sent.
+        let jsonForcedDirection: "in" | "out" | null = null;
+        if (device_serial) {
+          const { data: devRow } = await supabase
+            .from("hr_biometric_devices")
+            .select("device_direction")
+            .eq("device_serial", device_serial)
+            .maybeSingle();
+          if (devRow?.device_direction === "In Device") jsonForcedDirection = "in";
+          else if (devRow?.device_direction === "Out Device") jsonForcedDirection = "out";
+        }
+        const effectivePunchType = jsonForcedDirection ?? punch_type;
+
         if (!badge_id || !punch_time) {
           results.errors.push(`Missing badge_id or punch_time: ${JSON.stringify(punch)}`);
           continue;
@@ -445,13 +522,13 @@ Deno.serve(async (req) => {
           badge_id: String(badge_id),
           employee_id: employeeUUID,
           punch_time: punchISO,
-          punch_type: punch_type || "auto",
+          punch_type: effectivePunchType || "auto",
           device_name,
           device_serial,
           raw_status: typeof raw_status === "number" ? raw_status : null,
         });
 
-        await processAttendance(supabase, String(badge_id), punchISO, punchDate, punch_type || "auto", employeeUUID);
+        await processAttendance(supabase, String(badge_id), punchISO, punchDate, effectivePunchType || "auto", employeeUUID);
 
         results.inserted++;
 
@@ -573,7 +650,7 @@ async function processAttendance(
   // 4. Query ALL punches within that shift window for this employee
   const { data: windowPunches } = await supabase
     .from("hr_attendance_punches")
-    .select("id, punch_time")
+    .select("id, punch_time, punch_type")
     .eq("employee_id", employeeIdStr)
     .gte("punch_time", windowStart)
     .lte("punch_time", windowEnd)
@@ -584,17 +661,42 @@ async function processAttendance(
     return;
   }
 
-  // 5. Deterministic: First punch = check-in, Last punch = check-out
-  const firstPunch = windowPunches[0].punch_time;
-  const lastPunch = windowPunches.length > 1
-    ? windowPunches[windowPunches.length - 1].punch_time
-    : null;
+  // 5. Direction-aware pick:
+  //    - check-in  = earliest IN punch    (fallback: earliest punch overall)
+  //    - check-out = latest OUT punch     (fallback: latest punch overall when >1)
+  //    In a two-device setup ("In Device" + "Out Device") the direction is
+  //    already forced at ingest, so we get clean IN / OUT rows and the
+  //    fallbacks never fire. The fallbacks keep single-device installations
+  //    working exactly as before.
+  const inPunches = windowPunches.filter((p: any) => p.punch_type === "in");
+  const outPunches = windowPunches.filter((p: any) => p.punch_type === "out");
+
+  const firstPunch = (inPunches[0] ?? windowPunches[0]).punch_time;
+  let lastPunch: string | null;
+  if (outPunches.length > 0) {
+    lastPunch = outPunches[outPunches.length - 1].punch_time;
+  } else if (windowPunches.length > 1) {
+    lastPunch = windowPunches[windowPunches.length - 1].punch_time;
+  } else {
+    lastPunch = null;
+  }
+
+  // Guard: if computed check-out is before check-in (e.g. OUT device fired
+  // before an IN was ever recorded — badge lost, forgot to punch in), do not
+  // publish a negative-hours row. Treat as incomplete and only surface the
+  // known-good check-in.
+  if (lastPunch && new Date(lastPunch).getTime() < new Date(firstPunch).getTime()) {
+    console.warn(`[ATTENDANCE] OUT before IN for employee=${employeeIdStr}, date=${attendanceDate}. Suppressing check-out.`);
+    lastPunch = null;
+  }
+
   const punchCount = windowPunches.length;
 
-  // Log intermediate punches that are ignored
   if (windowPunches.length > 2) {
-    const ignored = windowPunches.slice(1, -1);
-    console.log(`[ATTENDANCE] Ignored ${ignored.length} intermediate punches for employee=${employeeIdStr}, date=${attendanceDate}: ${ignored.map((p: any) => p.punch_time).join(", ")}`);
+    const ignored = windowPunches.filter((p: any) => p.punch_time !== firstPunch && p.punch_time !== lastPunch);
+    if (ignored.length > 0) {
+      console.log(`[ATTENDANCE] Ignored ${ignored.length} intermediate punches for employee=${employeeIdStr}, date=${attendanceDate}: ${ignored.map((p: any) => `${p.punch_time}(${p.punch_type})`).join(", ")}`);
+    }
   }
 
   // 6. Shift-aware calculations

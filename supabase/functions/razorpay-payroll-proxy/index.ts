@@ -3744,7 +3744,186 @@ Deno.serve(async (req) => {
     }
 
     // ---------------------------------------------------------------------
-    // Direct action bridge for RazorpayX Payroll endpoints that don't need a
+    // create_person — create a brand-new employee in RazorpayX Payroll from
+    // an ERP hr_employees row. Used by the Stage-5 onboarding wizard so HR
+    // can spin up a Razorpay record without leaving the ERP.
+    //
+    // Contract:
+    //   payload: { action:"create_person", hr_employee_id: uuid, dry_run?: bool }
+    //   returns:
+    //     { ok:false, missing:[...], reason }   — validation gaps
+    //     { ok:true,  dry_run:true, payload }   — dry-run
+    //     { ok:true,  razorpay_employee_id }    — live create success
+    //     { ok:false, http_status, error }      — live create failure
+    //
+    // Guardrails:
+    //   - hr_employee_id must not already be in hr_razorpay_employee_map
+    //   - PAN, name, DOJ, department, CTC, bank details are all mandatory
+    //   - Baseline (last_pull_snapshot) is populated from the outbound
+    //     payload so future push_person diffs work out of the box.
+    // ---------------------------------------------------------------------
+    if (action === "create_person") {
+      const hrId = payload?.hr_employee_id ? String(payload.hr_employee_id) : "";
+      if (!hrId) return json(400, { error: "hr_employee_id required" });
+      const dryRun = payload?.dry_run === true;
+
+      // Guard: already mapped?
+      const { data: existingMap } = await svc
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", hrId)
+        .maybeSingle();
+      if (existingMap?.razorpay_employee_id) {
+        return json(409, {
+          ok: false,
+          reason: "already_mapped",
+          razorpay_employee_id: existingMap.razorpay_employee_id,
+          error: `Already linked to Razorpay employee ${existingMap.razorpay_employee_id}.`,
+        });
+      }
+
+      // Load employee + related rows.
+      const [{ data: emp }, { data: wi }, { data: bank }, { data: structs }] = await Promise.all([
+        svc.from("hr_employees")
+          .select("id,first_name,last_name,email,phone,gender,dob,pan_number,badge_id")
+          .eq("id", hrId).maybeSingle(),
+        svc.from("hr_employee_work_info")
+          .select("department_id,job_role,joining_date,employee_type")
+          .eq("employee_id", hrId).maybeSingle(),
+        svc.from("hr_employee_bank_details")
+          .select("account_number,ifsc_code,additional_info")
+          .eq("employee_id", hrId).maybeSingle(),
+        svc.from("hr_employee_salary_structures")
+          .select("amount,is_active").eq("employee_id", hrId).eq("is_active", true),
+      ]);
+      if (!emp) return json(404, { error: "hr_employee not found" });
+
+      const deptName = wi?.department_id
+        ? (await svc.from("departments").select("name").eq("id", wi.department_id).maybeSingle()).data?.name || null
+        : null;
+
+      const fullName = [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim();
+      const pan = (emp.pan_number || "").toString().trim().toUpperCase();
+      const dojIso = wi?.joining_date ? String(wi.joining_date) : null;
+      const dobIso = emp.dob ? String(emp.dob) : null;
+      const toDdMmYyyy = (iso: string | null) =>
+        iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : null;
+      const dojRp = toDdMmYyyy(dojIso);
+      const dobRp = toDdMmYyyy(dobIso);
+      const accountHolder = (bank?.additional_info as any)?.account_holder || fullName || null;
+      const ctcAnnual = (structs || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+
+      // Validate.
+      const missing: string[] = [];
+      if (!fullName) missing.push("name");
+      if (!emp.email) missing.push("email");
+      if (!emp.phone) missing.push("phone");
+      if (!pan || !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) missing.push("pan");
+      if (!dojRp) missing.push("date_of_joining");
+      if (!deptName) missing.push("department");
+      if (!wi?.job_role) missing.push("job_title");
+      if (!ctcAnnual || ctcAnnual <= 0) missing.push("ctc_annual");
+      if (!bank?.account_number) missing.push("bank_account_number");
+      if (!bank?.ifsc_code || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bank.ifsc_code)) missing.push("bank_ifsc");
+      if (!accountHolder) missing.push("bank_account_holder_name");
+
+      if (missing.length) {
+        return json(400, { ok: false, reason: "missing_fields", missing });
+      }
+
+      const outboundData: Record<string, any> = {
+        "employee-type": "employee",
+        name: fullName,
+        email: String(emp.email).trim().toLowerCase(),
+        phone_number: normPhone(emp.phone),
+        gender: emp.gender ? String(emp.gender).toLowerCase() : null,
+        "date-of-birth": dobRp,
+        "date-of-joining": dojRp,
+        department: deptName,
+        title: wi!.job_role,
+        pan,
+        annual_ctc: ctcAnnual,
+        bank_account_number: bank!.account_number,
+        bank_ifsc: (bank!.ifsc_code || "").toUpperCase(),
+        bank_account_holder_name: accountHolder,
+      };
+      // Remove null/empty optional keys.
+      for (const k of Object.keys(outboundData)) {
+        if (outboundData[k] === null || outboundData[k] === "") delete outboundData[k];
+      }
+
+      if (dryRun) {
+        return json(200, { ok: true, dry_run: true, payload: outboundData });
+      }
+
+      // Live create.
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 25000);
+      let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
+      let rpId: string | null = null;
+      try {
+        const res = await fetch(`${BASE}/people`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type: "people", "sub-type": "add" },
+            data: outboundData,
+          }),
+          signal: ctrl.signal,
+        });
+        httpStatus = res.status;
+        const raw = await res.text();
+        try { bodyOut = JSON.parse(raw); } catch { bodyOut = { raw: raw.slice(0, 800) }; }
+        const rpErr = bodyOut && typeof bodyOut === "object" ? (bodyOut.error ?? bodyOut.message ?? null) : null;
+        if (!res.ok || rpErr) {
+          errText = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
+        } else {
+          // Extract new employee id from common response shapes.
+          const cand = bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? bodyOut?.id ?? bodyOut?.data?.["employee-id"] ?? bodyOut?.data?.id;
+          rpId = cand !== undefined && cand !== null ? String(cand) : null;
+          if (!rpId) errText = "Razorpay accepted the request but returned no employee-id";
+        }
+      } catch (e) {
+        errText = `NETWORK: ${(e as Error).message}`;
+      } finally { clearTimeout(t); }
+
+      // Log every attempt.
+      await logSync(svc, {
+        action: "create_person",
+        http_status: httpStatus,
+        razorpay_employee_id: rpId || "",
+        hr_employee_id: hrId,
+        field_diff_summary: { payload_field_names: Object.keys(outboundData).sort() },
+        error_text: errText,
+        actor_user_id: authed.userId,
+      });
+
+      if (errText || !rpId) {
+        return json(errText ? 502 : 500, { ok: false, http_status: httpStatus, error: errText || "no_id_returned", body: bodyOut });
+      }
+
+      // Wire up the map — baseline snapshot equals outbound payload so future
+      // push_person diffs land cleanly without needing a re-pull.
+      const { error: mapErr } = await svc.from("hr_razorpay_employee_map").upsert({
+        razorpay_employee_id: rpId,
+        hr_employee_id: hrId,
+        sync_status: "created_via_erp",
+        is_pilot_verified: false,
+        last_synced_at: new Date().toISOString(),
+        last_pull_snapshot: outboundData,
+      }, { onConflict: "razorpay_employee_id" });
+      if (mapErr) {
+        return json(207, {
+          ok: true, razorpay_employee_id: rpId, http_status: httpStatus,
+          warning: `Employee created in Razorpay but ERP mapping failed: ${mapErr.message}`,
+        });
+      }
+
+      return json(200, { ok: true, razorpay_employee_id: rpId, http_status: httpStatus });
+    }
+
+    // ---------------------------------------------------------------------
     // dedicated phase workflow. Verified against the Postman collection:
     // URL path and body `type` deliberately differ for three families —
     //   contractor-payment (body) → /api/contractorPayment (URL)

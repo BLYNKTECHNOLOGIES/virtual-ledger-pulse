@@ -221,16 +221,16 @@ export function LeaveTab({
               <tbody>
                 {sortedRequests.map((req: any) => {
                   const lt = getLeaveType(req.leave_type_id);
-                  const isPending = req.status === "Requested";
-                  const isCancellable = req.status === "Requested" || req.status === "Approved";
+                  const isPending = req.status === "requested";
+                  const isCancellable = req.status === "requested" || req.status === "approved";
 
                   return (
                     <tr
                       key={req.id}
                       className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                        req.status === "Requested" ? "border-l-4 border-l-amber-400" :
-                        req.status === "Approved" ? "border-l-4 border-l-green-500" :
-                        req.status === "Rejected" ? "border-l-4 border-l-red-500" :
+                        req.status === "requested" ? "border-l-4 border-l-amber-400" :
+                        req.status === "approved" ? "border-l-4 border-l-green-500" :
+                        req.status === "rejected" ? "border-l-4 border-l-red-500" :
                         "border-l-4 border-l-gray-300"
                       }`}
                     >

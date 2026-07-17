@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { FileText, Mail, Upload } from "lucide-react";
+import { FileText, Mail, Upload, Paperclip, ExternalLink, Loader2, X } from "lucide-react";
+import { smartUpload } from "@/lib/resumable-upload";
 
 interface Stage3Props {
   data: any;

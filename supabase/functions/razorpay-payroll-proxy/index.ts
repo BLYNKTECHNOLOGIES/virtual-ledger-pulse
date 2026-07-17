@@ -84,6 +84,58 @@ async function opfinView(employeeId: number, employeeType = "employee") {
   } finally { clearTimeout(t); }
 }
 
+// Fetch the current salary block for a Razorpay employee. The people:view
+// snapshot never carries CTC or components — we have to hit the salary
+// sub-type explicitly. Returns { ok, annual_ctc, monthly_gross, components }.
+// Silent on non-2xx / missing fields so the caller can gracefully skip.
+async function opfinSalary(employeeId: number): Promise<{
+  ok: boolean; annual_ctc: number | null; monthly_gross: number | null;
+  components: any[]; raw: any; http_status: number; err: string | null;
+}> {
+  const empty = { ok: false, annual_ctc: null, monthly_gross: null, components: [], raw: null, http_status: 0, err: null as any };
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(`${BASE}/people`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        auth: authBlock(),
+        request: { type: "people", "sub-type": "view-salary" },
+        data: { "employee-id": employeeId, "employee-type": "employee" },
+      }),
+      signal: ctrl.signal,
+    });
+    const raw = await res.text();
+    let body: any = null; try { body = JSON.parse(raw); } catch { /* keep raw */ }
+    if (!res.ok || !body || typeof body !== "object") {
+      return { ...empty, http_status: res.status, raw: body, err: `HTTP ${res.status}` };
+    }
+    const rpErr = body.error || body.message || null;
+    if (rpErr) return { ...empty, http_status: res.status, raw: body, err: typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr) };
+
+    // Razorpay returns amounts under a handful of shapes across tenants. Look
+    // in every plausible spot; take the first numeric hit.
+    const readNum = (obj: any, keys: string[]): number | null => {
+      for (const k of keys) {
+        const v = obj?.[k];
+        const n = typeof v === "string" ? Number(v) : v;
+        if (typeof n === "number" && Number.isFinite(n) && n > 0) return n;
+      }
+      return null;
+    };
+    const s = body.salary ?? body["salary-structure"] ?? body["salary_structure"] ?? body.data ?? body;
+    const annual = readNum(s, ["ctc-annual", "ctc_annual", "annual_ctc", "annual-ctc", "ctc"]);
+    const monthly = readNum(s, ["monthly-gross", "monthly_gross", "gross", "gross-monthly"]);
+    const comps = Array.isArray(s.components) ? s.components : (Array.isArray(body.components) ? body.components : []);
+    return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: comps, raw: body, http_status: res.status, err: null };
+  } catch (e) {
+    return { ...empty, err: `NETWORK: ${(e as Error).message}` };
+  } finally { clearTimeout(t); }
+}
+
+
+
 function normPhone(v: string | null | undefined): string | null {
   if (!v) return null;
   const d = String(v).replace(/\D/g, "");
@@ -324,7 +376,7 @@ async function projectSnapshotIntoErp(
     jobPositionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
   const wiIncoming: Record<string, any> = {
-    joining_date: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
+    joining_date: parseDobIso(snap?.["date-of-hiring"] ?? snap?.date_of_hiring ?? snap?.hiring_date ?? snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
     department_id: departmentId,
     job_position_id: jobPositionId,
     job_role: jobTitle,
@@ -376,7 +428,7 @@ async function projectSnapshotIntoOnboarding(
   snap: any,
 ): Promise<{ wrote: string[]; conflicts: string[] } | null> {
   const { data: ob } = await svc.from("hr_employee_onboarding")
-    .select("id,first_name,last_name,email,phone,gender,date_of_birth,department_id,position_id,job_role,employee_type,date_of_joining")
+    .select("id,first_name,last_name,email,phone,gender,date_of_birth,department_id,position_id,job_role,employee_type,date_of_joining,ctc")
     .eq("employee_id", hrId).maybeSingle();
   if (!ob) return null;
 
@@ -393,6 +445,18 @@ async function projectSnapshotIntoOnboarding(
     positionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
 
+  // CTC comes from the salary sub-response injected onto snap.__salary by the
+  // pull flow. Fall back to any legacy salary block that may already be on the
+  // snapshot root.
+  const salaryBlock = snap?.__salary || snap?.salary || null;
+  const ctcAnnual: number | null =
+    (salaryBlock && (
+      Number(salaryBlock.annual_ctc) ||
+      Number(salaryBlock["ctc-annual"]) ||
+      Number(salaryBlock.ctc_annual) ||
+      Number(salaryBlock.ctc)
+    )) || null;
+
   const incoming: Record<string, any> = {
     first_name: pickString(snap?.first_name, first) || null,
     last_name: pickString(snap?.last_name, last) || null,
@@ -404,7 +468,17 @@ async function projectSnapshotIntoOnboarding(
     position_id: positionId,
     job_role: jobTitle,
     employee_type: pickString(snap?.employee_type, snap?.employment_type),
-    date_of_joining: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
+    // Razorpay actually uses `date-of-hiring` (verified against production
+    // snapshots); the *-joining aliases are kept for legacy/other tenants.
+    date_of_joining: parseDobIso(
+      snap?.["date-of-hiring"] ??
+      snap?.date_of_hiring ??
+      snap?.hiring_date ??
+      snap?.["date-of-joining"] ??
+      snap?.date_of_joining ??
+      snap?.joining_date
+    ),
+    ctc: ctcAnnual && ctcAnnual > 0 ? ctcAnnual : null,
   };
   const picked = pickPatch(ob as any, incoming);
   if (Object.keys(picked.patch).length) {
@@ -1023,10 +1097,23 @@ Deno.serve(async (req) => {
           rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "miss", http_status: r.status });
           continue;
         }
+        // Fetch salary sub-response as well — people:view never carries CTC.
+        // Attach onto snapshot as __salary so projectors can read it. Silent on
+        // failure (Razorpay returns nothing when salary structure isn't set).
+        const sal = await opfinSalary(eid);
+        if (sal.ok) {
+          (r.body as any).__salary = {
+            annual_ctc: sal.annual_ctc,
+            monthly_gross: sal.monthly_gross,
+            components: sal.components,
+          };
+        }
         try {
           const hash = await canonicalHash(r.body);
-          const unchanged = m.last_payload_hash === hash;
-          // Always refresh snapshot + last_pulled_at, but skip projection when unchanged.
+          // We always project this pass — the projector uses ERP-wins semantics
+          // (only fills nulls / matching sentinels), and we recently expanded
+          // the field map (date-of-hiring, __salary → ctc) so stale hashes must
+          // not gate the backfill.
           await svc.from("hr_razorpay_employee_map").update({
             last_pull_snapshot: r.body,
             last_pulled_at: new Date().toISOString(),
@@ -1035,12 +1122,11 @@ Deno.serve(async (req) => {
 
           let diff: any = null;
           let obDiff: any = null;
-          if (!unchanged) {
-            diff = await projectSnapshotIntoErp(svc, m.hr_employee_id, r.body);
-            obDiff = await projectSnapshotIntoOnboarding(svc, m.hr_employee_id, r.body);
-            const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length + (obDiff?.wrote?.length ?? 0);
-            if (wroteCount) wroteAny++;
-          }
+          diff = await projectSnapshotIntoErp(svc, m.hr_employee_id, r.body);
+          obDiff = await projectSnapshotIntoOnboarding(svc, m.hr_employee_id, r.body);
+          const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length + (obDiff?.wrote?.length ?? 0);
+          if (wroteCount) wroteAny++;
+          const unchanged = false;
 
           await logSync(svc, {
             action: "pull_person",

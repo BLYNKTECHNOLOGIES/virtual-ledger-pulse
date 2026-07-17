@@ -1097,10 +1097,23 @@ Deno.serve(async (req) => {
           rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "miss", http_status: r.status });
           continue;
         }
+        // Fetch salary sub-response as well — people:view never carries CTC.
+        // Attach onto snapshot as __salary so projectors can read it. Silent on
+        // failure (Razorpay returns nothing when salary structure isn't set).
+        const sal = await opfinSalary(eid);
+        if (sal.ok) {
+          (r.body as any).__salary = {
+            annual_ctc: sal.annual_ctc,
+            monthly_gross: sal.monthly_gross,
+            components: sal.components,
+          };
+        }
         try {
           const hash = await canonicalHash(r.body);
-          const unchanged = m.last_payload_hash === hash;
-          // Always refresh snapshot + last_pulled_at, but skip projection when unchanged.
+          // We always project this pass — the projector uses ERP-wins semantics
+          // (only fills nulls / matching sentinels), and we recently expanded
+          // the field map (date-of-hiring, __salary → ctc) so stale hashes must
+          // not gate the backfill.
           await svc.from("hr_razorpay_employee_map").update({
             last_pull_snapshot: r.body,
             last_pulled_at: new Date().toISOString(),
@@ -1109,12 +1122,11 @@ Deno.serve(async (req) => {
 
           let diff: any = null;
           let obDiff: any = null;
-          if (!unchanged) {
-            diff = await projectSnapshotIntoErp(svc, m.hr_employee_id, r.body);
-            obDiff = await projectSnapshotIntoOnboarding(svc, m.hr_employee_id, r.body);
-            const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length + (obDiff?.wrote?.length ?? 0);
-            if (wroteCount) wroteAny++;
-          }
+          diff = await projectSnapshotIntoErp(svc, m.hr_employee_id, r.body);
+          obDiff = await projectSnapshotIntoOnboarding(svc, m.hr_employee_id, r.body);
+          const wroteCount = diff.hr_employees.wrote.length + diff.work_info.wrote.length + diff.bank.wrote.length + (obDiff?.wrote?.length ?? 0);
+          if (wroteCount) wroteAny++;
+          const unchanged = false;
 
           await logSync(svc, {
             action: "pull_person",

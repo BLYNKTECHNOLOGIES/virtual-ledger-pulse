@@ -248,8 +248,8 @@ export default function EmployeeProfilePage() {
         } else {
           toast.info("Razorpay has no bank_account block for this employee yet.");
         }
-        qc.invalidateQueries({ queryKey: ["hr_employee_bank", id] });
-        qc.invalidateQueries({ queryKey: ["hr_razorpay_map", id] });
+        queryClient.invalidateQueries({ queryKey: ["hr_employee_bank", id] });
+        queryClient.invalidateQueries({ queryKey: ["hr_razorpay_map", id] });
       }
     } catch (e: any) {
       toast.error(`Pull failed: ${e?.message ?? e}`);

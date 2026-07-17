@@ -161,10 +161,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               disabled={readOnly}
             />
           </div>
-          <div>
-            <Label>ESSL Badge ID *</Label>
-            <Input
-              placeholder="e.g. EMP001"
           <div className="sm:col-span-2">
             <Label className="flex items-center gap-1.5">
               <Fingerprint className="h-3.5 w-3.5" /> ESSL Badge ID (device PIN) *

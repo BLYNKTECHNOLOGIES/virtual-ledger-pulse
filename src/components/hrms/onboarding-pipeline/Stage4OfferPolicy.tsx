@@ -41,6 +41,23 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
     setDocs(init);
   }, [data]);
 
+  const persistDocs = async (nextDocs: typeof docs) => {
+    if (!onboardingData?.id) return;
+    const allReq = SIGNED_DOCS.filter(f => f.required).every(f => nextDocs[f.key]?.received);
+    try {
+      await supabase
+        .from("hr_employee_onboarding")
+        .update({
+          offer_policy_documents: nextDocs,
+          offer_policy_status: allReq ? "completed" : "pending",
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", onboardingData.id);
+    } catch (e) {
+      console.warn("Auto-save Stage 4 documents failed:", e);
+    }
+  };
+
   const handleUpload = async (key: string, file: File) => {
     if (!file) return;
     setUploadingKey(key);
@@ -50,11 +67,13 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
       const path = `onboarding/${empId}/offer_policy/${key}/${Date.now()}_${safe}`;
       const uploaded = await smartUpload({ bucket: "employee-documents", path, file, contentType: file.type || undefined });
       const { data: urlD } = supabase.storage.from("employee-documents").getPublicUrl(uploaded);
-      setDocs(prev => ({
-        ...prev,
+      const next = {
+        ...docs,
         [key]: { received: true, file_url: urlD?.publicUrl || "", file_name: file.name },
-      }));
-      toast.success(`${file.name} uploaded`);
+      };
+      setDocs(next);
+      await persistDocs(next);
+      toast.success(`${file.name} uploaded & saved`);
     } catch (err: any) {
       toast.error(err?.message || "Upload failed");
     } finally {
@@ -63,7 +82,9 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
   };
 
   const removeFile = (key: string) => {
-    setDocs(prev => ({ ...prev, [key]: { ...prev[key], file_url: "", file_name: "" } }));
+    const next = { ...docs, [key]: { ...docs[key], file_url: "", file_name: "" } };
+    setDocs(next);
+    persistDocs(next);
   };
 
   const toggleDoc = (key: string) => {

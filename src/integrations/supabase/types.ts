@@ -19549,6 +19549,10 @@ export type Database = {
         Args: { p_name: string }
         Returns: string
       }
+      hr_rebuild_attendance_daily_range: {
+        Args: { p_date_from: string; p_date_to: string; p_employee_id: string }
+        Returns: number
+      }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:
         | {

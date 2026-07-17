@@ -88,7 +88,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   useEffect(() => {
     if (onboardingRecord) {
       const bd = (onboardingRecord.bank_details as any) || {};
-      const holderFromBank = (existingBank as any)?.additional_info?.account_holder || "";
+      const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
         essl_badge_id: onboardingRecord.essl_badge_id || "",
@@ -97,9 +97,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
         bank_account_number: bd.account_number || existingBank?.account_number || "",
         bank_ifsc_code: bd.ifsc_code || existingBank?.ifsc_code || "",
-        bank_name: bd.bank_name || existingBank?.bank_name || "",
-        bank_branch: bd.branch || existingBank?.branch || "",
-        bank_account_holder: bd.account_holder || holderFromBank,
+        bank_name: "",
+        bank_branch: "",
+        bank_account_holder: empName,
       });
     }
   }, [onboardingRecord, existingBank]);
@@ -322,11 +322,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             <div className="sm:col-span-2">
               <Label>Account Holder Name</Label>
               <Input
-                placeholder="As per bank records"
                 value={form.bank_account_holder}
-                onChange={e => setForm(p => ({ ...p, bank_account_holder: e.target.value }))}
-                disabled={readOnly}
+                disabled
+                readOnly
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Auto-filled from employee name — must match bank records.
+              </p>
             </div>
             <div>
               <Label>Account Number</Label>
@@ -355,26 +358,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 </p>
               )}
             </div>
-            <div>
-              <Label>Bank Name</Label>
-              <Input
-                placeholder="e.g. HDFC Bank"
-                value={form.bank_name}
-                onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))}
-                disabled={readOnly}
-              />
-            </div>
-            <div>
-              <Label>Branch</Label>
-              <Input
-                placeholder="e.g. Andheri West"
-                value={form.bank_branch}
-                onChange={e => setForm(p => ({ ...p, bank_branch: e.target.value }))}
-                disabled={readOnly}
-              />
-            </div>
           </div>
         </div>
+
+
+
 
 
         {/* ERP Account */}

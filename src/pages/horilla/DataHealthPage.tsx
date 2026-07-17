@@ -167,6 +167,30 @@ export default function DataHealthPage() {
     }
   }
 
+  // Push HRMS value into eSSL biometric devices. Roster drift is closed only
+  // after the device ACKs the command (webhook mirrors the change).
+  async function adoptEssl(drift: Drift) {
+    setResolvingId(drift.id);
+    try {
+      const isInactive = drift.field === "active_state" && !drift.is_active;
+      const res = isInactive
+        ? await deleteFromEssl(drift.hr_employee_id, { triggeredFrom: "data_health" })
+        : await pushIdentityToEssl(drift.hr_employee_id, { triggeredFrom: "data_health" });
+      if (res?.ok) {
+        await (supabase as any)
+          .from("hr_drift_alerts")
+          .update({
+            resolution_note: "Queued eSSL push — awaiting device ACK",
+            last_seen_at: new Date().toISOString(),
+          })
+          .eq("id", drift.id);
+        qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+      }
+    } finally {
+      setResolvingId(null);
+    }
+  }
+
   async function markResolved(drift: Drift, note: string) {
     setResolvingId(drift.id);
     try {

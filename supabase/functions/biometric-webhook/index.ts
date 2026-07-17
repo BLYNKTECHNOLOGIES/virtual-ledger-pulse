@@ -522,13 +522,13 @@ Deno.serve(async (req) => {
           badge_id: String(badge_id),
           employee_id: employeeUUID,
           punch_time: punchISO,
-          punch_type: punch_type || "auto",
+          punch_type: effectivePunchType || "auto",
           device_name,
           device_serial,
           raw_status: typeof raw_status === "number" ? raw_status : null,
         });
 
-        await processAttendance(supabase, String(badge_id), punchISO, punchDate, punch_type || "auto", employeeUUID);
+        await processAttendance(supabase, String(badge_id), punchISO, punchDate, effectivePunchType || "auto", employeeUUID);
 
         results.inserted++;
 

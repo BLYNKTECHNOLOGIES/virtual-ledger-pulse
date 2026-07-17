@@ -101,6 +101,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         bank_name: "",
         bank_branch: "",
         bank_account_holder: empName,
+        create_in_razorpay: false,
       });
     }
   }, [onboardingRecord, existingBank]);

@@ -322,11 +322,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             <div className="sm:col-span-2">
               <Label>Account Holder Name</Label>
               <Input
-                placeholder="As per bank records"
                 value={form.bank_account_holder}
-                onChange={e => setForm(p => ({ ...p, bank_account_holder: e.target.value }))}
-                disabled={readOnly}
+                disabled
+                readOnly
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Auto-filled from employee name — must match bank records.
+              </p>
             </div>
             <div>
               <Label>Account Number</Label>
@@ -355,26 +358,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 </p>
               )}
             </div>
-            <div>
-              <Label>Bank Name</Label>
-              <Input
-                placeholder="e.g. HDFC Bank"
-                value={form.bank_name}
-                onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))}
-                disabled={readOnly}
-              />
-            </div>
-            <div>
-              <Label>Branch</Label>
-              <Input
-                placeholder="e.g. Andheri West"
-                value={form.bank_branch}
-                onChange={e => setForm(p => ({ ...p, bank_branch: e.target.value }))}
-                disabled={readOnly}
-              />
-            </div>
-          </div>
-        </div>
 
 
         {/* ERP Account */}

@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Fingerprint, Landmark } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -31,6 +31,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     bank_name: "",
     bank_branch: "",
     bank_account_holder: "",
+    create_in_razorpay: false,
   });
   const [finalizing, setFinalizing] = useState(false);
 
@@ -50,6 +51,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     },
     enabled: !!linkedEmpId,
   });
+
+  // Is this employee already linked to a Razorpay employee record? If so, the
+  // "Also create in Razorpay" toggle is hidden — no double-provisioning.
+  const { data: razorpayMap } = useQuery({
+    queryKey: ["stage5-rzp-map", linkedEmpId],
+    queryFn: async () => {
+      if (!linkedEmpId) return null;
+      const { data } = await supabase
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", linkedEmpId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!linkedEmpId,
+  });
+  const alreadyInRazorpay = !!(razorpayMap as any)?.razorpay_employee_id;
 
   // Auto-pull bank/IFSC from Razorpay for pending onboardings that were imported
   // from Razorpay but haven't had their bank details projected yet. Runs once
@@ -100,6 +118,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         bank_name: "",
         bank_branch: "",
         bank_account_holder: empName,
+        create_in_razorpay: false,
       });
     }
   }, [onboardingRecord, existingBank]);
@@ -155,12 +174,38 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
 
 
   const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
+
+  // Checklist for the "Also create in RazorpayX Payroll" toggle. Razorpay's
+  // POST /people (sub-type: add) requires all of these — surface gaps in the
+  // UI so HR can't attempt a create that will fail validation server-side.
+  const docs = (onboardingRecord?.documents as any) || {};
+  const panFromDocs = String(docs.pan?.value || "").toUpperCase().trim();
+  const razorpayChecklist = useMemo(() => {
+    const items = [
+      { key: "name", label: "Full name", ok: !!(onboardingRecord?.first_name) },
+      { key: "email", label: "Email", ok: !!onboardingRecord?.email },
+      { key: "phone", label: "Phone", ok: !!onboardingRecord?.phone },
+      { key: "pan", label: "PAN (from Stage 3)", ok: /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panFromDocs) },
+      { key: "doj", label: "Date of Joining", ok: !!form.date_of_joining },
+      { key: "dept", label: "Department", ok: !!onboardingRecord?.department_id },
+      { key: "title", label: "Job Role / Title", ok: !!onboardingRecord?.job_role },
+      { key: "ctc", label: "Annual CTC", ok: Number(onboardingRecord?.ctc) > 0 },
+      { key: "acct", label: "Bank Account Number", ok: !!form.bank_account_number.trim() },
+      { key: "ifsc", label: "Bank IFSC", ok: !!form.bank_ifsc_code.trim() && ifscValid },
+    ];
+    return { items, allOk: items.every(i => i.ok), missing: items.filter(i => !i.ok).map(i => i.label) };
+  }, [onboardingRecord, form.date_of_joining, form.bank_account_number, form.bank_ifsc_code, ifscValid, panFromDocs]);
+
   const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
 
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
     if (pinStatus?.kind === "conflict") { toast.error(pinStatus.msg); return false; }
+    if (form.create_in_razorpay && !razorpayChecklist.allOk) {
+      toast.error(`Cannot create in Razorpay — missing: ${razorpayChecklist.missing.join(", ")}`);
+      return false;
+    }
     if (pinStatus?.kind === "unknown") {
       if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) return false;
     }
@@ -198,6 +243,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         create_erp_account: form.create_erp_account,
         erp_role_id: form.erp_role_id,
         reporting_manager_id: form.reporting_manager_id,
+        create_in_razorpay: form.create_in_razorpay && !alreadyInRazorpay,
       };
       if (hasBankInput) {
         payload.bank_details = {
@@ -364,6 +410,50 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
 
 
 
+
+        {/* RazorpayX Payroll — create employee record */}
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Cloud className="h-4 w-4 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Also create in RazorpayX Payroll</p>
+              <p className="text-xs text-muted-foreground">
+                {alreadyInRazorpay
+                  ? "Already linked to a Razorpay employee — no action needed."
+                  : "Provisions this employee directly in Razorpay Payroll so they show up in the next payroll run."}
+              </p>
+            </div>
+            <Switch
+              checked={form.create_in_razorpay}
+              onCheckedChange={v => setForm(p => ({ ...p, create_in_razorpay: v }))}
+              disabled={readOnly || alreadyInRazorpay}
+            />
+          </div>
+          {form.create_in_razorpay && !alreadyInRazorpay && (
+            <div className="pl-2 border-l-2 ml-1 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Razorpay create checklist</p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                {razorpayChecklist.items.map(it => (
+                  <li key={it.key} className="flex items-center gap-1.5">
+                    {it.ok
+                      ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                      : <XCircle className="h-3 w-3 text-destructive shrink-0" />}
+                    <span className={it.ok ? "" : "text-destructive"}>{it.label}</span>
+                  </li>
+                ))}
+              </ul>
+              {!razorpayChecklist.allOk && (
+                <p className="text-xs text-destructive flex items-start gap-1">
+                  <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                  <span>Fill the missing fields above (Stage 3 for PAN, Stage 1 for department, this stage for DOJ/bank) before enabling.</span>
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Razorpay will trigger a penny-drop verification on the bank account; payouts remain blocked until it clears.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* ERP Account */}
         <div className="rounded-lg border p-4 space-y-3">

@@ -88,7 +88,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   useEffect(() => {
     if (onboardingRecord) {
       const bd = (onboardingRecord.bank_details as any) || {};
-      const holderFromBank = (existingBank as any)?.additional_info?.account_holder || "";
+      const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
         essl_badge_id: onboardingRecord.essl_badge_id || "",
@@ -97,9 +97,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
         bank_account_number: bd.account_number || existingBank?.account_number || "",
         bank_ifsc_code: bd.ifsc_code || existingBank?.ifsc_code || "",
-        bank_name: bd.bank_name || existingBank?.bank_name || "",
-        bank_branch: bd.branch || existingBank?.branch || "",
-        bank_account_holder: bd.account_holder || holderFromBank,
+        bank_name: "",
+        bank_branch: "",
+        bank_account_holder: empName,
       });
     }
   }, [onboardingRecord, existingBank]);

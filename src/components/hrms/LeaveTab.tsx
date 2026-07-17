@@ -111,11 +111,13 @@ export function LeaveTab({
   });
 
   const statusColors: Record<string, string> = {
-    Approved: "text-success",
-    Rejected: "text-destructive",
-    Cancelled: "text-muted-foreground",
-    Requested: "text-warning",
+    approved: "text-success",
+    rejected: "text-destructive",
+    cancelled: "text-muted-foreground",
+    requested: "text-warning",
   };
+  const statusLabel = (s: string) =>
+    s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 
   const SortHeader = ({ field, label }: { field: string; label: string }) => (
     <th

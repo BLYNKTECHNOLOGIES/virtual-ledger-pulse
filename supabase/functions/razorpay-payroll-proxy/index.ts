@@ -2277,11 +2277,18 @@ Deno.serve(async (req) => {
         const cfgErrs = configErrorsByEmp.get(m.hr_employee_id) || [];
         // LOP = working days the employee neither showed up nor took paid leave for.
         // Includes unpaid approved leave and unexplained absences.
-        const attendedOrPaid = presentDays + paidLeave;
+        // Cap attended+paid at workingDays so a half-day-paid-leave overlapping a punched
+        // day cannot silently over-credit (present=1 + half-day=0.5 → 1.5 > working_day).
+        const rawAttendedOrPaid = presentDays + paidLeave;
+        const attendedOrPaid = Math.min(rawAttendedOrPaid, workingDays);
         const lopDays = Math.max(0, workingDays - attendedOrPaid);
         const unpaidCovered = Math.min(unpaidLeave, lopDays);
         const empPatternUsed = empPatternMap.get(m.hr_employee_id) || defaultPattern;
-        const formula = `LOP = WD ${workingDays} − (present ${presentDays} + paid_leave ${paidLeave}) = ${lopDays}`;
+        const overCreditWarning = rawAttendedOrPaid > workingDays
+          ? ` (capped from ${rawAttendedOrPaid} — overlap between attendance and half-day paid leave detected)`
+          : "";
+        const formula = `LOP = WD ${workingDays} − (present ${presentDays} + paid_leave ${paidLeave}) = ${lopDays}${overCreditWarning}`;
+
         const payload = {
           period,
           working_days: workingDays,

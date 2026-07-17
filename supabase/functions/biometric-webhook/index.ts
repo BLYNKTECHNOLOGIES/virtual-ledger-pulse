@@ -374,7 +374,7 @@ Deno.serve(async (req) => {
         // Roll up daily aggregates for matched rows (still sequential, but
         // only for matched punches — the expensive path is only paid for
         // real work).
-        for (const m of matchedForProcess) {
+        for (const m of dedupedForProcess) {
           try { await processAttendance(supabase, m.badge_id, m.punchISO, m.punchDate, m.punch_type, m.employeeUUID); }
           catch (e) { results.errors.push(`processAttendance: ${(e as Error).message}`); }
         }

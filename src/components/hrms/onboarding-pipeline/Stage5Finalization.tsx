@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,23 +34,75 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   });
   const [finalizing, setFinalizing] = useState(false);
 
+  // Pre-fill bank details from hr_employee_bank_details when this onboarding
+  // was auto-created from a Razorpay import (linked hr_employees row exists).
+  const linkedEmpId = onboardingRecord?.employee_id as string | null;
+  const { data: existingBank } = useQuery({
+    queryKey: ["stage5-bank", linkedEmpId],
+    queryFn: async () => {
+      if (!linkedEmpId) return null;
+      const { data } = await supabase
+        .from("hr_employee_bank_details")
+        .select("account_number, ifsc_code, bank_name, branch, additional_info")
+        .eq("employee_id", linkedEmpId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!linkedEmpId,
+  });
+
+  // Auto-pull bank/IFSC from Razorpay for pending onboardings that were imported
+  // from Razorpay but haven't had their bank details projected yet. Runs once
+  // per open of the wizard, silently — if it fails (permissions, offline
+  // employee, or no Razorpay bank block) the operator can still type manually.
+  const queryClient = useQueryClient();
+  const pulledRef = useRef(false);
+  useEffect(() => {
+    if (pulledRef.current) return;
+    if (!linkedEmpId) return;
+    if (existingBank?.account_number) return; // already have it
+    let cancelled = false;
+    (async () => {
+      const { data: mapRow } = await supabase
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", linkedEmpId)
+        .maybeSingle();
+      const rpId = (mapRow as any)?.razorpay_employee_id;
+      if (!rpId || cancelled) return;
+      pulledRef.current = true;
+      try {
+        await supabase.functions.invoke("razorpay-payroll-proxy", {
+          body: { action: "pull_person_full", razorpay_employee_ids: [String(rpId)] },
+        });
+        if (!cancelled) {
+          queryClient.invalidateQueries({ queryKey: ["stage5-bank", linkedEmpId] });
+        }
+      } catch {
+        // Silent — form still lets operator enter bank details manually.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [linkedEmpId, existingBank, queryClient]);
+
   useEffect(() => {
     if (onboardingRecord) {
       const bd = (onboardingRecord.bank_details as any) || {};
+      const holderFromBank = (existingBank as any)?.additional_info?.account_holder || "";
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
         essl_badge_id: onboardingRecord.essl_badge_id || "",
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
-        bank_account_number: bd.account_number || "",
-        bank_ifsc_code: bd.ifsc_code || "",
-        bank_name: bd.bank_name || "",
-        bank_branch: bd.branch || "",
-        bank_account_holder: bd.account_holder || "",
+        bank_account_number: bd.account_number || existingBank?.account_number || "",
+        bank_ifsc_code: bd.ifsc_code || existingBank?.ifsc_code || "",
+        bank_name: bd.bank_name || existingBank?.bank_name || "",
+        bank_branch: bd.branch || existingBank?.branch || "",
+        bank_account_holder: bd.account_holder || holderFromBank,
       });
     }
-  }, [onboardingRecord]);
+  }, [onboardingRecord, existingBank]);
 
   const { data: roles } = useQuery({
     queryKey: ["erp-roles-list"],

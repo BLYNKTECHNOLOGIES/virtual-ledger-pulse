@@ -174,6 +174,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
 
 
   const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
+
+  // Checklist for the "Also create in RazorpayX Payroll" toggle. Razorpay's
+  // POST /people (sub-type: add) requires all of these — surface gaps in the
+  // UI so HR can't attempt a create that will fail validation server-side.
+  const docs = (onboardingRecord?.documents as any) || {};
+  const panFromDocs = String(docs.pan?.value || "").toUpperCase().trim();
+  const razorpayChecklist = useMemo(() => {
+    const items = [
+      { key: "name", label: "Full name", ok: !!(onboardingRecord?.first_name) },
+      { key: "email", label: "Email", ok: !!onboardingRecord?.email },
+      { key: "phone", label: "Phone", ok: !!onboardingRecord?.phone },
+      { key: "pan", label: "PAN (from Stage 3)", ok: /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panFromDocs) },
+      { key: "doj", label: "Date of Joining", ok: !!form.date_of_joining },
+      { key: "dept", label: "Department", ok: !!onboardingRecord?.department_id },
+      { key: "title", label: "Job Role / Title", ok: !!onboardingRecord?.job_role },
+      { key: "ctc", label: "Annual CTC", ok: Number(onboardingRecord?.ctc) > 0 },
+      { key: "acct", label: "Bank Account Number", ok: !!form.bank_account_number.trim() },
+      { key: "ifsc", label: "Bank IFSC", ok: !!form.bank_ifsc_code.trim() && ifscValid },
+    ];
+    return { items, allOk: items.every(i => i.ok), missing: items.filter(i => !i.ok).map(i => i.label) };
+  }, [onboardingRecord, form.date_of_joining, form.bank_account_number, form.bank_ifsc_code, ifscValid, panFromDocs]);
+
   const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
 
   const validate = () => {

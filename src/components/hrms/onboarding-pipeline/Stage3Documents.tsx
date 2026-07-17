@@ -24,6 +24,8 @@ const DOC_FIELDS = [
   { key: "aadhaar", label: "Aadhaar Card", required: true },
   { key: "passport_photo", label: "Passport Photo", required: true },
   { key: "bank_details", label: "Bank Details (Cheque/Passbook)", required: true },
+  { key: "educational_certificate", label: "Educational Certificate", required: true },
+  { key: "experience_letter", label: "Previous Experience Letter", required: false },
   { key: "uan", label: "UAN", required: false },
   { key: "esic", label: "ESIC", required: false },
 ];
@@ -97,6 +99,8 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
               <li>Aadhaar Card (front & back)</li>
               <li>Passport-size Photo</li>
               <li>Bank Details (Cancelled cheque / Passbook first page)</li>
+              <li>Educational Certificate(s) (degree/diploma)</li>
+              <li>Previous Experience / Relieving Letter (if any)</li>
               <li>UAN Number (if existing)</li>
               <li>ESIC Number (if applicable)</li>
             </ul>

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
 
 type ResignationEmployee = {
@@ -305,6 +306,18 @@ export function ResignationTab() {
       } catch (e) {
         console.warn("F&F auto-creation failed (non-fatal):", e);
       }
+
+      // Razorpay dismissal — set date-of-dismissal so FNF payroll can be
+      // processed on their side too. Non-fatal: local separation is committed.
+      // We use last_working_day (fallback: notice_period_end_date, then today).
+      const dismissalDate =
+        (empData?.last_working_day as string | undefined) ||
+        (empData?.notice_period_end_date as string | undefined) ||
+        new Date().toISOString().split("T")[0];
+      await dismissInRazorpay(employeeId, {
+        dateOfDismissal: dismissalDate,
+        reason: (empData?.separation_reason as string | undefined) || "Resignation",
+      });
 
       return { ...empData, fnf: { leaveEncashAmount, loanRecovery, depositRefund, penaltyTotal, netPayable, encashDays } };
     },
@@ -632,7 +645,7 @@ export function ResignationTab() {
               disabled={completedCount < totalCount}
               onClick={() => {
                 if (selectedEmployee) {
-                  setConfirmAction({ type: 'complete', id: selectedEmployee.id, label: 'Complete resignation and deactivate this employee?' });
+                  setConfirmAction({ type: 'complete', id: selectedEmployee.id, label: 'Complete resignation, deactivate this employee in the ERP, and set their Date of Dismissal in RazorpayX Payroll (does not hard-delete — keeps them eligible for FNF payroll)?' });
                 }
               }}
             >

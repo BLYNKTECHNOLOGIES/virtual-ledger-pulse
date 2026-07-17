@@ -481,6 +481,21 @@ Deno.serve(async (req) => {
         const device_serial = punch.device_serial || punch.serialNumber || null;
         const raw_status = punch.status ?? punch.raw_status ?? null;
 
+        // Same directional override as the ICLOCK path — if the pushing device
+        // is registered as an "In Device" or "Out Device", force punch_type to
+        // match its role regardless of what the caller sent.
+        let jsonForcedDirection: "in" | "out" | null = null;
+        if (device_serial) {
+          const { data: devRow } = await supabase
+            .from("hr_biometric_devices")
+            .select("device_direction")
+            .eq("device_serial", device_serial)
+            .maybeSingle();
+          if (devRow?.device_direction === "In Device") jsonForcedDirection = "in";
+          else if (devRow?.device_direction === "Out Device") jsonForcedDirection = "out";
+        }
+        const effectivePunchType = jsonForcedDirection ?? punch_type;
+
         if (!badge_id || !punch_time) {
           results.errors.push(`Missing badge_id or punch_time: ${JSON.stringify(punch)}`);
           continue;

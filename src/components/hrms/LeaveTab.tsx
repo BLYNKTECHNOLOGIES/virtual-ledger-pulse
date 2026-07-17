@@ -40,10 +40,13 @@ export function LeaveTab({
   const uniqueLeaveTypeIds = [...new Set(leaveAllocations.map((a: any) => a.leave_type_id))];
 
   // ─── Mutations ───
+  // Note: DB CHECK constraint requires lowercase statuses; balance math is
+  // handled by the DB trigger fn_leave_balance_on_status_change — do NOT
+  // double-mutate used_days from the client.
   const updateStatusMutation = useMutation({
     mutationFn: async ({ requestId, status }: { requestId: string; status: string }) => {
       const updateData: any = { status };
-      if (status === "Approved") {
+      if (status === "approved") {
         updateData.approved_at = new Date().toISOString();
       }
       const { error } = await supabase
@@ -51,54 +54,14 @@ export function LeaveTab({
         .update(updateData)
         .eq("id", requestId);
       if (error) throw error;
-
-      // Update used_days in allocation if approving
-      if (status === "Approved") {
-        const req = leaveRequests.find((r: any) => r.id === requestId);
-        if (req) {
-          // Find the most recent allocation for this leave type to increment used_days
-          const alloc = leaveAllocations
-            .filter((a: any) => a.leave_type_id === req.leave_type_id)
-            .sort((a: any, b: any) => {
-              const aKey = (a.year || 0) * 10 + (a.quarter || 0);
-              const bKey = (b.year || 0) * 10 + (b.quarter || 0);
-              return bKey - aKey;
-            })[0];
-          if (alloc) {
-            await supabase
-              .from("hr_leave_allocations")
-              .update({ used_days: alloc.used_days + req.total_days })
-              .eq("id", alloc.id);
-          }
-        }
-      }
-
-      // If cancelling a previously approved request, restore used_days
-      if (status === "Cancelled") {
-        const req = leaveRequests.find((r: any) => r.id === requestId);
-        if (req && req.status === "Approved") {
-          const alloc = leaveAllocations
-            .filter((a: any) => a.leave_type_id === req.leave_type_id)
-            .sort((a: any, b: any) => {
-              const aKey = (a.year || 0) * 10 + (a.quarter || 0);
-              const bKey = (b.year || 0) * 10 + (b.quarter || 0);
-              return bKey - aKey;
-            })[0];
-          if (alloc) {
-            await supabase
-              .from("hr_leave_allocations")
-              .update({ used_days: Math.max(0, alloc.used_days - req.total_days) })
-              .eq("id", alloc.id);
-          }
-        }
-      }
     },
     onSuccess: (_, { status }) => {
-      toast.success(`Leave request ${status.toLowerCase()}`);
+      toast.success(`Leave request ${status}`);
       queryClient.invalidateQueries({ queryKey: ["hr_leave_requests", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["hr_leave_allocations", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
     },
-    onError: () => toast.error("Failed to update leave request"),
+    onError: (e: any) => toast.error(e?.message || "Failed to update leave request"),
   });
 
   const handleSort = (field: string) => {
@@ -148,11 +111,13 @@ export function LeaveTab({
   });
 
   const statusColors: Record<string, string> = {
-    Approved: "text-success",
-    Rejected: "text-destructive",
-    Cancelled: "text-muted-foreground",
-    Requested: "text-warning",
+    approved: "text-success",
+    rejected: "text-destructive",
+    cancelled: "text-muted-foreground",
+    requested: "text-warning",
   };
+  const statusLabel = (s: string) =>
+    s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 
   const SortHeader = ({ field, label }: { field: string; label: string }) => (
     <th
@@ -256,16 +221,16 @@ export function LeaveTab({
               <tbody>
                 {sortedRequests.map((req: any) => {
                   const lt = getLeaveType(req.leave_type_id);
-                  const isPending = req.status === "Requested";
-                  const isCancellable = req.status === "Requested" || req.status === "Approved";
+                  const isPending = req.status === "requested";
+                  const isCancellable = req.status === "requested" || req.status === "approved";
 
                   return (
                     <tr
                       key={req.id}
                       className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                        req.status === "Requested" ? "border-l-4 border-l-amber-400" :
-                        req.status === "Approved" ? "border-l-4 border-l-green-500" :
-                        req.status === "Rejected" ? "border-l-4 border-l-red-500" :
+                        req.status === "requested" ? "border-l-4 border-l-amber-400" :
+                        req.status === "approved" ? "border-l-4 border-l-green-500" :
+                        req.status === "rejected" ? "border-l-4 border-l-red-500" :
                         "border-l-4 border-l-gray-300"
                       }`}
                     >
@@ -292,12 +257,12 @@ export function LeaveTab({
                       <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
                       <td className="py-3 px-4 text-muted-foreground">{req.total_days}</td>
                       <td className={`py-3 px-4 font-medium ${statusColors[req.status] || "text-muted-foreground"}`}>
-                        {req.status}
+                        {statusLabel(req.status)}
                       </td>
                       <td className="py-3 px-4 text-center">
                         {isCancellable ? (
                           <button
-                            onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Cancelled" })}
+                            onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "cancelled" })}
                             disabled={updateStatusMutation.isPending}
                             className="bg-muted hover:bg-muted/80 text-foreground text-xs font-medium px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                           >
@@ -311,7 +276,7 @@ export function LeaveTab({
                         {isPending ? (
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Approved" })}
+                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "approved" })}
                               disabled={updateStatusMutation.isPending}
                               className="bg-warning hover:bg-warning text-primary-foreground px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
                               title="Approve"
@@ -319,7 +284,7 @@ export function LeaveTab({
                               <Check className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Rejected" })}
+                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "rejected" })}
                               disabled={updateStatusMutation.isPending}
                               className="bg-destructive hover:bg-destructive text-primary-foreground px-3 py-1.5 rounded-r-lg transition-colors disabled:opacity-50"
                               title="Reject"
@@ -327,7 +292,7 @@ export function LeaveTab({
                               <X className="h-4 w-4" />
                             </button>
                           </div>
-                        ) : req.status === "Cancelled" ? (
+                        ) : req.status === "cancelled" ? (
                           <div className="flex items-center justify-center">
                             <span className="bg-warning/80 text-primary-foreground px-3 py-1.5 rounded-lg">
                               <Check className="h-4 w-4" />

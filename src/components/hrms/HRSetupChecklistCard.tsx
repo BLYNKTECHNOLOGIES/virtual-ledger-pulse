@@ -32,7 +32,7 @@ const rows: Row[] = [
     actor: "Decision",
     need: (d) => d.holidays === 0,
     detail: (d) => `${d.holidays} holiday${d.holidays === 1 ? "" : "s"} configured`,
-    route: "/hrms/holidays",
+    route: "/hrms/leave/holidays",
     cta: "Set holidays",
   },
   {
@@ -41,7 +41,7 @@ const rows: Row[] = [
     actor: "Decision",
     need: (d) => d.tax_brackets === 0,
     detail: (d) => `${d.tax_brackets} tax bracket${d.tax_brackets === 1 ? "" : "s"} configured`,
-    route: "/hrms/salary-components",
+    route: "/hrms/payroll/tax-config",
     cta: "Configure tax",
   },
   {
@@ -50,7 +50,7 @@ const rows: Row[] = [
     actor: "Decision",
     need: (d) => d.filing_statuses === 0,
     detail: (d) => `${d.filing_statuses} filing status${d.filing_statuses === 1 ? "" : "es"} defined`,
-    route: "/hrms/salary-components",
+    route: "/hrms/payroll/tax-config",
     cta: "Add statuses",
   },
   {
@@ -59,7 +59,7 @@ const rows: Row[] = [
     actor: "Data entry",
     need: (d) => d.structures < d.employees,
     detail: (d) => `${d.structures} of ${d.employees} employees mapped`,
-    route: "/hrms/salary-structure",
+    route: "/hrms/payroll/salary-structure",
     cta: "Map structures",
   },
   {
@@ -68,7 +68,7 @@ const rows: Row[] = [
     actor: "Data entry",
     need: (d) => d.bank < d.employees,
     detail: (d) => `${d.bank} of ${d.employees} employees have bank details`,
-    route: "/hrms/dashboard",
+    route: "/hrms/employee",
     cta: "Fill bank details",
   },
   {
@@ -77,7 +77,7 @@ const rows: Row[] = [
     actor: "Data entry",
     need: (d) => d.weekly_off < d.employees,
     detail: (d) => `${d.weekly_off} of ${d.employees} employees have weekly-off set`,
-    route: "/hrms/weekly-off",
+    route: "/hrms/leave/weekly-off",
     cta: "Assign weekly-off",
   },
   {
@@ -86,7 +86,7 @@ const rows: Row[] = [
     actor: "Data entry",
     need: (d) => d.shifts < d.employees,
     detail: (d) => `${d.shifts} of ${d.employees} employees have a shift`,
-    route: "/hrms/shifts",
+    route: "/hrms/attendance/shifts",
     cta: "Assign shifts",
   },
 ];

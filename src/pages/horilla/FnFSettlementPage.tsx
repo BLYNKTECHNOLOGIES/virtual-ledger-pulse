@@ -152,12 +152,24 @@ export default function FnFSettlementPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const { gratuity_amount, notice_pay_recovery, ...rest } = form;
       const { error } = await (supabase as any).from("hr_fnf_settlements").insert({
         employee_id: selectedEmpId,
-        ...form,
+        ...rest,
         net_payable: netPayable,
+        breakdown: {
+          gratuity_amount,
+          notice_pay_recovery,
+          calc_note: calcNote,
+          formulas: {
+            leave_encashment: "days × (Basic / 26)",
+            gratuity: "(Basic × 15 / 26) × completed_years (≥5y)",
+            pending_salary: "working_days_in_month × (Basic / 26)",
+          },
+        },
       });
       if (error) throw error;
+
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });

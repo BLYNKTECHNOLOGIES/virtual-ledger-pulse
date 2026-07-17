@@ -1155,6 +1155,8 @@ Deno.serve(async (req) => {
             monthly_gross: sal.monthly_gross,
             components: sal.components,
           };
+        } else {
+          (r.body as any).__salary_probe_error = sal.err;
         }
         try {
           const hash = await canonicalHash(r.body);

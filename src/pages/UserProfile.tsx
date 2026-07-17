@@ -1121,9 +1121,11 @@ export default function UserProfile() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
             </div>
           )}
         </TabsContent>
+
 
         {/* ═══════ My Tasks Tab ═══════ */}
         <TabsContent value="tasks" className="space-y-6">

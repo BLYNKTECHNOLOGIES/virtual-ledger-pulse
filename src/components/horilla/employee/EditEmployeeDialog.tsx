@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { RazorpayPushToggle } from "@/components/hrms/primitives/RazorpayPushToggle";
+import { pushIdentityToRazorpay, pushEmploymentToRazorpay } from "@/lib/razorpayPushback";
 
 interface EditEmployeeDialogProps {
   open: boolean;
@@ -20,6 +22,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
     gender: "", dob: "", is_active: true,
     department_id: "", job_position_id: "", job_role: "", joining_date: "", employee_type: "Full-time",
   });
+  const [pushToRazorpay, setPushToRazorpay] = useState(true);
 
   useEffect(() => {
     if (employee) {
@@ -82,6 +85,10 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
       queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
       queryClient.invalidateQueries({ queryKey: ["hr_employee_detail"] });
       queryClient.invalidateQueries({ queryKey: ["hr_employee_work_info"] });
+      if (pushToRazorpay && employee?.id) {
+        pushIdentityToRazorpay(employee.id, { triggeredFrom: "edit_employee_dialog" });
+        pushEmploymentToRazorpay(employee.id, { triggeredFrom: "edit_employee_dialog" });
+      }
       onOpenChange(false);
     },
     onError: () => toast.error("Failed to update employee"),
@@ -201,15 +208,23 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <button onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
-          <button
-            onClick={() => updateMutation.mutate()}
-            disabled={!form.badge_id || !form.first_name || !form.last_name || updateMutation.isPending}
-            className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
-          >
-            {updateMutation.isPending ? "Saving..." : "Save Changes"}
-          </button>
+        <div className="flex flex-col gap-2 px-5 py-4 border-t border-border">
+          <RazorpayPushToggle
+            employeeId={employee.id}
+            value={pushToRazorpay}
+            onChange={setPushToRazorpay}
+            scopeLabel="identity + employment"
+          />
+          <div className="flex items-center justify-end gap-2">
+            <button onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
+            <button
+              onClick={() => updateMutation.mutate()}
+              disabled={!form.badge_id || !form.first_name || !form.last_name || updateMutation.isPending}
+              className="px-4 py-2 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+            >
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

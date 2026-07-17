@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
 import { Progress } from "@/components/ui/progress";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { DriftBadge } from "@/components/hrms/DriftBadge";
 
 // ─── Tabs matching Horilla ───
 const TABS = [
@@ -631,7 +632,10 @@ export default function EmployeeProfilePage() {
 
           {/* Info */}
           <div>
-            <h1 className="text-lg font-semibold text-foreground">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg font-semibold text-foreground">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
+              <DriftBadge employeeId={emp.id} />
+            </div>
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
               <Mail className="h-3.5 w-3.5" />
               <span>{emp.email || "No email"}</span>

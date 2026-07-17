@@ -5659,6 +5659,75 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_drift_alerts: {
+        Row: {
+          created_at: string
+          essl_value: string | null
+          field: string
+          first_seen_at: string
+          hr_employee_id: string
+          hrms_value: string | null
+          id: string
+          last_seen_at: string
+          razorpay_value: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          systems_involved: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          essl_value?: string | null
+          field: string
+          first_seen_at?: string
+          hr_employee_id: string
+          hrms_value?: string | null
+          id?: string
+          last_seen_at?: string
+          razorpay_value?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          systems_involved?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          essl_value?: string | null
+          field?: string
+          first_seen_at?: string
+          hr_employee_id?: string
+          hrms_value?: string | null
+          id?: string
+          last_seen_at?: string
+          razorpay_value?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          systems_involved?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_email_send_log: {
         Row: {
           created_at: string
@@ -9038,6 +9107,66 @@ export type Database = {
             columns: ["run_id"]
             isOneToOne: false
             referencedRelation: "hr_razorpay_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_razorpay_pushback_log: {
+        Row: {
+          action: string
+          created_at: string
+          error_message: string | null
+          hr_employee_id: string | null
+          id: string
+          kind: string
+          razorpay_employee_id: string | null
+          request_snapshot: Json | null
+          response_snapshot: Json | null
+          status: string
+          triggered_by: string | null
+          triggered_from: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          error_message?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          kind: string
+          razorpay_employee_id?: string | null
+          request_snapshot?: Json | null
+          response_snapshot?: Json | null
+          status: string
+          triggered_by?: string | null
+          triggered_from?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          error_message?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          kind?: string
+          razorpay_employee_id?: string | null
+          request_snapshot?: Json | null
+          response_snapshot?: Json | null
+          status?: string
+          triggered_by?: string | null
+          triggered_from?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_pushback_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_pushback_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
             referencedColumns: ["id"]
           },
         ]
@@ -17449,6 +17578,7 @@ export type Database = {
           id: string
           language: string | null
           notifications_enabled: boolean | null
+          razorpay_push_default: boolean
           theme: string | null
           timezone: string | null
           updated_at: string | null
@@ -17461,6 +17591,7 @@ export type Database = {
           id?: string
           language?: string | null
           notifications_enabled?: boolean | null
+          razorpay_push_default?: boolean
           theme?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -17473,6 +17604,7 @@ export type Database = {
           id?: string
           language?: string | null
           notifications_enabled?: boolean | null
+          razorpay_push_default?: boolean
           theme?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -18039,6 +18171,44 @@ export type Database = {
           status: string | null
         }
         Relationships: []
+      }
+      hr_drift_open: {
+        Row: {
+          badge_id: string | null
+          created_at: string | null
+          employee_name: string | null
+          essl_value: string | null
+          field: string | null
+          first_seen_at: string | null
+          hr_employee_id: string | null
+          hrms_value: string | null
+          id: string | null
+          is_active: boolean | null
+          last_seen_at: string | null
+          razorpay_value: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string | null
+          systems_involved: string[] | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_employee_completeness: {
         Row: {

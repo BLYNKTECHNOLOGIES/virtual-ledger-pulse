@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { pushIdentityToRazorpay, pushEmploymentToRazorpay } from "@/lib/razorpayPushback";
 
 interface AddEmployeeDialogProps {
   open: boolean;
@@ -18,6 +19,7 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
     gender: "", dob: "", department_id: "", job_position_id: "",
     job_role: "", joining_date: "", employee_type: "Full-time",
   });
+  const [pushToRazorpay, setPushToRazorpay] = useState(true);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -50,10 +52,16 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
       }
       return emp;
     },
-    onSuccess: () => {
+    onSuccess: (emp: any) => {
       toast.success("Employee created successfully");
       queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
       queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+      // New employee has no Razorpay mapping yet — helper will silently skip.
+      // We still record the intent so Data Health can nudge a create.
+      if (pushToRazorpay && emp?.id) {
+        pushIdentityToRazorpay(emp.id, { triggeredFrom: "add_employee_dialog" });
+        pushEmploymentToRazorpay(emp.id, { triggeredFrom: "add_employee_dialog" });
+      }
       onOpenChange(false);
       setForm({
         badge_id: "", first_name: "", last_name: "", email: "", phone: "",
@@ -168,15 +176,26 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <button onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted transition-colors">Cancel</button>
-          <button
-            onClick={() => createMutation.mutate()}
-            disabled={!form.badge_id || !form.first_name || !form.last_name || createMutation.isPending}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] transition-colors disabled:opacity-50"
-          >
-            {createMutation.isPending ? "Creating..." : "Create Employee"}
-          </button>
+        <div className="flex flex-col gap-2 px-5 py-4 border-t border-border">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground select-none">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-border accent-[#E8604C]"
+              checked={pushToRazorpay}
+              onChange={(e) => setPushToRazorpay(e.target.checked)}
+            />
+            Also mirror this employee to Razorpay after saving
+          </label>
+          <div className="flex items-center justify-end gap-2">
+            <button onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted transition-colors">Cancel</button>
+            <button
+              onClick={() => createMutation.mutate()}
+              disabled={!form.badge_id || !form.first_name || !form.last_name || createMutation.isPending}
+              className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] transition-colors disabled:opacity-50"
+            >
+              {createMutation.isPending ? "Creating..." : "Create Employee"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

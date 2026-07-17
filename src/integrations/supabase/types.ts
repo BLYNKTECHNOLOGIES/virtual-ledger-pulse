@@ -6883,6 +6883,7 @@ export type Database = {
         Row: {
           approved_by: string | null
           bonus_amount: number
+          breakdown: Json | null
           created_at: string
           deposit_refund: number
           employee_id: string
@@ -6905,6 +6906,7 @@ export type Database = {
         Insert: {
           approved_by?: string | null
           bonus_amount?: number
+          breakdown?: Json | null
           created_at?: string
           deposit_refund?: number
           employee_id: string
@@ -6927,6 +6929,7 @@ export type Database = {
         Update: {
           approved_by?: string | null
           bonus_amount?: number
+          breakdown?: Json | null
           created_at?: string
           deposit_refund?: number
           employee_id?: string
@@ -19544,6 +19547,14 @@ export type Database = {
           old_balance: number
           scope: string
         }[]
+      }
+      hr_compute_fnf_breakdown: {
+        Args: {
+          p_employee_id: string
+          p_last_working_day: string
+          p_notice_days_served?: number
+        }
+        Returns: Json
       }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }

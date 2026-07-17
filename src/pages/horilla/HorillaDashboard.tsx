@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HRDashboardCompletenessCard } from "@/components/hrms/HRDashboardCompletenessCard";
+import { HRSetupChecklistCard } from "@/components/hrms/HRSetupChecklistCard";
 
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
@@ -195,6 +196,10 @@ export default function HorillaDashboard() {
 
       {/* Data completeness — HR manager's daily "what next" home base */}
       <HRDashboardCompletenessCard />
+
+      {/* Org-wide setup gaps that block payroll/attendance from running */}
+      <HRSetupChecklistCard />
+
 
       {/* M7: Actionable Widgets Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

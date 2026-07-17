@@ -52,6 +52,11 @@ import { toast as sonnerToast } from 'sonner';
 import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
 import AttendanceTab from '@/components/profile/AttendanceTab';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
+import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
+import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
+import { CompensationHistory } from '@/components/hrms/CompensationHistory';
+import { formatDistanceToNow } from 'date-fns';
+
 
 interface BankAccount {
   id: string;

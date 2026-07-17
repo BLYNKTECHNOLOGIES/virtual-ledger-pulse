@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Fingerprint, Landmark } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;

@@ -208,6 +208,56 @@ export default function EmployeeProfilePage() {
     enabled: !!id,
   });
 
+  const { data: rzpMap } = useQuery({
+    queryKey: ["hr_razorpay_map", id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,last_pulled_at")
+        .eq("hr_employee_id", id!)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const [pullingBank, setPullingBank] = useState(false);
+  const pullBankFromRazorpay = async () => {
+    if (!rzpMap?.razorpay_employee_id) {
+      toast.error("This employee is not linked to a Razorpay employee ID.");
+      return;
+    }
+    setPullingBank(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "pull_person_full", razorpay_employee_ids: [rzpMap.razorpay_employee_id] },
+      });
+      if (error) throw error;
+      const row = (data as any)?.rows?.[0];
+      if (!row) throw new Error("No response from Razorpay");
+      if (row.status === "miss") {
+        toast.error(`Razorpay returned no data (HTTP ${row.http_status}).`);
+      } else if (row.status === "error") {
+        toast.error(`Pull failed: ${row.error}`);
+      } else {
+        const wroteBank = row.wrote?.bank ?? 0;
+        if (row.status === "unchanged") {
+          toast.success("Already in sync with Razorpay — no changes.");
+        } else if (wroteBank > 0) {
+          toast.success(`Bank details updated from Razorpay (${wroteBank} field${wroteBank === 1 ? "" : "s"}).`);
+        } else {
+          toast.info("Razorpay has no bank_account block for this employee yet.");
+        }
+        queryClient.invalidateQueries({ queryKey: ["hr_employee_bank", id] });
+        queryClient.invalidateQueries({ queryKey: ["hr_razorpay_map", id] });
+      }
+    } catch (e: any) {
+      toast.error(`Pull failed: ${e?.message ?? e}`);
+    } finally {
+      setPullingBank(false);
+    }
+  };
+
   // ─── Lookups ───
   const { data: dept } = useQuery({
     queryKey: ["dept_for_emp", workInfo?.department_id],
@@ -984,7 +1034,18 @@ export default function EmployeeProfilePage() {
           <div className="space-y-4">
             <h3 className="text-base font-semibold text-foreground">Documents</h3>
             <div className="border border-border rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-3">Bank Details</h4>
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                <h4 className="text-sm font-semibold text-foreground">Bank Details</h4>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={pullBankFromRazorpay}
+                  disabled={pullingBank || !rzpMap?.razorpay_employee_id}
+                  title={rzpMap?.razorpay_employee_id ? "Fetch bank_account from Razorpay" : "Not linked to a Razorpay employee"}
+                >
+                  {pullingBank ? "Pulling…" : "Pull from Razorpay"}
+                </Button>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div><p className="text-xs text-muted-foreground">Bank Name</p><p className="text-sm text-foreground">{bankInfo?.bank_name || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Account Number</p><p className="text-sm text-foreground">{bankInfo?.account_number || "None"}</p></div>

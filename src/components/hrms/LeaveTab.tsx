@@ -40,10 +40,13 @@ export function LeaveTab({
   const uniqueLeaveTypeIds = [...new Set(leaveAllocations.map((a: any) => a.leave_type_id))];
 
   // ─── Mutations ───
+  // Note: DB CHECK constraint requires lowercase statuses; balance math is
+  // handled by the DB trigger fn_leave_balance_on_status_change — do NOT
+  // double-mutate used_days from the client.
   const updateStatusMutation = useMutation({
     mutationFn: async ({ requestId, status }: { requestId: string; status: string }) => {
       const updateData: any = { status };
-      if (status === "Approved") {
+      if (status === "approved") {
         updateData.approved_at = new Date().toISOString();
       }
       const { error } = await supabase
@@ -51,54 +54,14 @@ export function LeaveTab({
         .update(updateData)
         .eq("id", requestId);
       if (error) throw error;
-
-      // Update used_days in allocation if approving
-      if (status === "Approved") {
-        const req = leaveRequests.find((r: any) => r.id === requestId);
-        if (req) {
-          // Find the most recent allocation for this leave type to increment used_days
-          const alloc = leaveAllocations
-            .filter((a: any) => a.leave_type_id === req.leave_type_id)
-            .sort((a: any, b: any) => {
-              const aKey = (a.year || 0) * 10 + (a.quarter || 0);
-              const bKey = (b.year || 0) * 10 + (b.quarter || 0);
-              return bKey - aKey;
-            })[0];
-          if (alloc) {
-            await supabase
-              .from("hr_leave_allocations")
-              .update({ used_days: alloc.used_days + req.total_days })
-              .eq("id", alloc.id);
-          }
-        }
-      }
-
-      // If cancelling a previously approved request, restore used_days
-      if (status === "Cancelled") {
-        const req = leaveRequests.find((r: any) => r.id === requestId);
-        if (req && req.status === "Approved") {
-          const alloc = leaveAllocations
-            .filter((a: any) => a.leave_type_id === req.leave_type_id)
-            .sort((a: any, b: any) => {
-              const aKey = (a.year || 0) * 10 + (a.quarter || 0);
-              const bKey = (b.year || 0) * 10 + (b.quarter || 0);
-              return bKey - aKey;
-            })[0];
-          if (alloc) {
-            await supabase
-              .from("hr_leave_allocations")
-              .update({ used_days: Math.max(0, alloc.used_days - req.total_days) })
-              .eq("id", alloc.id);
-          }
-        }
-      }
     },
     onSuccess: (_, { status }) => {
-      toast.success(`Leave request ${status.toLowerCase()}`);
+      toast.success(`Leave request ${status}`);
       queryClient.invalidateQueries({ queryKey: ["hr_leave_requests", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["hr_leave_allocations", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
     },
-    onError: () => toast.error("Failed to update leave request"),
+    onError: (e: any) => toast.error(e?.message || "Failed to update leave request"),
   });
 
   const handleSort = (field: string) => {

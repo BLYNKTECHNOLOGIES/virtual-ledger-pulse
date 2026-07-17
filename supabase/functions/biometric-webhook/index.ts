@@ -299,19 +299,68 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Batch inserts. The unique index on (employee_id, punch_time) — combined
-        // with ON CONFLICT DO NOTHING — handles the 2-min dedup that used to
-        // require a per-line SELECT round-trip.
+        // ── Cross-device same-direction cooldown dedup ─────────────────────
+        // With two devices in play, an employee waving their finger on both
+        // in quick succession (or a device re-transmitting a batch) can push
+        // duplicate same-direction punches a few seconds apart. Collapse any
+        // matched insert that is within COOLDOWN_SEC of an existing same-
+        // direction punch for the same employee, from EITHER device.
+        const COOLDOWN_SEC = 90;
+        const dedupedInserts: any[] = [];
+        const dedupedForProcess: typeof matchedForProcess = [];
         if (punchInserts.length > 0) {
+          // Load recent same-direction punches once per (employee, direction) pair.
+          const empDirPairs = new Map<string, Set<"in" | "out">>();
+          for (const pi of punchInserts) {
+            if (!empDirPairs.has(pi.employee_id)) empDirPairs.set(pi.employee_id, new Set());
+            empDirPairs.get(pi.employee_id)!.add(pi.punch_type);
+          }
+          const earliestBatch = new Date(Math.min(...punchInserts.map((x) => new Date(x.punch_time).getTime())));
+          const windowStart = new Date(earliestBatch.getTime() - COOLDOWN_SEC * 1000).toISOString();
+          const empIds = Array.from(empDirPairs.keys());
+          const { data: recentPunches } = await supabase
+            .from("hr_attendance_punches")
+            .select("employee_id, punch_time, punch_type")
+            .in("employee_id", empIds)
+            .gte("punch_time", windowStart);
+
+          // Group existing punches by employee+direction for O(1) proximity checks.
+          const existing: Record<string, number[]> = {};
+          (recentPunches ?? []).forEach((r: any) => {
+            const key = `${r.employee_id}|${r.punch_type}`;
+            (existing[key] ||= []).push(new Date(r.punch_time).getTime());
+          });
+          const batchSeen: Record<string, number[]> = {};
+
+          for (let i = 0; i < punchInserts.length; i++) {
+            const pi = punchInserts[i];
+            const key = `${pi.employee_id}|${pi.punch_type}`;
+            const t = new Date(pi.punch_time).getTime();
+            const near = (arr?: number[]) =>
+              !!arr && arr.some((x) => Math.abs(x - t) < COOLDOWN_SEC * 1000);
+            if (near(existing[key]) || near(batchSeen[key])) {
+              results.skipped++;
+              continue;
+            }
+            (batchSeen[key] ||= []).push(t);
+            dedupedInserts.push(pi);
+            dedupedForProcess.push(matchedForProcess[i]);
+          }
+        }
+
+        // Batch inserts. Unique index (employee_id, punch_time, punch_type)
+        // + ON CONFLICT DO NOTHING covers exact-timestamp duplicates; the
+        // cooldown pass above handles near-duplicates across devices.
+        if (dedupedInserts.length > 0) {
           const { error: batchErr, data: inserted } = await supabase
             .from("hr_attendance_punches")
-            .upsert(punchInserts, { onConflict: "employee_id,punch_time", ignoreDuplicates: true })
+            .upsert(dedupedInserts, { onConflict: "employee_id,punch_time,punch_type", ignoreDuplicates: true })
             .select("id, employee_id, punch_time");
           if (batchErr) {
             results.errors.push(`Batch punch insert error: ${batchErr.message}`);
           } else {
             results.inserted += (inserted ?? []).length;
-            results.skipped += punchInserts.length - (inserted ?? []).length;
+            results.skipped += dedupedInserts.length - (inserted ?? []).length;
           }
         }
         if (quarantineInserts.length > 0) {

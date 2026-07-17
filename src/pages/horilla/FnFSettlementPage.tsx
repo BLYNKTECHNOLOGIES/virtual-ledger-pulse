@@ -24,6 +24,8 @@ export default function FnFSettlementPage() {
     leave_encashment_days: 0,
     leave_encashment_amount: 0,
     bonus_amount: 0,
+    gratuity_amount: 0,
+    notice_pay_recovery: 0,
     loan_recovery: 0,
     deposit_refund: 0,
     penalty_deductions: 0,
@@ -31,6 +33,8 @@ export default function FnFSettlementPage() {
     other_deductions_notes: "",
     notes: "",
   });
+  const [calcNote, setCalcNote] = useState<string>("");
+
 
   const { data: settlements = [], isLoading } = useQuery({
     queryKey: ["hr_fnf_settlements"],
@@ -49,60 +53,89 @@ export default function FnFSettlementPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, badge_id, last_working_day, total_salary")
+        .select("id, first_name, last_name, badge_id, last_working_day, total_salary, basic_salary")
         .not("last_working_day", "is", null)
         .order("last_working_day", { ascending: false });
       return data || [];
     },
   });
 
-  // Auto-pull data when employee is selected
+  // Auto-pull data when employee is selected — uses Indian statutory formulas.
+  //  • Leave encashment = Basic / 26 per day   (Payment of Wages / labour law standard)
+  //  • Gratuity          = (Basic × 15 / 26) × completed years, if tenure ≥ 5 years
+  //  • Pending salary    = working-day proration of Basic from period-start → LWD
+  //                        (calendar days used only when Basic is missing)
   const autoFillFnF = async (empId: string) => {
     setSelectedEmpId(empId);
     const emp = separatedEmployees.find((e: any) => e.id === empId);
     if (!emp) return;
 
-    // Pull loan balance
-    const { data: loans } = await (supabase as any)
-      .from("hr_loans")
-      .select("outstanding_balance")
-      .eq("employee_id", empId)
-      .eq("status", "active");
-    const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
+    const [{ data: loans }, { data: allocations }, { data: penalties }, { data: empDeposits }, { data: workInfo }] = await Promise.all([
+      (supabase as any).from("hr_loans").select("outstanding_balance").eq("employee_id", empId).eq("status", "active"),
+      (supabase as any).from("hr_leave_allocations").select("available_days, hr_leave_types!hr_leave_allocations_leave_type_id_fkey(is_encashable)").eq("employee_id", empId),
+      (supabase as any).from("hr_penalties").select("deduction_amount").eq("employee_id", empId).eq("is_applied", false),
+      (supabase as any).from("hr_employee_deposits").select("collected_amount").eq("employee_id", empId).eq("is_settled", false),
+      (supabase as any).from("hr_employee_work_info").select("joining_date").eq("employee_id", empId).maybeSingle(),
+    ]);
 
-    // Pull encashable leave balance
-    const { data: allocations } = await (supabase as any)
-      .from("hr_leave_allocations")
-      .select("available_days, hr_leave_types!hr_leave_allocations_leave_type_id_fkey(is_encashable)")
-      .eq("employee_id", empId);
+    const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
     const encashDays = (allocations || [])
       .filter((a: any) => a.hr_leave_types?.is_encashable)
       .reduce((sum: number, a: any) => sum + Number(a.available_days || 0), 0);
-
-    // Pull pending penalties
-    const { data: penalties } = await (supabase as any)
-      .from("hr_penalties")
-      .select("deduction_amount")
-      .eq("employee_id", empId)
-      .eq("is_applied", false);
     const penaltyTotal = (penalties || []).reduce((sum: number, p: any) => sum + Number(p.deduction_amount || 0), 0);
-
-    // Pull deposit refund (collected amount to return)
-    const { data: empDeposits } = await (supabase as any)
-      .from("hr_employee_deposits")
-      .select("collected_amount")
-      .eq("employee_id", empId)
-      .eq("is_settled", false);
     const depositRefund = (empDeposits || []).reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
 
-    const dailySalary = Number(emp.total_salary || 0) / 30;
+    // Base pay basis: prefer Basic; fall back to 40% of CTC when Basic is missing (Indian norm).
+    const totalCtc = Number(emp.total_salary || 0);
+    const basicRaw = Number(emp.basic_salary || 0);
+    const basicMonthly = basicRaw > 0 ? basicRaw : Math.round(totalCtc * 0.4);
+    const perDayEncash = basicMonthly / 26;
+    const encashAmount = Math.round(encashDays * perDayEncash);
+
+    // Gratuity — statutory: only after 5 completed years.
+    const doj = workInfo?.joining_date ? new Date(workInfo.joining_date) : null;
+    const lwd = emp.last_working_day ? new Date(emp.last_working_day) : new Date();
+    let gratuity = 0;
+    let tenureYears = 0;
+    if (doj && !isNaN(doj.getTime())) {
+      const ms = lwd.getTime() - doj.getTime();
+      tenureYears = ms / (365.25 * 24 * 3600 * 1000);
+      if (tenureYears >= 5) {
+        // ≥6 months in final year counts as full year (Payment of Gratuity Act).
+        const completedYears = Math.floor(tenureYears) + ((tenureYears - Math.floor(tenureYears)) >= 0.5 ? 1 : 0);
+        gratuity = Math.round(basicMonthly * (15 / 26) * completedYears);
+      }
+    }
+
+    // Pending salary — working days from the 1st of the LWD month up to LWD, × Basic/26.
+    // Skips Sundays only (conservative); operator can override in the field.
+    let pendingSalary = 0;
+    if (emp.last_working_day) {
+      const end = new Date(emp.last_working_day + "T00:00:00Z");
+      const monthStart = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+      let wd = 0;
+      for (let t = monthStart.getTime(); t <= end.getTime(); t += 86400000) {
+        const d = new Date(t);
+        if (d.getUTCDay() !== 0) wd++;
+      }
+      pendingSalary = Math.round(wd * (basicMonthly / 26));
+    }
+
+    setCalcNote(
+      `Basis: Basic ₹${basicMonthly.toLocaleString("en-IN")} / 26 = ₹${perDayEncash.toFixed(0)}/day. ` +
+      (tenureYears >= 5
+        ? `Tenure ${tenureYears.toFixed(2)}y ⇒ gratuity payable.`
+        : (doj ? `Tenure ${tenureYears.toFixed(2)}y (<5y) — gratuity not payable.` : `Joining date not set — gratuity skipped.`))
+    );
 
     setForm({
       last_working_day: emp.last_working_day || "",
-      pending_salary: 0,
+      pending_salary: pendingSalary,
       leave_encashment_days: encashDays,
-      leave_encashment_amount: Math.round(encashDays * dailySalary),
+      leave_encashment_amount: encashAmount,
       bonus_amount: 0,
+      gratuity_amount: gratuity,
+      notice_pay_recovery: 0,
       loan_recovery: loanRecovery,
       deposit_refund: depositRefund,
       penalty_deductions: penaltyTotal,
@@ -112,17 +145,31 @@ export default function FnFSettlementPage() {
     });
   };
 
-  const netPayable = form.pending_salary + form.leave_encashment_amount + form.bonus_amount + form.deposit_refund
-    - form.loan_recovery - form.penalty_deductions - form.other_deductions;
+  const netPayable = form.pending_salary + form.leave_encashment_amount + form.bonus_amount
+    + form.gratuity_amount + form.deposit_refund
+    - form.loan_recovery - form.penalty_deductions - form.notice_pay_recovery - form.other_deductions;
+
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const { gratuity_amount, notice_pay_recovery, ...rest } = form;
       const { error } = await (supabase as any).from("hr_fnf_settlements").insert({
         employee_id: selectedEmpId,
-        ...form,
+        ...rest,
         net_payable: netPayable,
+        breakdown: {
+          gratuity_amount,
+          notice_pay_recovery,
+          calc_note: calcNote,
+          formulas: {
+            leave_encashment: "days × (Basic / 26)",
+            gratuity: "(Basic × 15 / 26) × completed_years (≥5y)",
+            pending_salary: "working_days_in_month × (Basic / 26)",
+          },
+        },
       });
       if (error) throw error;
+
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
@@ -275,11 +322,15 @@ export default function FnFSettlementPage() {
               <div><Label>Leave Encash Days</Label><Input className="h-9 mt-1" type="number" value={form.leave_encashment_days} onChange={(e) => setForm({ ...form, leave_encashment_days: Number(e.target.value) })} /></div>
               <div><Label>Leave Encash Amount (₹)</Label><Input className="h-9 mt-1" type="number" value={form.leave_encashment_amount} onChange={(e) => setForm({ ...form, leave_encashment_amount: Number(e.target.value) })} /></div>
               <div><Label>Bonus (₹)</Label><Input className="h-9 mt-1" type="number" value={form.bonus_amount} onChange={(e) => setForm({ ...form, bonus_amount: Number(e.target.value) })} /></div>
+              <div><Label>Gratuity (₹)</Label><Input className="h-9 mt-1" type="number" value={form.gratuity_amount} onChange={(e) => setForm({ ...form, gratuity_amount: Number(e.target.value) })} /></div>
+              <div><Label>Notice Pay Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.notice_pay_recovery} onChange={(e) => setForm({ ...form, notice_pay_recovery: Number(e.target.value) })} /></div>
               <div><Label>Loan Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.loan_recovery} onChange={(e) => setForm({ ...form, loan_recovery: Number(e.target.value) })} /></div>
               <div><Label>Deposit Refund (₹)</Label><Input className="h-9 mt-1" type="number" value={form.deposit_refund} onChange={(e) => setForm({ ...form, deposit_refund: Number(e.target.value) })} /></div>
               <div><Label>Penalty Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.penalty_deductions} onChange={(e) => setForm({ ...form, penalty_deductions: Number(e.target.value) })} /></div>
               <div><Label>Other Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.other_deductions} onChange={(e) => setForm({ ...form, other_deductions: Number(e.target.value) })} /></div>
             </div>
+            {calcNote && <p className="text-[11px] text-muted-foreground bg-muted/40 rounded px-2 py-1.5">{calcNote}</p>}
+
             <div><Label>Other Deductions Notes</Label><Input className="h-9 mt-1" value={form.other_deductions_notes} onChange={(e) => setForm({ ...form, other_deductions_notes: e.target.value })} /></div>
             <div><Label>Notes</Label><Textarea className="mt-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             <Card className="bg-muted/50">

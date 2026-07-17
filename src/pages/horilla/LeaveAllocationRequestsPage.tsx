@@ -62,7 +62,7 @@ export default function LeaveAllocationRequestsPage() {
         leave_type_id: form.leave_type_id,
         requested_days: parseInt(form.requested_days) || 1,
         description: form.description || null,
-        status: "pending",
+        status: "requested",
         created_by: user?.user?.id || null,
       });
       if (error) throw error;
@@ -124,7 +124,7 @@ export default function LeaveAllocationRequestsPage() {
     return name.toLowerCase().includes(search.toLowerCase());
   });
 
-  const pendingCount = requests.filter((r: any) => r.status === "pending").length;
+  const pendingCount = requests.filter((r: any) => r.status === "requested").length;
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -145,7 +145,7 @@ export default function LeaveAllocationRequestsPage() {
           <SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="requested">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
@@ -194,7 +194,7 @@ export default function LeaveAllocationRequestsPage() {
                     <TableCell>{statusBadge(r.status)}</TableCell>
                     <TableCell className="text-sm max-w-[200px] truncate text-muted-foreground">{r.description || "—"}</TableCell>
                     <TableCell>
-                      {r.status === "pending" && (
+                      {r.status === "requested" && (
                         <div className="flex gap-1">
                           <Button size="sm" variant="ghost" className="text-success h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "approved" })}>
                             <CheckCircle className="h-4 w-4" />

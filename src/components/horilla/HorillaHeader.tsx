@@ -43,8 +43,12 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   const { data: rawNotifications = [] } = useQuery({
     queryKey: ["hr_notifications"],
     queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      const uid = user?.user?.id;
+      if (!uid) return [];
       const { data } = await (supabase as any).from("hr_notifications")
         .select("*")
+        .or(`user_id.eq.${uid},employee_id.eq.${uid}`)
         .order("created_at", { ascending: false })
         .limit(30);
       return data || [];

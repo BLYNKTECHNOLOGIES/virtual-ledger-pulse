@@ -9772,45 +9772,60 @@ export type Database = {
       hr_salary_revisions: {
         Row: {
           approved_by: string | null
+          attachment_url: string | null
           created_at: string
           effective_from: string
           employee_id: string
           id: string
           new_basic: number | null
           new_total: number | null
+          notes: string | null
+          one_time_amount: number | null
+          payout_month: string | null
           previous_basic: number | null
           previous_total: number | null
           revision_reason: string | null
           revision_type: string
           status: string
+          updated_at: string
         }
         Insert: {
           approved_by?: string | null
+          attachment_url?: string | null
           created_at?: string
           effective_from?: string
           employee_id: string
           id?: string
           new_basic?: number | null
           new_total?: number | null
+          notes?: string | null
+          one_time_amount?: number | null
+          payout_month?: string | null
           previous_basic?: number | null
           previous_total?: number | null
           revision_reason?: string | null
           revision_type?: string
           status?: string
+          updated_at?: string
         }
         Update: {
           approved_by?: string | null
+          attachment_url?: string | null
           created_at?: string
           effective_from?: string
           employee_id?: string
           id?: string
           new_basic?: number | null
           new_total?: number | null
+          notes?: string | null
+          one_time_amount?: number | null
+          payout_month?: string | null
           previous_basic?: number | null
           previous_total?: number | null
           revision_reason?: string | null
           revision_type?: string
           status?: string
+          updated_at?: string
         }
         Relationships: [
           {

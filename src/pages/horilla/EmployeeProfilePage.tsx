@@ -654,9 +654,6 @@ export default function EmployeeProfilePage() {
 
         {/* Prev/Next navigation */}
         <div className="flex items-center gap-2">
-          <button className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted" title="Settings">
-            <Settings className="h-4 w-4" />
-          </button>
           <button
             onClick={() => prevId && navigate(`/hrms/employee/${prevId}`)}
             disabled={!prevId}

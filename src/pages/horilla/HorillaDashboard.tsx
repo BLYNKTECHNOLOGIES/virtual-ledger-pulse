@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HRDashboardCompletenessCard } from "@/components/hrms/HRDashboardCompletenessCard";
 import { HRSetupChecklistCard } from "@/components/hrms/HRSetupChecklistCard";
+import { AnnouncementsBanner } from "@/components/hrms/AnnouncementsBanner";
 
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
@@ -177,6 +178,8 @@ export default function HorillaDashboard() {
         title="Dashboard"
         description="Welcome back! Here's what's happening today."
       />
+
+      <AnnouncementsBanner />
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">

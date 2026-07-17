@@ -52,6 +52,11 @@ import { toast as sonnerToast } from 'sonner';
 import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
 import AttendanceTab from '@/components/profile/AttendanceTab';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
+import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
+import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
+import { CompensationHistory } from '@/components/hrms/CompensationHistory';
+import { formatDistanceToNow } from 'date-fns';
+
 
 interface BankAccount {
   id: string;
@@ -514,7 +519,86 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
     </div>
   );
 }
+
+// ─── Employee Documents Sub-Component (view own docs uploaded by HR) ───
+function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
+  const { data: docs = [], isLoading } = useQuery({
+    queryKey: ['hr_employee_documents_ess', employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('hr_employee_documents')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .order('uploaded_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!employeeId,
+  });
+
+  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading documents…</p>;
+
+  if (docs.length === 0) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Documents Yet</h3>
+          <p className="text-muted-foreground">Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const typeLabel = (t: string) => (t || 'document').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">My Documents</h3>
+        <Badge variant="outline">{docs.length} file{docs.length === 1 ? '' : 's'}</Badge>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {docs.map((doc: any) => (
+          <Card key={doc.id} className="hover:border-primary/40 transition-colors">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 bg-info/10 rounded-lg shrink-0">
+                <FileText className="h-6 w-6 text-info" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{doc.document_name || typeLabel(doc.document_type)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {typeLabel(doc.document_type)}
+                  {doc.uploaded_at ? ` • ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  {doc.is_verified ? (
+                    <Badge variant="outline" className="text-success border-success/40 text-[10px]">Verified</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-warning border-warning/40 text-[10px]">Pending Verification</Badge>
+                  )}
+                </div>
+              </div>
+              {doc.file_url ? (
+                <Button asChild variant="outline" size="sm">
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer">View</a>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" disabled>Unavailable</Button>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground text-center pt-2">
+        Need a new document uploaded or a certificate? Contact HR.
+      </p>
+    </div>
+  );
+}
+
 export default function UserProfile() {
+
   const { user, refreshUser, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -972,7 +1056,10 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <AnnouncementsBanner />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
               {/* Personal Information - Read Only */}
               <Card>
                 <CardHeader>
@@ -1034,9 +1121,11 @@ export default function UserProfile() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
             </div>
           )}
         </TabsContent>
+
 
         {/* ═══════ My Tasks Tab ═══════ */}
         <TabsContent value="tasks" className="space-y-6">
@@ -1048,9 +1137,23 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <SalaryPFTab hrEmployee={hrEmployee} />
+            <>
+              <SalaryPFTab hrEmployee={hrEmployee} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Compensation History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CompensationHistory employeeId={hrEmployee.id} />
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
+
 
         {/* ═══════ Payslips Tab ═══════ */}
         <TabsContent value="payslips" className="space-y-6">
@@ -1135,8 +1238,11 @@ export default function UserProfile() {
                 </div>
               </div>
 
+              <UpcomingHolidaysCard />
+
               {/* ─── Leave Balance Cards ─── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
                 {leaveTypes.map((lt: any) => {
                   const bal = cumulativeLeaveBalances[lt.id];
                   const allocated = bal?.totalAllocated || 0;
@@ -1346,40 +1452,13 @@ export default function UserProfile() {
 
         {/* ═══════ Documents Tab ═══════ */}
         <TabsContent value="documents" className="space-y-6">
-          {!hrEmployee && !employeeData ? (
+          {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Employee Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { name: 'Employment Contract', status: 'Available', date: '2023-01-15' },
-                    { name: 'Offer Letter', status: 'Available', date: '2022-12-20' },
-                    { name: 'Salary Certificate', status: 'Generate', date: '' },
-                    { name: 'Experience Letter', status: 'Request', date: '' },
-                  ].map((doc, index) => (
-                    <div key={index} className="border rounded-lg p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-8 w-8 text-info" />
-                        <div>
-                          <p className="font-medium">{doc.name}</p>
-                          {doc.date && <p className="text-sm text-muted-foreground">Generated: {doc.date}</p>}
-                        </div>
-                      </div>
-                      <Button variant={doc.status === 'Available' ? 'default' : 'outline'} size="sm">{doc.status}</Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <EmployeeDocumentsTab employeeId={hrEmployee.id} />
           )}
         </TabsContent>
+
 
         {/* ═══════ Attendance Tab ═══════ */}
         <TabsContent value="attendance" className="space-y-6">

@@ -202,6 +202,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
     if (pinStatus?.kind === "conflict") { toast.error(pinStatus.msg); return false; }
+    if (form.create_in_razorpay && !razorpayChecklist.allOk) {
+      toast.error(`Cannot create in Razorpay — missing: ${razorpayChecklist.missing.join(", ")}`);
+      return false;
+    }
     if (pinStatus?.kind === "unknown") {
       if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) return false;
     }

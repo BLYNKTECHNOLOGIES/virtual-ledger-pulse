@@ -12,6 +12,7 @@ import { LeaveTab } from "@/components/hrms/LeaveTab";
 import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
 import { EmployeeSalaryStructure } from "@/components/hrms/EmployeeSalaryStructure";
 import { ReviseSalaryDialog } from "@/components/hrms/ReviseSalaryDialog";
+import { CompensationHistory } from "@/components/hrms/CompensationHistory";
 import { Button } from "@/components/ui/button";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
 import { Progress } from "@/components/ui/progress";
@@ -673,6 +674,26 @@ export default function EmployeeProfilePage() {
         </div>
       </div>
 
+      {/* ─── Separated / Ex-Employee Banner ─── */}
+      {emp && !emp.is_active && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 flex items-start gap-3">
+          <div className="mt-0.5 h-2 w-2 rounded-full bg-destructive shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-destructive">
+              Separated — Ex-Employee
+              {emp.resignation_status === "completed" ? " · FNF processed" : ""}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Employment ended{emp.last_working_day ? ` on ${new Date(emp.last_working_day).toLocaleDateString("en-IN")}` : ""}
+              {emp.separation_reason ? ` · Reason: ${emp.separation_reason}` : ""}.
+              Record is retained read-only for audit, payroll history, statutory reports and re-hire lookup.
+              This employee is not counted in active headcount, payroll runs or Data Health checks.
+            </p>
+          </div>
+        </div>
+      )}
+
+
       {/* ─── Tabs (Horilla pill style) ─── */}
       <div className="flex flex-wrap gap-2">
         {TABS.map(t => (
@@ -1215,6 +1236,14 @@ export default function EmployeeProfilePage() {
               </div>
             )}
             {emp && <EmployeeSalaryStructure employeeId={emp.id} />}
+
+            <div>
+              <h3 className="text-base font-semibold text-foreground mb-2">Compensation History</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Complete audit of every CTC revision, bonus, performance incentive, retention bonus and ad-hoc payout.
+              </p>
+              {emp && <CompensationHistory employeeId={emp.id} />}
+            </div>
           </div>
         )}
 

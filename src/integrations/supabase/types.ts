@@ -4814,6 +4814,51 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_attendance_quarantine: {
+        Row: {
+          created_at: string
+          device_serial: string
+          id: string
+          pin: string
+          punch_time: string
+          punch_type: string | null
+          raw_line: string | null
+          raw_status: number | null
+          replayed_at: string | null
+          replayed_punch_id: string | null
+          verify_type: number | null
+          work_code: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_serial: string
+          id?: string
+          pin: string
+          punch_time: string
+          punch_type?: string | null
+          raw_line?: string | null
+          raw_status?: number | null
+          replayed_at?: string | null
+          replayed_punch_id?: string | null
+          verify_type?: number | null
+          work_code?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_serial?: string
+          id?: string
+          pin?: string
+          punch_time?: string
+          punch_type?: string | null
+          raw_line?: string | null
+          raw_status?: number | null
+          replayed_at?: string | null
+          replayed_punch_id?: string | null
+          verify_type?: number | null
+          work_code?: string | null
+        }
+        Relationships: []
+      }
       hr_biometric_device_commands: {
         Row: {
           ack_at: string | null
@@ -5142,6 +5187,8 @@ export type Database = {
           password: string | null
           port_no: string | null
           unmatched_pin_count: number
+          unmatched_pin_count_total: number
+          unmatched_since: string | null
           updated_at: string
         }
         Insert: {
@@ -5165,6 +5212,8 @@ export type Database = {
           password?: string | null
           port_no?: string | null
           unmatched_pin_count?: number
+          unmatched_pin_count_total?: number
+          unmatched_since?: string | null
           updated_at?: string
         }
         Update: {
@@ -5188,6 +5237,8 @@ export type Database = {
           password?: string | null
           port_no?: string | null
           unmatched_pin_count?: number
+          unmatched_pin_count_total?: number
+          unmatched_since?: string | null
           updated_at?: string
         }
         Relationships: []

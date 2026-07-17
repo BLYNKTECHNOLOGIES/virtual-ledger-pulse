@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
 
       if (table === "ATTLOG" && bodyText.trim()) {
         const lines = bodyText.trim().split("\n");
-        const results = { inserted: 0, skipped: 0, unmatched: 0, errors: [] as string[] };
+        const results = { inserted: 0, skipped: 0, unmatched: 0, quarantined: 0, errors: [] as string[] };
         const unmatchedPins = new Set<string>();
         let maxPunchDate: Date | null = null;
 
@@ -191,142 +191,169 @@ Deno.serve(async (req) => {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - 7);
 
+        // ── Parse once, collect pins, then prefetch the PIN → employee map for
+        //    this device in a single query. This turns 4-5 sequential DB
+        //    round-trips per line into ~3 fixed round-trips per batch, so a
+        //    backlog push of ~1000 lines finishes inside the invocation.
+        type Parsed = {
+          pin: string; punchISO: string; punchDateObj: Date;
+          punchDate: string; punch_type: "in" | "out";
+          raw_status: number | null; verify_type: number | null; work_code: string | null;
+          raw_line: string;
+        };
+        const parsed: Parsed[] = [];
+        const pinsInBatch = new Set<string>();
         for (const line of lines) {
           try {
             const parts = line.trim().split("\t");
-            if (parts.length < 2) {
-              results.errors.push(`Invalid ATTLOG line: ${line}`);
-              continue;
-            }
-
-            const pin = parts[0].trim(); // ESSL sends the device PIN, not the ERP badge_id
+            if (parts.length < 2) { results.errors.push(`Invalid ATTLOG line: ${line}`); continue; }
+            const pin = parts[0].trim();
             const punch_time_str = parts[1].trim();
             const raw_status = parts.length > 2 ? parseInt(parts[2]) : null;
             const verify_type = parts.length > 3 ? parseInt(parts[3]) : null;
             const work_code = parts.length > 4 ? parts[4].trim() : null;
-
-            // Parse punch time
             const punchISO = parseESSLTimestamp(punch_time_str);
             const punchDateObj = new Date(punchISO);
             const punchDate = getPunchDateFromESSLTimestamp(punch_time_str);
-
-            // Track max punch time for stamp sync
-            if (!maxPunchDate || punchDateObj > maxPunchDate) {
-              maxPunchDate = punchDateObj;
-            }
-
-            // Skip old punches beyond cutoff
-            if (punchDateObj < cutoffDate) {
-              results.skipped++;
-              continue;
-            }
-
-            // Determine punch type
-            const punch_type = raw_status === 1 || raw_status === 2 || raw_status === 5
-              ? "out" : "in";
-
-            // ── Resolve device PIN → employee UUID ──
-            // Primary path: hr_biometric_device_users.matched_employee_id (mapped by HR).
-            // Fallback: legacy hr_employees.badge_id = pin (for sites where PIN==badge).
-            const { data: mapped } = await supabase
-              .from("hr_biometric_device_users")
-              .select("matched_employee_id")
-              .eq("device_serial", serialNumber)
-              .eq("pin", pin)
-              .maybeSingle();
-
-            let employeeUUID: string | null = mapped?.matched_employee_id ?? null;
-            let badge_id: string | null = null;
-
-            if (!employeeUUID) {
-              const { data: byBadge } = await supabase
-                .from("hr_employees")
-                .select("id, badge_id")
-                .eq("badge_id", pin)
-                .maybeSingle();
-              if (byBadge) {
-                employeeUUID = byBadge.id;
-                badge_id = byBadge.badge_id;
-              }
-            } else {
-              const { data: emp } = await supabase
-                .from("hr_employees")
-                .select("badge_id")
-                .eq("id", employeeUUID)
-                .maybeSingle();
-              badge_id = emp?.badge_id ?? null;
-            }
-
-            if (!employeeUUID) {
-              results.unmatched++;
-              unmatchedPins.add(pin);
-              results.errors.push(`Unmapped device PIN=${pin} — link it in Biometric Devices → Users`);
-              continue;
-            }
-
-            // ── Deduplication: skip if same employee punched within last 2 minutes ──
-            const dedup_window = new Date(punchDateObj.getTime() - 2 * 60 * 1000).toISOString();
-            const { data: recentPunch } = await supabase
-              .from("hr_attendance_punches")
-              .select("id")
-              .eq("employee_id", employeeUUID)
-              .gte("punch_time", dedup_window)
-              .lte("punch_time", punchISO)
-              .limit(1)
-              .maybeSingle();
-
-            if (recentPunch) {
-              results.skipped++;
-              continue;
-            }
-
-            // Store raw punch
-            const { error: punchError } = await supabase.from("hr_attendance_punches").insert({
-              badge_id: badge_id ?? pin,
-              employee_id: employeeUUID,
-              punch_time: punchISO,
-              punch_type,
-              device_name: "eSSL Push",
-              device_serial: serialNumber,
-              raw_status,
-            });
-
-            if (punchError) {
-              if (punchError.code === "23505") continue; // duplicate
-              results.errors.push(`Punch insert error: ${punchError.message}`);
-              continue;
-            }
-
-            await processAttendance(supabase, badge_id ?? pin, punchISO, punchDate, punch_type, employeeUUID);
-            results.inserted++;
+            if (!maxPunchDate || punchDateObj > maxPunchDate) maxPunchDate = punchDateObj;
+            if (punchDateObj < cutoffDate) { results.skipped++; continue; }
+            const punch_type: "in" | "out" =
+              raw_status === 1 || raw_status === 2 || raw_status === 5 ? "out" : "in";
+            parsed.push({ pin, punchISO, punchDateObj, punchDate, punch_type, raw_status, verify_type, work_code, raw_line: line });
+            pinsInBatch.add(pin);
           } catch (lineErr) {
             results.errors.push(`Line parse error: ${(lineErr as Error).message}`);
           }
+        }
+
+        // Prefetch mapping table for pins actually seen in this batch.
+        const pinArr = Array.from(pinsInBatch);
+        const pinToEmp = new Map<string, { employeeUUID: string; badge_id: string | null }>();
+        if (pinArr.length > 0) {
+          const { data: mapped } = await supabase
+            .from("hr_biometric_device_users")
+            .select("pin, matched_employee_id")
+            .eq("device_serial", serialNumber)
+            .in("pin", pinArr);
+          const empIds = Array.from(new Set(((mapped ?? []).map((r: any) => r.matched_employee_id).filter(Boolean)))) as string[];
+          const empIdToBadge = new Map<string, string | null>();
+          if (empIds.length > 0) {
+            const { data: emps } = await supabase.from("hr_employees").select("id, badge_id").in("id", empIds);
+            (emps ?? []).forEach((e: any) => empIdToBadge.set(e.id, e.badge_id ?? null));
+          }
+          (mapped ?? []).forEach((r: any) => {
+            if (r.matched_employee_id)
+              pinToEmp.set(r.pin, { employeeUUID: r.matched_employee_id, badge_id: empIdToBadge.get(r.matched_employee_id) ?? null });
+          });
+          // Legacy fallback: hr_employees.badge_id = pin (for sites where PIN==badge).
+          const unresolved = pinArr.filter((p) => !pinToEmp.has(p));
+          if (unresolved.length > 0) {
+            const { data: byBadge } = await supabase.from("hr_employees").select("id, badge_id").in("badge_id", unresolved);
+            (byBadge ?? []).forEach((e: any) => {
+              if (e.badge_id) pinToEmp.set(e.badge_id, { employeeUUID: e.id, badge_id: e.badge_id });
+            });
+          }
+        }
+
+        // Split parsed rows into matched vs unmapped.
+        const punchInserts: any[] = [];
+        const quarantineInserts: any[] = [];
+        const matchedForProcess: { badge_id: string; punchISO: string; punchDate: string; punch_type: "in" | "out"; employeeUUID: string }[] = [];
+        for (const p of parsed) {
+          const emp = pinToEmp.get(p.pin);
+          if (!emp) {
+            results.unmatched++;
+            unmatchedPins.add(p.pin);
+            quarantineInserts.push({
+              device_serial: serialNumber, pin: p.pin, punch_time: p.punchISO,
+              punch_type: p.punch_type, raw_status: p.raw_status, verify_type: p.verify_type,
+              work_code: p.work_code, raw_line: p.raw_line,
+            });
+            continue;
+          }
+          punchInserts.push({
+            badge_id: emp.badge_id ?? p.pin,
+            employee_id: emp.employeeUUID,
+            punch_time: p.punchISO,
+            punch_type: p.punch_type,
+            device_name: "eSSL Push",
+            device_serial: serialNumber,
+            raw_status: p.raw_status,
+          });
+          matchedForProcess.push({
+            badge_id: emp.badge_id ?? p.pin, punchISO: p.punchISO, punchDate: p.punchDate,
+            punch_type: p.punch_type, employeeUUID: emp.employeeUUID,
+          });
+        }
+
+        // Batch inserts. The unique index on (employee_id, punch_time) — combined
+        // with ON CONFLICT DO NOTHING — handles the 2-min dedup that used to
+        // require a per-line SELECT round-trip.
+        if (punchInserts.length > 0) {
+          const { error: batchErr, data: inserted } = await supabase
+            .from("hr_attendance_punches")
+            .upsert(punchInserts, { onConflict: "employee_id,punch_time", ignoreDuplicates: true })
+            .select("id, employee_id, punch_time");
+          if (batchErr) {
+            results.errors.push(`Batch punch insert error: ${batchErr.message}`);
+          } else {
+            results.inserted += (inserted ?? []).length;
+            results.skipped += punchInserts.length - (inserted ?? []).length;
+          }
+        }
+        if (quarantineInserts.length > 0) {
+          const { error: qErr, data: qData } = await supabase
+            .from("hr_attendance_quarantine")
+            .upsert(quarantineInserts, { onConflict: "device_serial,pin,punch_time", ignoreDuplicates: true })
+            .select("id");
+          if (qErr) results.errors.push(`Quarantine insert error: ${qErr.message}`);
+          else results.quarantined = (qData ?? []).length;
+        }
+        // Roll up daily aggregates for matched rows (still sequential, but
+        // only for matched punches — the expensive path is only paid for
+        // real work).
+        for (const m of matchedForProcess) {
+          try { await processAttendance(supabase, m.badge_id, m.punchISO, m.punchDate, m.punch_type, m.employeeUUID); }
+          catch (e) { results.errors.push(`processAttendance: ${(e as Error).message}`); }
         }
 
         // Update device heartbeat and stamp
         const newStamp = maxPunchDate ? formatESSLStamp(maxPunchDate) : undefined;
         await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, newStamp);
 
-        // Silence-alarm bookkeeping: record unmatched PINs so the Biometric page can shout.
+        // Silence-alarm bookkeeping. Accumulate the total drop count with a
+        // since-timestamp (so 1 drop in the current batch does not overwrite
+        // "347 dropped since yesterday"); reset only when good punches land.
         if (results.unmatched > 0) {
+          const { data: dev } = await supabase
+            .from("hr_biometric_devices")
+            .select("unmatched_pin_count_total, unmatched_since")
+            .eq("device_serial", serialNumber)
+            .maybeSingle();
+          const newTotal = (dev?.unmatched_pin_count_total ?? 0) + results.unmatched;
           await supabase
             .from("hr_biometric_devices")
             .update({
               unmatched_pin_count: results.unmatched,
+              unmatched_pin_count_total: newTotal,
+              unmatched_since: (dev as any)?.unmatched_since ?? new Date().toISOString(),
               last_rejection_at: new Date().toISOString(),
               last_rejection_pins: Array.from(unmatchedPins).slice(0, 20).join(","),
             })
             .eq("device_serial", serialNumber);
         } else if (results.inserted > 0) {
-          // Clear the alarm once punches start landing again.
           await supabase
             .from("hr_biometric_devices")
-            .update({ unmatched_pin_count: 0, last_rejection_pins: null })
+            .update({
+              unmatched_pin_count: 0,
+              unmatched_pin_count_total: 0,
+              unmatched_since: null,
+              last_rejection_pins: null,
+            })
             .eq("device_serial", serialNumber);
         }
 
-        console.log(`ATTLOG from ${serialNumber}: inserted=${results.inserted}, unmatched=${results.unmatched}, skipped=${results.skipped}, total=${lines.length}`);
+        console.log(`ATTLOG from ${serialNumber}: inserted=${results.inserted}, unmatched=${results.unmatched}, quarantined=${results.quarantined}, skipped=${results.skipped}, total=${lines.length}`);
 
         return new Response("OK", {
           status: 200,

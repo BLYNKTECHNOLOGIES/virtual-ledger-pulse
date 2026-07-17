@@ -102,6 +102,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   }, [devicePins]);
 
 
+  const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
+  const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
+
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
@@ -110,9 +113,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) return false;
     }
     if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
+    // Bank details: partial entry is invalid — either fully entered or fully blank
+    const anyBank = form.bank_account_number.trim() || form.bank_ifsc_code.trim();
+    if (anyBank && !hasBankInput) {
+      toast.error("Enter both Account Number and IFSC, or leave both blank");
+      return false;
+    }
+    if (form.bank_ifsc_code && !ifscValid) {
+      toast.error("IFSC must be 11 characters (e.g. HDFC0001234)");
+      return false;
+    }
     // Payability warning (S2): confirm activation of an employee who can't be paid yet
     const docs = (onboardingRecord?.documents as any) || {};
-    const hasBank = !!docs.bank_details?.value;
+    const hasBank = hasBankInput || !!docs.bank_details?.value;
     const hasSalary = !!(onboardingRecord?.salary_template_id || Number(onboardingRecord?.ctc) > 0);
     if (!hasBank || !hasSalary) {
       const missing = [!hasBank && "Bank details", !hasSalary && "Salary/CTC"].filter(Boolean).join(" & ");
@@ -127,11 +140,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (!validate()) return;
     setFinalizing(true);
     try {
-      await onFinalize(form);
+      const payload: any = {
+        date_of_joining: form.date_of_joining,
+        essl_badge_id: form.essl_badge_id,
+        create_erp_account: form.create_erp_account,
+        erp_role_id: form.erp_role_id,
+        reporting_manager_id: form.reporting_manager_id,
+      };
+      if (hasBankInput) {
+        payload.bank_details = {
+          account_number: form.bank_account_number.trim(),
+          ifsc_code: form.bank_ifsc_code.trim().toUpperCase(),
+          bank_name: form.bank_name.trim() || null,
+          branch: form.bank_branch.trim() || null,
+          account_holder: form.bank_account_holder.trim() || null,
+        };
+      }
+      await onFinalize(payload);
     } finally {
       setFinalizing(false);
     }
   };
+
 
   const firstName = onboardingRecord?.first_name || "";
   const lastName = onboardingRecord?.last_name || "";

@@ -94,6 +94,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
+    if (pinStatus?.kind === "conflict") { toast.error(pinStatus.msg); return false; }
+    if (pinStatus?.kind === "unknown") {
+      if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) return false;
+    }
     if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
     // Payability warning (S2): confirm activation of an employee who can't be paid yet
     const docs = (onboardingRecord?.documents as any) || {};

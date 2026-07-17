@@ -226,8 +226,12 @@ Deno.serve(async (req) => {
             const punchDate = getPunchDateFromESSLTimestamp(punch_time_str);
             if (!maxPunchDate || punchDateObj > maxPunchDate) maxPunchDate = punchDateObj;
             if (punchDateObj < cutoffDate) { results.skipped++; continue; }
-            const punch_type: "in" | "out" =
+            const derivedDirection: "in" | "out" =
               raw_status === 1 || raw_status === 2 || raw_status === 5 ? "out" : "in";
+            // Device-role override — an "In Device" always writes IN, an
+            // "Out Device" always writes OUT. Only "System Direction" devices
+            // fall through to raw_status-derived direction.
+            const punch_type: "in" | "out" = forcedDirection ?? derivedDirection;
             parsed.push({ pin, punchISO, punchDateObj, punchDate, punch_type, raw_status, verify_type, work_code, raw_line: line });
             pinsInBatch.add(pin);
           } catch (lineErr) {

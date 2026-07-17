@@ -84,6 +84,55 @@ async function opfinView(employeeId: number, employeeType = "employee") {
   } finally { clearTimeout(t); }
 }
 
+// Fetch the current salary block for a Razorpay employee. The people:view
+// snapshot never carries CTC or components — we have to hit the salary
+// sub-type explicitly. Returns { ok, annual_ctc, monthly_gross, components }.
+// Silent on non-2xx / missing fields so the caller can gracefully skip.
+async function opfinSalary(employeeId: number): Promise<{
+  ok: boolean; annual_ctc: number | null; monthly_gross: number | null;
+  components: any[]; raw: any; http_status: number; err: string | null;
+}> {
+  const empty = { ok: false, annual_ctc: null, monthly_gross: null, components: [], raw: null, http_status: 0, err: null as any };
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(`${BASE}/people`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        auth: authBlock(),
+        request: { type: "people", "sub-type": "view-salary" },
+        data: { "employee-id": employeeId, "employee-type": "employee" },
+      }),
+      signal: ctrl.signal,
+    });
+    const raw = await res.text();
+    let body: any = null; try { body = JSON.parse(raw); } catch { /* keep raw */ }
+    if (!res.ok || !body || typeof body !== "object") {
+      return { ...empty, http_status: res.status, raw: body, err: `HTTP ${res.status}` };
+    }
+    const rpErr = body.error || body.message || null;
+    if (rpErr) return { ...empty, http_status: res.status, raw: body, err: typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr) };
+
+    // Razorpay returns amounts under a handful of shapes across tenants. Look
+    // in every plausible spot; take the first numeric hit.
+    const readNum = (obj: any, keys: string[]): number | null => {
+      for (const k of keys) {
+        const v = obj?.[k];
+        const n = typeof v === "string" ? Number(v) : v;
+        if (typeof n === "number" && Number.isFinite(n) && n > 0) return n;
+      }
+      return null;
+    };
+    const s = body.salary ?? body["salary-structure"] ?? body["salary_structure"] ?? body.data ?? body;
+    const annual = readNum(s, ["ctc-annual", "ctc_annual", "annual_ctc", "annual-ctc", "ctc"]);
+    const monthly = readNum(s, ["monthly-gross", "monthly_gross", "gross", "gross-monthly"]);
+    const comps = Array.isArray(s.components) ? s.components : (Array.isArray(body.components) ? body.components : []);
+    return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: comps, raw: body, http_status: res.status, err: null };
+  } catch (e) {
+    return { ...empty, err: `NETWORK: ${(e as Error).message}` };
+  } finally { clearTimeout(t); }
+
 function normPhone(v: string | null | undefined): string | null {
   if (!v) return null;
   const d = String(v).replace(/\D/g, "");

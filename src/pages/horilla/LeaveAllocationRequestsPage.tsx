@@ -194,7 +194,7 @@ export default function LeaveAllocationRequestsPage() {
                     <TableCell>{statusBadge(r.status)}</TableCell>
                     <TableCell className="text-sm max-w-[200px] truncate text-muted-foreground">{r.description || "—"}</TableCell>
                     <TableCell>
-                      {r.status === "pending" && (
+                      {r.status === "requested" && (
                         <div className="flex gap-1">
                           <Button size="sm" variant="ghost" className="text-success h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "approved" })}>
                             <CheckCircle className="h-4 w-4" />

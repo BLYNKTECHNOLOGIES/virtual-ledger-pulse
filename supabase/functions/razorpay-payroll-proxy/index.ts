@@ -528,15 +528,28 @@ async function projectSnapshotIntoOnboarding(
 
   // CTC comes from the salary sub-response injected onto snap.__salary by the
   // pull flow. Fall back to any legacy salary block that may already be on the
-  // snapshot root.
-  const salaryBlock = snap?.__salary || snap?.salary || null;
-  const ctcAnnual: number | null =
-    (salaryBlock && (
-      Number(salaryBlock.annual_ctc) ||
-      Number(salaryBlock["ctc-annual"]) ||
-      Number(salaryBlock.ctc_annual) ||
-      Number(salaryBlock.ctc)
-    )) || null;
+  // snapshot root, and finally to top-level fields (some tenants inline salary
+  // keys directly on person view).
+  const readNumAny = (obj: any, keys: string[]): number | null => {
+    if (!obj || typeof obj !== "object") return null;
+    for (const k of keys) {
+      const v = obj[k];
+      const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : v;
+      if (typeof n === "number" && Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+  };
+  const CTC_KEYS = ["annual_ctc","ctc-annual","ctc_annual","ctc","annual-ctc","ctc-yearly","annual-salary","annual-gross"];
+  const MONTHLY_KEYS = ["monthly-gross","monthly_gross","gross","monthly-ctc","monthly-salary"];
+  const salaryBlock = snap?.__salary || snap?.salary || snap?.["salary-structure"] || snap?.salary_structure || null;
+  let ctcAnnual: number | null =
+    readNumAny(salaryBlock, CTC_KEYS) ||
+    readNumAny(snap, CTC_KEYS);
+  if (!ctcAnnual) {
+    const monthly = readNumAny(salaryBlock, MONTHLY_KEYS) || readNumAny(snap, MONTHLY_KEYS);
+    if (monthly && monthly > 0) ctcAnnual = Math.round(monthly * 12);
+  }
+
 
   const incoming: Record<string, any> = {
     first_name: pickString(snap?.first_name, first) || null,

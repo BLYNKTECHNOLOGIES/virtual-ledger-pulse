@@ -31,6 +31,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     bank_name: "",
     bank_branch: "",
     bank_account_holder: "",
+    create_in_razorpay: false,
   });
   const [finalizing, setFinalizing] = useState(false);
 

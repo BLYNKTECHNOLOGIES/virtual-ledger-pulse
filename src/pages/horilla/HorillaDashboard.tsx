@@ -204,6 +204,10 @@ export default function HorillaDashboard() {
       {/* Org-wide setup gaps that block payroll/attendance from running */}
       <HRSetupChecklistCard />
 
+      {/* Upcoming company holidays — read-only visibility for everyone */}
+      <UpcomingHolidaysCard />
+
+
 
       {/* M7: Actionable Widgets Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

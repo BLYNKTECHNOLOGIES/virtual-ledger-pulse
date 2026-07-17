@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, Building2, User,
   Briefcase, CreditCard, FileText, Edit, Save, X, Check,
-  ChevronLeft, ChevronRight, Settings, Plus, Trash2
+  ChevronLeft, ChevronRight, Plus, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { LeaveTab } from "@/components/hrms/LeaveTab";

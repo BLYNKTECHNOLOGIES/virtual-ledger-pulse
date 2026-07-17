@@ -307,6 +307,18 @@ export function ResignationTab() {
         console.warn("F&F auto-creation failed (non-fatal):", e);
       }
 
+      // Razorpay dismissal — set date-of-dismissal so FNF payroll can be
+      // processed on their side too. Non-fatal: local separation is committed.
+      // We use last_working_day (fallback: notice_period_end_date, then today).
+      const dismissalDate =
+        (empData?.last_working_day as string | undefined) ||
+        (empData?.notice_period_end_date as string | undefined) ||
+        new Date().toISOString().split("T")[0];
+      await dismissInRazorpay(employeeId, {
+        dateOfDismissal: dismissalDate,
+        reason: (empData?.separation_reason as string | undefined) || "Resignation",
+      });
+
       return { ...empData, fnf: { leaveEncashAmount, loanRecovery, depositRefund, penaltyTotal, netPayable, encashDays } };
     },
     onSuccess: (empData) => {

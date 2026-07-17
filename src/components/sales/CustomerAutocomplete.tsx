@@ -64,13 +64,20 @@ export function CustomerAutocomplete({
   const { data: pendingApprovals } = useQuery({
     queryKey: ['pending-approvals-search'],
     queryFn: async () => {
-      return await fetchAllPaginated<any>(() =>
+      const rows = await fetchAllPaginated<any>(() =>
         supabase
           .from('client_onboarding_approvals')
           .select('id, client_name, client_phone, binance_nickname, cp_userno, order_amount, order_date, resolved_client_id')
           .eq('approval_status', 'PENDING')
           .is('resolved_client_id', null)
           .order('order_date', { ascending: false })
+      );
+      // Ignore anchor-less ghost approvals: pure-name-only rows (no phone, no
+      // Binance nickname, no cp_userno) can't be reliably matched to a real
+      // counterparty and would falsely block new sales sharing that name.
+      // Project identity rule keys on userNo/phone/nickname, never name.
+      return rows.filter((a: any) =>
+        !!(a.cp_userno || a.client_phone || a.binance_nickname)
       );
     },
   });

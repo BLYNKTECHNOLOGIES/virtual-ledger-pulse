@@ -106,15 +106,17 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  // Priority: blocked/attention states must outrank active/ready so a broken
-  // pipeline never renders as "all caught up". "allDone" only fires when
-  // every station is genuinely done — anything blocked keeps us honest.
-  const blocked = steps.find((s) => s.status === "blocked" || s.status === "attention" || s.status === "error");
-  const next = blocked
-    ?? steps.find((s) => s.status === "active")
-    ?? steps.find((s) => s.status === "ready");
+  // Priority: an actionable step outranks silence. "allDone" only fires when
+  // every station is genuinely done. If nothing is active/ready AND not every
+  // station is done, we're stalled — surface that instead of the calm
+  // "Nothing to do right now" (which would lie to the person least equipped
+  // to doubt it).
+  const next =
+    steps.find((s) => s.status === "active") ??
+    steps.find((s) => s.status === "ready");
 
-  const allDone = !blocked && steps.length > 0 && steps.every((s) => s.status === "done");
+  const allDone = steps.length > 0 && steps.every((s) => s.status === "done");
+  const stalled = !next && !allDone && steps.length > 0;
   const { period, nudge } = nudgeForStep(next?.letter);
 
   if (allDone) {
@@ -132,6 +134,37 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
             <div className="text-sm text-muted-foreground mt-0.5">
               Nothing needs your attention today. Check back next month or open Advanced view for auditing.
             </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (stalled) {
+    const firstLocked = steps.find((s) => s.status === "locked");
+    return (
+      <Card className="border-amber-500/50 bg-gradient-to-br from-amber-500/12 via-amber-500/[0.04] to-transparent overflow-hidden">
+        <CardContent className="py-5 px-5 flex items-start gap-4">
+          <div className="h-12 w-12 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+            <CalendarClock className="h-6 w-6 text-amber-700 dark:text-amber-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-400">
+              Attention needed
+            </div>
+            <div className="text-lg font-semibold mt-0.5">Payroll journey is stalled</div>
+            <div className="text-sm text-muted-foreground mt-0.5">
+              No step is ready to run right now. {firstLocked
+                ? `Step ${firstLocked.letter} — "${firstLocked.title}" — is waiting on a prerequisite.`
+                : "Check the setup rail below for a blocked prerequisite."}
+            </div>
+            {firstLocked && (
+              <div className="mt-3">
+                <Button size="sm" variant="outline" onClick={() => onJumpToStation(firstLocked.letter)}>
+                  Open Step {firstLocked.letter} <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

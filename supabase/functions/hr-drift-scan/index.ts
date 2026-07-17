@@ -61,15 +61,35 @@ const rzpVal = (rzp: any, ...keys: string[]): any => {
   return null;
 };
 
+// eSSL firmware truncates USERINFO.Name to ~24 ASCII chars. When comparing to
+// eSSL, use the same truncation so a pushed-and-truncated device name is not
+// reported as drift against the full HRMS name.
+const ESSL_NAME_MAX = 24;
+const normEsslName = (v: any): string | null => {
+  if (v === null || v === undefined) return null;
+  const s = String(v).replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim().slice(0, ESSL_NAME_MAX);
+  return s ? s.toLowerCase() : null;
+};
+
 const FIELDS: FieldSpec[] = [
   {
     field: "full_name",
     severity: "medium",
-    extract: ({ emp, rzp, esslUser }) => ({
-      hrms: norm(`${emp.first_name || ""} ${emp.last_name || ""}`.trim()),
-      razorpay: norm(rzpVal(rzp, "name", "full-name")),
-      essl: norm(esslUser?.name),
-    }),
+    extract: ({ emp, rzp, esslUser }) => {
+      const hrmsFull = `${emp.first_name || ""} ${emp.last_name || ""}`.trim();
+      const hrmsTrunc = normEsslName(hrmsFull);
+      const esslTrunc = normEsslName(esslUser?.name);
+      // If the eSSL value equals the HRMS name after eSSL's own truncation,
+      // treat both sides as identical for the 3-way distinct check.
+      const esslNorm = esslTrunc && hrmsTrunc && esslTrunc === hrmsTrunc
+        ? norm(hrmsFull)
+        : (esslUser ? norm(esslUser?.name) : null);
+      return {
+        hrms: norm(hrmsFull),
+        razorpay: norm(rzpVal(rzp, "name", "full-name")),
+        essl: esslNorm,
+      };
+    },
   },
   {
     field: "email",

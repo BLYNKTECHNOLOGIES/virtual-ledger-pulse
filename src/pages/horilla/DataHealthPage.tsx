@@ -17,6 +17,7 @@ import {
   pushSalaryToRazorpay,
   pushEmploymentToRazorpay,
 } from "@/lib/razorpayPushback";
+import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
 
 type Drift = {
   id: string;
@@ -58,7 +59,7 @@ const FIELD_LABEL: Record<string, string> = {
   annual_ctc: "Annual CTC",
 };
 
-// Field → which push helper to use when adopting the HRMS value.
+// Field → which Razorpay push to use when adopting the HRMS value.
 const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
   full_name: (id) => pushIdentityToRazorpay(id, { triggeredFrom: "data_health" }),
   email: (id) => pushIdentityToRazorpay(id, { triggeredFrom: "data_health" }),
@@ -74,6 +75,9 @@ const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
   bank_ifsc: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
   annual_ctc: (id) => pushSalaryToRazorpay(id, { triggeredFrom: "data_health" }),
 };
+
+// Fields for which eSSL is a target — device holds only identity + roster.
+const ESSL_PUSHABLE_FIELDS = new Set(["full_name", "employee_code", "active_state"]);
 
 export default function DataHealthPage() {
   const qc = useQueryClient();
@@ -155,6 +159,30 @@ export default function DataHealthPage() {
         await (supabase as any)
           .from("hr_drift_alerts")
           .update({ resolved_at: new Date().toISOString(), resolution_note: "Adopted HRMS value" })
+          .eq("id", drift.id);
+        qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+      }
+    } finally {
+      setResolvingId(null);
+    }
+  }
+
+  // Push HRMS value into eSSL biometric devices. Roster drift is closed only
+  // after the device ACKs the command (webhook mirrors the change).
+  async function adoptEssl(drift: Drift) {
+    setResolvingId(drift.id);
+    try {
+      const isInactive = drift.field === "active_state" && !drift.is_active;
+      const res = isInactive
+        ? await deleteFromEssl(drift.hr_employee_id, { triggeredFrom: "data_health" })
+        : await pushIdentityToEssl(drift.hr_employee_id, { triggeredFrom: "data_health" });
+      if (res?.ok) {
+        await (supabase as any)
+          .from("hr_drift_alerts")
+          .update({
+            resolution_note: "Queued eSSL push — awaiting device ACK",
+            last_seen_at: new Date().toISOString(),
+          })
           .eq("id", drift.id);
         qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
       }
@@ -300,8 +328,19 @@ export default function DataHealthPage() {
                     className="inline-flex items-center gap-1 rounded-md bg-[#E8604C] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#d04e3c] disabled:opacity-50"
                   >
                     {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                    Adopt HRMS → push
+                    Push → Razorpay
                   </button>
+                  {ESSL_PUSHABLE_FIELDS.has(d.field) && (
+                    <button
+                      disabled={resolvingId === d.id}
+                      onClick={() => adoptEssl(d)}
+                      title="Queues DATA UPDATE USERINFO on every registered device. Applies on next poll (30–60s)."
+                      className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
+                    >
+                      {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      Push → eSSL device
+                    </button>
+                  )}
                   <button
                     disabled={resolvingId === d.id}
                     onClick={() => markResolved(d, "Manually marked resolved")}

@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
+import { deleteFromEssl } from "@/lib/esslPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
 
 type ResignationEmployee = {
@@ -318,6 +319,11 @@ export function ResignationTab() {
         dateOfDismissal: dismissalDate,
         reason: (empData?.separation_reason as string | undefined) || "Resignation",
       });
+
+      // eSSL: remove the user from every biometric device so they can no longer
+      // punch attendance. Non-fatal: local separation is committed either way.
+      await deleteFromEssl(employeeId, { triggeredFrom: "resignation", silent: true });
+
 
       return { ...empData, fnf: { leaveEncashAmount, loanRecovery, depositRefund, penaltyTotal, netPayable, encashDays } };
     },

@@ -901,36 +901,86 @@ function cleanCommandAckId(value?: string): string | null {
 }
 
 async function applyAckedCommandSideEffects(supabase: any, serialNumber: string, commandText: string): Promise<number> {
+  // DELETE USERINFO → purge the roster row locally.
   const deleteUserMatch = commandText.match(/DATA\s+DELETE\s+USERINFO\s+PIN=([^\t\r\n\s]+)/i);
-  if (!deleteUserMatch) return 0;
+  if (deleteUserMatch) {
+    const pin = deleteUserMatch[1]?.trim();
+    if (!pin || pin === "*" || /^all$/i.test(pin)) return 0;
 
-  const pin = deleteUserMatch[1]?.trim();
-  if (!pin || pin === "*" || /^all$/i.test(pin)) return 0;
-
-  const tables = [
-    "hr_biometric_device_templates",
-    "hr_biometric_device_photos",
-    "hr_biometric_device_users",
-  ];
-
-  let deleted = 0;
-  for (const table of tables) {
-    const { data, error } = await supabase
-      .from(table)
-      .delete()
-      .eq("device_serial", serialNumber)
-      .eq("pin", pin)
-      .select("id");
-
-    if (error) {
-      console.warn(`Failed to clean ${table} for ${serialNumber}/PIN ${pin}: ${error.message}`);
-      continue;
+    const tables = [
+      "hr_biometric_device_templates",
+      "hr_biometric_device_photos",
+      "hr_biometric_device_users",
+    ];
+    let deleted = 0;
+    for (const table of tables) {
+      const { data, error } = await supabase
+        .from(table)
+        .delete()
+        .eq("device_serial", serialNumber)
+        .eq("pin", pin)
+        .select("id");
+      if (error) {
+        console.warn(`Failed to clean ${table} for ${serialNumber}/PIN ${pin}: ${error.message}`);
+        continue;
+      }
+      deleted += data?.length || 0;
     }
-
-    deleted += data?.length || 0;
+    return deleted;
   }
 
-  return deleted;
+  // UPDATE USERINFO → mirror the pushed identity into the local device roster
+  // so the Data Health scanner can immediately see the reconciled value.
+  const updateUserMatch = commandText.match(/DATA\s+UPDATE\s+USERINFO\s+(.+)/i);
+  if (updateUserMatch) {
+    const kvs: Record<string, string> = {};
+    for (const part of updateUserMatch[1].split(/\t+/)) {
+      const eq = part.indexOf("=");
+      if (eq === -1) continue;
+      const k = part.slice(0, eq).trim().toLowerCase();
+      const v = part.slice(eq + 1).trim();
+      if (k) kvs[k] = v;
+    }
+    const pin = kvs["pin"];
+    if (!pin) return 0;
+
+    const row: any = {
+      device_serial: serialNumber,
+      pin,
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (kvs["name"] != null) row.name = kvs["name"];
+    if (kvs["pri"] != null) row.privilege = Number(kvs["pri"]) || 0;
+    if (kvs["card"] != null) row.card_no = kvs["card"] || null;
+    if (kvs["grp"] != null) {
+      const g = Number(kvs["grp"]);
+      if (!Number.isNaN(g)) row.group_no = g;
+    }
+
+    const { data: existing } = await supabase
+      .from("hr_biometric_device_users")
+      .select("id")
+      .eq("device_serial", serialNumber)
+      .eq("pin", pin)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { error } = await supabase
+        .from("hr_biometric_device_users")
+        .update(row)
+        .eq("id", existing.id);
+      if (error) console.warn(`Failed to reflect USERINFO update for ${serialNumber}/PIN ${pin}: ${error.message}`);
+    } else {
+      const { error } = await supabase
+        .from("hr_biometric_device_users")
+        .insert({ ...row, first_seen_at: row.last_seen_at });
+      if (error) console.warn(`Failed to insert USERINFO for ${serialNumber}/PIN ${pin}: ${error.message}`);
+    }
+    return 1;
+  }
+
+  return 0;
 }
 
 async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string) {

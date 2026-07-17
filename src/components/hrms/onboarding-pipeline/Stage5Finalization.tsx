@@ -62,6 +62,35 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     },
   });
 
+  // Live eSSL device-user roster: only PINs actually seen by a device.
+  const { data: devicePins = [], isLoading: pinsLoading } = useQuery({
+    queryKey: ["hr_biometric_device_users_for_stage5"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_biometric_device_users")
+        .select("pin, name, device_serial, matched_employee_id, last_seen_at")
+        .order("last_seen_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const pinStatus = useMemo(() => {
+    const val = (form.essl_badge_id || "").trim();
+    if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
+    const matches = (devicePins || []).filter((p: any) => (p.pin || "").trim() === val);
+    if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
+    const conflict = matches.find((m: any) => m.matched_employee_id && m.matched_employee_id !== onboardingRecord?.employee_id);
+    if (conflict) return { kind: "conflict", msg: `PIN already mapped to another employee on device ${conflict.device_serial}.`, matches };
+    return { kind: "ok", msg: `Found on ${matches.length} device${matches.length === 1 ? "" : "s"}${matches[0]?.name ? ` — device name: ${matches[0].name}` : ""}.`, matches };
+  }, [form.essl_badge_id, devicePins, onboardingRecord?.employee_id]);
+
+  const unassignedPins = useMemo(() => {
+    return (devicePins || []).filter((p: any) => !p.matched_employee_id);
+  }, [devicePins]);
+
+
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }

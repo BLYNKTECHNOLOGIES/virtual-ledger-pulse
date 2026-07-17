@@ -2,6 +2,9 @@
 
 Single source of truth for "production ready". Steps are ordered; do not skip.
 
+> **Architecture note:** the in-house payroll engine (`hr_payroll_runs`, `hr_payslips`) is **parked** in favour of RazorpayX as the payroll authority. The tables and their guard triggers (state-machine, lock, status validator) are retained for historical continuity and possible future re-activation, but no UI, cron, or edge function writes to them in normal operation. If a screen renders from these tables and shows zero rows, that is expected — not a data gap.
+
+
 ## 0. Owner Inputs Still Required
 - [ ] RazorpayX Postman collection JSON (raw export) — attach to `docs/razorpayx/`.
 - [ ] Sandbox vs Live decision for pilot cycle (confirm which account_id + workspace).

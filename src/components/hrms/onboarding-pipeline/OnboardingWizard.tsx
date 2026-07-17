@@ -144,11 +144,15 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     if (!recordId || !record) return;
 
     try {
+      // Split off bank_details — it is applied to hr_employee_bank_details,
+      // not the onboarding row (no such column on hr_employee_onboarding).
+      const { bank_details: bankDetails, ...onboardingUpdate } = stage5Data || {};
+
       // 1. Update onboarding record with stage 5 data
-      await updateRecord(stage5Data);
+      await updateRecord(onboardingUpdate);
       await refetch();
 
-      const r = { ...record, ...stage5Data };
+      const r = { ...record, ...onboardingUpdate, bank_details: bankDetails } as any;
       const docs = r.documents || {};
 
       // 2. Employee row.

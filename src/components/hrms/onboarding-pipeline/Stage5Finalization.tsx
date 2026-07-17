@@ -259,6 +259,72 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
           </div>
         </div>
 
+        {/* Bank Details */}
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Landmark className="h-4 w-4" />
+            <p className="text-sm font-medium">Bank Details (for salary payout)</p>
+            <span className="text-xs text-muted-foreground ml-auto">Required for payroll</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Label>Account Holder Name</Label>
+              <Input
+                placeholder="As per bank records"
+                value={form.bank_account_holder}
+                onChange={e => setForm(p => ({ ...p, bank_account_holder: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+            <div>
+              <Label>Account Number</Label>
+              <Input
+                placeholder="e.g. 123456789012"
+                value={form.bank_account_number}
+                onChange={e => setForm(p => ({ ...p, bank_account_number: e.target.value.replace(/\s/g, "") }))}
+                disabled={readOnly}
+                className="font-mono"
+                inputMode="numeric"
+              />
+            </div>
+            <div>
+              <Label>IFSC Code</Label>
+              <Input
+                placeholder="e.g. HDFC0001234"
+                value={form.bank_ifsc_code}
+                onChange={e => setForm(p => ({ ...p, bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") }))}
+                disabled={readOnly}
+                className="font-mono uppercase"
+                maxLength={11}
+              />
+              {form.bank_ifsc_code && !ifscValid && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Invalid IFSC format
+                </p>
+              )}
+            </div>
+            <div>
+              <Label>Bank Name</Label>
+              <Input
+                placeholder="e.g. HDFC Bank"
+                value={form.bank_name}
+                onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+            <div>
+              <Label>Branch</Label>
+              <Input
+                placeholder="e.g. Andheri West"
+                value={form.bank_branch}
+                onChange={e => setForm(p => ({ ...p, bank_branch: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+          </div>
+        </div>
+
+
         {/* ERP Account */}
         <div className="rounded-lg border p-4 space-y-3">
           <div className="flex items-center gap-3">

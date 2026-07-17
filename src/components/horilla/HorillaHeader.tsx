@@ -48,7 +48,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
       if (!uid) return [];
       const { data } = await (supabase as any).from("hr_notifications")
         .select("*")
-        .or(`user_id.eq.${uid},employee_id.eq.${uid}`)
+        .eq("user_id", uid)
         .order("created_at", { ascending: false })
         .limit(30);
       return data || [];

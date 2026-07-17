@@ -519,7 +519,86 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
     </div>
   );
 }
+
+// ─── Employee Documents Sub-Component (view own docs uploaded by HR) ───
+function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
+  const { data: docs = [], isLoading } = useQuery({
+    queryKey: ['hr_employee_documents_ess', employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('hr_employee_documents')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .order('uploaded_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!employeeId,
+  });
+
+  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading documents…</p>;
+
+  if (docs.length === 0) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Documents Yet</h3>
+          <p className="text-muted-foreground">Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const typeLabel = (t: string) => (t || 'document').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">My Documents</h3>
+        <Badge variant="outline">{docs.length} file{docs.length === 1 ? '' : 's'}</Badge>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {docs.map((doc: any) => (
+          <Card key={doc.id} className="hover:border-primary/40 transition-colors">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 bg-info/10 rounded-lg shrink-0">
+                <FileText className="h-6 w-6 text-info" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{doc.document_name || typeLabel(doc.document_type)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {typeLabel(doc.document_type)}
+                  {doc.uploaded_at ? ` • ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  {doc.is_verified ? (
+                    <Badge variant="outline" className="text-success border-success/40 text-[10px]">Verified</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-warning border-warning/40 text-[10px]">Pending Verification</Badge>
+                  )}
+                </div>
+              </div>
+              {doc.file_url ? (
+                <Button asChild variant="outline" size="sm">
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer">View</a>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" disabled>Unavailable</Button>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground text-center pt-2">
+        Need a new document uploaded or a certificate? Contact HR.
+      </p>
+    </div>
+  );
+}
+
 export default function UserProfile() {
+
   const { user, refreshUser, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();

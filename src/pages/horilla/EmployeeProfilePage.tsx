@@ -12,6 +12,7 @@ import { LeaveTab } from "@/components/hrms/LeaveTab";
 import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
 import { EmployeeSalaryStructure } from "@/components/hrms/EmployeeSalaryStructure";
 import { ReviseSalaryDialog } from "@/components/hrms/ReviseSalaryDialog";
+import { CompensationHistory } from "@/components/hrms/CompensationHistory";
 import { Button } from "@/components/ui/button";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
 import { Progress } from "@/components/ui/progress";

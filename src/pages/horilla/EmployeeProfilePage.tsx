@@ -1216,6 +1216,14 @@ export default function EmployeeProfilePage() {
               </div>
             )}
             {emp && <EmployeeSalaryStructure employeeId={emp.id} />}
+
+            <div>
+              <h3 className="text-base font-semibold text-foreground mb-2">Compensation History</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Complete audit of every CTC revision, bonus, performance incentive, retention bonus and ad-hoc payout.
+              </p>
+              {emp && <CompensationHistory employeeId={emp.id} />}
+            </div>
           </div>
         )}
 

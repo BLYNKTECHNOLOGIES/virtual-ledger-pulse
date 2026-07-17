@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { HRDashboardCompletenessCard } from "@/components/hrms/HRDashboardCompletenessCard";
 import { HRSetupChecklistCard } from "@/components/hrms/HRSetupChecklistCard";
 import { AnnouncementsBanner } from "@/components/hrms/AnnouncementsBanner";
+import { UpcomingHolidaysCard } from "@/components/hrms/UpcomingHolidaysCard";
 
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
@@ -202,6 +203,10 @@ export default function HorillaDashboard() {
 
       {/* Org-wide setup gaps that block payroll/attendance from running */}
       <HRSetupChecklistCard />
+
+      {/* Upcoming company holidays — read-only visibility for everyone */}
+      <UpcomingHolidaysCard />
+
 
 
       {/* M7: Actionable Widgets Row */}

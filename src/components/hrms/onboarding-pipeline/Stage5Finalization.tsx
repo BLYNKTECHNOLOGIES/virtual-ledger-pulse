@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Fingerprint } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint, Landmark } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -26,17 +26,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     create_erp_account: false,
     erp_role_id: "",
     reporting_manager_id: "",
+    bank_account_number: "",
+    bank_ifsc_code: "",
+    bank_name: "",
+    bank_branch: "",
+    bank_account_holder: "",
   });
   const [finalizing, setFinalizing] = useState(false);
 
   useEffect(() => {
     if (onboardingRecord) {
+      const bd = (onboardingRecord.bank_details as any) || {};
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
         essl_badge_id: onboardingRecord.essl_badge_id || "",
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
+        bank_account_number: bd.account_number || "",
+        bank_ifsc_code: bd.ifsc_code || "",
+        bank_name: bd.bank_name || "",
+        bank_branch: bd.branch || "",
+        bank_account_holder: bd.account_holder || "",
       });
     }
   }, [onboardingRecord]);

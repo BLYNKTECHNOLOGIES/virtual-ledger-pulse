@@ -1034,7 +1034,18 @@ export default function EmployeeProfilePage() {
           <div className="space-y-4">
             <h3 className="text-base font-semibold text-foreground">Documents</h3>
             <div className="border border-border rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-3">Bank Details</h4>
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                <h4 className="text-sm font-semibold text-foreground">Bank Details</h4>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={pullBankFromRazorpay}
+                  disabled={pullingBank || !rzpMap?.razorpay_employee_id}
+                  title={rzpMap?.razorpay_employee_id ? "Fetch bank_account from Razorpay" : "Not linked to a Razorpay employee"}
+                >
+                  {pullingBank ? "Pulling…" : "Pull from Razorpay"}
+                </Button>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div><p className="text-xs text-muted-foreground">Bank Name</p><p className="text-sm text-foreground">{bankInfo?.bank_name || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Account Number</p><p className="text-sm text-foreground">{bankInfo?.account_number || "None"}</p></div>

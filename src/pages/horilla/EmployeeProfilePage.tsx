@@ -674,6 +674,26 @@ export default function EmployeeProfilePage() {
         </div>
       </div>
 
+      {/* ─── Separated / Ex-Employee Banner ─── */}
+      {emp && !emp.is_active && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 flex items-start gap-3">
+          <div className="mt-0.5 h-2 w-2 rounded-full bg-destructive shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-destructive">
+              Separated — Ex-Employee
+              {emp.resignation_status === "completed" ? " · FNF processed" : ""}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Employment ended{emp.last_working_day ? ` on ${new Date(emp.last_working_day).toLocaleDateString("en-IN")}` : ""}
+              {emp.separation_reason ? ` · Reason: ${emp.separation_reason}` : ""}.
+              Record is retained read-only for audit, payroll history, statutory reports and re-hire lookup.
+              This employee is not counted in active headcount, payroll runs or Data Health checks.
+            </p>
+          </div>
+        </div>
+      )}
+
+
       {/* ─── Tabs (Horilla pill style) ─── */}
       <div className="flex flex-wrap gap-2">
         {TABS.map(t => (

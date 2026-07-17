@@ -1172,7 +1172,7 @@ Deno.serve(async (req) => {
         // Fetch salary sub-response as well — people:view never carries CTC.
         // Attach onto snapshot as __salary so projectors can read it. Silent on
         // failure (Razorpay returns nothing when salary structure isn't set).
-        const sal = await opfinSalary(eid);
+        const sal = await opfinSalary(eid, (r.body as any)?.email);
         if (sal.ok) {
           (r.body as any).__salary = {
             annual_ctc: sal.annual_ctc,

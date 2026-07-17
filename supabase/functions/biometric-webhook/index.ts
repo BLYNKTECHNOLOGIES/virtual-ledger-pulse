@@ -35,11 +35,14 @@ Deno.serve(async (req) => {
   try {
     // ─── AUTHENTICATE ICLOCK DEVICE REQUESTS (GET/POST with ?SN=) ───
     // Prevents anyone who guesses a serial number from forging attendance data.
+    // Resolve the calling device once — used both for auth and for direction
+    // enforcement further down. A device flagged as "In Device" / "Out Device"
+    // forces every push it emits to that direction, regardless of raw_status.
+    let deviceRow: { id: string; device_direction: string | null } | null = null;
     if (serialNumber) {
-      // 1. Only registered devices may talk to this endpoint.
       const { data: knownDevice } = await supabase
         .from("hr_biometric_devices")
-        .select("id")
+        .select("id, device_direction")
         .eq("device_serial", serialNumber)
         .maybeSingle();
 
@@ -50,9 +53,8 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "text/plain", ...corsHeaders },
         });
       }
+      deviceRow = knownDevice as any;
 
-      // 2. When a shared secret is configured, require it on every device request.
-      //    Configure devices to append `&token=<BIOMETRIC_WEBHOOK_SECRET>` to their server URL.
       const deviceToken = Deno.env.get("BIOMETRIC_WEBHOOK_SECRET");
       const providedToken =
         url.searchParams.get("token") ?? req.headers.get("x-webhook-secret");
@@ -65,6 +67,13 @@ Deno.serve(async (req) => {
         });
       }
     }
+
+    const forcedDirection: "in" | "out" | null =
+      deviceRow?.device_direction === "In Device"
+        ? "in"
+        : deviceRow?.device_direction === "Out Device"
+        ? "out"
+        : null;
 
     // ─── ICLOCK PROTOCOL: GET requests ───
     if (req.method === "GET" && serialNumber) {

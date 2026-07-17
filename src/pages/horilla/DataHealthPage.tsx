@@ -17,6 +17,7 @@ import {
   pushSalaryToRazorpay,
   pushEmploymentToRazorpay,
 } from "@/lib/razorpayPushback";
+import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
 
 type Drift = {
   id: string;
@@ -58,7 +59,7 @@ const FIELD_LABEL: Record<string, string> = {
   annual_ctc: "Annual CTC",
 };
 
-// Field → which push helper to use when adopting the HRMS value.
+// Field → which Razorpay push to use when adopting the HRMS value.
 const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
   full_name: (id) => pushIdentityToRazorpay(id, { triggeredFrom: "data_health" }),
   email: (id) => pushIdentityToRazorpay(id, { triggeredFrom: "data_health" }),
@@ -74,6 +75,9 @@ const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
   bank_ifsc: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
   annual_ctc: (id) => pushSalaryToRazorpay(id, { triggeredFrom: "data_health" }),
 };
+
+// Fields for which eSSL is a target — device holds only identity + roster.
+const ESSL_PUSHABLE_FIELDS = new Set(["full_name", "employee_code", "active_state"]);
 
 export default function DataHealthPage() {
   const qc = useQueryClient();

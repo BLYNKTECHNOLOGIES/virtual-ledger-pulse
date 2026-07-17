@@ -428,7 +428,7 @@ async function projectSnapshotIntoOnboarding(
   snap: any,
 ): Promise<{ wrote: string[]; conflicts: string[] } | null> {
   const { data: ob } = await svc.from("hr_employee_onboarding")
-    .select("id,first_name,last_name,email,phone,gender,date_of_birth,department_id,position_id,job_role,employee_type,date_of_joining")
+    .select("id,first_name,last_name,email,phone,gender,date_of_birth,department_id,position_id,job_role,employee_type,date_of_joining,ctc")
     .eq("employee_id", hrId).maybeSingle();
   if (!ob) return null;
 
@@ -445,6 +445,18 @@ async function projectSnapshotIntoOnboarding(
     positionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
 
+  // CTC comes from the salary sub-response injected onto snap.__salary by the
+  // pull flow. Fall back to any legacy salary block that may already be on the
+  // snapshot root.
+  const salaryBlock = snap?.__salary || snap?.salary || null;
+  const ctcAnnual: number | null =
+    (salaryBlock && (
+      Number(salaryBlock.annual_ctc) ||
+      Number(salaryBlock["ctc-annual"]) ||
+      Number(salaryBlock.ctc_annual) ||
+      Number(salaryBlock.ctc)
+    )) || null;
+
   const incoming: Record<string, any> = {
     first_name: pickString(snap?.first_name, first) || null,
     last_name: pickString(snap?.last_name, last) || null,
@@ -456,7 +468,17 @@ async function projectSnapshotIntoOnboarding(
     position_id: positionId,
     job_role: jobTitle,
     employee_type: pickString(snap?.employee_type, snap?.employment_type),
-    date_of_joining: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
+    // Razorpay actually uses `date-of-hiring` (verified against production
+    // snapshots); the *-joining aliases are kept for legacy/other tenants.
+    date_of_joining: parseDobIso(
+      snap?.["date-of-hiring"] ??
+      snap?.date_of_hiring ??
+      snap?.hiring_date ??
+      snap?.["date-of-joining"] ??
+      snap?.date_of_joining ??
+      snap?.joining_date
+    ),
+    ctc: ctcAnnual && ctcAnnual > 0 ? ctcAnnual : null,
   };
   const picked = pickPatch(ob as any, incoming);
   if (Object.keys(picked.patch).length) {

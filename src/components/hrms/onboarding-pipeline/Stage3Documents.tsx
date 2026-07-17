@@ -53,6 +53,24 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     setMailReceivedDate(data?.document_mail_received_at || "");
   }, [data]);
 
+  const persistDocs = async (nextDocs: typeof docs, nextMailDate: string = mailReceivedDate) => {
+    if (!onboardingData?.id) return;
+    const allReq = DOC_FIELDS.filter(f => f.required).every(f => nextDocs[f.key]?.received);
+    try {
+      await supabase
+        .from("hr_employee_onboarding")
+        .update({
+          documents: nextDocs,
+          document_mail_received_at: nextMailDate || null,
+          document_collection_status: allReq ? "completed" : "pending",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", onboardingData.id);
+    } catch (e) {
+      console.warn("Auto-save Stage 3 documents failed:", e);
+    }
+  };
+
   const handleUpload = async (key: string, file: File) => {
     if (!file) return;
     setUploadingKey(key);
@@ -62,11 +80,13 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
       const path = `onboarding/${empId}/${key}/${Date.now()}_${safe}`;
       const uploaded = await smartUpload({ bucket: "employee-documents", path, file, contentType: file.type || undefined });
       const { data: urlD } = supabase.storage.from("employee-documents").getPublicUrl(uploaded);
-      setDocs(prev => ({
-        ...prev,
-        [key]: { ...prev[key], received: true, file_url: urlD?.publicUrl || "", file_name: file.name },
-      }));
-      toast.success(`${file.name} uploaded`);
+      const next = {
+        ...docs,
+        [key]: { ...docs[key], received: true, file_url: urlD?.publicUrl || "", file_name: file.name },
+      };
+      setDocs(next);
+      await persistDocs(next);
+      toast.success(`${file.name} uploaded & saved`);
     } catch (err: any) {
       toast.error(err?.message || "Upload failed");
     } finally {
@@ -75,7 +95,9 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
   };
 
   const removeFile = (key: string) => {
-    setDocs(prev => ({ ...prev, [key]: { ...prev[key], file_url: "", file_name: "" } }));
+    const next = { ...docs, [key]: { ...docs[key], file_url: "", file_name: "" } };
+    setDocs(next);
+    persistDocs(next);
   };
 
   const sendDocRequestEmail = async () => {

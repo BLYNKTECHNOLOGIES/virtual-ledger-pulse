@@ -276,7 +276,7 @@ export function LeaveTab({
                         {isPending ? (
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Approved" })}
+                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "approved" })}
                               disabled={updateStatusMutation.isPending}
                               className="bg-warning hover:bg-warning text-primary-foreground px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
                               title="Approve"
@@ -284,7 +284,7 @@ export function LeaveTab({
                               <Check className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Rejected" })}
+                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "rejected" })}
                               disabled={updateStatusMutation.isPending}
                               className="bg-destructive hover:bg-destructive text-primary-foreground px-3 py-1.5 rounded-r-lg transition-colors disabled:opacity-50"
                               title="Reject"
@@ -292,7 +292,7 @@ export function LeaveTab({
                               <X className="h-4 w-4" />
                             </button>
                           </div>
-                        ) : req.status === "Cancelled" ? (
+                        ) : req.status === "cancelled" ? (
                           <div className="flex items-center justify-center">
                             <span className="bg-warning/80 text-primary-foreground px-3 py-1.5 rounded-lg">
                               <Check className="h-4 w-4" />

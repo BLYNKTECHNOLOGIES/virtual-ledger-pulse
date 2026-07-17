@@ -1238,8 +1238,11 @@ export default function UserProfile() {
                 </div>
               </div>
 
+              <UpcomingHolidaysCard />
+
               {/* ─── Leave Balance Cards ─── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
                 {leaveTypes.map((lt: any) => {
                   const bal = cumulativeLeaveBalances[lt.id];
                   const allocated = bal?.totalAllocated || 0;

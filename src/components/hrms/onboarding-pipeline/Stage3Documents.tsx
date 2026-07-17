@@ -99,6 +99,8 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
               <li>Aadhaar Card (front & back)</li>
               <li>Passport-size Photo</li>
               <li>Bank Details (Cancelled cheque / Passbook first page)</li>
+              <li>Educational Certificate(s) (degree/diploma)</li>
+              <li>Previous Experience / Relieving Letter (if any)</li>
               <li>UAN Number (if existing)</li>
               <li>ESIC Number (if applicable)</li>
             </ul>

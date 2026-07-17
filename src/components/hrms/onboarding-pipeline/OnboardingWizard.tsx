@@ -259,8 +259,19 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         reporting_manager_id: r.reporting_manager_id || null,
       });
 
-      // 4. Create bank details if available
-      if (docs.bank_details?.value) {
+      // 4. Create bank details — prefer explicit fields captured in Stage 5,
+      //    fall back to legacy documents.bank_details.value shape.
+      const bank = (r as any).bank_details as any;
+      if (bank && bank.account_number) {
+        await supabase.from("hr_employee_bank_details").upsert({
+          employee_id: emp.id,
+          account_number: bank.account_number,
+          ifsc_code: bank.ifsc_code || null,
+          bank_name: bank.bank_name || null,
+          branch: bank.branch || null,
+          additional_info: bank.account_holder ? { account_holder: bank.account_holder } : null,
+        }, { onConflict: "employee_id" });
+      } else if (docs.bank_details?.value) {
         await supabase.from("hr_employee_bank_details").insert({
           employee_id: emp.id,
           account_number: docs.bank_details.value,

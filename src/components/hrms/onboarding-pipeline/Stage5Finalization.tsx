@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -62,9 +62,42 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     },
   });
 
+  // Live eSSL device-user roster: only PINs actually seen by a device.
+  const { data: devicePins = [], isLoading: pinsLoading } = useQuery({
+    queryKey: ["hr_biometric_device_users_for_stage5"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_biometric_device_users")
+        .select("pin, name, device_serial, matched_employee_id, last_seen_at")
+        .order("last_seen_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const pinStatus = useMemo(() => {
+    const val = (form.essl_badge_id || "").trim();
+    if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
+    const matches = (devicePins || []).filter((p: any) => (p.pin || "").trim() === val);
+    if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
+    const conflict = matches.find((m: any) => m.matched_employee_id && m.matched_employee_id !== onboardingRecord?.employee_id);
+    if (conflict) return { kind: "conflict", msg: `PIN already mapped to another employee on device ${conflict.device_serial}.`, matches };
+    return { kind: "ok", msg: `Found on ${matches.length} device${matches.length === 1 ? "" : "s"}${matches[0]?.name ? ` — device name: ${matches[0].name}` : ""}.`, matches };
+  }, [form.essl_badge_id, devicePins, onboardingRecord?.employee_id]);
+
+  const unassignedPins = useMemo(() => {
+    return (devicePins || []).filter((p: any) => !p.matched_employee_id);
+  }, [devicePins]);
+
+
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
+    if (pinStatus?.kind === "conflict") { toast.error(pinStatus.msg); return false; }
+    if (pinStatus?.kind === "unknown") {
+      if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) return false;
+    }
     if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
     // Payability warning (S2): confirm activation of an employee who can't be paid yet
     const docs = (onboardingRecord?.documents as any) || {};
@@ -128,14 +161,51 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               disabled={readOnly}
             />
           </div>
-          <div>
-            <Label>ESSL Badge ID *</Label>
-            <Input
-              placeholder="e.g. EMP001"
-              value={form.essl_badge_id}
-              onChange={e => setForm(p => ({ ...p, essl_badge_id: e.target.value }))}
-              disabled={readOnly}
-            />
+          <div className="sm:col-span-2">
+            <Label className="flex items-center gap-1.5">
+              <Fingerprint className="h-3.5 w-3.5" /> ESSL Badge ID (device PIN) *
+            </Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                placeholder="e.g. 26012"
+                value={form.essl_badge_id}
+                onChange={e => setForm(p => ({ ...p, essl_badge_id: e.target.value }))}
+                disabled={readOnly}
+                className="font-mono"
+              />
+              <Select
+                value=""
+                onValueChange={v => setForm(p => ({ ...p, essl_badge_id: v }))}
+                disabled={readOnly || pinsLoading}
+              >
+                <SelectTrigger className="w-[190px] shrink-0">
+                  <SelectValue placeholder={pinsLoading ? "Loading…" : `Pick unassigned (${unassignedPins.length})`} />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {unassignedPins.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No unassigned PINs on any device.</div>
+                  ) : unassignedPins.map((p: any) => (
+                    <SelectItem key={`${p.device_serial}-${p.pin}`} value={p.pin}>
+                      <span className="font-mono">{p.pin}</span>
+                      {p.name && <span className="text-muted-foreground"> · {p.name}</span>}
+                      <span className="text-[10px] text-muted-foreground"> · SN {p.device_serial}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {pinStatus && (
+              <p className={`text-xs mt-1.5 flex items-start gap-1 ${
+                pinStatus.kind === "ok" ? "text-success" :
+                pinStatus.kind === "conflict" ? "text-destructive" :
+                "text-warning"
+              }`}>
+                {pinStatus.kind === "ok"
+                  ? <CheckCircle2 className="h-3 w-3 mt-0.5 shrink-0" />
+                  : <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />}
+                <span>{pinStatus.msg}</span>
+              </p>
+            )}
           </div>
           <div>
             <Label>Reporting Manager</Label>

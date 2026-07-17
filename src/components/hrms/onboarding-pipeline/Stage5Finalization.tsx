@@ -52,6 +52,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     enabled: !!linkedEmpId,
   });
 
+  // Is this employee already linked to a Razorpay employee record? If so, the
+  // "Also create in Razorpay" toggle is hidden — no double-provisioning.
+  const { data: razorpayMap } = useQuery({
+    queryKey: ["stage5-rzp-map", linkedEmpId],
+    queryFn: async () => {
+      if (!linkedEmpId) return null;
+      const { data } = await supabase
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", linkedEmpId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!linkedEmpId,
+  });
+  const alreadyInRazorpay = !!(razorpayMap as any)?.razorpay_employee_id;
+
   // Auto-pull bank/IFSC from Razorpay for pending onboardings that were imported
   // from Razorpay but haven't had their bank details projected yet. Runs once
   // per open of the wizard, silently — if it fails (permissions, offline

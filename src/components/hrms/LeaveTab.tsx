@@ -257,7 +257,7 @@ export function LeaveTab({
                       <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
                       <td className="py-3 px-4 text-muted-foreground">{req.total_days}</td>
                       <td className={`py-3 px-4 font-medium ${statusColors[req.status] || "text-muted-foreground"}`}>
-                        {req.status}
+                        {statusLabel(req.status)}
                       </td>
                       <td className="py-3 px-4 text-center">
                         {isCancellable ? (

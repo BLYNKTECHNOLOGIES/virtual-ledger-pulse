@@ -62,7 +62,7 @@ export default function LeaveAllocationRequestsPage() {
         leave_type_id: form.leave_type_id,
         requested_days: parseInt(form.requested_days) || 1,
         description: form.description || null,
-        status: "pending",
+        status: "requested",
         created_by: user?.user?.id || null,
       });
       if (error) throw error;

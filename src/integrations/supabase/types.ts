@@ -18045,20 +18045,6 @@ export type Database = {
           has_doj: boolean | null
           has_salary: boolean | null
         }
-        Insert: {
-          employee_id?: string | null
-          has_bank?: never
-          has_designation?: never
-          has_doj?: never
-          has_salary?: never
-        }
-        Update: {
-          employee_id?: string | null
-          has_bank?: never
-          has_designation?: never
-          has_doj?: never
-          has_salary?: never
-        }
         Relationships: []
       }
       hr_monthly_hours_summary: {

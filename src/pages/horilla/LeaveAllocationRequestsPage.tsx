@@ -124,7 +124,7 @@ export default function LeaveAllocationRequestsPage() {
     return name.toLowerCase().includes(search.toLowerCase());
   });
 
-  const pendingCount = requests.filter((r: any) => r.status === "pending").length;
+  const pendingCount = requests.filter((r: any) => r.status === "requested").length;
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">

@@ -1137,9 +1137,23 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <SalaryPFTab hrEmployee={hrEmployee} />
+            <>
+              <SalaryPFTab hrEmployee={hrEmployee} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Compensation History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CompensationHistory employeeId={hrEmployee.id} />
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
+
 
         {/* ═══════ Payslips Tab ═══════ */}
         <TabsContent value="payslips" className="space-y-6">

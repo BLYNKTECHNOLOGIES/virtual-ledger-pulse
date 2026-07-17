@@ -376,7 +376,7 @@ async function projectSnapshotIntoErp(
     jobPositionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
   const wiIncoming: Record<string, any> = {
-    joining_date: parseDobIso(snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
+    joining_date: parseDobIso(snap?.["date-of-hiring"] ?? snap?.date_of_hiring ?? snap?.hiring_date ?? snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
     department_id: departmentId,
     job_position_id: jobPositionId,
     job_role: jobTitle,

@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, Building2, User,
   Briefcase, CreditCard, FileText, Edit, Save, X, Check,
-  ChevronLeft, ChevronRight, Settings, Plus, Trash2
+  ChevronLeft, ChevronRight, Plus, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { LeaveTab } from "@/components/hrms/LeaveTab";
@@ -654,9 +654,6 @@ export default function EmployeeProfilePage() {
 
         {/* Prev/Next navigation */}
         <div className="flex items-center gap-2">
-          <button className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted" title="Settings">
-            <Settings className="h-4 w-4" />
-          </button>
           <button
             onClick={() => prevId && navigate(`/hrms/employee/${prevId}`)}
             disabled={!prevId}

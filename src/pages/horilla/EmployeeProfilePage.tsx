@@ -208,6 +208,56 @@ export default function EmployeeProfilePage() {
     enabled: !!id,
   });
 
+  const { data: rzpMap } = useQuery({
+    queryKey: ["hr_razorpay_map", id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,last_pulled_at")
+        .eq("hr_employee_id", id!)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const [pullingBank, setPullingBank] = useState(false);
+  const pullBankFromRazorpay = async () => {
+    if (!rzpMap?.razorpay_employee_id) {
+      toast.error("This employee is not linked to a Razorpay employee ID.");
+      return;
+    }
+    setPullingBank(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "pull_person_full", razorpay_employee_ids: [rzpMap.razorpay_employee_id] },
+      });
+      if (error) throw error;
+      const row = (data as any)?.rows?.[0];
+      if (!row) throw new Error("No response from Razorpay");
+      if (row.status === "miss") {
+        toast.error(`Razorpay returned no data (HTTP ${row.http_status}).`);
+      } else if (row.status === "error") {
+        toast.error(`Pull failed: ${row.error}`);
+      } else {
+        const wroteBank = row.wrote?.bank ?? 0;
+        if (row.status === "unchanged") {
+          toast.success("Already in sync with Razorpay — no changes.");
+        } else if (wroteBank > 0) {
+          toast.success(`Bank details updated from Razorpay (${wroteBank} field${wroteBank === 1 ? "" : "s"}).`);
+        } else {
+          toast.info("Razorpay has no bank_account block for this employee yet.");
+        }
+        qc.invalidateQueries({ queryKey: ["hr_employee_bank", id] });
+        qc.invalidateQueries({ queryKey: ["hr_razorpay_map", id] });
+      }
+    } catch (e: any) {
+      toast.error(`Pull failed: ${e?.message ?? e}`);
+    } finally {
+      setPullingBank(false);
+    }
+  };
+
   // ─── Lookups ───
   const { data: dept } = useQuery({
     queryKey: ["dept_for_emp", workInfo?.department_id],

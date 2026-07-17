@@ -132,6 +132,9 @@ async function opfinSalary(employeeId: number): Promise<{
   } catch (e) {
     return { ...empty, err: `NETWORK: ${(e as Error).message}` };
   } finally { clearTimeout(t); }
+}
+
+
 
 function normPhone(v: string | null | undefined): string | null {
   if (!v) return null;

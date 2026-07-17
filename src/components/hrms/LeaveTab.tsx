@@ -262,7 +262,7 @@ export function LeaveTab({
                       <td className="py-3 px-4 text-center">
                         {isCancellable ? (
                           <button
-                            onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "Cancelled" })}
+                            onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "cancelled" })}
                             disabled={updateStatusMutation.isPending}
                             className="bg-muted hover:bg-muted/80 text-foreground text-xs font-medium px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                           >

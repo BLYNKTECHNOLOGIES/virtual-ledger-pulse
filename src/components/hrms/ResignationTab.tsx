@@ -645,7 +645,7 @@ export function ResignationTab() {
               disabled={completedCount < totalCount}
               onClick={() => {
                 if (selectedEmployee) {
-                  setConfirmAction({ type: 'complete', id: selectedEmployee.id, label: 'Complete resignation and deactivate this employee?' });
+                  setConfirmAction({ type: 'complete', id: selectedEmployee.id, label: 'Complete resignation, deactivate this employee in the ERP, and set their Date of Dismissal in RazorpayX Payroll (does not hard-delete — keeps them eligible for FNF payroll)?' });
                 }
               }}
             >

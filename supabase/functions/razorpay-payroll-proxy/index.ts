@@ -343,14 +343,17 @@ async function projectSnapshotIntoErp(
   }
 
   // ---- hr_employee_bank_details ----
-  // RazorpayX nests bank under bank_account / bank_details / bank_information; take widest reach.
+  // RazorpayX exposes bank fields in two shapes: nested (bank_account / bank_details / bank_information)
+  // OR flat hyphenated keys at the snapshot root (bank-account-number, bank-ifsc, bank-name, bank-branch).
+  // Cover both — real payloads for people:view use the flat hyphenated form.
   const b = snap?.bank_account ?? snap?.bank_details ?? snap?.bank_information ?? snap?.bank ?? {};
   const bankIncoming: Record<string, any> = {
-    account_number: pickString(b?.account_number, snap?.account_number, snap?.bank_account_number),
-    ifsc_code: normIfsc(b?.ifsc ?? b?.ifsc_code ?? snap?.ifsc ?? snap?.ifsc_code),
-    bank_name: pickString(b?.bank_name, snap?.bank_name),
-    branch: pickString(b?.branch, b?.branch_name, snap?.branch),
+    account_number: pickString(b?.account_number, snap?.account_number, snap?.bank_account_number, snap?.["bank-account-number"]),
+    ifsc_code: normIfsc(b?.ifsc ?? b?.ifsc_code ?? snap?.ifsc ?? snap?.ifsc_code ?? snap?.["bank-ifsc"]),
+    bank_name: pickString(b?.bank_name, snap?.bank_name, snap?.["bank-name"]),
+    branch: pickString(b?.branch, b?.branch_name, snap?.branch, snap?.["bank-branch"]),
   };
+
   const { data: bdCur } = await svc.from("hr_employee_bank_details").select("*").eq("employee_id", hrId).maybeSingle();
   const bdPick = pickPatch(bdCur as any, bankIncoming);
   if (bdCur) {

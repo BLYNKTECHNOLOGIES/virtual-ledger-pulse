@@ -84,15 +84,38 @@ async function opfinView(employeeId: number, employeeType = "employee") {
   } finally { clearTimeout(t); }
 }
 
-// Fetch the current salary block for a Razorpay employee. The people:view
-// snapshot never carries CTC or components — we have to hit the salary
-// sub-type explicitly. Returns { ok, annual_ctc, monthly_gross, components }.
-// Silent on non-2xx / missing fields so the caller can gracefully skip.
-async function opfinSalary(employeeId: number): Promise<{
+// Fetch the current salary of a Razorpay employee.
+//
+// AUDIT (verified against the official RazorpayX Payroll Postman collection):
+// The API exposes NO read endpoint for the master annual CTC / salary structure.
+// Only these salary-adjacent sub-types exist:
+//   - people:set-salary        (WRITE annual-ctc or custom structure)
+//   - payroll:view-payroll     (READ per-month payroll line, keyed by email + payroll-month)
+//   - advance-salary:create    (WRITE advance)
+//
+// There is no people:view-salary, no salary-structure endpoint, no get-salary.
+// The dozen probe variants we previously tried all returned code:23 "Unknown
+// request type" — they simply do not exist in the tenant's API surface.
+//
+// The only documented way to READ salary numbers is `payroll:view-payroll`,
+// which returns { salary: <monthly_gross>, additions, deduction-amount, ... }
+// for a specific processed payroll month. We annualise monthly*12 (matches the
+// Postman description: "even if an employee joins mid-year, please set the
+// salary as their monthly_salary*12").
+//
+// If no processed payroll month exists for the employee, salary is NOT exposed
+// via the API and CTC must be entered manually in HRMS. We surface that
+// cleanly via ok:false + err: "not-exposed-by-api".
+async function opfinSalary(employeeId: number, email?: string | null): Promise<{
   ok: boolean; annual_ctc: number | null; monthly_gross: number | null;
   components: any[]; raw: any; http_status: number; err: string | null;
 }> {
-  const empty = { ok: false, annual_ctc: null, monthly_gross: null, components: [], raw: null, http_status: 0, err: null as any };
+  const empty = { ok: false, annual_ctc: null, monthly_gross: null, components: [] as any[], raw: null as any, http_status: 0, err: null as string | null };
+
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    console.log(`[opfinSalary] emp=${employeeId} SKIP no-email (payroll:view-payroll requires email)`);
+    return { ...empty, err: "not-exposed-by-api: payroll view requires employee email which is missing on snapshot" };
+  }
 
   const readNum = (obj: any, keys: string[]): number | null => {
     if (!obj || typeof obj !== "object") return null;
@@ -104,45 +127,30 @@ async function opfinSalary(employeeId: number): Promise<{
     return null;
   };
 
-  // Razorpay Opfin exposes the salary block under a few different envelope
-  // shapes depending on tenant / product version. Try each until one returns
-  // a usable annual CTC. We log EVERY attempt (not just the last) so a single
-  // Deep Pull run reveals which envelope this tenant actually accepts.
-  const attempts: Array<{ urlPath: string; type: string; subType: string }> = [
-    // Documented Postman variants
-    { urlPath: "people",           type: "people",           subType: "view-salary" },
-    { urlPath: "people",           type: "people",           subType: "view-emp-salary" },
-    { urlPath: "people",           type: "people",           subType: "get-salary" },
-    { urlPath: "people",           type: "people",           subType: "salary" },
-    // Salary-structure surface
-    { urlPath: "salaryStructure",  type: "salary-structure", subType: "view" },
-    { urlPath: "salaryStructure",  type: "salary-structure", subType: "get" },
-    { urlPath: "salaryStructure",  type: "salary-structure", subType: "view-structure" },
-    { urlPath: "salary-structure", type: "salary-structure", subType: "view" },
-    // Salary surface
-    { urlPath: "salary",           type: "salary",           subType: "view" },
-    { urlPath: "salary",           type: "salary",           subType: "get" },
-    // Legacy shapes retained for completeness
-    { urlPath: "people",           type: "salary",           subType: "view" },
-    { urlPath: "salary",           type: "salary",           subType: "view-salary" },
-  ];
+  // Walk back up to 12 months from current month, newest first.
+  const now = new Date();
+  const months: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
 
-  let lastErr: string | null = null;
   let lastStatus = 0;
   let lastRaw: any = null;
+  let lastErr: string | null = null;
   const perAttempt: string[] = [];
 
-  for (const a of attempts) {
+  for (const ym of months) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 15000);
     try {
-      const res = await fetch(`${BASE}/${a.urlPath}`, {
+      const res = await fetch(`${BASE}/payroll`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           auth: authBlock(),
-          request: { type: a.type, "sub-type": a.subType },
-          data: { "employee-id": employeeId, "employee-type": "employee" },
+          request: { type: "payroll", "sub-type": "view-payroll" },
+          data: { email, "payroll-month": ym },
         }),
         signal: ctrl.signal,
       });
@@ -150,68 +158,38 @@ async function opfinSalary(employeeId: number): Promise<{
       let body: any = null; try { body = JSON.parse(raw); } catch { /* keep raw */ }
       lastStatus = res.status;
       lastRaw = body ?? raw;
-      const tag = `${a.urlPath}:${a.type}/${a.subType}`;
+      const tag = `payroll:view-payroll@${ym}`;
 
       if (!res.ok || !body || typeof body !== "object") {
-        // Collapse HTML 404 pages to a compact marker
         const isHtml = typeof raw === "string" && raw.trim().startsWith("<");
         const snip = isHtml ? "<HTML>" : String(raw).slice(0, 120);
-        const line = `HTTP ${res.status} @ ${tag} ${snip}`;
-        perAttempt.push(line);
-        lastErr = line;
+        perAttempt.push(`HTTP ${res.status} @ ${tag} ${snip}`);
+        lastErr = perAttempt[perAttempt.length - 1];
         continue;
       }
       const rpErr = body.error || body.message || null;
       if (rpErr) {
-        const line = `RPERR @ ${tag} ${typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr).slice(0, 150)}`;
-        perAttempt.push(line);
-        lastErr = line;
+        perAttempt.push(`RPERR @ ${tag} ${typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr).slice(0, 150)}`);
+        lastErr = perAttempt[perAttempt.length - 1];
         continue;
       }
 
-      // Walk plausible containers for the salary block.
-      const containers = [
-        body,
-        body.salary,
-        body["salary-structure"],
-        body.salary_structure,
-        body.structure,
-        body.data,
-        body?.data?.salary,
-        body?.data?.["salary-structure"],
-        body?.response,
-        body?.response?.salary,
-        body?.result,
-        body?.result?.salary,
-      ].filter((x) => x && typeof x === "object");
-
-      let annual: number | null = null;
-      let monthly: number | null = null;
-      let comps: any[] = [];
-      for (const c of containers) {
-        if (annual == null) annual = readNum(c, ["ctc-annual", "ctc_annual", "annual_ctc", "annual-ctc", "ctc", "ctc-yearly", "annual-salary", "annual-gross"]);
-        if (monthly == null) monthly = readNum(c, ["monthly-gross", "monthly_gross", "gross", "gross-monthly", "monthly-ctc", "monthly-salary"]);
-        if (!comps.length && Array.isArray((c as any).components)) comps = (c as any).components;
-        if (!comps.length && Array.isArray((c as any).earnings)) comps = (c as any).earnings;
+      const monthly = readNum(body, ["salary"]);
+      if (monthly && monthly > 0) {
+        const annual = Math.round(monthly * 12);
+        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual}`);
+        return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: [], raw: body, http_status: res.status, err: null };
       }
-      if (annual == null && monthly && monthly > 0) annual = Math.round(monthly * 12);
-
-      if (annual || monthly || comps.length) {
-        console.log(`[opfinSalary] emp=${employeeId} MATCH @ ${tag} annual=${annual} monthly=${monthly} comps=${comps.length}`);
-        return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: comps, raw: body, http_status: res.status, err: null };
-      }
-      const line = `no salary fields @ ${tag} keys=${Object.keys(body).slice(0, 15).join(",")}`;
-      perAttempt.push(line);
-      lastErr = line;
+      perAttempt.push(`no salary field @ ${tag} keys=${Object.keys(body).slice(0, 10).join(",")}`);
+      lastErr = perAttempt[perAttempt.length - 1];
     } catch (e) {
-      const line = `NETWORK ${a.urlPath}: ${(e as Error).message}`;
-      perAttempt.push(line);
-      lastErr = line;
+      perAttempt.push(`NETWORK @ ${ym}: ${(e as Error).message}`);
+      lastErr = perAttempt[perAttempt.length - 1];
     } finally { clearTimeout(t); }
   }
-  // Emit ALL attempts on a single line so the failure surface is visible without hunting through logs.
-  console.log(`[opfinSalary] emp=${employeeId} ALL ATTEMPTS FAILED | ${perAttempt.join(" || ")}`);
-  return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr };
+
+  console.log(`[opfinSalary] emp=${employeeId} NO_PROCESSED_PAYROLL email=${email} tried=${months.length} months | ${perAttempt.slice(0, 3).join(" || ")}`);
+  return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr || "not-exposed-by-api: no processed payroll month returned salary" };
 }
 
 

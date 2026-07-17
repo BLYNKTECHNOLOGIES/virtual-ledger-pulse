@@ -6642,6 +6642,82 @@ export type Database = {
           },
         ]
       }
+      hr_essl_pushback_log: {
+        Row: {
+          action: string
+          command_id: string | null
+          created_at: string
+          device_serial: string | null
+          error_message: string | null
+          hr_employee_id: string | null
+          id: string
+          kind: string
+          pin: string | null
+          request_snapshot: Json | null
+          response_snapshot: Json | null
+          status: string
+          triggered_by: string | null
+          triggered_from: string | null
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          command_id?: string | null
+          created_at?: string
+          device_serial?: string | null
+          error_message?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          kind: string
+          pin?: string | null
+          request_snapshot?: Json | null
+          response_snapshot?: Json | null
+          status: string
+          triggered_by?: string | null
+          triggered_from?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          command_id?: string | null
+          created_at?: string
+          device_serial?: string | null
+          error_message?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          kind?: string
+          pin?: string | null
+          request_snapshot?: Json | null
+          response_snapshot?: Json | null
+          status?: string
+          triggered_by?: string | null
+          triggered_from?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_essl_pushback_log_command_id_fkey"
+            columns: ["command_id"]
+            isOneToOne: false
+            referencedRelation: "hr_biometric_device_commands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_essl_pushback_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_essl_pushback_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_feedback_360: {
         Row: {
           comments: string | null

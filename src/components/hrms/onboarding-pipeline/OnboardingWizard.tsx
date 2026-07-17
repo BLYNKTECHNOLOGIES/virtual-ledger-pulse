@@ -448,7 +448,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         <Stage4OfferPolicy
           data={record}
           onboardingData={record}
-          onSave={(d) => handleStageComplete(4, d)}
+          onSave={(d) => handleSaveDraft(4, d)}
           onComplete={(d) => handleStageComplete(4, d)}
           onBack={() => setActiveStage(3)}
           readOnly={isCompleted}

@@ -635,7 +635,7 @@ async function processAttendance(
   // 4. Query ALL punches within that shift window for this employee
   const { data: windowPunches } = await supabase
     .from("hr_attendance_punches")
-    .select("id, punch_time")
+    .select("id, punch_time, punch_type")
     .eq("employee_id", employeeIdStr)
     .gte("punch_time", windowStart)
     .lte("punch_time", windowEnd)
@@ -646,17 +646,42 @@ async function processAttendance(
     return;
   }
 
-  // 5. Deterministic: First punch = check-in, Last punch = check-out
-  const firstPunch = windowPunches[0].punch_time;
-  const lastPunch = windowPunches.length > 1
-    ? windowPunches[windowPunches.length - 1].punch_time
-    : null;
+  // 5. Direction-aware pick:
+  //    - check-in  = earliest IN punch    (fallback: earliest punch overall)
+  //    - check-out = latest OUT punch     (fallback: latest punch overall when >1)
+  //    In a two-device setup ("In Device" + "Out Device") the direction is
+  //    already forced at ingest, so we get clean IN / OUT rows and the
+  //    fallbacks never fire. The fallbacks keep single-device installations
+  //    working exactly as before.
+  const inPunches = windowPunches.filter((p: any) => p.punch_type === "in");
+  const outPunches = windowPunches.filter((p: any) => p.punch_type === "out");
+
+  const firstPunch = (inPunches[0] ?? windowPunches[0]).punch_time;
+  let lastPunch: string | null;
+  if (outPunches.length > 0) {
+    lastPunch = outPunches[outPunches.length - 1].punch_time;
+  } else if (windowPunches.length > 1) {
+    lastPunch = windowPunches[windowPunches.length - 1].punch_time;
+  } else {
+    lastPunch = null;
+  }
+
+  // Guard: if computed check-out is before check-in (e.g. OUT device fired
+  // before an IN was ever recorded — badge lost, forgot to punch in), do not
+  // publish a negative-hours row. Treat as incomplete and only surface the
+  // known-good check-in.
+  if (lastPunch && new Date(lastPunch).getTime() < new Date(firstPunch).getTime()) {
+    console.warn(`[ATTENDANCE] OUT before IN for employee=${employeeIdStr}, date=${attendanceDate}. Suppressing check-out.`);
+    lastPunch = null;
+  }
+
   const punchCount = windowPunches.length;
 
-  // Log intermediate punches that are ignored
   if (windowPunches.length > 2) {
-    const ignored = windowPunches.slice(1, -1);
-    console.log(`[ATTENDANCE] Ignored ${ignored.length} intermediate punches for employee=${employeeIdStr}, date=${attendanceDate}: ${ignored.map((p: any) => p.punch_time).join(", ")}`);
+    const ignored = windowPunches.filter((p: any) => p.punch_time !== firstPunch && p.punch_time !== lastPunch);
+    if (ignored.length > 0) {
+      console.log(`[ATTENDANCE] Ignored ${ignored.length} intermediate punches for employee=${employeeIdStr}, date=${attendanceDate}: ${ignored.map((p: any) => `${p.punch_time}(${p.punch_type})`).join(", ")}`);
+    }
   }
 
   // 6. Shift-aware calculations

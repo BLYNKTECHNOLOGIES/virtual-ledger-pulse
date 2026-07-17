@@ -171,7 +171,7 @@ export default function LeaveRequestsPage() {
           <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="requested">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
@@ -244,7 +244,7 @@ export default function LeaveRequestsPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
                     <td className="px-4 py-3">
-                      {r.status === "pending" && (
+                      {r.status === "requested" && (
                         <div className="flex gap-1">
                           <Button size="sm" variant="ghost" className="text-success h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved", request: r })}>
                             <CheckCircle className="h-4 w-4" />

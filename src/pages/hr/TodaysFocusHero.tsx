@@ -106,11 +106,15 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  const next =
-    steps.find((s) => s.status === "active") ??
-    steps.find((s) => s.status === "ready");
+  // Priority: blocked/attention states must outrank active/ready so a broken
+  // pipeline never renders as "all caught up". "allDone" only fires when
+  // every station is genuinely done — anything blocked keeps us honest.
+  const blocked = steps.find((s) => s.status === "blocked" || s.status === "attention" || s.status === "error");
+  const next = blocked
+    ?? steps.find((s) => s.status === "active")
+    ?? steps.find((s) => s.status === "ready");
 
-  const allDone = steps.every((s) => s.status === "done");
+  const allDone = !blocked && steps.length > 0 && steps.every((s) => s.status === "done");
   const { period, nudge } = nudgeForStep(next?.letter);
 
   if (allDone) {

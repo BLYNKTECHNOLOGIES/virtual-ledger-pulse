@@ -61,14 +61,24 @@ const rzpVal = (rzp: any, ...keys: string[]): any => {
   return null;
 };
 
+// eSSL firmware truncates USERINFO.Name to ~24 ASCII chars. Compare using the
+// same truncation so a pushed-and-truncated device name does NOT keep drifting
+// against the full HRMS name.
+const ESSL_NAME_MAX = 24;
+const normEsslName = (v: any): string | null => {
+  if (v === null || v === undefined) return null;
+  const s = String(v).replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim().slice(0, ESSL_NAME_MAX);
+  return s ? s.toLowerCase() : null;
+};
+
 const FIELDS: FieldSpec[] = [
   {
     field: "full_name",
     severity: "medium",
     extract: ({ emp, rzp, esslUser }) => ({
-      hrms: norm(`${emp.first_name || ""} ${emp.last_name || ""}`.trim()),
+      hrms: normEsslName(`${emp.first_name || ""} ${emp.last_name || ""}`.trim()),
       razorpay: norm(rzpVal(rzp, "name", "full-name")),
-      essl: norm(esslUser?.name),
+      essl: normEsslName(esslUser?.name),
     }),
   },
   {

@@ -358,6 +358,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 </p>
               )}
             </div>
+          </div>
+        </div>
+
+
+
 
 
         {/* ERP Account */}

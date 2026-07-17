@@ -1449,40 +1449,13 @@ export default function UserProfile() {
 
         {/* ═══════ Documents Tab ═══════ */}
         <TabsContent value="documents" className="space-y-6">
-          {!hrEmployee && !employeeData ? (
+          {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Employee Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { name: 'Employment Contract', status: 'Available', date: '2023-01-15' },
-                    { name: 'Offer Letter', status: 'Available', date: '2022-12-20' },
-                    { name: 'Salary Certificate', status: 'Generate', date: '' },
-                    { name: 'Experience Letter', status: 'Request', date: '' },
-                  ].map((doc, index) => (
-                    <div key={index} className="border rounded-lg p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-8 w-8 text-info" />
-                        <div>
-                          <p className="font-medium">{doc.name}</p>
-                          {doc.date && <p className="text-sm text-muted-foreground">Generated: {doc.date}</p>}
-                        </div>
-                      </div>
-                      <Button variant={doc.status === 'Available' ? 'default' : 'outline'} size="sm">{doc.status}</Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <EmployeeDocumentsTab employeeId={hrEmployee.id} />
           )}
         </TabsContent>
+
 
         {/* ═══════ Attendance Tab ═══════ */}
         <TabsContent value="attendance" className="space-y-6">

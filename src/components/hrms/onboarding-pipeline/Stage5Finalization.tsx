@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Fingerprint } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint, Landmark } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -26,17 +26,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     create_erp_account: false,
     erp_role_id: "",
     reporting_manager_id: "",
+    bank_account_number: "",
+    bank_ifsc_code: "",
+    bank_name: "",
+    bank_branch: "",
+    bank_account_holder: "",
   });
   const [finalizing, setFinalizing] = useState(false);
 
   useEffect(() => {
     if (onboardingRecord) {
+      const bd = (onboardingRecord.bank_details as any) || {};
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
         essl_badge_id: onboardingRecord.essl_badge_id || "",
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
+        bank_account_number: bd.account_number || "",
+        bank_ifsc_code: bd.ifsc_code || "",
+        bank_name: bd.bank_name || "",
+        bank_branch: bd.branch || "",
+        bank_account_holder: bd.account_holder || "",
       });
     }
   }, [onboardingRecord]);
@@ -91,6 +102,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   }, [devicePins]);
 
 
+  const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
+  const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
+
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
@@ -99,9 +113,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) return false;
     }
     if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
+    // Bank details: partial entry is invalid — either fully entered or fully blank
+    const anyBank = form.bank_account_number.trim() || form.bank_ifsc_code.trim();
+    if (anyBank && !hasBankInput) {
+      toast.error("Enter both Account Number and IFSC, or leave both blank");
+      return false;
+    }
+    if (form.bank_ifsc_code && !ifscValid) {
+      toast.error("IFSC must be 11 characters (e.g. HDFC0001234)");
+      return false;
+    }
     // Payability warning (S2): confirm activation of an employee who can't be paid yet
     const docs = (onboardingRecord?.documents as any) || {};
-    const hasBank = !!docs.bank_details?.value;
+    const hasBank = hasBankInput || !!docs.bank_details?.value;
     const hasSalary = !!(onboardingRecord?.salary_template_id || Number(onboardingRecord?.ctc) > 0);
     if (!hasBank || !hasSalary) {
       const missing = [!hasBank && "Bank details", !hasSalary && "Salary/CTC"].filter(Boolean).join(" & ");
@@ -116,11 +140,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (!validate()) return;
     setFinalizing(true);
     try {
-      await onFinalize(form);
+      const payload: any = {
+        date_of_joining: form.date_of_joining,
+        essl_badge_id: form.essl_badge_id,
+        create_erp_account: form.create_erp_account,
+        erp_role_id: form.erp_role_id,
+        reporting_manager_id: form.reporting_manager_id,
+      };
+      if (hasBankInput) {
+        payload.bank_details = {
+          account_number: form.bank_account_number.trim(),
+          ifsc_code: form.bank_ifsc_code.trim().toUpperCase(),
+          bank_name: form.bank_name.trim() || null,
+          branch: form.bank_branch.trim() || null,
+          account_holder: form.bank_account_holder.trim() || null,
+        };
+      }
+      await onFinalize(payload);
     } finally {
       setFinalizing(false);
     }
   };
+
 
   const firstName = onboardingRecord?.first_name || "";
   const lastName = onboardingRecord?.last_name || "";
@@ -217,6 +258,72 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             </Select>
           </div>
         </div>
+
+        {/* Bank Details */}
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Landmark className="h-4 w-4" />
+            <p className="text-sm font-medium">Bank Details (for salary payout)</p>
+            <span className="text-xs text-muted-foreground ml-auto">Required for payroll</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Label>Account Holder Name</Label>
+              <Input
+                placeholder="As per bank records"
+                value={form.bank_account_holder}
+                onChange={e => setForm(p => ({ ...p, bank_account_holder: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+            <div>
+              <Label>Account Number</Label>
+              <Input
+                placeholder="e.g. 123456789012"
+                value={form.bank_account_number}
+                onChange={e => setForm(p => ({ ...p, bank_account_number: e.target.value.replace(/\s/g, "") }))}
+                disabled={readOnly}
+                className="font-mono"
+                inputMode="numeric"
+              />
+            </div>
+            <div>
+              <Label>IFSC Code</Label>
+              <Input
+                placeholder="e.g. HDFC0001234"
+                value={form.bank_ifsc_code}
+                onChange={e => setForm(p => ({ ...p, bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") }))}
+                disabled={readOnly}
+                className="font-mono uppercase"
+                maxLength={11}
+              />
+              {form.bank_ifsc_code && !ifscValid && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Invalid IFSC format
+                </p>
+              )}
+            </div>
+            <div>
+              <Label>Bank Name</Label>
+              <Input
+                placeholder="e.g. HDFC Bank"
+                value={form.bank_name}
+                onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+            <div>
+              <Label>Branch</Label>
+              <Input
+                placeholder="e.g. Andheri West"
+                value={form.bank_branch}
+                onChange={e => setForm(p => ({ ...p, bank_branch: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+          </div>
+        </div>
+
 
         {/* ERP Account */}
         <div className="rounded-lg border p-4 space-y-3">

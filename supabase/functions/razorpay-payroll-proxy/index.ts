@@ -3924,6 +3924,7 @@ Deno.serve(async (req) => {
     }
 
     // ---------------------------------------------------------------------
+    // Direct action bridge for RazorpayX Payroll endpoints that don't need a
     // dedicated phase workflow. Verified against the Postman collection:
     // URL path and body `type` deliberately differ for three families —
     //   contractor-payment (body) → /api/contractorPayment (URL)

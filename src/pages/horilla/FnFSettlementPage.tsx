@@ -24,6 +24,8 @@ export default function FnFSettlementPage() {
     leave_encashment_days: 0,
     leave_encashment_amount: 0,
     bonus_amount: 0,
+    gratuity_amount: 0,
+    notice_pay_recovery: 0,
     loan_recovery: 0,
     deposit_refund: 0,
     penalty_deductions: 0,
@@ -31,6 +33,8 @@ export default function FnFSettlementPage() {
     other_deductions_notes: "",
     notes: "",
   });
+  const [calcNote, setCalcNote] = useState<string>("");
+
 
   const { data: settlements = [], isLoading } = useQuery({
     queryKey: ["hr_fnf_settlements"],

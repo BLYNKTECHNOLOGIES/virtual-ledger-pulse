@@ -165,10 +165,51 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             <Label>ESSL Badge ID *</Label>
             <Input
               placeholder="e.g. EMP001"
-              value={form.essl_badge_id}
-              onChange={e => setForm(p => ({ ...p, essl_badge_id: e.target.value }))}
-              disabled={readOnly}
-            />
+          <div className="sm:col-span-2">
+            <Label className="flex items-center gap-1.5">
+              <Fingerprint className="h-3.5 w-3.5" /> ESSL Badge ID (device PIN) *
+            </Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                placeholder="e.g. 26012"
+                value={form.essl_badge_id}
+                onChange={e => setForm(p => ({ ...p, essl_badge_id: e.target.value }))}
+                disabled={readOnly}
+                className="font-mono"
+              />
+              <Select
+                value=""
+                onValueChange={v => setForm(p => ({ ...p, essl_badge_id: v }))}
+                disabled={readOnly || pinsLoading}
+              >
+                <SelectTrigger className="w-[190px] shrink-0">
+                  <SelectValue placeholder={pinsLoading ? "Loading…" : `Pick unassigned (${unassignedPins.length})`} />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {unassignedPins.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No unassigned PINs on any device.</div>
+                  ) : unassignedPins.map((p: any) => (
+                    <SelectItem key={`${p.device_serial}-${p.pin}`} value={p.pin}>
+                      <span className="font-mono">{p.pin}</span>
+                      {p.name && <span className="text-muted-foreground"> · {p.name}</span>}
+                      <span className="text-[10px] text-muted-foreground"> · SN {p.device_serial}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {pinStatus && (
+              <p className={`text-xs mt-1.5 flex items-start gap-1 ${
+                pinStatus.kind === "ok" ? "text-success" :
+                pinStatus.kind === "conflict" ? "text-destructive" :
+                "text-warning"
+              }`}>
+                {pinStatus.kind === "ok"
+                  ? <CheckCircle2 className="h-3 w-3 mt-0.5 shrink-0" />
+                  : <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />}
+                <span>{pinStatus.msg}</span>
+              </p>
+            )}
           </div>
           <div>
             <Label>Reporting Manager</Label>

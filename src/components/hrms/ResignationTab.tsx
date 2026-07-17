@@ -320,6 +320,11 @@ export function ResignationTab() {
         reason: (empData?.separation_reason as string | undefined) || "Resignation",
       });
 
+      // eSSL: remove the user from every biometric device so they can no longer
+      // punch attendance. Non-fatal: local separation is committed either way.
+      await deleteFromEssl(employeeId, { triggeredFrom: "resignation", silent: true });
+
+
       return { ...empData, fnf: { leaveEncashAmount, loanRecovery, depositRefund, penaltyTotal, netPayable, encashDays } };
     },
     onSuccess: (empData) => {

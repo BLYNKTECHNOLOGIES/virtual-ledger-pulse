@@ -93,45 +93,93 @@ async function opfinSalary(employeeId: number): Promise<{
   components: any[]; raw: any; http_status: number; err: string | null;
 }> {
   const empty = { ok: false, annual_ctc: null, monthly_gross: null, components: [], raw: null, http_status: 0, err: null as any };
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 15000);
-  try {
-    const res = await fetch(`${BASE}/people`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        auth: authBlock(),
-        request: { type: "people", "sub-type": "view-salary" },
-        data: { "employee-id": employeeId, "employee-type": "employee" },
-      }),
-      signal: ctrl.signal,
-    });
-    const raw = await res.text();
-    let body: any = null; try { body = JSON.parse(raw); } catch { /* keep raw */ }
-    if (!res.ok || !body || typeof body !== "object") {
-      return { ...empty, http_status: res.status, raw: body, err: `HTTP ${res.status}` };
-    }
-    const rpErr = body.error || body.message || null;
-    if (rpErr) return { ...empty, http_status: res.status, raw: body, err: typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr) };
 
-    // Razorpay returns amounts under a handful of shapes across tenants. Look
-    // in every plausible spot; take the first numeric hit.
-    const readNum = (obj: any, keys: string[]): number | null => {
-      for (const k of keys) {
-        const v = obj?.[k];
-        const n = typeof v === "string" ? Number(v) : v;
-        if (typeof n === "number" && Number.isFinite(n) && n > 0) return n;
+  const readNum = (obj: any, keys: string[]): number | null => {
+    if (!obj || typeof obj !== "object") return null;
+    for (const k of keys) {
+      const v = obj[k];
+      const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : v;
+      if (typeof n === "number" && Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+  };
+
+  // Razorpay Opfin exposes the salary block under a few different envelope
+  // shapes depending on tenant / product version. Try each until one returns
+  // a usable annual CTC. Silent on individual failures.
+  const attempts: Array<{ urlPath: string; type: string; subType: string }> = [
+    { urlPath: "people", type: "people", subType: "view-salary" },
+    { urlPath: "people", type: "people", subType: "salary" },
+    { urlPath: "people", type: "salary", subType: "view" },
+    { urlPath: "salary", type: "salary", subType: "view" },
+    { urlPath: "salary", type: "salary", subType: "view-salary" },
+  ];
+
+  let lastErr: string | null = null;
+  let lastStatus = 0;
+  let lastRaw: any = null;
+
+  for (const a of attempts) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const res = await fetch(`${BASE}/${a.urlPath}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          auth: authBlock(),
+          request: { type: a.type, "sub-type": a.subType },
+          data: { "employee-id": employeeId, "employee-type": "employee" },
+        }),
+        signal: ctrl.signal,
+      });
+      const raw = await res.text();
+      let body: any = null; try { body = JSON.parse(raw); } catch { /* keep raw */ }
+      lastStatus = res.status;
+      lastRaw = body ?? raw;
+      if (!res.ok || !body || typeof body !== "object") {
+        lastErr = `HTTP ${res.status} @ ${a.urlPath}:${a.type}/${a.subType} ${String(raw).slice(0, 200)}`;
+        continue;
       }
-      return null;
-    };
-    const s = body.salary ?? body["salary-structure"] ?? body["salary_structure"] ?? body.data ?? body;
-    const annual = readNum(s, ["ctc-annual", "ctc_annual", "annual_ctc", "annual-ctc", "ctc"]);
-    const monthly = readNum(s, ["monthly-gross", "monthly_gross", "gross", "gross-monthly"]);
-    const comps = Array.isArray(s.components) ? s.components : (Array.isArray(body.components) ? body.components : []);
-    return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: comps, raw: body, http_status: res.status, err: null };
-  } catch (e) {
-    return { ...empty, err: `NETWORK: ${(e as Error).message}` };
-  } finally { clearTimeout(t); }
+      const rpErr = body.error || body.message || null;
+      if (rpErr) {
+        lastErr = `${a.urlPath}:${a.type}/${a.subType} ${typeof rpErr === "string" ? rpErr : JSON.stringify(rpErr).slice(0, 200)}`;
+        continue;
+      }
+
+      // Walk a few plausible containers for the salary block.
+      const containers = [
+        body,
+        body.salary,
+        body["salary-structure"],
+        body.salary_structure,
+        body.data,
+        body?.data?.salary,
+        body?.response,
+        body?.response?.salary,
+      ].filter((x) => x && typeof x === "object");
+
+      let annual: number | null = null;
+      let monthly: number | null = null;
+      let comps: any[] = [];
+      for (const c of containers) {
+        if (annual == null) annual = readNum(c, ["ctc-annual", "ctc_annual", "annual_ctc", "annual-ctc", "ctc", "ctc-yearly", "annual-salary"]);
+        if (monthly == null) monthly = readNum(c, ["monthly-gross", "monthly_gross", "gross", "gross-monthly", "monthly-ctc"]);
+        if (!comps.length && Array.isArray((c as any).components)) comps = (c as any).components;
+      }
+      // Fallback: infer annual from monthly if only monthly is present.
+      if (annual == null && monthly && monthly > 0) annual = Math.round(monthly * 12);
+
+      if (annual || monthly || comps.length) {
+        return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: comps, raw: body, http_status: res.status, err: null };
+      }
+      lastErr = `no salary fields @ ${a.urlPath}:${a.type}/${a.subType} keys=${Object.keys(body).slice(0, 15).join(",")}`;
+    } catch (e) {
+      lastErr = `NETWORK ${a.urlPath}: ${(e as Error).message}`;
+    } finally { clearTimeout(t); }
+  }
+  console.log(`[opfinSalary] emp=${employeeId} all attempts failed: ${lastErr}`);
+  return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr };
 }
 
 

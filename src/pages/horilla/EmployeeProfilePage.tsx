@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
 import { Progress } from "@/components/ui/progress";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { DriftBadge } from "@/components/hrms/DriftBadge";
 
 // ─── Tabs matching Horilla ───
 const TABS = [

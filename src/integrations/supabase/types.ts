@@ -19948,6 +19948,27 @@ export type Database = {
           window_date: string
         }[]
       }
+      hr_v4_resolve_shift: {
+        Args: { p_date: string; p_employee_id: string }
+        Returns: string
+      }
+      hr_v4_shift_metrics: {
+        Args: {
+          p_first_in: string
+          p_last_out: string
+          p_shift_id: string
+          p_wdate: string
+        }
+        Returns: {
+          early_minutes: number
+          expected_end: string
+          expected_start: string
+          grace_minutes: number
+          is_overnight: boolean
+          late_minutes: number
+          ot_minutes: number
+        }[]
+      }
       hr_v4_window_date_of: { Args: { p_ts: string }; Returns: string }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:

@@ -2282,7 +2282,11 @@ export default function RazorpaySyncPage() {
         <Station letter="J" title="Match with accounting books" subtitle="Compare salary expense with your accounting ledger and bank statement, and flag anything that doesn't match." status={stationStatus("J")} />
 
         <LedgerReconciliationSection invoke={invoke} />
+
+        <Station letter="K" title="Contractor payouts" subtitle="Queue, refresh and cancel RazorpayX contractor payouts. Reads the org-wide pending queue and syncs individual statuses." status="ready" />
+        <ContractorPayoutsHub />
       </>)}
+
       </>
       )}
     </div>

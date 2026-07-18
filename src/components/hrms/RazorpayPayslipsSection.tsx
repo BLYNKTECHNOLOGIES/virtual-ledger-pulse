@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, ExternalLink, FileText, AlertCircle } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Download, ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal } from "lucide-react";
+import { PayrollAdjustmentDialog } from "@/components/hrms/employee-profile/PayrollAdjustmentDialog";
+
 
 interface Props {
   hrEmployeeId: string;

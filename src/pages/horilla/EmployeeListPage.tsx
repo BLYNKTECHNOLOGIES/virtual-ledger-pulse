@@ -96,11 +96,10 @@ export default function EmployeeListPage() {
 
   // ─── State ───
   const [searchTerm, setSearchTerm] = useState("");
-  // Grid view is the mobile-friendly card layout. Auto-default to it on
-  // phones; desktop keeps the dense table.
-  const [viewMode, setViewMode] = useState<"list" | "grid">(
-    typeof window !== "undefined" && window.innerWidth < 768 ? "grid" : "list"
-  );
+  // View mode is now DEVICE-DRIVEN, not user-selectable. Phones always get the
+  // card grid; desktops always get the dense table. Reactive to viewport resize
+  // via useIsMobile().
+  const viewMode: "list" | "grid" = isMobile ? "grid" : "list";
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<any>(null);
@@ -108,10 +107,6 @@ export default function EmployeeListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  // Default to active employees only so HR doesn't see ex-employees in the
-  // main list. Razorpay-imported drafts (is_active=false) are hidden by the
-  // query-level filter regardless. Users can remove this filter from the
-  // filter panel to view inactive/terminated staff.
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
     { field: "is_active", label: "Is active", value: "true", displayValue: "True" },
   ]);

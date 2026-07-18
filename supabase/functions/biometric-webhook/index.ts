@@ -1103,7 +1103,7 @@ async function applyAckedCommandSideEffects(supabase: any, serialNumber: string,
 
     const { data: existing } = await supabase
       .from("hr_biometric_device_users")
-      .select("id")
+      .select("id, matched_employee_id")
       .eq("device_serial", serialNumber)
       .eq("pin", pin)
       .maybeSingle();
@@ -1119,6 +1119,30 @@ async function applyAckedCommandSideEffects(supabase: any, serialNumber: string,
         .from("hr_biometric_device_users")
         .insert({ ...row, first_seen_at: row.last_seen_at });
       if (error) console.warn(`Failed to insert USERINFO for ${serialNumber}/PIN ${pin}: ${error.message}`);
+    }
+
+    // Auto-link to hr_employees so the roster does not show "Unlinked" for
+    // identities we just pushed from HRMS. Mirrors the OPERLOG-batch logic:
+    //   (a) exact badge_id = pin (Stage-5 push always sets PIN = badge_id)
+    //   (b) fuzzy match on normalized name
+    if (!existing?.matched_employee_id) {
+      let empId: string | null = null;
+      const { data: byBadge } = await supabase
+        .from("hr_employees").select("id").eq("badge_id", pin).maybeSingle();
+      if (byBadge) empId = byBadge.id;
+      if (!empId && row.name) {
+        const norm = String(row.name).toLowerCase().replace(/[^a-z0-9]+/g, "");
+        if (norm.length >= 3) {
+          const { data: byName } = await supabase.rpc("hr_match_employee_by_normalized_name", { p_name: norm });
+          if (byName && typeof byName === "string") empId = byName;
+        }
+      }
+      if (empId) {
+        await supabase.from("hr_biometric_device_users")
+          .update({ matched_employee_id: empId })
+          .eq("device_serial", serialNumber).eq("pin", pin)
+          .is("matched_employee_id", null);
+      }
     }
     return 1;
   }

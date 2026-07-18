@@ -524,23 +524,7 @@ export default function EmployeeListPage() {
             />
           </div>
 
-          {/* View toggle */}
-          <div className="flex border border-border rounded-lg overflow-hidden">
-            <button
-              onClick={() => setViewMode("list")}
-              className={`p-2 transition-colors ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}
-              title="List View"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}
-              title="Grid View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
+          {/* View toggle removed — layout is device-driven (phone = cards, desktop = table) */}
 
           {/* Filter button */}
           <button

@@ -19350,6 +19350,15 @@ export type Database = {
         Args: { _nickname: string }
         Returns: undefined
       }
+      fn_calculate_leave_days: {
+        Args: {
+          p_employee_id: string
+          p_end: string
+          p_leave_type_id: string
+          p_start: string
+        }
+        Returns: number
+      }
       fn_calculate_monthly_penalties: {
         Args: { p_month: number; p_year: number }
         Returns: {
@@ -19371,6 +19380,10 @@ export type Database = {
           encashment_amount: number
           total_encashable_days: number
         }[]
+      }
+      fn_employee_weekly_off_dows: {
+        Args: { p_date: string; p_employee_id: string }
+        Returns: number[]
       }
       fn_expire_compoff_allocations: { Args: never; Returns: undefined }
       fn_generate_payroll: {

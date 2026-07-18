@@ -71,7 +71,13 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
         .select("id, first_name, last_name, email, status, current_stage, department_id, created_at, employee_id")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as OnboardingRecord[];
+      const rows = (data as OnboardingRecord[]) || [];
+      // Push completed onboardings to the bottom; keep created_at ordering within each group
+      return [...rows].sort((a, b) => {
+        const aDone = a.status === "completed" ? 1 : 0;
+        const bDone = b.status === "completed" ? 1 : 0;
+        return aDone - bDone;
+      });
     },
   });
 

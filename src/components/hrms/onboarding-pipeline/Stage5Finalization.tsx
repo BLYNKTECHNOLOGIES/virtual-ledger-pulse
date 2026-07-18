@@ -209,7 +209,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     const deviceCount = canonical?.deviceCount || matches.length;
     const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;
     return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
-  }, [form.essl_badge_id, devicePins, canonicalDevicePins, onboardingRecord?.employee_id]);
+  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id]);
 
   // A PIN is "assigned" only when a finalized hr_employees row already carries
   // it as badge_id. matched_employee_id alone isn't enough — the identity link

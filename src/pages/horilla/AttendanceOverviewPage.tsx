@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Plus, Search, Clock, CheckCircle, XCircle, AlertTriangle, Upload } from "lucide-react";
 import BiometricReportUploader from "@/components/hrms/BiometricReportUploader";
+import { BiometricQuarantineBanner } from "@/components/hrms/BiometricQuarantineBanner";
+
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";

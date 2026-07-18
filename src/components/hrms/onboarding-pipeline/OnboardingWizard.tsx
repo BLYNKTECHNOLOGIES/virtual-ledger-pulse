@@ -144,9 +144,10 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     if (!recordId || !record) return;
 
     try {
-      // Split off bank_details — it is applied to hr_employee_bank_details,
-      // not the onboarding row (no such column on hr_employee_onboarding).
-      const { bank_details: bankDetails, ...onboardingUpdate } = stage5Data || {};
+      // Split off fields that are NOT columns on hr_employee_onboarding.
+      // bank_details -> written to hr_employee_bank_details below.
+      // create_in_razorpay -> Stage-5-only toggle, handled after activation.
+      const { bank_details: bankDetails, create_in_razorpay: _rpToggle, ...onboardingUpdate } = stage5Data || {};
 
       // 1. Update onboarding record with stage 5 data
       await updateRecord(onboardingUpdate);

@@ -207,7 +207,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       return false;
     }
     if (pinStatus?.kind === "unknown") {
-      if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) return false;
+      if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) {
+        toast.message("Finalize cancelled — PIN not confirmed.");
+        return false;
+      }
     }
     if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
     // Bank details: partial entry is invalid — either fully entered or fully blank
@@ -227,6 +230,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (!hasBank || !hasSalary) {
       const missing = [!hasBank && "Bank details", !hasSalary && "Salary/CTC"].filter(Boolean).join(" & ");
       if (!window.confirm(`${missing} missing. Activate anyway? Payroll will fail until these are filled.`)) {
+        toast.message(`Finalize cancelled — ${missing} missing.`);
         return false;
       }
     }
@@ -234,7 +238,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   };
 
   const handleFinalize = async () => {
-    if (!validate()) return;
+    console.log("[Stage5] Finalize clicked", {
+      form,
+      pinStatus,
+      hasBankInput,
+      ifscValid,
+      ctc: onboardingRecord?.ctc,
+      salary_template_id: onboardingRecord?.salary_template_id,
+    });
+    if (!validate()) {
+      console.warn("[Stage5] Finalize validation blocked");
+      return;
+    }
     setFinalizing(true);
     try {
       const payload: any = {
@@ -254,7 +269,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
           account_holder: form.bank_account_holder.trim() || null,
         };
       }
+      console.log("[Stage5] Calling onFinalize with payload", payload);
       await onFinalize(payload);
+      console.log("[Stage5] onFinalize resolved");
+    } catch (err: any) {
+      console.error("[Stage5] onFinalize threw", err);
+      toast.error(err?.message || "Finalize failed — check console");
     } finally {
       setFinalizing(false);
     }

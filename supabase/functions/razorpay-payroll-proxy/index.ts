@@ -193,6 +193,228 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
 }
 
 
+type PayrollViewPullResult = {
+  pulled: number;
+  withPdf: number;
+  failed: number;
+  noEmail: number;
+  noRecord: number;
+  upsertErrors: number;
+};
+
+function moneyNum(v: any): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? Number(v.toFixed(2)) : null;
+  if (typeof v === "string") {
+    const cleaned = v.replace(/[^0-9.\-]/g, "");
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? Number(n.toFixed(2)) : null;
+  }
+  return null;
+}
+
+function pickDeepMoney(obj: any, keys: string[]): number | null {
+  if (!obj || typeof obj !== "object") return null;
+  const queue: any[] = [obj];
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const seen = new Set<any>();
+  while (queue.length) {
+    const cur = queue.shift();
+    if (!cur || typeof cur !== "object" || seen.has(cur)) continue;
+    seen.add(cur);
+    if (Array.isArray(cur)) {
+      for (const item of cur) queue.push(item);
+      continue;
+    }
+    for (const [k, v] of Object.entries(cur)) {
+      if (wanted.has(k.toLowerCase())) {
+        const n = moneyNum(v);
+        if (n !== null) return n;
+      }
+      if (v && typeof v === "object") queue.push(v);
+    }
+  }
+  return null;
+}
+
+function sumMoneyLeaves(v: any): number {
+  if (!v) return 0;
+  if (typeof v === "number" || typeof v === "string") return moneyNum(v) ?? 0;
+  if (Array.isArray(v)) return Number(v.reduce((sum, item) => sum + sumMoneyLeaves(item), 0).toFixed(2));
+  if (typeof v === "object") {
+    let total = 0;
+    for (const [k, val] of Object.entries(v)) {
+      const lk = k.toLowerCase();
+      if (["id", "employee-id", "employee_id", "email", "name", "type", "label", "month", "payroll-month"].includes(lk)) continue;
+      if (/(amount|value|salary|pay|tds|pf|esi|tax|deduction|earning|addition|hra|basic|allowance|bonus|incentive)/i.test(k)) {
+        total += sumMoneyLeaves(val);
+      } else if (val && typeof val === "object") {
+        total += sumMoneyLeaves(val);
+      }
+    }
+    return Number(total.toFixed(2));
+  }
+  return 0;
+}
+
+function extractPayrollViewFigures(body: any) {
+  const baseSalary = pickDeepMoney(body, [
+    "salary", "monthly_salary", "monthly-salary", "gross_salary", "gross-salary", "gross", "gross-pay", "gross_pay",
+  ]);
+  const additionsExplicit = pickDeepMoney(body, [
+    "additions-amount", "addition-amount", "additions_amount", "total-additions", "total_additions",
+  ]);
+  const deductionExplicit = pickDeepMoney(body, [
+    "deduction-amount", "deductions-amount", "deduction_amount", "deductions_amount", "total-deductions", "total_deductions",
+  ]);
+  const additions = additionsExplicit ?? Math.max(
+    sumMoneyLeaves(body?.additions) || sumMoneyLeaves(body?.addition) || sumMoneyLeaves(body?.earnings),
+    0,
+  );
+  const deductions = deductionExplicit ?? Math.max(
+    sumMoneyLeaves(body?.deductions) || sumMoneyLeaves(body?.deduction),
+    0,
+  );
+  const gross = pickDeepMoney(body, ["total-earnings", "total_earnings", "gross-earnings", "gross_earnings"])
+    ?? (baseSalary !== null ? Number((baseSalary + additions).toFixed(2)) : null);
+  const net = pickDeepMoney(body, [
+    "net-pay", "net_pay", "netPay", "net", "net-salary", "net_salary", "payable", "amount-payable", "amount_payable",
+  ]) ?? (gross !== null ? Number((gross - deductions).toFixed(2)) : null);
+  const tds = pickDeepMoney(body, ["tds", "tds-amount", "tds_amount", "income-tax", "income_tax", "tax"]);
+  const pdf = (() => {
+    const v = pickString(body?.["pdf-url"], body?.pdf_url, body?.["download-url"], body?.download_url, body?.url, body?.payslip_url);
+    return v && /^https?:\/\//i.test(v) ? v : null;
+  })();
+  const payslipId = pickString(body?.["payslip-id"], body?.payslip_id, body?.id, body?.["payroll-id"], body?.payroll_id);
+  return { gross, deductions, net, tds, pdf, payslipId };
+}
+
+async function loadExpectedNetByRpId(svc: SupabaseClient, periodMonthISO: string) {
+  const expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();
+  const { data: runRow } = await svc.from("hr_razorpay_payroll_runs")
+    .select("id").eq("period_month", periodMonthISO).maybeSingle();
+  const runId = runRow?.id || null;
+  if (!runId) return { runId, expectedByRpId };
+  const { data: lineRows } = await svc.from("hr_razorpay_payroll_run_lines")
+    .select("employee_id,net_pay").eq("run_id", runId);
+  const hrIds = (lineRows || []).map((l: any) => l.employee_id).filter(Boolean);
+  if (hrIds.length) {
+    const { data: maps } = await svc.from("hr_razorpay_employee_map")
+      .select("hr_employee_id,razorpay_employee_id").in("hr_employee_id", hrIds);
+    const rpByHr = new Map((maps || []).map((m: any) => [m.hr_employee_id, String(m.razorpay_employee_id)]));
+    for (const l of (lineRows || []) as any[]) {
+      const rpId = rpByHr.get(l.employee_id);
+      if (rpId) expectedByRpId.set(rpId, { hr_employee_id: l.employee_id, net_pay: Number(l.net_pay || 0) });
+    }
+  }
+  return { runId, expectedByRpId };
+}
+
+async function pullPayrollViewForPeriod(svc: SupabaseClient, periodMonthStr: string, actorUserId: string): Promise<PayrollViewPullResult> {
+  const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
+  if (!pmMatch) throw new Error("period_month must be YYYY-MM");
+  const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
+  const { runId, expectedByRpId } = await loadExpectedNetByRpId(svc, periodMonthISO);
+
+  const { data: maps, error: mapErr } = await svc
+    .from("hr_razorpay_employee_map")
+    .select("hr_employee_id,razorpay_employee_id");
+  if (mapErr) throw new Error(`employee map load failed: ${mapErr.message}`);
+  const hrIds = (maps || []).map((m: any) => m.hr_employee_id).filter(Boolean);
+  const emailByHr = new Map<string, string>();
+  if (hrIds.length) {
+    for (let i = 0; i < hrIds.length; i += 200) {
+      const { data: employees, error: empErr } = await svc
+        .from("hr_employees")
+        .select("id,email")
+        .in("id", hrIds.slice(i, i + 200));
+      if (empErr) throw new Error(`employee email load failed: ${empErr.message}`);
+      for (const e of employees || []) {
+        const email = String((e as any).email || "").trim().toLowerCase();
+        if (email.includes("@")) emailByHr.set((e as any).id, email);
+      }
+    }
+  }
+
+  const result: PayrollViewPullResult = { pulled: 0, withPdf: 0, failed: 0, noEmail: 0, noRecord: 0, upsertErrors: 0 };
+  const upserts: any[] = [];
+
+  for (const map of (maps || []) as any[]) {
+    const rpId = String(map.razorpay_employee_id || "");
+    const hrId = map.hr_employee_id as string | null;
+    const email = hrId ? emailByHr.get(hrId) : null;
+    if (!rpId || !hrId || !email) { result.noEmail++; continue; }
+
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const res = await fetch(`${BASE}/payroll`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          auth: authBlock(),
+          request: { type: "payroll", "sub-type": "view-payroll" },
+          data: { email, "payroll-month": periodMonthStr },
+        }),
+        signal: ctrl.signal,
+      });
+      const raw = await res.text();
+      let body: any = null; try { body = JSON.parse(raw); } catch { /* keep null */ }
+      const rpErr = body && typeof body === "object" ? (body.error || body.message || null) : null;
+      if (!res.ok || !body || typeof body !== "object" || rpErr) {
+        result.noRecord++;
+        continue;
+      }
+      const figures = extractPayrollViewFigures(body);
+      if (figures.gross === null && figures.net === null && figures.deductions === null) {
+        result.noRecord++;
+        continue;
+      }
+      const exp = expectedByRpId.get(rpId);
+      const expNet = exp?.net_pay ?? null;
+      const variance = (figures.net != null && expNet != null) ? Number((figures.net - expNet).toFixed(2)) : null;
+      if (figures.pdf) result.withPdf++;
+      upserts.push({
+        run_id: runId,
+        period_month: periodMonthISO,
+        razorpay_employee_id: rpId,
+        hr_employee_id: hrId,
+        gross_earnings: figures.gross,
+        total_deductions: figures.deductions,
+        net_pay: figures.net,
+        tds_amount: figures.tds,
+        expected_net: expNet,
+        variance,
+        razorpay_payslip_id: figures.payslipId || `${rpId}-${periodMonthStr}`,
+        pdf_url: figures.pdf,
+        source_payload: { endpoint: "payroll:view-payroll", request: { email, "payroll-month": periodMonthStr }, response: body },
+        pulled_by: actorUserId,
+      });
+    } catch (_e) {
+      result.failed++;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  if (upserts.length) {
+    for (let i = 0; i < upserts.length; i += 100) {
+      const chunk = upserts.slice(i, i + 100);
+      const { error: upErr } = await svc.from("hr_razorpay_payslip_records")
+        .upsert(chunk, { onConflict: "period_month,razorpay_employee_id" });
+      if (upErr) {
+        result.upsertErrors += chunk.length;
+        console.error("[pullPayrollViewForPeriod] upsert failed", { periodMonthStr, error: upErr.message });
+      } else {
+        result.pulled += chunk.length;
+      }
+    }
+  }
+  return result;
+}
+
+
 
 
 function normPhone(v: string | null | undefined): string | null {

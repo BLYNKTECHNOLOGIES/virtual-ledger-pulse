@@ -86,9 +86,81 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     queryFn: async () => (await (supabase as any).from("hr_biometric_device_photos").select("id,pin,kind,size_bytes,photo_base64,punch_time,captured_at").eq("device_serial", serial).order("captured_at", { ascending: false }).limit(60)).data || [],
   });
 
+  // Parked (unreplayed) quarantine punches per PIN for this device — surfaces the
+  // recoverable-punch count next to unlinked users so HR sees the payoff before mapping.
+  const quarantineQ = useQuery({
+    enabled: !!serial && open,
+    queryKey: ["bio-quarantine-by-pin", serial],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_attendance_quarantine")
+        .select("pin")
+        .eq("device_serial", serial)
+        .is("replayed_at", null);
+      const map = new Map<string, number>();
+      for (const r of data || []) map.set(String(r.pin), (map.get(String(r.pin)) || 0) + 1);
+      return map;
+    },
+  });
+
+  // Active employees for the Link picker.
+  const employeesQ = useQuery({
+    enabled: open,
+    queryKey: ["bio-link-employees"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_employees")
+        .select("id, badge_id, first_name, last_name")
+        .eq("is_active", true)
+        .order("first_name");
+      return data || [];
+    },
+  });
+
 
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [linkPin, setLinkPin] = useState<string | null>(null);
+  const [linkEmployeeId, setLinkEmployeeId] = useState<string>("");
+  const [linking, setLinking] = useState(false);
+
+  // Map a device PIN to an HRMS employee. The DB trigger `hr_replay_quarantine_on_mapping`
+  // drains parked punches, rebuilds hr_attendance + hr_attendance_daily, and queues a
+  // 30-day ATTLOG re-fetch. We snapshot parked-count before/after to report drainage.
+  const linkPinToEmployee = async () => {
+    if (!serial || !linkPin || !linkEmployeeId) return;
+    setLinking(true);
+    const parkedBefore = quarantineQ.data?.get(String(linkPin)) ?? 0;
+    const { error } = await (supabase as any)
+      .from("hr_biometric_device_users")
+      .update({ matched_employee_id: linkEmployeeId })
+      .eq("device_serial", serial)
+      .eq("pin", linkPin);
+    if (error) { setLinking(false); toast.error(error.message); return; }
+    const { data: postRows } = await (supabase as any)
+      .from("hr_attendance_quarantine")
+      .select("id")
+      .eq("device_serial", serial)
+      .eq("pin", linkPin)
+      .is("replayed_at", null);
+    const parkedAfter = (postRows || []).length;
+    const drained = Math.max(0, parkedBefore - parkedAfter);
+    setLinking(false);
+    setLinkPin(null);
+    setLinkEmployeeId("");
+    await Promise.all([usersQ.refetch(), quarantineQ.refetch(), punchesQ.refetch()]);
+    qc.invalidateQueries({ queryKey: ["hr_attendance_quarantine_banner"] });
+    qc.invalidateQueries({ queryKey: ["hr_attendance"] });
+    qc.invalidateQueries({ queryKey: ["hr_attendance_daily"] });
+    if (drained > 0) {
+      toast.success(`PIN ${linkPin} linked. Replayed ${drained} parked punch${drained === 1 ? "" : "es"} into attendance; daily rollups rebuilt. A 30-day ATTLOG re-fetch is queued to the device.`);
+    } else if (parkedBefore === 0) {
+      toast.success(`PIN ${linkPin} linked. No parked punches to replay; future punches will land clean.`);
+    } else {
+      toast.warning(`PIN ${linkPin} linked, but ${parkedAfter} punch${parkedAfter === 1 ? "" : "es"} remain parked — check hr_replay_quarantine_on_mapping logs.`);
+    }
+  };
+
 
   const cmdsQ = useQuery({
     enabled: !!serial && open,
@@ -363,7 +435,31 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                           <TableCell className="text-center">{u.fp_count || 0}</TableCell>
                           <TableCell className="text-center">{u.face_count || 0}</TableCell>
                           <TableCell className="text-center">{u.palm_count || 0}</TableCell>
-                          <TableCell>{u.matched_employee_id ? <Badge variant="outline" className="text-xs">Linked</Badge> : <Badge variant="destructive" className="text-xs">Unlinked</Badge>}</TableCell>
+                          <TableCell>
+                            {u.matched_employee_id ? (
+                              <Badge variant="outline" className="text-xs">Linked</Badge>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <Badge variant="destructive" className="text-xs">Unlinked</Badge>
+                                {(() => {
+                                  const parked = quarantineQ.data?.get(String(u.pin)) ?? 0;
+                                  return parked > 0 ? (
+                                    <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Parked punches waiting to be replayed once this PIN is mapped">
+                                      {parked} parked
+                                    </span>
+                                  ) : null;
+                                })()}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[11px]"
+                                  onClick={() => { setLinkPin(String(u.pin)); setLinkEmployeeId(""); }}
+                                >
+                                  Link
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmt(u.last_seen_at)}</TableCell>
                           <TableCell className="text-right">
                             <AlertDialog>
@@ -553,9 +649,46 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
             </div>
           </Tabs>
         )}
+
+      {/* PIN → Employee link picker. Triggers hr_replay_quarantine_on_mapping on save. */}
+      <AlertDialog open={!!linkPin} onOpenChange={(o) => { if (!o) { setLinkPin(null); setLinkEmployeeId(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Link PIN {linkPin} to an employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const parked = linkPin ? (quarantineQ.data?.get(linkPin) ?? 0) : 0;
+                return parked > 0
+                  ? `Saving will replay ${parked} parked punch${parked === 1 ? "" : "es"} for this PIN into attendance, rebuild the daily rollups, and queue a 30-day ATTLOG re-fetch on the device.`
+                  : "No parked punches for this PIN. Linking will route future punches from this PIN to the chosen employee.";
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Employee</Label>
+            <Select value={linkEmployeeId} onValueChange={setLinkEmployeeId}>
+              <SelectTrigger><SelectValue placeholder="Select an active employee…" /></SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {(employeesQ.data || []).map((e: any) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.first_name} {e.last_name} {e.badge_id ? `(${e.badge_id})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={linking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={!linkEmployeeId || linking} onClick={linkPinToEmployee}>
+              {linking ? "Linking…" : "Link & replay"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
 // --- Manage subcomponents ---
 

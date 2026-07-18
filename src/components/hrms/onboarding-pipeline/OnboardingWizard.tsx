@@ -74,7 +74,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     const { error } = await supabase
       .from("hr_employee_onboarding")
       .update(normalizedUpdates)
-      .eq("id", recordId);
+      .eq("id", recordId)
+      .select("id")
+      .single();
     if (error) throw error;
   };
 
@@ -196,7 +198,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
               onboarding_completed_at: new Date().toISOString(),
             },
           })
-          .eq("id", linkedEmployeeId);
+          .eq("id", linkedEmployeeId)
+          .select("id")
+          .single();
         if (updErr) throw updErr;
         empId = linkedEmployeeId;
       } else {
@@ -314,14 +318,21 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       // 6. Mark onboarding as completed
       const { data: user } = await supabase.auth.getUser();
       const completions = (record.stage_completions as Record<string, any>) || {};
-      await updateRecord({
+      const { error: completeErr } = await supabase
+        .from("hr_employee_onboarding")
+        .update({
         status: "completed",
         employee_id: emp.id,
         stage_completions: {
           ...completions,
           stage_5: { completed_at: new Date().toISOString(), completed_by: user?.user?.id },
         },
-      });
+        updated_at: new Date().toISOString(),
+      })
+        .eq("id", recordId)
+        .select("id")
+        .single();
+      if (completeErr) throw completeErr;
 
       await logAudit(recordId, 5, "finalized", { employee_id: emp.id });
 

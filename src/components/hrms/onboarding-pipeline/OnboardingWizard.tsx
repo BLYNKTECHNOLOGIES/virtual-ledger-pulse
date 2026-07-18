@@ -74,7 +74,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     const { error } = await supabase
       .from("hr_employee_onboarding")
       .update(normalizedUpdates)
-      .eq("id", recordId);
+      .eq("id", recordId)
+      .select("id")
+      .single();
     if (error) throw error;
   };
 
@@ -151,7 +153,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
       // 1. Update onboarding record with stage 5 data
       await updateRecord(onboardingUpdate);
-      await refetch();
 
       const r = { ...record, ...onboardingUpdate, bank_details: bankDetails } as any;
       const docs = r.documents || {};
@@ -197,7 +198,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
               onboarding_completed_at: new Date().toISOString(),
             },
           })
-          .eq("id", linkedEmployeeId);
+          .eq("id", linkedEmployeeId)
+          .select("id")
+          .single();
         if (updErr) throw updErr;
         empId = linkedEmployeeId;
       } else {
@@ -245,15 +248,19 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             available_days: lt.max_days_per_year || 0,
             used_days: 0,
           }));
-          await supabase.from("hr_leave_allocations").insert(allocations);
+          const { error: leaveAllocErr } = await supabase
+            .from("hr_leave_allocations")
+            .upsert(allocations, { onConflict: "employee_id,leave_type_id,year,quarter", ignoreDuplicates: true });
+          if (leaveAllocErr) throw leaveAllocErr;
         }
       } catch (leaveErr) {
         console.warn("Auto leave allocation failed:", leaveErr);
       }
 
       // 3. Work info — clear any prior row (safe for both draft and fresh) then insert.
-      await supabase.from("hr_employee_work_info").delete().eq("employee_id", emp.id);
-      await supabase.from("hr_employee_work_info").insert({
+      const { error: workDeleteErr } = await supabase.from("hr_employee_work_info").delete().eq("employee_id", emp.id);
+      if (workDeleteErr) throw workDeleteErr;
+      const { error: workInsertErr } = await supabase.from("hr_employee_work_info").insert({
         employee_id: emp.id,
         department_id: r.department_id || null,
         job_position_id: r.position_id || null,
@@ -263,24 +270,37 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         job_role: r.job_role || null,
         reporting_manager_id: r.reporting_manager_id || null,
       });
+      if (workInsertErr) throw workInsertErr;
 
       // 4. Create bank details — prefer explicit fields captured in Stage 5,
       //    fall back to legacy documents.bank_details.value shape.
       const bank = (r as any).bank_details as any;
       if (bank && bank.account_number) {
-        await supabase.from("hr_employee_bank_details").upsert({
+        const bankPayload = {
           employee_id: emp.id,
           account_number: bank.account_number,
           ifsc_code: bank.ifsc_code || null,
           bank_name: bank.bank_name || null,
           branch: bank.branch || null,
           additional_info: bank.account_holder ? { account_holder: bank.account_holder } : null,
-        }, { onConflict: "employee_id" });
+        };
+        const { data: existingBankRow, error: bankLookupErr } = await supabase
+          .from("hr_employee_bank_details")
+          .select("id")
+          .eq("employee_id", emp.id)
+          .maybeSingle();
+        if (bankLookupErr) throw bankLookupErr;
+
+        const bankWrite = existingBankRow?.id
+          ? await supabase.from("hr_employee_bank_details").update(bankPayload).eq("id", existingBankRow.id)
+          : await supabase.from("hr_employee_bank_details").insert(bankPayload);
+        if (bankWrite.error) throw bankWrite.error;
       } else if (docs.bank_details?.value) {
-        await supabase.from("hr_employee_bank_details").insert({
+        const { error: legacyBankErr } = await supabase.from("hr_employee_bank_details").insert({
           employee_id: emp.id,
           account_number: docs.bank_details.value,
         });
+        if (legacyBankErr) throw legacyBankErr;
       }
 
       // 5. Apply salary template if selected
@@ -298,14 +318,21 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       // 6. Mark onboarding as completed
       const { data: user } = await supabase.auth.getUser();
       const completions = (record.stage_completions as Record<string, any>) || {};
-      await updateRecord({
+      const { error: completeErr } = await supabase
+        .from("hr_employee_onboarding")
+        .update({
         status: "completed",
         employee_id: emp.id,
         stage_completions: {
           ...completions,
           stage_5: { completed_at: new Date().toISOString(), completed_by: user?.user?.id },
         },
-      });
+        updated_at: new Date().toISOString(),
+      })
+        .eq("id", recordId)
+        .select("id")
+        .single();
+      if (completeErr) throw completeErr;
 
       await logAudit(recordId, 5, "finalized", { employee_id: emp.id });
 
@@ -402,7 +429,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
       toast.success("🎉 Employee created successfully!");
     } catch (err: any) {
+      console.error("Finalize onboarding failed:", err);
       toast.error(err.message || "Failed to finalize onboarding");
+      throw err;
     }
   };
 

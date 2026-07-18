@@ -609,7 +609,7 @@ export default function EmployeeProfilePage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* ─── Breadcrumb ─── */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
         <button onClick={() => navigate("/hrms")} className="hover:text-foreground">Horilla</button>
         <span>›</span>
         <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employee</button>
@@ -620,7 +620,7 @@ export default function EmployeeProfilePage() {
       </div>
 
       {/* ─── Profile Header (Horilla style) ─── */}
-      <div className="bg-card border border-border rounded-xl px-6 py-5 flex items-start justify-between">
+      <div className="bg-card border border-border rounded-xl px-6 py-5 flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div className="flex items-start gap-5">
           {/* Avatar */}
           {emp.profile_image_url ? (
@@ -692,7 +692,7 @@ export default function EmployeeProfilePage() {
 
 
       {/* ─── Tabs (Horilla pill style) ─── */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
         {TABS.map(t => (
           <button
             key={t}
@@ -709,7 +709,7 @@ export default function EmployeeProfilePage() {
       </div>
 
       {/* ─── Tab Content ─── */}
-      <div className="bg-card border border-border rounded-xl p-6">
+      <div className="bg-card border border-border rounded-xl p-4 md:p-6">
         {/* ── ABOUT TAB ── */}
         {activeTab === "About" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -837,7 +837,7 @@ export default function EmployeeProfilePage() {
                   </div>
                 </div>
               ) : (
-                <div className="border border-border rounded-lg overflow-hidden">
+                <div className="border border-border rounded-lg overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">

@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { Download, ExternalLink, RefreshCw, FileText, AlertCircle } from "lucide-react";
+import { Download, ExternalLink, FileText, AlertCircle } from "lucide-react";
 
 interface Props {
   hrEmployeeId: string;
@@ -40,7 +39,6 @@ function flattenBreakdown(obj: any, prefix = ""): Array<{ key: string; value: nu
 }
 
 export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Props) {
-  const qc = useQueryClient();
   const [openRow, setOpenRow] = useState<any | null>(null);
 
   const { data: rows, isLoading } = useQuery({
@@ -55,32 +53,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
       return data || [];
     },
     enabled: !!hrEmployeeId,
-  });
-
-  const syncMutation = useMutation({
-    mutationFn: async () => {
-      // Sweep the last 24 months.
-      const now = new Date();
-      const to = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      const past = new Date(now.getFullYear(), now.getMonth() - 23, 1);
-      const from = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, "0")}`;
-
-      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-        body: { action: "import_payslip_history_range", period_from: from, period_to: to, pull_from_razorpay: true },
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data: any) => {
-      const t = data?.totals || {};
-      if (data?.envelope_ready === false) {
-        toast.warning("Payslip envelope not verified in RazorpayX Sync. Reflected any existing shadow rows only.");
-      } else {
-        toast.success(`Synced from RazorpayX — ${t.reflected || 0} payslips (${t.withPdf || 0} PDFs).`);
-      }
-      qc.invalidateQueries({ queryKey: ["rzp_payslips_emp", hrEmployeeId] });
-    },
-    onError: (e: any) => toast.error(e?.message || "Failed to sync payslips"),
+    refetchInterval: 5 * 60 * 1000,
   });
 
   if (!razorpayEmployeeId) {
@@ -102,16 +75,10 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           <p className="text-xs text-muted-foreground">
             Computed and issued by RazorpayX · Linked ID: {razorpayEmployeeId}
           </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Auto-synced daily from RazorpayX.
+          </p>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-          {syncMutation.isPending ? "Syncing…" : "Sync from RazorpayX"}
-        </Button>
       </div>
 
       {isLoading ? (
@@ -121,7 +88,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
           <p className="text-sm text-foreground font-medium">No RazorpayX payslips yet</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Click <span className="font-semibold">Sync from RazorpayX</span> to import payslip history.
+            Payslips will appear here automatically once RazorpayX finalizes the run.
           </p>
         </div>
       ) : (

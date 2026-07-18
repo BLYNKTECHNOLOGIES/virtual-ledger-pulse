@@ -1,0 +1,791 @@
+
+-- ============================================================
+-- CLAIM 12: Attendance lock + remove silent full-pay
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.hr_attendance_period_locks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  period_start date NOT NULL,
+  period_end date NOT NULL,
+  locked_by uuid,
+  locked_at timestamptz NOT NULL DEFAULT now(),
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(period_start, period_end)
+);
+GRANT SELECT ON public.hr_attendance_period_locks TO authenticated;
+GRANT ALL ON public.hr_attendance_period_locks TO service_role;
+ALTER TABLE public.hr_attendance_period_locks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Attendance locks HR manage" ON public.hr_attendance_period_locks FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(),'super admin') OR public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'hr'))
+  WITH CHECK (public.has_role(auth.uid(),'super admin') OR public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'hr'));
+
+-- ============================================================
+-- CLAIM 13: Salary structure history + arrears
+-- ============================================================
+ALTER TABLE public.hr_employee_salary_structures
+  ADD COLUMN IF NOT EXISTS effective_from date,
+  ADD COLUMN IF NOT EXISTS effective_to date;
+UPDATE public.hr_employee_salary_structures
+   SET effective_from = COALESCE(effective_from, created_at::date)
+ WHERE effective_from IS NULL;
+
+ALTER TABLE public.hr_salary_revisions
+  ADD COLUMN IF NOT EXISTS arrears_paid_at timestamptz,
+  ADD COLUMN IF NOT EXISTS arrears_amount numeric,
+  ADD COLUMN IF NOT EXISTS arrears_payroll_run_id uuid;
+
+-- Rewrite apply_salary_template: soft-close old rows, insert new dated rows
+CREATE OR REPLACE FUNCTION public.apply_salary_template(p_employee_id uuid, p_template_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $function$
+DECLARE
+  v_total_salary NUMERIC; v_basic_salary NUMERIC; v_item RECORD; v_amount NUMERIC;
+  v_is_pct BOOLEAN; v_vars JSONB; v_comp_code TEXT; v_formula TEXT; v_key TEXT;
+  v_epf_statutory_cap CONSTANT NUMERIC := 1800;
+  v_today DATE := CURRENT_DATE;
+BEGIN
+  SELECT total_salary INTO v_total_salary FROM hr_employees WHERE id = p_employee_id;
+  IF v_total_salary IS NULL OR v_total_salary <= 0 THEN
+    RAISE EXCEPTION 'Employee % has no valid total_salary set', p_employee_id;
+  END IF;
+  v_basic_salary := v_total_salary * 0.5;
+
+  -- Soft-close the currently active structure (preserve history)
+  UPDATE hr_employee_salary_structures
+     SET is_active = false, effective_to = v_today - 1, updated_at = now()
+   WHERE employee_id = p_employee_id AND is_active = true AND effective_to IS NULL;
+
+  v_vars := jsonb_build_object('total_salary',v_total_salary,'gross_salary',v_total_salary,
+                               'basic_pay',v_basic_salary,'basic_salary',v_basic_salary,'basic',v_basic_salary);
+  FOR v_item IN
+    SELECT ti.component_id, ti.calculation_type, ti.value, ti.percentage_of, ti.formula, ti.is_variable,
+           sc.code AS comp_code, sc.name AS comp_name, sc.component_type
+    FROM hr_salary_structure_template_items ti
+    JOIN hr_salary_components sc ON sc.id = ti.component_id
+    WHERE ti.template_id = p_template_id
+    ORDER BY (ti.calculation_type = 'formula') ASC, ti.created_at ASC
+  LOOP
+    v_is_pct := false; v_amount := 0;
+    IF v_item.is_variable = true THEN v_amount := 0;
+    ELSIF v_item.calculation_type = 'percentage' THEN
+      v_is_pct := true;
+      IF v_item.percentage_of IN ('basic','basic_pay','basic_salary') THEN v_amount := v_basic_salary * (v_item.value/100.0);
+      ELSIF v_item.percentage_of IN ('gross','total','total_salary','gross_salary') THEN v_amount := v_total_salary * (v_item.value/100.0);
+      ELSE v_amount := v_basic_salary * (v_item.value/100.0); END IF;
+    ELSIF v_item.calculation_type = 'fixed' THEN v_amount := COALESCE(v_item.value,0);
+    ELSIF v_item.calculation_type = 'formula' AND v_item.formula IS NOT NULL THEN
+      v_formula := lower(trim(v_item.formula));
+      FOR v_key IN SELECT k FROM jsonb_object_keys(v_vars) AS k ORDER BY length(k) DESC LOOP
+        v_formula := replace(v_formula, v_key, (v_vars->>v_key));
+      END LOOP;
+      IF v_formula ~ '^[\d\s\+\-\*/\(\)\.]+$' THEN
+        BEGIN EXECUTE format('SELECT (%s)::numeric', v_formula) INTO v_amount;
+        EXCEPTION WHEN OTHERS THEN v_amount := 0; END;
+      ELSE v_amount := 0; END IF;
+    ELSE v_amount := COALESCE(v_item.value,0); END IF;
+    v_amount := round(v_amount);
+    IF v_item.comp_code IN ('PFE','PFC') AND v_is_pct AND v_amount > v_epf_statutory_cap THEN
+      v_amount := v_epf_statutory_cap;
+    END IF;
+    v_comp_code := lower(COALESCE(v_item.comp_code,''));
+    IF v_comp_code <> '' THEN v_vars := v_vars || jsonb_build_object(v_comp_code, v_amount); END IF;
+    IF v_item.comp_name IS NOT NULL THEN
+      v_vars := v_vars || jsonb_build_object(
+        lower(regexp_replace(regexp_replace(v_item.comp_name,'[^a-zA-Z0-9]+','_','g'),'^_|_$','','g')), v_amount);
+    END IF;
+    INSERT INTO hr_employee_salary_structures (
+      employee_id, component_id, amount, is_percentage, is_active, effective_from, effective_to
+    ) VALUES (p_employee_id, v_item.component_id, v_amount, v_is_pct, true, v_today, NULL);
+  END LOOP;
+
+  UPDATE hr_employees
+    SET basic_salary = v_basic_salary, salary_template_id = p_template_id, updated_at = now()
+  WHERE id = p_employee_id;
+END; $function$;
+
+-- ============================================================
+-- CLAIM 14: Accrual pro-ration + fragmentation collapse
+-- ============================================================
+-- Collapse legacy monthly-plan quarter-fragmented rows into quarter=0
+WITH monthly_types AS (
+  SELECT DISTINCT leave_type_id FROM public.hr_leave_accrual_plans WHERE accrual_period = 'monthly'
+), aggregated AS (
+  SELECT a.employee_id, a.leave_type_id, a.year,
+         SUM(a.allocated_days) AS alloc, SUM(a.used_days) AS used,
+         SUM(COALESCE(a.available_days,0)) AS avail, SUM(COALESCE(a.carry_forward_days,0)) AS cf
+    FROM public.hr_leave_allocations a
+    JOIN monthly_types m ON m.leave_type_id = a.leave_type_id
+   WHERE a.quarter BETWEEN 1 AND 4
+   GROUP BY 1,2,3
+)
+INSERT INTO public.hr_leave_allocations (
+  employee_id, leave_type_id, year, quarter, allocated_days, used_days, available_days, carry_forward_days
+)
+SELECT employee_id, leave_type_id, year, 0, alloc, used, avail, cf FROM aggregated
+ON CONFLICT (employee_id, leave_type_id, year, quarter) DO UPDATE SET
+  allocated_days = EXCLUDED.allocated_days,
+  used_days = EXCLUDED.used_days,
+  available_days = EXCLUDED.available_days,
+  carry_forward_days = EXCLUDED.carry_forward_days,
+  updated_at = now();
+DELETE FROM public.hr_leave_allocations a
+ USING (SELECT DISTINCT leave_type_id FROM public.hr_leave_accrual_plans WHERE accrual_period = 'monthly') m
+ WHERE a.leave_type_id = m.leave_type_id AND a.quarter BETWEEN 1 AND 4;
+
+CREATE OR REPLACE FUNCTION public.run_leave_accrual(p_accrual_date date DEFAULT CURRENT_DATE)
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $function$
+DECLARE
+  v_plan RECORD; v_emp RECORD;
+  v_accrued_count INTEGER := 0;
+  v_year INTEGER := EXTRACT(YEAR FROM p_accrual_date);
+  v_quarter INTEGER := EXTRACT(QUARTER FROM p_accrual_date);
+  v_bucket_quarter INTEGER;
+  v_should_run BOOLEAN; v_existing INTEGER;
+  v_period_start date; v_period_end date;
+  v_period_days integer; v_days_covered integer;
+  v_accrual numeric; v_join_date date;
+BEGIN
+  FOR v_plan IN
+    SELECT ap.*, lt.name AS leave_type_name
+    FROM public.hr_leave_accrual_plans ap
+    JOIN public.hr_leave_types lt ON lt.id = ap.leave_type_id
+    WHERE ap.is_active = true AND ap.effective_from <= p_accrual_date
+  LOOP
+    v_should_run := false;
+    IF v_plan.accrual_period = 'monthly' THEN
+      SELECT COUNT(*) INTO v_existing FROM public.hr_leave_accrual_log
+       WHERE accrual_plan_id = v_plan.id
+         AND EXTRACT(YEAR FROM accrual_date) = v_year
+         AND EXTRACT(MONTH FROM accrual_date) = EXTRACT(MONTH FROM p_accrual_date);
+      v_should_run := (v_existing = 0);
+      v_bucket_quarter := 0; -- consolidate monthly into single annual bucket
+      v_period_start := date_trunc('month', p_accrual_date)::date;
+      v_period_end   := (date_trunc('month', p_accrual_date) + interval '1 month - 1 day')::date;
+    ELSIF v_plan.accrual_period = 'quarterly' THEN
+      SELECT COUNT(*) INTO v_existing FROM public.hr_leave_accrual_log
+       WHERE accrual_plan_id = v_plan.id AND year = v_year AND quarter = v_quarter;
+      v_should_run := (v_existing = 0);
+      v_bucket_quarter := v_quarter;
+      v_period_start := make_date(v_year, (v_quarter-1)*3 + 1, 1);
+      v_period_end   := (make_date(v_year, (v_quarter-1)*3 + 1, 1) + interval '3 months - 1 day')::date;
+    ELSIF v_plan.accrual_period = 'yearly' THEN
+      SELECT COUNT(*) INTO v_existing FROM public.hr_leave_accrual_log
+       WHERE accrual_plan_id = v_plan.id AND year = v_year;
+      v_should_run := (v_existing = 0);
+      v_bucket_quarter := 0;
+      v_period_start := make_date(v_year, 1, 1);
+      v_period_end   := make_date(v_year, 12, 31);
+    END IF;
+    IF NOT v_should_run THEN CONTINUE; END IF;
+    v_period_days := (v_period_end - v_period_start) + 1;
+
+    FOR v_emp IN
+      SELECT e.id AS employee_id, wi.joining_date
+        FROM public.hr_employees e
+        LEFT JOIN public.hr_employee_work_info wi ON wi.employee_id = e.id
+       WHERE e.is_active = true
+         AND (v_plan.applicable_to = 'all'
+              OR (v_plan.applicable_to = 'department' AND wi.department_id = v_plan.department_id)
+              OR (v_plan.applicable_to = 'position'   AND wi.job_position_id = v_plan.position_id))
+    LOOP
+      v_join_date := v_emp.joining_date;
+      -- Pro-rate for joiners inside the period
+      IF v_join_date IS NOT NULL AND v_join_date > v_period_start AND v_join_date <= v_period_end THEN
+        v_days_covered := (v_period_end - v_join_date) + 1;
+        v_accrual := round((v_plan.accrual_amount::numeric * v_days_covered) / v_period_days::numeric, 2);
+      ELSIF v_join_date IS NOT NULL AND v_join_date > v_period_end THEN
+        CONTINUE; -- not yet joined
+      ELSE
+        v_accrual := v_plan.accrual_amount;
+      END IF;
+      IF v_accrual <= 0 THEN CONTINUE; END IF;
+
+      INSERT INTO public.hr_leave_allocations (employee_id, leave_type_id, year, quarter, allocated_days, available_days, used_days)
+      VALUES (v_emp.employee_id, v_plan.leave_type_id, v_year, v_bucket_quarter, v_accrual, v_accrual, 0)
+      ON CONFLICT (employee_id, leave_type_id, year, quarter) DO UPDATE SET
+        allocated_days = LEAST(hr_leave_allocations.allocated_days + v_accrual, COALESCE(v_plan.max_accrual, 999)),
+        available_days = LEAST(COALESCE(hr_leave_allocations.available_days,0) + v_accrual, COALESCE(v_plan.max_accrual, 999)),
+        updated_at = NOW();
+
+      INSERT INTO public.hr_leave_accrual_log (accrual_plan_id, employee_id, accrued_days, accrual_date, year, quarter)
+      VALUES (v_plan.id, v_emp.employee_id, v_accrual, p_accrual_date, v_year, v_bucket_quarter);
+      v_accrued_count := v_accrued_count + 1;
+    END LOOP;
+    UPDATE public.hr_leave_accrual_plans SET last_accrual_date = p_accrual_date, updated_at = NOW() WHERE id = v_plan.id;
+  END LOOP;
+  RETURN v_accrued_count;
+END; $function$;
+
+-- Schedule year-end reset on Jan 1 (idempotent)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname='pg_cron') THEN
+    PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname='hr-year-end-leave-reset';
+    PERFORM cron.schedule('hr-year-end-leave-reset', '5 0 1 1 *',
+      $cron$ SELECT public.execute_leave_reset(EXTRACT(YEAR FROM CURRENT_DATE)::int - 1) $cron$);
+  END IF;
+END $$;
+
+-- ============================================================
+-- CLAIM 15: Attendance regularization workflow
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.hr_attendance_regularization_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id uuid NOT NULL REFERENCES public.hr_employees(id) ON DELETE CASCADE,
+  attendance_date date NOT NULL,
+  requested_check_in timestamptz,
+  requested_check_out timestamptz,
+  reason text NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')),
+  approver_id uuid,
+  approved_at timestamptz,
+  approver_notes text,
+  created_by uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_hr_attreg_emp_date ON public.hr_attendance_regularization_requests(employee_id, attendance_date);
+CREATE INDEX IF NOT EXISTS idx_hr_attreg_status ON public.hr_attendance_regularization_requests(status);
+GRANT SELECT, INSERT, UPDATE ON public.hr_attendance_regularization_requests TO authenticated;
+GRANT ALL ON public.hr_attendance_regularization_requests TO service_role;
+ALTER TABLE public.hr_attendance_regularization_requests ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "HR manage regularization" ON public.hr_attendance_regularization_requests
+  FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(),'super admin') OR public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'hr'))
+  WITH CHECK (public.has_role(auth.uid(),'super admin') OR public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'hr'));
+CREATE POLICY "Employee view own regularization" ON public.hr_attendance_regularization_requests
+  FOR SELECT TO authenticated
+  USING (employee_id IN (SELECT id FROM public.hr_employees WHERE user_id = auth.uid()));
+CREATE POLICY "Employee create own regularization" ON public.hr_attendance_regularization_requests
+  FOR INSERT TO authenticated
+  WITH CHECK (employee_id IN (SELECT id FROM public.hr_employees WHERE user_id = auth.uid()) AND status = 'pending');
+CREATE POLICY "Employee cancel own pending" ON public.hr_attendance_regularization_requests
+  FOR UPDATE TO authenticated
+  USING (employee_id IN (SELECT id FROM public.hr_employees WHERE user_id = auth.uid()) AND status = 'pending')
+  WITH CHECK (status IN ('pending','cancelled'));
+
+-- Trigger: on approval, patch hr_attendance
+CREATE OR REPLACE FUNCTION public.fn_apply_regularization()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.status = 'approved' AND (OLD.status IS DISTINCT FROM 'approved') THEN
+    INSERT INTO hr_attendance (employee_id, attendance_date, check_in, check_out, attendance_status, created_at, updated_at)
+    VALUES (NEW.employee_id, NEW.attendance_date, NEW.requested_check_in, NEW.requested_check_out, 'present', now(), now())
+    ON CONFLICT (employee_id, attendance_date) DO UPDATE SET
+      check_in = COALESCE(EXCLUDED.check_in, hr_attendance.check_in),
+      check_out = COALESCE(EXCLUDED.check_out, hr_attendance.check_out),
+      attendance_status = 'present',
+      updated_at = now();
+    NEW.approved_at := now();
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_apply_regularization ON public.hr_attendance_regularization_requests;
+CREATE TRIGGER trg_apply_regularization
+  BEFORE UPDATE ON public.hr_attendance_regularization_requests
+  FOR EACH ROW EXECUTE FUNCTION public.fn_apply_regularization();
+
+-- ============================================================
+-- CLAIM 16: Hour accounts — required = calendar working days
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.refresh_hour_accounts(p_year integer DEFAULT NULL::integer, p_month integer DEFAULT NULL::integer)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $function$
+DECLARE
+  v_year INTEGER := COALESCE(p_year, EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER);
+  v_month INTEGER := COALESCE(p_month, EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER);
+  v_month_name TEXT;
+  v_period_start date; v_period_end date;
+  v_rec RECORD;
+  v_shift_duration_seconds INTEGER;
+  v_calendar_working_days INTEGER;
+  v_required_seconds INTEGER;
+  v_worked_seconds INTEGER;
+  v_overtime_seconds INTEGER;
+  v_pending_seconds INTEGER;
+BEGIN
+  v_month_name := TO_CHAR(TO_DATE(v_month::TEXT, 'MM'), 'FMMonth');
+  v_period_start := make_date(v_year, v_month, 1);
+  v_period_end := (v_period_start + interval '1 month - 1 day')::date;
+
+  -- Iterate ALL active employees, not just those with attendance rows
+  FOR v_rec IN SELECT id AS employee_id FROM hr_employees WHERE is_active = true
+  LOOP
+    SELECT COALESCE(SUM(COALESCE(total_hours, 0) * 3600), 0)::INTEGER
+      INTO v_worked_seconds
+      FROM hr_attendance_daily
+     WHERE employee_id = v_rec.employee_id
+       AND EXTRACT(YEAR FROM attendance_date) = v_year
+       AND EXTRACT(MONTH FROM attendance_date) = v_month
+       AND status IN ('present','late');
+
+    SELECT COALESCE(s.duration_hours * 3600, 8 * 3600)::INTEGER
+      INTO v_shift_duration_seconds
+      FROM hr_employee_work_info wi
+      JOIN hr_shifts s ON s.id = wi.shift_id
+     WHERE wi.employee_id = v_rec.employee_id
+     LIMIT 1;
+    IF v_shift_duration_seconds IS NULL THEN v_shift_duration_seconds := 8 * 3600; END IF;
+
+    -- CALENDAR working days (weekly off + holidays honored), NOT count of present days
+    v_calendar_working_days := fn_calculate_working_days(v_rec.employee_id, v_period_start, v_period_end);
+    v_required_seconds := v_calendar_working_days * v_shift_duration_seconds;
+    v_overtime_seconds := GREATEST(0, v_worked_seconds - v_required_seconds);
+    v_pending_seconds := GREATEST(0, v_required_seconds - v_worked_seconds);
+
+    INSERT INTO hr_hour_accounts (
+      employee_id, month, month_sequence, year, hour_account_second, hour_pending_second, overtime_second
+    ) VALUES (
+      v_rec.employee_id::UUID, LOWER(v_month_name), v_month, v_year,
+      v_worked_seconds, v_pending_seconds, v_overtime_seconds
+    )
+    ON CONFLICT (employee_id, month_sequence, year) DO UPDATE SET
+      hour_account_second = EXCLUDED.hour_account_second,
+      hour_pending_second = EXCLUDED.hour_pending_second,
+      overtime_second = EXCLUDED.overtime_second,
+      updated_at = NOW();
+  END LOOP;
+END; $function$;
+
+-- ============================================================
+-- CLAIM 12 + 13 wire-in: fn_generate_payroll updates
+--   * Enforce attendance lock
+--   * Remove silent full-pay fallback
+--   * Compute + post arrears from hr_salary_revisions
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_generate_payroll(p_payroll_run_id uuid, p_triggered_by uuid DEFAULT NULL::uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
+DECLARE
+  v_run RECORD; v_emp RECORD; v_item RECORD; v_att RECORD;
+  v_penalty RECORD; v_loan RECORD; v_deposit RECORD; v_dep_txn RECORD; v_rev RECORD;
+  v_working_days integer; v_present_days numeric; v_leave_days numeric;
+  v_unpaid_leave_days numeric; v_attendance_ratio numeric;
+  v_total_salary numeric; v_basic_salary numeric;
+  v_vars jsonb; v_amount numeric; v_formula text; v_key text; v_comp_code text;
+  v_earnings_breakdown jsonb; v_deductions_breakdown jsonb; v_employer_contributions jsonb;
+  v_total_earnings numeric; v_total_deductions numeric;
+  v_gross_salary numeric; v_net_salary numeric;
+  v_per_day_pay numeric; v_full_month_earnings numeric;
+  v_penalty_days numeric; v_penalty_fixed numeric; v_penalty_deposit_fixed numeric;
+  v_penalty_deduction numeric; v_penalty_ids uuid[];
+  v_sunday_worked numeric; v_holiday_worked numeric;
+  v_overtime_hours numeric; v_lop_days numeric; v_lop_deduction numeric;
+  v_loan_deduction numeric; v_emi numeric;
+  v_deposit_deduction numeric; v_deposit_replenish numeric;
+  v_installment numeric; v_remaining numeric; v_net_before_deposit numeric;
+  v_tds_amount numeric; v_annual_gross numeric; v_tax_result numeric;
+  v_payslip_count integer := 0;
+  v_holiday_dates date[]; v_dow integer;
+  v_pf_wages numeric; v_pf_ee numeric; v_pf_er_eps numeric; v_pf_er_epf numeric;
+  v_edli numeric; v_admin_charges numeric;
+  v_esi_period_start date; v_esi_period_end date;
+  v_esi_eligible boolean; v_esi_row RECORD;
+  v_esi_ee numeric; v_esi_er numeric; v_prorated_gross numeric;
+  v_pt_amount numeric; v_is_march boolean;
+  v_arrears_total numeric; v_arrears_months integer; v_arrears_diff numeric;
+BEGIN
+  SELECT * INTO v_run FROM hr_payroll_runs WHERE id = p_payroll_run_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Payroll run % not found', p_payroll_run_id; END IF;
+  IF v_run.is_locked THEN RAISE EXCEPTION 'Payroll run % is locked', p_payroll_run_id; END IF;
+  IF v_run.status NOT IN ('draft','processing','reviewed') THEN
+    RAISE EXCEPTION 'Cannot generate payslips for status %', v_run.status;
+  END IF;
+
+  -- CLAIM 12: attendance lock gate
+  IF NOT EXISTS (
+    SELECT 1 FROM hr_attendance_period_locks
+     WHERE period_start = v_run.pay_period_start AND period_end = v_run.pay_period_end
+  ) THEN
+    RAISE EXCEPTION 'Attendance is not locked for period % .. %. Lock the attendance in HR before generating payroll.',
+      v_run.pay_period_start, v_run.pay_period_end;
+  END IF;
+
+  SELECT array_agg(date) INTO v_holiday_dates FROM hr_holidays
+   WHERE date BETWEEN v_run.pay_period_start AND v_run.pay_period_end AND is_active = true;
+  v_holiday_dates := COALESCE(v_holiday_dates, ARRAY[]::date[]);
+  v_is_march := EXTRACT(MONTH FROM v_run.pay_period_start)::int = 3;
+
+  -- Idempotency reversals
+  UPDATE hr_loans l
+     SET outstanding_balance = l.outstanding_balance + r.total_repaid,
+         status = CASE WHEN l.status='closed' THEN 'active' ELSE l.status END,
+         updated_at = now()
+    FROM (SELECT loan_id, SUM(amount) total_repaid FROM hr_loan_repayments
+           WHERE payroll_run_id = p_payroll_run_id GROUP BY loan_id) r
+   WHERE l.id = r.loan_id;
+
+  FOR v_dep_txn IN SELECT deposit_id, transaction_type, amount FROM hr_deposit_transactions
+                    WHERE payroll_run_id = p_payroll_run_id LOOP
+    IF v_dep_txn.transaction_type='collection' THEN
+      UPDATE hr_employee_deposits SET
+        collected_amount = GREATEST(0, collected_amount - v_dep_txn.amount),
+        current_balance = GREATEST(0, current_balance - v_dep_txn.amount),
+        is_fully_collected = CASE WHEN (collected_amount - v_dep_txn.amount) < total_deposit_amount THEN false ELSE is_fully_collected END,
+        updated_at = now() WHERE id = v_dep_txn.deposit_id;
+    ELSIF v_dep_txn.transaction_type='replenishment' THEN
+      UPDATE hr_employee_deposits SET current_balance = GREATEST(0, current_balance - v_dep_txn.amount), updated_at = now() WHERE id = v_dep_txn.deposit_id;
+    ELSIF v_dep_txn.transaction_type='penalty_deduction' THEN
+      UPDATE hr_employee_deposits SET current_balance = current_balance - v_dep_txn.amount, updated_at = now() WHERE id = v_dep_txn.deposit_id;
+    END IF;
+  END LOOP;
+
+  -- Unmark arrears attributed to this run so we can re-pay
+  UPDATE hr_salary_revisions SET arrears_paid_at = NULL, arrears_amount = NULL, arrears_payroll_run_id = NULL
+   WHERE arrears_payroll_run_id = p_payroll_run_id;
+
+  DELETE FROM hr_payslips WHERE payroll_run_id = p_payroll_run_id;
+  DELETE FROM hr_loan_repayments WHERE payroll_run_id = p_payroll_run_id;
+  DELETE FROM hr_deposit_transactions WHERE payroll_run_id = p_payroll_run_id;
+  UPDATE hr_penalties SET is_applied=false, applied_at=NULL, payroll_run_id=NULL
+    WHERE payroll_run_id = p_payroll_run_id;
+
+  FOR v_emp IN
+    SELECT id, first_name, last_name, total_salary, basic_salary,
+           salary_template_id, filing_status_id, state, uan_number, pf_number, esi_number
+    FROM hr_employees WHERE is_active = true
+  LOOP
+    v_total_salary := COALESCE(v_emp.total_salary, 0);
+    v_basic_salary := COALESCE(v_emp.basic_salary, v_total_salary * 0.5);
+    v_earnings_breakdown := '{}'::jsonb;
+    v_deductions_breakdown := '{}'::jsonb;
+    v_employer_contributions := '{}'::jsonb;
+    v_total_earnings := 0; v_total_deductions := 0;
+    v_present_days := 0; v_overtime_hours := 0;
+    v_sunday_worked := 0; v_holiday_worked := 0;
+    v_arrears_total := 0;
+
+    v_working_days := fn_calculate_working_days(v_emp.id, v_run.pay_period_start, v_run.pay_period_end);
+
+    FOR v_att IN
+      SELECT attendance_date, attendance_status, overtime_hours FROM hr_attendance
+       WHERE employee_id = v_emp.id AND attendance_date BETWEEN v_run.pay_period_start AND v_run.pay_period_end
+    LOOP
+      IF v_att.attendance_status IN ('present','late','half_day') THEN
+        v_present_days := v_present_days + CASE WHEN v_att.attendance_status='half_day' THEN 0.5 ELSE 1 END;
+        v_dow := EXTRACT(DOW FROM v_att.attendance_date)::integer;
+        IF v_dow = 0 THEN v_sunday_worked := v_sunday_worked + CASE WHEN v_att.attendance_status='half_day' THEN 0.5 ELSE 1 END; END IF;
+        IF v_att.attendance_date = ANY(v_holiday_dates) THEN v_holiday_worked := v_holiday_worked + CASE WHEN v_att.attendance_status='half_day' THEN 0.5 ELSE 1 END; END IF;
+      END IF;
+      v_overtime_hours := v_overtime_hours + COALESCE(v_att.overtime_hours, 0);
+    END LOOP;
+
+    v_leave_days := 0; v_unpaid_leave_days := 0;
+    SELECT
+      COALESCE(SUM(CASE WHEN COALESCE(lt.is_paid,true) THEN
+        (LEAST(lr.end_date, v_run.pay_period_end) - GREATEST(lr.start_date, v_run.pay_period_start) + 1)::numeric
+        * (lr.total_days / NULLIF((lr.end_date - lr.start_date + 1)::numeric, 0)) ELSE 0 END),0),
+      COALESCE(SUM(CASE WHEN COALESCE(lt.is_paid,true) = false THEN
+        (LEAST(lr.end_date, v_run.pay_period_end) - GREATEST(lr.start_date, v_run.pay_period_start) + 1)::numeric
+        * (lr.total_days / NULLIF((lr.end_date - lr.start_date + 1)::numeric, 0)) ELSE 0 END),0)
+    INTO v_leave_days, v_unpaid_leave_days
+    FROM hr_leave_requests lr
+    LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+    WHERE lr.employee_id = v_emp.id AND lr.status='approved'
+      AND lr.start_date <= v_run.pay_period_end AND lr.end_date >= v_run.pay_period_start;
+
+    -- CLAIM 12: NO silent full-pay fallback. Zero attendance + zero approved leave = zero present days (full LOP).
+    v_present_days := LEAST(v_present_days + v_leave_days, v_working_days);
+    v_attendance_ratio := CASE WHEN v_working_days > 0 THEN v_present_days / v_working_days ELSE 0 END;
+
+    -- Template-driven earnings/deductions (skip statutory codes)
+    IF v_emp.salary_template_id IS NOT NULL AND v_total_salary > 0 THEN
+      v_vars := jsonb_build_object('total_salary',v_total_salary,'gross_salary',v_total_salary,
+                                   'basic_pay',v_basic_salary,'basic_salary',v_basic_salary,'basic',v_basic_salary);
+      FOR v_item IN
+        SELECT ti.calculation_type, ti.value, ti.percentage_of, ti.formula, ti.is_variable,
+               sc.code AS comp_code, sc.name AS comp_name, sc.component_type
+          FROM hr_salary_structure_template_items ti
+          JOIN hr_salary_components sc ON sc.id = ti.component_id
+         WHERE ti.template_id = v_emp.salary_template_id
+         ORDER BY (ti.calculation_type='formula') ASC, ti.created_at ASC
+      LOOP
+        IF v_item.is_variable THEN CONTINUE; END IF;
+        IF lower(COALESCE(v_item.comp_code,'')) IN ('pfe','pfc','esie','esic','pt','tds') THEN CONTINUE; END IF;
+        v_amount := 0;
+        IF v_item.calculation_type='percentage' THEN
+          IF v_item.percentage_of IN ('basic','basic_pay','basic_salary') THEN v_amount := v_basic_salary * (v_item.value/100.0);
+          ELSIF v_item.percentage_of IN ('gross','total','total_salary','gross_salary') THEN v_amount := v_total_salary * (v_item.value/100.0);
+          ELSE v_amount := v_basic_salary * (v_item.value/100.0); END IF;
+        ELSIF v_item.calculation_type='formula' AND v_item.formula IS NOT NULL THEN
+          v_formula := lower(trim(v_item.formula));
+          FOR v_key IN SELECT k FROM jsonb_object_keys(v_vars) AS k ORDER BY length(k) DESC LOOP
+            v_formula := replace(v_formula, v_key, (v_vars->>v_key));
+          END LOOP;
+          IF v_formula ~ '^[\d\s\+\-\*/\(\)\.]+$' THEN
+            BEGIN EXECUTE format('SELECT (%s)::numeric', v_formula) INTO v_amount;
+            EXCEPTION WHEN OTHERS THEN v_amount := 0; END;
+          END IF;
+        ELSE v_amount := COALESCE(v_item.value,0); END IF;
+        v_amount := round(v_amount);
+        v_comp_code := lower(COALESCE(v_item.comp_code,''));
+        IF v_comp_code <> '' THEN v_vars := v_vars || jsonb_build_object(v_comp_code, v_amount); END IF;
+        IF v_item.comp_name IS NOT NULL THEN
+          v_vars := v_vars || jsonb_build_object(
+            lower(regexp_replace(regexp_replace(v_item.comp_name,'[^a-zA-Z0-9]+','_','g'),'^_|_$','','g')), v_amount);
+        END IF;
+        IF v_item.component_type IN ('allowance','earning') THEN
+          v_earnings_breakdown := v_earnings_breakdown || jsonb_build_object(v_item.comp_name, v_amount);
+          v_total_earnings := v_total_earnings + v_amount;
+        ELSIF v_item.component_type = 'deduction' THEN
+          v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object(v_item.comp_name, v_amount);
+          v_total_deductions := v_total_deductions + v_amount;
+        ELSIF v_item.component_type = 'employer_contribution' THEN
+          v_employer_contributions := v_employer_contributions || jsonb_build_object(v_item.comp_name, v_amount);
+        END IF;
+      END LOOP;
+    ELSIF v_basic_salary > 0 THEN
+      v_earnings_breakdown := jsonb_build_object('Basic Salary', v_basic_salary);
+      v_total_earnings := v_basic_salary;
+    END IF;
+
+    v_full_month_earnings := CASE WHEN v_total_earnings > 0 THEN v_total_earnings ELSE v_total_salary END;
+    v_per_day_pay := CASE WHEN v_working_days > 0 THEN round(v_full_month_earnings / v_working_days) ELSE 0 END;
+
+    IF v_sunday_worked > 0 AND v_per_day_pay > 0 THEN
+      v_amount := round(v_per_day_pay * v_sunday_worked);
+      v_earnings_breakdown := v_earnings_breakdown || jsonb_build_object('Sunday OT Pay', v_amount);
+      v_total_earnings := v_total_earnings + v_amount;
+    END IF;
+    IF v_holiday_worked > 0 AND v_per_day_pay > 0 THEN
+      v_amount := round(v_per_day_pay * v_holiday_worked);
+      v_earnings_breakdown := v_earnings_breakdown || jsonb_build_object('Holiday OT Pay', v_amount);
+      v_total_earnings := v_total_earnings + v_amount;
+    END IF;
+
+    -- CLAIM 13: Arrears — pay unpaid backdated revisions (effective before this period, approved)
+    FOR v_rev IN
+      SELECT id, previous_total, new_total, effective_from
+        FROM hr_salary_revisions
+       WHERE employee_id = v_emp.id
+         AND status = 'approved'
+         AND effective_from < v_run.pay_period_start
+         AND arrears_paid_at IS NULL
+         AND COALESCE(new_total, 0) > COALESCE(previous_total, 0)
+    LOOP
+      v_arrears_diff := COALESCE(v_rev.new_total,0) - COALESCE(v_rev.previous_total,0);
+      -- Full months between effective_from and pay period start
+      v_arrears_months := GREATEST(0,
+        (EXTRACT(YEAR FROM v_run.pay_period_start)::int - EXTRACT(YEAR FROM v_rev.effective_from)::int) * 12
+        + (EXTRACT(MONTH FROM v_run.pay_period_start)::int - EXTRACT(MONTH FROM v_rev.effective_from)::int));
+      IF v_arrears_months > 0 AND v_arrears_diff > 0 THEN
+        v_amount := round(v_arrears_diff * v_arrears_months);
+        v_earnings_breakdown := v_earnings_breakdown || jsonb_build_object(
+          'Salary Arrears ('||v_arrears_months||' month'||CASE WHEN v_arrears_months>1 THEN 's' ELSE '' END||')', v_amount);
+        v_total_earnings := v_total_earnings + v_amount;
+        v_arrears_total := v_arrears_total + v_amount;
+        UPDATE hr_salary_revisions
+           SET arrears_paid_at = now(), arrears_amount = v_amount, arrears_payroll_run_id = p_payroll_run_id
+         WHERE id = v_rev.id;
+      END IF;
+    END LOOP;
+
+    -- Penalties
+    v_penalty_days := 0; v_penalty_fixed := 0; v_penalty_deposit_fixed := 0;
+    v_penalty_deduction := 0; v_penalty_ids := ARRAY[]::uuid[];
+    FOR v_penalty IN
+      SELECT id, penalty_days, penalty_amount, deduct_from_deposit, penalty_reason
+        FROM hr_penalties WHERE employee_id = v_emp.id
+         AND penalty_month = to_char(v_run.pay_period_start,'YYYY-MM') AND is_applied = false
+    LOOP
+      v_penalty_ids := array_append(v_penalty_ids, v_penalty.id);
+      IF v_penalty.deduct_from_deposit THEN
+        v_penalty_deposit_fixed := v_penalty_deposit_fixed + COALESCE(v_penalty.penalty_amount,0);
+      ELSE
+        v_penalty_days := v_penalty_days + COALESCE(v_penalty.penalty_days,0);
+        v_penalty_fixed := v_penalty_fixed + COALESCE(v_penalty.penalty_amount,0);
+      END IF;
+    END LOOP;
+    IF v_penalty_days > 0 AND v_per_day_pay > 0 THEN
+      v_penalty_deduction := round(v_per_day_pay * v_penalty_days);
+      v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object(
+        'Late Penalty ('||v_penalty_days||' day'||CASE WHEN v_penalty_days>1 THEN 's' ELSE '' END||')', v_penalty_deduction);
+      v_total_deductions := v_total_deductions + v_penalty_deduction;
+    END IF;
+    IF v_penalty_fixed > 0 THEN
+      v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('Manual Penalty', v_penalty_fixed);
+      v_total_deductions := v_total_deductions + v_penalty_fixed;
+      v_penalty_deduction := v_penalty_deduction + v_penalty_fixed;
+    END IF;
+
+    v_lop_days := GREATEST(0, v_working_days - v_present_days);
+    v_lop_deduction := CASE WHEN v_lop_days>0 AND v_per_day_pay>0 THEN round(v_per_day_pay * v_lop_days) ELSE 0 END;
+    IF v_lop_deduction > 0 THEN
+      v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('LOP Deduction', v_lop_deduction);
+      v_total_deductions := v_total_deductions + v_lop_deduction;
+    END IF;
+
+    -- Statutory (unchanged from prior migration)
+    v_prorated_gross := round(v_total_earnings);
+    IF v_emp.uan_number IS NOT NULL OR v_emp.pf_number IS NOT NULL THEN
+      v_pf_wages := LEAST(round(v_basic_salary * v_attendance_ratio), 15000);
+      v_pf_ee := round(v_pf_wages * 0.12);
+      v_pf_er_eps := round(v_pf_wages * 0.0833);
+      v_pf_er_epf := round(v_pf_wages * 0.0367);
+      v_edli := LEAST(round(v_pf_wages * 0.005), 75);
+      v_admin_charges := GREATEST(500, round(v_pf_wages * 0.005));
+      IF v_pf_ee > 0 THEN
+        v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('EPF Employee', v_pf_ee);
+        v_total_deductions := v_total_deductions + v_pf_ee;
+      END IF;
+      v_employer_contributions := v_employer_contributions || jsonb_build_object(
+        'EPF Employer', v_pf_er_epf, 'EPS Employer', v_pf_er_eps,
+        'EDLI', v_edli, 'PF Admin Charges', v_admin_charges);
+    END IF;
+
+    IF EXTRACT(MONTH FROM v_run.pay_period_start)::int BETWEEN 4 AND 9 THEN
+      v_esi_period_start := make_date(EXTRACT(YEAR FROM v_run.pay_period_start)::int, 4, 1);
+      v_esi_period_end   := make_date(EXTRACT(YEAR FROM v_run.pay_period_start)::int, 9, 30);
+    ELSIF EXTRACT(MONTH FROM v_run.pay_period_start)::int >= 10 THEN
+      v_esi_period_start := make_date(EXTRACT(YEAR FROM v_run.pay_period_start)::int,10, 1);
+      v_esi_period_end   := make_date(EXTRACT(YEAR FROM v_run.pay_period_start)::int + 1, 3, 31);
+    ELSE
+      v_esi_period_start := make_date(EXTRACT(YEAR FROM v_run.pay_period_start)::int - 1,10, 1);
+      v_esi_period_end   := make_date(EXTRACT(YEAR FROM v_run.pay_period_start)::int, 3, 31);
+    END IF;
+
+    SELECT * INTO v_esi_row FROM hr_esi_contribution_periods
+      WHERE employee_id = v_emp.id AND period_start = v_esi_period_start;
+    IF NOT FOUND THEN
+      v_esi_eligible := (v_total_earnings <= 21000);
+      INSERT INTO hr_esi_contribution_periods(employee_id, period_start, period_end, is_eligible, initial_gross)
+      VALUES (v_emp.id, v_esi_period_start, v_esi_period_end, v_esi_eligible, v_total_earnings)
+      ON CONFLICT (employee_id, period_start) DO NOTHING;
+    ELSE
+      v_esi_eligible := v_esi_row.is_eligible;
+    END IF;
+
+    IF v_esi_eligible AND v_emp.esi_number IS NOT NULL THEN
+      v_esi_ee := round(v_prorated_gross * 0.0075);
+      v_esi_er := round(v_prorated_gross * 0.0325);
+      IF v_esi_ee > 0 THEN
+        v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('ESI Employee', v_esi_ee);
+        v_total_deductions := v_total_deductions + v_esi_ee;
+      END IF;
+      v_employer_contributions := v_employer_contributions || jsonb_build_object('ESI Employer', v_esi_er);
+    END IF;
+
+    v_pt_amount := compute_professional_tax(COALESCE(v_emp.state,'MP'), v_prorated_gross, v_is_march);
+    IF v_pt_amount > 0 THEN
+      v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('Professional Tax', v_pt_amount);
+      v_total_deductions := v_total_deductions + v_pt_amount;
+    END IF;
+
+    v_tds_amount := 0;
+    IF v_emp.filing_status_id IS NOT NULL AND v_total_earnings > 0 THEN
+      v_annual_gross := v_total_earnings * 12;
+      BEGIN
+        SELECT compute_annual_tax(v_annual_gross, v_emp.filing_status_id) INTO v_tax_result;
+        IF v_tax_result > 0 THEN
+          v_tds_amount := round(v_tax_result / 12);
+          v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('TDS (Income Tax)', v_tds_amount);
+          v_total_deductions := v_total_deductions + v_tds_amount;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN v_tds_amount := 0; END;
+    END IF;
+
+    -- Loans
+    v_loan_deduction := 0;
+    FOR v_loan IN SELECT id, loan_type, emi_amount, outstanding_balance FROM hr_loans
+                   WHERE employee_id = v_emp.id AND status='active' AND outstanding_balance > 0
+    LOOP
+      v_emi := LEAST(v_loan.emi_amount, v_loan.outstanding_balance);
+      IF v_emi > 0 THEN
+        v_loan_deduction := v_loan_deduction + v_emi;
+        v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object(
+          'Loan EMI ('||replace(COALESCE(v_loan.loan_type,'loan'),'_',' ')||')', v_emi);
+        INSERT INTO hr_loan_repayments(loan_id, employee_id, amount, repayment_date, repayment_type, payroll_run_id, balance_after)
+        VALUES (v_loan.id, v_emp.id, v_emi, v_run.pay_period_end, 'payroll', p_payroll_run_id, v_loan.outstanding_balance - v_emi);
+        UPDATE hr_loans SET outstanding_balance = outstanding_balance - v_emi, updated_at = now() WHERE id = v_loan.id;
+        IF v_loan.outstanding_balance - v_emi <= 0 THEN
+          UPDATE hr_loans SET status='closed', updated_at=now() WHERE id = v_loan.id;
+        END IF;
+      END IF;
+    END LOOP;
+    v_total_deductions := v_total_deductions + v_loan_deduction;
+
+    -- Deposits (unchanged)
+    v_deposit_deduction := 0; v_deposit_replenish := 0;
+    v_gross_salary := v_total_earnings;
+    FOR v_deposit IN
+      SELECT id, total_deposit_amount, collected_amount, current_balance,
+             deduction_mode, deduction_value, is_fully_collected, is_paused
+        FROM hr_employee_deposits
+       WHERE employee_id = v_emp.id AND is_settled = false AND (is_paused IS NULL OR is_paused = false)
+    LOOP
+      IF v_penalty_deposit_fixed > 0 AND v_deposit.current_balance > 0 THEN
+        v_amount := LEAST(v_penalty_deposit_fixed, v_deposit.current_balance);
+        v_deposit.current_balance := v_deposit.current_balance - v_amount;
+        INSERT INTO hr_deposit_transactions(employee_id, deposit_id, transaction_type, amount, balance_after, description, transaction_date, payroll_run_id)
+        VALUES (v_emp.id, v_deposit.id, 'penalty_deduction', -v_amount, v_deposit.current_balance, 'Penalty deducted from deposit', v_run.pay_period_end, p_payroll_run_id);
+        v_penalty_deposit_fixed := v_penalty_deposit_fixed - v_amount;
+      END IF;
+      IF NOT v_deposit.is_fully_collected THEN
+        v_remaining := v_deposit.total_deposit_amount - v_deposit.collected_amount;
+        IF v_remaining > 0 THEN
+          IF v_deposit.deduction_mode='one_time' THEN v_installment := v_remaining;
+          ELSIF v_deposit.deduction_mode='percentage' THEN v_installment := round((v_deposit.deduction_value/100) * v_gross_salary);
+          ELSE v_installment := v_deposit.deduction_value; END IF;
+          v_installment := LEAST(v_installment, v_remaining);
+          v_net_before_deposit := v_total_earnings - v_total_deductions;
+          IF v_net_before_deposit <= 0 THEN v_installment := 0;
+          ELSE v_installment := LEAST(v_installment, v_net_before_deposit); END IF;
+          IF v_installment > 0 THEN
+            v_deposit_deduction := v_deposit_deduction + v_installment;
+            v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('Security Deposit', v_installment);
+            v_total_deductions := v_total_deductions + v_installment;
+            v_deposit.collected_amount := v_deposit.collected_amount + v_installment;
+            v_deposit.current_balance := v_deposit.current_balance + v_installment;
+            INSERT INTO hr_deposit_transactions(employee_id, deposit_id, transaction_type, amount, balance_after, description, transaction_date, payroll_run_id)
+            VALUES (v_emp.id, v_deposit.id, 'collection', v_installment, v_deposit.current_balance, 'Deposit collection via payroll', v_run.pay_period_end, p_payroll_run_id);
+            IF v_deposit.collected_amount >= v_deposit.total_deposit_amount THEN
+              v_deposit.is_fully_collected := true;
+              INSERT INTO hr_deposit_transactions(employee_id, deposit_id, transaction_type, amount, balance_after, description, transaction_date, payroll_run_id)
+              VALUES (v_emp.id, v_deposit.id, 'completed', 0, v_deposit.current_balance, 'Deposit fully collected', v_run.pay_period_end, p_payroll_run_id);
+            END IF;
+          END IF;
+        END IF;
+      END IF;
+      IF v_deposit.is_fully_collected AND v_deposit.current_balance < v_deposit.collected_amount THEN
+        v_remaining := v_deposit.collected_amount - v_deposit.current_balance;
+        IF v_deposit.deduction_mode='percentage' THEN v_amount := round((v_deposit.deduction_value/100) * v_gross_salary);
+        ELSE v_amount := v_deposit.deduction_value; END IF;
+        v_amount := LEAST(v_amount, v_remaining);
+        IF v_amount > 0 THEN
+          v_deposit_replenish := v_deposit_replenish + v_amount;
+          v_deductions_breakdown := v_deductions_breakdown || jsonb_build_object('Deposit Replenishment', v_amount);
+          v_total_deductions := v_total_deductions + v_amount;
+          v_deposit.current_balance := v_deposit.current_balance + v_amount;
+          INSERT INTO hr_deposit_transactions(employee_id, deposit_id, transaction_type, amount, balance_after, description, transaction_date, payroll_run_id)
+          VALUES (v_emp.id, v_deposit.id, 'replenishment', v_amount, v_deposit.current_balance, 'Deposit replenishment after penalty', v_run.pay_period_end, p_payroll_run_id);
+        END IF;
+      END IF;
+      UPDATE hr_employee_deposits SET
+        collected_amount = v_deposit.collected_amount,
+        current_balance = v_deposit.current_balance,
+        is_fully_collected = v_deposit.is_fully_collected,
+        updated_at = now()
+      WHERE id = v_deposit.id;
+    END LOOP;
+
+    v_net_salary := v_total_earnings - v_total_deductions;
+
+    INSERT INTO hr_payslips(
+      payroll_run_id, employee_id, gross_salary, total_earnings, total_deductions,
+      net_salary, earnings_breakdown, deductions_breakdown, working_days, present_days,
+      leave_days, lop_days, lop_deduction, overtime_hours, sunday_days_worked,
+      holiday_days_worked, penalty_amount, tds_amount, status, employer_contributions
+    ) VALUES (
+      p_payroll_run_id, v_emp.id, v_total_earnings, v_total_earnings, v_total_deductions,
+      v_net_salary, v_earnings_breakdown, v_deductions_breakdown, v_working_days, v_present_days,
+      v_leave_days, v_lop_days, v_lop_deduction, v_overtime_hours, v_sunday_worked,
+      v_holiday_worked, v_penalty_deduction, v_tds_amount, 'generated', v_employer_contributions
+    );
+
+    IF array_length(v_penalty_ids,1) > 0 THEN
+      UPDATE hr_penalties SET is_applied=true, applied_at=now(), payroll_run_id=p_payroll_run_id
+        WHERE id = ANY(v_penalty_ids);
+    END IF;
+    v_payslip_count := v_payslip_count + 1;
+  END LOOP;
+
+  UPDATE hr_payroll_runs SET status='reviewed', updated_at=now() WHERE id = p_payroll_run_id;
+  RETURN jsonb_build_object('payslips_generated', v_payslip_count);
+END $function$;

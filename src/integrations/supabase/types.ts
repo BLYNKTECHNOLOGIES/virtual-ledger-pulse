@@ -4667,6 +4667,36 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_period_locks: {
+        Row: {
+          created_at: string
+          id: string
+          locked_at: string
+          locked_by: string | null
+          notes: string | null
+          period_end: string
+          period_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          locked_at?: string
+          locked_by?: string | null
+          notes?: string | null
+          period_end: string
+          period_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          locked_at?: string
+          locked_by?: string | null
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+        }
+        Relationships: []
+      }
       hr_attendance_policies: {
         Row: {
           absent_if_no_punch: boolean | null
@@ -4858,6 +4888,69 @@ export type Database = {
           work_code?: string | null
         }
         Relationships: []
+      }
+      hr_attendance_regularization_requests: {
+        Row: {
+          approved_at: string | null
+          approver_id: string | null
+          approver_notes: string | null
+          attendance_date: string
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          reason: string
+          requested_check_in: string | null
+          requested_check_out: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_notes?: string | null
+          attendance_date: string
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          reason: string
+          requested_check_in?: string | null
+          requested_check_out?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_notes?: string | null
+          attendance_date?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          reason?: string
+          requested_check_in?: string | null
+          requested_check_out?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_biometric_device_commands: {
         Row: {
@@ -6221,6 +6314,8 @@ export type Database = {
           amount: number
           component_id: string
           created_at: string
+          effective_from: string | null
+          effective_to: string | null
           employee_id: string
           id: string
           is_active: boolean
@@ -6231,6 +6326,8 @@ export type Database = {
           amount?: number
           component_id: string
           created_at?: string
+          effective_from?: string | null
+          effective_to?: string | null
           employee_id: string
           id?: string
           is_active?: boolean
@@ -6241,6 +6338,8 @@ export type Database = {
           amount?: number
           component_id?: string
           created_at?: string
+          effective_from?: string | null
+          effective_to?: string | null
           employee_id?: string
           id?: string
           is_active?: boolean
@@ -9995,6 +10094,9 @@ export type Database = {
       hr_salary_revisions: {
         Row: {
           approved_by: string | null
+          arrears_amount: number | null
+          arrears_paid_at: string | null
+          arrears_payroll_run_id: string | null
           attachment_url: string | null
           created_at: string
           effective_from: string
@@ -10014,6 +10116,9 @@ export type Database = {
         }
         Insert: {
           approved_by?: string | null
+          arrears_amount?: number | null
+          arrears_paid_at?: string | null
+          arrears_payroll_run_id?: string | null
           attachment_url?: string | null
           created_at?: string
           effective_from?: string
@@ -10033,6 +10138,9 @@ export type Database = {
         }
         Update: {
           approved_by?: string | null
+          arrears_amount?: number | null
+          arrears_paid_at?: string | null
+          arrears_payroll_run_id?: string | null
           attachment_url?: string | null
           created_at?: string
           effective_from?: string

@@ -1,12 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Bell, Moon, Sun, Menu, User, Check } from "lucide-react";
+import { Search, Bell, Moon, Sun, Menu, User, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { useDebounce } from "@/hooks/useDebounce";
+
 
 interface HorillaHeaderProps {
   onToggleSidebar: () => void;
@@ -17,6 +19,62 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debouncedQ = useDebounce(searchQ, 200);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const { data: searchResults = [], isFetching: searching } = useQuery({
+    queryKey: ["hrms_header_search", debouncedQ],
+    enabled: debouncedQ.trim().length >= 2,
+    queryFn: async () => {
+      const q = debouncedQ.trim();
+      const like = `%${q}%`;
+      const [emps, onb] = await Promise.all([
+        (supabase as any)
+          .from("hr_employees")
+          .select("id, employee_id, first_name, last_name, email, phone, is_active")
+          .or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},employee_id.ilike.${like},phone.ilike.${like}`)
+          .limit(12),
+        (supabase as any)
+          .from("hr_employee_onboarding")
+          .select("id, first_name, last_name, email, status, employee_id")
+          .or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`)
+          .limit(12),
+      ]);
+      const results: Array<{ kind: "employee" | "onboarding"; id: string; label: string; sub: string; link: string }> = [];
+      (emps.data || []).forEach((e: any) => {
+        results.push({
+          kind: "employee",
+          id: e.id,
+          label: `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.email || e.employee_id,
+          sub: [e.employee_id, e.email, e.is_active === false ? "Inactive" : null].filter(Boolean).join(" · "),
+          link: `/hrms/employees/${e.id}`,
+        });
+      });
+      (onb.data || []).forEach((o: any) => {
+        // dedupe if employee already listed
+        if (o.employee_id && results.some(r => r.kind === "employee" && r.id === o.employee_id)) return;
+        results.push({
+          kind: "onboarding",
+          id: o.id,
+          label: `${o.first_name || ""} ${o.last_name || ""}`.trim() || o.email || "Onboarding",
+          sub: `Onboarding · ${(o.status || "").replace("_", " ")}${o.email ? " · " + o.email : ""}`,
+          link: `/hrms/onboarding-pipeline`,
+        });
+      });
+      return results;
+    },
+  });
+
   const [isDark, setIsDark] = useState(() =>
     typeof document !== "undefined" && document.documentElement.classList.contains("dark")
   );
@@ -99,14 +157,49 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="flex items-center bg-muted/60 rounded-lg border border-border px-3 py-1.5 min-w-0 w-full sm:w-64 sm:max-w-none max-w-[220px] focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
-          <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search…"
-            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full min-w-0"
-          />
+        <div ref={searchRef} className="relative w-full sm:w-72 max-w-[220px] sm:max-w-none">
+          <div className="flex items-center bg-muted/60 rounded-lg border border-border px-3 py-1.5 min-w-0 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
+            <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+            <input
+              type="text"
+              value={searchQ}
+              onChange={(e) => { setSearchQ(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Search employees, email, ID…"
+              className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full min-w-0"
+            />
+            {searchQ && (
+              <button
+                onClick={() => { setSearchQ(""); setSearchOpen(false); }}
+                className="ml-1 text-muted-foreground hover:text-foreground shrink-0"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {searchOpen && debouncedQ.trim().length >= 2 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-auto">
+              {searching && searchResults.length === 0 ? (
+                <div className="p-3 text-xs text-muted-foreground">Searching…</div>
+              ) : searchResults.length === 0 ? (
+                <div className="p-3 text-xs text-muted-foreground">No matches. Try email or employee ID.</div>
+              ) : (
+                searchResults.map((r) => (
+                  <button
+                    key={`${r.kind}-${r.id}`}
+                    onClick={() => { navigate(r.link); setSearchOpen(false); setSearchQ(""); }}
+                    className="w-full text-left px-3 py-2 hover:bg-muted border-b last:border-0 border-border"
+                  >
+                    <div className="text-sm font-medium text-foreground truncate">{r.label}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{r.sub}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
+
       </div>
 
 

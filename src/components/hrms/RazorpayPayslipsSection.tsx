@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { Download, ExternalLink, RefreshCw, FileText, AlertCircle } from "lucide-react";
+import { Download, ExternalLink, FileText, AlertCircle } from "lucide-react";
 
 interface Props {
   hrEmployeeId: string;

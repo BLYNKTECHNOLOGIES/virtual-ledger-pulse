@@ -92,10 +92,15 @@ const FILTER_FIELDS = [
 export default function EmployeeListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // ─── State ───
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  // Grid view is the mobile-friendly card layout. Auto-default to it on
+  // phones; desktop keeps the dense table.
+  const [viewMode, setViewMode] = useState<"list" | "grid">(
+    typeof window !== "undefined" && window.innerWidth < 768 ? "grid" : "list"
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<any>(null);

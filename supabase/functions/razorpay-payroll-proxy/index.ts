@@ -1075,7 +1075,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const match = await matchEmployee(svc, r.body);
+        const match = await matchEmployee(svc, r.body, i);
         rows.push({
           employee_id: i,
           status: "hit",

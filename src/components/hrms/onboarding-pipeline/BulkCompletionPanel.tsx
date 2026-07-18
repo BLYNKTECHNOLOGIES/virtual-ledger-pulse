@@ -69,7 +69,7 @@ export function BulkCompletionPanel() {
       const empIds = (onb || []).map((r: any) => r.employee_id).filter(Boolean);
       if (empIds.length === 0) return [];
 
-      const [{ data: comp }, { data: emps }] = await Promise.all([
+      const [{ data: comp }, { data: emps }, { data: rpMaps }] = await Promise.all([
         supabase
           .from("hr_employee_completeness" as any)
           .select("employee_id, has_bank, has_salary, has_doj, has_designation")
@@ -78,14 +78,34 @@ export function BulkCompletionPanel() {
           .from("hr_employees")
           .select("id, total_salary")
           .in("id", empIds),
+        supabase
+          .from("hr_razorpay_employee_map")
+          .select("hr_employee_id, last_pull_snapshot")
+          .in("hr_employee_id", empIds),
       ]);
       const cMap: Record<string, any> = {};
       (comp || []).forEach((c: any) => (cMap[c.employee_id] = c));
       const eMap: Record<string, any> = {};
       (emps || []).forEach((e: any) => (eMap[e.id] = e));
+      const rpMap: Record<string, any> = {};
+      (rpMaps || []).forEach((m: any) => (rpMap[m.hr_employee_id] = m));
 
       const out: Row[] = (onb || []).map((r: any) => {
         const c = cMap[r.employee_id] || {};
+        const snap = rpMap[r.employee_id]?.last_pull_snapshot || null;
+        const hasSalarySnap = !!snap?.__salary?.annual_ctc;
+        const probeErr: string | null = snap?.__salary_probe_error || null;
+        let salaryReason: "no_payroll" | "error" | null = null;
+        let salaryReasonDetail: string | null = null;
+        if (!c.has_salary && !hasSalarySnap && probeErr) {
+          if (/no salary field|no-processed-payroll|no_processed_payroll|NO_PROCESSED_PAYROLL/i.test(probeErr)) {
+            salaryReason = "no_payroll";
+            salaryReasonDetail = "No processed payroll on Razorpay — enter CTC manually";
+          } else {
+            salaryReason = "error";
+            salaryReasonDetail = probeErr.slice(0, 140);
+          }
+        }
         return {
           onboarding_id: r.id,
           employee_id: r.employee_id,
@@ -98,6 +118,8 @@ export function BulkCompletionPanel() {
           has_salary: !!c.has_salary,
           has_doj: !!c.has_doj,
           has_designation: !!c.has_designation,
+          salary_reason: salaryReason,
+          salary_reason_detail: salaryReasonDetail,
         };
       });
       // Only rows with at least one gap

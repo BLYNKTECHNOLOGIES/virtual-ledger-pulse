@@ -311,7 +311,19 @@ export default function PayslipsPage() {
                   <tr key={p.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
-                    <td className="px-4 py-3 text-xs">{p.hr_payroll_runs?.title}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>
+                          {p.hr_payroll_runs?.title
+                            || (p.source === 'razorpay_import'
+                              ? `RazorpayX Import — ${p.period_month ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
+                              : '—')}
+                        </span>
+                        {p.source === 'razorpay_import' && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase">Imported</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-success font-medium text-right tabular-nums">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 text-destructive text-right tabular-nums">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 font-semibold text-right tabular-nums">₹{p.net_salary?.toLocaleString('en-IN')}</td>
@@ -344,8 +356,19 @@ export default function PayslipsPage() {
           {detail && (
             <div className="space-y-4">
               <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
-                <div className="flex justify-between"><span className="text-muted-foreground">Payroll Run</span><span className="font-medium">{detail.hr_payroll_runs?.title}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span>{detail.hr_payroll_runs?.pay_period_start} — {detail.hr_payroll_runs?.pay_period_end}</span></div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-muted-foreground">Payroll Run</span>
+                  <span className="font-medium flex items-center gap-1.5">
+                    {detail.hr_payroll_runs?.title
+                      || (detail.source === 'razorpay_import'
+                        ? `RazorpayX Import — ${detail.period_month ? new Date(detail.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
+                        : '—')}
+                    {detail.source === 'razorpay_import' && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase">Imported</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span>{detail.hr_payroll_runs?.pay_period_start ? `${detail.hr_payroll_runs.pay_period_start} — ${detail.hr_payroll_runs.pay_period_end}` : (detail.period_month || '—')}</span></div>
                 {detail.overtime_hours > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Overtime</span><span>{detail.overtime_hours}h</span></div>}
               </div>
 

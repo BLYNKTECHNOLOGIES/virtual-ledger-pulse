@@ -102,16 +102,10 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           <p className="text-xs text-muted-foreground">
             Computed and issued by RazorpayX · Linked ID: {razorpayEmployeeId}
           </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Auto-synced daily from RazorpayX.
+          </p>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-          {syncMutation.isPending ? "Syncing…" : "Sync from RazorpayX"}
-        </Button>
       </div>
 
       {isLoading ? (
@@ -121,7 +115,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
           <p className="text-sm text-foreground font-medium">No RazorpayX payslips yet</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Click <span className="font-semibold">Sync from RazorpayX</span> to import payslip history.
+            Payslips will appear here automatically once RazorpayX finalizes the run.
           </p>
         </div>
       ) : (

@@ -8052,6 +8052,8 @@ export type Database = {
           loan_type: string
           notes: string | null
           outstanding_balance: number
+          razorpay_advance_salary_id: number | null
+          razorpay_pushed_at: string | null
           reason: string | null
           rejection_reason: string | null
           start_emi_date: string
@@ -8072,6 +8074,8 @@ export type Database = {
           loan_type?: string
           notes?: string | null
           outstanding_balance: number
+          razorpay_advance_salary_id?: number | null
+          razorpay_pushed_at?: string | null
           reason?: string | null
           rejection_reason?: string | null
           start_emi_date: string
@@ -8092,6 +8096,8 @@ export type Database = {
           loan_type?: string
           notes?: string | null
           outstanding_balance?: number
+          razorpay_advance_salary_id?: number | null
+          razorpay_pushed_at?: string | null
           reason?: string | null
           rejection_reason?: string | null
           start_emi_date?: string
@@ -8694,6 +8700,7 @@ export type Database = {
           earnings_breakdown: Json | null
           employee_id: string
           employer_contributions: Json | null
+          esi_amount: number | null
           gross_salary: number
           holiday_days_worked: number | null
           id: string
@@ -8708,7 +8715,9 @@ export type Database = {
           pdf_url: string | null
           penalty_amount: number | null
           period_month: string | null
+          pf_amount: number | null
           present_days: number | null
+          professional_tax: number | null
           razorpay_payslip_id: string | null
           source: string
           status: string | null
@@ -8725,6 +8734,7 @@ export type Database = {
           earnings_breakdown?: Json | null
           employee_id: string
           employer_contributions?: Json | null
+          esi_amount?: number | null
           gross_salary?: number
           holiday_days_worked?: number | null
           id?: string
@@ -8739,7 +8749,9 @@ export type Database = {
           pdf_url?: string | null
           penalty_amount?: number | null
           period_month?: string | null
+          pf_amount?: number | null
           present_days?: number | null
+          professional_tax?: number | null
           razorpay_payslip_id?: string | null
           source?: string
           status?: string | null
@@ -8756,6 +8768,7 @@ export type Database = {
           earnings_breakdown?: Json | null
           employee_id?: string
           employer_contributions?: Json | null
+          esi_amount?: number | null
           gross_salary?: number
           holiday_days_worked?: number | null
           id?: string
@@ -8770,7 +8783,9 @@ export type Database = {
           pdf_url?: string | null
           penalty_amount?: number | null
           period_month?: string | null
+          pf_amount?: number | null
           present_days?: number | null
+          professional_tax?: number | null
           razorpay_payslip_id?: string | null
           source?: string
           status?: string | null
@@ -8994,6 +9009,78 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      hr_razorpay_contractor_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          employee_email: string | null
+          execute_on: string | null
+          hr_employee_id: string | null
+          id: string
+          last_synced_at: string | null
+          paid: boolean
+          purpose: string | null
+          raw_payload: Json | null
+          razorpay_payment_id: number | null
+          remarks: string | null
+          status: string | null
+          tax: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          employee_email?: string | null
+          execute_on?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          paid?: boolean
+          purpose?: string | null
+          raw_payload?: Json | null
+          razorpay_payment_id?: number | null
+          remarks?: string | null
+          status?: string | null
+          tax?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          employee_email?: string | null
+          execute_on?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          paid?: boolean
+          purpose?: string | null
+          raw_payload?: Json | null
+          razorpay_payment_id?: number | null
+          remarks?: string | null
+          status?: string | null
+          tax?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_contractor_payments_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_contractor_payments_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_razorpay_employee_map: {
         Row: {
@@ -20849,6 +20936,8 @@ export type Database = {
         | "attendance_fetch"
         | "reflect_payslips"
         | "import_payslip_history_range"
+        | "attendance_edit_patch"
+        | "attendance_fetch_range"
       hr_razorpay_sync_status:
         | "imported"
         | "matched_existing"
@@ -21239,6 +21328,8 @@ export const Constants = {
         "attendance_fetch",
         "reflect_payslips",
         "import_payslip_history_range",
+        "attendance_edit_patch",
+        "attendance_fetch_range",
       ],
       hr_razorpay_sync_status: [
         "imported",

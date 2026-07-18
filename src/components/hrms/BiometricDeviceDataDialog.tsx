@@ -435,7 +435,31 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                           <TableCell className="text-center">{u.fp_count || 0}</TableCell>
                           <TableCell className="text-center">{u.face_count || 0}</TableCell>
                           <TableCell className="text-center">{u.palm_count || 0}</TableCell>
-                          <TableCell>{u.matched_employee_id ? <Badge variant="outline" className="text-xs">Linked</Badge> : <Badge variant="destructive" className="text-xs">Unlinked</Badge>}</TableCell>
+                          <TableCell>
+                            {u.matched_employee_id ? (
+                              <Badge variant="outline" className="text-xs">Linked</Badge>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <Badge variant="destructive" className="text-xs">Unlinked</Badge>
+                                {(() => {
+                                  const parked = quarantineQ.data?.get(String(u.pin)) ?? 0;
+                                  return parked > 0 ? (
+                                    <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400" title="Parked punches waiting to be replayed once this PIN is mapped">
+                                      {parked} parked
+                                    </span>
+                                  ) : null;
+                                })()}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[11px]"
+                                  onClick={() => { setLinkPin(String(u.pin)); setLinkEmployeeId(""); }}
+                                >
+                                  Link
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmt(u.last_seen_at)}</TableCell>
                           <TableCell className="text-right">
                             <AlertDialog>

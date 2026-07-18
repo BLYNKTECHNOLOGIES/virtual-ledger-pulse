@@ -420,6 +420,13 @@ async function pullPayrollViewForPeriod(svc: SupabaseClient, periodMonthStr: str
         variance,
         razorpay_payslip_id: figures.payslipId || `${rpId}-${periodMonthStr}`,
         pdf_url: figures.pdf,
+        pf_amount: figures.pf,
+        esi_amount: figures.esi,
+        professional_tax: figures.pt,
+        deduction_amount: figures.deductionAmount,
+        additions_detail: figures.additionsDetail,
+        do_not_pay: figures.doNotPay,
+        employee_name_snapshot: figures.employeeName,
         source_payload: { endpoint: "payroll:view-payroll", request: { email, "payroll-month": periodMonthStr }, response: body },
         pulled_by: actorUserId,
       });

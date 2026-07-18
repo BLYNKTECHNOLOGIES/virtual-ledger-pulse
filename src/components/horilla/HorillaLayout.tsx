@@ -18,7 +18,7 @@ export function HorillaLayout() {
   };
 
   return (
-    <div className="horilla-root flex h-screen overflow-hidden bg-muted/40 dark:bg-background">
+    <div className="horilla-root flex h-screen w-full max-w-full overflow-hidden bg-muted/40 dark:bg-background">
       <HorillaSidebar
         collapsed={isMobile ? false : sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((prev) => !prev)}
@@ -36,9 +36,9 @@ export function HorillaLayout() {
         />
       )}
 
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <HorillaHeader onToggleSidebar={handleToggleSidebar} isMobile={isMobile} />
-        <main className="flex-1 overflow-y-auto p-3 md:p-6">
+        <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-2 sm:p-3 md:p-6">
           <Outlet />
         </main>
       </div>

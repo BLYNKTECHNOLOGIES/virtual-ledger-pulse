@@ -851,10 +851,10 @@ html {
     white-space: nowrap !important;
   }
 
-  /* HRMS card grids: single column on mobile */
-  .horilla-root .grid.grid-cols-2,
-  .horilla-root .grid.grid-cols-3,
-  .horilla-root .grid.grid-cols-4 {
+  /* HRMS card grids: single column on mobile, but keep explicit sm/md responsive grids intact */
+  .horilla-root .grid.grid-cols-2:not([class*="sm:grid-cols-"]):not([class*="md:grid-cols-"]),
+  .horilla-root .grid.grid-cols-3:not([class*="sm:grid-cols-"]):not([class*="md:grid-cols-"]),
+  .horilla-root .grid.grid-cols-4:not([class*="sm:grid-cols-"]):not([class*="md:grid-cols-"]) {
     grid-template-columns: 1fr !important;
   }
 
@@ -876,6 +876,66 @@ html {
 
   .horilla-root table {
     min-width: max-content;
+  }
+
+  .horilla-root,
+  .horilla-root * {
+    max-width: 100%;
+  }
+
+  .horilla-root .hrms-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .horilla-root .hrms-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .horilla-root .hrms-toolbar > * {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .horilla-root .hrms-mobile-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .horilla-root .hrms-scroll-table {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .horilla-root .hrms-mobile-card {
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    border-radius: 0.75rem;
+    padding: 0.875rem;
+  }
+
+  .horilla-root .hrms-mobile-kv {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 0.25rem 0.75rem;
+    align-items: start;
+    font-size: 0.8125rem;
+  }
+
+  .horilla-root .hrms-mobile-kv > span:nth-child(odd) {
+    color: hsl(var(--muted-foreground));
+  }
+
+  .horilla-root .hrms-mobile-kv > span:nth-child(even) {
+    color: hsl(var(--foreground));
+    font-weight: 500;
+    min-width: 0;
+    word-break: break-word;
+    text-align: right;
   }
   /* Any card/border wrapper that directly contains a <table>
      must scroll horizontally on mobile, even if the author
@@ -906,6 +966,18 @@ html {
   .horilla-root .flex.items-center.gap-2 > .relative > button {
     padding-left: 0.625rem !important;
     padding-right: 0.625rem !important;
+  }
+}
+
+@media (min-width: 640px) {
+  .horilla-root .hrms-toolbar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .horilla-root .hrms-toolbar > * {
+    width: auto !important;
   }
 }
 

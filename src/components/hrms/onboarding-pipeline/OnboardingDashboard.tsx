@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 
 type OnboardingRecord = {
   id: string;
@@ -145,20 +146,20 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 min-w-0">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold flex items-center gap-2 break-words">
             <Users className="h-5 w-5" /> Employee Onboarding Pipeline
           </h2>
           <p className="text-sm text-muted-foreground">Track and manage new hire onboarding across all stages</p>
         </div>
-        <Button onClick={onNewOnboarding}>
+        <Button onClick={onNewOnboarding} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-1" /> New Onboarding
         </Button>
       </div>
 
       {/* Summary Cards — tap to filter */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <Card className={cardCls("in_progress")} onClick={() => setFilter(f => f === "in_progress" ? "all" : "in_progress")}>
           <CardContent className="p-4 text-center">
             <Clock className="h-5 w-5 mx-auto mb-1 text-info" />
@@ -194,8 +195,8 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
       <BulkCompletionPanel />
 
       {/* Records Table */}
-      <Card>
-        <CardHeader className="py-3 px-4 flex flex-row items-center justify-between gap-2">
+      <Card className="border-0 bg-transparent shadow-none sm:border sm:bg-card">
+        <CardHeader className="px-0 pb-3 pt-0 sm:py-3 sm:px-4 flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-sm">
             {filter === "all" ? "All Onboarding Records" : `${filterLabel[filter]} Onboardings`}
             <span className="ml-2 text-xs font-normal text-muted-foreground">({filteredRecords.length})</span>
@@ -216,89 +217,92 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
               {!records?.length && <p className="text-sm">Click "New Onboarding" to start</p>}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Name</th>
-                    <th className="text-left p-3 font-medium">Email</th>
-                    <th className="text-left p-3 font-medium">Stage</th>
-                    <th className="text-left p-3 font-medium">Status</th>
-                    <th className="text-left p-3 font-medium">Checklist</th>
-                    <th className="text-left p-3 font-medium">Started</th>
-                    <th className="text-left p-3 font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRecords.map(r => (
-                    <tr key={r.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => onSelectOnboarding(r.id)}>
-                      <td className="p-3 font-medium">
-                        {r.first_name || r.last_name
-                          ? `${r.first_name || ""} ${r.last_name || ""}`.trim()
-                          : "—"}
-                      </td>
-                      <td className="p-3 text-muted-foreground">{r.email || "—"}</td>
-                      <td className="p-3">
-                        {r.status === "completed" ? "✅ Done" : STAGE_LABELS[r.current_stage] || `Stage ${r.current_stage}`}
-                      </td>
-                      <td className="p-3">
-                        <Badge className={`text-xs ${STATUS_COLORS[r.status] || ""}`}>
-                          {r.status.replace("_", " ")}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        {(() => {
-                          const c = r.employee_id ? completeness?.[r.employee_id] : undefined;
-                          const item = (label: string, ok: boolean | undefined) => (
-                            <span
-                              key={label}
-                              title={`${label}: ${ok ? "complete" : "missing"}`}
-                              className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${
-                                ok ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              {ok ? "✓" : "○"} {label}
-                            </span>
-                          );
-                          return (
-                            <div className="flex flex-wrap gap-1">
-                              {item("Bank", c?.has_bank)}
-                              {item("Salary", c?.has_salary)}
-                              {item("DOJ", c?.has_doj)}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="p-3 text-muted-foreground">
-                        {format(new Date(r.created_at), "dd MMM yyyy")}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant={r.status === "completed" ? "outline" : "default"}
-                            onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}
-                          >
-                            {r.status === "completed" ? "View" : "Continue"}
+            <ResponsiveList
+              items={filteredRecords}
+              tableMinWidth="min-w-[920px]"
+              columns={[
+                { key: "name", label: "Name" },
+                { key: "email", label: "Email" },
+                { key: "stage", label: "Stage" },
+                { key: "status", label: "Status" },
+                { key: "checklist", label: "Checklist" },
+                { key: "started", label: "Started" },
+                { key: "action", label: "Action" },
+              ]}
+              keyFor={(r) => r.id}
+              renderRow={(r) => {
+                const c = r.employee_id ? completeness?.[r.employee_id] : undefined;
+                const item = (label: string, ok: boolean | undefined) => (
+                  <span
+                    key={label}
+                    title={`${label}: ${ok ? "complete" : "missing"}`}
+                    className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${ok ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}
+                  >
+                    {ok ? "✓" : "○"} {label}
+                  </span>
+                );
+
+                return (
+                  <>
+                    <td className="p-3 font-medium cursor-pointer" onClick={() => onSelectOnboarding(r.id)}>
+                      {r.first_name || r.last_name ? `${r.first_name || ""} ${r.last_name || ""}`.trim() : "—"}
+                    </td>
+                    <td className="p-3 text-muted-foreground">{r.email || "—"}</td>
+                    <td className="p-3">{r.status === "completed" ? "✅ Done" : STAGE_LABELS[r.current_stage] || `Stage ${r.current_stage}`}</td>
+                    <td className="p-3"><Badge className={`text-xs ${STATUS_COLORS[r.status] || ""}`}>{r.status.replace("_", " ")}</Badge></td>
+                    <td className="p-3"><div className="flex flex-wrap gap-1">{item("Bank", c?.has_bank)}{item("Salary", c?.has_salary)}{item("DOJ", c?.has_doj)}</div></td>
+                    <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "dd MMM yyyy")}</td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant={r.status === "completed" ? "outline" : "default"} onClick={() => onSelectOnboarding(r.id)}>
+                          {r.status === "completed" ? "View" : "Continue"}
+                        </Button>
+                        {r.status !== "completed" && (
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setToDelete(r)} title="Delete dropped onboarding">
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                          {r.status !== "completed" && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => { e.stopPropagation(); setToDelete(r); }}
-                              title="Delete dropped onboarding"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        )}
+                      </div>
+                    </td>
+                  </>
+                );
+              }}
+              renderCard={(r) => {
+                const c = r.employee_id ? completeness?.[r.employee_id] : undefined;
+                const chip = (label: string, ok: boolean | undefined) => (
+                  <span key={label} className={`inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded ${ok ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+                    {ok ? "✓" : "○"} {label}
+                  </span>
+                );
+
+                return (
+                  <div className="hrms-mobile-card space-y-3" onClick={() => onSelectOnboarding(r.id)}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground break-words">
+                          {r.first_name || r.last_name ? `${r.first_name || ""} ${r.last_name || ""}`.trim() : "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground break-words">{r.email || "No email"}</p>
+                      </div>
+                      <Badge className={`shrink-0 text-xs ${STATUS_COLORS[r.status] || ""}`}>{r.status.replace("_", " ")}</Badge>
+                    </div>
+                    <div className="hrms-mobile-kv"><span>Stage</span><strong>{r.status === "completed" ? "Done" : STAGE_LABELS[r.current_stage] || `Stage ${r.current_stage}`}</strong></div>
+                    <div className="hrms-mobile-kv"><span>Started</span><strong>{format(new Date(r.created_at), "dd MMM yyyy")}</strong></div>
+                    <div className="flex flex-wrap gap-1">{chip("Bank", c?.has_bank)}{chip("Salary", c?.has_salary)}{chip("DOJ", c?.has_doj)}</div>
+                    <div className="flex gap-2 pt-1">
+                      <Button size="sm" className="flex-1" variant={r.status === "completed" ? "outline" : "default"} onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}>
+                        {r.status === "completed" ? "View" : "Continue"}
+                      </Button>
+                      {r.status !== "completed" && (
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setToDelete(r); }} title="Delete dropped onboarding">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              }}
+            />
           )}
         </CardContent>
       </Card>

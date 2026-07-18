@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, Building2, User,
   Briefcase, CreditCard, FileText, Edit, Save, X, Check,
@@ -166,6 +166,33 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
         )}
       </div>
     </div>
+  );
+}
+
+function MobileInfoGrid({ items }: { items: Array<{ label: string; value: ReactNode; className?: string }> }) {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {items.map((item) => (
+        <div key={item.label} className="rounded-lg border border-border bg-muted/20 p-3 min-w-0">
+          <p className="text-xs text-muted-foreground">{item.label}</p>
+          <div className={`mt-1 text-sm font-medium text-foreground break-words ${item.className ?? ""}`}>{item.value || "None"}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function InlineStatusBadge({ value }: { value?: string | null }) {
+  return (
+    <span className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${
+      value === "Assigned" || value === "Paid" || value === "Present" || value === "present"
+        ? "bg-success/10 text-success"
+        : value === "Absent" || value === "absent"
+          ? "bg-destructive/10 text-destructive"
+          : value === "Half Day" || value === "late"
+            ? "bg-warning/10 text-warning"
+            : "bg-muted text-foreground"
+    }`}>{value || "None"}</span>
   );
 }
 
@@ -607,9 +634,9 @@ export default function EmployeeProfilePage() {
   );
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="hrms-page space-y-4 p-3 md:p-6">
       {/* ─── Breadcrumb ─── */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+      <div className="hidden md:flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
         <button onClick={() => navigate("/hrms")} className="hover:text-foreground">Horilla</button>
         <span>›</span>
         <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employee</button>
@@ -618,32 +645,35 @@ export default function EmployeeProfilePage() {
         <span>›</span>
         <span className="text-[#00bcd4] font-medium break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
       </div>
+      <button onClick={() => navigate("/hrms/employee")} className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground md:hidden">
+        <ArrowLeft className="h-4 w-4" /> Employees
+      </button>
 
       {/* ─── Profile Header (Horilla style) ─── */}
-      <div className="bg-card border border-border rounded-xl px-6 py-5 flex flex-col md:flex-row md:items-start justify-between gap-4">
-        <div className="flex items-start gap-3 md:gap-5">
+      <div className="bg-card border border-border rounded-xl px-4 py-4 md:px-6 md:py-5 flex flex-col md:flex-row md:items-start justify-between gap-4 overflow-hidden">
+        <div className="flex min-w-0 items-start gap-3 md:gap-5">
           {/* Avatar */}
           {emp.profile_image_url ? (
-            <img src={emp.profile_image_url} className="w-16 h-16 md:w-20 md:h-20 rounded-lg object-cover" alt="" />
+            <img src={emp.profile_image_url} className="w-14 h-14 md:w-20 md:h-20 rounded-lg object-cover shrink-0" alt="" />
           ) : (
-            <div className={`w-16 h-16 md:w-20 md:h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-2xl`}>
+            <div className={`w-14 h-14 md:w-20 md:h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-xl md:text-2xl shrink-0`}>
               {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
             </div>
           )}
 
           {/* Info */}
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-semibold text-foreground break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
+              <h1 className="text-base md:text-lg font-semibold text-foreground break-words leading-snug">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
               <DriftBadge employeeId={emp.id} />
             </div>
-            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-2 mt-1 text-sm text-muted-foreground">
               <Mail className="h-3.5 w-3.5" />
-              <span>{emp.email || "No email"}</span>
+              <span className="min-w-0 truncate">{emp.email || "No email"}</span>
             </div>
-            <div className="flex items-center gap-2 mt-0.5 text-sm text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-2 mt-0.5 text-sm text-muted-foreground">
               <Phone className="h-3.5 w-3.5" />
-              <span>{emp.phone || "No phone"}</span>
+              <span className="min-w-0 truncate">{emp.phone || "No phone"}</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-sm text-muted-foreground">
               <User className="h-3.5 w-3.5" />
@@ -653,7 +683,7 @@ export default function EmployeeProfilePage() {
         </div>
 
         {/* Prev/Next navigation */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 md:self-start">
           <button
             onClick={() => prevId && navigate(`/hrms/employee/${prevId}`)}
             disabled={!prevId}
@@ -692,12 +722,12 @@ export default function EmployeeProfilePage() {
 
 
       {/* ─── Tabs (Horilla pill style) ─── */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+      <div className="hrms-chip-row flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => { setActiveTab(t); setEditing(false); }}
-            className={`px-4 py-1.5 text-sm font-medium rounded-full border transition-colors ${
+            className={`shrink-0 px-4 py-1.5 text-sm font-medium rounded-full border transition-colors ${
               activeTab === t
                 ? "bg-[#00bcd4] text-primary-foreground border-[#00bcd4]"
                 : "bg-card text-foreground border-border hover:border-[#00bcd4]/50"
@@ -709,13 +739,13 @@ export default function EmployeeProfilePage() {
       </div>
 
       {/* ─── Tab Content ─── */}
-      <div className="bg-card border border-border rounded-xl p-4 md:p-6">
+      <div className="bg-card border border-border rounded-xl p-3 md:p-6 overflow-hidden">
         {/* ── ABOUT TAB ── */}
         {activeTab === "About" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
             {/* Left: Personal Information */}
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                 <h3 className="text-base font-semibold text-foreground">Personal Information</h3>
                 {editing ? (
                   <div className="flex gap-2">
@@ -728,7 +758,7 @@ export default function EmployeeProfilePage() {
                   <button onClick={startEdit} className="text-xs text-[#00bcd4] hover:underline font-medium">Edit</button>
                 )}
               </div>
-              <div className="border border-border rounded-lg p-4 space-y-0">
+              <div className="border border-border rounded-lg p-3 md:p-4 space-y-0">
                 <InfoRow label="Date of birth" value={emp.dob} editKey="dob" inputType="date" />
                 <InfoRow label="Gender" value={emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
                 <InfoRow label="Address" value={emp.address} editKey="address" />
@@ -763,7 +793,7 @@ export default function EmployeeProfilePage() {
 
             {/* Right: Work Information table */}
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span className="bg-[#00bcd4] text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">1</span>
                   <h3 className="text-base font-semibold text-[#00bcd4]">Work Information</h3>
@@ -782,7 +812,7 @@ export default function EmployeeProfilePage() {
 
               {editingWorkInfo ? (
                 <div className="border border-border rounded-lg p-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Department</label>
                       <select value={workInfoForm.department_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, department_id: e.target.value })} className={inputCls}>
@@ -837,7 +867,20 @@ export default function EmployeeProfilePage() {
                   </div>
                 </div>
               ) : (
-                <div className="border border-border rounded-lg overflow-x-auto">
+                <>
+                <div className="md:hidden">
+                  <MobileInfoGrid items={[
+                    { label: "Badge ID", value: emp.badge_id },
+                    { label: "Job Position", value: position?.title || "None" },
+                    { label: "Department", value: dept?.name || "None" },
+                    { label: "Shift", value: shift?.name || "None" },
+                    { label: "Work Type", value: workInfo?.work_type || "None" },
+                    { label: "Employee Type", value: workInfo?.employee_type || "None" },
+                    { label: "Job Role", value: workInfo?.job_role || "None" },
+                    { label: "Reporting Manager", value: reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None" },
+                  ]} />
+                </div>
+                <div className="hidden md:block border border-border rounded-lg overflow-x-auto hrms-scroll-table">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
@@ -867,6 +910,7 @@ export default function EmployeeProfilePage() {
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </div>
           </div>
@@ -875,7 +919,7 @@ export default function EmployeeProfilePage() {
         {/* ── WORK TYPE & SHIFT TAB ── */}
         {activeTab === "Work Type & Shift" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <h3 className="text-base font-semibold text-foreground">
                 Current Shift : <span className="text-foreground">{shift?.name || "None"}</span>
               </h3>
@@ -893,7 +937,7 @@ export default function EmployeeProfilePage() {
 
             {editingWorkInfo ? (
               <div className="border border-border rounded-lg p-4 space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Shift</label>
                     <select value={workInfoForm.shift_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, shift_id: e.target.value })} className={inputCls}>
@@ -1012,17 +1056,17 @@ export default function EmployeeProfilePage() {
         {/* ── NOTE TAB ── */}
         {activeTab === "Note" && (
           <div className="space-y-4">
-            <div className="flex items-start gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
               <textarea
                 value={noteText}
                 onChange={e => setNoteText(e.target.value)}
                 placeholder="Add a note..."
-                className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground resize-none min-h-[80px] focus:border-[#00bcd4] outline-none"
+                className="w-full flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground resize-none min-h-[80px] focus:border-[#00bcd4] outline-none"
               />
               <button
                 onClick={() => noteText.trim() && addNoteMutation.mutate()}
                 disabled={!noteText.trim() || addNoteMutation.isPending}
-                className="px-4 py-2 text-sm font-medium bg-[#00bcd4] text-primary-foreground rounded-lg hover:bg-[#00a5bb] disabled:opacity-40"
+                className="w-full sm:w-auto px-4 py-2 text-sm font-medium bg-[#00bcd4] text-primary-foreground rounded-lg hover:bg-[#00a5bb] disabled:opacity-40"
               >
                 <Plus className="h-4 w-4 inline mr-1" />
                 Add
@@ -1098,7 +1142,26 @@ export default function EmployeeProfilePage() {
             {(assetAssignments || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No assets assigned</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-x-auto">
+              <>
+              <div className="md:hidden space-y-2">
+                {(assetAssignments || []).map((aa: any) => (
+                  <div key={aa.id} className="hrms-mobile-card space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate">{aa.hr_assets?.name || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground">{aa.hr_assets?.asset_type || "None"}</p>
+                      </div>
+                      <InlineStatusBadge value={aa.status} />
+                    </div>
+                    <div className="hrms-mobile-kv">
+                      <span>Serial Number</span><span>{aa.hr_assets?.serial_number || "None"}</span>
+                      <span>Assigned Date</span><span>{aa.assigned_date || "—"}</span>
+                      <span>Notes</span><span>{aa.notes || "None"}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block border border-border rounded-lg overflow-x-auto hrms-scroll-table">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1131,6 +1194,7 @@ export default function EmployeeProfilePage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}
@@ -1142,7 +1206,27 @@ export default function EmployeeProfilePage() {
             {(attendance || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No attendance records found</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-x-auto">
+              <>
+              <div className="md:hidden space-y-2">
+                {(attendance || []).map((att: any) => (
+                  <div key={att.id} className="hrms-mobile-card space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-foreground">{att.attendance_date}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{att.work_type || "None"}</p>
+                      </div>
+                      <InlineStatusBadge value={att.attendance_status} />
+                    </div>
+                    <div className="hrms-mobile-kv">
+                      <span>Check In</span><span>{att.check_in || "—"}</span>
+                      <span>Check Out</span><span>{att.check_out || "—"}</span>
+                      <span>Late</span><span>{att.late_minutes ?? "—"}</span>
+                      <span>OT</span><span>{att.overtime_hours ?? "—"}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block border border-border rounded-lg overflow-x-auto hrms-scroll-table">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1178,6 +1262,7 @@ export default function EmployeeProfilePage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}
@@ -1196,7 +1281,27 @@ export default function EmployeeProfilePage() {
             {(payslips || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No payslips found</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-x-auto">
+              <>
+              <div className="md:hidden space-y-2">
+                {(payslips || []).map((ps: any) => (
+                  <div key={ps.id} className="hrms-mobile-card space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-foreground">{ps.payment_date || "Pending"}</p>
+                        <p className="text-xs text-muted-foreground">{ps.working_days ?? "—"} working days</p>
+                      </div>
+                      <InlineStatusBadge value={ps.status || "Draft"} />
+                    </div>
+                    <div className="hrms-mobile-kv">
+                      <span>Gross</span><span>₹{Number(ps.gross_salary).toLocaleString('en-IN')}</span>
+                      <span>Earnings</span><span className="text-success">₹{Number(ps.total_earnings).toLocaleString('en-IN')}</span>
+                      <span>Deductions</span><span className="text-destructive">₹{Number(ps.total_deductions).toLocaleString('en-IN')}</span>
+                      <span>Net Salary</span><span>₹{Number(ps.net_salary).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block border border-border rounded-lg overflow-x-auto hrms-scroll-table">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1231,6 +1336,7 @@ export default function EmployeeProfilePage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
             {emp && <EmployeeSalaryStructure employeeId={emp.id} />}
 

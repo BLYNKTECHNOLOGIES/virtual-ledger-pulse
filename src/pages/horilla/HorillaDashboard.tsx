@@ -18,7 +18,16 @@ import { AnnouncementsBanner } from "@/components/hrms/AnnouncementsBanner";
 import { UpcomingHolidaysCard } from "@/components/hrms/UpcomingHolidaysCard";
 
 
-const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
+const COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--primary))",
+  "hsl(var(--success))",
+  "hsl(var(--info))",
+];
 
 export default function HorillaDashboard() {
   const navigate = useNavigate();
@@ -169,7 +178,7 @@ export default function HorillaDashboard() {
     { label: "Candidates", value: totalCandidates, sub: `${hiredCandidates} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Pending Leaves", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
-    { label: "Onboarding", value: onboardingCount, sub: "candidates in pipeline", icon: Rocket, iconBg: "bg-[#E8604C]/10", iconColor: "text-[#E8604C]" },
+    { label: "Onboarding", value: onboardingCount, sub: "candidates in pipeline", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
     { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
   ];
 
@@ -327,7 +336,7 @@ export default function HorillaDashboard() {
                 <XAxis dataKey="name" fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
                 <YAxis fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#E8604C" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -338,19 +347,21 @@ export default function HorillaDashboard() {
           {attendancePie.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No attendance data</p>
           ) : (
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width="50%" height={180}>
-                <PieChart>
-                  <Pie data={attendancePie} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
-                    {attendancePie.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="h-[180px] w-full sm:w-1/2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={attendancePie} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
+                      {attendancePie.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-1 gap-2 min-w-0">
                 {attendancePie.map(d => (
-                  <div key={d.name} className="flex items-center gap-2 text-sm">
+                  <div key={d.name} className="flex items-center gap-2 text-sm min-w-0">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                    <span className="text-muted-foreground">{d.name}</span>
+                    <span className="text-muted-foreground truncate">{d.name}</span>
                     <span className="font-semibold tabular-nums text-foreground">{d.value}</span>
                   </div>
                 ))}
@@ -364,19 +375,21 @@ export default function HorillaDashboard() {
           {typeData.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
           ) : (
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width="50%" height={180}>
-                <PieChart>
-                  <Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
-                    {typeData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="h-[180px] w-full sm:w-1/2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
+                      {typeData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-1 gap-2 min-w-0">
                 {typeData.map((d, i) => (
-                  <div key={d.name} className="flex items-center gap-2 text-sm">
+                  <div key={d.name} className="flex items-center gap-2 text-sm min-w-0">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-muted-foreground">{d.name}</span>
+                    <span className="text-muted-foreground truncate">{d.name}</span>
                     <span className="font-semibold tabular-nums text-foreground">{d.value}</span>
                   </div>
                 ))}
@@ -390,7 +403,7 @@ export default function HorillaDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-card rounded-xl border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Leave Summary</h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { label: "Pending", value: pendingLeaves.length, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
               { label: "Approved", value: approvedLeaves, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },

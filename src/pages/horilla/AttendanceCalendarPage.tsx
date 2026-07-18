@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } 
 import { ChevronLeft, ChevronRight, Search, Users, Calendar } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 
 const STATUS_COLORS: Record<string, string> = {
   present: "bg-success",
@@ -126,12 +126,12 @@ export default function AttendanceCalendarPage() {
   }, [attendance]);
 
   return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
+    <div className="hrms-page space-y-4 page-mount">
       <PageHeader
         title="Attendance Calendar"
         description="Monthly attendance view per employee"
         actions={
-          <Button onClick={() => { setShowBulk(true); setSelectedEmps(employees.map((e: any) => e.id)); }} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+          <Button onClick={() => { setShowBulk(true); setSelectedEmps(employees.map((e: any) => e.id)); }} className="h-9 w-full sm:w-auto">
             <Users className="h-4 w-4 mr-2" /> Bulk Mark Attendance
           </Button>
         }
@@ -151,20 +151,20 @@ export default function AttendanceCalendarPage() {
       </div>
 
       {/* Month Nav + Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-card border rounded-lg px-2">
+      <div className="hrms-toolbar items-stretch sm:items-center">
+        <div className="flex items-center justify-between gap-2 bg-card border rounded-lg px-2 w-full sm:w-auto">
           <Button variant="ghost" size="sm" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
           <span className="font-semibold text-sm min-w-[140px] text-center">{format(currentMonth, "MMMM yyyy")}</span>
           <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
         </div>
         <Select value={selectedEmp} onValueChange={setSelectedEmp}>
-          <SelectTrigger className="w-48 h-9"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Employees</SelectItem>
             {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="relative flex-1 min-w-[180px]">
+        <div className="relative flex-1 min-w-0 sm:min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
@@ -195,19 +195,19 @@ export default function AttendanceCalendarPage() {
             const empTotal = Object.values(empAttendance).length;
 
             return (
-              <Card key={emp.id}>
+            <Card key={emp.id} className="min-w-0">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-[#E8604C]/10 flex items-center justify-center text-[#E8604C] font-bold text-xs">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
                         {emp.first_name?.[0]}{emp.last_name?.[0]}
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{emp.first_name} {emp.last_name}</p>
-                        <p className="text-[10px] text-muted-foreground">{emp.badge_id}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{emp.first_name} {emp.last_name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{emp.badge_id}</p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-foreground tabular-nums">{empPresent}/{empTotal}</p>
                       <p className="text-[10px] text-muted-foreground">Present days</p>
                     </div>
@@ -229,7 +229,7 @@ export default function AttendanceCalendarPage() {
                       return (
                         <div
                           key={dateStr}
-                          className={`text-center py-1 rounded text-[11px] relative ${today ? "ring-1 ring-[#E8604C] font-bold" : ""} ${
+                          className={`text-center py-1 rounded text-[11px] relative ${today ? "ring-1 ring-primary font-bold" : ""} ${
                             status ? "font-medium" : "text-muted-foreground"
                           }`}
                           title={status ? `${format(day, "MMM d")} — ${status}` : format(day, "MMM d")}
@@ -248,15 +248,25 @@ export default function AttendanceCalendarPage() {
       </div>
 
       {/* Bulk Attendance Dialog */}
-      <Dialog open={showBulk} onOpenChange={setShowBulk}>
-        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Users className="h-4 w-4 text-[#E8604C]" /> Bulk Mark Attendance
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1">
-            <div className="grid grid-cols-2 gap-3">
+      <ResponsiveDialog
+        open={showBulk}
+        onOpenChange={setShowBulk}
+        title={<span className="flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-primary" /> Bulk Mark Attendance</span>}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowBulk(false)} className="h-9">Cancel</Button>
+            <Button
+              onClick={() => bulkMutation.mutate()}
+              disabled={selectedEmps.length === 0 || !bulkDate || bulkMutation.isPending}
+              className="h-9"
+            >
+              {bulkMutation.isPending ? "Marking..." : `Mark ${selectedEmps.length} Employees`}
+            </Button>
+          </>
+        }
+      >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Date</Label><Input type="date" value={bulkDate} onChange={e => setBulkDate(e.target.value)} className="h-9 mt-1" /></div>
               <div>
                 <Label>Status</Label>
@@ -271,7 +281,7 @@ export default function AttendanceCalendarPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Check In</Label><Input type="time" value={bulkCheckIn} onChange={e => setBulkCheckIn(e.target.value)} className="h-9 mt-1" /></div>
               <div><Label>Check Out</Label><Input type="time" value={bulkCheckOut} onChange={e => setBulkCheckOut(e.target.value)} className="h-9 mt-1" /></div>
             </div>
@@ -280,39 +290,28 @@ export default function AttendanceCalendarPage() {
                 <Label>Select Employees ({selectedEmps.length}/{employees.length})</Label>
                 <button
                   onClick={() => setSelectedEmps(selectedEmps.length === employees.length ? [] : employees.map((e: any) => e.id))}
-                  className="text-xs text-[#E8604C] font-medium"
+                    className="text-xs text-primary font-medium"
                 >
                   {selectedEmps.length === employees.length ? "Deselect All" : "Select All"}
                 </button>
               </div>
               <div className="border rounded-lg max-h-[200px] overflow-y-auto divide-y">
                 {employees.map((e: any) => (
-                  <label key={e.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 cursor-pointer">
+                  <label key={e.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 cursor-pointer min-w-0">
                     <Checkbox
                       checked={selectedEmps.includes(e.id)}
                       onCheckedChange={(checked) => {
                         setSelectedEmps(checked ? [...selectedEmps, e.id] : selectedEmps.filter(id => id !== e.id));
                       }}
                     />
-                    <span className="text-sm">{e.first_name} {e.last_name}</span>
-                    <span className="text-xs text-muted-foreground ml-auto">{e.badge_id}</span>
+                    <span className="text-sm min-w-0 break-words">{e.first_name} {e.last_name}</span>
+                    <span className="text-xs text-muted-foreground ml-auto shrink-0">{e.badge_id}</span>
                   </label>
                 ))}
               </div>
             </div>
           </div>
-          <DialogFooter className="shrink-0">
-            <Button variant="outline" onClick={() => setShowBulk(false)} className="h-9">Cancel</Button>
-            <Button
-              onClick={() => bulkMutation.mutate()}
-              disabled={selectedEmps.length === 0 || !bulkDate || bulkMutation.isPending}
-              className="bg-[#E8604C] hover:bg-[#d4553f] h-9"
-            >
-              {bulkMutation.isPending ? "Marking..." : `Mark ${selectedEmps.length} Employees`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   );
 }

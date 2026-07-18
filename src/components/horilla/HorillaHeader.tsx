@@ -147,7 +147,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   });
 
   return (
-    <header className="h-12 md:h-14 bg-card/90 backdrop-blur-sm border-b border-border flex items-center justify-between px-2 md:px-4 shrink-0 gap-2 supports-[padding:max(0px)]:pt-[max(0px,env(safe-area-inset-top))]">
+    <header className="h-12 md:h-14 bg-card/90 backdrop-blur-sm border-b border-border flex items-center justify-between px-2 md:px-4 shrink-0 gap-1.5 md:gap-2 supports-[padding:max(0px)]:pt-[max(0px,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
         <button
           onClick={onToggleSidebar}
@@ -157,15 +157,15 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
           <Menu className="h-5 w-5" />
         </button>
 
-        <div ref={searchRef} className="relative w-full sm:w-72 max-w-[220px] sm:max-w-none">
-          <div className="flex items-center bg-muted/60 rounded-lg border border-border px-3 py-1.5 min-w-0 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
+        <div ref={searchRef} className="relative w-full min-w-0 sm:w-72 sm:max-w-none">
+          <div className="flex min-w-0 items-center rounded-lg border border-border bg-muted/60 px-2 py-1.5 transition-all focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/30 sm:px-3">
             <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
             <input
               type="text"
               value={searchQ}
               onChange={(e) => { setSearchQ(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
-              placeholder="Search employees, email, ID…"
+              placeholder={isMobile ? "Search HRMS…" : "Search employees, email, ID…"}
               className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full min-w-0"
             />
             {searchQ && (
@@ -179,7 +179,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
             )}
           </div>
           {searchOpen && debouncedQ.trim().length >= 2 && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-auto">
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-auto rounded-lg border border-border bg-popover shadow-lg sm:min-w-80">
               {searching && searchResults.length === 0 ? (
                 <div className="p-3 text-xs text-muted-foreground">Searching…</div>
               ) : searchResults.length === 0 ? (
@@ -203,7 +203,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
       </div>
 
 
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
         {!isMobile && (
           <button
             onClick={toggleDarkMode}
@@ -226,7 +226,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-0" align="end">
+          <PopoverContent className="w-[calc(100vw-1rem)] max-w-80 p-0" align="end">
             <div className="flex items-center justify-between px-3 py-2 border-b">
               <span className="text-sm font-semibold">Notifications</span>
               {unreadCount > 0 && (

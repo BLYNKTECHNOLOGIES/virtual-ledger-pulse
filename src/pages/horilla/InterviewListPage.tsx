@@ -1,13 +1,15 @@
 import { useState } from "react";
+import type { ElementType } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, User, Star, Search, Filter, Video, MapPin, CheckCircle, XCircle, AlertCircle, MessageSquare, X, Plus } from "lucide-react";
+import { Calendar, Clock, Star, Search, Video, MapPin, CheckCircle, XCircle, MessageSquare, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-info/10 text-info",
@@ -16,7 +18,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "bg-warning/10 text-warning",
 };
 
-const TYPE_ICONS: Record<string, React.ElementType> = {
+const TYPE_ICONS: Record<string, ElementType> = {
   in_person: MapPin,
   video: Video,
   phone: MessageSquare,
@@ -144,21 +146,21 @@ export default function InterviewListPage() {
     cancelled: interviews.filter((i: any) => i.status === "cancelled").length,
   };
 
-  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 bg-background text-foreground";
 
   const filteredCandidates = scheduleForm.recruitment_id
     ? candidates.filter(c => c.recruitment_id === scheduleForm.recruitment_id)
     : candidates;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="hrms-page space-y-4">
       <PageHeader
         title="Interviews"
         description="Manage all scheduled interviews across recruitments"
         actions={
           <button
             onClick={() => setScheduleOpen(true)}
-            className="flex items-center gap-2 bg-[#E8604C] text-primary-foreground px-4 h-9 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+            className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 h-9 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" /> Schedule Interview
           </button>
@@ -166,40 +168,40 @@ export default function InterviewListPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {[
           { label: "Total Interviews", value: stats.total, icon: Calendar, color: "bg-primary/10 text-primary" },
           { label: "Scheduled", value: stats.scheduled, icon: Clock, color: "bg-info/10 text-info" },
           { label: "Completed", value: stats.completed, icon: CheckCircle, color: "bg-success/10 text-success" },
           { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "bg-destructive/10 text-destructive" },
         ].map(s => (
-          <div key={s.label} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
+          <div key={s.label} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3 min-w-0">
             <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center shrink-0`}>
               <s.icon className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-2xl font-bold text-foreground">{s.value}</p>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="text-xs text-muted-foreground truncate">{s.label}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="hrms-toolbar">
+        <div className="relative flex-1 w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search interviews..."
-            className="w-full pl-9 pr-3 h-9 border border-border rounded-lg text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20"
+            className="w-full pl-9 pr-3 h-9 border border-border rounded-lg text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 bg-background text-foreground"
           />
         </div>
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="border border-border rounded-lg px-3 h-9 text-sm outline-none focus:border-[#E8604C]"
+          className="border border-border rounded-lg px-3 h-9 text-sm outline-none focus:border-primary bg-background text-foreground w-full sm:w-auto"
         >
           <option value="all">All Status</option>
           <option value="scheduled">Scheduled</option>
@@ -210,45 +212,45 @@ export default function InterviewListPage() {
       </div>
 
       {/* Interview List */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <div>
         {isLoading ? (
           <TableSkeleton rows={5} columns={8} />
         ) : filtered.length === 0 ? (
-          <div className="p-8">
+          <div className="bg-card rounded-xl border border-border p-8">
             <EmptyState
               icon={Calendar}
               title="No interviews found"
               description="Schedule your first interview to get started"
               action={
-                <button onClick={() => setScheduleOpen(true)} className="flex items-center gap-1.5 px-3 h-9 text-sm font-medium bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]">
+                <button onClick={() => setScheduleOpen(true)} className="flex items-center gap-1.5 px-3 h-9 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">
                   <Plus className="h-4 w-4" /> Schedule Interview
                 </button>
               }
             />
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Candidate</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Recruitment</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Interviewer</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Date & Time</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Type</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Rating</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((iv: any) => {
+          <ResponsiveList
+            items={filtered}
+            keyFor={(iv: any) => iv.id}
+            tableMinWidth="min-w-[980px]"
+            columns={[
+              { key: "candidate", label: "Candidate" },
+              { key: "recruitment", label: "Recruitment" },
+              { key: "interviewer", label: "Interviewer" },
+              { key: "date", label: "Date & Time" },
+              { key: "type", label: "Type" },
+              { key: "rating", label: "Rating" },
+              { key: "status", label: "Status" },
+              { key: "actions", label: "Actions" },
+            ]}
+            renderRow={(iv: any) => {
                 const TypeIcon = TYPE_ICONS[iv.interview_type] || Calendar;
                 return (
-                  <tr key={iv.id} className="border-b border-muted/20 hover:bg-muted/50 transition-colors">
+                  <>
                     <td className="py-3 px-4">
                       <button
                         onClick={() => navigate(`/hrms/recruitment/candidates/${iv.candidate_id}`)}
-                        className="font-medium text-foreground hover:text-[#E8604C] transition-colors"
+                        className="font-medium text-foreground hover:text-primary transition-colors"
                       >
                         {iv.hr_candidates?.name || "Unknown"}
                       </button>
@@ -307,23 +309,68 @@ export default function InterviewListPage() {
                         )}
                       </div>
                     </td>
-                  </tr>
+                  </>
                 );
-              })}
-            </tbody>
-          </table>
+            }}
+            renderCard={(iv: any) => {
+              const TypeIcon = TYPE_ICONS[iv.interview_type] || Calendar;
+              return (
+                <div className="hrms-mobile-card space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <button
+                        onClick={() => navigate(`/hrms/recruitment/candidates/${iv.candidate_id}`)}
+                        className="text-sm font-semibold text-foreground hover:text-primary text-left break-words"
+                      >
+                        {iv.hr_candidates?.name || "Unknown"}
+                      </button>
+                      <p className="text-xs text-muted-foreground break-words">{iv.hr_recruitments?.title || "No recruitment"}</p>
+                    </div>
+                    <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground"}`}>
+                      {iv.status || "pending"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 text-xs">
+                    <div className="hrms-mobile-kv"><span>Interviewer</span><strong>{iv.interviewer_name || "—"}</strong></div>
+                    <div className="hrms-mobile-kv"><span>Date</span><strong>{iv.interview_date || "—"}{iv.interview_time ? ` · ${iv.interview_time}` : ""}</strong></div>
+                    <div className="hrms-mobile-kv"><span>Type</span><strong className="inline-flex items-center gap-1"><TypeIcon className="h-3.5 w-3.5" /> {iv.interview_type?.replace("_", " ") || "—"}</strong></div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    {iv.rating ? (
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`h-3.5 w-3.5 ${i < iv.rating ? "text-warning fill-warning" : "text-muted-foreground"}`} />
+                        ))}
+                      </div>
+                    ) : <span className="text-xs text-muted-foreground">No rating</span>}
+                    {iv.status === "scheduled" && (
+                      <div className="flex gap-2">
+                        <button onClick={() => setFeedbackForm({ id: iv.id, rating: 3, feedback: "" })} className="text-xs px-2.5 py-1 rounded bg-success/10 text-success hover:bg-success/20">Feedback</button>
+                        <button onClick={() => statusMutation.mutate({ id: iv.id, status: "cancelled" })} className="text-xs px-2.5 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20">Cancel</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
+          />
         )}
       </div>
 
-      {/* Feedback Modal */}
-      {feedbackForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">Interview Feedback</h2>
-              <button onClick={() => setFeedbackForm(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="px-5 py-4 space-y-4">
+      <ResponsiveDialog
+        open={!!feedbackForm}
+        onOpenChange={(open) => !open && setFeedbackForm(null)}
+        title="Interview Feedback"
+        contentClassName="max-w-md"
+        footer={
+          <>
+            <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
+            <button onClick={() => feedbackMutation.mutate()} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">Save Feedback</button>
+          </>
+        }
+      >
+        {feedbackForm && (
+            <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">Rating</label>
                 <div className="flex gap-1">
@@ -345,23 +392,28 @@ export default function InterviewListPage() {
                 />
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
-              <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button onClick={() => feedbackMutation.mutate()} className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c]">Save Feedback</button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </ResponsiveDialog>
 
-      {/* Schedule Interview Modal */}
-      {scheduleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-lg shadow-sm max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-              <h2 className="text-lg font-semibold text-foreground">Schedule Interview</h2>
-              <button onClick={() => setScheduleOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
+      <ResponsiveDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        title="Schedule Interview"
+        contentClassName="max-w-lg"
+        footer={
+          <>
+            <button onClick={() => setScheduleOpen(false)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
+            <button
+              onClick={() => scheduleMutation.mutate()}
+              disabled={!scheduleForm.candidate_id || !scheduleForm.interviewer_name || !scheduleForm.interview_date || scheduleMutation.isPending}
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+            >
+              {scheduleMutation.isPending ? "Scheduling..." : "Schedule Interview"}
+            </button>
+          </>
+        }
+      >
+            <div className="space-y-4">
               {/* Recruitment filter */}
               <div>
                 <label className="text-sm font-medium text-foreground mb-1 block">Recruitment</label>
@@ -384,7 +436,7 @@ export default function InterviewListPage() {
                 <input value={scheduleForm.interviewer_name} onChange={e => setScheduleForm({ ...scheduleForm, interviewer_name: e.target.value })} className={inputCls} placeholder="Interviewer name" />
               </div>
               {/* Date, Time, Duration */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block">Date *</label>
                   <input type="date" value={scheduleForm.interview_date} onChange={e => setScheduleForm({ ...scheduleForm, interview_date: e.target.value })} className={inputCls} />
@@ -399,7 +451,7 @@ export default function InterviewListPage() {
                 </div>
               </div>
               {/* Type + Location */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block">Type</label>
                   <select value={scheduleForm.interview_type} onChange={e => setScheduleForm({ ...scheduleForm, interview_type: e.target.value })} className={inputCls}>
@@ -425,19 +477,7 @@ export default function InterviewListPage() {
                 <textarea value={scheduleForm.notes} onChange={e => setScheduleForm({ ...scheduleForm, notes: e.target.value })} className={`${inputCls} resize-none`} rows={2} placeholder="Any special instructions..." />
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-border flex justify-end gap-2 shrink-0">
-              <button onClick={() => setScheduleOpen(false)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button
-                onClick={() => scheduleMutation.mutate()}
-                disabled={!scheduleForm.candidate_id || !scheduleForm.interviewer_name || !scheduleForm.interview_date || scheduleMutation.isPending}
-                className="px-4 py-2 text-sm bg-[#E8604C] text-primary-foreground rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
-              >
-                {scheduleMutation.isPending ? "Scheduling..." : "Schedule Interview"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </ResponsiveDialog>
     </div>
   );
 }

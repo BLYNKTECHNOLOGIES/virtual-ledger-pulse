@@ -2,11 +2,15 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, X, Building2, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient();
@@ -99,21 +103,19 @@ export default function DepartmentsPage() {
     return d.name.toLowerCase().includes(term) || d.code.toLowerCase().includes(term);
   });
 
-  const inputCls = "w-full border border-border rounded-lg px-3 h-9 text-sm outline-none bg-background focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
-
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="hrms-page space-y-4">
       <PageHeader
         title="Departments"
         description={`${filteredDepts.length} department${filteredDepts.length !== 1 ? "s" : ""}`}
         actions={
-          <button
+          <Button
             onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
-            className="flex items-center gap-2 h-9 bg-[#E8604C] text-primary-foreground px-4 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+            className="h-9 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Add Department
-          </button>
+          </Button>
         }
       />
 
@@ -140,30 +142,30 @@ export default function DepartmentsPage() {
           description={searchTerm ? "Try a different search term." : "Create your first department to get started."}
           action={
             !searchTerm ? (
-              <button
+              <Button
                 onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
-                className="flex items-center gap-2 h-9 bg-[#E8604C] text-primary-foreground px-4 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors"
+                className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Department
-              </button>
+              </Button>
             ) : undefined
           }
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredDepts.map((d) => (
-            <div key={d.id} className="bg-card rounded-xl border border-border p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#E8604C]/10 flex items-center justify-center text-lg">
+            <div key={d.id} className="bg-card rounded-xl border border-border p-4 sm:p-5 hover:shadow-md transition-shadow min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-lg shrink-0">
                     {d.icon || "📁"}
                   </div>
-                  <div>
-                    <p className="font-semibold text-foreground">{d.name}</p>
-                    <p className="text-xs text-muted-foreground">{d.code}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground break-words">{d.name}</p>
+                    <p className="text-xs text-muted-foreground break-words">{d.code}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => toggleActiveMutation.mutate({ id: d.id, isActive: d.is_active })}
                     className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
@@ -182,7 +184,7 @@ export default function DepartmentsPage() {
                   </button>
                 </div>
               </div>
-              {d.description && <p className="text-sm text-muted-foreground mt-3">{d.description}</p>}
+              {d.description && <p className="text-sm text-muted-foreground mt-3 break-words">{d.description}</p>}
               <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                 <Building2 className="h-3.5 w-3.5" />
                 {empCounts?.[d.id] || 0} employees
@@ -192,42 +194,38 @@ export default function DepartmentsPage() {
         </div>
       )}
 
-      {/* Dialog */}
-      {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-[#E8604C]" />
-                {editId ? "Edit" : "Add"} Department
-              </h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Name *</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Code *</label>
-                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className={inputCls} placeholder="e.g. ENG" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none bg-background focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20 resize-none" rows={2} />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-              <button onClick={closeDialog} className="h-9 px-4 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
-              <button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending}
-                className="h-9 px-4 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
-                {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
-              </button>
-            </div>
+      <ResponsiveDialog
+        open={addOpen}
+        onOpenChange={(open) => (open ? setAddOpen(true) : closeDialog())}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" />{editId ? "Edit" : "Add"} Department</span>}
+        footer={
+          <>
+            <Button variant="outline" className="h-9" onClick={closeDialog}>Cancel</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending} className="h-9">
+              {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <Label>Name *</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-9 mt-1" />
+          </div>
+          <div>
+            <Label>Code *</Label>
+            <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="h-9 mt-1" placeholder="e.g. ENG" />
+          </div>
+          <div>
+            <Label>Description</Label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="mt-1 min-h-[76px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
           </div>
         </div>
-      )}
+      </ResponsiveDialog>
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

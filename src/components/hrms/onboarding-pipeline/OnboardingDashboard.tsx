@@ -204,13 +204,27 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
 
       {/* Records Table */}
       <Card>
-        <CardHeader className="py-3 px-4">
-          <CardTitle className="text-sm">All Onboarding Records</CardTitle>
+        <CardHeader className="py-3 px-4 flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-sm">
+            {filter === "all" ? "All Onboarding Records" : `${filterLabel[filter]} Onboardings`}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">({filteredRecords.length})</span>
+          </CardTitle>
+          {filter !== "all" && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setFilter("all")}>
+              Clear filter
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
-          ) : !records?.length ? (
+          ) : !filteredRecords.length ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p>{records?.length ? `No ${filterLabel[filter].toLowerCase()} records` : "No onboarding records yet"}</p>
+              {!records?.length && <p className="text-sm">Click "New Onboarding" to start</p>}
+            </div>
+
             <div className="p-8 text-center text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p>No onboarding records yet</p>

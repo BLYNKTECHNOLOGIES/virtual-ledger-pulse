@@ -1278,67 +1278,12 @@ export default function EmployeeProfilePage() {
               salaryStructureTemplateId={emp?.salary_structure_template_id}
             />
 
-            <h3 className="text-base font-semibold text-foreground">Payslips</h3>
-            {(payslips || []).length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No payslips found</p>
-            ) : (
-              <>
-              <div className="md:hidden space-y-2">
-                {(payslips || []).map((ps: any) => (
-                  <div key={ps.id} className="hrms-mobile-card space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-foreground">{ps.payment_date || "Pending"}</p>
-                        <p className="text-xs text-muted-foreground">{ps.working_days ?? "—"} working days</p>
-                      </div>
-                      <InlineStatusBadge value={ps.status || "Draft"} />
-                    </div>
-                    <div className="hrms-mobile-kv">
-                      <span>Gross</span><span>₹{Number(ps.gross_salary).toLocaleString('en-IN')}</span>
-                      <span>Earnings</span><span className="text-success">₹{Number(ps.total_earnings).toLocaleString('en-IN')}</span>
-                      <span>Deductions</span><span className="text-destructive">₹{Number(ps.total_deductions).toLocaleString('en-IN')}</span>
-                      <span>Net Salary</span><span>₹{Number(ps.net_salary).toLocaleString('en-IN')}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="hidden md:block border border-border rounded-lg overflow-x-auto hrms-scroll-table">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Payment Date</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Gross Salary</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Total Earnings</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Total Deductions</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Net Salary</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Working Days</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(payslips || []).map(ps => (
-                      <tr key={ps.id} className="border-b border-border/50">
-                        <td className="py-2.5 px-3 text-foreground">{ps.payment_date || "Pending"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">₹{Number(ps.gross_salary).toLocaleString('en-IN')}</td>
-                        <td className="py-2.5 px-3 text-success">₹{Number(ps.total_earnings).toLocaleString('en-IN')}</td>
-                        <td className="py-2.5 px-3 text-destructive">₹{Number(ps.total_deductions).toLocaleString('en-IN')}</td>
-                        <td className="py-2.5 px-3 text-foreground font-semibold">₹{Number(ps.net_salary).toLocaleString('en-IN')}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{ps.working_days ?? "—"}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            ps.status === "Paid" ? "bg-success/10 text-success" :
-                            ps.status === "Draft" ? "bg-muted text-foreground" : "bg-warning/10 text-warning"
-                          }`}>
-                            {ps.status || "Draft"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              </>
-            )}
+            {/* RazorpayX Payslip History — source of truth for payroll history */}
+            <RazorpayPayslipsSection
+              hrEmployeeId={emp!.id}
+              razorpayEmployeeId={rzpMap?.razorpay_employee_id}
+            />
+
             {emp && <EmployeeSalaryStructure employeeId={emp.id} />}
 
             <div>

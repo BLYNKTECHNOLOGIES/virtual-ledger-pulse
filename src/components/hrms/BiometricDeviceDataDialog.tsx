@@ -649,9 +649,46 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
             </div>
           </Tabs>
         )}
+
+      {/* PIN → Employee link picker. Triggers hr_replay_quarantine_on_mapping on save. */}
+      <AlertDialog open={!!linkPin} onOpenChange={(o) => { if (!o) { setLinkPin(null); setLinkEmployeeId(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Link PIN {linkPin} to an employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const parked = linkPin ? (quarantineQ.data?.get(linkPin) ?? 0) : 0;
+                return parked > 0
+                  ? `Saving will replay ${parked} parked punch${parked === 1 ? "" : "es"} for this PIN into attendance, rebuild the daily rollups, and queue a 30-day ATTLOG re-fetch on the device.`
+                  : "No parked punches for this PIN. Linking will route future punches from this PIN to the chosen employee.";
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Employee</Label>
+            <Select value={linkEmployeeId} onValueChange={setLinkEmployeeId}>
+              <SelectTrigger><SelectValue placeholder="Select an active employee…" /></SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {(employeesQ.data || []).map((e: any) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.first_name} {e.last_name} {e.badge_id ? `(${e.badge_id})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={linking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={!linkEmployeeId || linking} onClick={linkPinToEmployee}>
+              {linking ? "Linking…" : "Link & replay"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
 // --- Manage subcomponents ---
 

@@ -19,6 +19,7 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [form, setForm] = useState({
     last_working_day: "",

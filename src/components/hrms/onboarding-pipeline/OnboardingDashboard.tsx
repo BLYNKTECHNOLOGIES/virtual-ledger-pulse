@@ -239,7 +239,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map(r => (
+                  {filteredRecords.map(r => (
                     <tr key={r.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => onSelectOnboarding(r.id)}>
                       <td className="p-3 font-medium">
                         {r.first_name || r.last_name

@@ -64,12 +64,13 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
 
   const flagsForRow = (r: any) => {
     const p = r?.source_payload || {};
-    const dnp = p["do-not-pay"] ?? p.do_not_pay ?? false;
+    const dnp = r?.do_not_pay ?? p["do-not-pay"] ?? p.do_not_pay ?? false;
     const paidOn = p["paid-on"] ?? p.paid_on ?? null;
     const paymentStatus = p["payment-status"] ?? p.payment_status ?? null;
     const isPaid = paymentStatus === "paid" || !!paidOn;
     return { dnp: Boolean(dnp), paidOn, paymentStatus, isPaid };
   };
+
 
 
   if (!razorpayEmployeeId) {

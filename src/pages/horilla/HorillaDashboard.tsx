@@ -18,7 +18,16 @@ import { AnnouncementsBanner } from "@/components/hrms/AnnouncementsBanner";
 import { UpcomingHolidaysCard } from "@/components/hrms/UpcomingHolidaysCard";
 
 
-const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
+const COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--primary))",
+  "hsl(var(--success))",
+  "hsl(var(--info))",
+];
 
 export default function HorillaDashboard() {
   const navigate = useNavigate();
@@ -327,7 +336,7 @@ export default function HorillaDashboard() {
                 <XAxis dataKey="name" fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
                 <YAxis fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#E8604C" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

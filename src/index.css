@@ -868,6 +868,45 @@ html {
     width: 1.5rem !important;
     height: 1.5rem !important;
   }
+
+  /* ═══════════════════════════════════════════════════════
+     HRMS-specific mobile fixes — force horizontal scroll on
+     every table container, compress toolbars, chip strips.
+     ═══════════════════════════════════════════════════════ */
+
+  .horilla-root table {
+    min-width: max-content;
+  }
+  /* Any card/border wrapper that directly contains a <table>
+     must scroll horizontally on mobile, even if the author
+     used overflow-hidden for rounded corners. */
+  .horilla-root .rounded-xl:has(> table),
+  .horilla-root .rounded-lg:has(> table),
+  .horilla-root [class*="overflow-hidden"]:has(> table),
+  .horilla-root [class*="border"]:has(> table) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Horizontal scroll strip for filter chips / quick toggles
+     (opt-in via .hrms-chip-row). */
+  .horilla-root .hrms-chip-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.25rem;
+  }
+  .horilla-root .hrms-chip-row::-webkit-scrollbar { display: none; }
+  .horilla-root .hrms-chip-row > * { flex: 0 0 auto; }
+
+  /* Compact toolbar buttons */
+  .horilla-root .flex.items-center.gap-2 > button,
+  .horilla-root .flex.items-center.gap-2 > .relative > button {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+  }
 }
 
 /* --- Deep-link transaction highlight --- */

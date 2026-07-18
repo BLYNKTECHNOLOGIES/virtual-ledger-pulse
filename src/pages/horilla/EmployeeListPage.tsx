@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,10 +92,15 @@ const FILTER_FIELDS = [
 export default function EmployeeListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // ─── State ───
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  // Grid view is the mobile-friendly card layout. Auto-default to it on
+  // phones; desktop keeps the dense table.
+  const [viewMode, setViewMode] = useState<"list" | "grid">(
+    typeof window !== "undefined" && window.innerWidth < 768 ? "grid" : "list"
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<any>(null);
@@ -510,9 +516,9 @@ export default function EmployeeListPage() {
       <PageHeader
         title="Employees"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {/* Search */}
-          <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-52">
+          <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-full sm:w-52 order-1 sm:order-none">
             <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
             <input
               type="text"
@@ -660,7 +666,7 @@ export default function EmployeeListPage() {
       )}
 
       {/* ─── Active Filter Chips + Toolbar Row ─── */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="hrms-chip-row flex flex-wrap items-center gap-2 mb-3">
         {/* View mode label */}
         <span className="text-xs font-semibold text-white bg-[#00bcd4] px-2.5 py-1 rounded">
           {viewMode === "list" ? "List" : "Card"}
@@ -780,8 +786,8 @@ export default function EmployeeListPage() {
         />
       ) : viewMode === "list" ? (
         /* ─── TABLE VIEW ─── */
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-card rounded-xl border border-border overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="w-10 py-3 px-3">

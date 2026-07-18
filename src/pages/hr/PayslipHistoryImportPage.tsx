@@ -76,7 +76,7 @@ export default function PayslipHistoryImportPage() {
   }
 
   return (
-    <HorillaLayout>
+    
       <div className="max-w-5xl mx-auto space-y-4 p-4">
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
@@ -207,6 +207,6 @@ export default function PayslipHistoryImportPage() {
           </Card>
         )}
       </div>
-    </HorillaLayout>
+    
   );
 }

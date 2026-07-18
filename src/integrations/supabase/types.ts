@@ -8623,9 +8623,13 @@ export type Database = {
           overtime_hours: number | null
           payment_date: string | null
           payment_reference: string | null
-          payroll_run_id: string
+          payroll_run_id: string | null
+          pdf_url: string | null
           penalty_amount: number | null
+          period_month: string | null
           present_days: number | null
+          razorpay_payslip_id: string | null
+          source: string
           status: string | null
           sunday_days_worked: number | null
           tds_amount: number | null
@@ -8650,9 +8654,13 @@ export type Database = {
           overtime_hours?: number | null
           payment_date?: string | null
           payment_reference?: string | null
-          payroll_run_id: string
+          payroll_run_id?: string | null
+          pdf_url?: string | null
           penalty_amount?: number | null
+          period_month?: string | null
           present_days?: number | null
+          razorpay_payslip_id?: string | null
+          source?: string
           status?: string | null
           sunday_days_worked?: number | null
           tds_amount?: number | null
@@ -8677,9 +8685,13 @@ export type Database = {
           overtime_hours?: number | null
           payment_date?: string | null
           payment_reference?: string | null
-          payroll_run_id?: string
+          payroll_run_id?: string | null
+          pdf_url?: string | null
           penalty_amount?: number | null
+          period_month?: string | null
           present_days?: number | null
+          razorpay_payslip_id?: string | null
+          source?: string
           status?: string | null
           sunday_days_worked?: number | null
           tds_amount?: number | null

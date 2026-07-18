@@ -112,7 +112,7 @@ serve(async (req) => {
 
     if (targets.length === 0) {
       await supa.from("hr_essl_pushback_log").insert({
-        hr_employee_id,
+        hr_employee_id: resolvedEmpId,
         device_serial: null,
         pin,
         kind: action === "delete" ? "delete" : "identity",
@@ -150,7 +150,7 @@ serve(async (req) => {
 
       if (qErr) {
         await supa.from("hr_essl_pushback_log").insert({
-          hr_employee_id,
+          hr_employee_id: resolvedEmpId,
           device_serial: serial,
           pin,
           kind: action === "delete" ? "delete" : "identity",
@@ -167,7 +167,7 @@ serve(async (req) => {
       queued.push({ device_serial: serial, command_id: cmdRow.id });
 
       await supa.from("hr_essl_pushback_log").insert({
-        hr_employee_id,
+        hr_employee_id: resolvedEmpId,
         device_serial: serial,
         pin,
         kind: action === "delete" ? "delete" : "identity",

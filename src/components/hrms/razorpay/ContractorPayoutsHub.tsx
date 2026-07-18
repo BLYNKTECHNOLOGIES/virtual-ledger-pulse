@@ -118,6 +118,8 @@ export function ContractorPayoutsHub() {
         .update({
           paid: Boolean(it.paid ?? row.paid),
           status: it.status ?? row.status,
+          from_email: it.from ?? it["from-email"] ?? row.from_email ?? null,
+          queued_on: it.created_at ?? it["created-at"] ?? row.queued_on ?? null,
           raw_payload: it,
           last_synced_at: new Date().toISOString(),
         })

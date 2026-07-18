@@ -56,8 +56,8 @@ export function ResponsiveDialog({
               <DrawerDescription>{description}</DrawerDescription>
             ) : null}
           </DrawerHeader>
-          <div className="px-4 pb-4 overflow-y-auto">{children}</div>
-          {footer ? <DrawerFooter>{footer}</DrawerFooter> : null}
+          <div className="overflow-y-auto px-4 pb-4">{children}</div>
+          {footer ? <DrawerFooter className="gap-2 [&>button]:w-full">{footer}</DrawerFooter> : null}
         </DrawerContent>
       </Drawer>
     );
@@ -72,7 +72,7 @@ export function ResponsiveDialog({
             <DialogDescription>{description}</DialogDescription>
           ) : null}
         </DialogHeader>
-        <div>{children}</div>
+        <div className="max-h-[72vh] overflow-y-auto pr-1">{children}</div>
         {footer ? <DialogFooter>{footer}</DialogFooter> : null}
       </DialogContent>
     </Dialog>

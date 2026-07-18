@@ -32,6 +32,8 @@ export interface ResponsiveListProps<T> {
   tableMinWidth?: string;
   /** Optional className applied to the outer wrapper. */
   className?: string;
+  /** Optional className applied to the mobile card stack. */
+  mobileClassName?: string;
 }
 
 export function ResponsiveList<T>({
@@ -44,6 +46,7 @@ export function ResponsiveList<T>({
   emptyState,
   tableMinWidth = "min-w-[720px]",
   className,
+  mobileClassName,
 }: ResponsiveListProps<T>) {
   const isMobile = useIsMobile();
 
@@ -77,7 +80,7 @@ export function ResponsiveList<T>({
   if (isMobile) {
     return (
       <div className={className}>
-        <div className="flex flex-col gap-2">
+        <div className={mobileClassName ?? "flex flex-col gap-2"}>
           {items.map((item, i) => (
             <React.Fragment key={keyFor(item, i)}>
               {renderCard(item, i)}
@@ -90,7 +93,7 @@ export function ResponsiveList<T>({
 
   return (
     <div className={className}>
-      <div className="bg-card rounded-xl border border-border overflow-x-auto">
+      <div className="hrms-scroll-table bg-card rounded-xl border border-border overflow-x-auto">
         <table className={`w-full text-sm ${tableMinWidth}`}>
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>

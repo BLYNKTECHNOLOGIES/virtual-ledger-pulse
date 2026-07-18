@@ -5,13 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Search, Eye, CheckCircle, Wallet, Download, FileText } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -271,19 +272,19 @@ export default function PayslipsPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
+    <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Payslips"
         description="View individual employee payslips with earnings/deductions breakdown"
       />
 
-      <div className="flex gap-3 flex-wrap">
+      <div className="hrms-toolbar">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={runFilter} onValueChange={setRunFilter}>
-          <SelectTrigger className="w-56 h-9"><SelectValue placeholder="All Payroll Runs" /></SelectTrigger>
+          <SelectTrigger className="h-9 sm:w-56"><SelectValue placeholder="All Payroll Runs" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Payroll Runs</SelectItem>
             {runs.map((r: any) => <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>)}
@@ -291,68 +292,59 @@ export default function PayslipsPage() {
         </Select>
       </div>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Employee", "Badge ID", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status", "Actions"].map((h) => (
-                  <th key={h} className={`px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap ${["Gross","Deductions","Net Salary","Days"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={9}><EmptyState icon={FileText} title="No payslips found" description="Generate payslips from a payroll run first." /></td></tr>
-              ) : (
-                filtered.map((p: any) => (
-                  <tr key={p.id} className="border-b hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
-                    <td className="px-4 py-3 text-xs">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span>
-                          {p.hr_payroll_runs?.title
-                            || (p.source === 'razorpay_import'
-                              ? `RazorpayX Import — ${p.period_month ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
-                              : '—')}
-                        </span>
-                        {p.source === 'razorpay_import' && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase">Imported</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-success font-medium text-right tabular-nums">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-destructive text-right tabular-nums">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 font-semibold text-right tabular-nums">₹{p.net_salary?.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{p.present_days || 0}/{p.working_days || 0}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center bg-x/10 border rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(p.status || "draft")}`}>{p.status || "draft"}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Button size="sm" variant="ghost" className="h-7" onClick={() => { setDetail(p); setPayRef(""); }}>
-                        <Eye className="h-3.5 w-3.5 mr-1" /> View
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <TableSkeleton rows={5} columns={9} />
+      ) : (
+        <ResponsiveList
+          items={filtered}
+          columns={["Employee", "Badge ID", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status", "Actions"].map((h) => ({ key: h, label: h, className: ["Gross","Deductions","Net Salary","Days"].includes(h) ? "text-right" : "" }))}
+          keyFor={(p: any) => p.id}
+          tableMinWidth="min-w-[900px]"
+          emptyState={<Card><CardContent className="p-0"><EmptyState icon={FileText} title="No payslips found" description="Generate payslips from a payroll run first." /></CardContent></Card>}
+          renderRow={(p: any) => (
+            <>
+              <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
+              <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
+              <td className="px-4 py-3 text-xs"><PayslipRunLabel payslip={p} /></td>
+              <td className="px-4 py-3 text-success font-medium text-right tabular-nums">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
+              <td className="px-4 py-3 text-destructive text-right tabular-nums">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
+              <td className="px-4 py-3 font-semibold text-right tabular-nums">₹{p.net_salary?.toLocaleString('en-IN')}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{p.present_days || 0}/{p.working_days || 0}</td>
+              <td className="px-4 py-3"><PayslipStatusBadge status={p.status || "draft"} statusColor={statusColor} /></td>
+              <td className="px-4 py-3"><Button size="sm" variant="ghost" className="h-7" onClick={() => { setDetail(p); setPayRef(""); }}><Eye className="h-3.5 w-3.5 mr-1" /> View</Button></td>
+            </>
+          )}
+          renderCard={(p: any) => (
+            <div className="hrms-mobile-card space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground truncate">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</p>
+                  <p className="text-xs text-muted-foreground">{p.hr_employees?.badge_id}</p>
+                </div>
+                <PayslipStatusBadge status={p.status || "draft"} statusColor={statusColor} />
+              </div>
+              <PayslipRunLabel payslip={p} />
+              <div className="hrms-mobile-kv">
+                <span>Gross</span><span className="text-success">₹{p.gross_salary?.toLocaleString('en-IN')}</span>
+                <span>Deductions</span><span className="text-destructive">₹{p.total_deductions?.toLocaleString('en-IN')}</span>
+                <span>Net Salary</span><span>₹{p.net_salary?.toLocaleString('en-IN')}</span>
+                <span>Days</span><span>{p.present_days || 0}/{p.working_days || 0}</span>
+              </div>
+              <Button size="sm" variant="outline" className="w-full h-9" onClick={() => { setDetail(p); setPayRef(""); }}>
+                <Eye className="h-3.5 w-3.5 mr-1" /> View Payslip
+              </Button>
+            </div>
+          )}
+        />
+      )}
 
       {/* Payslip Detail Dialog */}
-      <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-[#E8604C]" />
-              Payslip — {detail?.hr_employees?.first_name} {detail?.hr_employees?.last_name}
-            </DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={!!detail}
+        onOpenChange={() => setDetail(null)}
+        contentClassName="max-w-lg"
+        title={<span className="flex items-center gap-2"><Wallet className="h-5 w-5 text-[#E8604C]" />Payslip — {detail?.hr_employees?.first_name} {detail?.hr_employees?.last_name}</span>}
+      >
           {detail && (
             <div className="space-y-4">
               <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
@@ -524,8 +516,27 @@ export default function PayslipsPage() {
               </Button>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   );
+}
+
+function PayslipRunLabel({ payslip }: { payslip: any }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+      <span>
+        {payslip.hr_payroll_runs?.title
+          || (payslip.source === 'razorpay_import'
+            ? `RazorpayX Import — ${payslip.period_month ? new Date(payslip.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
+            : '—')}
+      </span>
+      {payslip.source === 'razorpay_import' && (
+        <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase">Imported</span>
+      )}
+    </div>
+  );
+}
+
+function PayslipStatusBadge({ status, statusColor }: { status: string; statusColor: (status: string) => string }) {
+  return <span className={`inline-flex items-center border rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(status)}`}>{status}</span>;
 }

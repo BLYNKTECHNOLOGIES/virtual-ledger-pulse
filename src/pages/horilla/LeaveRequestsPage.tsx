@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Search, CheckCircle, XCircle, AlertTriangle, CalendarDays } from "lucide-react";
@@ -15,6 +14,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 
 export default function LeaveRequestsPage() {
   const qc = useQueryClient();
@@ -151,7 +152,7 @@ export default function LeaveRequestsPage() {
   });
 
   return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
+    <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Leave Requests"
         description="Manage employee leave requests"
@@ -162,13 +163,13 @@ export default function LeaveRequestsPage() {
         }
       />
 
-      <div className="flex gap-3 flex-wrap">
+      <div className="hrms-toolbar">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9 sm:w-36"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="requested">Pending</SelectItem>
@@ -191,90 +192,60 @@ export default function LeaveRequestsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  {["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r: any) => (
-                  <tr key={r.id} className="border-b hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-[#E8604C]/10 text-[#E8604C] border-[#E8604C]/20">
-                        {r.hr_leave_types?.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{r.start_date}</td>
-                    <td className="px-4 py-3 tabular-nums">{r.end_date}</td>
-                    <td className="px-4 py-3 font-medium tabular-nums">
-                      {r.total_days}
-                      {r.is_half_day && <span className="ml-1 text-[10px] bg-info/10 text-info border border-info/20 px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {(r.leave_clashes_count || 0) > 0 ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">
-                                <AlertTriangle className="h-3 w-3" />
-                                {r.leave_clashes_count}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{r.leave_clashes_count} employee(s) in the same department have overlapping leave</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">None</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                        r.status === "approved" ? "bg-success/10 text-success border-success/20" :
-                        r.status === "rejected" ? "bg-destructive/10 text-destructive border-destructive/20" :
-                        "bg-warning/10 text-warning border-warning/20"
-                      }`}>{r.status}</span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
-                    <td className="px-4 py-3">
-                      {r.status === "requested" && (
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="text-success h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved", request: r })}>
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-destructive h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}>
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                      {r.status === "approved" && (
-                        <Button size="sm" variant="ghost" className="text-warning h-7 text-xs" onClick={() => statusMutation.mutate({ id: r.id, status: "cancelled", request: r })}>
-                          Cancel
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <ResponsiveList
+          items={filtered}
+          columns={["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => ({ key: h, label: h }))}
+          keyFor={(r: any) => r.id}
+          tableMinWidth="min-w-[860px]"
+          renderRow={(r: any) => (
+            <>
+              <td className="px-4 py-3 font-medium whitespace-nowrap">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
+              <td className="px-4 py-3"><LeaveTypeBadge name={r.hr_leave_types?.name} /></td>
+              <td className="px-4 py-3 tabular-nums">{r.start_date}</td>
+              <td className="px-4 py-3 tabular-nums">{r.end_date}</td>
+              <td className="px-4 py-3 font-medium tabular-nums"><LeaveDays request={r} /></td>
+              <td className="px-4 py-3"><ClashBadge request={r} /></td>
+              <td className="px-4 py-3"><LeaveStatusBadge status={r.status} /></td>
+              <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
+              <td className="px-4 py-3"><LeaveActions request={r} statusMutation={statusMutation} /></td>
+            </>
+          )}
+          renderCard={(r: any) => (
+            <div className="hrms-mobile-card space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground truncate">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</p>
+                  <p className="text-xs text-muted-foreground tabular-nums">{r.hr_employees?.badge_id}</p>
+                </div>
+                <LeaveStatusBadge status={r.status} />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <LeaveTypeBadge name={r.hr_leave_types?.name} />
+                <LeaveDays request={r} />
+              </div>
+              <div className="hrms-mobile-kv">
+                <span>Start</span><span>{r.start_date}</span>
+                <span>End</span><span>{r.end_date}</span>
+                <span>Clashes</span><span>{(r.leave_clashes_count || 0) > 0 ? r.leave_clashes_count : "None"}</span>
+                <span>Reason</span><span>{r.reason || "—"}</span>
+              </div>
+              <LeaveActions request={r} statusMutation={statusMutation} mobile />
+            </div>
+          )}
+        />
       )}
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-[#E8604C]" /> New Leave Request
-            </DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={showAdd}
+        onOpenChange={setShowAdd}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[#E8604C]" /> New Leave Request</span>}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
+            <Button onClick={() => createMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id || !form.start_date || (!form.is_half_day && !form.end_date)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Submit</Button>
+          </>
+        }
+      >
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
@@ -306,18 +277,73 @@ export default function LeaveRequestsPage() {
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Start Date</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-9" /></div>
               {!form.is_half_day && <div><Label>End Date</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="h-9" /></div>}
             </div>
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Reason for leave..." /></div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id || !form.start_date || !form.end_date} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Submit</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   );
+}
+
+function LeaveTypeBadge({ name }: { name?: string }) {
+  return <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-primary/10 text-primary border-primary/20">{name || "Leave"}</span>;
+}
+
+function LeaveDays({ request }: { request: any }) {
+  return (
+    <span className="font-medium tabular-nums">
+      {request.total_days}
+      {request.is_half_day && <span className="ml-1 text-[10px] bg-info/10 text-info border border-info/20 px-1.5 py-0.5 rounded-full">{request.half_day_period || "half"}</span>}
+    </span>
+  );
+}
+
+function ClashBadge({ request }: { request: any }) {
+  return (request.leave_clashes_count || 0) > 0 ? (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">
+            <AlertTriangle className="h-3 w-3" />
+            {request.leave_clashes_count}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{request.leave_clashes_count} employee(s) in the same department have overlapping leave</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : <span className="text-muted-foreground text-xs">None</span>;
+}
+
+function LeaveStatusBadge({ status }: { status?: string }) {
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+      status === "approved" ? "bg-success/10 text-success border-success/20" :
+      status === "rejected" ? "bg-destructive/10 text-destructive border-destructive/20" :
+      "bg-warning/10 text-warning border-warning/20"
+    }`}>{status || "requested"}</span>
+  );
+}
+
+function LeaveActions({ request, statusMutation, mobile = false }: { request: any; statusMutation: any; mobile?: boolean }) {
+  if (request.status === "requested") {
+    return (
+      <div className={mobile ? "grid grid-cols-2 gap-2" : "flex gap-1"}>
+        <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "approved", request })}>
+          <CheckCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Approve</span> : null}
+        </Button>
+        <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected" })}>
+          <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
+        </Button>
+      </div>
+    );
+  }
+  if (request.status === "approved") {
+    return <Button size="sm" variant="ghost" className="text-warning h-8 text-xs" onClick={() => statusMutation.mutate({ id: request.id, status: "cancelled", request })}>Cancel</Button>;
+  }
+  return <span className="text-xs text-muted-foreground">—</span>;
 }

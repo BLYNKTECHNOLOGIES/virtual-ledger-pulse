@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { toast } from "sonner";
 import { Plus, CalendarDays, Users, Trash2 } from "lucide-react";
 
@@ -112,21 +112,21 @@ export default function WeeklyOffPage() {
   });
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="hrms-page space-y-4">
       <PageHeader
         title="Weekly Off Management"
         description="Define weekly-off patterns and assign them to employees"
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="w-full overflow-x-auto justify-start sm:w-auto">
           <TabsTrigger value="patterns">Patterns ({patterns.length})</TabsTrigger>
           <TabsTrigger value="assignments">Assignments ({assignments.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="patterns" className="space-y-3">
-          <div className="flex justify-end">
-            <Button className="h-9" onClick={() => setShowAddPattern(true)}><Plus className="h-4 w-4 mr-1" /> New Pattern</Button>
+          <div className="hrms-toolbar justify-end">
+            <Button className="h-9 w-full sm:w-auto" onClick={() => setShowAddPattern(true)}><Plus className="h-4 w-4 mr-1" /> New Pattern</Button>
           </div>
           {patterns.length === 0 ? (
             <EmptyState
@@ -170,57 +170,68 @@ export default function WeeklyOffPage() {
         </TabsContent>
 
         <TabsContent value="assignments" className="space-y-3">
-          <div className="flex justify-end">
-            <Button className="h-9" onClick={() => setShowAssign(true)} disabled={patterns.length === 0}>
+          <div className="hrms-toolbar justify-end">
+            <Button className="h-9 w-full sm:w-auto" onClick={() => setShowAssign(true)} disabled={patterns.length === 0}>
               <Users className="h-4 w-4 mr-1" /> Assign Pattern
             </Button>
           </div>
-          <Card>
-            <CardContent className="p-0">
-              {assignments.length === 0 ? (
-                <EmptyState
-                  icon={Users}
-                  title="No assignments yet"
-                  description="Assign a weekly-off pattern to an employee."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Pattern</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {assignments.map((a: any) => (
-                      <TableRow key={a.id}>
-                        <TableCell className="text-sm">
-                          {a.hr_employees ? `${a.hr_employees.first_name} ${a.hr_employees.last_name} (${a.hr_employees.badge_id})` : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm">{a.hr_weekly_off_patterns?.name || "—"}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(a.id)}>
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <ResponsiveList
+            items={assignments}
+            columns={[
+              { key: "employee", label: "Employee" },
+              { key: "pattern", label: "Pattern" },
+              { key: "actions", label: "", className: "w-[60px]" },
+            ]}
+            keyFor={(a: any) => a.id}
+            emptyState={<EmptyState icon={Users} title="No assignments yet" description="Assign a weekly-off pattern to an employee." />}
+            renderRow={(a: any) => (
+              <>
+                <td className="px-3 py-3 text-sm">
+                  {a.hr_employees ? `${a.hr_employees.first_name} ${a.hr_employees.last_name} (${a.hr_employees.badge_id})` : "—"}
+                </td>
+                <td className="px-3 py-3 text-sm">{a.hr_weekly_off_patterns?.name || "—"}</td>
+                <td className="px-3 py-3">
+                  <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(a.id)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </td>
+              </>
+            )}
+            renderCard={(a: any) => (
+              <div className="hrms-mobile-card space-y-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground break-words">
+                    {a.hr_employees ? `${a.hr_employees.first_name} ${a.hr_employees.last_name}` : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground break-words">{a.hr_employees?.badge_id || "No badge"}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Pattern</p>
+                    <p className="text-sm text-foreground break-words">{a.hr_weekly_off_patterns?.name || "—"}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(a.id)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          />
         </TabsContent>
       </Tabs>
 
-      {/* Add Pattern Dialog */}
-      <Dialog open={showAddPattern} onOpenChange={setShowAddPattern}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Create Weekly-Off Pattern</DialogTitle>
-            <DialogDescription>Define which days are off each week</DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={showAddPattern}
+        onOpenChange={setShowAddPattern}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Create Weekly-Off Pattern</span>}
+        description="Define which days are off each week"
+        footer={
+          <>
+            <Button variant="outline" className="h-9" onClick={() => setShowAddPattern(false)}>Cancel</Button>
+            <Button className="h-9" onClick={() => savePatternMutation.mutate()} disabled={savePatternMutation.isPending}>Create</Button>
+          </>
+        }
+      >
           <div className="space-y-3">
             <div>
               <Label>Pattern Name *</Label>
@@ -257,19 +268,19 @@ export default function WeeklyOffPage() {
               <Input className="h-9 mt-1" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Optional description" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" className="h-9" onClick={() => setShowAddPattern(false)}>Cancel</Button>
-            <Button className="h-9" onClick={() => savePatternMutation.mutate()} disabled={savePatternMutation.isPending}>Create</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
-      {/* Assign Dialog */}
-      <Dialog open={showAssign} onOpenChange={setShowAssign}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Assign Weekly-Off Pattern</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={showAssign}
+        onOpenChange={setShowAssign}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Assign Weekly-Off Pattern</span>}
+        footer={
+          <>
+            <Button variant="outline" className="h-9" onClick={() => setShowAssign(false)}>Cancel</Button>
+            <Button className="h-9" onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending}>Assign</Button>
+          </>
+        }
+      >
           <div className="space-y-3">
             <div>
               <Label>Employee</Label>
@@ -294,12 +305,7 @@ export default function WeeklyOffPage() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" className="h-9" onClick={() => setShowAssign(false)}>Cancel</Button>
-            <Button className="h-9" onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending}>Assign</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   );
 }

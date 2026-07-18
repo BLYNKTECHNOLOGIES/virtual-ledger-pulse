@@ -2,11 +2,15 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, X, Briefcase, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Briefcase, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 
 export default function PositionsPage() {
   const queryClient = useQueryClient();
@@ -83,26 +87,24 @@ export default function PositionsPage() {
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
-  const inputCls = "w-full border border-border rounded-lg px-3 h-9 text-sm outline-none bg-background focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
-
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
     return p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
   });
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="hrms-page space-y-4">
       <PageHeader
         title="Positions"
         description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""}`}
         actions={
-          <button
+          <Button
             onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
-            className="flex items-center gap-2 h-9 bg-[#E8604C] text-primary-foreground px-4 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+            className="h-9 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Add Position
-          </button>
+          </Button>
         }
       />
 
@@ -129,103 +131,127 @@ export default function PositionsPage() {
           description={searchTerm ? "Try a different search term." : "Create your first position to get started."}
           action={
             !searchTerm ? (
-              <button
+              <Button
                 onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
-                className="flex items-center gap-2 h-9 bg-[#E8604C] text-primary-foreground px-4 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors"
+                className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Position
-              </button>
+              </Button>
             ) : undefined
           }
         />
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Position</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Department</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Description</th>
-                <th className="text-left py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</th>
-                <th className="text-right py-3 px-4 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPositions.map((p) => (
-                <tr key={p.id} className="border-b border-muted/20 hover:bg-muted/50 transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-[#E8604C]" />
-                      <span className="font-medium text-foreground">{p.title}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-muted-foreground">{getDeptName(p.department_id)}</td>
-                  <td className="py-3 px-4 text-muted-foreground truncate max-w-xs">{p.description || "—"}</td>
-                  <td className="py-3 px-4">
-                    <button
-                      onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
-                        p.is_active
-                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                          : "bg-destructive/10 text-destructive border-destructive/20"
-                      }`}
-                    >
-                      {p.is_active ? "Active" : "Inactive"}
-                    </button>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
-                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
-                        className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveList
+          items={filteredPositions}
+          isLoading={isLoading}
+          columns={[
+            { key: "position", label: "Position" },
+            { key: "department", label: "Department" },
+            { key: "description", label: "Description" },
+            { key: "status", label: "Status" },
+            { key: "actions", label: "Actions", className: "text-right" },
+          ]}
+          keyFor={(p: any) => p.id}
+          renderRow={(p: any) => (
+            <>
+              <td className="py-3 px-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Briefcase className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-medium text-foreground break-words">{p.title}</span>
+                </div>
+              </td>
+              <td className="py-3 px-4 text-muted-foreground">{getDeptName(p.department_id)}</td>
+              <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">{p.description || "—"}</td>
+              <td className="py-3 px-4">
+                <button
+                  onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
+                    p.is_active
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20"
+                  }`}
+                >
+                  {p.is_active ? "Active" : "Inactive"}
+                </button>
+              </td>
+              <td className="py-3 px-4 text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
+                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                </div>
+              </td>
+            </>
+          )}
+          renderCard={(p: any) => (
+            <div className="hrms-mobile-card space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Briefcase className="h-4 w-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground break-words">{p.title}</p>
+                    <p className="text-xs text-muted-foreground break-words">{getDeptName(p.department_id)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                  className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
+                    p.is_active
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20"
+                  }`}
+                >
+                  {p.is_active ? "Active" : "Inactive"}
+                </button>
+              </div>
+              {p.description && <p className="text-sm text-muted-foreground break-words">{p.description}</p>}
+              <div className="flex items-center justify-end gap-1 border-t border-border pt-2">
+                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
+                  className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
+                <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
+                  className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          )}
+        />
       )}
 
-      {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl w-full max-w-md shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-[#E8604C]" />
-                {editId ? "Edit" : "Add"} Position
-              </h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Title *</label>
-                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Department</label>
-                <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} className={inputCls}>
-                  <option value="">Select</option>
-                  {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none bg-background focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20 resize-none" rows={2} />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-              <button onClick={closeDialog} className="h-9 px-4 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
-              <button onClick={() => saveMutation.mutate()} disabled={!form.title || saveMutation.isPending}
-                className="h-9 px-4 text-sm font-medium text-primary-foreground bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
-                {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
-              </button>
-            </div>
+      <ResponsiveDialog
+        open={addOpen}
+        onOpenChange={(open) => (open ? setAddOpen(true) : closeDialog())}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><Briefcase className="h-4 w-4 text-primary" />{editId ? "Edit" : "Add"} Position</span>}
+        footer={
+          <>
+            <Button variant="outline" className="h-9" onClick={closeDialog}>Cancel</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.title || saveMutation.isPending} className="h-9">
+              {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <Label>Title *</Label>
+            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" />
+          </div>
+          <div>
+            <Label>Department</Label>
+            <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <option value="">Select</option>
+              {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="mt-1 min-h-[76px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
           </div>
         </div>
-      )}
+      </ResponsiveDialog>
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

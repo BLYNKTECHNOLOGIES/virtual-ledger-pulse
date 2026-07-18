@@ -12,7 +12,7 @@ export default function EmployeeOnboardingPipelinePage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto page-mount">
+    <div className="hrms-page space-y-4 max-w-6xl mx-auto page-mount">
       {view === "dashboard" ? (
         <OnboardingDashboard
           onNewOnboarding={() => openWizard(null)}

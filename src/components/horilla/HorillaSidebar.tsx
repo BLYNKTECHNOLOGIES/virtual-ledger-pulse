@@ -89,7 +89,7 @@ const navGroups: NavGroup[] = [
         children: [
           { label: "Overview", path: "/hrms/attendance" },
           { label: "Biometric Devices", path: "/hrms/attendance/biometric-devices" },
-          { label: "Clock In/Out", path: "/hrms/attendance/activity" },
+          
           { label: "Calendar View", path: "/hrms/attendance/calendar" },
           { label: "Summary Report", path: "/hrms/attendance/summary" },
           { label: "Shifts", path: "/hrms/attendance/shifts" },

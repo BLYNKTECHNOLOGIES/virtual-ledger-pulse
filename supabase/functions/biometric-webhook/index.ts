@@ -617,29 +617,9 @@ async function processAttendance(
   // ─── v4 engine path (post-cutover): pure L1–L4 recompute over (emp, [punchDate-1, punchDate]) ───
   // Look-back window covers night-shift wrap; engine is idempotent + continuous-state.
   if (punchDate >= V4_CUTOVER_IST_DATE) {
-    // Still record raw activity for the UI feed (v4 engine doesn't touch this table)
-    try {
-      const { data: existingActivity } = await supabase
-        .from("hr_attendance_activity")
-        .select("id")
-        .eq("employee_id", employeeIdStr)
-        .eq("activity_date", punchDate)
-        .limit(1)
-        .maybeSingle();
-      const actPayload: any = {
-        employee_id: employeeIdStr,
-        activity_date: punchDate,
-        [punch_type === "out" ? "clock_out" : "clock_in"]: punchISO,
-        [punch_type === "out" ? "clock_out_note" : "clock_in_note"]: "Via eSSL Push",
-      };
-      if (existingActivity) {
-        await supabase.from("hr_attendance_activity").update(actPayload).eq("id", existingActivity.id);
-      } else {
-        await supabase.from("hr_attendance_activity").insert(actPayload);
-      }
-    } catch (e) {
-      console.warn(`[ATTENDANCE v4] activity upsert failed: ${(e as Error).message}`);
-    }
+    // NOTE: legacy hr_attendance_activity mirror table is retired.
+    // Canonical attendance state = hr_attendance_punches → v4 engine → hr_attendance_daily.
+
 
     const fromDate = addDaysISO(punchDate, -1);
     const { error: v4err } = await supabase.rpc("hr_v4_recompute_range", {
@@ -788,31 +768,9 @@ async function processAttendance(
     status = "present";
   }
 
-  // 7. UPSERT hr_attendance_activity — one row per employee per shift-date
-  const { data: existingActivity } = await supabase
-    .from("hr_attendance_activity")
-    .select("id")
-    .eq("employee_id", employeeIdStr)
-    .eq("activity_date", attendanceDate)
-    .limit(1)
-    .maybeSingle();
+  // 7. Legacy hr_attendance_activity mirror table is retired — attendance
+  //    is now sourced directly from hr_attendance_punches and hr_attendance_daily.
 
-  const activityPayload = {
-    employee_id: employeeIdStr,
-    activity_date: attendanceDate,
-    clock_in: firstPunch,
-    clock_out: lastPunch,
-    clock_in_note: "Via eSSL Push",
-    clock_out_note: lastPunch ? "Via eSSL Push" : null,
-  };
-
-  if (existingActivity) {
-    await supabase.from("hr_attendance_activity")
-      .update(activityPayload)
-      .eq("id", existingActivity.id);
-  } else {
-    await supabase.from("hr_attendance_activity").insert(activityPayload);
-  }
 
   // 8. UPSERT hr_attendance — uses unique constraint (employee_id, attendance_date)
   const attendancePayload = {

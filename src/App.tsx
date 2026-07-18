@@ -83,7 +83,7 @@ const LeaveTypesPage = lazy(() => import('./pages/horilla/LeaveTypesPage'));
 const HolidaysPage = lazy(() => import('./pages/horilla/HolidaysPage'));
 const LeaveAllocationsPage = lazy(() => import('./pages/horilla/LeaveAllocationsPage'));
 const AttendanceCalendarPage = lazy(() => import('./pages/horilla/AttendanceCalendarPage'));
-const AttendanceActivityPage = lazy(() => import('./pages/horilla/AttendanceActivityPage'));
+
 const AttendanceSummaryPage = lazy(() => import('./pages/horilla/AttendanceSummaryPage'));
 const BiometricDevicesPage = lazy(() => import('./pages/horilla/BiometricDevicesPage'));
 const AttendanceRegularizationPage = lazy(() => import('./pages/horilla/AttendanceRegularizationPage'));
@@ -715,7 +715,7 @@ const router = createBrowserRouter([
         { path: "attendance/calendar", element: <AttendanceCalendarPage /> },
         { path: "attendance/shifts", element: <ShiftsPage /> },
         { path: "attendance/overtime", element: <OvertimePage /> },
-        { path: "attendance/activity", element: <AttendanceActivityPage /> },
+        
         { path: "attendance/hour-accounts", element: <HourAccountsPage /> },
         { path: "attendance/late-early", element: <LateComeEarlyOutPage /> },
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },

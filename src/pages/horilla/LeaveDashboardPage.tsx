@@ -5,6 +5,8 @@ import { CalendarDays, CheckCircle, Clock, XCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { LeaveClashCard } from "@/components/hrms/LeaveClashCard";
+
 
 export default function LeaveDashboardPage() {
   const { data: requests = [] } = useQuery({
@@ -105,6 +107,9 @@ export default function LeaveDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <LeaveClashCard />
     </div>
+
   );
 }

@@ -59,16 +59,17 @@ Deno.serve(async (req) => {
     if (!employees.length) return json({ message: "no active employees", date: dateStr, marked: 0 });
     const employeeIds = employees.map((e: any) => e.id);
 
-    // Employees who already have a daily rollup for that date (any status)
+    // Employees who already have an attendance row for that date (canonical table)
     const existing = await fetchAllRows((from, to) =>
       supabase
-        .from("hr_attendance_daily")
+        .from("hr_attendance")
         .select("employee_id")
         .eq("attendance_date", dateStr)
         .in("employee_id", employeeIds)
         .range(from, to)
     );
     const already = new Set((existing || []).map((r: any) => r.employee_id));
+
 
     // Employees on approved leave that day
     const leaves = await fetchAllRows((from, to) =>
@@ -123,21 +124,20 @@ Deno.serve(async (req) => {
     const rows = toMark.map((employee_id: string) => ({
       employee_id,
       attendance_date: dateStr,
-      status: "absent",
-      first_in: null,
-      last_out: null,
-      total_hours: 0,
-      punch_count: 0,
-      is_late: false,
-      late_by_minutes: 0,
-      early_departure: false,
-      early_by_minutes: 0,
+      attendance_status: "absent",
+      check_in: null,
+      check_out: null,
+      overtime_hours: 0,
+      late_minutes: 0,
+      early_leave_minutes: 0,
+      notes: "auto-marked absent (no punch, no leave, not weekly-off/holiday)",
     }));
 
     const { error, count } = await supabase
-      .from("hr_attendance_daily")
+      .from("hr_attendance")
       .upsert(rows, { onConflict: "employee_id,attendance_date", ignoreDuplicates: true, count: "exact" });
     if (error) throw error;
+
 
     console.log(`[auto-absent] ${dateStr}: marked ${count ?? rows.length} absent (skipped leave=${onLeave.size}, weekly-off=${onWeeklyOff.size}, already=${already.size})`);
     return json({

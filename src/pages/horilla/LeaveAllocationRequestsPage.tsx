@@ -83,24 +83,10 @@ export default function LeaveAllocationRequestsPage() {
         .update({ status: action, approved_by: user?.user?.id, approved_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
-
-      if (action === "approved") {
-        const req = requests.find((r: any) => r.id === id);
-        if (req) {
-          const year = new Date().getFullYear();
-          const quarter = Math.ceil((new Date().getMonth() + 1) / 3);
-          await (supabase as any).from("hr_leave_allocations").insert({
-            employee_id: req.employee_id,
-            leave_type_id: req.leave_type_id,
-            year,
-            quarter,
-            allocated_days: req.requested_days,
-            carry_forward_days: 0,
-            used_days: 0,
-          });
-        }
-      }
+      // Balance credit is handled by DB trigger trg_hr_credit_leave_allocation_on_approval
+      // (single source of truth). Do not client-write hr_leave_allocations here.
     },
+
     onSuccess: (_, { action }) => {
       qc.invalidateQueries({ queryKey: ["hr_leave_allocation_requests"] });
       qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });

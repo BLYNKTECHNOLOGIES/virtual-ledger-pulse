@@ -175,7 +175,7 @@ serve(async (req) => {
         action: action === "delete" ? "DATA DELETE USERINFO" : "DATA UPDATE USERINFO",
         status: "queued",
         command_id: cmdRow.id,
-        request_snapshot: { command_text: commandText, name: displayName },
+        request_snapshot: { command_text: commandText, name: displayName, onboarding_id: onboarding_id ?? null },
         triggered_by: triggered_by ?? null,
         triggered_from: triggered_from ?? null,
       });

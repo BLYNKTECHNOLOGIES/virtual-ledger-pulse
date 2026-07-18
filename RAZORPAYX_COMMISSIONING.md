@@ -5,9 +5,19 @@ Single source of truth for "production ready". Steps are ordered; do not skip.
 > **Architecture note:** the in-house payroll engine (`hr_payroll_runs`, `hr_payslips`) is **parked** in favour of RazorpayX as the payroll authority. The tables and their guard triggers (state-machine, lock, status validator) are retained for historical continuity and possible future re-activation, but no UI, cron, or edge function writes to them in normal operation. If a screen renders from these tables and shows zero rows, that is expected — not a data gap.
 
 
-## 0. Owner Inputs Still Required
+## 0. Environment & Owner Inputs
+
+**Base hosts (verified from Razorpay's public Opfin API documenter):**
+- **Production:** `https://payroll.razorpay.com/api` — the proxy's hardcoded `BASE`.
+- **Sandbox / rehearsal:** `https://opfin.np.razorpay.in/api` — same envelope shape, non-production data, safe for envelope rehearsals.
+
+**Rehearsal path (manual, until an in-app toggle is shipped):**
+1. Temporarily point `BASE` at the sandbox host in `supabase/functions/razorpay-payroll-proxy/index.ts` on a throwaway branch.
+2. Run each envelope verification (people, salary, attendance, payroll, payouts, payslip/tax-doc, reconciliation) against sandbox and confirm the exact response shape the proxy expects.
+3. Revert `BASE` before merging. Do **not** ship a sandbox flip without a persistent in-app banner + auto-revocation of every envelope verification on toggle — a half-built toggle is worse than the manual path.
+
+**Owner inputs still required:**
 - [ ] RazorpayX Postman collection JSON (raw export) — attach to `docs/razorpayx/`.
-- [ ] Sandbox vs Live decision for pilot cycle (confirm which account_id + workspace).
 - [ ] Signed-off pilot cohort list (5–10 employees, all departments represented).
 
 ## 1. Reference Data (blocks everything downstream)

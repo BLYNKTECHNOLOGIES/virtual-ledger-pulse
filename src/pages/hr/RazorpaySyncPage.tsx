@@ -12,6 +12,8 @@ import { Station, type StationStatus } from "./RoadmapStation";
 import { RoadmapJourneyNav } from "./RoadmapJourneyNav";
 import { TodaysFocusHero } from "./TodaysFocusHero";
 import { cn } from "@/lib/utils";
+import { ContractorPayoutsHub } from "@/components/hrms/razorpay/ContractorPayoutsHub";
+
 
 interface Settings {
   base_url: string;

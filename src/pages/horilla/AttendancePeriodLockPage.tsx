@@ -245,6 +245,71 @@ export default function AttendancePeriodLockPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!verifyLock} onOpenChange={(o) => { if (!o) { setVerifyLock(null); setVerifyResult(null); setVerifyEmp(''); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Verify locked period against Razorpay</DialogTitle>
+            <DialogDescription>
+              Read-only sample. Picks one mapped employee and pulls their day-by-day attendance from Razorpay for
+              <span className="tabular-nums"> {verifyLock?.period_start} → {verifyLock?.period_end}</span>. No writes; safe to run repeatedly.
+              Range capped at 62 days on the proxy.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Sample employee</Label>
+              <Select value={verifyEmp} onValueChange={setVerifyEmp}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Pick a Razorpay-linked employee" /></SelectTrigger>
+                <SelectContent>
+                  {mappedEmployees.map((r: any) => (
+                    <SelectItem key={r.hr_employee_id} value={r.hr_employee_id}>
+                      {r.hr_employees?.first_name} {r.hr_employees?.last_name} ({r.hr_employees?.badge_id}) · rzp {r.razorpay_employee_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {mappedEmployees.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  No employees linked to Razorpay yet. Complete People sync first from the Payroll Sync journey.
+                </p>
+              )}
+            </div>
+            {verifyResult && (() => {
+              const s = summarizeVerify(verifyResult.days);
+              return (
+                <div className="border border-border rounded-md p-3 bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-2">Diff for {verifyResult.from} → {verifyResult.to}</p>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div><span className="text-muted-foreground block text-xs">Days with data</span><p className="font-semibold text-success tabular-nums">{s.ok}</p></div>
+                    <div><span className="text-muted-foreground block text-xs">Empty on Razorpay</span><p className="font-semibold text-warning tabular-nums">{s.empty}</p></div>
+                    <div><span className="text-muted-foreground block text-xs">Fetch errors</span><p className="font-semibold text-destructive tabular-nums">{s.err}</p></div>
+                  </div>
+                  <details className="mt-2">
+                    <summary className="text-xs text-muted-foreground cursor-pointer">Per-day detail</summary>
+                    <div className="max-h-56 overflow-y-auto mt-2 text-[11px] font-mono space-y-0.5">
+                      {verifyResult.days.map((d: any) => (
+                        <div key={d.day} className="flex justify-between border-b border-border/40 py-0.5">
+                          <span className="tabular-nums">{d.day}</span>
+                          <span className={d.http_status === 200 ? 'text-muted-foreground' : 'text-destructive'}>
+                            {d.http_status} {d.error ? `· ${d.error.slice(0, 40)}` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setVerifyLock(null); setVerifyResult(null); }}>Close</Button>
+            <Button onClick={() => runVerify.mutate()} disabled={!verifyEmp || runVerify.isPending}>
+              {runVerify.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Fetching…</> : 'Fetch from Razorpay'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

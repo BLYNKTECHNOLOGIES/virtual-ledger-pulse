@@ -50,6 +50,20 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       toast.error("Employee name is missing on this onboarding record.");
       return;
     }
+    // Synchronous re-entry guard — blocks rapid double-taps that would
+    // otherwise queue duplicate USERINFO commands to the devices.
+    if (pushingRef.current || pushingToDevices) {
+      toast.info("Already queuing this PIN — please wait.");
+      return;
+    }
+    // Idempotency guard — if this PIN is already registered on a device with
+    // a name, or we've already queued a create for it from this onboarding,
+    // do not re-queue.
+    if (pinStatus?.kind === "ok" || existingPushLog) {
+      toast.info(`PIN ${pin} is already registered on the biometric device(s). Skipping duplicate create.`);
+      return;
+    }
+    pushingRef.current = true;
     setPushingToDevices(true);
     const t = toast.loading(`Queuing ${name} (PIN ${pin}) to both biometric devices…`);
     try {
@@ -61,13 +75,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
           action: "upsert",
           triggered_by: userData?.user?.id ?? null,
           triggered_from: "onboarding_stage5",
+          onboarding_id: onboardingRecord?.id ?? null,
         },
       });
       if (error) throw error;
       const payload = (data ?? {}) as any;
       toast.dismiss(t);
       if (payload.ok) {
-        toast.success(`Queued on ${payload.queued_count} device(s). They will apply on next poll.`);
+        setPushFeedback({ pin, deviceCount: payload.queued_count || 0, at: new Date().toISOString() });
+        toast.success(`✓ Biometric identity created for ${name} on ${payload.queued_count} device(s). Devices apply it on the next poll (30–60s).`);
+        queryClient.invalidateQueries({ queryKey: ["hr_essl_pushback_log_stage5", pin] });
+        queryClient.invalidateQueries({ queryKey: ["hr_biometric_device_users_for_stage5"] });
       } else if (payload.skipped) {
         toast.warning(
           payload.reason === "no_devices"
@@ -81,6 +99,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       toast.dismiss(t);
       toast.error(`Push failed: ${e?.message || String(e)}`);
     } finally {
+      pushingRef.current = false;
       setPushingToDevices(false);
     }
   };

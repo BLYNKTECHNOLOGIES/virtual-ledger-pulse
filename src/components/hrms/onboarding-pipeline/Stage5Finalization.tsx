@@ -203,8 +203,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
     const matches = (devicePins || []).filter((p: any) => (p.pin || "").trim() === val);
     if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
-    const conflict = matches.find((m: any) => m.matched_employee_id && m.matched_employee_id !== onboardingRecord?.employee_id);
-    if (conflict) return { kind: "conflict", msg: `PIN already mapped to another employee on device ${conflict.device_serial}.`, matches };
+    const usedByOther = new Set(usedBadgeIds.filter((b: string) => b !== (onboardingRecord?.essl_badge_id || "")));
+    if (usedByOther.has(val)) return { kind: "conflict", msg: `PIN ${val} is already the badge ID of another finalized employee.`, matches };
     const canonical = canonicalDevicePins.find((p: any) => p.pin === val);
     const deviceCount = canonical?.deviceCount || matches.length;
     const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;

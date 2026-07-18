@@ -19,6 +19,62 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debouncedQ = useDebounce(searchQ, 200);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const { data: searchResults = [], isFetching: searching } = useQuery({
+    queryKey: ["hrms_header_search", debouncedQ],
+    enabled: debouncedQ.trim().length >= 2,
+    queryFn: async () => {
+      const q = debouncedQ.trim();
+      const like = `%${q}%`;
+      const [emps, onb] = await Promise.all([
+        (supabase as any)
+          .from("hr_employees")
+          .select("id, employee_id, first_name, last_name, email, phone, is_active")
+          .or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},employee_id.ilike.${like},phone.ilike.${like}`)
+          .limit(12),
+        (supabase as any)
+          .from("hr_employee_onboarding")
+          .select("id, first_name, last_name, email, status, employee_id")
+          .or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`)
+          .limit(12),
+      ]);
+      const results: Array<{ kind: "employee" | "onboarding"; id: string; label: string; sub: string; link: string }> = [];
+      (emps.data || []).forEach((e: any) => {
+        results.push({
+          kind: "employee",
+          id: e.id,
+          label: `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.email || e.employee_id,
+          sub: [e.employee_id, e.email, e.is_active === false ? "Inactive" : null].filter(Boolean).join(" · "),
+          link: `/hrms/employees/${e.id}`,
+        });
+      });
+      (onb.data || []).forEach((o: any) => {
+        // dedupe if employee already listed
+        if (o.employee_id && results.some(r => r.kind === "employee" && r.id === o.employee_id)) return;
+        results.push({
+          kind: "onboarding",
+          id: o.id,
+          label: `${o.first_name || ""} ${o.last_name || ""}`.trim() || o.email || "Onboarding",
+          sub: `Onboarding · ${(o.status || "").replace("_", " ")}${o.email ? " · " + o.email : ""}`,
+          link: `/hrms/onboarding-pipeline`,
+        });
+      });
+      return results;
+    },
+  });
+
   const [isDark, setIsDark] = useState(() =>
     typeof document !== "undefined" && document.documentElement.classList.contains("dark")
   );

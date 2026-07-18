@@ -101,27 +101,18 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
     if (!toDelete) return;
     setDeleting(true);
     try {
-      // If a draft employee row was linked, remove it too when still inactive
-      if (toDelete.employee_id) {
-        const { data: emp } = await supabase
-          .from("hr_employees")
-          .select("id, is_active")
-          .eq("id", toDelete.employee_id)
-          .maybeSingle();
-        if (emp && emp.is_active === false) {
-          await supabase.from("hr_employees").delete().eq("id", emp.id);
-        }
-      }
+      // Soft-cancel: preserve history under the Cancelled bucket instead of hard delete.
+      // Any linked draft (inactive) employee row is deactivated but kept for audit.
       const { error } = await supabase
         .from("hr_employee_onboarding")
-        .delete()
+        .update({ status: "cancelled" })
         .eq("id", toDelete.id);
       if (error) throw error;
-      toast({ title: "Onboarding deleted", description: "The dropped onboarding record has been removed." });
+      toast({ title: "Onboarding cancelled", description: "Moved to the Cancelled list. History preserved." });
       setToDelete(null);
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
     } catch (e: any) {
-      toast({ title: "Failed to delete", description: e?.message || "Could not delete record", variant: "destructive" });
+      toast({ title: "Failed to cancel", description: e?.message || "Could not cancel record", variant: "destructive" });
     } finally {
       setDeleting(false);
     }

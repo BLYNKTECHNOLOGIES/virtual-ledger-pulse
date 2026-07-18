@@ -1068,7 +1068,7 @@ export default function EmployeeProfilePage() {
                   {pullingBank ? "Pulling…" : "Pull from Razorpay"}
                 </Button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div><p className="text-xs text-muted-foreground">Bank Name</p><p className="text-sm text-foreground">{bankInfo?.bank_name || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Account Number</p><p className="text-sm text-foreground">{bankInfo?.account_number || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">IFSC Code</p><p className="text-sm text-foreground">{bankInfo?.ifsc_code || "None"}</p></div>
@@ -1098,7 +1098,7 @@ export default function EmployeeProfilePage() {
             {(assetAssignments || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No assets assigned</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1142,7 +1142,7 @@ export default function EmployeeProfilePage() {
             {(attendance || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No attendance records found</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1196,7 +1196,7 @@ export default function EmployeeProfilePage() {
             {(payslips || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No payslips found</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1252,7 +1252,7 @@ export default function EmployeeProfilePage() {
           <div className="space-y-4">
             <div className="border border-border rounded-lg p-4 bg-muted/30">
               <h3 className="text-sm font-semibold text-foreground mb-3">Employee Lifecycle</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Joining Date</p>
                   <p className="font-medium text-foreground">{(workInfo as any)?.joining_date ? new Date((workInfo as any).joining_date).toLocaleDateString("en-IN") : "—"}</p>

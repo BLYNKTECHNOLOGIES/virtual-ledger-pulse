@@ -34,13 +34,15 @@ function json(status: number, body: unknown) {
   });
 }
 
-async function requireAuth(req: Request): Promise<{ userId: string } | Response> {
+async function requireAuth(req: Request): Promise<{ userId: string | null; serviceRole: boolean } | Response> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.toLowerCase().startsWith("bearer ")) return json(401, { error: "Unauthorized" });
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (token && token === SVC) return { userId: null, serviceRole: true };
   const c = createClient(SUPA_URL, ANON, { global: { headers: { Authorization: authHeader } } });
   const { data, error } = await c.auth.getUser();
   if (error || !data?.user?.id) return json(401, { error: "Unauthorized" });
-  return { userId: data.user.id };
+  return { userId: data.user.id, serviceRole: false };
 }
 
 async function requirePermission(userId: string, svc: SupabaseClient) {
@@ -487,7 +489,7 @@ function fieldNames(e: any): string[] {
 
 async function logSync(svc: SupabaseClient, row: {
   action: string; http_status: number; razorpay_employee_id: string;
-  hr_employee_id?: string | null; field_diff_summary?: any; error_text?: string | null; actor_user_id: string;
+  hr_employee_id?: string | null; field_diff_summary?: any; error_text?: string | null; actor_user_id: string | null;
 }) {
   const { error } = await svc.from("hr_razorpay_sync_log").insert(row);
   if (error) {
@@ -808,7 +810,7 @@ Deno.serve(async (req) => {
     if (!KEY_ID || !KEY_SECRET) return json(500, { error: "Missing RAZORPAY_PAYROLL_KEY_ID / _SECRET" });
 
     const svc = createClient(SUPA_URL, SVC);
-    const perm = await requirePermission(authed.userId, svc);
+    const perm = authed.serviceRole ? { ok: true, msg: "" } : await requirePermission(authed.userId!, svc);
     if (!perm.ok) return json(403, { error: perm.msg });
 
     const payload = req.method === "POST" ? await req.json().catch(() => ({})) : {};
@@ -3593,90 +3595,13 @@ Deno.serve(async (req) => {
 
       // ---- pull_payslips_for_period ----
       if (action === "pull_payslips_for_period") {
-        if (!p9Settings?.pull_payslips_endpoint_verified || !p9Settings?.pull_payslips_envelope_key) {
-          return json(400, { error: "Payslip envelope not verified. Record a probe-verified envelope first." });
-        }
         const periodMonthStr = String(payload?.period_month || "").trim();
         const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
         if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
         const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
-        const [type, subType] = String(p9Settings.pull_payslips_envelope_key).split(":");
-
-        const r = await razorpayPost(type || "payslip", subType || "view", { period: periodMonthStr });
-        if ((r as any).networkError) return json(502, { error: `NETWORK: ${(r as any).networkError}` });
-        if (r.httpStatus < 200 || r.httpStatus >= 300) {
-          return json(502, { error: "Razorpay returned non-2xx", http_status: r.httpStatus, body: r.parsed });
-        }
-        const rawList = extractList(r.parsed);
-
-        // Load expected net from the payroll run for the same period, for variance.
-        const { data: runRow } = await svc.from("hr_razorpay_payroll_runs")
-          .select("id").eq("period_month", periodMonthISO).maybeSingle();
-        const runId = runRow?.id || null;
-        const expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();
-        if (runId) {
-          const { data: lineRows } = await svc.from("hr_razorpay_payroll_run_lines")
-            .select("employee_id,net_pay").eq("run_id", runId);
-          const hrIds = (lineRows || []).map((l: any) => l.employee_id);
-          if (hrIds.length) {
-            const { data: maps } = await svc.from("hr_razorpay_employee_map")
-              .select("hr_employee_id,razorpay_employee_id").in("hr_employee_id", hrIds);
-            const rpByHr = new Map((maps || []).map((m: any) => [m.hr_employee_id, String(m.razorpay_employee_id)]));
-            for (const l of (lineRows || []) as any[]) {
-              const rpId = rpByHr.get(l.employee_id);
-              if (rpId) expectedByRpId.set(rpId, { hr_employee_id: l.employee_id, net_pay: Number(l.net_pay || 0) });
-            }
-          }
-        }
-
-        const upserts: any[] = [];
-        for (const p of rawList) {
-          const rpId = pickStr(p, ["employee-id", "employee_id", "employeeId", "emp-id"]);
-          if (!rpId) continue;
-          const gross = pickNum(p, ["gross-earnings", "gross_earnings", "gross", "total-earnings"]);
-          const deductions = pickNum(p, ["total-deductions", "total_deductions", "deductions"]);
-          const net = pickNum(p, ["net-pay", "net_pay", "netPay", "net-amount", "net"]);
-          const tds = pickNum(p, ["tds", "tds-amount", "tds_amount", "income-tax", "incomeTax"]);
-          const psId = pickStr(p, ["payslip-id", "payslip_id", "id"]);
-          const pdf = pickStr(p, ["pdf-url", "pdf_url", "download-url", "url"]);
-          const exp = expectedByRpId.get(String(rpId));
-          const expNet = exp?.net_pay ?? null;
-          const variance = (net != null && expNet != null) ? Number((net - expNet).toFixed(2)) : null;
-          upserts.push({
-            run_id: runId,
-            period_month: periodMonthISO,
-            razorpay_employee_id: String(rpId),
-            hr_employee_id: exp?.hr_employee_id || null,
-            gross_earnings: gross,
-            total_deductions: deductions,
-            net_pay: net,
-            tds_amount: tds,
-            expected_net: expNet,
-            variance,
-            razorpay_payslip_id: psId,
-            pdf_url: pdf,
-            source_payload: p,
-            pulled_by: authed.userId,
-          });
-        }
-
-        if (upserts.length) {
-          for (let i = 0; i < upserts.length; i += 200) {
-            const chunk = upserts.slice(i, i + 200);
-            const { error: upErr } = await svc.from("hr_razorpay_payslip_records")
-              .upsert(chunk, { onConflict: "period_month,razorpay_employee_id" });
-            if (upErr) return json(500, { error: upErr.message });
-          }
-        }
+        const pull = await pullPayrollViewForPeriod(svc, periodMonthStr, authed.userId || null);
         await svc.from("hr_razorpay_settings")
           .update({ last_payslips_pull_at: new Date().toISOString() }).eq("is_singleton", true);
-
-        let withPdf = 0, mismatched = 0, missingExpected = 0;
-        for (const u of upserts) {
-          if (u.pdf_url) withPdf++;
-          if (u.variance != null && Math.abs(u.variance) >= 0.5) mismatched++;
-          if (u.expected_net == null) missingExpected++;
-        }
 
         await logSync(svc, {
           action: "pull_payslips",
@@ -3685,7 +3610,8 @@ Deno.serve(async (req) => {
           hr_employee_id: null,
           field_diff_summary: {
             period_month: periodMonthISO,
-            total: upserts.length, withPdf, mismatched, missingExpected,
+            endpoint: "payroll:view-payroll",
+            ...pull,
           },
           error_text: null,
           actor_user_id: authed.userId,
@@ -3694,7 +3620,7 @@ Deno.serve(async (req) => {
         return json(200, {
           ok: true,
           period_month: periodMonthISO,
-          summary: { total: upserts.length, withPdf, mismatched, missingExpected },
+          summary: { total: pull.pulled, withPdf: pull.withPdf, failed: pull.failed, noEmail: pull.noEmail, noRecord: pull.noRecord, upsertErrors: pull.upsertErrors },
         });
       }
 

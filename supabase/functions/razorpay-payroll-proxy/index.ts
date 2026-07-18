@@ -625,7 +625,8 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(eid) || eid < 1) return json(400, { error: "employee_id required" });
       const r = await opfinView(eid);
       if (!r.ok) return json(200, { ok: false, http_status: r.status, error: r.errText || r.raw?.slice(0, 300) });
-      const match = await matchEmployee(svc, r.body);
+      const match = await matchEmployee(svc, r.body, eid);
+
       return json(200, {
         ok: true, employee_id: eid,
         preview: {

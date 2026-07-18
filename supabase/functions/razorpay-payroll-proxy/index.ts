@@ -3775,7 +3775,31 @@ Deno.serve(async (req) => {
     // ERP payslip history at minimum surfaces the original PDF.
     // ============================================================
     if (action === "reflect_payslip_period" || action === "import_payslip_history_range") {
+      // GUARD: `payroll:view-payroll` returns the pre-execution payroll SETUP
+      // (base salary + planned additions/deductions), NOT a finalized payslip.
+      // Importing from it produced misleading rows where gross == net and
+      // deductions == 0. Refuse to run this action until an operator verifies
+      // the *finalized* payslip envelope (salary-slip:get-signed-url or an
+      // equivalent post-execution endpoint) in Razorpay Sync.
+      {
+        const { data: cfg } = await svc
+          .from("hr_razorpay_settings")
+          .select("pull_payslips_endpoint_verified, pull_payslips_envelope_key")
+          .eq("is_singleton", true)
+          .maybeSingle();
+        const envKey = (cfg?.pull_payslips_envelope_key || "").toString();
+        const verified = cfg?.pull_payslips_endpoint_verified === true;
+        const isWrongEnvelope = envKey === "payroll:view-payroll" || envKey === "";
+        if (!verified || isWrongEnvelope) {
+          return json(409, {
+            ok: false,
+            error: "payslip_endpoint_not_verified",
+            detail: "RazorpayX finalized-payslip envelope is not verified. `payroll:view-payroll` is the pre-run setup, not a payslip source — importing from it is disabled.",
+          });
+        }
+      }
       // Shared reflector: given a YYYY-MM-01 ISO date, upsert shadow rows into hr_payslips.
+
       async function reflectOne(periodISO: string) {
         const { data: shadow, error: shErr } = await svc
           .from("hr_razorpay_payslip_records")

@@ -44,6 +44,8 @@ function flattenBreakdown(obj: any, prefix = ""): Array<{ key: string; value: nu
 
 export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Props) {
   const [openRow, setOpenRow] = useState<any | null>(null);
+  const [adjustRow, setAdjustRow] = useState<any | null>(null);
+  const qc = useQueryClient();
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["rzp_payslips_emp", hrEmployeeId],
@@ -59,6 +61,16 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
     enabled: !!hrEmployeeId,
     refetchInterval: 24 * 60 * 60 * 1000,
   });
+
+  const flagsForRow = (r: any) => {
+    const p = r?.source_payload || {};
+    const dnp = p["do-not-pay"] ?? p.do_not_pay ?? false;
+    const paidOn = p["paid-on"] ?? p.paid_on ?? null;
+    const paymentStatus = p["payment-status"] ?? p.payment_status ?? null;
+    const isPaid = paymentStatus === "paid" || !!paidOn;
+    return { dnp: Boolean(dnp), paidOn, paymentStatus, isPaid };
+  };
+
 
   if (!razorpayEmployeeId) {
     return (

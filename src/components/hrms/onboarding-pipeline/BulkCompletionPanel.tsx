@@ -42,6 +42,8 @@ type Row = {
   has_salary: boolean;
   has_doj: boolean;
   has_designation: boolean;
+  salary_reason: "no_payroll" | "error" | null;
+  salary_reason_detail: string | null;
 };
 
 export function BulkCompletionPanel() {

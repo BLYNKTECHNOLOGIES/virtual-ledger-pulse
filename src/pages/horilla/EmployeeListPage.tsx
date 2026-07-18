@@ -786,8 +786,8 @@ export default function EmployeeListPage() {
         />
       ) : viewMode === "list" ? (
         /* ─── TABLE VIEW ─── */
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-card rounded-xl border border-border overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="w-10 py-3 px-3">

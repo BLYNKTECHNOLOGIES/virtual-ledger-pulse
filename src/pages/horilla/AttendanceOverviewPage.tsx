@@ -202,8 +202,8 @@ export default function AttendanceOverviewPage() {
                     <tr key={a.id} className="border-b hover:bg-muted/50">
                       <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
                       <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.hr_employees?.badge_id}</td>
-                      <td className="px-4 py-3 tabular-nums">{a.check_in || "—"}</td>
-                      <td className="px-4 py-3 tabular-nums">{a.check_out || "—"}</td>
+                      <td className="px-4 py-3 tabular-nums">{a.check_in ? format(new Date(a.check_in), "hh:mm a") : "—"}</td>
+                      <td className="px-4 py-3 tabular-nums">{a.check_out ? format(new Date(a.check_out), "hh:mm a") : "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
                           a.attendance_status === "present" ? "bg-success/10 text-success border-success/20" :

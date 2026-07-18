@@ -67,6 +67,7 @@ export function ContractorPayoutsHub() {
       const res = await invokeProxy("contractor_payment_list", {});
       const list = res?.body?.data ?? res?.body?.["contractor-payments"] ?? res?.body ?? [];
       const items = Array.isArray(list) ? list : [];
+      const countSnap = Number(res?.body?.count ?? items.length) || items.length;
       // Upsert into local cache. Best-effort employee mapping by email if provided.
       for (const it of items) {
         const email = it["employee-email"] ?? it.email ?? null;
@@ -89,6 +90,9 @@ export function ContractorPayoutsHub() {
           remarks: it.remarks ?? null,
           paid: Boolean(it.paid ?? false),
           status: it.status ?? (it.paid ? "paid" : "pending"),
+          from_email: it.from ?? it["from-email"] ?? null,
+          queued_on: it.created_at ?? it["created-at"] ?? null,
+          razorpay_count_snapshot: countSnap,
           raw_payload: it,
           last_synced_at: new Date().toISOString(),
         }, { onConflict: "razorpay_payment_id" });
@@ -101,6 +105,7 @@ export function ContractorPayoutsHub() {
       setRefreshing(null);
     }
   };
+
 
   const refreshOne = async (row: any) => {
     setRefreshing(row.id);

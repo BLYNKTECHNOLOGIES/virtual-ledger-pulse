@@ -668,11 +668,11 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
           <div className="space-y-2">
             <Label className="text-xs">Employee</Label>
             <Select value={linkEmployeeId} onValueChange={setLinkEmployeeId}>
-              <SelectTrigger><SelectValue placeholder="Select an active employee…" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select an employee…" /></SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {(employeesQ.data || []).map((e: any) => (
                   <SelectItem key={e.id} value={e.id}>
-                    {e.first_name} {e.last_name} {e.badge_id ? `(${e.badge_id})` : ""}
+                    {e.first_name} {e.last_name} {e.badge_id ? `(${e.badge_id})` : ""}{e.is_active === false ? " · draft" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>

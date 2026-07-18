@@ -1,63 +1,70 @@
-# HRMS Mobile Optimization Plan
+## Goal
 
-HRMS has 67 pages, most built around wide desktop tables. On phones these overflow horizontally, filter chips wrap awkwardly, action buttons get clipped, and headers steal vertical space. Rewriting each page individually is unrealistic in one shot, so this plan combines one shared primitive with a prioritized rollout.
+HRMS auto-adapts to the device it's opened on — no manual view toggles, no "flip back" affordances. Phones get a layout designed for phones; desktops keep the dense information-rich layout they have today. Both are first-class, neither is a fallback.
 
-## Approach
+## Current state (verified)
 
-### 1. Shared `ResponsiveTable` primitive (foundation)
-Add `src/components/hrms/primitives/ResponsiveTable.tsx`:
-- Desktop (≥ md): renders the existing `<Table>` unchanged.
-- Mobile (< md): renders each row as a stacked card — primary cell as the card title, remaining columns as label/value rows, actions collapsed into an overflow menu.
-- Column config drives both views (label, render, `mobilePrimary`, `mobileHidden`, `mobileLabel`).
-- Sticky search/filter bar, condensed spacing, tap-safe 44px targets.
+- `useIsMobile()` hook already exists and is reactive to viewport width (breakpoint 768px).
+- Global HRMS mobile CSS added last turn (table overflow, chip-row scroll strip, header/toolbar rules) is in `src/index.css` under `.horilla-root`.
+- `EmployeeListPage` currently has a **manual List/Grid toggle** in the toolbar and only *defaults* to grid on mobile — user can still switch to the broken table view. This is the "flip back" the user wants removed.
+- Many other HRMS pages (Attendance, Payslips, Leaves, Payroll, Candidates, Onboarding, Assets, Loans, Shifts, Docs) render desktop tables directly with no phone-native alternative — they rely purely on horizontal scroll today.
 
-Also add `MobilePageHeader` (compact title + inline action button) and standardize filter chips into a horizontal scroll strip so they never wrap into 3 rows.
+## What to build
 
-### 2. HorillaLayout mobile polish
-- Reduce top padding on mobile, remove desktop-only side gutters.
-- Header search collapses into an icon → sheet on `< sm`.
-- Sidebar already a Sheet on mobile — confirm all tabs reachable in ≤ 2 taps.
+### 1. Kill the manual view toggle on mobile
 
-### 3. Page rollout (staged)
+- On phones (`useIsMobile() === true`), the List/Grid toggle button in `EmployeeListPage` is not rendered and `viewMode` is locked to `"grid"` (card layout).
+- On desktop, the toggle disappears entirely too — desktop always shows the table. Users don't need to pick; the device decides.
+- Same rule applied anywhere else in HRMS that exposes a similar view switcher.
 
-Tier 1 — highest traffic (this turn):
-```text
-EmployeeListPage       AttendanceOverviewPage    PayslipsPage
-LeaveRequestsPage      SalaryRevisionsPage       PayrollDashboardPage
-HorillaDashboard       EmployeeProfilePage       AttendancePunchesPage
-BiometricDevicesPage
-```
+### 2. Introduce a single primitive: `<ResponsiveList>`
 
-Tier 2 — next turn: Recruitment (Candidates, Interviews, Pipeline), Onboarding, Separation/FnF, Loans, Assets, Documents, Holidays, Shifts.
+A small wrapper that takes the same row data twice — a `renderRow` for the desktop table body and a `renderCard` for the mobile card — and picks one based on `useIsMobile()`. Pages stop maintaining two branches manually. Column headers, empty state, loading skeleton, and pagination are shared.
 
-Tier 3 — final pass: Config/admin pages (Salary Components, Tax Config, Leave Types, Policies, Departments, Positions, Weekly Off, Penalty rules, MPI, Reports).
+### 3. Migrate Tier-1 pages to `<ResponsiveList>` with real phone card layouts
 
-Each page gets:
-- `ResponsiveTable` swap
-- Header collapsed to `MobilePageHeader` on `< sm`
-- Filter row → horizontal scroll chip strip
-- Bulk-action bar → sticky bottom sheet on mobile
-- Dialogs already responsive — audit only
+Not just horizontal scroll — actual card designs that surface the 3–4 fields that matter on a phone, with the rest available via row tap → detail sheet/drawer. Tier-1 set:
+
+- Employees (retire the existing bespoke grid, move it inside `ResponsiveList`)
+- Attendance Overview + daily punches
+- Payslips list + Payslip History Import
+- Leave Requests + Leave Balances
+- Payroll Runs list
+- Onboarding Dashboard
+- Employee Profile (already partly responsive — tighten tabs strip + info grid)
+
+### 4. Tier-2 pages get the `ResponsiveList` treatment in a follow-up pass
+
+Recruitment (Candidates, Interviews, Stages), Loans, Assets, Documents, Shifts, Biometric Devices, Regularization queue, Period Locks, Announcements. Same primitive, same pattern — mechanical migration once Tier-1 is proven.
+
+### 5. Tier-3 config pages stay table-only
+
+Rules, permissions, tax slabs, statutory config, integrations — these are admin-only, rarely opened on a phone. They keep horizontal scroll (already handled by the global CSS from last turn) and don't get card variants. Documented as an explicit choice, not an oversight.
+
+### 6. Global polish, applied via CSS only
+
+- HRMS header/toolbar: compact spacing on mobile, full spacing on desktop — driven by media queries, not JS.
+- Filter chip rows: already use `.hrms-chip-row` for horizontal scroll; audit remaining pages and tag their chip strips.
+- Modal/Sheet: dialogs that today overflow on phones (Salary Revision, Onboarding stages, Payslip detail) switch to bottom-sheet presentation via a `Drawer` on mobile, `Dialog` on desktop — one wrapper component.
+- Sidebar: already collapses to a Sheet on mobile via `HorillaLayout`; verify trigger button placement is thumb-reachable.
+
+## Explicitly out of scope
+
+- No changes to business logic, RPCs, engines, payroll math, or edge functions.
+- No changes to ERP module (only `/hrms` pages).
+- No manual "desktop mode" escape hatch on phones — the user's directive is that the device decides.
 
 ## Technical notes
 
-- Breakpoint: Tailwind `md` (768px) is the switch; use `useIsMobile` where JS logic is needed.
-- No new libraries; reuse shadcn `Card`, `Sheet`, `DropdownMenu`, `ScrollArea`.
-- Column visibility state on `EmployeeListPage` is preserved — mobile view just ignores the "always hidden on mobile" flag.
-- No business logic, RLS, or query changes.
-- Preview viewport switched to mobile during this work; user can flip back with the device toggle above the preview.
+- Detection: `useIsMobile()` (already reactive to `resize`). SSR-safe default = desktop, hydration fixes it — same as today.
+- `ResponsiveList` lives at `src/components/horilla/primitives/ResponsiveList.tsx`.
+- Mobile drawer wrapper lives at `src/components/horilla/primitives/ResponsiveDialog.tsx` using existing shadcn `Drawer` + `Dialog`.
+- No breakpoint changes — 768px stays the phone/desktop line.
+- No new dependencies.
 
-## Out of scope
+## Rollout order
 
-- Dialogs/forms already using shadcn responsive primitives (leave as-is unless a Tier-1 audit reveals overflow).
-- HRMS dark theme (already shipped).
-- ERP profile self-service view (already mobile-tuned).
-
-## Deliverable order in this turn
-
-1. `ResponsiveTable` + `MobilePageHeader` primitives
-2. Tier 1 pages migrated
-3. Global filter-chip strip helper
-4. Screenshot verify Employees + Attendance + Payslips in mobile viewport
-
-Tier 2 and Tier 3 ship in follow-up turns after Tier 1 is confirmed.
+1. Add `ResponsiveList` + `ResponsiveDialog` primitives.
+2. Remove the manual toggle from `EmployeeListPage`, port it onto `ResponsiveList`.
+3. Migrate the remaining Tier-1 pages one by one.
+4. Report back; then do Tier-2 in a follow-up.

@@ -3851,9 +3851,12 @@ Deno.serve(async (req) => {
       }
 
       // import_payslip_history_range
-      const from = String(payload?.period_from || "").trim(); // YYYY-MM
-      const to = String(payload?.period_to || "").trim();     // YYYY-MM
-      const alsoPull = payload?.pull_from_razorpay !== false; // default true
+      // Browser invoke sends business parameters under `payload`; scheduler sends
+      // them top-level. Support both so the HR page and cron execute the same flow.
+      const importParams = payload?.payload && typeof payload.payload === "object" ? payload.payload : payload;
+      const from = String(importParams?.period_from || "").trim(); // YYYY-MM
+      const to = String(importParams?.period_to || "").trim();     // YYYY-MM
+      const alsoPull = importParams?.pull_from_razorpay !== false; // default true
       if (!/^\d{4}-\d{2}$/.test(from) || !/^\d{4}-\d{2}$/.test(to)) {
         return json(400, { error: "period_from/period_to must be YYYY-MM" });
       }

@@ -219,26 +219,45 @@ interface MatchResult {
   action: "match" | "create_draft";
 }
 
-async function matchEmployee(svc: SupabaseClient, e: any): Promise<MatchResult> {
+async function matchEmployee(svc: SupabaseClient, e: any, currentRazorpayId?: string | number | null): Promise<MatchResult> {
   const pan = (e.pan || "").toString().trim().toUpperCase();
   const phone = normPhone(e.phone_number);
   const email = (e.email || "").toString().trim().toLowerCase();
 
+  // Pre-load hr_employee_ids already claimed by a DIFFERENT Razorpay employee.
+  // Without this guard, two distinct Razorpay records that share a stale PAN /
+  // phone / email fragment with the same ERP row both try to write the same
+  // hr_employee_id and the second one hits hr_razorpay_map_hr_emp_uniq
+  // (that is exactly why RP #70 "Shubham Singh" never landed).
+  const currentIdStr = currentRazorpayId != null ? String(currentRazorpayId) : null;
+  const { data: claimedRows } = await svc
+    .from("hr_razorpay_employee_map")
+    .select("hr_employee_id,razorpay_employee_id");
+  const claimed = new Set(
+    (claimedRows || [])
+      .filter((r: any) => !currentIdStr || String(r.razorpay_employee_id) !== currentIdStr)
+      .map((r: any) => r.hr_employee_id),
+  );
+  const notClaimed = (id: string | null | undefined) => !!id && !claimed.has(id);
+
   if (pan) {
-    const { data } = await svc.from("hr_employees").select("id").eq("pan_number", pan).limit(1).maybeSingle();
-    if (data?.id) return { hr_employee_id: data.id, matched_by: "pan", action: "match" };
+    const { data } = await svc.from("hr_employees").select("id").eq("pan_number", pan).limit(5);
+    const hit = (data || []).find((r: any) => notClaimed(r.id));
+    if (hit?.id) return { hr_employee_id: hit.id, matched_by: "pan", action: "match" };
   }
   if (phone) {
-    const { data } = await svc.from("hr_employees").select("id,phone").ilike("phone", `%${phone}%`).limit(5);
-    const hit = (data || []).find((r: any) => normPhone(r.phone) === phone);
+    const { data } = await svc.from("hr_employees").select("id,phone").ilike("phone", `%${phone}%`).limit(10);
+    const hit = (data || []).find((r: any) => normPhone(r.phone) === phone && notClaimed(r.id));
     if (hit) return { hr_employee_id: hit.id, matched_by: "phone", action: "match" };
   }
   if (email) {
-    const { data } = await svc.from("hr_employees").select("id").ilike("email", email).limit(1).maybeSingle();
-    if (data?.id) return { hr_employee_id: data.id, matched_by: "email", action: "match" };
+    const { data } = await svc.from("hr_employees").select("id").ilike("email", email).limit(5);
+    const hit = (data || []).find((r: any) => notClaimed(r.id));
+    if (hit?.id) return { hr_employee_id: hit.id, matched_by: "email", action: "match" };
   }
   return { hr_employee_id: null, matched_by: null, action: "create_draft" };
 }
+
 
 function fieldNames(e: any): string[] {
   return Object.keys(e || {}).sort();
@@ -606,7 +625,8 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(eid) || eid < 1) return json(400, { error: "employee_id required" });
       const r = await opfinView(eid);
       if (!r.ok) return json(200, { ok: false, http_status: r.status, error: r.errText || r.raw?.slice(0, 300) });
-      const match = await matchEmployee(svc, r.body);
+      const match = await matchEmployee(svc, r.body, eid);
+
       return json(200, {
         ok: true, employee_id: eid,
         preview: {
@@ -646,7 +666,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      let match = await matchEmployee(svc, r.body);
+      let match = await matchEmployee(svc, r.body, eid);
       let hrId = match.hr_employee_id;
       let created = false;
       if (!hrId) {
@@ -1055,7 +1075,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const match = await matchEmployee(svc, r.body);
+        const match = await matchEmployee(svc, r.body, i);
         rows.push({
           employee_id: i,
           status: "hit",

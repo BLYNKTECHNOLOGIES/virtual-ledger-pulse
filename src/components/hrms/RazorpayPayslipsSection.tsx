@@ -64,12 +64,13 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
 
   const flagsForRow = (r: any) => {
     const p = r?.source_payload || {};
-    const dnp = p["do-not-pay"] ?? p.do_not_pay ?? false;
+    const dnp = r?.do_not_pay ?? p["do-not-pay"] ?? p.do_not_pay ?? false;
     const paidOn = p["paid-on"] ?? p.paid_on ?? null;
     const paymentStatus = p["payment-status"] ?? p.payment_status ?? null;
     const isPaid = paymentStatus === "paid" || !!paidOn;
     return { dnp: Boolean(dnp), paidOn, paymentStatus, isPaid };
   };
+
 
 
   if (!razorpayEmployeeId) {
@@ -163,6 +164,9 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Gross</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Deductions</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">TDS</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">PF</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">ESI</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">PT</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Net Pay</th>
                   <th className="text-center py-2.5 px-3 text-xs font-semibold text-muted-foreground">PDF</th>
                   <th className="text-center py-2.5 px-3 text-xs font-semibold text-muted-foreground"></th>
@@ -187,6 +191,9 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       <td className="py-2.5 px-3 text-right text-foreground cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.gross_earnings)}</td>
                       <td className="py-2.5 px-3 text-right text-destructive cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.total_deductions)}</td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.tds_amount)}</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.pf_amount)}</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.esi_amount)}</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.professional_tax)}</td>
                       <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(r.net_pay)}</td>
                       <td className="py-2.5 px-3 text-center">
                         {r.pdf_url ? <FileText className="w-4 h-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">—</span>}
@@ -248,6 +255,48 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                   <p className="text-sm font-bold text-primary">{INR(openRow.net_pay)}</p>
                 </div>
               </div>
+
+              {/* Statutory strip — promoted first-class columns */}
+              {(openRow.pf_amount != null || openRow.esi_amount != null || openRow.professional_tax != null) && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="border border-border rounded p-3 bg-muted/30">
+                    <p className="text-[10px] uppercase text-muted-foreground">PF</p>
+                    <p className="text-sm font-semibold">{INR(openRow.pf_amount)}</p>
+                  </div>
+                  <div className="border border-border rounded p-3 bg-muted/30">
+                    <p className="text-[10px] uppercase text-muted-foreground">ESI</p>
+                    <p className="text-sm font-semibold">{INR(openRow.esi_amount)}</p>
+                  </div>
+                  <div className="border border-border rounded p-3 bg-muted/30">
+                    <p className="text-[10px] uppercase text-muted-foreground">Professional Tax</p>
+                    <p className="text-sm font-semibold">{INR(openRow.professional_tax)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Additions detail (Bonus / Reimbursement / Arrear chips) */}
+              {openRow.additions_detail && typeof openRow.additions_detail === "object" && Object.keys(openRow.additions_detail).length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2">Additions</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(openRow.additions_detail as Record<string, any>).map(([label, cfg]: any) => {
+                      const typeIdx = Number(cfg?.type);
+                      const typeName = typeIdx === 0 ? "Bonus" : typeIdx === 1 ? "Reimbursement" : typeIdx === 2 ? "Arrear" : "Other";
+                      const taxable = Boolean(cfg?.taxable);
+                      const amt = Number(cfg?.amount ?? 0);
+                      return (
+                        <Badge key={label} variant="outline" className="text-[11px] font-normal">
+                          <span className="font-semibold">{label}</span>
+                          <span className="mx-1 text-muted-foreground">·</span>{typeName}
+                          <span className="mx-1 text-muted-foreground">·</span>{taxable ? "Taxable" : "Non-taxable"}
+                          <span className="ml-1.5">{INR(amt)}</span>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
 
               {/* Breakdown from source_payload */}
               {openRow.source_payload && (

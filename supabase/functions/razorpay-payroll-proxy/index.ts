@@ -310,8 +310,17 @@ function extractPayrollViewFigures(body: any) {
     return v && /^https?:\/\//i.test(v) ? v : null;
   })();
   const payslipId = pickString(body?.["payslip-id"], body?.payslip_id, body?.id, body?.["payroll-id"], body?.payroll_id);
-  return { gross, deductions, net, tds, pdf, payslipId };
+  // Statutory + payroll-snapshot extras (every field the view-payroll response returns)
+  const pf = pickDeepMoney(body, ["pf", "pf-amount", "pf_amount", "provident-fund", "employer-pf", "employee-pf"]);
+  const esi = pickDeepMoney(body, ["esi", "esi-amount", "esi_amount", "employer-esi", "employee-esi"]);
+  const pt = pickDeepMoney(body, ["pt", "professional-tax", "professional_tax", "prof-tax", "prof_tax"]);
+  const additionsDetail = (body && typeof body === "object" && body.additions && typeof body.additions === "object" && !Array.isArray(body.additions))
+    ? body.additions : null;
+  const doNotPay = body?.["do-not-pay"] === true || body?.do_not_pay === true;
+  const employeeName = pickString(body?.["employee-name"], body?.employee_name, body?.name);
+  return { gross, deductions, net, tds, pdf, payslipId, pf, esi, pt, additionsDetail, doNotPay, employeeName, deductionAmount: deductions };
 }
+
 
 async function loadExpectedNetByRpId(svc: SupabaseClient, periodMonthISO: string) {
   const expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();
@@ -411,6 +420,13 @@ async function pullPayrollViewForPeriod(svc: SupabaseClient, periodMonthStr: str
         variance,
         razorpay_payslip_id: figures.payslipId || `${rpId}-${periodMonthStr}`,
         pdf_url: figures.pdf,
+        pf_amount: figures.pf,
+        esi_amount: figures.esi,
+        professional_tax: figures.pt,
+        deduction_amount: figures.deductionAmount,
+        additions_detail: figures.additionsDetail,
+        do_not_pay: figures.doNotPay,
+        employee_name_snapshot: figures.employeeName,
         source_payload: { endpoint: "payroll:view-payroll", request: { email, "payroll-month": periodMonthStr }, response: body },
         pulled_by: actorUserId,
       });
@@ -698,6 +714,15 @@ async function projectSnapshotIntoErp(
   if (jobTitle) {
     jobPositionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
+  // Resolve manager-employee-id (RazorpayX numeric id) → local hr_employee_id via employee map.
+  const rzMgrRaw = snap?.["manager-employee-id"] ?? snap?.manager_employee_id ?? snap?.manager?.id ?? snap?.manager?.["employee-id"];
+  const rzMgrId = rzMgrRaw != null && Number.isFinite(Number(rzMgrRaw)) ? Number(rzMgrRaw) : null;
+  let reportingManagerLocalId: string | null = null;
+  if (rzMgrId) {
+    const { data: mgrMap } = await svc.from("hr_razorpay_employee_map")
+      .select("hr_employee_id").eq("razorpay_employee_id", rzMgrId).maybeSingle();
+    if (mgrMap?.hr_employee_id) reportingManagerLocalId = mgrMap.hr_employee_id;
+  }
   const wiIncoming: Record<string, any> = {
     joining_date: parseDobIso(snap?.["date-of-hiring"] ?? snap?.date_of_hiring ?? snap?.hiring_date ?? snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
     department_id: departmentId,
@@ -706,7 +731,9 @@ async function projectSnapshotIntoErp(
     employee_type: pickString(snap?.employee_type, snap?.employment_type),
     work_email: pickString(snap?.work_email, snap?.email)?.toLowerCase() || null,
     location: pickString(snap?.location, snap?.work_location),
+    reporting_manager_id: reportingManagerLocalId,
   };
+
   const { data: wiCur } = await svc.from("hr_employee_work_info").select("*").eq("employee_id", hrId).maybeSingle();
   const wiPick = pickPatch(wiCur as any, wiIncoming);
   if (wiCur) {
@@ -1453,10 +1480,13 @@ Deno.serve(async (req) => {
           // (only fills nulls / matching sentinels), and we recently expanded
           // the field map (date-of-hiring, __salary → ctc) so stale hashes must
           // not gate the backfill.
+          const rzMgrRaw = (r.body as any)?.["manager-employee-id"] ?? (r.body as any)?.manager_employee_id ?? (r.body as any)?.manager?.["employee-id"];
+          const rzMgrId = rzMgrRaw != null && Number.isFinite(Number(rzMgrRaw)) ? Number(rzMgrRaw) : null;
           await svc.from("hr_razorpay_employee_map").update({
             last_pull_snapshot: r.body,
             last_pulled_at: new Date().toISOString(),
             last_payload_hash: hash,
+            razorpay_manager_employee_id: rzMgrId,
           }).eq("razorpay_employee_id", m.razorpay_employee_id);
 
           let diff: any = null;

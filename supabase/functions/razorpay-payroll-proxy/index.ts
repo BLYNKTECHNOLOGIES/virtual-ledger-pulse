@@ -310,8 +310,17 @@ function extractPayrollViewFigures(body: any) {
     return v && /^https?:\/\//i.test(v) ? v : null;
   })();
   const payslipId = pickString(body?.["payslip-id"], body?.payslip_id, body?.id, body?.["payroll-id"], body?.payroll_id);
-  return { gross, deductions, net, tds, pdf, payslipId };
+  // Statutory + payroll-snapshot extras (every field the view-payroll response returns)
+  const pf = pickDeepMoney(body, ["pf", "pf-amount", "pf_amount", "provident-fund", "employer-pf", "employee-pf"]);
+  const esi = pickDeepMoney(body, ["esi", "esi-amount", "esi_amount", "employer-esi", "employee-esi"]);
+  const pt = pickDeepMoney(body, ["pt", "professional-tax", "professional_tax", "prof-tax", "prof_tax"]);
+  const additionsDetail = (body && typeof body === "object" && body.additions && typeof body.additions === "object" && !Array.isArray(body.additions))
+    ? body.additions : null;
+  const doNotPay = body?.["do-not-pay"] === true || body?.do_not_pay === true;
+  const employeeName = pickString(body?.["employee-name"], body?.employee_name, body?.name);
+  return { gross, deductions, net, tds, pdf, payslipId, pf, esi, pt, additionsDetail, doNotPay, employeeName, deductionAmount: deductions };
 }
+
 
 async function loadExpectedNetByRpId(svc: SupabaseClient, periodMonthISO: string) {
   const expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();

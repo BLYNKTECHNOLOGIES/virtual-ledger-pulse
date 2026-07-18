@@ -547,12 +547,16 @@ async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: 
   // Two unique constraints exist on this table: (razorpay_employee_id) and
   // (hr_employee_id). A single upsert can only reference one conflict target,
   // so a stale row keyed on the OTHER column produced a 500 (apply_error).
-  // Reconcile both keys first, then upsert.
+  // Clear any conflicting stale rows on either key that don't match this
+  // exact (razorpay_id, hr_employee_id) pair, then upsert on hr_employee_id.
   await svc.from("hr_razorpay_employee_map")
     .delete()
-    .or(`razorpay_employee_id.eq.${razorpayId},hr_employee_id.eq.${hrEmployeeId}`)
-    .not("hr_employee_id", "eq", hrEmployeeId)
-    .throwOnError();
+    .eq("razorpay_employee_id", razorpayId)
+    .neq("hr_employee_id", hrEmployeeId);
+  await svc.from("hr_razorpay_employee_map")
+    .delete()
+    .eq("hr_employee_id", hrEmployeeId)
+    .neq("razorpay_employee_id", razorpayId);
   const { error } = await svc.from("hr_razorpay_employee_map").upsert({
     razorpay_employee_id: razorpayId,
     hr_employee_id: hrEmployeeId,

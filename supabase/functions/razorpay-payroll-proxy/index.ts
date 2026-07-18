@@ -4500,6 +4500,113 @@ Deno.serve(async (req) => {
       attendance_fetch:            { urlPath: "att",                bodyType: "attendance",         sub_type: "fetch",               write: false, gate: "none",    logAs: "attendance_fetch" },
     };
 
+    // ---------------------------------------------------------------------
+    // PATCH corrective attendance — used when HR approves a regularization
+    // for a day whose payroll month has already been pushed to Opfin.
+    // Body shape matches the Postman collection: request type "attendance",
+    // sub-type "modify", HTTP method PATCH against /att.
+    // ---------------------------------------------------------------------
+    if (action === "attendance_edit_patch") {
+      const s = await readSettings(svc);
+      if (!s?.push_attendance_endpoint_verified) {
+        return json(403, { error: "Attendance-write gate locked (push_attendance_endpoint_verified=false)." });
+      }
+      const data = (payload && typeof payload === "object" && payload.data && typeof payload.data === "object")
+        ? payload.data : {};
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 25000);
+      let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
+      try {
+        const res = await fetch(`${BASE}/att`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type: "attendance", "sub-type": "modify" },
+            data,
+          }),
+          signal: ctrl.signal,
+        });
+        httpStatus = res.status;
+        const raw = await res.text();
+        try { bodyOut = JSON.parse(raw); } catch { bodyOut = { raw: raw.slice(0, 800) }; }
+        const rpErr = bodyOut && typeof bodyOut === "object" ? (bodyOut.error ?? bodyOut.message ?? null) : null;
+        if (!res.ok || rpErr) {
+          errText = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
+        }
+      } catch (e) {
+        errText = `NETWORK: ${(e as Error).message}`;
+      } finally { clearTimeout(t); }
+
+      await logSync(svc, {
+        action: "attendance_edit_patch" as any,
+        http_status: httpStatus,
+        razorpay_employee_id: String(data["employee-id"] ?? ""),
+        hr_employee_id: null,
+        field_diff_summary: { url: "/att", method: "PATCH", sub_type: "modify", data_keys: Object.keys(data).slice(0, 20) },
+        error_text: errText,
+        actor_user_id: authed.userId,
+      });
+      return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
+    }
+
+    // ---------------------------------------------------------------------
+    // Range verify — iterates attendance/fetch across a date window and
+    // returns a per-day diff array. Read-only; used by AttendancePeriodLockPage.
+    // ---------------------------------------------------------------------
+    if (action === "attendance_fetch_range") {
+      const empId = payload?.data?.["employee-id"];
+      const from = String(payload?.data?.from || "");
+      const to = String(payload?.data?.to || "");
+      if (!empId || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+        return json(400, { error: "employee-id, from (YYYY-MM-DD) and to (YYYY-MM-DD) required" });
+      }
+      const start = new Date(from + "T00:00:00Z");
+      const end = new Date(to + "T00:00:00Z");
+      if (end < start) return json(400, { error: "'to' must be >= 'from'" });
+      const days: string[] = [];
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+        days.push(d.toISOString().slice(0, 10));
+      }
+      if (days.length > 62) return json(400, { error: "Range capped at 62 days" });
+
+      const results: any[] = [];
+      for (const day of days) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 15000);
+        try {
+          const res = await fetch(`${BASE}/att`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: "attendance", "sub-type": "fetch" },
+              data: { "employee-id": Number(empId), date: day },
+            }),
+            signal: ctrl.signal,
+          });
+          const raw = await res.text();
+          let body: any = null;
+          try { body = JSON.parse(raw); } catch { body = { raw: raw.slice(0, 400) }; }
+          results.push({ day, http_status: res.status, body });
+        } catch (e) {
+          results.push({ day, http_status: 0, error: (e as Error).message });
+        } finally { clearTimeout(t); }
+      }
+
+      await logSync(svc, {
+        action: "attendance_fetch_range" as any,
+        http_status: 200,
+        razorpay_employee_id: String(empId),
+        hr_employee_id: null,
+        field_diff_summary: { from, to, days: days.length },
+        error_text: null,
+        actor_user_id: authed.userId,
+      });
+      return json(200, { ok: true, days: results });
+    }
+
+
     if (action in DIRECT) {
       const spec = DIRECT[action];
       const s = await readSettings(svc);

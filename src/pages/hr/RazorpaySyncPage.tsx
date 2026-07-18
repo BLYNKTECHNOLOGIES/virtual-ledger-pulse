@@ -12,6 +12,8 @@ import { Station, type StationStatus } from "./RoadmapStation";
 import { RoadmapJourneyNav } from "./RoadmapJourneyNav";
 import { TodaysFocusHero } from "./TodaysFocusHero";
 import { cn } from "@/lib/utils";
+import { ContractorPayoutsHub } from "@/components/hrms/razorpay/ContractorPayoutsHub";
+
 
 interface Settings {
   base_url: string;
@@ -2280,7 +2282,11 @@ export default function RazorpaySyncPage() {
         <Station letter="J" title="Match with accounting books" subtitle="Compare salary expense with your accounting ledger and bank statement, and flag anything that doesn't match." status={stationStatus("J")} />
 
         <LedgerReconciliationSection invoke={invoke} />
+
+        <Station letter="K" title="Contractor payouts" subtitle="Queue, refresh and cancel RazorpayX contractor payouts. Reads the org-wide pending queue and syncs individual statuses." status="ready" />
+        <ContractorPayoutsHub />
       </>)}
+
       </>
       )}
     </div>

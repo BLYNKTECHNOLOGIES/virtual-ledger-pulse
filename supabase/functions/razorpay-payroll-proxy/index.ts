@@ -39,6 +39,11 @@ async function requireAuth(req: Request): Promise<{ userId: string | null; servi
   if (!authHeader?.toLowerCase().startsWith("bearer ")) return json(401, { error: "Unauthorized" });
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (token && token === SVC) return { userId: null, serviceRole: true };
+  const schedulerSecret = Deno.env.get("RAZORPAY_PAYSLIP_SYNC_SECRET") || Deno.env.get("CRON_SECRET") || "";
+  const providedSchedulerSecret = req.headers.get("x-razorpay-sync-secret") || "";
+  if (schedulerSecret && providedSchedulerSecret && schedulerSecret === providedSchedulerSecret) {
+    return { userId: null, serviceRole: true };
+  }
   const c = createClient(SUPA_URL, ANON, { global: { headers: { Authorization: authHeader } } });
   const { data, error } = await c.auth.getUser();
   if (error || !data?.user?.id) return json(401, { error: "Unauthorized" });

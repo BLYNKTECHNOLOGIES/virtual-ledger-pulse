@@ -105,6 +105,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = true
   [functions.copilot-teach]
     verify_jwt = true
+  [functions.razorpay-payroll-proxy]
+    verify_jwt = false
 
 
 

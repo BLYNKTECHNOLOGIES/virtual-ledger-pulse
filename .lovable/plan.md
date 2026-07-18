@@ -1,50 +1,63 @@
-## Root cause (verified, not guessed)
+# HRMS Mobile Optimization Plan
 
-The reason CTC is not landing is **not** a Razorpay data problem — it's that the code that _would_ fetch it isn't the code currently deployed.
+HRMS has 67 pages, most built around wide desktop tables. On phones these overflow horizontally, filter chips wrap awkwardly, action buttons get clipped, and headers steal vertical space. Rewriting each page individually is unrealistic in one shot, so this plan combines one shared primitive with a prioritized rollout.
 
-Evidence from the database (`hr_razorpay_employee_map`):
+## Approach
 
-- Every row's `last_pulled_at` is **2026-07-17** (yesterday), so pulls _are_ running.
-- Every row's `last_pull_snapshot.__salary_probe_error` still reads:
+### 1. Shared `ResponsiveTable` primitive (foundation)
+Add `src/components/hrms/primitives/ResponsiveTable.tsx`:
+- Desktop (≥ md): renders the existing `<Table>` unchanged.
+- Mobile (< md): renders each row as a stacked card — primary cell as the card title, remaining columns as label/value rows, actions collapsed into an overflow menu.
+- Column config drives both views (label, render, `mobilePrimary`, `mobileHidden`, `mobileLabel`).
+- Sticky search/filter bar, condensed spacing, tap-safe 44px targets.
 
-  ```
-  HTTP 404 @ salary:salary/view-salary <HTML>
-  ```
+Also add `MobilePageHeader` (compact title + inline action button) and standardize filter chips into a horizontal scroll strip so they never wrap into 3 rows.
 
-- That literal string **does not exist anywhere in the current `razorpay-payroll-proxy/index.ts`**. The current source calls `payroll:view-payroll` (verified at lines 143–192 of the function). The only code path that could have written `salary:salary/view-salary` is an older revision.
-- Every snapshot has a valid `email` on the Razorpay body (e.g. `shubhamsingh01981@gmail.com`), so email-missing is _not_ the blocker.
-- `hr_employee_onboarding.ctc` is populated for only **2 of 40** rows.
+### 2. HorillaLayout mobile polish
+- Reduce top padding on mobile, remove desktop-only side gutters.
+- Header search collapses into an icon → sheet on `< sm`.
+- Sidebar already a Sheet on mobile — confirm all tabs reachable in ≤ 2 taps.
 
-Conclusion: yesterday's deep-pulls ran the **previously deployed** version of the proxy that used the old `salary/view-salary` sub-type (which Razorpay 404s). The newer `opfinSalary` implementation that uses `payroll:view-payroll` was authored in the repo but never redeployed, so it has never actually run against Razorpay for these 40 employees.
+### 3. Page rollout (staged)
 
-Secondary constraint (also verified): RazorpayX exposes no read endpoint for the master annual CTC / salary structure. The only readable salary number is `payroll:view-payroll`, which returns a monthly gross **only for months the tenant has already processed payroll for**. If your RazorpayX tenant has never run a payroll month for a given employee, CTC cannot be fetched by API for that employee — it must be entered in HRMS (which is what "Bulk Assign Salary" is for). We won't know which employees fall into that bucket until the new probe actually runs.
+Tier 1 — highest traffic (this turn):
+```text
+EmployeeListPage       AttendanceOverviewPage    PayslipsPage
+LeaveRequestsPage      SalaryRevisionsPage       PayrollDashboardPage
+HorillaDashboard       EmployeeProfilePage       AttendancePunchesPage
+BiometricDevicesPage
+```
 
-## Fix, in order
+Tier 2 — next turn: Recruitment (Candidates, Interviews, Pipeline), Onboarding, Separation/FnF, Loans, Assets, Documents, Holidays, Shifts.
 
-1. **Redeploy `razorpay-payroll-proxy`** so the current source (with `opfinSalary` → `payroll:view-payroll`) becomes live.
-2. **Re-run "Deep Pull"** for all 40 onboarding employees from the RazorpaySyncPage. Each pull will:
-   - Call `people:view` (already working).
-   - Then walk the last 12 payroll months via `payroll:view-payroll` for that employee's email.
-   - On the first month that returns a `salary` field, set `annual_ctc = salary × 12`, write `__salary` onto the snapshot, and the projector fills `hr_employee_onboarding.ctc`.
-3. **Read the fresh `__salary_probe_error`** on every map row that still has null CTC. It will now contain one of two clear signatures:
-   - `no salary field @ payroll:view-payroll@YYYY-MM keys=…` — the tenant answered, but returned no salary → **no processed payroll on Razorpay for that employee**. CTC has to be entered manually.
-   - `NETWORK` / `HTTP 4xx` / `RPERR` — a real error to escalate.
-4. **Surface the classification in the UI**: on RazorpaySyncPage, for each employee still missing CTC after the re-pull, show a one-line reason chip:
-   - "No payroll processed on Razorpay — enter CTC manually" (green: expected, not an error).
-   - "Razorpay error: <short>" (amber: needs retry / attention).
+Tier 3 — final pass: Config/admin pages (Salary Components, Tax Config, Leave Types, Policies, Departments, Positions, Weekly Off, Penalty rules, MPI, Reports).
 
-   The Bulk Assign Salary flow already handles the manual case, so no new form is needed — just a clearer "why".
+Each page gets:
+- `ResponsiveTable` swap
+- Header collapsed to `MobilePageHeader` on `< sm`
+- Filter row → horizontal scroll chip strip
+- Bulk-action bar → sticky bottom sheet on mobile
+- Dialogs already responsive — audit only
 
 ## Technical notes
 
-- File: `supabase/functions/razorpay-payroll-proxy/index.ts`
-  - `opfinSalary` at lines 109–193 is the current, correct implementation. No code change needed there.
-  - `pull_person_full` at line 1149 already calls `opfinSalary` and writes `__salary` / `__salary_probe_error` onto the snapshot.
-  - Projector `projectSnapshotIntoOnboarding` already maps `__salary.annual_ctc → onboarding.ctc` (verified at lines 520–553).
-- UI: `src/pages/hrms/RazorpaySyncPage.tsx` already renders a "CTC" tag per row; we'll add the "why-missing" chip driven off `last_pull_snapshot.__salary_probe_error` in the same card.
-- No DB migration and no schema change. This is a deploy + re-run + tiny UI hint.
+- Breakpoint: Tailwind `md` (768px) is the switch; use `useIsMobile` where JS logic is needed.
+- No new libraries; reuse shadcn `Card`, `Sheet`, `DropdownMenu`, `ScrollArea`.
+- Column visibility state on `EmployeeListPage` is preserved — mobile view just ignores the "always hidden on mobile" flag.
+- No business logic, RLS, or query changes.
+- Preview viewport switched to mobile during this work; user can flip back with the device toggle above the preview.
 
-## What you'll see afterwards
+## Out of scope
 
-- Any employee whose Razorpay tenant has at least one processed payroll month gets CTC filled automatically on the next deep pull.
-- Everyone else gets a clear reason chip that says CTC isn't available from the API and directs the HR user to Bulk Assign Salary — instead of silently staying empty.
+- Dialogs/forms already using shadcn responsive primitives (leave as-is unless a Tier-1 audit reveals overflow).
+- HRMS dark theme (already shipped).
+- ERP profile self-service view (already mobile-tuned).
+
+## Deliverable order in this turn
+
+1. `ResponsiveTable` + `MobilePageHeader` primitives
+2. Tier 1 pages migrated
+3. Global filter-chip strip helper
+4. Screenshot verify Employees + Attendance + Payslips in mobile viewport
+
+Tier 2 and Tier 3 ship in follow-up turns after Tier 1 is confirmed.

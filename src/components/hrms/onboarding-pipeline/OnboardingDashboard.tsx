@@ -306,23 +306,23 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
       <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this onboarding record?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel this onboarding?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently removes the onboarding for{" "}
+              This marks the onboarding for{" "}
               <span className="font-medium">
                 {toDelete ? `${toDelete.first_name || ""} ${toDelete.last_name || ""}`.trim() || toDelete.email || "this candidate" : ""}
               </span>
-              . Use this when the candidate dropped mid-onboarding. Any linked draft (inactive) employee record will also be removed. This action cannot be undone.
+              {" "}as <span className="font-medium">Cancelled</span> and moves it out of In Progress. The record stays visible under the Cancelled filter so you keep a full history of dropped candidates.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Keep</AlertDialogCancel>
             <AlertDialogAction
               disabled={deleting}
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? "Cancelling..." : "Cancel Onboarding"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

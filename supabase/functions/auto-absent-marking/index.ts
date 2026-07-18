@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
     // Active employees
     const employees = await fetchAllRows((from, to) =>
-      supabase.from("hr_employees").select("id").eq("status", "active").range(from, to)
+      supabase.from("hr_employees").select("id").eq("is_active", true).range(from, to)
     );
     if (!employees.length) return json({ message: "no active employees", date: dateStr, marked: 0 });
     const employeeIds = employees.map((e: any) => e.id);

@@ -132,6 +132,26 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
   const completed = records?.filter(r => r.status === "completed") || [];
   const cancelled = records?.filter(r => r.status === "cancelled") || [];
 
+  type FilterKey = "all" | "in_progress" | "completed" | "cancelled";
+  const [filter, setFilter] = useState<FilterKey>("all");
+
+  const filteredRecords = (records || []).filter(r => {
+    if (filter === "all") return true;
+    if (filter === "completed") return r.status === "completed";
+    if (filter === "cancelled") return r.status === "cancelled";
+    return !["completed", "cancelled"].includes(r.status);
+  });
+
+  const cardCls = (key: FilterKey) =>
+    `cursor-pointer transition-all ${filter === key ? "ring-2 ring-primary border-primary" : "hover:border-primary/40"}`;
+
+  const filterLabel: Record<FilterKey, string> = {
+    all: "All",
+    in_progress: "In Progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -146,30 +166,30 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
         </Button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards — tap to filter */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card>
+        <Card className={cardCls("in_progress")} onClick={() => setFilter(f => f === "in_progress" ? "all" : "in_progress")}>
           <CardContent className="p-4 text-center">
             <Clock className="h-5 w-5 mx-auto mb-1 text-info" />
             <p className="text-2xl font-bold">{inProgress.length}</p>
             <p className="text-xs text-muted-foreground">In Progress</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cardCls("completed")} onClick={() => setFilter(f => f === "completed" ? "all" : "completed")}>
           <CardContent className="p-4 text-center">
             <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-success" />
             <p className="text-2xl font-bold">{completed.length}</p>
             <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cardCls("cancelled")} onClick={() => setFilter(f => f === "cancelled" ? "all" : "cancelled")}>
           <CardContent className="p-4 text-center">
             <XCircle className="h-5 w-5 mx-auto mb-1 text-destructive" />
             <p className="text-2xl font-bold">{cancelled.length}</p>
             <p className="text-xs text-muted-foreground">Cancelled</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cardCls("all")} onClick={() => setFilter("all")}>
           <CardContent className="p-4 text-center">
             <Users className="h-5 w-5 mx-auto mb-1 text-primary" />
             <p className="text-2xl font-bold">{records?.length || 0}</p>
@@ -177,6 +197,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
           </CardContent>
         </Card>
       </div>
+
 
       {/* Bulk Completion fast-lane (fills data only, never activates) */}
       <BulkCompletionPanel />

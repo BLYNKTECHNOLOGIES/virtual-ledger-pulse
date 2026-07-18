@@ -311,6 +311,18 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           )}
         </DialogContent>
       </Dialog>
+
+      {adjustRow && razorpayEmployeeId && (
+        <PayrollAdjustmentDialog
+          open={!!adjustRow}
+          onClose={() => setAdjustRow(null)}
+          razorpayEmployeeId={razorpayEmployeeId}
+          periodMonth={adjustRow.period_month}
+          currentDoNotPay={Boolean(adjustRow?.source_payload?.["do-not-pay"] ?? adjustRow?.source_payload?.do_not_pay)}
+          onDone={() => qc.invalidateQueries({ queryKey: ["rzp_payslips_emp", hrEmployeeId] })}
+        />
+      )}
     </div>
   );
 }
+

@@ -164,6 +164,9 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Gross</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Deductions</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">TDS</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">PF</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">ESI</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">PT</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Net Pay</th>
                   <th className="text-center py-2.5 px-3 text-xs font-semibold text-muted-foreground">PDF</th>
                   <th className="text-center py-2.5 px-3 text-xs font-semibold text-muted-foreground"></th>

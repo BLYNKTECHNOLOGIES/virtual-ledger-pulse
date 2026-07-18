@@ -53,6 +53,7 @@ serve(async (req) => {
       // queue commands using this pin/name directly.
       pin: rawPin,
       name: rawName,
+      onboarding_id, // optional audit tag — links this queue to a specific onboarding
     } = body || {};
 
     if (!["upsert", "delete"].includes(action)) {

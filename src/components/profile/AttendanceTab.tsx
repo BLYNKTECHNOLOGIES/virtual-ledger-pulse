@@ -164,6 +164,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
         </Card>
       </div>
 
+      {/* Regularization requests */}
+      <RegularizationCard employeeId={employeeId} />
+
       {/* Late/Early alerts */}
       {lateEarlyRecords.length > 0 && (
         <Card>

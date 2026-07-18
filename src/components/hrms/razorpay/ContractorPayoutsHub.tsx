@@ -195,6 +195,8 @@ export function ContractorPayoutsHub() {
                 <th className="text-right py-2.5 px-3">Tax</th>
                 <th className="text-left py-2.5 px-3">Purpose</th>
                 <th className="text-left py-2.5 px-3">Execute on</th>
+                <th className="text-left py-2.5 px-3">Queued on</th>
+                <th className="text-left py-2.5 px-3">From</th>
                 <th className="text-center py-2.5 px-3">Status</th>
                 <th className="text-center py-2.5 px-3"></th>
               </tr>
@@ -207,6 +209,8 @@ export function ContractorPayoutsHub() {
                   <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.tax)}</td>
                   <td className="py-2.5 px-3 text-muted-foreground">{r.purpose || "—"}</td>
                   <td className="py-2.5 px-3 text-muted-foreground">{r.execute_on || "—"}</td>
+                  <td className="py-2.5 px-3 text-muted-foreground">{r.queued_on ? new Date(r.queued_on).toLocaleDateString("en-IN") : "—"}</td>
+                  <td className="py-2.5 px-3 text-muted-foreground truncate max-w-[160px]" title={r.from_email || ""}>{r.from_email || "—"}</td>
                   <td className="py-2.5 px-3 text-center">
                     <Badge variant={r.paid ? "default" : "outline"} className={r.paid ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/40" : ""}>
                       {r.status || (r.paid ? "paid" : "pending")}

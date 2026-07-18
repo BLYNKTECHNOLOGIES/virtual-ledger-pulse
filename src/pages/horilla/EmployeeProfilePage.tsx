@@ -60,7 +60,7 @@ function SalarySummaryCard({
   return (
     <div className="border border-border rounded-lg p-4 bg-muted/30 page-mount">
       <h3 className="text-sm font-semibold text-foreground mb-3">Salary Summary</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <p className="text-xs text-muted-foreground">Annual CTC</p>
           <p className="text-sm font-bold text-foreground">₹{ctc.toLocaleString("en-IN")}</p>
@@ -113,7 +113,7 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
         <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Security Deposit</p>
       </div>
       <div className="border border-border rounded-lg p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground">Total Deposit</p>
             <p className="text-sm font-semibold">₹{Number(deposit.total_deposit_amount).toLocaleString('en-IN')}</p>
@@ -601,7 +601,7 @@ export default function EmployeeProfilePage() {
           <input type={inputType || "text"} value={editForm[editKey] || ""} onChange={e => setEditForm({ ...editForm, [editKey]: e.target.value })} className={inputCls} />
         )
       ) : (
-        <p className="text-sm font-medium text-foreground">{value || "None"}</p>
+        <p className="text-sm font-medium text-foreground break-words">{value || "None"}</p>
       )}
     </div>
   );
@@ -609,24 +609,24 @@ export default function EmployeeProfilePage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* ─── Breadcrumb ─── */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
         <button onClick={() => navigate("/hrms")} className="hover:text-foreground">Horilla</button>
         <span>›</span>
         <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employee</button>
         <span>›</span>
         <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employees</button>
         <span>›</span>
-        <span className="text-[#00bcd4] font-medium">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
+        <span className="text-[#00bcd4] font-medium break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
       </div>
 
       {/* ─── Profile Header (Horilla style) ─── */}
-      <div className="bg-card border border-border rounded-xl px-6 py-5 flex items-start justify-between">
-        <div className="flex items-start gap-5">
+      <div className="bg-card border border-border rounded-xl px-6 py-5 flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="flex items-start gap-3 md:gap-5">
           {/* Avatar */}
           {emp.profile_image_url ? (
-            <img src={emp.profile_image_url} className="w-20 h-20 rounded-lg object-cover" alt="" />
+            <img src={emp.profile_image_url} className="w-16 h-16 md:w-20 md:h-20 rounded-lg object-cover" alt="" />
           ) : (
-            <div className={`w-20 h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-2xl`}>
+            <div className={`w-16 h-16 md:w-20 md:h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-2xl`}>
               {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
             </div>
           )}
@@ -634,7 +634,7 @@ export default function EmployeeProfilePage() {
           {/* Info */}
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-semibold text-foreground">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
+              <h1 className="text-lg font-semibold text-foreground break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
               <DriftBadge employeeId={emp.id} />
             </div>
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
@@ -692,7 +692,7 @@ export default function EmployeeProfilePage() {
 
 
       {/* ─── Tabs (Horilla pill style) ─── */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
         {TABS.map(t => (
           <button
             key={t}
@@ -709,7 +709,7 @@ export default function EmployeeProfilePage() {
       </div>
 
       {/* ─── Tab Content ─── */}
-      <div className="bg-card border border-border rounded-xl p-6">
+      <div className="bg-card border border-border rounded-xl p-4 md:p-6">
         {/* ── ABOUT TAB ── */}
         {activeTab === "About" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -837,7 +837,7 @@ export default function EmployeeProfilePage() {
                   </div>
                 </div>
               ) : (
-                <div className="border border-border rounded-lg overflow-hidden">
+                <div className="border border-border rounded-lg overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
@@ -963,7 +963,7 @@ export default function EmployeeProfilePage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Work Type</p>
                     <p className="text-sm font-medium text-foreground mt-1">{workInfo?.work_type || "None"}</p>
@@ -989,7 +989,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div className="border border-border rounded-lg p-4">
                   <h4 className="text-sm font-semibold text-foreground mb-3">Work Details</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div><p className="text-xs text-muted-foreground">Location</p><p className="text-sm text-foreground">{workInfo?.location || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
@@ -1068,7 +1068,7 @@ export default function EmployeeProfilePage() {
                   {pullingBank ? "Pulling…" : "Pull from Razorpay"}
                 </Button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div><p className="text-xs text-muted-foreground">Bank Name</p><p className="text-sm text-foreground">{bankInfo?.bank_name || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Account Number</p><p className="text-sm text-foreground">{bankInfo?.account_number || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">IFSC Code</p><p className="text-sm text-foreground">{bankInfo?.ifsc_code || "None"}</p></div>
@@ -1098,7 +1098,7 @@ export default function EmployeeProfilePage() {
             {(assetAssignments || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No assets assigned</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1142,7 +1142,7 @@ export default function EmployeeProfilePage() {
             {(attendance || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No attendance records found</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1196,7 +1196,7 @@ export default function EmployeeProfilePage() {
             {(payslips || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No payslips found</p>
             ) : (
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -1252,7 +1252,7 @@ export default function EmployeeProfilePage() {
           <div className="space-y-4">
             <div className="border border-border rounded-lg p-4 bg-muted/30">
               <h3 className="text-sm font-semibold text-foreground mb-3">Employee Lifecycle</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Joining Date</p>
                   <p className="font-medium text-foreground">{(workInfo as any)?.joining_date ? new Date((workInfo as any).joining_date).toLocaleDateString("en-IN") : "—"}</p>

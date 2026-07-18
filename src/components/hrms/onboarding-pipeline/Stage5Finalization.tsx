@@ -34,6 +34,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     create_in_razorpay: false,
   });
   const [finalizing, setFinalizing] = useState(false);
+  const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
+
+  const getFinalizeErrorMessage = (err: any) => {
+    const base = err?.message || err?.error_description || err?.error || "Finalize failed";
+    const hint = err?.hint ? ` Hint: ${err.hint}` : "";
+    const details = err?.details ? ` Details: ${err.details}` : "";
+    return `${base}${hint}${details}`;
+  };
 
   // Pre-fill bank details from hr_employee_bank_details when this onboarding
   // was auto-created from a Razorpay import (linked hr_employees row exists).
@@ -238,6 +246,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   };
 
   const handleFinalize = async () => {
+    setFinalizeFeedback(null);
     console.log("[Stage5] Finalize clicked", {
       form,
       pinStatus,
@@ -251,6 +260,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       return;
     }
     setFinalizing(true);
+    const toastId = toast.loading("Creating employee…");
     try {
       const payload: any = {
         date_of_joining: form.date_of_joining,
@@ -272,9 +282,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       console.log("[Stage5] Calling onFinalize with payload", payload);
       await onFinalize(payload);
       console.log("[Stage5] onFinalize resolved");
+      const successMessage = `${firstName || "Employee"} ${lastName || ""}`.trim()
+        ? `${`${firstName || "Employee"} ${lastName || ""}`.trim()} has been created successfully.`
+        : "Employee has been created successfully.";
+      setFinalizeFeedback({ kind: "success", message: successMessage });
+      toast.success(successMessage, { id: toastId, description: "Onboarding is now marked as completed." });
     } catch (err: any) {
       console.error("[Stage5] onFinalize threw", err);
-      toast.error(err?.message || "Finalize failed — check console");
+      const message = getFinalizeErrorMessage(err);
+      setFinalizeFeedback({ kind: "error", message });
+      toast.error("Employee creation failed", { id: toastId, description: message });
     } finally {
       setFinalizing(false);
     }
@@ -522,6 +539,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             >
               {finalizing ? "Creating Employee..." : "✅ Finalize & Create Employee"}
             </Button>
+          </div>
+        )}
+
+        {finalizeFeedback && (
+          <div
+            className={`rounded-lg border p-3 text-sm flex items-start gap-2 ${
+              finalizeFeedback.kind === "success"
+                ? "border-success/30 bg-success/10 text-success"
+                : "border-destructive/30 bg-destructive/10 text-destructive"
+            }`}
+          >
+            {finalizeFeedback.kind === "success" ? (
+              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            )}
+            <span>{finalizeFeedback.message}</span>
           </div>
         )}
       </CardContent>

@@ -172,7 +172,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
   const employeeId: string | null = onboarding?.employee_id || onboarding?.candidate_id || null;
   const preHireCompletions: Record<string, { completed?: boolean }> = ((onboarding?.stage_completions as any)?.tasks) || {};
   const isTaskCompleted = (taskId: string) => {
-    if (employeeId) return taskEmployees.some((te: any) => te.task_id === taskId && te.is_completed);
+    if (employeeId) return taskEmployees.some((te: any) => te.task_id === taskId && te.employee_id === employeeId && te.is_completed);
     return !!preHireCompletions[taskId]?.completed;
   };
 

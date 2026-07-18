@@ -34,7 +34,54 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     create_in_razorpay: false,
   });
   const [finalizing, setFinalizing] = useState(false);
+  const [pushingToDevices, setPushingToDevices] = useState(false);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
+
+  const handlePushToBiometric = async () => {
+    const pin = form.essl_badge_id.trim();
+    const name = `${onboardingRecord?.first_name || ""} ${onboardingRecord?.last_name || ""}`.trim();
+    if (!pin) {
+      toast.error("Enter an ESSL Badge ID first.");
+      return;
+    }
+    if (!name) {
+      toast.error("Employee name is missing on this onboarding record.");
+      return;
+    }
+    setPushingToDevices(true);
+    const t = toast.loading(`Queuing ${name} (PIN ${pin}) to both biometric devices…`);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.functions.invoke("hr-essl-push", {
+        body: {
+          pin,
+          name,
+          action: "upsert",
+          triggered_by: userData?.user?.id ?? null,
+          triggered_from: "onboarding_stage5",
+        },
+      });
+      if (error) throw error;
+      const payload = (data ?? {}) as any;
+      toast.dismiss(t);
+      if (payload.ok) {
+        toast.success(`Queued on ${payload.queued_count} device(s). They will apply on next poll.`);
+      } else if (payload.skipped) {
+        toast.warning(
+          payload.reason === "no_devices"
+            ? "No biometric devices registered."
+            : "Skipped — missing PIN.",
+        );
+      } else {
+        throw new Error(payload.error || "Push failed");
+      }
+    } catch (e: any) {
+      toast.dismiss(t);
+      toast.error(`Push failed: ${e?.message || String(e)}`);
+    } finally {
+      setPushingToDevices(false);
+    }
+  };
 
   const getFinalizeErrorMessage = (err: any) => {
     const base = err?.message || err?.error_description || err?.error || "Finalize failed";

@@ -6693,6 +6693,51 @@ export type Database = {
           },
         ]
       }
+      hr_esi_contribution_periods: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          initial_gross: number
+          is_eligible: boolean
+          period_end: string
+          period_start: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          initial_gross: number
+          is_eligible: boolean
+          period_end: string
+          period_start: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          initial_gross?: number
+          is_eligible?: boolean
+          period_end?: string
+          period_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_esi_contribution_periods_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_esi_contribution_periods_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_essl_pushback_log: {
         Row: {
           action: string
@@ -6849,32 +6894,44 @@ export type Database = {
       hr_filing_statuses: {
         Row: {
           based_on: string
+          cess_rate: number
           created_at: string | null
           description: string | null
           id: string
           is_active: boolean | null
           is_default: boolean | null
           name: string
+          rebate_87a_limit: number
+          regime_type: string | null
+          standard_deduction: number
           updated_at: string | null
         }
         Insert: {
           based_on?: string
+          cess_rate?: number
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
           name: string
+          rebate_87a_limit?: number
+          regime_type?: string | null
+          standard_deduction?: number
           updated_at?: string | null
         }
         Update: {
           based_on?: string
+          cess_rate?: number
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
           name?: string
+          rebate_87a_limit?: number
+          regime_type?: string | null
+          standard_deduction?: number
           updated_at?: string | null
         }
         Relationships: []
@@ -8706,6 +8763,42 @@ export type Database = {
           id?: string
           is_visible_to_all?: boolean | null
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_pt_slabs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          march_amount: number | null
+          max_monthly_gross: number | null
+          min_monthly_gross: number
+          monthly_amount: number
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          march_amount?: number | null
+          max_monthly_gross?: number | null
+          min_monthly_gross: number
+          monthly_amount?: number
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          march_amount?: number | null
+          max_monthly_gross?: number | null
+          min_monthly_gross?: number
+          monthly_amount?: number
+          state?: string
           updated_at?: string
         }
         Relationships: []
@@ -18702,6 +18795,10 @@ export type Database = {
         Returns: number
       }
       compute_leave_clashes: { Args: { p_request_id: string }; Returns: number }
+      compute_professional_tax: {
+        Args: { p_is_march: boolean; p_monthly_gross: number; p_state: string }
+        Returns: number
+      }
       create_bank_transfer:
         | {
             Args: {

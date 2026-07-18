@@ -120,6 +120,47 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
 
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [linkPin, setLinkPin] = useState<string | null>(null);
+  const [linkEmployeeId, setLinkEmployeeId] = useState<string>("");
+  const [linking, setLinking] = useState(false);
+
+  // Map a device PIN to an HRMS employee. The DB trigger `hr_replay_quarantine_on_mapping`
+  // drains parked punches, rebuilds hr_attendance + hr_attendance_daily, and queues a
+  // 30-day ATTLOG re-fetch. We snapshot parked-count before/after to report drainage.
+  const linkPinToEmployee = async () => {
+    if (!serial || !linkPin || !linkEmployeeId) return;
+    setLinking(true);
+    const parkedBefore = quarantineQ.data?.get(String(linkPin)) ?? 0;
+    const { error } = await (supabase as any)
+      .from("hr_biometric_device_users")
+      .update({ matched_employee_id: linkEmployeeId })
+      .eq("device_serial", serial)
+      .eq("pin", linkPin);
+    if (error) { setLinking(false); toast.error(error.message); return; }
+    const { data: postRows } = await (supabase as any)
+      .from("hr_attendance_quarantine")
+      .select("id")
+      .eq("device_serial", serial)
+      .eq("pin", linkPin)
+      .is("replayed_at", null);
+    const parkedAfter = (postRows || []).length;
+    const drained = Math.max(0, parkedBefore - parkedAfter);
+    setLinking(false);
+    setLinkPin(null);
+    setLinkEmployeeId("");
+    await Promise.all([usersQ.refetch(), quarantineQ.refetch(), punchesQ.refetch()]);
+    qc.invalidateQueries({ queryKey: ["hr_attendance_quarantine_banner"] });
+    qc.invalidateQueries({ queryKey: ["hr_attendance"] });
+    qc.invalidateQueries({ queryKey: ["hr_attendance_daily"] });
+    if (drained > 0) {
+      toast.success(`PIN ${linkPin} linked. Replayed ${drained} parked punch${drained === 1 ? "" : "es"} into attendance; daily rollups rebuilt. A 30-day ATTLOG re-fetch is queued to the device.`);
+    } else if (parkedBefore === 0) {
+      toast.success(`PIN ${linkPin} linked. No parked punches to replay; future punches will land clean.`);
+    } else {
+      toast.warning(`PIN ${linkPin} linked, but ${parkedAfter} punch${parkedAfter === 1 ? "" : "es"} remain parked — check hr_replay_quarantine_on_mapping logs.`);
+    }
+  };
+
 
   const cmdsQ = useQuery({
     enabled: !!serial && open,

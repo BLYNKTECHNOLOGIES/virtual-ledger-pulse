@@ -121,8 +121,10 @@ export default function PositionsPage() {
       </div>
 
       {isLoading ? (
-        <div className="bg-card rounded-xl border border-border overflow-hidden p-4">
-          <TableSkeleton rows={5} columns={5} />
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-lg bg-muted/40 animate-pulse" />
+          ))}
         </div>
       ) : filteredPositions.length === 0 ? (
         <EmptyState

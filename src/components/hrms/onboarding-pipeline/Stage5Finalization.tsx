@@ -211,11 +211,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
   }, [form.essl_badge_id, devicePins, canonicalDevicePins, onboardingRecord?.employee_id]);
 
+  // A PIN is "assigned" only when a finalized hr_employees row already carries
+  // it as badge_id. matched_employee_id alone isn't enough — the identity link
+  // can be pre-seeded before finalization and would otherwise hide the PIN.
+  const { data: usedBadgeIds = [] } = useQuery({
+    queryKey: ["hr_employees_badge_ids_for_stage5"],
+    queryFn: async () => {
+      const rows = await fetchAllPaginated<any>(() =>
+        supabase.from("hr_employees").select("badge_id").not("badge_id", "is", null)
+      );
+      return rows.map((r: any) => String(r.badge_id).trim()).filter(Boolean);
+    },
+    refetchInterval: 30_000,
+  });
+
   const unassignedPins = useMemo(() => {
+    const used = new Set(usedBadgeIds);
+    // Keep the PIN currently on this onboarding record visible so HR can re-pick it.
+    const currentPin = (form.essl_badge_id || "").trim();
     return canonicalDevicePins
-      .filter((p: any) => !p.matched_employee_id)
+      .filter((p: any) => !used.has(String(p.pin).trim()) || p.pin === currentPin)
       .sort((a: any, b: any) => Number(a.pin) - Number(b.pin));
-  }, [canonicalDevicePins]);
+  }, [canonicalDevicePins, usedBadgeIds, form.essl_badge_id]);
 
 
   const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());

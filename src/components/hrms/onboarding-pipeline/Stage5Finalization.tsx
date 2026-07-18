@@ -504,10 +504,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               <Select
                 value=""
                 onValueChange={v => setForm(p => ({ ...p, essl_badge_id: v }))}
-                disabled={readOnly || pinsLoading}
+                disabled={readOnly || pinsLoading || bioAlreadyCreated}
               >
                 <SelectTrigger className="w-[190px] shrink-0">
-                  <SelectValue placeholder={pinsLoading ? "Loading…" : `Pick unassigned (${unassignedPins.length})`} />
+                  <SelectValue placeholder={
+                    bioAlreadyCreated
+                      ? "Locked — already created"
+                      : pinsLoading
+                        ? "Loading…"
+                        : `Pick unassigned (${unassignedPins.length})`
+                  } />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
                   {unassignedPins.length === 0 ? (
@@ -536,21 +542,43 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 <span>{pinStatus.msg}</span>
               </p>
             )}
+            {bioAlreadyCreated && (
+              <div className="mt-2 rounded-md border border-success/40 bg-success/10 px-3 py-2 text-xs text-success flex items-start gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <div className="space-y-0.5">
+                  <div className="font-medium">
+                    Biometric identity created for {firstName} {lastName} (PIN {currentPinTrim}).
+                  </div>
+                  <div className="text-success/80">
+                    {pinStatus?.kind === "ok"
+                      ? "Confirmed live on device roster — punches from this PIN will match this employee."
+                      : "Queued to IN + OUT devices. They will apply it on the next poll (30–60s). This action is locked to prevent duplicate identities."}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim()}
+                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim() || bioAlreadyCreated}
                 onClick={handlePushToBiometric}
               >
                 <Fingerprint className="h-3.5 w-3.5 mr-1.5" />
-                {pushingToDevices ? "Queuing…" : "Create on IN + OUT biometric devices"}
+                {bioAlreadyCreated
+                  ? "Already created on devices"
+                  : pushingToDevices
+                    ? "Queuing…"
+                    : "Create on IN + OUT biometric devices"}
               </Button>
               <span className="text-[11px] text-muted-foreground">
-                Queues a name/PIN write to both eSSL devices. They apply it on the next poll (30–60s).
+                {bioAlreadyCreated
+                  ? "Locked — this PIN is already registered. Delete the device user first if you need to re-create."
+                  : "Queues a name/PIN write to both eSSL devices. They apply it on the next poll (30–60s)."}
               </span>
             </div>
+
           </div>
           <div>
             <Label>Reporting Manager</Label>

@@ -666,7 +666,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      let match = await matchEmployee(svc, r.body);
+      let match = await matchEmployee(svc, r.body, eid);
       let hrId = match.hr_employee_id;
       let created = false;
       if (!hrId) {

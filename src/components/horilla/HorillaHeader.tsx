@@ -157,14 +157,49 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="flex items-center bg-muted/60 rounded-lg border border-border px-3 py-1.5 min-w-0 w-full sm:w-64 sm:max-w-none max-w-[220px] focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
-          <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search…"
-            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full min-w-0"
-          />
+        <div ref={searchRef} className="relative w-full sm:w-72 max-w-[220px] sm:max-w-none">
+          <div className="flex items-center bg-muted/60 rounded-lg border border-border px-3 py-1.5 min-w-0 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40 transition-all">
+            <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+            <input
+              type="text"
+              value={searchQ}
+              onChange={(e) => { setSearchQ(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Search employees, email, ID…"
+              className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full min-w-0"
+            />
+            {searchQ && (
+              <button
+                onClick={() => { setSearchQ(""); setSearchOpen(false); }}
+                className="ml-1 text-muted-foreground hover:text-foreground shrink-0"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {searchOpen && debouncedQ.trim().length >= 2 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-auto">
+              {searching && searchResults.length === 0 ? (
+                <div className="p-3 text-xs text-muted-foreground">Searching…</div>
+              ) : searchResults.length === 0 ? (
+                <div className="p-3 text-xs text-muted-foreground">No matches. Try email or employee ID.</div>
+              ) : (
+                searchResults.map((r) => (
+                  <button
+                    key={`${r.kind}-${r.id}`}
+                    onClick={() => { navigate(r.link); setSearchOpen(false); setSearchQ(""); }}
+                    className="w-full text-left px-3 py-2 hover:bg-muted border-b last:border-0 border-border"
+                  >
+                    <div className="text-sm font-medium text-foreground truncate">{r.label}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{r.sub}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
+
       </div>
 
 

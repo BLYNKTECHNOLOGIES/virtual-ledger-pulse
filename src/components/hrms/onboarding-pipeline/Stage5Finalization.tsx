@@ -198,19 +198,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     }));
   }, [devicePins]);
 
-  const pinStatus = useMemo(() => {
-    const val = (form.essl_badge_id || "").trim();
-    if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
-    const matches = (devicePins || []).filter((p: any) => (p.pin || "").trim() === val);
-    if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
-    const usedByOther = new Set(usedBadgeIds.filter((b: string) => b !== (onboardingRecord?.essl_badge_id || "")));
-    if (usedByOther.has(val)) return { kind: "conflict", msg: `PIN ${val} is already the badge ID of another finalized employee.`, matches };
-    const canonical = canonicalDevicePins.find((p: any) => p.pin === val);
-    const deviceCount = canonical?.deviceCount || matches.length;
-    const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;
-    return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
-  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id]);
-
   // A PIN is "assigned" only when a finalized hr_employees row already carries
   // it as badge_id. matched_employee_id alone isn't enough — the identity link
   // can be pre-seeded before finalization and would otherwise hide the PIN.
@@ -224,6 +211,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     },
     refetchInterval: 30_000,
   });
+
+  const pinStatus = useMemo(() => {
+    const val = (form.essl_badge_id || "").trim();
+    if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
+    const matches = (devicePins || []).filter((p: any) => (p.pin || "").trim() === val);
+    if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
+    const usedByOther = new Set(usedBadgeIds.filter((b: string) => b !== (onboardingRecord?.essl_badge_id || "")));
+    if (usedByOther.has(val)) return { kind: "conflict", msg: `PIN ${val} is already the badge ID of another finalized employee.`, matches };
+    const canonical = canonicalDevicePins.find((p: any) => p.pin === val);
+    const deviceCount = canonical?.deviceCount || matches.length;
+    const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;
+    return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
+  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id]);
 
   const unassignedPins = useMemo(() => {
     const used = new Set(usedBadgeIds);

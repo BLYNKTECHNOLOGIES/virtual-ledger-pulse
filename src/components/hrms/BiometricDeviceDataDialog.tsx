@@ -86,6 +86,37 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     queryFn: async () => (await (supabase as any).from("hr_biometric_device_photos").select("id,pin,kind,size_bytes,photo_base64,punch_time,captured_at").eq("device_serial", serial).order("captured_at", { ascending: false }).limit(60)).data || [],
   });
 
+  // Parked (unreplayed) quarantine punches per PIN for this device — surfaces the
+  // recoverable-punch count next to unlinked users so HR sees the payoff before mapping.
+  const quarantineQ = useQuery({
+    enabled: !!serial && open,
+    queryKey: ["bio-quarantine-by-pin", serial],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_attendance_quarantine")
+        .select("pin")
+        .eq("device_serial", serial)
+        .is("replayed_at", null);
+      const map = new Map<string, number>();
+      for (const r of data || []) map.set(String(r.pin), (map.get(String(r.pin)) || 0) + 1);
+      return map;
+    },
+  });
+
+  // Active employees for the Link picker.
+  const employeesQ = useQuery({
+    enabled: open,
+    queryKey: ["bio-link-employees"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_employees")
+        .select("id, badge_id, first_name, last_name")
+        .eq("is_active", true)
+        .order("first_name");
+      return data || [];
+    },
+  });
+
 
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);

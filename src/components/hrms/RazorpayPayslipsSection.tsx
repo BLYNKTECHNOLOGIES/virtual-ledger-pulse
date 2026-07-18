@@ -111,29 +111,46 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
         <>
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
-            {rows.map((r: any) => (
-              <button
-                key={r.id}
-                onClick={() => setOpenRow(r)}
-                className="w-full text-left border border-border rounded-lg p-3 bg-card hover:bg-muted/40 transition"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-foreground">{IN_MONTH(r.period_month)}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">RazorpayX</p>
+            {rows.map((r: any) => {
+              const f = flagsForRow(r);
+              return (
+                <div key={r.id} className="border border-border rounded-lg p-3 bg-card hover:bg-muted/40 transition">
+                  <div className="flex items-start justify-between gap-3">
+                    <button className="text-left flex-1" onClick={() => setOpenRow(r)}>
+                      <p className="font-semibold text-foreground">{IN_MONTH(r.period_month)}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">RazorpayX</span>
+                        {f.dnp && <Badge variant="destructive" className="text-[9px] px-1.5 py-0">Paused</Badge>}
+                        {f.isPaid && <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[9px] px-1.5 py-0">Paid{f.paidOn ? ` · ${f.paidOn}` : ""}</Badge>}
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {r.pdf_url && <FileText className="w-4 h-4 text-primary shrink-0" />}
+                      {razorpayEmployeeId && !f.isPaid && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setAdjustRow(r)}>
+                              <SlidersHorizontal className="w-3 h-3 mr-2" /> Adjust
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </div>
-                  {r.pdf_url && <FileText className="w-4 h-4 text-primary shrink-0" />}
+                  <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
+                    <span className="text-muted-foreground">Gross</span>
+                    <span className="text-right text-foreground">{INR(r.gross_earnings)}</span>
+                    <span className="text-muted-foreground">Deductions</span>
+                    <span className="text-right text-destructive">{INR(r.total_deductions)}</span>
+                    <span className="text-muted-foreground">Net Pay</span>
+                    <span className="text-right font-semibold text-foreground">{INR(r.net_pay)}</span>
+                  </div>
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-                  <span className="text-muted-foreground">Gross</span>
-                  <span className="text-right text-foreground">{INR(r.gross_earnings)}</span>
-                  <span className="text-muted-foreground">Deductions</span>
-                  <span className="text-right text-destructive">{INR(r.total_deductions)}</span>
-                  <span className="text-muted-foreground">Net Pay</span>
-                  <span className="text-right font-semibold text-foreground">{INR(r.net_pay)}</span>
-                </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
 
           {/* Desktop table */}
@@ -142,6 +159,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Month</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Status</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Gross</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">Deductions</th>
                   <th className="text-right py-2.5 px-3 text-xs font-semibold text-muted-foreground">TDS</th>
@@ -151,28 +169,52 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r: any) => (
-                  <tr
-                    key={r.id}
-                    className="border-b border-border/50 hover:bg-muted/30 cursor-pointer"
-                    onClick={() => setOpenRow(r)}
-                  >
-                    <td className="py-2.5 px-3 text-foreground font-medium">{IN_MONTH(r.period_month)}</td>
-                    <td className="py-2.5 px-3 text-right text-foreground">{INR(r.gross_earnings)}</td>
-                    <td className="py-2.5 px-3 text-right text-destructive">{INR(r.total_deductions)}</td>
-                    <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.tds_amount)}</td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(r.net_pay)}</td>
-                    <td className="py-2.5 px-3 text-center">
-                      {r.pdf_url ? <FileText className="w-4 h-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">—</span>}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className="text-xs text-primary">View</span>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((r: any) => {
+                  const f = flagsForRow(r);
+                  return (
+                    <tr
+                      key={r.id}
+                      className="border-b border-border/50 hover:bg-muted/30"
+                    >
+                      <td className="py-2.5 px-3 text-foreground font-medium cursor-pointer" onClick={() => setOpenRow(r)}>{IN_MONTH(r.period_month)}</td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex gap-1 flex-wrap">
+                          {f.dnp && <Badge variant="destructive" className="text-[10px]">Paused</Badge>}
+                          {f.isPaid && <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[10px]">Paid{f.paidOn ? ` · ${f.paidOn}` : ""}</Badge>}
+                          {!f.isPaid && !f.dnp && <span className="text-[10px] text-muted-foreground">Unpaid</span>}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-foreground cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.gross_earnings)}</td>
+                      <td className="py-2.5 px-3 text-right text-destructive cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.total_deductions)}</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.tds_amount)}</td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(r.net_pay)}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        {r.pdf_url ? <FileText className="w-4 h-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">—</span>}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {razorpayEmployeeId && !f.isPaid ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setOpenRow(r)}>View details</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setAdjustRow(r)}>
+                                <SlidersHorizontal className="w-3 h-3 mr-2" /> Adjust
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <span className="text-xs text-primary cursor-pointer" onClick={() => setOpenRow(r)}>View</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
         </>
       )}
 

@@ -124,21 +124,20 @@ Deno.serve(async (req) => {
     const rows = toMark.map((employee_id: string) => ({
       employee_id,
       attendance_date: dateStr,
-      status: "absent",
-      first_in: null,
-      last_out: null,
-      total_hours: 0,
-      punch_count: 0,
-      is_late: false,
-      late_by_minutes: 0,
-      early_departure: false,
-      early_by_minutes: 0,
+      attendance_status: "absent",
+      check_in: null,
+      check_out: null,
+      overtime_hours: 0,
+      late_minutes: 0,
+      early_leave_minutes: 0,
+      notes: "auto-marked absent (no punch, no leave, not weekly-off/holiday)",
     }));
 
     const { error, count } = await supabase
-      .from("hr_attendance_daily")
+      .from("hr_attendance")
       .upsert(rows, { onConflict: "employee_id,attendance_date", ignoreDuplicates: true, count: "exact" });
     if (error) throw error;
+
 
     console.log(`[auto-absent] ${dateStr}: marked ${count ?? rows.length} absent (skipped leave=${onLeave.size}, weekly-off=${onWeeklyOff.size}, already=${already.size})`);
     return json({

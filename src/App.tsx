@@ -86,6 +86,8 @@ const AttendanceCalendarPage = lazy(() => import('./pages/horilla/AttendanceCale
 const AttendanceActivityPage = lazy(() => import('./pages/horilla/AttendanceActivityPage'));
 const AttendanceSummaryPage = lazy(() => import('./pages/horilla/AttendanceSummaryPage'));
 const BiometricDevicesPage = lazy(() => import('./pages/horilla/BiometricDevicesPage'));
+const AttendanceRegularizationPage = lazy(() => import('./pages/horilla/AttendanceRegularizationPage'));
+const AttendancePeriodLockPage = lazy(() => import('./pages/horilla/AttendancePeriodLockPage'));
 const PayrollDashboardPage = lazy(() => import('./pages/horilla/PayrollDashboardPage'));
 const PayslipsPage = lazy(() => import('./pages/horilla/PayslipsPage'));
 const SalaryComponentsPage = lazy(() => import('./pages/horilla/SalaryComponentsPage'));

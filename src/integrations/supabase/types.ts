@@ -535,6 +535,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_scheduler_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          secret_value: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          secret_value: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          secret_value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       asset_movement_history: {
         Row: {
           address: string | null
@@ -20826,6 +20847,8 @@ export type Database = {
         | "contractor_payment_status"
         | "advance_salary_create"
         | "attendance_fetch"
+        | "reflect_payslips"
+        | "import_payslip_history_range"
       hr_razorpay_sync_status:
         | "imported"
         | "matched_existing"
@@ -21214,6 +21237,8 @@ export const Constants = {
         "contractor_payment_status",
         "advance_salary_create",
         "attendance_fetch",
+        "reflect_payslips",
+        "import_payslip_history_range",
       ],
       hr_razorpay_sync_status: [
         "imported",

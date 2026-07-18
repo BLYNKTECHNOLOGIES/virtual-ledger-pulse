@@ -81,6 +81,60 @@ export default function AttendancePeriodLockPage() {
     onError: (e: any) => toast.error(e.message || 'Failed to unlock'),
   });
 
+  // -----------------------------------------------------------------------
+  // Verify against Razorpay — read-only sample of one mapped employee's
+  // attendance for the locked period via attendance_fetch_range.
+  // -----------------------------------------------------------------------
+  const [verifyLock, setVerifyLock] = useState<any | null>(null);
+  const [verifyEmp, setVerifyEmp] = useState<string>('');
+  const [verifyResult, setVerifyResult] = useState<null | { days: any[]; from: string; to: string }>(null);
+
+  const { data: mappedEmployees = [] } = useQuery({
+    queryKey: ['razorpay_mapped_employees_light'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('hr_razorpay_employee_map')
+        .select('hr_employee_id, razorpay_employee_id, hr_employees!hr_razorpay_employee_map_hr_employee_id_fkey(first_name, last_name, badge_id, is_active)')
+        .not('razorpay_employee_id', 'is', null);
+      return (data || []).filter((r: any) => r.hr_employees?.is_active);
+    },
+    enabled: !!verifyLock,
+  });
+
+  const runVerify = useMutation({
+    mutationFn: async () => {
+      if (!verifyLock || !verifyEmp) throw new Error('Pick an employee');
+      const mapped = mappedEmployees.find((r: any) => r.hr_employee_id === verifyEmp);
+      if (!mapped?.razorpay_employee_id) throw new Error('Employee not linked to Razorpay');
+      const { data, error } = await supabase.functions.invoke('razorpay-payroll-proxy', {
+        body: {
+          action: 'attendance_fetch_range',
+          data: {
+            'employee-id': Number(mapped.razorpay_employee_id),
+            from: verifyLock.period_start,
+            to: verifyLock.period_end,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data && (data as any).ok === false) throw new Error((data as any).error || 'Razorpay verify failed');
+      return { days: (data as any)?.days ?? [], from: verifyLock.period_start, to: verifyLock.period_end };
+    },
+    onSuccess: (r) => { setVerifyResult(r); toast.success(`Fetched ${r.days.length} day(s) from Razorpay`); },
+    onError: (e: any) => toast.error(e.message || 'Verify failed'),
+  });
+
+  const summarizeVerify = (days: any[]) => {
+    let ok = 0, empty = 0, err = 0;
+    for (const d of days) {
+      if (d.http_status === 200 && d.body && (d.body.data || d.body?.attendance)) ok++;
+      else if (d.http_status === 200) empty++;
+      else err++;
+    }
+    return { ok, empty, err };
+  };
+
+
   return (
     <div className="space-y-4">
       <PageHeader

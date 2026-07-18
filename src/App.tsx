@@ -86,6 +86,8 @@ const AttendanceCalendarPage = lazy(() => import('./pages/horilla/AttendanceCale
 const AttendanceActivityPage = lazy(() => import('./pages/horilla/AttendanceActivityPage'));
 const AttendanceSummaryPage = lazy(() => import('./pages/horilla/AttendanceSummaryPage'));
 const BiometricDevicesPage = lazy(() => import('./pages/horilla/BiometricDevicesPage'));
+const AttendanceRegularizationPage = lazy(() => import('./pages/horilla/AttendanceRegularizationPage'));
+const AttendancePeriodLockPage = lazy(() => import('./pages/horilla/AttendancePeriodLockPage'));
 const PayrollDashboardPage = lazy(() => import('./pages/horilla/PayrollDashboardPage'));
 const PayslipsPage = lazy(() => import('./pages/horilla/PayslipsPage'));
 const SalaryComponentsPage = lazy(() => import('./pages/horilla/SalaryComponentsPage'));
@@ -719,6 +721,8 @@ const router = createBrowserRouter([
         { path: "attendance/policies", element: <AttendancePolicyPage /> },
         { path: "attendance/punches", element: <AttendancePunchesPage /> },
         { path: "attendance/monthly-hours", element: <MonthlyHoursSummaryPage /> },
+        { path: "attendance/regularization", element: <AttendanceRegularizationPage /> },
+        { path: "attendance/period-locks", element: <AttendancePeriodLockPage /> },
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },
         { path: "leave/allocations", element: <LeaveAllocationsPage /> },

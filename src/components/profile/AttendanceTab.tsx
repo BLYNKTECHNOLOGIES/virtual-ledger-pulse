@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Clock, CalendarDays, AlertTriangle, TrendingUp, Timer, CheckCircle } from 'lucide-react';
+import RegularizationCard from './RegularizationCard';
 
 interface AttendanceTabProps {
   employeeId: string;
@@ -162,6 +163,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Regularization requests */}
+      <RegularizationCard employeeId={employeeId} />
 
       {/* Late/Early alerts */}
       {lateEarlyRecords.length > 0 && (

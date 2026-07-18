@@ -3763,41 +3763,17 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
-    // Phase 9.5 — Reflect RazorpayX payslips into hr_payslips history
+    // Phase 9.5 — Reflect RazorpayX payroll records into hr_payslips history
     // Actions:
     //   reflect_payslip_period       — copy hr_razorpay_payslip_records for one YYYY-MM
     //                                  into hr_payslips (source='razorpay_import').
     //   import_payslip_history_range — orchestrator: for each month in [from..to],
     //                                  (a) pull from Razorpay (if envelope verified),
     //                                  (b) reflect shadow rows into hr_payslips.
-    // Path A (summary import) + Path B (PDF-only) share the same row; summary fields
-    // stay at 0 when Razorpay does not return them, but pdf_url is preserved so the
-    // ERP payslip history at minimum surfaces the original PDF.
+    // Verified Opfin API surface has no payslip/PDF/download endpoint. The canonical
+    // read source is payroll:view-payroll; PDFs remain dashboard-only.
     // ============================================================
     if (action === "reflect_payslip_period" || action === "import_payslip_history_range") {
-      // GUARD: `payroll:view-payroll` returns the pre-execution payroll SETUP
-      // (base salary + planned additions/deductions), NOT a finalized payslip.
-      // Importing from it produced misleading rows where gross == net and
-      // deductions == 0. Refuse to run this action until an operator verifies
-      // the *finalized* payslip envelope (salary-slip:get-signed-url or an
-      // equivalent post-execution endpoint) in Razorpay Sync.
-      {
-        const { data: cfg } = await svc
-          .from("hr_razorpay_settings")
-          .select("pull_payslips_endpoint_verified, pull_payslips_envelope_key")
-          .eq("is_singleton", true)
-          .maybeSingle();
-        const envKey = (cfg?.pull_payslips_envelope_key || "").toString();
-        const verified = cfg?.pull_payslips_endpoint_verified === true;
-        const isWrongEnvelope = envKey === "payroll:view-payroll" || envKey === "";
-        if (!verified || isWrongEnvelope) {
-          return json(409, {
-            ok: false,
-            error: "payslip_endpoint_not_verified",
-            detail: "RazorpayX finalized-payslip envelope is not verified. `payroll:view-payroll` is the pre-run setup, not a payslip source — importing from it is disabled.",
-          });
-        }
-      }
       // Shared reflector: given a YYYY-MM-01 ISO date, upsert shadow rows into hr_payslips.
 
       async function reflectOne(periodISO: string) {
@@ -3939,7 +3915,7 @@ Deno.serve(async (req) => {
         hr_employee_id: null,
         field_diff_summary: {
           from, to, months: months.length,
-            endpoint: "payroll:view-payroll", totalPulled, totalReflected, totalWithPdf,
+            endpoint: "payroll:view-payroll", pdf_source: "dashboard_only_not_api", totalPulled, totalReflected, totalWithPdf,
             totalMissingMap, pullFailures, totalNoRecord, totalNoEmail, totalUpsertErrors,
         },
         error_text: null,
@@ -3948,11 +3924,13 @@ Deno.serve(async (req) => {
 
       return json(200, {
         ok: true,
+        envelope_ready: true,
         endpoint: "payroll:view-payroll",
+        pdf_source: "dashboard_only_not_api",
         months: months.length,
         totals: { pulled: totalPulled, reflected: totalReflected, withPdf: totalWithPdf, missingMap: totalMissingMap, pullFailures, noRecord: totalNoRecord, noEmail: totalNoEmail, upsertErrors: totalUpsertErrors },
         per_month: perMonth,
-        note: "Pulled from RazorpayX payroll:view-payroll and reflected into ERP payslip history.",
+        note: "Pulled payroll history from RazorpayX payroll:view-payroll and reflected it into ERP history. Payslip PDFs are not exposed by the Opfin API and remain dashboard-only.",
       });
     }
 

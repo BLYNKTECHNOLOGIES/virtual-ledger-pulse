@@ -544,13 +544,22 @@ async function logSync(svc: SupabaseClient, row: {
 }
 
 async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: string, isPilot: boolean, created: boolean) {
+  // Two unique constraints exist on this table: (razorpay_employee_id) and
+  // (hr_employee_id). A single upsert can only reference one conflict target,
+  // so a stale row keyed on the OTHER column produced a 500 (apply_error).
+  // Reconcile both keys first, then upsert.
+  await svc.from("hr_razorpay_employee_map")
+    .delete()
+    .or(`razorpay_employee_id.eq.${razorpayId},hr_employee_id.eq.${hrEmployeeId}`)
+    .not("hr_employee_id", "eq", hrEmployeeId)
+    .throwOnError();
   const { error } = await svc.from("hr_razorpay_employee_map").upsert({
     razorpay_employee_id: razorpayId,
     hr_employee_id: hrEmployeeId,
     sync_status: created ? "imported" : "matched_existing",
     is_pilot_verified: isPilot,
     last_synced_at: new Date().toISOString(),
-  }, { onConflict: "razorpay_employee_id" });
+  }, { onConflict: "hr_employee_id" });
   if (error) throw new Error(`upsert map failed: ${error.message}`);
 }
 

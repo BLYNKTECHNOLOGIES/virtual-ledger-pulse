@@ -122,9 +122,10 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const smtpHost = Deno.env.get("SMTP_HOST");
-    const smtpUser = Deno.env.get("SMTP_USER");
-    const smtpPass = Deno.env.get("SMTP_PASS");
+    const smtpHost = Deno.env.get("TASK_SMTP_HOST") || Deno.env.get("SMTP_HOST");
+    const smtpUser = Deno.env.get("TASK_SMTP_USER") || Deno.env.get("SMTP_USER");
+    const smtpPass = Deno.env.get("TASK_SMTP_PASS") || Deno.env.get("SMTP_PASS");
+    const smtpPort = Number(Deno.env.get("TASK_SMTP_PORT") || "465");
 
     if (!smtpHost || !smtpUser || !smtpPass) {
       console.error("Missing SMTP configuration");
@@ -167,8 +168,8 @@ Deno.serve(async (req) => {
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
-        port: 465,
-        tls: true,
+        port: smtpPort,
+        tls: smtpPort === 465,
         auth: { username: smtpUser, password: smtpPass },
       },
     });
@@ -190,7 +191,7 @@ Deno.serve(async (req) => {
 
       try {
         await client.send({
-          from: smtpUser,
+          from: `Task Notifications - Blynk Virtual Technologies <${smtpUser}>`,
           to: recipient.email,
           subject: getSubject(eventType, body.taskTitle),
           content: "Please view this email in an HTML-capable client.",

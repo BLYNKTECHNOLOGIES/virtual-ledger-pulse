@@ -298,10 +298,11 @@ Deno.serve(async (req) => {
       ? template.subject(templateData)
       : template.subject
 
-  // 5. Send email via SMTP
-  const smtpHost = Deno.env.get('SMTP_HOST')
-  const smtpUser = Deno.env.get('SMTP_USER')
-  const smtpPass = Deno.env.get('SMTP_PASS')
+  // 5. Send email via SMTP (dedicated notify mailbox; falls back to legacy SMTP_* for compatibility)
+  const smtpHost = Deno.env.get('NOTIFY_SMTP_HOST') || Deno.env.get('SMTP_HOST')
+  const smtpUser = Deno.env.get('NOTIFY_SMTP_USER') || Deno.env.get('SMTP_USER')
+  const smtpPass = Deno.env.get('NOTIFY_SMTP_PASS') || Deno.env.get('SMTP_PASS')
+  const smtpPort = Number(Deno.env.get('NOTIFY_SMTP_PORT') || '465')
 
   if (!smtpHost || !smtpUser || !smtpPass) {
     console.error('SMTP credentials not configured')
@@ -323,8 +324,8 @@ Deno.serve(async (req) => {
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
-        port: 465,
-        tls: true,
+        port: smtpPort,
+        tls: smtpPort === 465,
         auth: { username: smtpUser, password: smtpPass },
       },
     })

@@ -180,9 +180,14 @@ export default function AttendancePeriodLockPage() {
                       </td>
                       <td className="px-4 py-2 text-muted-foreground">{l.notes || '—'}</td>
                       <td className="px-4 py-2 text-right">
-                        <Button size="sm" variant="outline" onClick={() => setUnlockId(l.id)}>
-                          <Unlock className="h-4 w-4 mr-1" /> Unlock
-                        </Button>
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="outline" onClick={() => { setVerifyLock(l); setVerifyEmp(''); setVerifyResult(null); }}>
+                            <ShieldCheck className="h-4 w-4 mr-1" /> Verify with Razorpay
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setUnlockId(l.id)}>
+                            <Unlock className="h-4 w-4 mr-1" /> Unlock
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -1480,10 +1480,13 @@ Deno.serve(async (req) => {
           // (only fills nulls / matching sentinels), and we recently expanded
           // the field map (date-of-hiring, __salary → ctc) so stale hashes must
           // not gate the backfill.
+          const rzMgrRaw = (r.body as any)?.["manager-employee-id"] ?? (r.body as any)?.manager_employee_id ?? (r.body as any)?.manager?.["employee-id"];
+          const rzMgrId = rzMgrRaw != null && Number.isFinite(Number(rzMgrRaw)) ? Number(rzMgrRaw) : null;
           await svc.from("hr_razorpay_employee_map").update({
             last_pull_snapshot: r.body,
             last_pulled_at: new Date().toISOString(),
             last_payload_hash: hash,
+            razorpay_manager_employee_id: rzMgrId,
           }).eq("razorpay_employee_id", m.razorpay_employee_id);
 
           let diff: any = null;

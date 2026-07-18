@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "service role manages scheduler secrets" ON public.app_scheduler_secrets;

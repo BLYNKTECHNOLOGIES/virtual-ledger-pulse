@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
 
       try {
         await client.send({
-          from: smtpUser,
+          from: `Task Notifications - Blynk Virtual Technologies <${smtpUser}>`,
           to: recipient.email,
           subject: getSubject(eventType, body.taskTitle),
           content: "Please view this email in an HTML-capable client.",

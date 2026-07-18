@@ -198,24 +198,41 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     }));
   }, [devicePins]);
 
+  // A PIN is "assigned" only when a finalized hr_employees row already carries
+  // it as badge_id. matched_employee_id alone isn't enough — the identity link
+  // can be pre-seeded before finalization and would otherwise hide the PIN.
+  const { data: usedBadgeIds = [] } = useQuery({
+    queryKey: ["hr_employees_badge_ids_for_stage5"],
+    queryFn: async () => {
+      const rows = await fetchAllPaginated<any>(() =>
+        supabase.from("hr_employees").select("badge_id").not("badge_id", "is", null)
+      );
+      return rows.map((r: any) => String(r.badge_id).trim()).filter(Boolean);
+    },
+    refetchInterval: 30_000,
+  });
+
   const pinStatus = useMemo(() => {
     const val = (form.essl_badge_id || "").trim();
     if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
     const matches = (devicePins || []).filter((p: any) => (p.pin || "").trim() === val);
     if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
-    const conflict = matches.find((m: any) => m.matched_employee_id && m.matched_employee_id !== onboardingRecord?.employee_id);
-    if (conflict) return { kind: "conflict", msg: `PIN already mapped to another employee on device ${conflict.device_serial}.`, matches };
+    const usedByOther = new Set(usedBadgeIds.filter((b: string) => b !== (onboardingRecord?.essl_badge_id || "")));
+    if (usedByOther.has(val)) return { kind: "conflict", msg: `PIN ${val} is already the badge ID of another finalized employee.`, matches };
     const canonical = canonicalDevicePins.find((p: any) => p.pin === val);
     const deviceCount = canonical?.deviceCount || matches.length;
     const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;
     return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
-  }, [form.essl_badge_id, devicePins, canonicalDevicePins, onboardingRecord?.employee_id]);
+  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id]);
 
   const unassignedPins = useMemo(() => {
+    const used = new Set(usedBadgeIds);
+    // Keep the PIN currently on this onboarding record visible so HR can re-pick it.
+    const currentPin = (form.essl_badge_id || "").trim();
     return canonicalDevicePins
-      .filter((p: any) => !p.matched_employee_id)
+      .filter((p: any) => !used.has(String(p.pin).trim()) || p.pin === currentPin)
       .sort((a: any, b: any) => Number(a.pin) - Number(b.pin));
-  }, [canonicalDevicePins]);
+  }, [canonicalDevicePins, usedBadgeIds, form.essl_badge_id]);
 
 
   const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());

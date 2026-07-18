@@ -1,298 +1,61 @@
-## RazorpayX Payroll — Response Field Consumption Audit
 
-For each endpoint below: what Razorpay returns (every documented response key), what we currently **use** in HRMS (persisted or displayed), and what we **ignore**. Field names are quoted verbatim from the Postman collection response bodies (kebab-case and all).
+# Razorpay Last-Mile: UI Reachability + Sandbox
 
-Legend: ✅ used · ⚠️ used but under-surfaced · ❌ ignored/dropped
+Scope is UI reachability only — every proxy action, envelope gate, permission check, and CONFIRM_DISMISS ack stays byte-identical. All new surfaces reuse the existing "why + what unlocks" locked-state component and the canonical `statusVocabulary.ts` labels.
 
----
-
-### 1. People — Create   `POST /api/people` · `people/create`
-
-Response: `{ status, people-id, employee-id }`
-
-
-| Field         | Status | Where                                                                                            |
-| ------------- | ------ | ------------------------------------------------------------------------------------------------ |
-| `status`      | ✅      | proxy checks `"ok"` → surfaces `success` toast                                                   |
-| `people-id`   | ✅      | stored in `hr_razorpay_employee_map.razorpay_people_id`                                          |
-| `employee-id` | ✅      | stored in `hr_razorpay_employee_map.razorpay_employee_id` (primary key for all subsequent calls) |
-
-
-**Nothing ignored.**
+Verified against source: proxy endpointSpec has all 17 actions; `PayrollAdjustmentDialog` exists but is only reachable per payslip row; `ContractorPayoutsHub` + per-employee `ContractorPayoutsSection` exist; `dismissInRazorpay` exists but is only called from `ResignationTab`; no UI caller for `advance_salary_create`; `attendance_fetch_range` exists in proxy but has no verify affordance in `AttendancePeriodLockPage`; proxy `BASE` is hardcoded to `https://payroll.razorpay.com/api`.
 
 ---
 
-### 2. People — Edit   `people/edit`
+## Slice 1 — Payroll Month Adjustments hub
 
-Response: `{ status }`
+**Surface.** New HRMS route `/hrms/payroll/adjustments` (also linked as a station on `RazorpaySyncPage` and from the `PayslipsPage` header). Month picker → roster table of every active/mapped employee for that month.
 
+Each row shows current state read via `payroll_view_payroll` (Gross, Additions, Deductions, LOP, Net, Do-Not-Pay flag) with plain-language labels from `statusVocabulary.ts`. Row actions:
+- **Add addition** / **Add deduction** — opens the existing `PayrollAdjustmentDialog` prefilled with employee + month.
+- **Pause payroll** / **Resume payroll** — toggles `payroll_do_not_pay`, confirm dialog restates the exact month and employee.
+- **Reset modifications** — destructive `AlertDialog` naming every field that will revert.
 
-| Field    | Status | Where                                                                           |
-| -------- | ------ | ------------------------------------------------------------------------------- |
-| `status` | ✅      | success toast in `OnboardingWizard`, `EmployeeProfilePage.pullBankFromRazorpay` |
+Bulk-select bar for pause/resume/reset across the roster (each still round-trips per employee inside the same envelope gate). Locked when the payroll envelope isn't verified: renders the standard locked-state card ("Payroll envelope needs re-verification — Settings → Payroll Envelope → Verify" wording pulled from existing dictionary), no silent disabled buttons.
 
+## Slice 2 — Advance Salary flow
 
-**Nothing ignored** (endpoint returns nothing else).
+**Surface.** New "Push advance to Razorpay" action on the existing Loans tab in the employee profile, and a matching action on the HRMS Loans list (`/hrms/loans`).
 
----
+Fires `advance_salary_create` with `{amount, description, disburse-on, recovery-months}` derived from the local `hr_loans` row (loan_type='advance'). Result stored back in `hr_loans.razorpay_advance_id` (new nullable column via slice migration) and a "Pushed to Razorpay" chip appears. Payouts-domain envelope gate applies; locked state uses the same plain-words card.
 
-### 3. People — View   `people/view`
+## Slice 3 — Contractor Payments surface polish
 
-Response: `{ name, email, title, department, manager-employee-id, pan, bank-ifsc, bank-account-number }`
+Existing hub and profile section already cover create / list / status / delete. This slice only closes gaps: (i) surface the "why + what unlocks" locked card when the payouts envelope is un-verified (currently the create button hides silently); (ii) put the destructive delete behind the standard `AlertDialog` with the payment id + amount in the copy (already partly there — align wording); (iii) add a "Refresh status" bulk action on the hub.
 
+## Slice 4 — people_dismiss on F&F completion
 
-| Field                 | Status | Where                                                                |
-| --------------------- | ------ | -------------------------------------------------------------------- |
-| `name`                | ✅      | fuzzy-match input in `razorpay-payroll-proxy` matcher                |
-| `email`               | ✅      | dedup key for import; mirrored into `hr_employees.email`             |
-| `title`               | ✅      | mapped to `hr_employee_work_info.designation`                        |
-| `department`          | ✅      | mapped to `hr_employees.department`                                  |
-| `pan`                 | ✅      | `hr_employees.pan_number`                                            |
-| `bank-ifsc`           | ✅      | `hr_employee_bank_details.ifsc_code` (via "Pull bank from Razorpay") |
-| `bank-account-number` | ✅      | `hr_employee_bank_details.account_number`                            |
-| `manager-employee-id` | ❌      | not stored — HRMS manager tree is set manually                       |
+Wire `dismissInRazorpay` into the F&F settlement completion action in `hr_fnf_settlements`, not just resignation. When HR marks F&F as `settled`, show a "Also mark dismissed in Razorpay" `AlertDialog` with the CONFIRM_DISMISS ack pre-checked-off state — user must click through, no auto-fire. Skips silently when the employee has no `razorpay_employee_id`. Salary-envelope gate stays.
 
+## Slice 5 — Attendance verify affordance
 
----
+On `AttendancePeriodLockPage` add a "Verify with Razorpay" button per locked month that calls `attendance_fetch` for a small sample of employees and shows a diff strip: "N employees match / M differ / K missing on Razorpay". Read-only, no writes. Available to any HR user with `hrms_razorpay_sync`.
 
-### 4. People — Set Salary   `people/set-salary`
+## Slice 6 — Sandbox base-URL toggle + commissioning doc
 
-Response: `{ status }` — write-only, nothing else returned.
+**Doc.** Update `RAZORPAYX_COMMISSIONING.md` §0 to record the sandbox host `https://opfin.np.razorpay.in` and the rehearsal path (verify each envelope against sandbox before flipping to production).
 
----
+**Toggle.** Add a `razorpay_environment` row to `app_scheduler_secrets` (values: `production` | `sandbox`) plus a Super-Admin-only card on `ExchangeAccountsSettings` / RazorpaySyncPage settings drawer. Proxy reads it once per request and picks `BASE` accordingly.
 
-### 5. People — Dismiss   `people/dismiss`
+Guardrails (non-negotiable):
+- Flipping the toggle **auto-revokes every envelope verification** (reuses the existing cascade), so sandbox rehearsals can't leak into production unlocks.
+- Persistent red banner across every HRMS page + inside every Razorpay-action dialog while sandbox mode is active ("SANDBOX MODE — no real money moves, no production data changes").
+- Only Super Admin can flip; change is logged to `system_action_logs`.
 
-Response: `{ status }` — consumed in `ResignationTab.tsx` (`dismissInRazorpay`).
+Reasoning for building the toggle rather than documenting only: envelope verification is the exact operation that most needs rehearsal, and doing it manually via curl bypasses the same permission/audit trail we're trying to harden. The auto-revoke + banner + Super-Admin gate makes the "mistake sandbox for reality" failure mode implausible.
 
----
+## Technical details
 
-### 6. Payroll — View   `payroll/view-payroll`
+- **DB.** One migration: `ALTER TABLE hr_loans ADD COLUMN razorpay_advance_id text;` + seed a `razorpay_environment` row into `app_scheduler_secrets`.
+- **Proxy.** Read `razorpay_environment` at request entry; `BASE = env === 'sandbox' ? 'https://opfin.np.razorpay.in/api' : 'https://payroll.razorpay.com/api'`. Log the resolved env into `hr_razorpay_sync_log.request_payload.__env` for audit.
+- **UI primitives.** New `<RazorpayLockedCard reason="…" unlockPath="…" />` used everywhere a gate blocks an action, replacing today's ad-hoc disabled buttons. New `<SandboxBanner />` mounted at HRMS layout root.
+- **No proxy action names, envelope gate logic, CONFIRM_DISMISS handling, or permission checks change.**
 
-Response:
+## Out of scope
 
-```
-{
-  "employee-id": 3,
-  "employee-name": "Varun Chawla",
-  "payroll-month": "2020-12",
-  "salary": 50000,
-  "additions": { "<label>": { name, amount, taxable, type } | null },
-  "deduction-amount": 0,
-  "do-not-pay": false
-}
-```
-
-
-| Field                                                   | Status        | Where                                                                                                                                  |
-| ------------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `employee-id`                                           | ✅             | join key for `hr_razorpay_payslip_records`                                                                                             |
-| `employee-name`                                         | ⚠️            | stored in `source_payload` but not shown separately (we display our local name)                                                        |
-| `payroll-month`                                         | ✅             | `hr_payslips.period_month`                                                                                                             |
-| `salary`                                                | ✅             | `hr_payslips.gross_pay` (also drives adjustment dialog "current salary" hint)                                                          |
-| `additions` (object of `{name, amount, taxable, type}`) | ⚠️            | full object stored in `source_payload`; only aggregate amount shown as "Additions" line — individual `taxable`/`type` **not surfaced** |
-| `additions[*].taxable`                                  | ❌             | ignored in UI                                                                                                                          |
-| `additions[*].type`                                     | ❌             | ignored (Razorpay uses this to distinguish bonus vs. reimbursement)                                                                    |
-| `deduction-amount`                                      | ✅             | `hr_payslips` deductions line                                                                                                          |
-| `do-not-pay`                                            | ✅ (this turn) | `RazorpayPayslipsSection` now renders a "Paused" badge                                                                                 |
-
-
-Only `type` on additions is genuinely under-used; recommend mapping `type` → `Bonus / Reimbursement / Arrear` chip.
-
----
-
-### 7. Payroll — Add Additions   `payroll/add-additions`
-
-Response: same shape as View — full payroll snapshot after mutation.
-
-We surface the returned `additions` map into a "Last applied: …" hint in `PayrollAdjustmentDialog` and re-invalidate the payslip query. All fields are read, none written to DB directly (source of truth remains View endpoint).
-
----
-
-### 8. Payroll — Add Deductions   `payroll/add-deduction`
-
-Response: same payroll snapshot. Consumed identically to Add Additions.
-
----
-
-### 9. Payroll — Reset (Reset Modifications)   `payroll/reset-modifications`
-
-Response: `{ employee-id, employee-name, payroll-month, salary, additions: null, deduction-amount: 0, do-not-pay: false }`
-All 7 fields used to refresh local cache after reset.
-
----
-
-### 10. Payroll — Pause / Resume   `payroll/do-not-pay-employee` / `pay-employee`
-
-Response: payroll snapshot with `do-not-pay: true|false`.
-`do-not-pay` toggles the Paused chip; rest of snapshot fields consumed as in #6.
-
----
-
-### 11. Contractor Payments — Create   `contractor-payment/create`
-
-Response: `{ status, payment-id }`
-
-
-| Field        | Status | Where                                                                              |
-| ------------ | ------ | ---------------------------------------------------------------------------------- |
-| `status`     | ✅      | success toast                                                                      |
-| `payment-id` | ✅      | `hr_razorpay_contractor_payments.razorpay_payment_id` (dedup + status polling key) |
-
-
----
-
-### 12. Contractor Payments — Delete / Cancel   `contractor-payment/delete`
-
-Response: `{ status }` — success toast; local row deleted on OK.
-
----
-
-### 13. Contractor Payments — View Pending
-
-Response:
-
-```
-{
-  "payments": [ { id, from, to, executeOn, remarks, purpose, amount, tax } ],
-  "count": N
-}
-```
-
-
-| Field                   | Status | Where                                        |
-| ----------------------- | ------ | -------------------------------------------- |
-| `payments[*].id`        | ✅      | upsert PK                                    |
-| `payments[*].to`        | ✅      | matched to `hr_employees.email` (contractor) |
-| `payments[*].executeOn` | ✅      | `hr_razorpay_contractor_payments.execute_on` |
-| `payments[*].remarks`   | ✅      | column                                       |
-| `payments[*].purpose`   | ✅      | column                                       |
-| `payments[*].amount`    | ✅      | column (numeric)                             |
-| `payments[*].tax`       | ✅      | column (numeric, TDS)                        |
-| `payments[*].from`      | ⚠️     | stored as `source_email` but not displayed   |
-| `count`                 | ❌      | not stored — we count rows locally           |
-
-
----
-
-### 14. Contractor Payments — Check Status
-
-Response: `{ amount, tax, created_at, execute_at, remarks, purpose, paid }`
-
-
-| Field                                 | Status | Where                                       |
-| ------------------------------------- | ------ | ------------------------------------------- |
-| `paid`                                | ✅      | flips row to `status='paid'` in local table |
-| `execute_at`                          | ✅      | overwrites `execute_on`                     |
-| `created_at`                          | ⚠️     | stored in `source_payload`, not surfaced    |
-| `amount`, `tax`, `remarks`, `purpose` | ✅      | reconciled against Pending Payments row     |
-
-
-Recommendation: surface `created_at` as "Queued on" column in the hub.
-
----
-
-### 15. Attendance — Modify/Add   `POST /api/att` · `attendance/modify`
-
-Response: `{ status }` — used for approval feedback in regularization flow.
-
-### 15b. Attendance — Edit   `PATCH /api/att`
-
-Response: `{ status }` — same handling; the proxy `attendance_edit_patch` branch is wired but no UI caller yet (planned in Regularization approval flow).
-
----
-
-### 16. Attendance — Fetch   `attendance/fetch`
-
-Response:
-
-```
-{
-  "data": {
-    "employee-id", "employee-type", "date",
-    "status":            { "code", "description" },
-    "leave-type":        { "code", "description" },
-    "check-in", "check-out", "remarks",
-    "requested-status":       { "code", "description" },
-    "requested-leave-type":   { "code", "description" },
-    "requested-check-in", "requested-check-out"
-  }
-}
-```
-
-
-| Field                                             | Status | Where                                                      |
-| ------------------------------------------------- | ------ | ---------------------------------------------------------- |
-| `data.date`                                       | ✅      | key for range iterator                                     |
-| `data.status.description`                         | ✅      | mapped to v4 daily status enum                             |
-| `data.check-in` / `check-out`                     | ✅      | compared against `hr_attendance_daily` first_in / last_out |
-| `data.leave-type.description`                     | ✅      | displayed in reconciliation diff                           |
-| `data.remarks`                                    | ⚠️     | echoed but not persisted                                   |
-| `data.status.code` (numeric)                      | ❌      | ignored — we only use `description`                        |
-| `data.leave-type.code`                            | ❌      | ignored                                                    |
-| `data.requested-status` (whole object)            | ❌      | ignored — HRMS regularization is our own source of truth   |
-| `data.requested-leave-type`                       | ❌      | ignored                                                    |
-| `data.requested-check-in` / `requested-check-out` | ❌      | ignored                                                    |
-
-
-Under-consumed. `requested-*` fields would let HRMS show "pending approval on Razorpay side" — a natural sync signal but currently invisible.
-
----
-
-### 17. Advance Salary — Create   `advance-salary/create`
-
-Response: `{ status, advance-salary-id }`
-
-
-| Field               | Status          | Where                                                                                                |
-| ------------------- | --------------- | ---------------------------------------------------------------------------------------------------- |
-| `status`            | ✅               | success toast                                                                                        |
-| `advance-salary-id` | ✅ (infra ready) | `hr_loans.razorpay_advance_salary_id` — column exists; UI push button on Loans row still to be wired |
-
-
----
-
-### 18. Advance Salary — View
-
-Response body not published in Postman collection (Razorpay docs list it but no example). If shape follows same pattern (`{ status, ... }`), we'll capture it when the push-flow UI is added.
-
----
-
-## Cross-cutting fields we drop across every endpoint
-
-- HTTP response headers: `Set-Cookie`, `Cache-Control`, `Strict-Transport-Security`, `X-Frame-Options`, etc. — never persisted (correct).
-- Numeric `code` values on attendance enums — we prefer `description` for stability across Razorpay releases.
-
----
-
-## Under-utilized fields worth promoting (recommendations)
-
-1. `**additions[*].type` / `additions[*].taxable**` on payroll snapshot → chip label ("Bonus", "Reimbursement", "Taxable") in payslip drawer.
-2. `**data.requested-status` on Attendance/Fetch** → surface "Razorpay-side pending" state in `AttendancePeriodLockPage` verify view.
-3. `**created_at` on Contractor Check-Status** → "Queued on" column in `ContractorPayoutsHub`.
-4. `**count` on Contractor pending** → sanity-check against local row count; drift → warning banner.
-5. `**payments[*].from**` → show payer identity when org has multiple payer accounts.
-6. **Statutory fields** (`pf_amount`, `esi_amount`, `professional_tax`) — columns created this turn; **importer still writes them only into `source_payload**`. Backfill + ingest patch pending.
-
----
-
-## Summary table
-
-
-| API namespace       | Endpoints in Postman               | Wired in proxy     | All response fields consumed                              |
-| ------------------- | ---------------------------------- | ------------------ | --------------------------------------------------------- |
-| People              | 5                                  | 5                  | 4 of 5 (manager-employee-id dropped)                      |
-| Payroll             | 5                                  | 5                  | Aggregates yes; `additions.type/taxable` dropped          |
-| Contractor Payments | 4                                  | 4                  | `count`, `created_at`, `from` under-used                  |
-| Attendance          | 3 (POST, PATCH, Fetch)             | 3 + range iterator | Only `description` used; `code` and `requested-*` dropped |
-| Advance Salary      | 1 (Create) + 1 undocumented (View) | 1                  | ✅ id captured; UI trigger pending                         |
-
-
-**Total documented response fields:** 41 across 18 endpoints
-**Fully consumed:** 30
-**Stored-but-unused (`source_payload` only):** 6
-**Silently dropped:** 5 (all safe to drop — see recommendations above)
-
----
-
-*This is a reference report, not an implementation task. If you'd like, approving this plan will make no code changes — respond with which of the six "under-utilized" items to actually promote and I'll ship them in one pass. I want that each and every. Response Feild is supposed to be used identifying the HRS where and how are they belong and are supposed to be used as per our HRMS logic if we don't have logic properly created accordingly as per the fields and then implement them each and everyone.*
+Payroll finalize/run, payslip generation, TDS/compliance docs, bank entry, reimbursements — these have no API surface and remain on the Razorpay dashboard, per owner's stated goal.

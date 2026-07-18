@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -13,10 +14,12 @@ import { Calculator, Plus, IndianRupee } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { dismissInRazorpay } from "@/lib/razorpayPushback";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [form, setForm] = useState({
     last_working_day: "",
@@ -185,11 +188,11 @@ export default function FnFSettlementPage() {
       if (status === "paid") payload.paid_at = new Date().toISOString();
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
-      // Auto-deactivate employee when F&F is paid
+      // Auto-deactivate employee when F&F is paid + surface Razorpay dismiss prompt
       if (status === "paid") {
         const { data: settlement } = await (supabase as any)
           .from("hr_fnf_settlements")
-          .select("employee_id")
+          .select("employee_id, last_working_day, hr_employees!hr_fnf_settlements_employee_id_fkey(first_name, last_name)")
           .eq("id", id)
           .single();
         if (settlement?.employee_id) {
@@ -197,15 +200,44 @@ export default function FnFSettlementPage() {
             .from("hr_employees")
             .update({ is_active: false, updated_at: new Date().toISOString() })
             .eq("id", settlement.employee_id);
+          return {
+            settledId: id,
+            employee_id: settlement.employee_id,
+            name: `${settlement.hr_employees?.first_name ?? ""} ${settlement.hr_employees?.last_name ?? ""}`.trim() || "employee",
+            lwd: settlement.last_working_day || new Date().toISOString().slice(0, 10),
+          };
         }
       }
+      return null;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
       toast.success("Status updated");
+      if (result) {
+        setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd });
+      }
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const [dismissing, setDismissing] = useState(false);
+  const confirmDismissInRazorpay = async () => {
+    if (!dismissPrompt) return;
+    setDismissing(true);
+    try {
+      const res = await dismissInRazorpay(dismissPrompt.employee_id, {
+        dateOfDismissal: dismissPrompt.lwd,
+        reason: "F&F settled",
+        triggeredFrom: "fnf_paid",
+      });
+      if (res.ok) toast.success("Dismissal propagated to Razorpay");
+      else if (res.skipped) toast.info("Employee is not linked to Razorpay — nothing to propagate.");
+    } finally {
+      setDismissing(false);
+      setDismissPrompt(null);
+    }
+  };
+
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
@@ -348,6 +380,31 @@ export default function FnFSettlementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!dismissPrompt} onOpenChange={(o) => { if (!o) setDismissPrompt(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Also mark dismissed in Razorpay?</AlertDialogTitle>
+            <AlertDialogDescription>
+              F&amp;F for <strong>{dismissPrompt?.name}</strong> is settled. Propagating the dismissal to Razorpay
+              (date of dismissal: <span className="tabular-nums">{dismissPrompt?.lwd}</span>) enables F&amp;F payroll on their side
+              and stops future payslips. This is destructive on the Razorpay side and requires the CONFIRM_DISMISS acknowledgement —
+              click <em>Dismiss in Razorpay</em> to send it, or <em>Skip</em> to keep this to the HRMS only.
+              If the employee is not linked to Razorpay, nothing will be sent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={dismissing}>Skip</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={dismissing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); confirmDismissInRazorpay(); }}
+            >
+              {dismissing ? "Sending…" : "Dismiss in Razorpay"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

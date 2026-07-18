@@ -224,12 +224,6 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
               <p>{records?.length ? `No ${filterLabel[filter].toLowerCase()} records` : "No onboarding records yet"}</p>
               {!records?.length && <p className="text-sm">Click "New Onboarding" to start</p>}
             </div>
-
-            <div className="p-8 text-center text-muted-foreground">
-              <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p>No onboarding records yet</p>
-              <p className="text-sm">Click "New Onboarding" to start</p>
-            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

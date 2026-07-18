@@ -103,15 +103,16 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     },
   });
 
-  // Active employees for the Link picker.
+  // Employees for the Link picker — include drafts (is_active=false) so HR can
+  // link PINs to Razorpay-imported employees awaiting payroll completion.
   const employeesQ = useQuery({
     enabled: open,
     queryKey: ["bio-link-employees"],
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_employees")
-        .select("id, badge_id, first_name, last_name")
-        .eq("is_active", true)
+        .select("id, badge_id, first_name, last_name, is_active")
+        .order("is_active", { ascending: false })
         .order("first_name");
       return data || [];
     },

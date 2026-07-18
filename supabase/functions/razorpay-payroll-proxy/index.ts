@@ -3978,7 +3978,22 @@ Deno.serve(async (req) => {
       const dojRp = toDdMmYyyy(dojIso);
       const dobRp = toDdMmYyyy(dobIso);
       const accountHolder = (bank?.additional_info as any)?.account_holder || fullName || null;
-      const ctcAnnual = (structs || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      // hr_employee_salary_structures.amount holds MONTHLY component amounts (see
+      // monthly_gross_from_structure usage elsewhere in this file). Razorpay's
+      // /people (add) expects annual_ctc = monthly_salary * 12. Prefer the annual
+      // CTC captured during onboarding (hr_employee_onboarding.ctc) when present,
+      // otherwise derive it from the monthly structure sum × 12.
+      const monthlyStructureSum = (structs || []).reduce(
+        (s: number, r: any) => s + Number(r.amount || 0),
+        0,
+      );
+      const { data: onboardingRow } = await svc
+        .from("hr_employee_onboarding")
+        .select("ctc")
+        .eq("employee_id", hrId)
+        .maybeSingle();
+      const onboardingCtc = Number(onboardingRow?.ctc || 0);
+      const ctcAnnual = onboardingCtc > 0 ? onboardingCtc : monthlyStructureSum * 12;
 
       // Validate.
       const missing: string[] = [];

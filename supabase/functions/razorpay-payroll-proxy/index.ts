@@ -3808,84 +3808,24 @@ Deno.serve(async (req) => {
         if (months.length >= maxMonths) break;
       }
 
-      const { data: pSet } = await svc.from("hr_razorpay_settings").select("*").eq("is_singleton", true).maybeSingle();
-      const envelopeReady = !!(pSet?.pull_payslips_endpoint_verified && pSet?.pull_payslips_envelope_key);
-
       const perMonth: any[] = [];
       let totalReflected = 0, totalWithPdf = 0, totalMissingMap = 0, totalPulled = 0, pullFailures = 0;
+      let totalNoRecord = 0, totalNoEmail = 0, totalUpsertErrors = 0;
 
       for (const pm of months) {
         const iso = `${pm}-01`;
         let pulled = 0, pullErr: string | null = null;
 
-        if (alsoPull && envelopeReady) {
-          // Call the same Razorpay endpoint that pull_payslips_for_period uses.
-          const [type, subType] = String(pSet!.pull_payslips_envelope_key).split(":");
-          const ctrl = new AbortController();
-          const t = setTimeout(() => ctrl.abort(), 30000);
+        if (alsoPull) {
           try {
-            const res = await fetch(`${BASE}/${type || "payslip"}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Accept: "application/json" },
-              body: JSON.stringify({
-                auth: authBlock(),
-                request: { type: type || "payslip", "sub-type": subType || "view" },
-                data: { period: pm },
-              }),
-              signal: ctrl.signal,
-            });
-            const raw = await res.text();
-            let parsed: any = null; try { parsed = JSON.parse(raw); } catch { /* noop */ }
-            if (res.status >= 200 && res.status < 300) {
-              const list: any[] = Array.isArray(parsed) ? parsed
-                : (parsed?.data || parsed?.payslips || parsed?.documents ||
-                   parsed?.list || parsed?.result || parsed?.records || []);
-              // Load mapping once per month.
-              const { data: maps } = await svc.from("hr_razorpay_employee_map")
-                .select("hr_employee_id,razorpay_employee_id");
-              const hrByRp = new Map((maps || []).map((m: any) => [String(m.razorpay_employee_id), m.hr_employee_id]));
-              const upserts: any[] = [];
-              for (const p of list) {
-                const rpId = p?.["employee-id"] ?? p?.employee_id ?? p?.employeeId;
-                if (!rpId) continue;
-                const num = (o: any, keys: string[]) => {
-                  for (const k of keys) { const v = o?.[k]; if (v != null && Number.isFinite(Number(v))) return Number(v); }
-                  return null;
-                };
-                const str = (o: any, keys: string[]) => {
-                  for (const k of keys) { const v = o?.[k]; if (v != null && String(v).length) return String(v); }
-                  return null;
-                };
-                upserts.push({
-                  period_month: iso,
-                  razorpay_employee_id: String(rpId),
-                  hr_employee_id: hrByRp.get(String(rpId)) || null,
-                  gross_earnings: num(p, ["gross-earnings", "gross_earnings", "gross", "total-earnings"]),
-                  total_deductions: num(p, ["total-deductions", "total_deductions", "deductions"]),
-                  net_pay: num(p, ["net-pay", "net_pay", "netPay", "net-amount", "net"]),
-                  tds_amount: num(p, ["tds", "tds-amount", "tds_amount", "income-tax", "incomeTax"]),
-                  razorpay_payslip_id: str(p, ["payslip-id", "payslip_id", "id"]),
-                  pdf_url: str(p, ["pdf-url", "pdf_url", "download-url", "url"]),
-                  source_payload: p,
-                  pulled_by: authed.userId,
-                });
-              }
-              if (upserts.length) {
-                for (let i = 0; i < upserts.length; i += 200) {
-                  const chunk = upserts.slice(i, i + 200);
-                  const { error: upErr } = await svc.from("hr_razorpay_payslip_records")
-                    .upsert(chunk, { onConflict: "period_month,razorpay_employee_id" });
-                  if (upErr) { pullErr = upErr.message; break; }
-                }
-                pulled = upserts.length;
-              }
-            } else {
-              pullErr = `HTTP ${res.status}`;
-            }
+            const pull = await pullPayrollViewForPeriod(svc, pm, authed.userId || null);
+            pulled = pull.pulled;
+            totalNoRecord += pull.noRecord;
+            totalNoEmail += pull.noEmail;
+            totalUpsertErrors += pull.upsertErrors;
+            if (pull.failed || pull.upsertErrors) pullErr = `failed=${pull.failed}; upsertErrors=${pull.upsertErrors}`;
           } catch (e) {
             pullErr = (e as Error).message;
-          } finally {
-            clearTimeout(t);
           }
           if (pullErr) pullFailures++;
         }
@@ -3911,7 +3851,8 @@ Deno.serve(async (req) => {
         hr_employee_id: null,
         field_diff_summary: {
           from, to, months: months.length,
-          envelopeReady, totalPulled, totalReflected, totalWithPdf, totalMissingMap, pullFailures,
+            endpoint: "payroll:view-payroll", totalPulled, totalReflected, totalWithPdf,
+            totalMissingMap, pullFailures, totalNoRecord, totalNoEmail, totalUpsertErrors,
         },
         error_text: null,
         actor_user_id: authed.userId,
@@ -3919,13 +3860,11 @@ Deno.serve(async (req) => {
 
       return json(200, {
         ok: true,
-        envelope_ready: envelopeReady,
+        endpoint: "payroll:view-payroll",
         months: months.length,
-        totals: { pulled: totalPulled, reflected: totalReflected, withPdf: totalWithPdf, missingMap: totalMissingMap, pullFailures },
+        totals: { pulled: totalPulled, reflected: totalReflected, withPdf: totalWithPdf, missingMap: totalMissingMap, pullFailures, noRecord: totalNoRecord, noEmail: totalNoEmail, upsertErrors: totalUpsertErrors },
         per_month: perMonth,
-        note: envelopeReady
-          ? "Pulled from RazorpayX and reflected into ERP payslip history."
-          : "RazorpayX payslip envelope is not verified — reflected existing shadow rows only. Probe & verify the envelope first to pull new months.",
+        note: "Pulled from RazorpayX payroll:view-payroll and reflected into ERP payslip history.",
       });
     }
 

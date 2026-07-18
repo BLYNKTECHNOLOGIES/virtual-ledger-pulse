@@ -59,16 +59,17 @@ Deno.serve(async (req) => {
     if (!employees.length) return json({ message: "no active employees", date: dateStr, marked: 0 });
     const employeeIds = employees.map((e: any) => e.id);
 
-    // Employees who already have a daily rollup for that date (any status)
+    // Employees who already have an attendance row for that date (canonical table)
     const existing = await fetchAllRows((from, to) =>
       supabase
-        .from("hr_attendance_daily")
+        .from("hr_attendance")
         .select("employee_id")
         .eq("attendance_date", dateStr)
         .in("employee_id", employeeIds)
         .range(from, to)
     );
     const already = new Set((existing || []).map((r: any) => r.employee_id));
+
 
     // Employees on approved leave that day
     const leaves = await fetchAllRows((from, to) =>

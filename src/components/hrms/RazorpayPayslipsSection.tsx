@@ -101,14 +101,18 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-4">Loading…</p>
       ) : !rows || rows.length === 0 ? (
-        <div className="border border-border rounded-lg p-6 text-center bg-muted/20">
-          <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-foreground font-medium">No RazorpayX payslips yet</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Payslips will appear here automatically once RazorpayX finalizes the run.
+        <div className="border border-amber-500/30 rounded-lg p-6 text-center bg-amber-500/5">
+          <AlertCircle className="w-8 h-8 mx-auto text-amber-600 mb-2" />
+          <p className="text-sm text-foreground font-medium">Finalized payslips unavailable</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
+            RazorpayX only exposes a payslip once a payroll run is executed for that month.
+            Historical entries previously shown here were the pre-execution payroll setup
+            (base salary, not finalized), so they have been cleared. Payslips will appear
+            automatically for months RazorpayX finalizes.
           </p>
         </div>
       ) : (
+
         <>
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">

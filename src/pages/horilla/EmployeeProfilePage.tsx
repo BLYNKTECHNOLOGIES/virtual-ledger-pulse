@@ -60,7 +60,7 @@ function SalarySummaryCard({
   return (
     <div className="border border-border rounded-lg p-4 bg-muted/30 page-mount">
       <h3 className="text-sm font-semibold text-foreground mb-3">Salary Summary</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <p className="text-xs text-muted-foreground">Annual CTC</p>
           <p className="text-sm font-bold text-foreground">₹{ctc.toLocaleString("en-IN")}</p>
@@ -113,7 +113,7 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
         <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Security Deposit</p>
       </div>
       <div className="border border-border rounded-lg p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground">Total Deposit</p>
             <p className="text-sm font-semibold">₹{Number(deposit.total_deposit_amount).toLocaleString('en-IN')}</p>
@@ -601,7 +601,7 @@ export default function EmployeeProfilePage() {
           <input type={inputType || "text"} value={editForm[editKey] || ""} onChange={e => setEditForm({ ...editForm, [editKey]: e.target.value })} className={inputCls} />
         )
       ) : (
-        <p className="text-sm font-medium text-foreground">{value || "None"}</p>
+        <p className="text-sm font-medium text-foreground break-words">{value || "None"}</p>
       )}
     </div>
   );
@@ -616,17 +616,17 @@ export default function EmployeeProfilePage() {
         <span>›</span>
         <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employees</button>
         <span>›</span>
-        <span className="text-[#00bcd4] font-medium">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
+        <span className="text-[#00bcd4] font-medium break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
       </div>
 
       {/* ─── Profile Header (Horilla style) ─── */}
       <div className="bg-card border border-border rounded-xl px-6 py-5 flex flex-col md:flex-row md:items-start justify-between gap-4">
-        <div className="flex items-start gap-5">
+        <div className="flex items-start gap-3 md:gap-5">
           {/* Avatar */}
           {emp.profile_image_url ? (
-            <img src={emp.profile_image_url} className="w-20 h-20 rounded-lg object-cover" alt="" />
+            <img src={emp.profile_image_url} className="w-16 h-16 md:w-20 md:h-20 rounded-lg object-cover" alt="" />
           ) : (
-            <div className={`w-20 h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-2xl`}>
+            <div className={`w-16 h-16 md:w-20 md:h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-2xl`}>
               {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
             </div>
           )}
@@ -634,7 +634,7 @@ export default function EmployeeProfilePage() {
           {/* Info */}
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-semibold text-foreground">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
+              <h1 className="text-lg font-semibold text-foreground break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
               <DriftBadge employeeId={emp.id} />
             </div>
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
@@ -963,7 +963,7 @@ export default function EmployeeProfilePage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Work Type</p>
                     <p className="text-sm font-medium text-foreground mt-1">{workInfo?.work_type || "None"}</p>
@@ -989,7 +989,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div className="border border-border rounded-lg p-4">
                   <h4 className="text-sm font-semibold text-foreground mb-3">Work Details</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div><p className="text-xs text-muted-foreground">Location</p><p className="text-sm text-foreground">{workInfo?.location || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>

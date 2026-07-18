@@ -36,6 +36,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   const [finalizing, setFinalizing] = useState(false);
   const [pushingToDevices, setPushingToDevices] = useState(false);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
+  const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
+  const pushingRef = useRef(false);
 
   const handlePushToBiometric = async () => {
     const pin = form.essl_badge_id.trim();
@@ -48,6 +50,20 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       toast.error("Employee name is missing on this onboarding record.");
       return;
     }
+    // Synchronous re-entry guard — blocks rapid double-taps that would
+    // otherwise queue duplicate USERINFO commands to the devices.
+    if (pushingRef.current || pushingToDevices) {
+      toast.info("Already queuing this PIN — please wait.");
+      return;
+    }
+    // Idempotency guard — if this PIN is already registered on a device with
+    // a name, or we've already queued a create for it from this onboarding,
+    // do not re-queue.
+    if (pinStatus?.kind === "ok" || existingPushLog) {
+      toast.info(`PIN ${pin} is already registered on the biometric device(s). Skipping duplicate create.`);
+      return;
+    }
+    pushingRef.current = true;
     setPushingToDevices(true);
     const t = toast.loading(`Queuing ${name} (PIN ${pin}) to both biometric devices…`);
     try {
@@ -59,13 +75,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
           action: "upsert",
           triggered_by: userData?.user?.id ?? null,
           triggered_from: "onboarding_stage5",
+          onboarding_id: onboardingRecord?.id ?? null,
         },
       });
       if (error) throw error;
       const payload = (data ?? {}) as any;
       toast.dismiss(t);
       if (payload.ok) {
-        toast.success(`Queued on ${payload.queued_count} device(s). They will apply on next poll.`);
+        setPushFeedback({ pin, deviceCount: payload.queued_count || 0, at: new Date().toISOString() });
+        toast.success(`✓ Biometric identity created for ${name} on ${payload.queued_count} device(s). Devices apply it on the next poll (30–60s).`);
+        queryClient.invalidateQueries({ queryKey: ["hr_essl_pushback_log_stage5", pin] });
+        queryClient.invalidateQueries({ queryKey: ["hr_biometric_device_users_for_stage5"] });
       } else if (payload.skipped) {
         toast.warning(
           payload.reason === "no_devices"
@@ -79,6 +99,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       toast.dismiss(t);
       toast.error(`Push failed: ${e?.message || String(e)}`);
     } finally {
+      pushingRef.current = false;
       setPushingToDevices(false);
     }
   };
@@ -281,6 +302,36 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       .sort((a: any, b: any) => Number(a.pin) - Number(b.pin));
   }, [canonicalDevicePins, usedBadgeIds, form.essl_badge_id]);
 
+  // Idempotency lookup — has this PIN already been queued to biometric devices
+  // from an onboarding flow? Any successful/queued/ack row here means we
+  // must NOT push again, and the "Create" action should lock itself.
+  const currentPinTrim = (form.essl_badge_id || "").trim();
+  const { data: existingPushLog } = useQuery({
+    queryKey: ["hr_essl_pushback_log_stage5", currentPinTrim],
+    queryFn: async () => {
+      if (!currentPinTrim) return null;
+      const { data } = await (supabase as any)
+        .from("hr_essl_pushback_log")
+        .select("id, status, device_serial, created_at, triggered_from")
+        .eq("pin", currentPinTrim)
+        .eq("kind", "identity")
+        .in("status", ["queued", "ack", "acknowledged", "applied", "success"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!currentPinTrim,
+    refetchInterval: 30_000,
+  });
+
+  // The identity is "already created" on devices when EITHER a live device
+  // roster row exists for this PIN with a name (pinStatus.kind === "ok"),
+  // OR we have a queued/ack pushback-log entry for this PIN.
+  const bioAlreadyCreated = !!(pinStatus?.kind === "ok" || existingPushLog || pushFeedback);
+
+
+
 
   const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
 
@@ -453,10 +504,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               <Select
                 value=""
                 onValueChange={v => setForm(p => ({ ...p, essl_badge_id: v }))}
-                disabled={readOnly || pinsLoading}
+                disabled={readOnly || pinsLoading || bioAlreadyCreated}
               >
                 <SelectTrigger className="w-[190px] shrink-0">
-                  <SelectValue placeholder={pinsLoading ? "Loading…" : `Pick unassigned (${unassignedPins.length})`} />
+                  <SelectValue placeholder={
+                    bioAlreadyCreated
+                      ? "Locked — already created"
+                      : pinsLoading
+                        ? "Loading…"
+                        : `Pick unassigned (${unassignedPins.length})`
+                  } />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
                   {unassignedPins.length === 0 ? (
@@ -485,21 +542,43 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 <span>{pinStatus.msg}</span>
               </p>
             )}
+            {bioAlreadyCreated && (
+              <div className="mt-2 rounded-md border border-success/40 bg-success/10 px-3 py-2 text-xs text-success flex items-start gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <div className="space-y-0.5">
+                  <div className="font-medium">
+                    Biometric identity created for {firstName} {lastName} (PIN {currentPinTrim}).
+                  </div>
+                  <div className="text-success/80">
+                    {pinStatus?.kind === "ok"
+                      ? "Confirmed live on device roster — punches from this PIN will match this employee."
+                      : "Queued to IN + OUT devices. They will apply it on the next poll (30–60s). This action is locked to prevent duplicate identities."}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim()}
+                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim() || bioAlreadyCreated}
                 onClick={handlePushToBiometric}
               >
                 <Fingerprint className="h-3.5 w-3.5 mr-1.5" />
-                {pushingToDevices ? "Queuing…" : "Create on IN + OUT biometric devices"}
+                {bioAlreadyCreated
+                  ? "Already created on devices"
+                  : pushingToDevices
+                    ? "Queuing…"
+                    : "Create on IN + OUT biometric devices"}
               </Button>
               <span className="text-[11px] text-muted-foreground">
-                Queues a name/PIN write to both eSSL devices. They apply it on the next poll (30–60s).
+                {bioAlreadyCreated
+                  ? "Locked — this PIN is already registered. Delete the device user first if you need to re-create."
+                  : "Queues a name/PIN write to both eSSL devices. They apply it on the next poll (30–60s)."}
               </span>
             </div>
+
           </div>
           <div>
             <Label>Reporting Manager</Label>

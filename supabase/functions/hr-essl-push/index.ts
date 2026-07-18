@@ -53,6 +53,7 @@ serve(async (req) => {
       // queue commands using this pin/name directly.
       pin: rawPin,
       name: rawName,
+      onboarding_id, // optional audit tag — links this queue to a specific onboarding
     } = body || {};
 
     if (!["upsert", "delete"].includes(action)) {
@@ -174,7 +175,7 @@ serve(async (req) => {
         action: action === "delete" ? "DATA DELETE USERINFO" : "DATA UPDATE USERINFO",
         status: "queued",
         command_id: cmdRow.id,
-        request_snapshot: { command_text: commandText, name: displayName },
+        request_snapshot: { command_text: commandText, name: displayName, onboarding_id: onboarding_id ?? null },
         triggered_by: triggered_by ?? null,
         triggered_from: triggered_from ?? null,
       });

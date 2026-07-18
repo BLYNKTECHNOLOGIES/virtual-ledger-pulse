@@ -96,11 +96,10 @@ export default function EmployeeListPage() {
 
   // ─── State ───
   const [searchTerm, setSearchTerm] = useState("");
-  // Grid view is the mobile-friendly card layout. Auto-default to it on
-  // phones; desktop keeps the dense table.
-  const [viewMode, setViewMode] = useState<"list" | "grid">(
-    typeof window !== "undefined" && window.innerWidth < 768 ? "grid" : "list"
-  );
+  // View mode is now DEVICE-DRIVEN, not user-selectable. Phones always get the
+  // card grid; desktops always get the dense table. Reactive to viewport resize
+  // via useIsMobile().
+  const viewMode: "list" | "grid" = isMobile ? "grid" : "list";
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<any>(null);
@@ -108,10 +107,6 @@ export default function EmployeeListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  // Default to active employees only so HR doesn't see ex-employees in the
-  // main list. Razorpay-imported drafts (is_active=false) are hidden by the
-  // query-level filter regardless. Users can remove this filter from the
-  // filter panel to view inactive/terminated staff.
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
     { field: "is_active", label: "Is active", value: "true", displayValue: "True" },
   ]);
@@ -529,23 +524,7 @@ export default function EmployeeListPage() {
             />
           </div>
 
-          {/* View toggle */}
-          <div className="flex border border-border rounded-lg overflow-hidden">
-            <button
-              onClick={() => setViewMode("list")}
-              className={`p-2 transition-colors ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}
-              title="List View"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}
-              title="Grid View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
+          {/* View toggle removed — layout is device-driven (phone = cards, desktop = table) */}
 
           {/* Filter button */}
           <button
@@ -667,10 +646,8 @@ export default function EmployeeListPage() {
 
       {/* ─── Active Filter Chips + Toolbar Row ─── */}
       <div className="hrms-chip-row flex flex-wrap items-center gap-2 mb-3">
-        {/* View mode label */}
-        <span className="text-xs font-semibold text-white bg-[#00bcd4] px-2.5 py-1 rounded">
-          {viewMode === "list" ? "List" : "Card"}
-        </span>
+        {/* View-mode chip removed — layout is device-driven */}
+
 
         {/* Select button */}
         <button

@@ -48,38 +48,53 @@ serve(async (req) => {
       device_serial: onlySerial, // optional: restrict to one device
       triggered_by,
       triggered_from,
+      // Raw override — used from onboarding Stage 5 where the hr_employees row
+      // does not yet exist. When provided, we skip the employee lookup and
+      // queue commands using this pin/name directly.
+      pin: rawPin,
+      name: rawName,
     } = body || {};
 
-    if (!hr_employee_id) {
-      return new Response(JSON.stringify({ ok: false, error: "hr_employee_id is required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     if (!["upsert", "delete"].includes(action)) {
       return new Response(JSON.stringify({ ok: false, error: `Unsupported action: ${action}` }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: emp, error: empErr } = await supa
-      .from("hr_employees")
-      .select("id, first_name, last_name, badge_id, is_active")
-      .eq("id", hr_employee_id)
-      .maybeSingle();
+    let pin = "";
+    let displayName = "";
+    let resolvedEmpId: string | null = hr_employee_id ?? null;
 
-    if (empErr) throw empErr;
-    if (!emp) throw new Error("Employee not found");
+    if (rawPin) {
+      pin = String(rawPin).trim();
+      displayName = esslSafeName(String(rawName || ""));
+    } else {
+      if (!hr_employee_id) {
+        return new Response(JSON.stringify({ ok: false, error: "hr_employee_id or pin is required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: emp, error: empErr } = await supa
+        .from("hr_employees")
+        .select("id, first_name, last_name, badge_id, is_active")
+        .eq("id", hr_employee_id)
+        .maybeSingle();
+      if (empErr) throw empErr;
+      if (!emp) throw new Error("Employee not found");
+      pin = String(emp.badge_id || "").trim();
+      displayName = esslSafeName(`${emp.first_name || ""} ${emp.last_name || ""}`.trim());
+      resolvedEmpId = emp.id;
+    }
 
-    const pin = String(emp.badge_id || "").trim();
     if (!pin) {
       await supa.from("hr_essl_pushback_log").insert({
-        hr_employee_id,
+        hr_employee_id: resolvedEmpId,
         device_serial: null,
         pin: null,
         kind: action === "delete" ? "delete" : "identity",
         action: action === "delete" ? "DATA DELETE USERINFO" : "DATA UPDATE USERINFO",
         status: "skipped",
-        error_message: "Employee has no badge_id / eSSL PIN",
+        error_message: "No badge_id / eSSL PIN provided",
         triggered_by: triggered_by ?? null,
         triggered_from: triggered_from ?? null,
       });
@@ -88,7 +103,6 @@ serve(async (req) => {
       });
     }
 
-    const displayName = esslSafeName(`${emp.first_name || ""} ${emp.last_name || ""}`.trim());
 
     // Target device set: either a specific serial, or every registered device.
     let devQ: any = supa.from("hr_biometric_devices").select("device_serial, name");
@@ -98,7 +112,7 @@ serve(async (req) => {
 
     if (targets.length === 0) {
       await supa.from("hr_essl_pushback_log").insert({
-        hr_employee_id,
+        hr_employee_id: resolvedEmpId,
         device_serial: null,
         pin,
         kind: action === "delete" ? "delete" : "identity",
@@ -136,7 +150,7 @@ serve(async (req) => {
 
       if (qErr) {
         await supa.from("hr_essl_pushback_log").insert({
-          hr_employee_id,
+          hr_employee_id: resolvedEmpId,
           device_serial: serial,
           pin,
           kind: action === "delete" ? "delete" : "identity",
@@ -153,7 +167,7 @@ serve(async (req) => {
       queued.push({ device_serial: serial, command_id: cmdRow.id });
 
       await supa.from("hr_essl_pushback_log").insert({
-        hr_employee_id,
+        hr_employee_id: resolvedEmpId,
         device_serial: serial,
         pin,
         kind: action === "delete" ? "delete" : "identity",

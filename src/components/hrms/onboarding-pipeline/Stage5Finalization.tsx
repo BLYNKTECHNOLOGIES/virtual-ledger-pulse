@@ -36,6 +36,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   const [finalizing, setFinalizing] = useState(false);
   const [pushingToDevices, setPushingToDevices] = useState(false);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
+  const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
+  const pushingRef = useRef(false);
 
   const handlePushToBiometric = async () => {
     const pin = form.essl_badge_id.trim();

@@ -309,11 +309,23 @@ export function BulkCompletionPanel() {
                           {r.email || "—"}
                         </td>
                         <td className="p-2">
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 items-center">
                             {pill("Bank", r.has_bank)}
                             {pill("Salary", r.has_salary)}
                             {pill("DOJ", r.has_doj)}
                             {pill("Desig.", r.has_designation)}
+                            {!r.has_salary && r.salary_reason && (
+                              <span
+                                title={r.salary_reason_detail || ""}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                                  r.salary_reason === "no_payroll"
+                                    ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300"
+                                    : "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300"
+                                }`}
+                              >
+                                {r.salary_reason === "no_payroll" ? "Enter CTC manually" : "Razorpay error"}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="p-2 text-right">

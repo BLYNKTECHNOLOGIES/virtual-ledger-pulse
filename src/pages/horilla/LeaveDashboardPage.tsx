@@ -107,6 +107,9 @@ export default function LeaveDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <LeaveClashCard />
     </div>
+
   );
 }

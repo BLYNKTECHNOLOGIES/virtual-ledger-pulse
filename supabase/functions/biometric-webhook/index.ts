@@ -584,7 +584,10 @@ function formatESSLStamp(date: Date): string {
   return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())} ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}:${pad(ist.getUTCSeconds())}`;
 }
 
-// ─── Helper: Process attendance records (shift-aware, deterministic) ───
+// v4 engine cutover — must match hr_attendance_engine_settings.two_device_cutover_utc (2026-07-17T13:45Z ≈ 2026-07-17 IST)
+const V4_CUTOVER_IST_DATE = "2026-07-17";
+
+// ─── Helper: Process attendance records (v4 engine for post-cutover, legacy span-math for pre) ───
 async function processAttendance(
   supabase: any,
   badge_id: string,
@@ -610,6 +613,51 @@ async function processAttendance(
   }
 
   const employeeIdStr: string = employeeId!;
+
+  // ─── v4 engine path (post-cutover): pure L1–L4 recompute over (emp, [punchDate-1, punchDate]) ───
+  // Look-back window covers night-shift wrap; engine is idempotent + continuous-state.
+  if (punchDate >= V4_CUTOVER_IST_DATE) {
+    // Still record raw activity for the UI feed (v4 engine doesn't touch this table)
+    try {
+      const { data: existingActivity } = await supabase
+        .from("hr_attendance_activity")
+        .select("id")
+        .eq("employee_id", employeeIdStr)
+        .eq("activity_date", punchDate)
+        .limit(1)
+        .maybeSingle();
+      const actPayload: any = {
+        employee_id: employeeIdStr,
+        activity_date: punchDate,
+        [punch_type === "out" ? "clock_out" : "clock_in"]: punchISO,
+        [punch_type === "out" ? "clock_out_note" : "clock_in_note"]: "Via eSSL Push",
+      };
+      if (existingActivity) {
+        await supabase.from("hr_attendance_activity").update(actPayload).eq("id", existingActivity.id);
+      } else {
+        await supabase.from("hr_attendance_activity").insert(actPayload);
+      }
+    } catch (e) {
+      console.warn(`[ATTENDANCE v4] activity upsert failed: ${(e as Error).message}`);
+    }
+
+    const fromDate = addDaysISO(punchDate, -1);
+    const { error: v4err } = await supabase.rpc("hr_v4_recompute_range", {
+      p_employee_id: employeeIdStr,
+      p_from: fromDate,
+      p_to: punchDate,
+    });
+    if (v4err) {
+      console.error(`[ATTENDANCE v4] recompute failed for emp=${employeeIdStr} range=${fromDate}..${punchDate}:`, v4err.message);
+      return;
+    }
+    console.log(`[ATTENDANCE v4] recomputed emp=${employeeIdStr} range=${fromDate}..${punchDate}`);
+    return;
+  }
+
+  // ─── Legacy pre-cutover path (untouched span math) ───
+
+
 
   // 2. Look up employee's shift via hr_employee_work_info → hr_shifts
   const { data: workInfo } = await supabase
@@ -858,6 +906,14 @@ function addOneDay(dateStr: string): string {
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().split("T")[0];
 }
+
+// Signed variant used by the v4 engine wiring (look-back one day for night-shift wrap)
+function addDaysISO(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
 
 // ─── Helper: Update device heartbeat ───
 // Uses correct columns: name, is_connected, last_sync_at, device_serial

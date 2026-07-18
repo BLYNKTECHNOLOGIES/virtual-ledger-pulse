@@ -4604,49 +4604,73 @@ export type Database = {
       hr_attendance_daily: {
         Row: {
           attendance_date: string
+          break_minutes: number
           created_at: string | null
+          detected_shift_id: string | null
           early_by_minutes: number | null
           early_departure: boolean | null
           employee_id: string
+          engine_version: string
           first_in: string | null
+          flags: Json
           id: string
           is_late: boolean | null
           last_out: string | null
           late_by_minutes: number | null
+          lunch_minutes: number
+          net_work_minutes: number
           punch_count: number | null
+          session_count: number
           status: string | null
+          suppressed_count: number
           total_hours: number | null
           updated_at: string | null
         }
         Insert: {
           attendance_date: string
+          break_minutes?: number
           created_at?: string | null
+          detected_shift_id?: string | null
           early_by_minutes?: number | null
           early_departure?: boolean | null
           employee_id: string
+          engine_version?: string
           first_in?: string | null
+          flags?: Json
           id?: string
           is_late?: boolean | null
           last_out?: string | null
           late_by_minutes?: number | null
+          lunch_minutes?: number
+          net_work_minutes?: number
           punch_count?: number | null
+          session_count?: number
           status?: string | null
+          suppressed_count?: number
           total_hours?: number | null
           updated_at?: string | null
         }
         Update: {
           attendance_date?: string
+          break_minutes?: number
           created_at?: string | null
+          detected_shift_id?: string | null
           early_by_minutes?: number | null
           early_departure?: boolean | null
           employee_id?: string
+          engine_version?: string
           first_in?: string | null
+          flags?: Json
           id?: string
           is_late?: boolean | null
           last_out?: string | null
           late_by_minutes?: number | null
+          lunch_minutes?: number
+          net_work_minutes?: number
           punch_count?: number | null
+          session_count?: number
           status?: string | null
+          suppressed_count?: number
           total_hours?: number | null
           updated_at?: string | null
         }
@@ -4666,6 +4690,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hr_attendance_engine_settings: {
+        Row: {
+          clock_drift_alert_seconds: number
+          day_cutoff_ist: string
+          debounce_seconds: number
+          grace_late_minutes: number
+          half_day_net_hours: number
+          id: boolean
+          lunch_window_end_ist: string
+          lunch_window_start_ist: string
+          ot_daily_hours: number
+          punch_retention_years: number
+          shift_match_tolerance_hours: number
+          two_device_cutover_utc: string
+          updated_at: string
+          updated_by: string | null
+          watchdog_hours: number
+        }
+        Insert: {
+          clock_drift_alert_seconds?: number
+          day_cutoff_ist?: string
+          debounce_seconds?: number
+          grace_late_minutes?: number
+          half_day_net_hours?: number
+          id?: boolean
+          lunch_window_end_ist?: string
+          lunch_window_start_ist?: string
+          ot_daily_hours?: number
+          punch_retention_years?: number
+          shift_match_tolerance_hours?: number
+          two_device_cutover_utc?: string
+          updated_at?: string
+          updated_by?: string | null
+          watchdog_hours?: number
+        }
+        Update: {
+          clock_drift_alert_seconds?: number
+          day_cutoff_ist?: string
+          debounce_seconds?: number
+          grace_late_minutes?: number
+          half_day_net_hours?: number
+          id?: boolean
+          lunch_window_end_ist?: string
+          lunch_window_start_ist?: string
+          ot_daily_hours?: number
+          punch_retention_years?: number
+          shift_match_tolerance_hours?: number
+          two_device_cutover_utc?: string
+          updated_at?: string
+          updated_by?: string | null
+          watchdog_hours?: number
+        }
+        Relationships: []
       }
       hr_attendance_period_locks: {
         Row: {
@@ -4754,11 +4832,13 @@ export type Database = {
           created_at: string | null
           device_name: string | null
           device_serial: string | null
+          effective: boolean
           employee_id: string
           id: string
           punch_time: string
           punch_type: string | null
           raw_status: number | null
+          suppressed_reason: string | null
           verified: boolean | null
         }
         Insert: {
@@ -4766,11 +4846,13 @@ export type Database = {
           created_at?: string | null
           device_name?: string | null
           device_serial?: string | null
+          effective?: boolean
           employee_id: string
           id?: string
           punch_time: string
           punch_type?: string | null
           raw_status?: number | null
+          suppressed_reason?: string | null
           verified?: boolean | null
         }
         Update: {
@@ -4778,11 +4860,13 @@ export type Database = {
           created_at?: string | null
           device_name?: string | null
           device_serial?: string | null
+          effective?: boolean
           employee_id?: string
           id?: string
           punch_time?: string
           punch_type?: string | null
           raw_status?: number | null
+          suppressed_reason?: string | null
           verified?: boolean | null
         }
         Relationships: [
@@ -4948,6 +5032,66 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_attendance_sessions: {
+        Row: {
+          attendance_date: string
+          created_at: string
+          employee_id: string
+          flags: Json
+          id: string
+          in_punch_id: string
+          in_time: string
+          minutes: number | null
+          out_punch_id: string | null
+          out_time: string | null
+          session_no: number
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          created_at?: string
+          employee_id: string
+          flags?: Json
+          id?: string
+          in_punch_id: string
+          in_time: string
+          minutes?: number | null
+          out_punch_id?: string | null
+          out_time?: string | null
+          session_no: number
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          created_at?: string
+          employee_id?: string
+          flags?: Json
+          id?: string
+          in_punch_id?: string
+          in_time?: string
+          minutes?: number | null
+          out_punch_id?: string | null
+          out_time?: string | null
+          session_no?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_sessions_in_punch_id_fkey"
+            columns: ["in_punch_id"]
+            isOneToOne: true
+            referencedRelation: "hr_attendance_punches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_sessions_out_punch_id_fkey"
+            columns: ["out_punch_id"]
+            isOneToOne: false
+            referencedRelation: "hr_attendance_punches"
             referencedColumns: ["id"]
           },
         ]
@@ -19794,6 +19938,16 @@ export type Database = {
         Args: { p_date_from: string; p_date_to: string; p_employee_id: string }
         Returns: number
       }
+      hr_v4_recompute_range: {
+        Args: { p_employee_id: string; p_from: string; p_to: string }
+        Returns: {
+          net_work_minutes: number
+          session_count: number
+          suppressed_count: number
+          window_date: string
+        }[]
+      }
+      hr_v4_window_date_of: { Args: { p_ts: string }; Returns: string }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:
         | {

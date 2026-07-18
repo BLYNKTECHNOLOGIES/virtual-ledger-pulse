@@ -250,6 +250,48 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                 </div>
               </div>
 
+              {/* Statutory strip — promoted first-class columns */}
+              {(openRow.pf_amount != null || openRow.esi_amount != null || openRow.professional_tax != null) && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="border border-border rounded p-3 bg-muted/30">
+                    <p className="text-[10px] uppercase text-muted-foreground">PF</p>
+                    <p className="text-sm font-semibold">{INR(openRow.pf_amount)}</p>
+                  </div>
+                  <div className="border border-border rounded p-3 bg-muted/30">
+                    <p className="text-[10px] uppercase text-muted-foreground">ESI</p>
+                    <p className="text-sm font-semibold">{INR(openRow.esi_amount)}</p>
+                  </div>
+                  <div className="border border-border rounded p-3 bg-muted/30">
+                    <p className="text-[10px] uppercase text-muted-foreground">Professional Tax</p>
+                    <p className="text-sm font-semibold">{INR(openRow.professional_tax)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Additions detail (Bonus / Reimbursement / Arrear chips) */}
+              {openRow.additions_detail && typeof openRow.additions_detail === "object" && Object.keys(openRow.additions_detail).length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2">Additions</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(openRow.additions_detail as Record<string, any>).map(([label, cfg]: any) => {
+                      const typeIdx = Number(cfg?.type);
+                      const typeName = typeIdx === 0 ? "Bonus" : typeIdx === 1 ? "Reimbursement" : typeIdx === 2 ? "Arrear" : "Other";
+                      const taxable = Boolean(cfg?.taxable);
+                      const amt = Number(cfg?.amount ?? 0);
+                      return (
+                        <Badge key={label} variant="outline" className="text-[11px] font-normal">
+                          <span className="font-semibold">{label}</span>
+                          <span className="mx-1 text-muted-foreground">·</span>{typeName}
+                          <span className="mx-1 text-muted-foreground">·</span>{taxable ? "Taxable" : "Non-taxable"}
+                          <span className="ml-1.5">{INR(amt)}</span>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+
               {/* Breakdown from source_payload */}
               {openRow.source_payload && (
                 <div>

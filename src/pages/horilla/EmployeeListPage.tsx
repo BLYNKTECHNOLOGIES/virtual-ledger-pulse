@@ -646,10 +646,8 @@ export default function EmployeeListPage() {
 
       {/* ─── Active Filter Chips + Toolbar Row ─── */}
       <div className="hrms-chip-row flex flex-wrap items-center gap-2 mb-3">
-        {/* View mode label */}
-        <span className="text-xs font-semibold text-white bg-[#00bcd4] px-2.5 py-1 rounded">
-          {viewMode === "list" ? "List" : "Card"}
-        </span>
+        {/* View-mode chip removed — layout is device-driven */}
+
 
         {/* Select button */}
         <button

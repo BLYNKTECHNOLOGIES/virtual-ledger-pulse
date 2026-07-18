@@ -1,0 +1,190 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { Lock, Unlock, Plus } from 'lucide-react';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { TableSkeleton } from '@/components/ui/skeleton';
+
+export default function AttendancePeriodLockPage() {
+  const qc = useQueryClient();
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const [open, setOpen] = useState(false);
+  const [unlockId, setUnlockId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    period_start: format(new Date(y, m - 1, 1), 'yyyy-MM-dd'),
+    period_end: format(new Date(y, m, 0), 'yyyy-MM-dd'),
+    notes: '',
+  });
+
+  const { data: locks = [], isLoading } = useQuery({
+    queryKey: ['attendance_period_locks'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('hr_attendance_period_locks')
+        .select('*')
+        .order('period_start', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const create = useMutation({
+    mutationFn: async () => {
+      if (!form.period_start || !form.period_end) throw new Error('Provide period start and end');
+      if (form.period_end < form.period_start) throw new Error('End must be after start');
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from('hr_attendance_period_locks')
+        .insert({
+          period_start: form.period_start,
+          period_end: form.period_end,
+          locked_by: u?.user?.id,
+          locked_at: new Date().toISOString(),
+          notes: form.notes || null,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Period locked. Payroll can now be run for this range.');
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ['attendance_period_locks'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Failed to lock period'),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('hr_attendance_period_locks')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Lock removed');
+      setUnlockId(null);
+      qc.invalidateQueries({ queryKey: ['attendance_period_locks'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Failed to unlock'),
+  });
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Attendance Period Locks"
+        description="Freeze attendance for a payroll period. The payroll engine refuses to run for a period that has no lock, and any late corrections cannot silently alter locked payslips."
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Lock New Period
+          </Button>
+        }
+      />
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <TableSkeleton rows={4} />
+          ) : locks.length === 0 ? (
+            <EmptyState
+              icon={Lock}
+              title="No locked periods yet"
+              description="Lock a period before running payroll for it."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Period</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Locked At</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Notes</th>
+                    <th className="text-right px-4 py-2 font-medium text-muted-foreground">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {locks.map((l: any) => (
+                    <tr key={l.id} className="border-b hover:bg-muted/30">
+                      <td className="px-4 py-2 font-medium">
+                        <Lock className="h-3 w-3 inline mr-1 text-success" />
+                        {l.period_start} → {l.period_end}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                        {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">{l.notes || '—'}</td>
+                      <td className="px-4 py-2 text-right">
+                        <Button size="sm" variant="outline" onClick={() => setUnlockId(l.id)}>
+                          <Unlock className="h-4 w-4 mr-1" /> Unlock
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lock Attendance Period</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Period Start</Label>
+                <Input type="date" value={form.period_start} onChange={(e) => setForm({ ...form, period_start: e.target.value })} />
+              </div>
+              <div>
+                <Label>Period End</Label>
+                <Input type="date" value={form.period_end} onChange={(e) => setForm({ ...form, period_end: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="e.g. Locked after biometric reconciliation and regularization review" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Only lock after you've reviewed all regularization requests and biometric quarantine for this period.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => create.mutate()} disabled={create.isPending}>
+              {create.isPending ? 'Locking...' : 'Lock Period'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!unlockId} onOpenChange={(o) => !o && setUnlockId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unlock this period?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Unlocking allows attendance/regularization to be changed again. If payroll for this period has already been paid, this can cause reconciliation drift. Proceed only if you know what you're doing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => unlockId && remove.mutate(unlockId)}>Unlock</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

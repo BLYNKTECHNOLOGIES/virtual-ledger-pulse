@@ -714,6 +714,15 @@ async function projectSnapshotIntoErp(
   if (jobTitle) {
     jobPositionId = await resolveOrCreatePositionId(svc, jobTitle);
   }
+  // Resolve manager-employee-id (RazorpayX numeric id) → local hr_employee_id via employee map.
+  const rzMgrRaw = snap?.["manager-employee-id"] ?? snap?.manager_employee_id ?? snap?.manager?.id ?? snap?.manager?.["employee-id"];
+  const rzMgrId = rzMgrRaw != null && Number.isFinite(Number(rzMgrRaw)) ? Number(rzMgrRaw) : null;
+  let reportingManagerLocalId: string | null = null;
+  if (rzMgrId) {
+    const { data: mgrMap } = await svc.from("hr_razorpay_employee_map")
+      .select("hr_employee_id").eq("razorpay_employee_id", rzMgrId).maybeSingle();
+    if (mgrMap?.hr_employee_id) reportingManagerLocalId = mgrMap.hr_employee_id;
+  }
   const wiIncoming: Record<string, any> = {
     joining_date: parseDobIso(snap?.["date-of-hiring"] ?? snap?.date_of_hiring ?? snap?.hiring_date ?? snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
     department_id: departmentId,
@@ -722,7 +731,9 @@ async function projectSnapshotIntoErp(
     employee_type: pickString(snap?.employee_type, snap?.employment_type),
     work_email: pickString(snap?.work_email, snap?.email)?.toLowerCase() || null,
     location: pickString(snap?.location, snap?.work_location),
+    reporting_manager_id: reportingManagerLocalId,
   };
+
   const { data: wiCur } = await svc.from("hr_employee_work_info").select("*").eq("employee_id", hrId).maybeSingle();
   const wiPick = pickPatch(wiCur as any, wiIncoming);
   if (wiCur) {

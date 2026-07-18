@@ -516,9 +516,9 @@ export default function EmployeeListPage() {
       <PageHeader
         title="Employees"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {/* Search */}
-          <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-52">
+          <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 w-full sm:w-52 order-1 sm:order-none">
             <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
             <input
               type="text"

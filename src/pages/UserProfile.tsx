@@ -442,15 +442,38 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h4 className="font-semibold text-foreground">{(p as any).hr_payroll_runs?.title || 'Payslip'}</h4>
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      {(p as any).hr_payroll_runs?.title
+                        || (p.source === 'razorpay_import'
+                          ? `RazorpayX Payslip — ${p.period_month ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
+                          : 'Payslip')}
+                      {p.source === 'razorpay_import' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase">Imported</span>
+                      )}
+                    </h4>
                     <p className="text-xs text-muted-foreground">
-                      {(p as any).hr_payroll_runs?.pay_period_start} — {(p as any).hr_payroll_runs?.pay_period_end}
+                      {(p as any).hr_payroll_runs?.pay_period_start
+                        ? `${(p as any).hr_payroll_runs?.pay_period_start} — ${(p as any).hr_payroll_runs?.pay_period_end}`
+                        : (p.period_month || '')}
                     </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    p.status === 'paid' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
-                  }`}>{p.status || 'draft'}</span>
+                  <div className="flex items-center gap-2">
+                    {p.pdf_url && (
+                      <a
+                        href={p.pdf_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs px-2 py-1 rounded border hover:bg-muted"
+                      >
+                        View PDF
+                      </a>
+                    )}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      p.status === 'paid' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                    }`}>{p.status || 'draft'}</span>
+                  </div>
                 </div>
+
 
                 <div className="grid grid-cols-4 gap-3 text-center mb-4">
                   <div className="bg-muted/30 rounded-lg p-3">

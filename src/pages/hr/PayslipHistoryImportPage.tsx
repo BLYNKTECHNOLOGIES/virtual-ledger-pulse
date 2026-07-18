@@ -83,7 +83,7 @@ export default function PayslipHistoryImportPage() {
           <div>
             <h1 className="text-2xl font-semibold">Payslip History Import (RazorpayX)</h1>
             <p className="text-sm text-muted-foreground">
-              Pull past monthly payslips from RazorpayX into each employee's ERP payslip history.
+              Pull past monthly payroll records from RazorpayX into each employee's ERP payroll history.
             </p>
           </div>
         </div>
@@ -93,11 +93,10 @@ export default function PayslipHistoryImportPage() {
           <AlertTitle>What this imports</AlertTitle>
           <AlertDescription className="text-sm space-y-1">
             <div>• Summary numbers per month: <b>Gross</b>, <b>Total Deductions</b>, <b>Net Pay</b>, <b>TDS</b>.</div>
-            <div>• A link to the original RazorpayX <b>PDF payslip</b>, when the API returns one.</div>
+            <div>• Source: RazorpayX <b>payroll:view-payroll</b>. Payslip PDFs are dashboard-only; Opfin API does not expose PDF/download endpoints.</div>
             <div className="text-muted-foreground">
-              Component-level breakdown (Basic / HRA / PF / etc.) is <b>not</b> exposed by the RazorpayX
-              payslip API — those live only inside the PDF. For component-level history use a CSV export
-              from the RazorpayX dashboard (separate flow).
+              Component-level breakdown appears only when RazorpayX returns it in the payroll response.
+              Otherwise, use Razorpay dashboard exports for document-level history.
             </div>
           </AlertDescription>
         </Alert>
@@ -150,13 +149,11 @@ export default function PayslipHistoryImportPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex flex-wrap gap-2 text-sm">
-                <Badge variant={result.envelope_ready ? "default" : "destructive"}>
-                  RazorpayX envelope: {result.envelope_ready ? "verified" : "not verified"}
-                </Badge>
+                <Badge variant="secondary">Source: payroll:view-payroll</Badge>
                 <Badge variant="secondary">Months: {result.months}</Badge>
                 <Badge variant="secondary">Pulled: {result.totals.pulled}</Badge>
                 <Badge variant="secondary">Reflected: {result.totals.reflected}</Badge>
-                <Badge variant="secondary">With PDF: {result.totals.withPdf}</Badge>
+                <Badge variant="secondary">PDF: dashboard only</Badge>
                 {result.totals.missingMap > 0 && (
                   <Badge variant="destructive">Unmapped: {result.totals.missingMap}</Badge>
                 )}
@@ -192,17 +189,13 @@ export default function PayslipHistoryImportPage() {
                 </table>
               </div>
 
-              {!result.envelope_ready && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Envelope not verified</AlertTitle>
-                  <AlertDescription className="text-sm">
-                    Go to <b>Payroll → RazorpayX Sync → Phase 9 (Payslips & Tax Docs)</b>, probe the payslip
-                    endpoint with a known period, and mark the returned envelope as verified. Then re-run this
-                    import — historical months will populate automatically.
-                  </AlertDescription>
-                </Alert>
-              )}
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>PDF limitation</AlertTitle>
+                <AlertDescription className="text-sm">
+                  RazorpayX Opfin has no payslip PDF/download endpoint in the official collection. This import stores the payroll numbers the API exposes; original payslip documents must be viewed from the Razorpay dashboard.
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
         )}

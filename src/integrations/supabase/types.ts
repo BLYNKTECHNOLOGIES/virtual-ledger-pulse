@@ -4920,6 +4920,7 @@ export type Database = {
           created_by: string | null
           employee_id: string
           id: string
+          razorpay_pending_side: Json | null
           reason: string
           requested_check_in: string | null
           requested_check_out: string | null
@@ -4935,6 +4936,7 @@ export type Database = {
           created_by?: string | null
           employee_id: string
           id?: string
+          razorpay_pending_side?: Json | null
           reason: string
           requested_check_in?: string | null
           requested_check_out?: string | null
@@ -4950,6 +4952,7 @@ export type Database = {
           created_by?: string | null
           employee_id?: string
           id?: string
+          razorpay_pending_side?: Json | null
           reason?: string
           requested_check_in?: string | null
           requested_check_out?: string | null
@@ -9017,12 +9020,15 @@ export type Database = {
           created_by: string | null
           employee_email: string | null
           execute_on: string | null
+          from_email: string | null
           hr_employee_id: string | null
           id: string
           last_synced_at: string | null
           paid: boolean
           purpose: string | null
+          queued_on: string | null
           raw_payload: Json | null
+          razorpay_count_snapshot: number | null
           razorpay_payment_id: number | null
           remarks: string | null
           status: string | null
@@ -9035,12 +9041,15 @@ export type Database = {
           created_by?: string | null
           employee_email?: string | null
           execute_on?: string | null
+          from_email?: string | null
           hr_employee_id?: string | null
           id?: string
           last_synced_at?: string | null
           paid?: boolean
           purpose?: string | null
+          queued_on?: string | null
           raw_payload?: Json | null
+          razorpay_count_snapshot?: number | null
           razorpay_payment_id?: number | null
           remarks?: string | null
           status?: string | null
@@ -9053,12 +9062,15 @@ export type Database = {
           created_by?: string | null
           employee_email?: string | null
           execute_on?: string | null
+          from_email?: string | null
           hr_employee_id?: string | null
           id?: string
           last_synced_at?: string | null
           paid?: boolean
           purpose?: string | null
+          queued_on?: string | null
           raw_payload?: Json | null
+          razorpay_count_snapshot?: number | null
           razorpay_payment_id?: number | null
           remarks?: string | null
           status?: string | null
@@ -9094,6 +9106,7 @@ export type Database = {
           last_pulled_at: string | null
           last_synced_at: string | null
           razorpay_employee_id: string
+          razorpay_manager_employee_id: number | null
           sync_status: Database["public"]["Enums"]["hr_razorpay_sync_status"]
           updated_at: string
         }
@@ -9108,6 +9121,7 @@ export type Database = {
           last_pulled_at?: string | null
           last_synced_at?: string | null
           razorpay_employee_id: string
+          razorpay_manager_employee_id?: number | null
           sync_status?: Database["public"]["Enums"]["hr_razorpay_sync_status"]
           updated_at?: string
         }
@@ -9122,6 +9136,7 @@ export type Database = {
           last_pulled_at?: string | null
           last_synced_at?: string | null
           razorpay_employee_id?: string
+          razorpay_manager_employee_id?: number | null
           sync_status?: Database["public"]["Enums"]["hr_razorpay_sync_status"]
           updated_at?: string
         }
@@ -9527,7 +9542,12 @@ export type Database = {
       }
       hr_razorpay_payslip_records: {
         Row: {
+          additions_detail: Json | null
           created_at: string
+          deduction_amount: number | null
+          do_not_pay: boolean | null
+          employee_name_snapshot: string | null
+          esi_amount: number | null
           expected_net: number | null
           gross_earnings: number | null
           hr_employee_id: string | null
@@ -9536,6 +9556,8 @@ export type Database = {
           pdf_storage_path: string | null
           pdf_url: string | null
           period_month: string
+          pf_amount: number | null
+          professional_tax: number | null
           pulled_at: string
           pulled_by: string | null
           razorpay_employee_id: string
@@ -9548,7 +9570,12 @@ export type Database = {
           variance: number | null
         }
         Insert: {
+          additions_detail?: Json | null
           created_at?: string
+          deduction_amount?: number | null
+          do_not_pay?: boolean | null
+          employee_name_snapshot?: string | null
+          esi_amount?: number | null
           expected_net?: number | null
           gross_earnings?: number | null
           hr_employee_id?: string | null
@@ -9557,6 +9584,8 @@ export type Database = {
           pdf_storage_path?: string | null
           pdf_url?: string | null
           period_month: string
+          pf_amount?: number | null
+          professional_tax?: number | null
           pulled_at?: string
           pulled_by?: string | null
           razorpay_employee_id: string
@@ -9569,7 +9598,12 @@ export type Database = {
           variance?: number | null
         }
         Update: {
+          additions_detail?: Json | null
           created_at?: string
+          deduction_amount?: number | null
+          do_not_pay?: boolean | null
+          employee_name_snapshot?: string | null
+          esi_amount?: number | null
           expected_net?: number | null
           gross_earnings?: number | null
           hr_employee_id?: string | null
@@ -9578,6 +9612,8 @@ export type Database = {
           pdf_storage_path?: string | null
           pdf_url?: string | null
           period_month?: string
+          pf_amount?: number | null
+          professional_tax?: number | null
           pulled_at?: string
           pulled_by?: string | null
           razorpay_employee_id?: string

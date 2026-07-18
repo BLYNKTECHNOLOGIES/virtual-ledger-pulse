@@ -166,6 +166,38 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     refetchInterval: 30_000,
   });
 
+  const canonicalDevicePins = useMemo(() => {
+    const byPin = new Map<string, any>();
+
+    for (const row of devicePins || []) {
+      const pin = String((row as any)?.pin || "").trim();
+      if (!pin) continue;
+
+      const existing = byPin.get(pin);
+      const merged = existing || { pin, names: new Set<string>(), deviceSerials: new Set<string>(), rows: [] as any[] };
+      if ((row as any).name) merged.names.add(String((row as any).name));
+      if ((row as any).device_serial) merged.deviceSerials.add(String((row as any).device_serial));
+      merged.rows.push(row);
+
+      const rowMatched = (row as any).matched_employee_id || null;
+      const rowSeen = (row as any).last_seen_at ? new Date((row as any).last_seen_at).getTime() : 0;
+      const existingSeen = merged.last_seen_at ? new Date(merged.last_seen_at).getTime() : 0;
+
+      if (!merged.matched_employee_id && rowMatched) merged.matched_employee_id = rowMatched;
+      if (!merged.name && (row as any).name) merged.name = (row as any).name;
+      if (rowSeen > existingSeen) merged.last_seen_at = (row as any).last_seen_at;
+
+      byPin.set(pin, merged);
+    }
+
+    return Array.from(byPin.values()).map((entry) => ({
+      ...entry,
+      names: Array.from(entry.names),
+      deviceSerials: Array.from(entry.deviceSerials),
+      deviceCount: entry.deviceSerials.size,
+    }));
+  }, [devicePins]);
+
   const pinStatus = useMemo(() => {
     const val = (form.essl_badge_id || "").trim();
     if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
@@ -173,12 +205,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
     const conflict = matches.find((m: any) => m.matched_employee_id && m.matched_employee_id !== onboardingRecord?.employee_id);
     if (conflict) return { kind: "conflict", msg: `PIN already mapped to another employee on device ${conflict.device_serial}.`, matches };
-    return { kind: "ok", msg: `Found on ${matches.length} device${matches.length === 1 ? "" : "s"}${matches[0]?.name ? ` — device name: ${matches[0].name}` : ""}.`, matches };
-  }, [form.essl_badge_id, devicePins, onboardingRecord?.employee_id]);
+    const canonical = canonicalDevicePins.find((p: any) => p.pin === val);
+    const deviceCount = canonical?.deviceCount || matches.length;
+    const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;
+    return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
+  }, [form.essl_badge_id, devicePins, canonicalDevicePins, onboardingRecord?.employee_id]);
 
   const unassignedPins = useMemo(() => {
-    return (devicePins || []).filter((p: any) => !p.matched_employee_id);
-  }, [devicePins]);
+    return canonicalDevicePins
+      .filter((p: any) => !p.matched_employee_id)
+      .sort((a: any, b: any) => Number(a.pin) - Number(b.pin));
+  }, [canonicalDevicePins]);
 
 
   const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
@@ -361,10 +398,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                   {unassignedPins.length === 0 ? (
                     <div className="px-3 py-2 text-xs text-muted-foreground">No unassigned PINs on any device.</div>
                   ) : unassignedPins.map((p: any) => (
-                    <SelectItem key={`${p.device_serial}-${p.pin}`} value={p.pin}>
+                    <SelectItem key={p.pin} value={p.pin}>
                       <span className="font-mono">{p.pin}</span>
                       {p.name && <span className="text-muted-foreground"> · {p.name}</span>}
-                      <span className="text-[10px] text-muted-foreground"> · SN {p.device_serial}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        · {p.deviceCount} device{p.deviceCount === 1 ? "" : "s"}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

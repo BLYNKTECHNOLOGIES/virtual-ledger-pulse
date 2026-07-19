@@ -1,119 +1,97 @@
 
-# Plan: RazorpayX = Backend Authority, HRMS = Frontend / Input-Provider
+## Critical finding first — RazorpayX does NOT have a template CRUD API
 
-**Direction confirmed:** all salary + statutory calculation lives on RazorpayX. HRMS shrinks to (a) collecting the input data RazorpayX asks for on its inputs (attendance, additions, deductions, advances, structure revisions, lifecycle events), (b) pushing those inputs via every API sub-type we have, and (c) rendering the outputs RazorpayX gives back. Local salary math is retired; local input tables that FEED the API are kept.
+Before designing anything, this must be clear because it changes the shape of "Full CRUD":
 
----
+- The RazorpayX Payroll public API (`documenter.getpostman.com/view/11662503/Tzm5HckE`) has **no `salary-structure` resource** and **no `structure_id`**. The Postman collection only exposes: People, Payroll, Contractor Payments, Attendance, Advance Salary.
+- The **only** salary-write is `POST /api/people` with `request.sub-type: "set-salary"`. Payload is **either** `{annual-ctc: 600000}` (RazorpayX auto-splits) **or** `{custom-salary-structure: true, salary-structure: {basic, da, hra, special-allowance, lta, employer-pf, employer-esi, custom-allowances[], deductions[]}}` applied inline to **one employee at a time**.
+- The **"Multiple Salary Structure" feature** (create named templates, assign from dropdown) documented at `razorpay.com/docs/payroll/multiple-salary-structure/` is **dashboard-only** — it has no API surface. There is no create-template, list-template, or assign-by-id endpoint.
+- There is also **no read endpoint** for a currently-assigned structure. Our proxy already back-derives annual CTC by reading `payroll:view-payroll` monthly gross × 12 (`supabase/functions/razorpay-payroll-proxy/index.ts:110-223`) — this loses the component split.
 
-## Guiding rules for the whole arc
+So true "Full CRUD" against RazorpayX is not possible. What we can do is own templates **locally** and push them out as per-employee inline `set-salary` payloads. This is exactly how RazorpayX's own dashboard "assign structure" button works under the hood.
 
-1. **Nothing in HRMS computes gross / net / statutory again.** All local salary math (`fn_generate_payroll`, salary structure formulas beyond CTC → components mapping, LOP amount math, PF/ESI/PT/TDS derivation, penalty→salary posting) is retired.
-2. **Local data that FEEDS an API stays.** Attendance days, LOP days, leave accrual, loan/advance schedules, salary revision drafts, employee master (PAN, DOB, DOJ, bank), penalty amounts, additions/reimbursements — all retained. They become "input state" whose only purpose is to serialise into a RazorpayX request body.
-3. **Every RazorpayX write endpoint we have a proxy for is wired to a real HRMS UI action.** No orphan proxy paths.
-4. **Every read is fetched, not computed.** Payslip UI reads only `hr_razorpay_payslip_records` + `hr_razorpay_payroll_runs`. Fields the API doesn't return show "—".
-5. **Statutory-splits gap is closed by a CSV Salary-Register uploader**, not by local re-calculation.
+## What we already have
 
----
+- `hr_salary_structure_templates` + `hr_salary_structure_template_items` tables — components list (verified via schema).
+- Proxy `push_salary_apply_one` / `push_salary_apply_bulk` actions in `supabase/functions/razorpay-payroll-proxy/index.ts:2017-2260` already build the exact `{custom-salary-structure:true, salary-structure:{...}}` envelope RazorpayX wants. We just don't drive them from a template.
+- The onboarding Stage 2 template selector was just removed (this turn).
 
-## Stage A — Retire the in-house salary engine (no data loss)
+## The plan — local-template model with RazorpayX push
 
-**A1 — Drop calculation surface, keep input surface.**
-- Retire (`DROP` or hard-gate as no-op): `fn_generate_payroll`, all payroll status-machine triggers, `hr_penalty_post_to_payroll` writers, statutory drift alerts that assert on local `hr_payslips` numbers, `apply_due_scheduled_salary_revisions` local-writer branches.
-- Keep and document as INPUT-STATE tables: `hr_employees`, `hr_employee_salary_structures`, `hr_attendance_*`, `hr_leave_*`, `hr_loans`, `hr_penalties`, `hr_employee_bank_details`, `hr_salary_revisions`. Add table comments naming them "RazorpayX input source".
-- Retire local `hr_payslips` UI writers; the table stays only for historical rows already imported before the switch, and is read-only.
-- Delete `src/lib/hrms/salaryComputation.ts` usages from any live surface; keep the file only if `SalaryStructureAssignments` still needs a client-side PREVIEW of what will be sent to RazorpayX (label the preview "will be sent to RazorpayX, not the payslip").
+### 1. Redesign the templates schema for the RazorpayX component vocabulary
 
-**A2 — Remove local payroll UI pages that imply we compute:**
-- `PayrollDashboard`, in-house "Run payroll", "Generate payslips", "Payroll adjustments (local)", "Statutory reports (ECR/ESI)" pages become RazorpayX-only surfaces or are removed. Keep `PayslipHistoryImportPage` (RazorpayX-only) and the RazorpaySync roadmap.
+Extend `hr_salary_structure_templates` + `hr_salary_structure_template_items` (via migration) to match what `set-salary` accepts:
 
-**A3 — Doc + memory update.**
-- Update `RAZORPAYX_COMMISSIONING.md` and the "Payroll and Governance Summary" memory to state: RazorpayX is the authority; HRMS engine is retired, not parked.
+- Rows-per-component with a fixed component-code enum: `basic`, `da`, `hra`, `special_allowance`, `lta`, `employer_pf`, `employer_esi`, plus `custom_allowance` and `deduction` (many rows allowed).
+- Per-item fields: `component_code`, `label` (for custom rows), `calc_mode` (`percent_of_ctc` | `percent_of_basic` | `flat_monthly`), `value`, `taxable` (`yes | no | flexi`, for custom_allowance only), `residual` (bool — exactly one row per template flagged residual, auto-balances to make sum = CTC).
+- Template-level fields: `name` (org-unique), `is_active`, `notes`, `applies_to_pt_state` (informational — PT is dashboard-only in RazorpayX).
+- Assignment table `hr_employee_salary_structure_assignments`: `employee_id`, `template_id`, `annual_ctc`, `pushed_at`, `pushed_by`, `razorpay_ack` (jsonb), `expanded_breakdown` (jsonb — the exact amounts we sent). Insert-only (append) so we can see history.
+- RLS: HR-admin CRUD on templates; assignments readable by the assigned employee + HR-admin.
 
----
+### 2. HRMS UI — Full CRUD for local templates
 
-## Stage B — Wire every input-push API into a real HRMS action
+New page `/hrms/payroll/salary-structures` (`src/pages/horilla/SalaryStructuresPage.tsx`):
 
-For each flow: (i) name the HRMS UI surface that owns the input, (ii) name the API sub-type it maps to, (iii) name the local input table(s) it serialises.
+- List all templates with employee-count badge.
+- Create/Edit dialog: template name, component builder (add/remove rows, pick component code, calc mode, value, taxable/residual flags), live preview panel that expands the template against a "sample CTC" input and shows the monthly breakdown that will be sent to RazorpayX (Basic / HRA / Special / PF / ESI / custom rows / deductions / total = CTC/12).
+- Validation: exactly one residual row; component_code uniqueness for reserved codes; sum-preview must equal CTC (else block save).
+- Delete: soft-disable (mirror of RazorpayX dashboard rule "can't disable if still assigned"); if assigned to employees, offer "disable" only.
+- "Duplicate" action for common variants (Under 21k / 21k–30k / Over 30k / Freelance).
 
-**B1 — Monthly attendance / LOP push** (`attendance:*` and, where richer, `payroll:run` fields `lop-amount` / `working-days`)
-- Trigger: end-of-cycle "Send attendance to RazorpayX" on `AttendancePeriodLockPage`.
-- Source: `hr_attendance_daily` (v4 engine output) + `hr_attendance_period_locks` gate.
-- Fields sent: working-days, LOP-days, half-days per employee. RazorpayX applies LOP. HRMS stops computing lop-amount.
+### 3. Assignment — the actual "push to RazorpayX"
 
-**B2 — Monthly additions push** (`payroll:add-additions`)
-- Trigger: existing `PayrollAdjustmentDialog` (already scaffolded).
-- Source: a lightweight `hr_payroll_input_additions` table (kept small; one row per (employee, period, label)) so the operator can build up the request before pushing and re-push if RazorpayX rejects.
-- All three types honoured (0 bonus / 1 reimbursement / 2 arrear) with `taxable` boolean.
+Two touchpoints:
 
-**B3 — Monthly one-off deductions push** (`payroll:add-deduction`)
-- Trigger: same dialog, deduction tab.
-- Source: mirror `hr_payroll_input_deductions` table.
+- **Onboarding Stage 2** — bring back a much smaller selector: `Salary Structure Template` (local) beside `CTC (Annual)`. Preview panel same as template editor.
+- **Employee Profile → Compensation card** — "Change Structure" action, same picker + preview + reason field.
 
-**B4 — Advance-salary + loan recovery push** (`advance-salary:create`)
-- Trigger: `LoansPage` "Approve & push to RazorpayX" action on rows where `type='advance'` or `type='loan'`.
-- Source: `hr_loans`. Populate `hr_loans.razorpay_advance_id` from proxy response (proxy update: capture whatever id RazorpayX returns; if none, store the create-response payload hash).
-- After push, HRMS deactivates its own recovery scheduler for that loan — RazorpayX handles recovery in each `view-payroll` cycle.
+On confirm:
+1. Call proxy `push_salary_apply_one` with `{employee_id, annual_ctc, template_id}`.
+2. Proxy expands the template into the RazorpayX-shape `salary-structure` object (basic/da/hra/special-allowance/lta/employer-pf/employer-esi/custom-allowances[]/deductions[] as flat monthly amounts) and POSTs `people:set-salary` with `custom-salary-structure=true`.
+3. On 2xx, write a row into `hr_employee_salary_structure_assignments` with the exact expanded breakdown + Razorpay ack.
+4. Also cache the breakdown into the existing `hr_employee_salary_structures` (already flagged as read-cache per the doctrine) with `source_tag = 'hrms_push'`.
 
-**B5 — Salary structure revision push** (`people:set-salary`)
-- Trigger: `SalaryRevisionsPage` "Publish to RazorpayX" on approved revisions.
-- Source: `hr_salary_revisions` + `hr_employee_salary_structures`. Serialised to `{ ctc-annual, components:[…] }`.
-- After a successful push, cron `apply_due_scheduled_salary_revisions` STOPS writing to `hr_employee_salary_structures` locally; instead it enqueues a push, and only marks the revision applied after `people:view` reads the new structure back (existing `pull_person_full` job already does this).
+Bulk assignment stays gated by the existing pilot/unlock rails in the proxy (unchanged).
 
-**B6 — Lifecycle push** (`payroll:do-not-pay`, `payroll:reset-modifications`, `payroll:recall`, `people:dismiss`)
-- Triggers already exist in `RazorpayPayslipsSection` (pause), `FnFSettlementPage` (dismiss), `RazorpaySyncPage` (recall). Audit each button, complete missing wiring, ensure `hr_razorpay_sync_log` captures every call.
+### 4. Guardrails aligned with the doctrine
 
-**B7 — Contractor payments** (`contractor-payment:create` / `list-pending` / `get-status` / `delete`)
-- Trigger: `RazorpaySyncPage` → "Contractor payouts" panel (already exists).
-- Source: contractor rows in `hr_employees` (`employee_type ilike '%contract%'`). Fill in the "Create payout" form if not yet wired.
+- Banner on the new page: "Templates live in HRMS. RazorpayX is still the payroll authority — templates take effect only on future payroll cycles, and structure edits do not retroactively touch already-locked payslips."
+- After every push, mark the freshness view (`hr_razorpay_payroll_freshness`) so drift alerts fire if RazorpayX later reports different component values back via `view-payroll`.
+- Any executed / locked run for the current month → block push, show "unlock in RazorpayX first" message.
+- Statutory splits (PF admin, ESI eligibility, PT) are **not** in the push payload — RazorpayX computes those. We only send the earnings-side components and any `employer-pf` / `employer-esi` explicit amounts if the template has them.
 
-**B8 — Payroll compute + execute** (`payroll:run`, `payroll:execute` / `bulk-apply`)
-- Trigger: `RazorpaySyncPage` Stage 5 "Run + Execute payroll".
-- HRMS never derives net-pay client-side any more — the "run" call sends only inputs (gross-earnings from RazorpayX-side structure, lop-amount from B1, deductions from B3, loan-emi from B4). Whatever `net-pay` we currently compute pre-send is dropped from the request when RazorpayX can derive it from structure + inputs.
+### 5. Backfill path
 
-Every wired button writes to `hr_razorpay_sync_log` with the sub-type, HTTP status, and `error_text` for forensics.
+One-off script action on the templates page: **"Pull current amounts from RazorpayX"** — for each employee that has a template locally assigned, hit `payroll:view-payroll` for the latest executed month, store the observed monthly gross into `expanded_breakdown.observed`, and flag mismatch chips (`hrms_intent` vs `razorpay_observed`) on the assignment history.
 
----
+## Technical notes
 
-## Stage C — Output surface (read-only)
+### Endpoint map used
+| Purpose | Method | Path | Sub-type | Notes |
+|---|---|---|---|---|
+| Push structure to one employee | POST | `/api/people` | `set-salary` | Only write path RazorpayX exposes |
+| Read observed monthly gross (drift) | POST | `/api/payroll` | `view-payroll` | No component split |
+| Employee create/edit (existing) | POST | `/api/people` | `create` / `edit` | Edit explicitly excludes salary |
 
-**C1 — Payslip / register views** read exclusively from `hr_razorpay_payslip_records` + `hr_razorpay_payroll_runs`. Fields the API doesn't return (PF/ESI/PT splits, employer contributions, PDF url) render "—" honestly. Employee-profile "past payslips" already does this; extend to `PayslipsPage` and the ERP profile view.
+No new secrets. No new proxy connections. All work is in: the migration, the new page, the onboarding stage 2, and one new proxy action `push_salary_apply_from_template` (thin wrapper over the existing `push_salary_apply_one` that first expands the template).
 
-**C2 — Monthly CSV Salary-Register uploader** (closes the API gap).
-- New page `RazorpaySyncPage` → "Import Salary Register".
-- HR downloads the CSV from the RazorpayX dashboard once a month and drops it in.
-- Parser: same shape as the file you already uploaded (`BLYNK-...salary_register-YYYY-MM-DD.csv`). Match rows by `Employee ID` (RazorpayX id, already in `hr_razorpay_employee_map`).
-- Persist splits to new columns on `hr_razorpay_payslip_records`: `pf_ee`, `pf_er`, `esi_ee`, `esi_er`, `pt`, `tds`, `advance_salary`, `loan_emi`, `one_time_payments`, `basic`, `da`, `hra`, `sa`, `lta`, `employer_esi_contr`, `employer_pf_contr`, plus `source_register_uploaded_at`.
-- UI: payslip detail dialog gains a "Statutory splits (from Salary Register)" section that appears only when the CSV row exists; otherwise the "—" stays.
+### Files to touch
+- `supabase/migrations/…` new tables + assignment table + enum for component codes.
+- `supabase/functions/razorpay-payroll-proxy/index.ts` — add `list_local_templates_expand` (server-side expand helper) and `push_salary_apply_from_template` action; reuse existing set-salary poster.
+- `src/pages/horilla/SalaryStructuresPage.tsx` (new).
+- `src/components/hrms/salary/StructureBuilder.tsx`, `StructurePreview.tsx` (new).
+- `src/components/hrms/onboarding-pipeline/Stage2SalaryConfig.tsx` — re-add a slim template picker.
+- `src/components/hrms/EmployeeSalaryStructure.tsx` — "Change Structure" action.
+- Sidebar entry under HRMS → Payroll → Salary Structures.
 
-**C3 — Reconciliation dashboard** — a small diff view on the same page that lists any employee where `hr_razorpay_payslip_records.net_pay` disagrees with the CSV `Net Pay` by more than ₹1. Read-only, no writes.
+### What we are explicitly NOT building
+- A "sync templates from RazorpayX" pull — not possible, no API.
+- Assignment-by-`structure_id` — not possible, no API.
+- Retroactive re-pricing of already-executed payslips — RazorpayX doesn't allow it.
+- PT/ESI eligibility toggles or tax-regime picker — dashboard-only in RazorpayX.
 
----
+## Open questions for you before build
 
-## Stage D — Housekeeping
-
-- Update memory files (`payroll-and-governance-summary`, `attendance-and-schema-constraints`) to reflect the retired engine.
-- Update `.lovable/plan.md` deferred queue: check off Payroll Adjustments hub, Advance Salary flow, contractor polish (all now built).
-- Append one `docs/STATE_LOG.md` entry: `2026-07-19: In-house payroll engine retired; RazorpayX is calculation authority; HRMS is input+output only; CSV Salary-Register uploader shipped.`
-- Sandbox host / in-app toggle remains deferred (as in commissioning doc); nothing changes here.
-
----
-
-## Explicitly OUT of scope for this arc
-
-- No PDF payslip reconstruction (RazorpayX doesn't expose PDFs; unchanged).
-- No automatic scraping of the RazorpayX dashboard for statutory splits (the CSV uploader is the answer).
-- No sandbox toggle rework.
-- No Attendance v4 engine changes (Phase 3+ continues on its own track; Stage B1 only consumes what v4 already produces).
-
----
-
-## Technical notes (for the technical reader)
-
-- **New tables:** `hr_payroll_input_additions`, `hr_payroll_input_deductions` — each `(employee_id, period_month, label, amount, type, taxable, pushed_at nullable, push_response jsonb)`. RLS as per rest of HR tables (`hrms_razorpay_sync` write, HR read).
-- **New columns on `hr_razorpay_payslip_records`:** statutory + register-source columns listed in C2, all nullable.
-- **Proxy edits:** `advance-salary:create` handler captures whatever id/blob RazorpayX returns and writes back to `hr_loans.razorpay_advance_id`; `payroll:run` handler drops any client-supplied `net-pay` and relies on RazorpayX's own derivation when structure exists.
-- **RPC gates:** `fn_generate_payroll` is renamed to `_deprecated_fn_generate_payroll_2026_07_19` and rewritten to raise `EXCEPTION 'retired: RazorpayX is the payroll authority'` so any lingering caller fails loudly.
-- **Cron changes:** `apply_due_scheduled_salary_revisions` refactored to enqueue a `people:set-salary` push instead of writing locally.
-- **Removed cron:** any local payroll-generation cron. `razorpay-auto-sync-payslips-daily` stays; a new daily job "reconcile-with-register" only lights up when a CSV was uploaded that day.
-
-I'll wait for your approval before touching any files.
+1. Should templates be **org-wide** (any HR-admin edits) or scoped per **subsidiary**? Current `hr_salary_structure_templates` is org-wide — flag if you want subsidiary scoping added.
+2. When HR changes an employee's template mid-month (before payroll runs), should we **auto-push** to RazorpayX immediately, or require a confirmation dialog every time? Recommend: confirmation dialog with the diff preview.
+3. Bulk apply: do you want a "reassign all employees on template X" bulk button, or keep bulk gated behind the existing pilot/unlock flow only?

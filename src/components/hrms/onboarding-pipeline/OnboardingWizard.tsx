@@ -33,7 +33,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   const queryClient = useQueryClient();
   const [recordId, setRecordId] = useState<string | null>(onboardingId);
   const [activeStage, setActiveStage] = useState(1);
-  const [razorpayRecovery, setRazorpayRecovery] = useState<null | { employeeId: string; hrEmployeeId: string; message: string; resolving: boolean }>(null);
+  const [razorpayRecovery, setRazorpayRecovery] = useState<null | { employeeId: string; peopleId: string; mode: "employee_id" | "people_id"; hrEmployeeId: string; message: string; resolving: boolean }>(null);
 
   const { data: record, refetch } = useQuery({
     queryKey: ["onboarding-record", recordId],

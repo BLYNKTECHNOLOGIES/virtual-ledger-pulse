@@ -1137,6 +1137,7 @@ Deno.serve(async (req) => {
       } catch (e) {
         return json(200, { ok: false, code: "RAZORPAY_MAPPING_REPAIR_FAILED", error: (e as Error).message, http_status: v.status });
       }
+    }
 
     // ---------- apply_one: pilot write (unlocks bulk on success) ----------
     if (action === "apply_one") {

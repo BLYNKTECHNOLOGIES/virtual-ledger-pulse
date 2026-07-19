@@ -769,8 +769,9 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     night:   { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
   };
   for (const o of salesCompleted) {
-    if (!o.created_at) continue;
-    const k = shiftOf(istHour(o.created_at));
+    const h = orderIstHour(o, "sale");
+    if (h === null) continue;
+    const k = shiftOf(h);
     const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
     const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
     const value = Number(o.total_amount) || qty * rate;
@@ -779,8 +780,9 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     shiftAgg[k].salCount += 1;
   }
   for (const o of purchasesCompleted) {
-    if (!o.created_at) continue;
-    const k = shiftOf(istHour(o.created_at));
+    const h = orderIstHour(o, "purchase");
+    if (h === null) continue;
+    const k = shiftOf(h);
     const qty = Number(o.effective_usdt_qty) || 0;
     const value = Number(o.total_amount) || 0;
     shiftAgg[k].purQty += qty;

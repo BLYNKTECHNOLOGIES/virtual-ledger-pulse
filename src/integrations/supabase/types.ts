@@ -6145,6 +6145,59 @@ export type Database = {
           },
         ]
       }
+      hr_employee_deposit_schedule: {
+        Row: {
+          amount: number
+          created_at: string
+          deposit_id: string | null
+          employee_id: string
+          failure_reason: string | null
+          id: string
+          installment_no: number
+          period_month: string
+          razorpay_input_id: string | null
+          razorpay_pushed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          deposit_id?: string | null
+          employee_id: string
+          failure_reason?: string | null
+          id?: string
+          installment_no: number
+          period_month: string
+          razorpay_input_id?: string | null
+          razorpay_pushed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          deposit_id?: string | null
+          employee_id?: string
+          failure_reason?: string | null
+          id?: string
+          installment_no?: number
+          period_month?: string
+          razorpay_input_id?: string | null
+          razorpay_pushed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_deposit_schedule_deposit_id_fkey"
+            columns: ["deposit_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_deposits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_deposits: {
         Row: {
           collected_amount: number
@@ -6811,6 +6864,7 @@ export type Database = {
           job_position_id: string | null
           job_role: string | null
           joining_date: string | null
+          level_band: string | null
           location: string | null
           probation_end_date: string | null
           reporting_manager_id: string | null
@@ -6839,6 +6893,7 @@ export type Database = {
           job_position_id?: string | null
           job_role?: string | null
           joining_date?: string | null
+          level_band?: string | null
           location?: string | null
           probation_end_date?: string | null
           reporting_manager_id?: string | null
@@ -6867,6 +6922,7 @@ export type Database = {
           job_position_id?: string | null
           job_role?: string | null
           joining_date?: string | null
+          level_band?: string | null
           location?: string | null
           probation_end_date?: string | null
           reporting_manager_id?: string | null
@@ -8706,6 +8762,87 @@ export type Database = {
             referencedColumns: ["hr_employee_id"]
           },
         ]
+      }
+      hr_offer_letter_policy: {
+        Row: {
+          abandonment_days: number
+          abandonment_forfeits_deposit: boolean
+          abandonment_requires_approval: boolean
+          cl_carry_forward: boolean
+          cl_per_month: number
+          created_at: string
+          deposit_months: number[]
+          deposit_pct: number
+          deposit_refundable: boolean
+          id: string
+          is_singleton: boolean
+          notice_confirmed_days: number
+          notice_probation_forfeit_days: number
+          probation_months: number
+          sl_lapses: boolean
+          sl_medical_cert_threshold_days: number
+          sl_per_year: number
+          training_flat_by_level: Json
+          training_pct_by_level: Json
+          training_period_months: number
+          training_razorpay_structure_id: string | null
+          training_statutory_exempt: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          abandonment_days?: number
+          abandonment_forfeits_deposit?: boolean
+          abandonment_requires_approval?: boolean
+          cl_carry_forward?: boolean
+          cl_per_month?: number
+          created_at?: string
+          deposit_months?: number[]
+          deposit_pct?: number
+          deposit_refundable?: boolean
+          id?: string
+          is_singleton?: boolean
+          notice_confirmed_days?: number
+          notice_probation_forfeit_days?: number
+          probation_months?: number
+          sl_lapses?: boolean
+          sl_medical_cert_threshold_days?: number
+          sl_per_year?: number
+          training_flat_by_level?: Json
+          training_pct_by_level?: Json
+          training_period_months?: number
+          training_razorpay_structure_id?: string | null
+          training_statutory_exempt?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          abandonment_days?: number
+          abandonment_forfeits_deposit?: boolean
+          abandonment_requires_approval?: boolean
+          cl_carry_forward?: boolean
+          cl_per_month?: number
+          created_at?: string
+          deposit_months?: number[]
+          deposit_pct?: number
+          deposit_refundable?: boolean
+          id?: string
+          is_singleton?: boolean
+          notice_confirmed_days?: number
+          notice_probation_forfeit_days?: number
+          probation_months?: number
+          sl_lapses?: boolean
+          sl_medical_cert_threshold_days?: number
+          sl_per_year?: number
+          training_flat_by_level?: Json
+          training_pct_by_level?: Json
+          training_period_months?: number
+          training_razorpay_structure_id?: string | null
+          training_statutory_exempt?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       hr_offer_letters: {
         Row: {
@@ -21183,6 +21320,41 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: Json
       }
+      hr_get_offer_letter_policy: {
+        Args: never
+        Returns: {
+          abandonment_days: number
+          abandonment_forfeits_deposit: boolean
+          abandonment_requires_approval: boolean
+          cl_carry_forward: boolean
+          cl_per_month: number
+          created_at: string
+          deposit_months: number[]
+          deposit_pct: number
+          deposit_refundable: boolean
+          id: string
+          is_singleton: boolean
+          notice_confirmed_days: number
+          notice_probation_forfeit_days: number
+          probation_months: number
+          sl_lapses: boolean
+          sl_medical_cert_threshold_days: number
+          sl_per_year: number
+          training_flat_by_level: Json
+          training_pct_by_level: Json
+          training_period_months: number
+          training_razorpay_structure_id: string | null
+          training_statutory_exempt: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "hr_offer_letter_policy"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string
@@ -21194,6 +21366,14 @@ export type Database = {
       hr_rebuild_attendance_daily_range: {
         Args: { p_date_from: string; p_date_to: string; p_employee_id: string }
         Returns: number
+      }
+      hr_schedule_security_deposit: {
+        Args: { p_employee_id: string }
+        Returns: {
+          amount: number
+          installment_no: number
+          period_month: string
+        }[]
       }
       hr_v4_is_window_locked: { Args: { p_date: string }; Returns: boolean }
       hr_v4_recompute_range: {

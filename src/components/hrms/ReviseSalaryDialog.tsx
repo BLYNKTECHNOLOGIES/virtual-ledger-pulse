@@ -93,7 +93,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, badge_id, basic_salary, total_salary, is_active")
+        .select("id, first_name, last_name, badge_id, basic_salary, total_salary, is_active, pf_enabled, esi_enabled, pt_enabled")
         .order("is_active", { ascending: false })
         .order("first_name");
       if (error) throw error;
@@ -106,6 +106,15 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
     () => employees.find((e: any) => e.id === employeeId),
     [employees, employeeId],
   );
+
+  // Seed statutory switches from the selected employee's current flags
+  useEffect(() => {
+    if (mode !== "statutory" || !employee) return;
+    setPfEnabled(employee.pf_enabled ?? null);
+    setEsiEnabled(employee.esi_enabled ?? null);
+    setPtEnabled(employee.pt_enabled ?? null);
+  }, [employeeId, mode, employee]);
+
 
   const currentBasic = Number(employee?.basic_salary || 0);
   const currentTotal = Number(employee?.total_salary || 0);

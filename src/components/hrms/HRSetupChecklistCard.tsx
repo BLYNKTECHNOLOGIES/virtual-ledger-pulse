@@ -53,15 +53,8 @@ const rows: Row[] = [
     route: "/hrms/payroll/tax-config",
     cta: "Add statuses",
   },
-  {
-    key: "structures",
-    label: "Salary structure attached to every employee",
-    actor: "Data entry",
-    need: (d) => d.structures < d.employees,
-    detail: (d) => `${d.structures} of ${d.employees} employees mapped`,
-    route: "/hrms/payroll/salary-structure",
-    cta: "Map structures",
-  },
+  // "Salary structure attached to every employee" row retired — Razorpay is authority;
+  // structures are assigned on RazorpayX and mirrored read-only per employee.
   {
     key: "bank",
     label: "Bank account on every employee",

@@ -2377,8 +2377,9 @@ Deno.serve(async (req) => {
           deductions_count: Array.isArray(breakdown.deductions) ? breakdown.deductions.length : 0,
         },
         error_text: errText,
-        ok,
-      } as any);
+        actor_user_id: authed.userId,
+      });
+
 
       // Ledger the assignment regardless of outcome — failed attempts are valuable audit trail.
       await svc.from("hr_employee_salary_structure_assignments").insert({

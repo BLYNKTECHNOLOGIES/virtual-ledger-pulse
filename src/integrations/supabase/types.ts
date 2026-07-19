@@ -10346,6 +10346,7 @@ export type Database = {
           bank_verification_auto_approve_name_match: boolean
           bank_verification_upload_proof: boolean
           base_url: string
+          bonus_types: Json
           bulk_attendance_push_unlocked: boolean
           bulk_bank_push_unlocked: boolean
           bulk_push_unlocked: boolean
@@ -10359,6 +10360,7 @@ export type Database = {
           compliance_settings_updated_at: string | null
           compliance_settings_updated_by: string | null
           created_at: string
+          default_structure_components: Json
           esi_include_additions_in_wages: boolean
           esi_include_employer_in_ctc: boolean
           id: string
@@ -10426,6 +10428,7 @@ export type Database = {
           push_salary_pilot_verified_at: string | null
           shifts_track_timings: boolean
           updated_at: string
+          use_xpayroll_default_structure: boolean
           weekend_sat_1: boolean
           weekend_sat_2: boolean
           weekend_sat_3: boolean
@@ -10443,6 +10446,7 @@ export type Database = {
           bank_verification_auto_approve_name_match?: boolean
           bank_verification_upload_proof?: boolean
           base_url?: string
+          bonus_types?: Json
           bulk_attendance_push_unlocked?: boolean
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
@@ -10456,6 +10460,7 @@ export type Database = {
           compliance_settings_updated_at?: string | null
           compliance_settings_updated_by?: string | null
           created_at?: string
+          default_structure_components?: Json
           esi_include_additions_in_wages?: boolean
           esi_include_employer_in_ctc?: boolean
           id?: string
@@ -10523,6 +10528,7 @@ export type Database = {
           push_salary_pilot_verified_at?: string | null
           shifts_track_timings?: boolean
           updated_at?: string
+          use_xpayroll_default_structure?: boolean
           weekend_sat_1?: boolean
           weekend_sat_2?: boolean
           weekend_sat_3?: boolean
@@ -10540,6 +10546,7 @@ export type Database = {
           bank_verification_auto_approve_name_match?: boolean
           bank_verification_upload_proof?: boolean
           base_url?: string
+          bonus_types?: Json
           bulk_attendance_push_unlocked?: boolean
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
@@ -10553,6 +10560,7 @@ export type Database = {
           compliance_settings_updated_at?: string | null
           compliance_settings_updated_by?: string | null
           created_at?: string
+          default_structure_components?: Json
           esi_include_additions_in_wages?: boolean
           esi_include_employer_in_ctc?: boolean
           id?: string
@@ -10620,6 +10628,7 @@ export type Database = {
           push_salary_pilot_verified_at?: string | null
           shifts_track_timings?: boolean
           updated_at?: string
+          use_xpayroll_default_structure?: boolean
           weekend_sat_1?: boolean
           weekend_sat_2?: boolean
           weekend_sat_3?: boolean

@@ -2291,6 +2291,115 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---- push_salary_from_template ----------------------------------------------------------
+    // Single-employee salary push driven by an HRMS local template. The client is expected to
+    // have already expanded the template into a RazorpayX-shape breakdown (see
+    // src/lib/hrms/salaryStructureExpansion.ts) — we do NOT re-run the calculation server-side
+    // because template CRUD is HRMS-native and the expansion is deterministic. This endpoint
+    // only handles: RazorpayX id lookup, endpoint/pilot gating, POST /people set-salary with
+    // a `custom-salary-structure`, and the assignment ledger write.
+    //
+    // Payload shape:
+    //   { action: "push_salary_from_template", hr_employee_id, template_id, annual_ctc,
+    //     breakdown: { basic, da, hra, "special-allowance", lta, "employer-pf", "employer-esi",
+    //                  "custom-allowances": [...], deductions: [...] } }
+    if (action === "push_salary_from_template") {
+      if (!settingsRow?.push_salary_endpoint_verified || !settingsRow?.push_salary_envelope_key) {
+        return json(400, { error: "Salary push envelope not verified. Complete Step E first." });
+      }
+      const hrEmployeeId = String(payload?.hr_employee_id || "").trim();
+      const templateId = String(payload?.template_id || "").trim();
+      const annualCtc = Number(payload?.annual_ctc);
+      const breakdown = payload?.breakdown;
+      if (!hrEmployeeId) return json(400, { error: "hr_employee_id is required" });
+      if (!templateId) return json(400, { error: "template_id is required" });
+      if (!Number.isFinite(annualCtc) || annualCtc <= 0) return json(400, { error: "annual_ctc must be a positive number" });
+      if (!breakdown || typeof breakdown !== "object") return json(400, { error: "breakdown is required" });
+
+      const { data: mapRow, error: mapErr } = await svc
+        .from("hr_razorpay_employee_map")
+        .select("hr_employee_id,razorpay_employee_id")
+        .eq("hr_employee_id", hrEmployeeId)
+        .maybeSingle();
+      if (mapErr) return json(500, { error: mapErr.message });
+      if (!mapRow) return json(400, { error: "Employee is not mapped to RazorpayX." });
+      const rpId = String(mapRow.razorpay_employee_id);
+
+      // Enforce pilot-first: the first live push per envelope must be a single-employee run,
+      // which push_salary_from_template inherently is. Nothing to gate beyond envelope verify.
+      const envelopeKey = String(settingsRow.push_salary_envelope_key);
+      let [type, subType] = envelopeKey.split(":");
+      if (!type || type === "salary") type = "people";
+      if (!subType || subType === "update") subType = "set-salary";
+
+      const salaryPayload = {
+        "ctc-annual": annualCtc,
+        "custom-salary-structure": breakdown,
+      };
+
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 20000);
+      let httpStatus = 0; let ok = false; let errText: string | null = null; let responseBody: any = null;
+      try {
+        const res = await fetch(`${BASE}/${type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type, "sub-type": subType },
+            data: { "employee-id": rpId, "employee-type": "employee", salary: salaryPayload },
+          }),
+          signal: ctrl.signal,
+        });
+        httpStatus = res.status;
+        const raw = await res.text();
+        try { responseBody = JSON.parse(raw); } catch { responseBody = { raw: raw.slice(0, 400) }; }
+        const rpErr = responseBody && typeof responseBody === "object" ? (responseBody.error || responseBody.message || null) : null;
+        ok = res.ok && !rpErr;
+        if (!ok) errText = rpErr || raw?.slice(0, 400) || `HTTP ${res.status}`;
+      } catch (e) {
+        errText = `NETWORK: ${(e as Error).message}`;
+      } finally { clearTimeout(t); }
+
+      await logSync(svc, {
+        action: "push_salary_from_template",
+        http_status: httpStatus,
+        razorpay_employee_id: rpId,
+        hr_employee_id: hrEmployeeId,
+        field_diff_summary: {
+          template_id: templateId,
+          annual_ctc: annualCtc,
+          reserved_keys: Object.fromEntries(
+            ["basic","da","hra","special-allowance","lta","employer-pf","employer-esi"]
+              .map((k) => [k, Number((breakdown as any)[k]) || 0]),
+          ),
+          custom_allowances_count: Array.isArray(breakdown["custom-allowances"]) ? breakdown["custom-allowances"].length : 0,
+          deductions_count: Array.isArray(breakdown.deductions) ? breakdown.deductions.length : 0,
+        },
+        error_text: errText,
+        ok,
+      } as any);
+
+      // Ledger the assignment regardless of outcome — failed attempts are valuable audit trail.
+      await svc.from("hr_employee_salary_structure_assignments").insert({
+        hr_employee_id: hrEmployeeId,
+        template_id: templateId,
+        annual_ctc: annualCtc,
+        breakdown,
+        pushed_to_razorpay: ok,
+        razorpay_employee_id: rpId,
+        razorpay_response: responseBody,
+        push_status: ok ? "pushed" : "failed",
+        error_text: errText,
+        pushed_by: authed.userId,
+      });
+
+      if (!ok) return json(502, { ok: false, error: errText, http_status: httpStatus, response: responseBody });
+      return json(200, { ok: true, razorpay_employee_id: rpId, http_status: httpStatus, response: responseBody });
+    }
+
+
+
     // ---- Phase 6: Monthly attendance / LOP push -------------------------------------------
     // Discovery-first, same pattern as Phase 5. Live pushes are BLOCKED until an operator
     // records a probe-verified attendance envelope (e.g. `attendance:update` or

@@ -19766,16 +19766,13 @@ export type Database = {
       }
       hr_drift_open: {
         Row: {
-          badge_id: string | null
           created_at: string | null
-          employee_name: string | null
           essl_value: string | null
           field: string | null
           first_seen_at: string | null
           hr_employee_id: string | null
           hrms_value: string | null
           id: string | null
-          is_active: boolean | null
           last_seen_at: string | null
           razorpay_value: string | null
           resolution_direction: string | null
@@ -19785,6 +19782,42 @@ export type Database = {
           severity: string | null
           systems_involved: string[] | null
           updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          essl_value?: string | null
+          field?: string | null
+          first_seen_at?: string | null
+          hr_employee_id?: string | null
+          hrms_value?: string | null
+          id?: string | null
+          last_seen_at?: string | null
+          razorpay_value?: string | null
+          resolution_direction?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          systems_involved?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          essl_value?: string | null
+          field?: string | null
+          first_seen_at?: string | null
+          hr_employee_id?: string | null
+          hrms_value?: string | null
+          id?: string | null
+          last_seen_at?: string | null
+          razorpay_value?: string | null
+          resolution_direction?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          systems_involved?: string[] | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -19952,6 +19985,7 @@ export type Database = {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
       }
+      apply_due_scheduled_salary_revisions: { Args: never; Returns: number }
       apply_salary_revision: {
         Args: {
           p_approved_by: string
@@ -20667,10 +20701,12 @@ export type Database = {
         Returns: number[]
       }
       fn_expire_compoff_allocations: { Args: never; Returns: undefined }
-      fn_generate_payroll: {
-        Args: { p_payroll_run_id: string; p_triggered_by: string }
-        Returns: undefined
-      }
+      fn_generate_payroll:
+        | { Args: { p_payroll_run_id: string }; Returns: Json }
+        | {
+            Args: { p_payroll_run_id: string; p_triggered_by: string }
+            Returns: undefined
+          }
       fn_initialize_onboarding: {
         Args: { p_employee_id: string }
         Returns: undefined

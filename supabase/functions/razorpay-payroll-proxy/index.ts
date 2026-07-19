@@ -5994,8 +5994,8 @@ Deno.serve(async (req) => {
             recovery_action: "reset_local_id_after_deleted_partial",
             people_id: existingPeopleId,
             error: existingPeopleId
-              ? `RazorpayX still reports this email as existing, but ERP could not auto-attach the reserved Employee ID by API. Delete the partial RazorpayX employee, then use Reset local ID and reserve again.`
-              : `RazorpayX still reports this email as existing, but ERP could not find or auto-repair that employee by API. Delete the partial RazorpayX employee, then use Reset local ID and reserve again.`,
+              ? `RazorpayX still reports this email as existing, but the Payroll API cannot edit or read it. This is a Razorpay-side ghost/pending invite state, not an ERP retry issue. Use a different employee email/alias for this onboarding, or ask Razorpay to purge the hidden invite for this email before reserving a fresh ID.`
+              : `RazorpayX still reports this email as existing, but the Payroll API cannot find, edit, or auto-repair that employee. This is a Razorpay-side ghost/pending invite state, not an ERP retry issue. Use a different employee email/alias for this onboarding, or ask Razorpay to purge the hidden invite for this email before reserving a fresh ID.`,
             body: bodyOut,
           });
         }
@@ -6013,7 +6013,7 @@ Deno.serve(async (req) => {
             http_status: attach.status || verify?.status || httpStatus,
             razorpay_employee_id: reservedEmployeeId,
             people_id: bodyOut?._people_id || undefined,
-            error: `RazorpayX created the employee, but Employee ID ${reservedEmployeeId} could not be attached/verified after automatic retries: ${attach.error || verify?.errText || "verification pending"}. Delete the partial RazorpayX employee or wait briefly and click Finalize again.`,
+            error: `RazorpayX created the employee, but Employee ID ${reservedEmployeeId} could not be attached/verified after automatic retries: ${attach.error || verify?.errText || "verification pending"}. The ERP will not complete onboarding from this partial state. Delete/purge the partial RazorpayX invite or use a different email, then reset the local ID and reserve again.`,
             body: verify?.body || attach.body || bodyOut,
           });
         }

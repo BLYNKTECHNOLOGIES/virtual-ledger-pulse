@@ -310,7 +310,10 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             dob: r.date_of_birth || null,
             badge_id: r.essl_badge_id,
             total_salary: r.ctc || 0,
-            is_active: true,
+            // Keep the local employee as a draft until every selected external
+            // system succeeds. This prevents a failed RazorpayX create from
+            // leaving an apparently active HRMS employee behind.
+            is_active: false,
             pan_number: docs.pan?.value || null,
             uan_number: docs.uan?.value || null,
             esi_number: docs.esic?.value || null,
@@ -348,7 +351,8 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             dob: r.date_of_birth || null,
             badge_id: unifiedId,
             total_salary: r.ctc || 0,
-            is_active: true,
+            // Draft until RazorpayX / ERP provisioning finishes successfully.
+            is_active: false,
             pan_number: docs.pan?.value || null,
             uan_number: docs.uan?.value || null,
             esi_number: docs.esic?.value || null,
@@ -361,6 +365,16 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       }
 
       const emp = { id: empId };
+
+      // Persist the draft employee link immediately so a retry reuses this row
+      // instead of inserting another local employee after a provisioning failure.
+      if ((record as any)?.employee_id !== emp.id) {
+        const { error: linkDraftErr } = await supabase
+          .from("hr_employee_onboarding")
+          .update({ employee_id: emp.id, current_stage: 5, status: "stage_4", updated_at: new Date().toISOString() })
+          .eq("id", recordId);
+        if (linkDraftErr) throw linkDraftErr;
+      }
 
       // 2b. Auto-create leave allocations for all active leave types
       try {
@@ -492,6 +506,19 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         }
       }
 
+      // RazorpayX is the payroll authority. If its provisioning failed, stop
+      // here: do not create ERP accounts or mark the local employee active.
+      if (failures.length > 0) {
+        await refetch();
+        queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+        setActiveStage(5);
+        const summary = failures.map(f => `• ${f.system}: ${f.message}`).join("\n");
+        const successNote = successes.length ? `\n\nAlready created: ${successes.join(", ")}.` : "";
+        throw new Error(
+          `Onboarding not completed — the following failed:\n${summary}${successNote}\n\nFix the issues above and click Finalize again.`,
+        );
+      }
+
       // 6b. ERP account creation.
       let erpUserSummary: string | null = null;
       if (r.create_erp_account && r.erp_role_id) {
@@ -604,6 +631,12 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         .select("id")
         .single();
       if (completeErr) throw completeErr;
+
+      const { error: activateErr } = await supabase
+        .from("hr_employees")
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq("id", emp.id);
+      if (activateErr) throw activateErr;
 
       await logAudit(recordId, 5, "finalized", { employee_id: emp.id });
 

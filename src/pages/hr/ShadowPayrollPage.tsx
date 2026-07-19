@@ -17,6 +17,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { SourceTag } from "@/components/hr/payroll/SourceTag";
+import { ShadowReadinessPanel } from "@/components/hr/payroll/ShadowReadinessPanel";
+import { useShadowReadiness } from "@/hooks/hrms/useShadowReadiness";
+import { cn } from "@/lib/utils";
 
 type Line = {
   id: string;
@@ -59,6 +62,8 @@ export default function ShadowPayrollPage() {
   const qc = useQueryClient();
   const [period, setPeriod] = useState<string>(format(startOfMonth(new Date()), "yyyy-MM-01"));
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: readiness, isLoading: readinessLoading } = useShadowReadiness(period);
 
   // Load latest run for this period
   const { data: run } = useQuery({
@@ -108,16 +113,34 @@ export default function ShadowPayrollPage() {
       const { data, error } = await supabase.functions.invoke("compute-shadow-payroll", {
         body: { period_month: period },
       });
-      if (error) throw error;
+      if (error) {
+        // Edge function returned 409 for insufficient inputs — surface a human message.
+        const ctx = (error as any)?.context;
+        try {
+          const bodyText = ctx?.body ? await ctx.body : null;
+          if (bodyText) {
+            const parsed = typeof bodyText === "string" ? JSON.parse(bodyText) : bodyText;
+            if (parsed?.error === "insufficient_inputs") {
+              throw new Error(parsed.message ?? "Insufficient inputs for this period.");
+            }
+          }
+        } catch (_) { /* fall through */ }
+        throw error;
+      }
       return data;
     },
     onSuccess: (data: any) => {
-      toast.success(`Shadow run complete — ${data?.computed_count ?? 0} employees`);
+      const tier = data?.readiness_tier ?? "approximate";
+      const msg = `Shadow run complete — ${data?.computed_count ?? 0} employees · ${tier}`;
+      if (tier === "trustworthy") toast.success(msg);
+      else toast.warning(msg + " — treat drift alerts as approximate.");
       qc.invalidateQueries({ queryKey: ["shadow_run", period] });
       qc.invalidateQueries({ queryKey: ["shadow_lines"] });
+      qc.invalidateQueries({ queryKey: ["shadow_readiness", period] });
     },
     onError: (e: any) => toast.error(`Shadow run failed: ${e.message}`),
   });
+
 
   const totals = useMemo(() => {
     if (!lines) return { shadowGross: 0, shadowNet: 0, rzGross: 0, rzNet: 0, count: 0, missingRz: 0 };
@@ -164,12 +187,37 @@ export default function ShadowPayrollPage() {
             onChange={(e) => setPeriod(`${e.target.value}-01`)}
             className="w-40 text-foreground"
           />
-          <Button onClick={() => compute.mutate()} disabled={compute.isPending}>
+          <Button
+            onClick={() => compute.mutate()}
+            disabled={compute.isPending || readinessLoading || !readiness?.can_run}
+            title={!readiness?.can_run
+              ? "Import attendance or a payroll register for this month before running."
+              : undefined}
+          >
             {compute.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
             Run shadow calculation
           </Button>
         </div>
       </header>
+
+      {/* Shadow readiness panel — the four inputs with RAG lights */}
+      <ShadowReadinessPanel data={readiness} isLoading={readinessLoading} period={period} />
+
+      {run?.readiness_tier && run.readiness_tier !== "trustworthy" && (
+        <div className={cn(
+          "rounded-lg border p-3 text-xs flex items-start gap-2",
+          run.readiness_tier === "unusable"
+            ? "border-destructive/40 bg-destructive/5 text-destructive"
+            : "border-warning/40 bg-warning/5 text-foreground",
+        )}>
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>
+            The last run for {period.slice(0, 7)} was tagged <strong>{run.readiness_tier}</strong>.
+            Drift alerts derived from it are approximate — verify against the missing input before acting.
+          </span>
+        </div>
+      )}
+
 
       {/* Totals */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

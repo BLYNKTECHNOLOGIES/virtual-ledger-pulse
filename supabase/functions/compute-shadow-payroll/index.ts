@@ -143,7 +143,80 @@ Deno.serve(async (req) => {
     const { data: employees, error: empErr } = await empQ;
     if (empErr) throw empErr;
 
-    // 3. Create run
+    // 3. Compute input readiness — this is what makes downstream drift trustworthy.
+    const monthEndProbe = new Date(period);
+    monthEndProbe.setUTCMonth(monthEndProbe.getUTCMonth() + 1);
+    monthEndProbe.setUTCDate(0);
+    const monthEndStr = monthEndProbe.toISOString().slice(0, 10);
+    const activeCount = employees?.length ?? 0;
+
+    // Attendance coverage — distinct employees with any daily row in the month
+    let attendanceCoveragePct = 0;
+    if (activeCount > 0) {
+      const { data: attEmps } = await supabase
+        .from("hr_attendance_daily")
+        .select("hr_employee_id")
+        .gte("attendance_date", periodStr)
+        .lte("attendance_date", monthEndStr)
+        .in("hr_employee_id", employees!.map((e: any) => e.id));
+      const distinct = new Set((attEmps ?? []).map((r: any) => r.hr_employee_id));
+      attendanceCoveragePct = Math.round((distinct.size / activeCount) * 100);
+    }
+
+    // Register imported — any Razorpay payslip records for this period
+    const { data: regRows, count: regCount } = await supabase
+      .from("hr_razorpay_payslip_records")
+      .select("hr_employee_id", { count: "exact", head: false })
+      .eq("period_month", periodStr);
+    const registerEmployeeCount = new Set((regRows ?? []).map((r: any) => r.hr_employee_id)).size;
+    const registerImported = (regCount ?? 0) > 0;
+
+    // Payroll inputs staged (approved additions + deductions for the period)
+    const [{ count: addCount }, { count: dedCount }] = await Promise.all([
+      supabase.from("hr_payroll_input_additions").select("id", { count: "exact", head: true })
+        .eq("period_month", periodStr).eq("status", "approved"),
+      supabase.from("hr_payroll_input_deductions").select("id", { count: "exact", head: true })
+        .eq("period_month", periodStr).eq("status", "approved"),
+    ]);
+    const inputsStagedCount = (addCount ?? 0) + (dedCount ?? 0);
+
+    // Enrollment resolved — PF/ESI/PT all non-null on the employee
+    const enrollmentResolvedCount = (employees ?? []).filter(
+      (e: any) => e.pf_enabled !== null && e.esi_enabled !== null && e.pt_enabled !== null,
+    ).length;
+    const enrollmentResolvedPct = activeCount > 0
+      ? Math.round((enrollmentResolvedCount / activeCount) * 100)
+      : 0;
+
+    // Readiness tier — attendance OR register must exist, else unusable
+    let readinessTier: "trustworthy" | "approximate" | "unusable" = "unusable";
+    if (attendanceCoveragePct >= 90 && registerImported && enrollmentResolvedPct >= 80) {
+      readinessTier = "trustworthy";
+    } else if (attendanceCoveragePct >= 50 || registerImported) {
+      readinessTier = "approximate";
+    }
+
+    const inputCompleteness = {
+      active_employees: activeCount,
+      attendance_coverage_pct: attendanceCoveragePct,
+      register_imported: registerImported,
+      register_employee_count: registerEmployeeCount,
+      inputs_staged_count: inputsStagedCount,
+      enrollment_resolved_pct: enrollmentResolvedPct,
+      computed_at: new Date().toISOString(),
+    };
+
+    if (readinessTier === "unusable" && !body.force) {
+      return new Response(JSON.stringify({
+        error: "insufficient_inputs",
+        message: "Neither attendance nor a payroll register is available for this period. Import one of them before running a shadow calculation.",
+        input_completeness: inputCompleteness,
+      }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 4. Create run
     const { data: existingRun } = await supabase
       .from("hr_shadow_payroll_runs")
       .select("*")
@@ -159,11 +232,14 @@ Deno.serve(async (req) => {
         run_no: runNo,
         status: "computed",
         computed_at: new Date().toISOString(),
-        total_employees: employees?.length ?? 0,
+        total_employees: activeCount,
+        input_completeness: inputCompleteness,
+        readiness_tier: readinessTier,
       })
       .select()
       .single();
     if (runErr) throw runErr;
+
 
     const defaultComps = settings?.default_structure_components ?? [];
     const useDefault = settings?.use_xpayroll_default_structure ?? true;
@@ -356,7 +432,10 @@ Deno.serve(async (req) => {
       computed_count: employees?.length ?? 0,
       total_gross: totalGross,
       total_net: totalNet,
+      input_completeness: inputCompleteness,
+      readiness_tier: readinessTier,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   } catch (e) {
     console.error("compute-shadow-payroll error", e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {

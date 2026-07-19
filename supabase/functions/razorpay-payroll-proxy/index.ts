@@ -5463,6 +5463,16 @@ Deno.serve(async (req) => {
       if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
         const existingRp = await opfinView(Number(reservedEmployeeId), "employee");
         if (existingRp.ok) {
+          const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+          const rpEmail = String(existingRp.body?.email || existingRp.body?.work_email || "").trim().toLowerCase();
+          if (!rpEmail || rpEmail !== erpEmail) {
+            return json(200, {
+              ok: false,
+              code: "RAZORPAY_RESERVED_ID_CONFLICT",
+              error: `Reserved employee-id ${reservedEmployeeId} already exists in RazorpayX for a different email. Reset the local ID before creating this employee.`,
+              http_status: existingRp.status,
+            });
+          }
           const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, existingRp.body || outboundData, "created_via_erp");
           if (repairErr) {
             return json(207, {
@@ -5473,11 +5483,11 @@ Deno.serve(async (req) => {
             });
           }
           await logSync(svc, {
-            action: "create_person_recovered_existing",
+            action: "create_person",
             http_status: existingRp.status,
             razorpay_employee_id: reservedEmployeeId,
             hr_employee_id: hrId,
-            field_diff_summary: { source: "people:view", payload_field_names: Object.keys(outboundData).sort() },
+            field_diff_summary: { source: "people:view_recovered_existing", payload_field_names: Object.keys(outboundData).sort() },
             error_text: null,
             actor_user_id: authed.userId,
           });

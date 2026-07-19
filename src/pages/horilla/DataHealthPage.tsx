@@ -106,6 +106,41 @@ export default function DataHealthPage() {
     },
   });
 
+  // Statutory rollup — scans recent imported Razorpay payslips against the
+  // compliance mirror; a payslip shows an amount for a filing Razorpay says
+  // it isn't handling → must be remitted manually. Rolled up here so HR sees
+  // the count without opening every payslip cell.
+  const { data: complianceSettings } = useComplianceSettings();
+  const { data: statutoryRollup } = useQuery({
+    queryKey: ["data_health_statutory_rollup"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_payslip_records")
+        .select("id, hr_employee_id, period_month, tds_amount, pf_amount, esi_amount, professional_tax")
+        .order("period_month", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+    enabled: !!complianceSettings,
+    staleTime: 60_000,
+  });
+  const statutoryDrift = useMemo(() => {
+    if (!complianceSettings || !statutoryRollup) return { count: 0, employees: 0, samples: [] as any[] };
+    const affected = new Set<string>();
+    let count = 0;
+    const samples: any[] = [];
+    for (const row of statutoryRollup) {
+      const msgs = complianceDriftForPayslip(row, complianceSettings);
+      if (msgs.length) {
+        count += msgs.length;
+        if (row.hr_employee_id) affected.add(row.hr_employee_id);
+        if (samples.length < 5) samples.push({ ...row, msgs });
+      }
+    }
+    return { count, employees: affected.size, samples };
+  }, [complianceSettings, statutoryRollup]);
+
   const filtered = useMemo(() => {
     if (!drifts) return [];
     return drifts.filter((d) => {

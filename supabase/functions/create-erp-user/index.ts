@@ -111,7 +111,34 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Generate unique username ──
+    // ── Pre-check email / phone collisions with a friendly message so the
+    // wizard doesn't have to interpret raw PG unique-index errors on retry.
+    const { data: emailHit } = await adminClient
+      .from("users").select("id, username, first_name, last_name")
+      .ilike("email", email).maybeSingle();
+    if (emailHit?.id) {
+      return new Response(JSON.stringify({
+        error: `Email ${email} already belongs to ERP user "${emailHit.username}" (${[emailHit.first_name, emailHit.last_name].filter(Boolean).join(" ")}). Use a different email or link to that user.`,
+      }), { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+    if (phone) {
+      const digits = String(phone).replace(/\D/g, "").replace(/^0+/, "");
+      const last10 = digits.slice(-10);
+      if (last10.length >= 10) {
+        const { data: phoneHits } = await adminClient
+          .from("users").select("id, username, first_name, last_name, phone")
+          .not("phone", "is", null);
+        const phoneHit = (phoneHits || []).find((r: any) =>
+          String(r.phone || "").replace(/\D/g, "").replace(/^0+/, "").slice(-10) === last10
+        );
+        if (phoneHit) {
+          return new Response(JSON.stringify({
+            error: `Phone ${phone} already belongs to ERP user "${phoneHit.username}" (${[phoneHit.first_name, phoneHit.last_name].filter(Boolean).join(" ")}). Update the onboarding phone number or link to that user.`,
+          }), { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } });
+        }
+      }
+    }
+
     const baseUsername = `${firstName}${lastName}`.toLowerCase().replace(/\s+/g, "");
     let username = baseUsername;
     let counter = 1;

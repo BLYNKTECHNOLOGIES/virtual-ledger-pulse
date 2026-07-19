@@ -340,7 +340,11 @@ serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* no body */ }
 
-    const date: string = body.date || istToday();
+    // Daily report covers the PREVIOUS full IST day so the 9 AM dispatch reports
+    // on a completed 24 h window (00:00–24:00 IST) instead of the current day's
+    // first few pre-shift hours, which produces all-zero KPIs. Explicit `date`
+    // from the caller still wins (used by "Send now" / dryRun for a specific day).
+    const date: string = body.date || shiftDate(istToday(), -1);
     // Only accept caller-supplied recipients when server-to-server authorized.
     const recipients: string[] = dispatcherAuthorized && Array.isArray(body.recipients)
       ? body.recipients.filter((r: string) => !!r && r.trim())

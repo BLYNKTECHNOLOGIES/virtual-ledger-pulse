@@ -5605,9 +5605,58 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Live create. Verified against the official RazorpayX Payroll Postman
-      // collection: `people:create` is the supported create mode. `people:add`
-      // is not a valid request type for this tenant and returns code 23.
+      // ---- R4 PRE-FLIGHT: email-keyed attach BEFORE create -------------------
+      // The R1 probe proved Razorpay's `people:create` ALWAYS returns
+      // employee-id: null and never accepts a caller-supplied employee-id at
+      // create time. The only working attach path is a subsequent
+      // people:edit keyed by email. If a prior attempt already created an
+      // unattached person for this email (the "-NA-" limbo case), we can
+      // fix it here in a single call BEFORE ever hitting people:create, and
+      // eliminate the entire "Email already exists" recovery cascade.
+      if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+        const preAttach = await attachReservedEmployeeIdByEmail(
+          String((outboundData as any).email || ""),
+          reservedEmployeeId,
+        );
+        if (preAttach.ok) {
+          const verifyPre = await opfinView(Number(reservedEmployeeId), "employee");
+          const erpEmailPre = String((outboundData as any).email || "").trim().toLowerCase();
+          const rpEmailPre = String(verifyPre.body?.email || verifyPre.body?.work_email || "").trim().toLowerCase();
+          if (verifyPre.ok && rpEmailPre && rpEmailPre === erpEmailPre) {
+            const snapshotPre = {
+              ...(verifyPre.body || outboundData),
+              _recovered_by: "r4_pre_flight_email_attach",
+            };
+            const { error: repairPreErr } = await mapRazorpayEmployee(
+              reservedEmployeeId,
+              snapshotPre,
+              "created_via_erp",
+            );
+            await logSync(svc, {
+              action: "create_person",
+              http_status: verifyPre.status,
+              razorpay_employee_id: reservedEmployeeId,
+              hr_employee_id: hrId,
+              field_diff_summary: {
+                source: "r4_pre_flight_email_attach",
+                payload_field_names: Object.keys(outboundData).sort(),
+              },
+              error_text: repairPreErr ? repairPreErr.message : null,
+              actor_user_id: authed.userId,
+            });
+            if (!repairPreErr) {
+              // Fall through to enrichment so identity/bank/CTC still get
+              // pushed on the pre-existing unattached person.
+              rpId = reservedEmployeeId;
+              httpStatus = verifyPre.status;
+              bodyOut = verifyPre.body;
+            }
+          }
+        }
+      }
+
+      // Live create. Only runs when R4 pre-flight did not already claim an
+      // existing person by email.
       const createData: Record<string, any> = {
         type: "employee",
         name: fullName,

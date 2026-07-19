@@ -5495,7 +5495,7 @@ Deno.serve(async (req) => {
         return await svc.from("hr_razorpay_employee_map").insert(payload);
       };
 
-      const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string) => {
+      const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string, peopleId?: string | null) => {
         const warnings: string[] = [];
         const applied: string[] = [];
         const rpIdNum = Number(rpEmployeeId);
@@ -5504,6 +5504,7 @@ Deno.serve(async (req) => {
         }
 
         const editData: Record<string, any> = {
+          ...(peopleId && /^\d+$/.test(String(peopleId)) ? { "people-id": Number(peopleId) } : {}),
           "employee-id": rpIdNum,
           "employee-type": "employee",
           pan,
@@ -5600,8 +5601,8 @@ Deno.serve(async (req) => {
         return { ok: warnings.length === 0, warnings, applied, snapshot };
       };
 
-      const completeSuccessResponse = async (rpEmployeeId: string, body: Record<string, any>, source: string) => {
-        const enrichment = await pushCompleteRazorpayDetails(rpEmployeeId, source);
+      const completeSuccessResponse = async (rpEmployeeId: string, body: Record<string, any>, source: string, peopleId?: string | null) => {
+        const enrichment = await pushCompleteRazorpayDetails(rpEmployeeId, source, peopleId);
         const responseBody: Record<string, any> = {
           ...body,
           razorpay_employee_id: rpEmployeeId,
@@ -5782,10 +5783,10 @@ Deno.serve(async (req) => {
           const extracted = extractRazorpayError(bodyOut, rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
           errText = extracted.message || (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
         } else {
-          // RazorpayX Payroll (Opfin) — `people:create` creates an invite shell.
-          // Employee ID and details are attached by the documented email-keyed
-          // `people:edit` API immediately afterward; operators must not type the
-          // ID in the dashboard or copy internal people-id values.
+          // RazorpayX Payroll (Opfin) — `people:create` creates an invite shell
+          // and usually returns `employee-id: ""`. Do not fail here. Treat the
+          // freshly returned people-id as the authoritative attach handle and let
+          // the shared enrichment path attach the reserved employee-id + details.
           const respData = (bodyOut?.data && typeof bodyOut.data === "object") ? bodyOut.data : bodyOut;
           const peopleIdRaw = extractRazorpayPeopleId(bodyOut);
           const employeeIdEcho = respData?.["employee-id"] ?? respData?.employee_id ?? bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? null;
@@ -5796,54 +5797,12 @@ Deno.serve(async (req) => {
           if (employeeIdEchoStr && employeeIdEchoStr !== "0") {
             rpId = employeeIdEchoStr;
           } else if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            // Prefer attach-by-people-id (we just got it from create). RazorpayX's
-            // email index lags a few seconds for freshly-created invites, which
-            // is why attach-by-email throws "Unable to locate the user" (code 8).
-            let attachErrMsg: string | null = null;
-            if (attachedPeopleId && /^\d+$/.test(attachedPeopleId)) {
-              try {
-                const r = await fetch(`${BASE}/people`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", Accept: "application/json" },
-                  body: JSON.stringify({
-                    auth: authBlock(),
-                    request: { type: "people", "sub-type": "edit" },
-                    data: {
-                      "people-id": Number(attachedPeopleId),
-                      "employee-id": Number(reservedEmployeeId),
-                      "employee-type": "employee",
-                    },
-                  }),
-                });
-                const raw = await r.text();
-                let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
-                const rpErr = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
-                if (!r.ok || rpErr) {
-                  attachErrMsg = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${r.status}`);
-                }
-              } catch (e) {
-                attachErrMsg = `NETWORK: ${(e as Error).message}`;
-              }
+            if (!attachedPeopleId || !/^\d+$/.test(attachedPeopleId)) {
+              errText = "Razorpay created the employee but returned no people-id, so ERP cannot attach the reserved Employee ID automatically.";
+              (bodyOut as any) = { ...(bodyOut || {}), _reserved_employee_id: reservedEmployeeId };
             } else {
-              attachErrMsg = "no people-id returned from create";
-            }
-
-            // Fallback: retry via email after a short delay to let the index catch up.
-            if (attachErrMsg) {
-              await new Promise((res) => setTimeout(res, 1500));
-              const attach = await attachReservedEmployeeIdByEmail(String((outboundData as any).email || ""), reservedEmployeeId);
-              if (attach.ok) attachErrMsg = null;
-              else attachErrMsg = attach.error || attachErrMsg;
-            }
-
-            const verify = await opfinView(Number(reservedEmployeeId), "employee");
-            if (verify.ok) {
               rpId = reservedEmployeeId;
               (outboundData as any)._people_id = attachedPeopleId;
-            } else {
-              errText = attachErrMsg
-                ? `Razorpay created the employee (people-id ${attachedPeopleId ?? "?"}) but automatic Employee ID attach failed: ${attachErrMsg}. Recovery will retry.`
-                : `Razorpay created the employee but the reserved employee-id ${reservedEmployeeId} could not be verified after automatic attach.`;
               (bodyOut as any) = { ...(bodyOut || {}), _people_id: attachedPeopleId, _reserved_employee_id: reservedEmployeeId };
             }
 
@@ -6081,7 +6040,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      return await completeSuccessResponse(rpId, { http_status: httpStatus }, "fresh_create");
+      return await completeSuccessResponse(rpId, { http_status: httpStatus, people_id: (outboundData as any)._people_id || undefined }, "fresh_create", (outboundData as any)._people_id || null);
 
       // ---- FULL-DETAILS ENRICHMENT (invite-flow → complete record) ----------
       // Razorpay's `people:create` only persists name / email / date-of-joining

@@ -289,7 +289,8 @@ export default function ShadowPayrollPage() {
                   >
                     <div className="col-span-3 flex items-center gap-1 text-foreground truncate">
                       {isOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-                      <span className="truncate">{employees?.[l.hr_employee_id] ?? l.hr_employee_id.slice(0, 8)}</span>
+                      <span className="truncate">{employees?.[l.hr_employee_id]?.label ?? l.hr_employee_id.slice(0, 8)}</span>
+                      <ProvenanceBadge source={employees?.[l.hr_employee_id]?.source ?? null} />
                     </div>
                     <div className="col-span-2 text-right text-foreground">{fmt(shadowGross)}</div>
                     <div className="col-span-2 text-right text-muted-foreground">{fmt(l.razorpay_gross)}</div>

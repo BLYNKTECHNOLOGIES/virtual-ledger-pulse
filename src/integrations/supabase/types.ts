@@ -22532,6 +22532,7 @@ export type Database = {
         | "attendance_fetch_range"
         | "discover_and_seed_runs"
         | "probe_view_payroll_debug"
+        | "create_person"
       hr_razorpay_sync_status:
         | "imported"
         | "matched_existing"
@@ -22926,6 +22927,7 @@ export const Constants = {
         "attendance_fetch_range",
         "discover_and_seed_runs",
         "probe_view_payroll_debug",
+        "create_person",
       ],
       hr_razorpay_sync_status: [
         "imported",

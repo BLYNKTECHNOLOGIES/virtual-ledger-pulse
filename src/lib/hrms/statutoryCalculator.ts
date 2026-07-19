@@ -112,8 +112,10 @@ export function computePt(
   slabs: PtSlab[] | null | undefined,
   s: ComplianceSettings | null | undefined,
   periodMonth?: Date,
+  enrollment?: EmployeeStatutoryEnrollment,
 ): number {
-  if (!s?.compliance_files_pt || !slabs?.length || !stateCode) return 0;
+  const enrolled = enrollment?.pt_enabled ?? s?.compliance_files_pt ?? false;
+  if (!enrolled || !slabs?.length || !stateCode) return 0;
   const stateSlabs = slabs.filter((sl) => sl.state_code === stateCode);
   if (!stateSlabs.length) return 0;
   const match = stateSlabs.find(
@@ -125,6 +127,52 @@ export function computePt(
     amount = match.special_amount;
   }
   return amount;
+}
+
+// -----------------------------
+// LOP + KPI-Loss per-component shrink
+//
+// Verified against Priya May → Jun with LOP 3 350 + KPI 1 675 on regular
+// base 33 500 (shrink factor 0.85):
+//   Basic 16 750 × 0.85 = 14 238 ✓
+//   HRA    8 375 × 0.85 =  7 119 ✓
+//   LTA    3 350 × 0.85 =  2 848 ✓
+//   Special = residual (2 419) to soak up rounding drift ✓
+//   Employer PF (earnings) recomputed on shrunk Basic: 13% × 14 238 = 1 851 ✓
+// -----------------------------
+export interface LopShrinkInput {
+  basic: number;
+  hra: number;
+  special: number;
+  lta: number;
+  regularBase: number;   // pre-LOP sum of Basic + HRA + Special + LTA
+  lopAmount: number;
+  kpiLossAmount?: number;
+}
+export interface LopShrinkOutput {
+  basic: number;
+  hra: number;
+  special: number;
+  lta: number;
+  shrinkFactor: number;
+  totalReduction: number;
+}
+export function shrinkComponentsForLop(input: LopShrinkInput): LopShrinkOutput {
+  const reduction = (input.lopAmount || 0) + (input.kpiLossAmount || 0);
+  if (!input.regularBase || reduction <= 0) {
+    return {
+      basic: input.basic, hra: input.hra, special: input.special, lta: input.lta,
+      shrinkFactor: 1, totalReduction: 0,
+    };
+  }
+  const factor = Math.max(0, 1 - reduction / input.regularBase);
+  const basic = Math.round(input.basic * factor);
+  const hra = Math.round(input.hra * factor);
+  const lta = Math.round(input.lta * factor);
+  // Special = residual so Basic + HRA + Special + LTA = regularBase × factor
+  const target = Math.round(input.regularBase * factor);
+  const special = target - basic - hra - lta;
+  return { basic, hra, special, lta, shrinkFactor: factor, totalReduction: reduction };
 }
 
 // -----------------------------

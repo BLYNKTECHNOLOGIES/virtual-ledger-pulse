@@ -1515,6 +1515,7 @@ Deno.serve(async (req) => {
         verify_email: verify.body?.email ?? verify.body?.work_email ?? null,
         verify_name: verify.body?.name ?? null,
       });
+    }
 
     // ---------- probe_endpoint: gated read-only sub-type validator ----------
     // Used by Phase-planning to prove which Opfin sub-types exist against the

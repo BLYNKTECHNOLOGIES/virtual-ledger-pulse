@@ -1034,6 +1034,7 @@ export default function EmployeeProfilePage() {
                       </div>
                     </div>
                     <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Level Band</p><p className="text-sm text-foreground">{(workInfo as any)?.level_band || "None"}</p></div>
                   </div>
                 </div>
               </>

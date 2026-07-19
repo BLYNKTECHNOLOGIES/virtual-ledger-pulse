@@ -4954,7 +4954,7 @@ Deno.serve(async (req) => {
       // was not flipped yet.
       const { data: existingMap } = await svc
         .from("hr_razorpay_employee_map")
-        .select("razorpay_employee_id")
+        .select("id,hr_employee_id,razorpay_employee_id")
         .eq("hr_employee_id", hrId)
         .maybeSingle();
       if (existingMap?.razorpay_employee_id) {
@@ -5064,14 +5064,30 @@ Deno.serve(async (req) => {
       }
 
       const mapRazorpayEmployee = async (rpEmployeeId: string, snapshot: Record<string, any>, status: string) => {
-        return await svc.from("hr_razorpay_employee_map").upsert({
+        const { data: mapByRp, error: mapByRpErr } = await svc
+          .from("hr_razorpay_employee_map")
+          .select("id,hr_employee_id")
+          .eq("razorpay_employee_id", rpEmployeeId)
+          .maybeSingle();
+        if (mapByRpErr) return { error: mapByRpErr };
+        if (mapByRp?.hr_employee_id && mapByRp.hr_employee_id !== hrId) {
+          return { error: new Error(`Razorpay employee ${rpEmployeeId} is already mapped to another HR employee.`) };
+        }
+
+        const payload = {
           razorpay_employee_id: rpEmployeeId,
           hr_employee_id: hrId,
           sync_status: status,
           is_pilot_verified: false,
           last_synced_at: new Date().toISOString(),
           last_pull_snapshot: snapshot,
-        }, { onConflict: "razorpay_employee_id" });
+        };
+
+        if (existingMap?.id) {
+          return await svc.from("hr_razorpay_employee_map").update(payload).eq("id", existingMap.id);
+        }
+
+        return await svc.from("hr_razorpay_employee_map").insert(payload);
       };
 
       // If the reserved unified ID already exists in Razorpay but the local map

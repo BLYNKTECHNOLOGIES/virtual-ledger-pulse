@@ -456,6 +456,16 @@ export default function SalaryStructureTemplates() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {pushTarget && (
+        <PushStructureDialog
+          open={!!pushTarget}
+          onOpenChange={(v) => { if (!v) setPushTarget(null); }}
+          templateId={pushTarget.id}
+          templateName={pushTarget.name}
+        />
+      )}
     </div>
   );
 }
+

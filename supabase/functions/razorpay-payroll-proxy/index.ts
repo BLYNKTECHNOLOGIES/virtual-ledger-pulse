@@ -1125,6 +1125,28 @@ Deno.serve(async (req) => {
         touched.erp_user_badge_cleared = true;
       }
 
+      const { data: pushRows, error: pushFetchErr } = await svc
+        .from("hr_essl_pushback_log")
+        .select("id,command_id")
+        .eq("pin", staleId)
+        .eq("kind", "identity")
+        .eq("triggered_from", "onboarding_stage5")
+        .in("status", ["queued", "pending"]);
+      if (pushFetchErr) return json(500, { ok: false, error: pushFetchErr.message });
+
+      const commandIds = (pushRows || []).map((r: any) => r.command_id).filter(Boolean);
+      if (commandIds.length > 0) {
+        const { error: cmdCancelErr } = await svc
+          .from("hr_biometric_device_commands")
+          .update({
+            status: "cancelled",
+            ack_response: "Cancelled after operator reset a deleted/failed RazorpayX onboarding reservation.",
+          })
+          .in("id", commandIds)
+          .eq("status", "pending");
+        if (cmdCancelErr) return json(500, { ok: false, error: cmdCancelErr.message });
+      }
+
       const { error: pushErr } = await svc
         .from("hr_essl_pushback_log")
         .update({
@@ -1137,17 +1159,7 @@ Deno.serve(async (req) => {
         .eq("triggered_from", "onboarding_stage5")
         .in("status", ["queued", "pending"]);
       if (pushErr) return json(500, { ok: false, error: pushErr.message });
-      touched.essl_commands_cancelled = true;
-
-      await logSync(svc, {
-        action: "reset_onboarding_razorpay_reservation",
-        http_status: 200,
-        razorpay_employee_id: staleId,
-        hr_employee_id: (ob as any).employee_id || null,
-        field_diff_summary: { onboarding_id: onboardingId, pending_badge: pendingBadge },
-        error_text: null,
-        actor_user_id: authed.userId,
-      });
+      touched.essl_commands_cancelled = commandIds.length;
 
       return json(200, { ok: true, ...touched });
     }

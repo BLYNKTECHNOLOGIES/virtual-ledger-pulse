@@ -81,6 +81,11 @@ serve(async (req) => {
 
     const results: any[] = [];
     let queued = 0, skipped = 0, errors = 0;
+    // Track PINs freed by an earlier op in this same batch, per device.
+    // Once we queue a DELETE for PIN X on device D, subsequent ops targeting
+    // PIN X on device D should not see the collision-guard trip on X.
+    const freedInBatch = new Map<string, Set<string>>(); // device -> set of freed pins
+    const claimedInBatch = new Map<string, Set<string>>(); // device -> set of new pins claimed
 
     for (const op of operations) {
       const oldPin = String(op.pin_old ?? "").trim();

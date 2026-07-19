@@ -482,6 +482,7 @@ export default function EmployeeProfilePage() {
         joining_date: workInfoForm.joining_date || null,
         contract_end_date: workInfoForm.contract_end_date || null,
         experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
+        level_band: workInfoForm.level_band || null,
       };
 
       if (workInfo?.id) {

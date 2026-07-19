@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-19: RazorpayX onboarding finalize conflict handling hardened — Opfin code 7/email-exists now attempts exact-email recovery and repairs hr_razorpay_employee_map; Stage 5 now surfaces parsed business errors instead of raw Edge 502 runtime text.
 - 2026-07-19: Onboarding finalize retry idempotency shipped — existing ERP users and existing/mapped RazorpayX employees are now reused/repaired and linked back to hr_employees instead of blocking Stage 5 completion after partial prior attempts.
 - 2026-07-19: Onboarding finalization retry hardening shipped — RazorpayX create_person now uses official people:create payload/casing instead of rejected people:add; create-erp-user now reuses orphan Supabase Auth identities on retry instead of failing "email already registered".
 - 2026-07-19: HRMS onboarding persistence hardening shipped — Stage 1/2 autosave, Stage 3/4 checklist/date autosave, Stage 5 autosave + saved `bank_details`; safe update merge prevents partial stage saves from nulling existing fields such as date_of_joining, reporting_manager_id, ERP role, documents, and reserved RazorpayX/ESSL ID.

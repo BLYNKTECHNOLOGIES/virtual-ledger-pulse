@@ -455,4 +455,3 @@ function PathADoctrineCard() {
     </Card>
   );
 }
-}

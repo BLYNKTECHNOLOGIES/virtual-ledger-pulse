@@ -14,6 +14,7 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 
 const RECURRING_TYPES = [
   { value: "increment", label: "Increment / Hike" },

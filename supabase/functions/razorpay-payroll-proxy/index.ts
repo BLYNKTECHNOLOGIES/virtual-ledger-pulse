@@ -1161,6 +1161,47 @@ Deno.serve(async (req) => {
       if (pushErr) return json(500, { ok: false, error: pushErr.message });
       touched.essl_commands_cancelled = commandIds.length;
 
+      const { data: devices, error: devErr } = await svc
+        .from("hr_biometric_devices")
+        .select("device_serial")
+        .not("device_serial", "is", null);
+      if (devErr) return json(500, { ok: false, error: devErr.message });
+
+      let deleteQueued = 0;
+      for (const dev of devices || []) {
+        const serial = String((dev as any).device_serial || "").trim();
+        if (!serial) continue;
+        const cmdSeed = Date.now() + Math.floor(Math.random() * 10_000);
+        const commandText = `C:${cmdSeed}:DATA DELETE USERINFO PIN=${staleId}`;
+        const { data: cmdRow, error: cmdErr } = await svc
+          .from("hr_biometric_device_commands")
+          .insert({
+            device_serial: serial,
+            command_text: commandText,
+            status: "pending",
+            created_by: authed.userId,
+          })
+          .select("id")
+          .single();
+        if (cmdErr) return json(500, { ok: false, error: cmdErr.message });
+
+        const { error: logErr } = await svc.from("hr_essl_pushback_log").insert({
+          hr_employee_id: (ob as any).employee_id || null,
+          device_serial: serial,
+          pin: staleId,
+          kind: "delete",
+          action: "DATA DELETE USERINFO",
+          status: "queued",
+          command_id: (cmdRow as any).id,
+          request_snapshot: { command_text: commandText, onboarding_id: onboardingId, reason: "reset_deleted_razorpay_onboarding" },
+          triggered_by: authed.userId,
+          triggered_from: "onboarding_stage5_reset",
+        });
+        if (logErr) return json(500, { ok: false, error: logErr.message });
+        deleteQueued += 1;
+      }
+      touched.essl_delete_commands_queued = deleteQueued;
+
       return json(200, { ok: true, ...touched });
     }
 

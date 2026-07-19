@@ -129,7 +129,11 @@ async function opfinView(employeeId: number, employeeType = "employee") {
 // If no processed payroll month exists for the employee, salary is NOT exposed
 // via the API and CTC must be entered manually in HRMS. We surface that
 // cleanly via ok:false + err: "not-exposed-by-api".
-async function opfinSalary(employeeId: number, email?: string | null): Promise<{
+async function opfinSalary(
+  employeeId: number,
+  email?: string | null,
+  executedMonths?: string[] | null,
+): Promise<{
   ok: boolean; annual_ctc: number | null; monthly_gross: number | null;
   components: any[]; raw: any; http_status: number; err: string | null;
 }> {
@@ -138,6 +142,14 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
   if (!email || typeof email !== "string" || !email.includes("@")) {
     console.log(`[opfinSalary] emp=${employeeId} SKIP no-email (payroll:view-payroll requires email)`);
     return { ...empty, err: "not-exposed-by-api: payroll view requires employee email which is missing on snapshot" };
+  }
+
+  // GATE: only probe months where a RazorpayX payroll run has actually
+  // executed (bulk_applied/locked/recalled). Otherwise view-payroll returns
+  // CTC/12 setup defaults which would mis-populate CTC on the ERP profile.
+  if (!executedMonths || executedMonths.length === 0) {
+    console.log(`[opfinSalary] emp=${employeeId} SKIP no-executed-payroll-run`);
+    return { ...empty, err: "not-exposed-by-api: no executed RazorpayX payroll run available; view-payroll would return CTC/12 setup defaults" };
   }
 
   const readNum = (obj: any, keys: string[]): number | null => {
@@ -150,13 +162,8 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
     return null;
   };
 
-  // Walk back up to 12 months from current month, newest first.
-  const now = new Date();
-  const months: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-    months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
-  }
+  // Newest-first traversal of executed months only (already validated by caller).
+  const months = [...executedMonths].sort().reverse();
 
   let lastStatus = 0;
   let lastRaw: any = null;
@@ -200,7 +207,7 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
       const monthly = readNum(body, ["salary"]);
       if (monthly && monthly > 0) {
         const annual = Math.round(monthly * 12);
-        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual}`);
+        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual} (executed-run gated)`);
         return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: [], raw: body, http_status: res.status, err: null };
       }
       perAttempt.push(`no salary field @ ${tag} keys=${Object.keys(body).slice(0, 10).join(",")}`);
@@ -211,8 +218,8 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
     } finally { clearTimeout(t); }
   }
 
-  console.log(`[opfinSalary] emp=${employeeId} NO_PROCESSED_PAYROLL email=${email} tried=${months.length} months | ${perAttempt.slice(0, 3).join(" || ")}`);
-  return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr || "not-exposed-by-api: no processed payroll month returned salary" };
+  console.log(`[opfinSalary] emp=${employeeId} NO_PROCESSED_PAYROLL email=${email} tried=${months.length} executed months | ${perAttempt.slice(0, 3).join(" || ")}`);
+  return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr || "not-exposed-by-api: no executed payroll month returned salary" };
 }
 
 
@@ -1465,6 +1472,25 @@ Deno.serve(async (req) => {
       const rows: any[] = [];
       let pulled = 0, skipped = 0, missed = 0, errored = 0, wroteAny = 0;
 
+      // Executed-run gate for opfinSalary: fetch the set of months for which
+      // RazorpayX actually finalised a payroll run. Without this the API
+      // returns CTC/12 setup defaults for unexecuted months, which would
+      // corrupt the ERP CTC field on the profile projection.
+      const executedMonthsSet: string[] = await (async () => {
+        try {
+          const { data: runs } = await svc.from("hr_razorpay_payroll_runs")
+            .select("period_month,status")
+            .in("status", ["bulk_applied", "locked", "recalled"]);
+          const s = new Set<string>();
+          for (const r of runs || []) {
+            const pm = String(r.period_month || "");
+            const m = /^(\d{4})-(\d{2})/.exec(pm);
+            if (m) s.add(`${m[1]}-${m[2]}`);
+          }
+          return Array.from(s);
+        } catch { return []; }
+      })();
+
       for (const m of maps || []) {
         const eid = Number(m.razorpay_employee_id);
         if (!Number.isFinite(eid) || eid < 1) { skipped++; continue; }
@@ -1477,7 +1503,8 @@ Deno.serve(async (req) => {
         // Fetch salary sub-response as well — people:view never carries CTC.
         // Attach onto snapshot as __salary so projectors can read it. Silent on
         // failure (Razorpay returns nothing when salary structure isn't set).
-        const sal = await opfinSalary(eid, (r.body as any)?.email);
+        // GATED: only probes months with an executed RazorpayX payroll run.
+        const sal = await opfinSalary(eid, (r.body as any)?.email, executedMonthsSet);
         if (sal.ok) {
           (r.body as any).__salary = {
             annual_ctc: sal.annual_ctc,

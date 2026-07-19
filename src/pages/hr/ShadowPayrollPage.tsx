@@ -112,16 +112,34 @@ export default function ShadowPayrollPage() {
       const { data, error } = await supabase.functions.invoke("compute-shadow-payroll", {
         body: { period_month: period },
       });
-      if (error) throw error;
+      if (error) {
+        // Edge function returned 409 for insufficient inputs — surface a human message.
+        const ctx = (error as any)?.context;
+        try {
+          const bodyText = ctx?.body ? await ctx.body : null;
+          if (bodyText) {
+            const parsed = typeof bodyText === "string" ? JSON.parse(bodyText) : bodyText;
+            if (parsed?.error === "insufficient_inputs") {
+              throw new Error(parsed.message ?? "Insufficient inputs for this period.");
+            }
+          }
+        } catch (_) { /* fall through */ }
+        throw error;
+      }
       return data;
     },
     onSuccess: (data: any) => {
-      toast.success(`Shadow run complete — ${data?.computed_count ?? 0} employees`);
+      const tier = data?.readiness_tier ?? "approximate";
+      const msg = `Shadow run complete — ${data?.computed_count ?? 0} employees · ${tier}`;
+      if (tier === "trustworthy") toast.success(msg);
+      else toast.warning(msg + " — treat drift alerts as approximate.");
       qc.invalidateQueries({ queryKey: ["shadow_run", period] });
       qc.invalidateQueries({ queryKey: ["shadow_lines"] });
+      qc.invalidateQueries({ queryKey: ["shadow_readiness", period] });
     },
     onError: (e: any) => toast.error(`Shadow run failed: ${e.message}`),
   });
+
 
   const totals = useMemo(() => {
     if (!lines) return { shadowGross: 0, shadowNet: 0, rzGross: 0, rzNet: 0, count: 0, missingRz: 0 };

@@ -874,8 +874,13 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
 
   // ----- Statistics -----
   const hourly = new Array(24).fill(0);
-  for (const o of [...salesCompleted, ...purchasesCompleted]) {
-    if (o.created_at) hourly[istHour(o.created_at)] += 1;
+  for (const o of salesCompleted) {
+    const h = orderIstHour(o, "sale");
+    if (h !== null) hourly[h] += 1;
+  }
+  for (const o of purchasesCompleted) {
+    const h = orderIstHour(o, "purchase");
+    if (h !== null) hourly[h] += 1;
   }
   let busiestHour = 0;
   for (let h = 1; h < 24; h++) if (hourly[h] > hourly[busiestHour]) busiestHour = h;

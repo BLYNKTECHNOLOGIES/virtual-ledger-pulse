@@ -3572,7 +3572,9 @@ Deno.serve(async (req) => {
       action === "pull_payslips_for_period" ||
       action === "probe_taxdocs_endpoint" ||
       action === "record_taxdocs_envelope_verified" ||
-      action === "pull_taxdocs_for_year"
+      action === "pull_taxdocs_for_year" ||
+      action === "discover_and_seed_runs" ||
+      action === "probe_view_payroll_debug"
     ) {
       const { data: p9Settings } = await svc
         .from("hr_razorpay_settings").select("*").eq("is_singleton", true).maybeSingle();

@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-19: RazorpayX onboarding proxy redeployed after removing a stale unreachable enrichment path and restoring attendance push lock checks; Stage 5 create_person now routes fresh/create/recovered records through the single people-id-aware enrichment helper.
 - 2026-07-19: RazorpayX onboarding partial-create root cause fixed — create_person now enriches mapped/recovered/fresh employees with ERP PAN/bank/CTC before returning success; incomplete enrichment blocks Stage 5 completion instead of silently leaving partial Razorpay records.
 - 2026-07-19: RazorpayX onboarding create/reset repair shipped — proxy now attempts automated email-keyed Employee ID attachment instead of asking operators for people-id; stuck Shubhams Singh local reservation 73 cleared, HR/ERP badges reset, and old eSSL PIN delete queued so Stage 5 can reserve fresh ID 74.
 - 2026-07-19: RazorpayX onboarding email-exists recovery improved — when Opfin exposes the internal people-id, the proxy now auto-attaches HRMS reserved Employee ID and repairs the map, avoiding manual Stage 5 people-id entry.

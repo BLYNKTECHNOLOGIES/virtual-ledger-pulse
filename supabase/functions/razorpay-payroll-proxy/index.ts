@@ -1432,90 +1432,9 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
-    // ---------- probe_create_person: one-shot verbatim probe (R1) ----------
-    // Fires the exact official-collection people:create shape and returns the
-    // raw Razorpay response so we can prove whether create alone attaches the
-    // reserved employee-id. Requires operator to pass a real email + numeric
-    // reserved employee-id + name + doj (dd/mm/yyyy). No DB writes, no repair.
-    if (action === "probe_create_person") {
-      const email = String(payload?.email ?? "").trim().toLowerCase();
-      const employeeId = String(payload?.employee_id ?? "").trim();
-      const name = String(payload?.name ?? "Probe User").trim();
-      const doj = String(payload?.doj ?? "").trim(); // dd/mm/yyyy
-      const subType = String(payload?.sub_type ?? "create").trim(); // "create" or "add"
-      if (!email.includes("@")) return json(400, { error: "email required" });
-      if (!/^\d+$/.test(employeeId)) return json(400, { error: "numeric employee_id required" });
-      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(doj)) return json(400, { error: "doj required as dd/mm/yyyy" });
+    // (Removed: probe_create_person / probe_attach_by_email — R1 proved the
+    // shape and R4 pre-flight is now inlined into create_person.)
 
-      const data: Record<string, any> = {
-        "employee-id": Number(employeeId),
-        "employee-type": "employee",
-        type: "employee",
-        name,
-        email,
-        "date-of-joining": doj,
-        "hire-date": doj,
-        hire_date: doj,
-      };
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 25000);
-      try {
-        const res = await fetch(`${BASE}/people`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            auth: authBlock(),
-            request: { type: "people", "sub-type": subType },
-            data,
-          }),
-          signal: ctrl.signal,
-        });
-        const raw = await res.text();
-        let body: any = null;
-        try { body = JSON.parse(raw); } catch { body = { raw }; }
-        // Immediately read-back employee-id to see if create alone attached it.
-        const verify = await opfinView(Number(employeeId), "employee");
-        return json(200, {
-          ok: res.ok,
-          http_status: res.status,
-          sub_type: subType,
-          request_data: data,
-          response_body: body,
-          raw_preview: raw.slice(0, 2000),
-          verify_by_reserved_id: {
-            ok: verify.ok,
-            status: verify.status,
-            error: verify.error,
-            email_on_record: verify.body?.email ?? verify.body?.work_email ?? null,
-            name_on_record: verify.body?.name ?? null,
-          },
-        });
-      } catch (e) {
-        return json(200, { ok: false, error: (e as Error).message });
-      } finally { clearTimeout(t); }
-    }
-
-    // probe_attach_by_email: exercise attachReservedEmployeeIdByEmail directly
-    // so we can validate R4 pre-flight on a known email/id pair without going
-    // through the full create_person pipeline.
-    if (action === "probe_attach_by_email") {
-      const email = String(payload?.email ?? "").trim().toLowerCase();
-      const employeeId = String(payload?.employee_id ?? "").trim();
-      if (!email.includes("@")) return json(400, { error: "email required" });
-      if (!/^\d+$/.test(employeeId)) return json(400, { error: "numeric employee_id required" });
-      const attach = await attachReservedEmployeeIdByEmail(email, employeeId);
-      const verify = await opfinView(Number(employeeId), "employee");
-      return json(200, {
-        attach_ok: attach.ok,
-        attach_status: attach.status,
-        attach_error: attach.error,
-        attach_body: attach.body,
-        verify_ok: verify.ok,
-        verify_status: verify.status,
-        verify_email: verify.body?.email ?? verify.body?.work_email ?? null,
-        verify_name: verify.body?.name ?? null,
-      });
-    }
 
     // ---------- probe_endpoint: gated read-only sub-type validator ----------
     // Used by Phase-planning to prove which Opfin sub-types exist against the

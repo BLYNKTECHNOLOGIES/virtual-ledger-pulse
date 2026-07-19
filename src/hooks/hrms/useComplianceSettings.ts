@@ -103,3 +103,43 @@ export function complianceDriftForPayslip(
   }
   return out;
 }
+
+/**
+ * Is the given date a weekly-off per the mirrored Razorpay weekend pattern?
+ * Sundays honor `weekend_sun`; Saturdays honor `weekend_sat_1..5` where the
+ * index is the ordinal Saturday of the month (1st, 2nd, ..., 5th).
+ */
+export function isWeeklyOff(d: Date, s: ComplianceSettings | null | undefined): boolean {
+  if (!s) return d.getDay() === 0;
+  const dow = d.getDay();
+  if (dow === 0) return !!s.weekend_sun;
+  if (dow === 6) {
+    const nth = Math.floor((d.getDate() - 1) / 7) + 1; // 1..5
+    return !!(s as any)[`weekend_sat_${nth}`];
+  }
+  return false;
+}
+
+/** Working days in a given calendar month (0-indexed month) using the mirror. */
+export function workingDaysInMonth(year: number, month0: number, s: ComplianceSettings | null | undefined): number {
+  const days = new Date(year, month0 + 1, 0).getDate();
+  let count = 0;
+  for (let day = 1; day <= days; day++) {
+    if (!isWeeklyOff(new Date(year, month0, day), s)) count++;
+  }
+  return count;
+}
+
+/** Per-day salary basis for LOP given monthly gross, honoring the LOP toggle. */
+export function lopPerDayBasis(
+  monthlyGross: number,
+  year: number,
+  month0: number,
+  s: ComplianceSettings | null | undefined,
+): number {
+  if (!monthlyGross) return 0;
+  const totalDays = new Date(year, month0 + 1, 0).getDate();
+  const divisor = s?.lop_calc_on_working_days ? workingDaysInMonth(year, month0, s) : totalDays;
+  return divisor > 0 ? monthlyGross / divisor : 0;
+}
+

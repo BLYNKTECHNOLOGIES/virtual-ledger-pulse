@@ -243,11 +243,11 @@ export function BulkCompletionPanel() {
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={selected.size === 0 || templates.length === 0}
+                  disabled={selected.size === 0}
                   onClick={() => setDialog("salary")}
-                  title={templates.length === 0 ? "Create a salary template first" : ""}
+                  title="Fill Annual CTC in bulk. Component breakdown is assigned on RazorpayX."
                 >
-                  <Wallet className="h-3.5 w-3.5 mr-1" /> Assign Salary
+                  <Wallet className="h-3.5 w-3.5 mr-1" /> Set CTC
                 </Button>
                 <Button
                   size="sm"
@@ -260,15 +260,6 @@ export function BulkCompletionPanel() {
               </div>
             </div>
 
-            {templates.length === 0 && (
-              <div className="px-3 py-2 text-[11px] text-warning bg-warning/5 border-b">
-                No salary templates exist yet. Create one from{" "}
-                <Link to="/hr/payroll/salary-structure" className="underline">
-                  Salary Structure → Templates
-                </Link>{" "}
-                before running bulk assign.
-              </div>
-            )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-xs">

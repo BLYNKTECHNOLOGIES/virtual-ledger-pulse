@@ -398,31 +398,18 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       //    the component breakdown is assigned on the RazorpayX dashboard and
       //    mirrored read-only inside the employee profile after the next sync.
 
-      // 6. Mark onboarding as completed
+      // 6. Determine which external system creations were requested BEFORE
+      //    marking the onboarding as completed. If any requested creation
+      //    fails, we abort completion and keep the record on Stage 5 with a
+      //    clear per-system explanation. The employee row / work info / bank
+      //    row created above are safe to leave in place — the next retry
+      //    reuses them via the `linkedEmployeeId` branch.
       const { data: user } = await supabase.auth.getUser();
-      const completions = (record.stage_completions as Record<string, any>) || {};
-      const { error: completeErr } = await supabase
-        .from("hr_employee_onboarding")
-        .update({
-        status: "completed",
-        employee_id: emp.id,
-        stage_completions: {
-          ...completions,
-          stage_5: { completed_at: new Date().toISOString(), completed_by: user?.user?.id },
-        },
-        updated_at: new Date().toISOString(),
-      })
-        .eq("id", recordId)
-        .select("id")
-        .single();
-      if (completeErr) throw completeErr;
+      const failures: { system: string; message: string }[] = [];
+      const successes: string[] = [];
 
-      await logAudit(recordId, 5, "finalized", { employee_id: emp.id });
-
-      // 6b. Optionally create employee in RazorpayX Payroll.
-      //     Only if the operator toggled it on Stage 5 AND we have no prior
-      //     mapping (guard also enforced server-side). Non-fatal on failure —
-      //     the ERP employee is already created; HR can retry from the profile.
+      // 6a. RazorpayX employee creation.
+      let razorpayEmployeeId: string | null = null;
       if (stage5Data?.create_in_razorpay) {
         try {
           const { data: rpRes, error: rpErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
@@ -435,18 +422,19 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
               : (rpRes?.error || rpRes?.reason || "Razorpay rejected the request");
             throw new Error(detail);
           }
-          await logAudit(recordId, 5, "razorpay_person_created", {
-            razorpay_employee_id: rpRes?.razorpay_employee_id,
-          });
-          toast.success(`Created in Razorpay (ID: ${rpRes?.razorpay_employee_id})`);
+          razorpayEmployeeId = rpRes?.razorpay_employee_id ?? null;
+          await logAudit(recordId, 5, "razorpay_person_created", { razorpay_employee_id: razorpayEmployeeId });
+          successes.push(`RazorpayX ID ${razorpayEmployeeId}`);
         } catch (rpErr: any) {
+          const message = rpErr?.message || String(rpErr);
           console.error("Razorpay create failed:", rpErr);
-          toast.error(`Razorpay: ${rpErr.message}`);
-          await logAudit(recordId, 5, "razorpay_person_failed", { error: rpErr.message });
+          await logAudit(recordId, 5, "razorpay_person_failed", { error: message });
+          failures.push({ system: "RazorpayX", message });
         }
       }
 
-      // 7. ERP account creation if create_erp_account is true
+      // 6b. ERP account creation.
+      let erpUserSummary: string | null = null;
       if (r.create_erp_account && r.erp_role_id) {
         try {
           const { data: erpResult, error: erpError } = await supabase.functions.invoke("create-erp-user", {
@@ -488,25 +476,70 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             </div>
           `;
 
-          await supabase.functions.invoke("send-hr-email", {
-            body: {
-              recipientEmail: r.email,
-              subject: "Your Blynk ERP Login Credentials",
-              htmlBody: credentialsHtml,
-              templateName: "erp_credentials",
-            },
-          });
+          try {
+            await supabase.functions.invoke("send-hr-email", {
+              body: {
+                recipientEmail: r.email,
+                subject: "Your Blynk ERP Login Credentials",
+                htmlBody: credentialsHtml,
+                templateName: "erp_credentials",
+              },
+            });
+          } catch (mailErr: any) {
+            console.warn("Credential email failed (ERP account was created):", mailErr);
+            toast.warning(`ERP account created but credential email failed: ${mailErr?.message || mailErr}`);
+          }
 
-          // Log ERP user creation on the audit trail
           await logAudit(recordId, 5, "erp_account_created", { erp_user_id: erpUserId, username: erpUsername });
-          toast.success("ERP account created & credentials emailed");
+          erpUserSummary = erpUsername;
+          successes.push(`ERP account ${erpUsername}`);
         } catch (erpErr: any) {
+          const message = erpErr?.message || String(erpErr);
           console.error("ERP account creation failed:", erpErr);
-          toast.error(`ERP account: ${erpErr.message}`);
-          // Non-fatal — employee is already created
-          await logAudit(recordId, 5, "erp_account_failed", { error: erpErr.message });
+          await logAudit(recordId, 5, "erp_account_failed", { error: message });
+          failures.push({ system: "ERP account", message });
         }
       }
+
+      // 6c. If any requested external creation failed, DO NOT mark the
+      //     onboarding complete. Keep the record on Stage 5 so the operator
+      //     can fix the underlying issue and retry.
+      if (failures.length > 0) {
+        await refetch();
+        queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+        setActiveStage(5);
+        const summary = failures.map(f => `• ${f.system}: ${f.message}`).join("\n");
+        const successNote = successes.length ? `\n\nAlready created: ${successes.join(", ")}.` : "";
+        throw new Error(
+          `Onboarding not completed — the following failed:\n${summary}${successNote}\n\nFix the issues above and click Finalize again.`,
+        );
+      }
+
+      // 6d. All requested creations succeeded — now mark the onboarding as
+      //     completed. This is the only place status flips to "completed".
+      const completions = (record.stage_completions as Record<string, any>) || {};
+      const { error: completeErr } = await supabase
+        .from("hr_employee_onboarding")
+        .update({
+          status: "completed",
+          employee_id: emp.id,
+          stage_completions: {
+            ...completions,
+            stage_5: { completed_at: new Date().toISOString(), completed_by: user?.user?.id },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", recordId)
+        .select("id")
+        .single();
+      if (completeErr) throw completeErr;
+
+      await logAudit(recordId, 5, "finalized", { employee_id: emp.id });
+
+      if (successes.length > 0) {
+        toast.success(`Created: ${successes.join(", ")}`);
+      }
+
 
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });

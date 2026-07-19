@@ -6955,7 +6955,7 @@ export type Database = {
           emergency_contact: string | null
           emergency_contact_name: string | null
           emergency_contact_relation: string | null
-          esi_enabled: boolean
+          esi_enabled: boolean | null
           esi_number: string | null
           experience: string | null
           filing_status_id: string | null
@@ -6968,11 +6968,11 @@ export type Database = {
           marital_status: string | null
           notice_period_end_date: string | null
           pan_number: string | null
-          pf_enabled: boolean
+          pf_enabled: boolean | null
           pf_number: string | null
           phone: string | null
           profile_image_url: string | null
-          pt_enabled: boolean
+          pt_enabled: boolean | null
           qualification: string | null
           resignation_date: string | null
           resignation_status: string | null
@@ -7004,7 +7004,7 @@ export type Database = {
           emergency_contact?: string | null
           emergency_contact_name?: string | null
           emergency_contact_relation?: string | null
-          esi_enabled?: boolean
+          esi_enabled?: boolean | null
           esi_number?: string | null
           experience?: string | null
           filing_status_id?: string | null
@@ -7017,11 +7017,11 @@ export type Database = {
           marital_status?: string | null
           notice_period_end_date?: string | null
           pan_number?: string | null
-          pf_enabled?: boolean
+          pf_enabled?: boolean | null
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
-          pt_enabled?: boolean
+          pt_enabled?: boolean | null
           qualification?: string | null
           resignation_date?: string | null
           resignation_status?: string | null
@@ -7053,7 +7053,7 @@ export type Database = {
           emergency_contact?: string | null
           emergency_contact_name?: string | null
           emergency_contact_relation?: string | null
-          esi_enabled?: boolean
+          esi_enabled?: boolean | null
           esi_number?: string | null
           experience?: string | null
           filing_status_id?: string | null
@@ -7066,11 +7066,11 @@ export type Database = {
           marital_status?: string | null
           notice_period_end_date?: string | null
           pan_number?: string | null
-          pf_enabled?: boolean
+          pf_enabled?: boolean | null
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
-          pt_enabled?: boolean
+          pt_enabled?: boolean | null
           qualification?: string | null
           resignation_date?: string | null
           resignation_status?: string | null
@@ -21108,6 +21108,11 @@ export type Database = {
       }
       hr_compute_salary_structure_drift: {
         Args: { p_hr_employee_id: string }
+        Returns: Json
+      }
+      hr_derive_all_statutory_enrollments: { Args: never; Returns: Json }
+      hr_derive_statutory_enrollment_from_history: {
+        Args: { p_employee_id: string }
         Returns: Json
       }
       hr_match_employee_by_normalized_name: {

@@ -438,17 +438,40 @@ export default function SalaryStructureTemplates() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <input
-                          type="checkbox"
-                          checked={item.is_variable}
-                          onChange={(e) => updateItem(idx, "is_variable", e.target.checked)}
-                          id={`variable-${idx}`}
-                          className="rounded border-border"
-                        />
-                        <label htmlFor={`variable-${idx}`} className="text-xs text-warning">
-                          Variable / Occasional (e.g. Incentives, Penalty — defaults to ₹0 unless applied)
+                      <div className="flex flex-wrap items-center gap-4 mt-2">
+                        <label className="flex items-center gap-2 text-xs text-warning">
+                          <input
+                            type="checkbox"
+                            checked={item.is_variable}
+                            onChange={(e) => updateItem(idx, "is_variable", e.target.checked)}
+                            className="rounded border-border"
+                          />
+                          Variable / Occasional (defaults ₹0 unless applied)
                         </label>
+                        <label className="flex items-center gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={item.is_residual}
+                            onChange={(e) => {
+                              // Only ONE residual per template
+                              const updated = items.map((it, i) => ({ ...it, is_residual: i === idx ? e.target.checked : false }));
+                              setItems(updated);
+                            }}
+                            className="rounded border-border"
+                          />
+                          Residual (auto-balances to CTC — e.g. Special Allowance)
+                        </label>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span>RazorpayX taxability:</span>
+                          <Select value={item.razorpay_taxable} onValueChange={(v) => updateItem(idx, "razorpay_taxable", v)}>
+                            <SelectTrigger className="h-7 w-24 bg-card"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="yes">Taxable</SelectItem>
+                              <SelectItem value="no">Non-tax</SelectItem>
+                              <SelectItem value="flexi">Flexi</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
                   );

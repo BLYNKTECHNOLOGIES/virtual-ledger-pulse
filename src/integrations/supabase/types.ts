@@ -11472,8 +11472,10 @@ export type Database = {
           computed_by: string | null
           created_at: string
           id: string
+          input_completeness: Json
           notes: string | null
           period_month: string
+          readiness_tier: string
           run_no: number
           status: string
           total_employees: number
@@ -11488,8 +11490,10 @@ export type Database = {
           computed_by?: string | null
           created_at?: string
           id?: string
+          input_completeness?: Json
           notes?: string | null
           period_month: string
+          readiness_tier?: string
           run_no?: number
           status?: string
           total_employees?: number
@@ -11504,8 +11508,10 @@ export type Database = {
           computed_by?: string | null
           created_at?: string
           id?: string
+          input_completeness?: Json
           notes?: string | null
           period_month?: string
+          readiness_tier?: string
           run_no?: number
           status?: string
           total_employees?: number

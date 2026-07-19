@@ -244,7 +244,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
 
                 return (
                   <>
-                    <td className="p-3 font-medium cursor-pointer" onClick={() => onSelectOnboarding(r.id)}>
+                    <td className="p-3 font-medium cursor-pointer" onClick={() => r.status !== "cancelled" && onSelectOnboarding(r.id)}>
                       {r.first_name || r.last_name ? `${r.first_name || ""} ${r.last_name || ""}`.trim() : "—"}
                     </td>
                     <td className="p-3 text-muted-foreground">{r.email || "—"}</td>
@@ -254,9 +254,15 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "dd MMM yyyy")}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant={r.status === "completed" ? "outline" : "default"} onClick={() => onSelectOnboarding(r.id)}>
-                          {r.status === "completed" ? "View" : "Continue"}
-                        </Button>
+                        {r.status === "cancelled" ? (
+                          <Button size="sm" variant="outline" disabled title="This onboarding was cancelled">
+                            Cancelled
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant={r.status === "completed" ? "outline" : "default"} onClick={() => onSelectOnboarding(r.id)}>
+                            {r.status === "completed" ? "View" : "Continue"}
+                          </Button>
+                        )}
                         {r.status !== "completed" && (
                           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setToDelete(r)} title="Delete dropped onboarding">
                             <Trash2 className="h-4 w-4" />
@@ -276,7 +282,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                 );
 
                 return (
-                  <div className="hrms-mobile-card space-y-3" onClick={() => onSelectOnboarding(r.id)}>
+                  <div className="hrms-mobile-card space-y-3" onClick={() => r.status !== "cancelled" && onSelectOnboarding(r.id)}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground break-words">
@@ -290,9 +296,15 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <div className="hrms-mobile-kv"><span>Started</span><strong>{format(new Date(r.created_at), "dd MMM yyyy")}</strong></div>
                     <div className="flex flex-wrap gap-1">{chip("Bank", c?.has_bank)}{chip("Salary", c?.has_salary)}{chip("DOJ", c?.has_doj)}</div>
                     <div className="flex gap-2 pt-1">
-                      <Button size="sm" className="flex-1" variant={r.status === "completed" ? "outline" : "default"} onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}>
-                        {r.status === "completed" ? "View" : "Continue"}
-                      </Button>
+                      {r.status === "cancelled" ? (
+                        <Button size="sm" className="flex-1" variant="outline" disabled onClick={(e) => e.stopPropagation()}>
+                          Cancelled
+                        </Button>
+                      ) : (
+                        <Button size="sm" className="flex-1" variant={r.status === "completed" ? "outline" : "default"} onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}>
+                          {r.status === "completed" ? "View" : "Continue"}
+                        </Button>
+                      )}
                       {r.status !== "completed" && (
                         <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setToDelete(r); }} title="Delete dropped onboarding">
                           <Trash2 className="h-4 w-4" />

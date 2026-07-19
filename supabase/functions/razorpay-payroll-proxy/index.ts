@@ -593,6 +593,49 @@ function extractRazorpayPeopleId(body: any): string | null {
   return match ? (match[1] || match[2] || match[3] || null) : null;
 }
 
+async function opfinEditPerson(data: Record<string, any>): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(`${BASE}/people`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        auth: authBlock(),
+        request: { type: "people", "sub-type": "edit" },
+        data,
+      }),
+      signal: ctrl.signal,
+    });
+    const raw = await res.text();
+    let body: any = null;
+    try { body = JSON.parse(raw); } catch { body = { raw: raw.slice(0, 500) }; }
+    const rpErr = body && typeof body === "object" ? (body.error ?? body.message ?? null) : null;
+    const ok = res.ok && !rpErr;
+    const error = ok ? null : (typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`));
+    return { ok, status: res.status, error, body };
+  } catch (e) {
+    return { ok: false, status: 0, error: `NETWORK: ${(e as Error).message}`, body: null };
+  } finally { clearTimeout(t); }
+}
+
+async function attachReservedEmployeeIdByEmail(email: string, reservedEmployeeId: string | null): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const reserved = String(reservedEmployeeId || "").trim();
+  if (!cleanEmail.includes("@")) return { ok: false, status: 0, error: "email required for people:edit", body: null };
+  if (!/^\d+$/.test(reserved)) return { ok: false, status: 0, error: "numeric reserved employee-id required for people:edit", body: null };
+
+  // Official RazorpayX Payroll docs state `people:edit` identifies the person
+  // by email, not by the internal people-id. This is the API-side equivalent of
+  // typing the Employee ID into the dashboard, so the operator no longer has to
+  // copy/paste the people-id manually for -NA limbo records.
+  return await opfinEditPerson({
+    email: cleanEmail,
+    "employee-id": Number(reserved),
+    "employee-type": "employee",
+  });
+}
+
 function isDismissedRazorpayPerson(rp: any): boolean {
   if (!rp || typeof rp !== "object") return false;
   const rpStatus = String(rp.status || "").toLowerCase();

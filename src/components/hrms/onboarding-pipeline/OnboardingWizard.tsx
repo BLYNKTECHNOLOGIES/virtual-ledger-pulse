@@ -5,16 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Stage1BasicDetails } from "./Stage1BasicDetails";
 import { Stage2SalaryConfig } from "./Stage2SalaryConfig";
 import { Stage3Documents } from "./Stage3Documents";
@@ -33,7 +23,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   const queryClient = useQueryClient();
   const [recordId, setRecordId] = useState<string | null>(onboardingId);
   const [activeStage, setActiveStage] = useState(1);
-  const [razorpayRecovery, setRazorpayRecovery] = useState<null | { employeeId: string; peopleId: string; mode: "employee_id" | "people_id"; hrEmployeeId: string; message: string; resolving: boolean }>(null);
 
   const { data: record, refetch } = useQuery({
     queryKey: ["onboarding-record", recordId],
@@ -217,32 +206,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     }
 
     return base;
-  };
-
-  const recoverRazorpayById = async () => {
-    if (!razorpayRecovery?.hrEmployeeId) return;
-    const mode = razorpayRecovery.mode;
-    if (mode === "employee_id" && !razorpayRecovery.employeeId) return;
-    if (mode === "people_id" && !razorpayRecovery.peopleId) return;
-    setRazorpayRecovery(p => p ? { ...p, resolving: true } : p);
-    try {
-      const body = mode === "people_id"
-        ? { action: "attach_employee_id_by_people_id", hr_employee_id: razorpayRecovery.hrEmployeeId, people_id: razorpayRecovery.peopleId }
-        : { action: "recover_person_by_id", hr_employee_id: razorpayRecovery.hrEmployeeId, razorpay_employee_id: razorpayRecovery.employeeId };
-      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body });
-      if (error) throw new Error(await getFunctionErrorMessage(error, "Razorpay link failed"));
-      if (data?.ok === false) throw new Error(data?.error || "Razorpay link failed");
-
-      const linkedId = data?.razorpay_employee_id ?? razorpayRecovery.employeeId;
-      await logAudit(recordId!, 5, mode === "people_id" ? "razorpay_person_attached_by_people_id" : "razorpay_person_recovered_by_id", { razorpay_employee_id: linkedId, people_id: data?.people_id });
-      toast.success(`Linked RazorpayX employee-id ${linkedId}. Click Finalize again to complete.`);
-      setRazorpayRecovery(null);
-      await refetch();
-      queryClient.invalidateQueries({ queryKey: ["razorpay-map", razorpayRecovery.hrEmployeeId] });
-    } catch (e: any) {
-      toast.error(e?.message || "Razorpay link failed");
-      setRazorpayRecovery(p => p ? { ...p, resolving: false } : p);
-    }
   };
 
   // Generic save draft handler
@@ -498,36 +461,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           });
           if (rpErr) throw new Error(await getFunctionErrorMessage(rpErr, "Razorpay create failed"));
           if (rpRes?.ok === false) {
-            const responsePeopleId = rpRes?.people_id
-              ?? rpRes?.body?._people_id
-              ?? rpRes?.body?.["people-id"]
-              ?? rpRes?.body?.people_id
-              ?? rpRes?.body?.data?.["people-id"]
-              ?? rpRes?.body?.data?.people_id;
-            if (rpRes?.code === "RAZORPAY_EMAIL_EXISTS") {
-              setRazorpayRecovery({
-                employeeId: "",
-                peopleId: responsePeopleId ? String(responsePeopleId) : "",
-                mode: "people_id",
-                hrEmployeeId: emp.id,
-                message: rpRes.error || "RazorpayX already has this email, but the Employee ID may be blank (-NA-). Paste the numeric people-id from the RazorpayX employee URL so ERP can attach the reserved ID safely.",
-                resolving: false,
-              });
-            }
-            // Post-create "-NA- limbo" case: Razorpay created the person but did
-            // not attach our reserved employee-id. The proxy exposes _people_id
-            // on the body so the operator can attach it in one click.
-            const limboPeopleId = responsePeopleId;
-            if (limboPeopleId) {
-              setRazorpayRecovery({
-                employeeId: "",
-                peopleId: String(limboPeopleId),
-                mode: "people_id",
-                hrEmployeeId: emp.id,
-                message: rpRes.error || `Razorpay created the employee under people-id ${limboPeopleId} but did not attach the reserved Employee ID. Click "Verify & Link" to attach it now.`,
-                resolving: false,
-              });
-            }
             const detail = rpRes?.missing?.length
               ? `Missing: ${rpRes.missing.join(", ")}`
               : (rpRes?.error || rpRes?.reason || "Razorpay rejected the request");
@@ -789,56 +722,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           readOnly={isCompleted}
         />
       )}
-
-      <AlertDialog open={!!razorpayRecovery} onOpenChange={(open) => !open && setRazorpayRecovery(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {razorpayRecovery?.mode === "people_id" ? "Attach reserved Employee ID in RazorpayX?" : "Link existing RazorpayX employee?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <span className="block whitespace-pre-line">{razorpayRecovery?.message}</span>
-              {razorpayRecovery?.mode === "people_id" ? (
-                <>
-                  <span className="block">If RazorpayX shows Employee ID as <b>-NA-</b>, do not enter -NA. Copy the numeric <b>people-id</b> from the RazorpayX employee URL. ERP will attach the reserved Employee ID and verify the email before linking.</span>
-                  <input
-                    value={razorpayRecovery?.peopleId || ""}
-                    onChange={(e) => setRazorpayRecovery(p => p ? { ...p, peopleId: e.target.value.replace(/\D/g, "") } : p)}
-                    inputMode="numeric"
-                    placeholder="RazorpayX people-id from URL"
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-                    disabled={!!razorpayRecovery?.resolving}
-                  />
-                </>
-              ) : (
-                <>
-                  <span className="block">Enter the employee-id shown in RazorpayX for this same email. ERP will verify the email before linking.</span>
-                  <input
-                    value={razorpayRecovery?.employeeId || ""}
-                    onChange={(e) => setRazorpayRecovery(p => p ? { ...p, employeeId: e.target.value.replace(/\D/g, "") } : p)}
-                    inputMode="numeric"
-                    placeholder="RazorpayX employee-id"
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-                    disabled={!!razorpayRecovery?.resolving}
-                  />
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={!!razorpayRecovery?.resolving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); recoverRazorpayById(); }}
-              disabled={
-                !!razorpayRecovery?.resolving ||
-                (razorpayRecovery?.mode === "people_id" ? !razorpayRecovery?.peopleId : !razorpayRecovery?.employeeId)
-              }
-            >
-              {razorpayRecovery?.resolving ? "Verifying…" : "Verify & Link"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Onboarding Task Checklist */}
       {recordId && (

@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
+import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
 const currentPeriod = () => {

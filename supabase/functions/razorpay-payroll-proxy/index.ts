@@ -1089,7 +1089,7 @@ Deno.serve(async (req) => {
       // Each entry maps to a real endpoint that exists in the doc.
       const CATALOGUE: Array<{ phase: string; key: string; mode: "read" | "write" }> = [
         { phase: "People", key: "people:view", mode: "read" },
-        { phase: "People", key: "people:create", mode: "write" },
+        { phase: "People", key: "people:add", mode: "write" },
         { phase: "People", key: "people:edit", mode: "write" },
         { phase: "People", key: "people:set-salary", mode: "write" },
         { phase: "People", key: "people:dismiss", mode: "write" },

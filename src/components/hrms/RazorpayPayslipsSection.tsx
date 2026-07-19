@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Download, ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal } from "lucide-react";
 import { PayrollAdjustmentDialog } from "@/components/hrms/employee-profile/PayrollAdjustmentDialog";
 
 
@@ -103,12 +103,11 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
       ) : !rows || rows.length === 0 ? (
         <div className="border border-amber-500/30 rounded-lg p-6 text-center bg-amber-500/5">
           <AlertCircle className="w-8 h-8 mx-auto text-amber-600 mb-2" />
-          <p className="text-sm text-foreground font-medium">Finalized payslips unavailable</p>
+          <p className="text-sm text-foreground font-medium">No RazorpayX payroll history yet</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-            RazorpayX only exposes a payslip once a payroll run is executed for that month.
-            Historical entries previously shown here were the pre-execution payroll setup
-            (base salary, not finalized), so they have been cleared. Payslips will appear
-            automatically for months RazorpayX finalizes.
+            Use the RazorpayX history import to pull monthly payroll records from
+            payroll:view-payroll. RazorpayX does not expose payslip PDFs through the
+            Opfin API, so PDFs remain available only inside the Razorpay dashboard.
           </p>
         </div>
       ) : (
@@ -341,7 +340,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                 {openRow.pulled_at && <p>Fetched {new Date(openRow.pulled_at).toLocaleString("en-IN")}</p>}
               </div>
 
-              {/* PDF actions */}
+              {/* Razorpay dashboard note */}
               {openRow.pdf_url ? (
                 <div className="flex gap-2 flex-wrap">
                   <Button asChild size="sm">
@@ -349,15 +348,10 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       <ExternalLink className="w-4 h-4 mr-2" /> Open RazorpayX PDF
                     </a>
                   </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <a href={openRow.pdf_url} download>
-                      <Download className="w-4 h-4 mr-2" /> Download
-                    </a>
-                  </Button>
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground italic">
-                  No PDF URL returned by RazorpayX for this period.
+                  RazorpayX Opfin API does not expose payslip PDF/download URLs; open the Razorpay dashboard for the original document.
                 </p>
               )}
             </div>

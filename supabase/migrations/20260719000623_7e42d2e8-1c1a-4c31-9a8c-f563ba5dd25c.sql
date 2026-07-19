@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.hr_trigger_razorpay_payslip_history_restore(text, text);

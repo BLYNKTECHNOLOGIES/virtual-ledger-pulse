@@ -6,6 +6,8 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-18: RazorpayX payroll history restore verified after redeploy — hr_razorpay_payslip_records=61 and reflected hr_payslips(source=razorpay_import)=61 across 16 employees, spanning 2024-07 to 2026-03.
+- 2026-07-18: RazorpayX payroll history restored to API-first model — `payroll:view-payroll` is the canonical Opfin source for monthly payroll amounts/components; no payslip PDF/download endpoint exists in official surface, so PDFs are dashboard-only.
 - 2026-07-18: v4 attendance engine — Phase 0 schema deployed (sessions table, engine settings, punch classification columns); Phases 1–2.5 code deployed but engine unhydrated (punches wiped); Phases 3–7 parked pending Monday's real punches.
 - 2026-07-18: Razorpay last-mile — Slices 4 (F&F dismiss with CONFIRM_DISMISS ack) and 5 (attendance verify affordance on Period Lock page) shipped; sandbox host documented in RAZORPAYX_COMMISSIONING.md with manual rehearsal path. Deferred queue: Payroll Adjustments hub, Advance Salary flow (needs hr_loans.razorpay_advance_id), Contractor locked-state polish, in-app sandbox toggle.
 - 2026-07-18: Roster changed to 37 employees total (22 active + 15 soft-deleted; was 39). Salary structures = 112 rows (~5 components/active-emp — deliberate per-component shape). Biometric device users unmatched = 21 (17 ghost enrollments with no hr_employees row + 4 dismissed employees; all 22 active fully linked on both devices).

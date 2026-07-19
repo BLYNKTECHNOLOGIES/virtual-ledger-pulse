@@ -516,29 +516,99 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             />
           </div>
           <div className="sm:col-span-2">
+            {/* RazorpayX Payroll ID — reserved FIRST, then flows into ESSL PIN.
+                Per Unified ID doctrine, the same integer becomes HRMS badge_id,
+                ESSL device PIN, and RazorpayX employee_id. */}
+            <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <Cloud className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Step 1 — RazorpayX Payroll ID</p>
+                  <p className="text-xs text-muted-foreground">
+                    {alreadyInRazorpay
+                      ? `Already linked to Razorpay employee ${(razorpayMap as any)?.razorpay_employee_id}. Reuse this ID as the ESSL PIN below.`
+                      : reservedRpId || form.essl_badge_id
+                        ? "This ID will be pushed to Razorpay at Finalize and mirrored on both eSSL devices."
+                        : "Reserve the next sequential employee ID. It becomes the ESSL PIN and Razorpay employee_id."}
+                  </p>
+                </div>
+                {(reservedRpId || alreadyInRazorpay) && (
+                  <Badge variant="default" className="font-mono shrink-0">
+                    ID {reservedRpId || (razorpayMap as any)?.razorpay_employee_id}
+                  </Badge>
+                )}
+              </div>
+              {!alreadyInRazorpay && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleReserveRazorpayId}
+                    disabled={readOnly || reservingRpId || !!reservedRpId}
+                  >
+                    <Cloud className="h-3.5 w-3.5 mr-1.5" />
+                    {reservingRpId
+                      ? "Reserving…"
+                      : reservedRpId
+                        ? `Reserved: ${reservedRpId}`
+                        : "Reserve RazorpayX Employee ID"}
+                  </Button>
+                  {reservedRpId && (
+                    <span className="text-[11px] text-success flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> ESSL PIN auto-filled below · Razorpay create queued for Finalize
+                    </span>
+                  )}
+                </div>
+              )}
+              {form.create_in_razorpay && !alreadyInRazorpay && (
+                <div className="pl-2 border-l-2 border-primary/30 space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Razorpay create checklist</p>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    {razorpayChecklist.items.map(it => (
+                      <li key={it.key} className="flex items-center gap-1.5">
+                        {it.ok
+                          ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                          : <XCircle className="h-3 w-3 text-destructive shrink-0" />}
+                        <span className={it.ok ? "" : "text-destructive"}>{it.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {!razorpayChecklist.allOk && (
+                    <p className="text-xs text-destructive flex items-start gap-1">
+                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span>Fill the missing fields (Stage 3 for PAN, Stage 1 for department, bank details below) before Finalize.</span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="sm:col-span-2">
             <Label className="flex items-center gap-1.5">
-              <Fingerprint className="h-3.5 w-3.5" /> ESSL Badge ID (device PIN) *
+              <Fingerprint className="h-3.5 w-3.5" /> Step 2 — ESSL Badge ID (device PIN) *
             </Label>
             <div className="flex gap-2 mt-1">
               <Input
-                placeholder="e.g. 26012"
+                placeholder={reservedRpId || alreadyInRazorpay ? "" : "Reserve a RazorpayX ID above, or type an unassigned PIN"}
                 value={form.essl_badge_id}
                 onChange={e => setForm(p => ({ ...p, essl_badge_id: e.target.value }))}
-                disabled={readOnly}
+                disabled={readOnly || !!reservedRpId}
                 className="font-mono"
               />
               <Select
                 value=""
                 onValueChange={v => setForm(p => ({ ...p, essl_badge_id: v }))}
-                disabled={readOnly || pinsLoading || bioAlreadyCreated}
+                disabled={readOnly || pinsLoading || bioAlreadyCreated || !!reservedRpId}
               >
                 <SelectTrigger className="w-[190px] shrink-0">
                   <SelectValue placeholder={
-                    bioAlreadyCreated
-                      ? "Locked — already created"
-                      : pinsLoading
-                        ? "Loading…"
-                        : `Pick unassigned (${unassignedPins.length})`
+                    reservedRpId
+                      ? "Using reserved ID"
+                      : bioAlreadyCreated
+                        ? "Locked — already created"
+                        : pinsLoading
+                          ? "Loading…"
+                          : `Pick unassigned (${unassignedPins.length})`
                   } />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">

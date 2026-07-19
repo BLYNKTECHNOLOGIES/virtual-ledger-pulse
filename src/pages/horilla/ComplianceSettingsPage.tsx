@@ -110,7 +110,7 @@ export default function ComplianceSettingsPage() {
     if (error) { toast.error(error.message || "Failed to save"); return; }
     toast.success("Compliance mirror updated");
     setEditing(false);
-    qc.invalidateQueries({ queryKey: ["hr_razorpay_settings_compliance"] });
+    qc.invalidateQueries({ queryKey: ["hr_razorpay_settings_compliance_public"] });
   };
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;

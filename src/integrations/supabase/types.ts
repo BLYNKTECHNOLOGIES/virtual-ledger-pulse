@@ -6948,12 +6948,14 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          custom_structure_pct: Json | null
           deletion_approved_by: string | null
           dob: string | null
           email: string | null
           emergency_contact: string | null
           emergency_contact_name: string | null
           emergency_contact_relation: string | null
+          esi_enabled: boolean
           esi_number: string | null
           experience: string | null
           filing_status_id: string | null
@@ -6966,9 +6968,11 @@ export type Database = {
           marital_status: string | null
           notice_period_end_date: string | null
           pan_number: string | null
+          pf_enabled: boolean
           pf_number: string | null
           phone: string | null
           profile_image_url: string | null
+          pt_enabled: boolean
           qualification: string | null
           resignation_date: string | null
           resignation_status: string | null
@@ -6993,12 +6997,14 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          custom_structure_pct?: Json | null
           deletion_approved_by?: string | null
           dob?: string | null
           email?: string | null
           emergency_contact?: string | null
           emergency_contact_name?: string | null
           emergency_contact_relation?: string | null
+          esi_enabled?: boolean
           esi_number?: string | null
           experience?: string | null
           filing_status_id?: string | null
@@ -7011,9 +7017,11 @@ export type Database = {
           marital_status?: string | null
           notice_period_end_date?: string | null
           pan_number?: string | null
+          pf_enabled?: boolean
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
+          pt_enabled?: boolean
           qualification?: string | null
           resignation_date?: string | null
           resignation_status?: string | null
@@ -7038,12 +7046,14 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          custom_structure_pct?: Json | null
           deletion_approved_by?: string | null
           dob?: string | null
           email?: string | null
           emergency_contact?: string | null
           emergency_contact_name?: string | null
           emergency_contact_relation?: string | null
+          esi_enabled?: boolean
           esi_number?: string | null
           experience?: string | null
           filing_status_id?: string | null
@@ -7056,9 +7066,11 @@ export type Database = {
           marital_status?: string | null
           notice_period_end_date?: string | null
           pan_number?: string | null
+          pf_enabled?: boolean
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
+          pt_enabled?: boolean
           qualification?: string | null
           resignation_date?: string | null
           resignation_status?: string | null
@@ -10356,6 +10368,7 @@ export type Database = {
           bulk_salary_push_unlocked: boolean
           bulk_sync_unlocked: boolean
           compliance_files_esi: boolean
+          compliance_files_lwf: boolean
           compliance_files_nonsalary_tds: boolean
           compliance_files_pf: boolean
           compliance_files_pt: boolean
@@ -10456,6 +10469,7 @@ export type Database = {
           bulk_salary_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           compliance_files_esi?: boolean
+          compliance_files_lwf?: boolean
           compliance_files_nonsalary_tds?: boolean
           compliance_files_pf?: boolean
           compliance_files_pt?: boolean
@@ -10556,6 +10570,7 @@ export type Database = {
           bulk_salary_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
           compliance_files_esi?: boolean
+          compliance_files_lwf?: boolean
           compliance_files_nonsalary_tds?: boolean
           compliance_files_pf?: boolean
           compliance_files_pt?: boolean

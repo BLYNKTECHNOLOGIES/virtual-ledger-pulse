@@ -8,7 +8,7 @@ import { DollarSign, Info } from "lucide-react";
 
 interface Stage2Props {
   data: any;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: any, options?: { silent?: boolean }) => Promise<void>;
   onComplete: (data: any) => Promise<void>;
   onBack: () => void;
   readOnly?: boolean;
@@ -59,7 +59,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       dirtyRef.current = false;
-      onSave(getPayload()).catch((err: any) => console.warn("Stage 2 autosave failed:", err));
+      onSave(getPayload(), { silent: true }).catch((err: any) => console.warn("Stage 2 autosave failed:", err));
     }, 900);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

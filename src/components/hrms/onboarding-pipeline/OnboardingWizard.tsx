@@ -169,7 +169,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   };
 
   // Generic save draft handler
-  const handleSaveDraft = async (stage: number, stageData: any) => {
+  const handleSaveDraft = async (stage: number, stageData: any, options?: { silent?: boolean }) => {
     try {
       if (!recordId) {
         await createRecord(stageData);
@@ -177,9 +177,10 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         await updateRecord(stageData);
       }
       await refetch();
-      toast.success("Draft saved");
+      if (!options?.silent) toast.success("Draft saved");
     } catch (err: any) {
-      toast.error(err.message);
+      if (!options?.silent) toast.error(err.message);
+      throw err;
     }
   };
 
@@ -574,7 +575,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       {activeStage === 1 && (
         <Stage1BasicDetails
           data={record}
-          onSave={(d) => handleSaveDraft(1, d)}
+          onSave={(d, options) => handleSaveDraft(1, d, options)}
           onComplete={(d) => handleStageComplete(1, d)}
           readOnly={isCompleted}
         />
@@ -582,7 +583,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       {activeStage === 2 && (
         <Stage2SalaryConfig
           data={record}
-          onSave={(d) => handleSaveDraft(2, d)}
+          onSave={(d, options) => handleSaveDraft(2, d, options)}
           onComplete={(d) => handleStageComplete(2, d)}
           onBack={() => setActiveStage(1)}
           readOnly={isCompleted}
@@ -592,7 +593,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         <Stage3Documents
           data={record}
           onboardingData={record}
-          onSave={(d) => handleSaveDraft(3, d)}
+          onSave={(d, options) => handleSaveDraft(3, d, options)}
           onComplete={(d) => handleStageComplete(3, d)}
           onBack={() => setActiveStage(2)}
           readOnly={isCompleted}
@@ -602,7 +603,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         <Stage4OfferPolicy
           data={record}
           onboardingData={record}
-          onSave={(d) => handleSaveDraft(4, d)}
+          onSave={(d, options) => handleSaveDraft(4, d, options)}
           onComplete={(d) => handleStageComplete(4, d)}
           onBack={() => setActiveStage(3)}
           readOnly={isCompleted}
@@ -612,7 +613,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         <Stage5Finalization
           onboardingRecord={record}
           onFinalize={handleFinalize}
-          onSave={(d) => handleSaveDraft(5, d)}
+          onSave={(d, options) => handleSaveDraft(5, d, options)}
           onBack={() => setActiveStage(4)}
           readOnly={isCompleted}
         />

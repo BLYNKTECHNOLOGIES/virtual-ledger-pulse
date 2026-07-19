@@ -11,7 +11,7 @@ import { User } from "lucide-react";
 
 interface Stage1Props {
   data: any;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: any, options?: { silent?: boolean }) => Promise<void>;
   onComplete: (data: any) => Promise<void>;
   readOnly?: boolean;
 }
@@ -86,7 +86,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       dirtyRef.current = false;
-      onSave(form).catch((err: any) => console.warn("Stage 1 autosave failed:", err));
+      onSave(form, { silent: true }).catch((err: any) => console.warn("Stage 1 autosave failed:", err));
     }, 900);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

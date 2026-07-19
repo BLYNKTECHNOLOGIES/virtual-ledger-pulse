@@ -11,7 +11,7 @@ import { smartUpload } from "@/lib/resumable-upload";
 interface Stage4Props {
   data: any;
   onboardingData?: any;
-  onSave?: (data: any) => Promise<void>;
+  onSave?: (data: any, options?: { silent?: boolean }) => Promise<void>;
   onComplete: (data: any) => Promise<void>;
   onBack: () => void;
   readOnly?: boolean;

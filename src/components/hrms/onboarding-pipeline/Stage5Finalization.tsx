@@ -15,7 +15,7 @@ import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle } fr
 interface Stage5Props {
   onboardingRecord: any;
   onFinalize: (data: any) => Promise<void>;
-  onSave?: (data: any) => Promise<void>;
+  onSave?: (data: any, options?: { silent?: boolean }) => Promise<void>;
   onBack: () => void;
   readOnly?: boolean;
 }
@@ -453,7 +453,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       dirtyRef.current = false;
-      onSave(getDraftPayload()).catch((err: any) => console.warn("Stage 5 autosave failed:", err));
+      onSave(getDraftPayload(), { silent: true }).catch((err: any) => console.warn("Stage 5 autosave failed:", err));
     }, 700);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -464,7 +464,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     setForm(prev => {
       const next = { ...prev, ...updates };
       dirtyRef.current = false;
-      onSave?.(getDraftPayloadFrom(next)).catch((err: any) => console.warn("Stage 5 immediate save failed:", err));
+      onSave?.(getDraftPayloadFrom(next), { silent: true }).catch((err: any) => console.warn("Stage 5 immediate save failed:", err));
       return next;
     });
   };
@@ -472,7 +472,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const handleBack = async () => {
     if (!readOnly && onSave) {
       try {
-        await onSave(getDraftPayload());
+        await onSave(getDraftPayload(), { silent: true });
       } catch (err) {
         console.warn("Stage 5 back-save failed:", err);
       }

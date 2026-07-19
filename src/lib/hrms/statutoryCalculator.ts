@@ -15,7 +15,23 @@
 import type { ComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 
 // -----------------------------
+// Per-employee statutory enrollment (mirrors RazorpayX per-employee flags)
+// -----------------------------
+export interface EmployeeStatutoryEnrollment {
+  pf_enabled?: boolean;
+  esi_enabled?: boolean;
+  pt_enabled?: boolean;
+}
+
+// -----------------------------
 // EPF (Employees' Provident Fund)
+//
+// Verified against Priya (May-26 Basic 16 750 → cap ₹15 000; Jun-26 Basic 14 238
+// under cap). RazorpayX prints:
+//   Employee PF (deduction)        = 12% × min(Basic, 15 000)
+//   Employer PF (deduction contra) = 12% × min(Basic, 15 000)
+//   EDLI + Admin (deduction)       = 1%  × min(Basic, 15 000)   ← NOT max(500, 0.5%)
+//   Employer PF (earnings side)    = 13% × min(Basic, 15 000)   (12% + 1% combined)
 // -----------------------------
 export function computePfWageBase(
   basic: number,
@@ -27,23 +43,39 @@ export function computePfWageBase(
   return s.pf_wage_cap_15000 ? Math.min(raw, 15000) : raw;
 }
 
-export function computeEpf(basic: number, da: number, s: ComplianceSettings | null | undefined) {
-  if (!s?.compliance_files_pf) return { employee: 0, employer: 0, admin_edli: 0, base: 0 };
+export function computeEpf(
+  basic: number,
+  da: number,
+  s: ComplianceSettings | null | undefined,
+  enrollment?: EmployeeStatutoryEnrollment,
+) {
+  const enrolled = enrollment?.pf_enabled ?? s?.compliance_files_pf ?? false;
+  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0 };
   const base = computePfWageBase(basic, da, s);
   const employee = Math.round(base * 0.12);
-  const employer = Math.round(base * 0.12); // 3.67% to EPF + 8.33% to EPS, split not surfaced
-  // Admin + EDLI charges: greatest of ₹500 or 0.5% of PF wages per employer
-  const admin_edli = s.pf_include_admin_edli_in_ctc ? Math.max(500, Math.round(base * 0.005)) : 0;
-  return { employee, employer, admin_edli, base };
+  const employer = Math.round(base * 0.12);
+  // Combined admin + EDLI + inspection — RazorpayX prints as flat 1%
+  // (Priya: 150 = 1% × 15 000; 142 = 1% × 14 238).
+  const admin_edli = Math.round(base * 0.01);
+  // Employer PF EARNINGS-side line = 12% + 1% (Priya May 1 950; Jun 1 851).
+  const employer_earnings_side = employer + admin_edli;
+  return { employee, employer, admin_edli, employer_earnings_side, base };
 }
 
 // -----------------------------
 // ESI
+//
+// Verified Khushbu Jun-26: ESI-Ee 83 / ESI-Er 356 on regular gross
+// (Basic + HRA + Special + LTA + ESI-Er, post-LOP). Gate = per-employee
+// enrollment AND regular gross ≤ ₹21 000.
 // -----------------------------
-export function isEsiEligible(regularMonthlyGross: number, s: ComplianceSettings | null | undefined): boolean {
-  if (!s?.compliance_files_esi) return false;
-  // Statutory ceiling ₹21,000 gross wages — computed on REGULAR wages only
-  // (excluding overtime / one-off additions) at the start of the contribution period.
+export function isEsiEligible(
+  regularMonthlyGross: number,
+  s: ComplianceSettings | null | undefined,
+  enrollment?: EmployeeStatutoryEnrollment,
+): boolean {
+  const enrolled = enrollment?.esi_enabled ?? s?.compliance_files_esi ?? false;
+  if (!enrolled) return false;
   return regularMonthlyGross <= 21000;
 }
 
@@ -51,8 +83,9 @@ export function computeEsi(
   fullGrossIncludingAdditions: number,
   regularMonthlyGross: number,
   s: ComplianceSettings | null | undefined,
+  enrollment?: EmployeeStatutoryEnrollment,
 ) {
-  if (!isEsiEligible(regularMonthlyGross, s)) return { employee: 0, employer: 0, base: 0 };
+  if (!isEsiEligible(regularMonthlyGross, s, enrollment)) return { employee: 0, employer: 0, base: 0 };
   const base = s?.esi_include_additions_in_wages ? fullGrossIncludingAdditions : regularMonthlyGross;
   return {
     employee: Math.round(base * 0.0075),

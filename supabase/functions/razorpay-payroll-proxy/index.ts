@@ -19,7 +19,11 @@
 // PII policy: only field NAMES land in hr_razorpay_sync_log.field_diff_summary.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 const KEY_ID = Deno.env.get("RAZORPAY_PAYROLL_KEY_ID") ?? "";
 const KEY_SECRET = Deno.env.get("RAZORPAY_PAYROLL_KEY_SECRET") ?? "";
@@ -1264,16 +1268,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ---------- attach_employee_id_by_people_id ----------
+    // ---------- attach_employee_id_by_email ----------
     // Repair path for records that were created in Razorpay but lost their
-    // reserved employee-id (the "-NA-" limbo state). Operator copies the
-    // internal `people-id` from the RazorpayX dashboard URL, ERP calls
-    // people:edit to attach the badge_id, verifies email match, then maps.
-    if (action === "attach_employee_id_by_people_id") {
+    // reserved employee-id (the "-NA-" limbo state). Official contract uses
+    // people:edit keyed by email; internal people-id is deliberately ignored.
+    if (action === "attach_employee_id_by_email" || action === "attach_employee_id_by_people_id") {
       const hrId = payload?.hr_employee_id ? String(payload.hr_employee_id) : "";
-      const peopleId = Number(payload?.people_id);
       if (!hrId) return json(400, { error: "hr_employee_id required" });
-      if (!Number.isFinite(peopleId) || peopleId < 1) return json(400, { error: "people_id required" });
 
       const { data: emp, error: empErr } = await svc
         .from("hr_employees")
@@ -1287,44 +1288,25 @@ Deno.serve(async (req) => {
         return json(400, { error: "desired_employee_id (or hr_employees.badge_id) required" });
       }
 
-      // Attach employee-id via people:edit.
-      let attachStatus = 0; let attachErr: string | null = null;
-      try {
-        const r = await fetch(`${BASE}/people`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            auth: authBlock(),
-            request: { type: "people", "sub-type": "edit" },
-            data: { "people-id": peopleId, "employee-id": desiredEid, "employee-type": "employee" },
-          }),
-        });
-        attachStatus = r.status;
-        const raw = await r.text();
-        let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
-        const rpErr = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
-        if (!r.ok || rpErr) attachErr = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${r.status}`);
-      } catch (e) {
-        attachErr = `NETWORK: ${(e as Error).message}`;
-      }
-      if (attachErr) {
-        return json(200, { ok: false, code: "RAZORPAY_ATTACH_FAILED", error: `Attaching employee-id ${desiredEid} to people-id ${peopleId} failed: ${attachErr}`, http_status: attachStatus });
+      const attach = await attachReservedEmployeeIdByEmail(emp.email, String(desiredEid));
+      if (!attach.ok) {
+        return json(200, { ok: false, code: "RAZORPAY_ATTACH_FAILED", error: `Attaching employee-id ${desiredEid} to email ${emp.email} failed: ${attach.error}`, http_status: attach.status });
       }
 
       // Verify by reading back with the newly attached employee-id.
       const v = await opfinView(desiredEid, "employee");
       if (!v.ok) {
-        return json(200, { ok: false, code: "RAZORPAY_ATTACH_UNVERIFIED", error: `Razorpay accepted the attach for people-id ${peopleId} → employee-id ${desiredEid}, but a follow-up people:view could not confirm it.`, http_status: v.status });
+        return json(200, { ok: false, code: "RAZORPAY_ATTACH_UNVERIFIED", error: `Razorpay accepted the attach for email ${emp.email} → employee-id ${desiredEid}, but a follow-up people:view could not confirm it.`, http_status: v.status });
       }
       const erpEmail = String(emp.email || "").trim().toLowerCase();
       const rpEmail = String(v.body?.email || v.body?.work_email || "").trim().toLowerCase();
       if (!rpEmail || rpEmail !== erpEmail) {
-        return json(200, { ok: false, code: "RAZORPAY_EMAIL_MISMATCH", error: `people-id ${peopleId} belongs to a different email (${rpEmail || "unknown"}). Refusing to link.`, http_status: v.status });
+        return json(200, { ok: false, code: "RAZORPAY_EMAIL_MISMATCH", error: `Employee-id ${desiredEid} belongs to a different email (${rpEmail || "unknown"}). Refusing to link.`, http_status: v.status });
       }
 
       try {
         await upsertMap(svc, String(desiredEid), hrId, false, false);
-        const snapshot = { ...(v.body || {}), _people_id: String(peopleId) };
+        const snapshot = { ...(v.body || {}), _attached_by: "email_keyed_people_edit" };
         await svc.from("hr_razorpay_employee_map").update({
           last_pull_snapshot: snapshot,
           last_pulled_at: new Date().toISOString(),
@@ -1335,11 +1317,11 @@ Deno.serve(async (req) => {
           http_status: v.status,
           razorpay_employee_id: String(desiredEid),
           hr_employee_id: hrId,
-          field_diff_summary: { source: "attach_employee_id_by_people_id", people_id: String(peopleId), field_names: fieldNames(v.body) },
+          field_diff_summary: { source: "attach_employee_id_by_email", field_names: fieldNames(v.body) },
           error_text: null,
           actor_user_id: authed.userId,
         });
-        return json(200, { ok: true, razorpay_employee_id: String(desiredEid), people_id: String(peopleId), attached: true, http_status: v.status });
+        return json(200, { ok: true, razorpay_employee_id: String(desiredEid), attached: true, http_status: v.status });
       } catch (e) {
         return json(200, { ok: false, code: "RAZORPAY_MAPPING_REPAIR_FAILED", error: (e as Error).message, http_status: v.status });
       }
@@ -5450,38 +5432,36 @@ Deno.serve(async (req) => {
       }
 
       const reservedEmployeeId = (emp.badge_id || "").toString().trim() || null;
-      const outboundData: Record<string, any> = {
-        // Unified ID doctrine: HRMS badge_id === ESSL PIN === Razorpay
-        // employee_id. Send our badge as the caller-supplied employee_id so
-        // Razorpay stores the same integer instead of minting its own.
-        // Razorpay/Opfin's documented API uses hyphenated keys. The previous
-        // underscore payload was paired with an undocumented people:add mode,
-        // which this tenant rejects with code 23 "Unknown request type".
+      const fullEditData: Record<string, any> = {
+        // Official RazorpayX Payroll Postman contract: people:create accepts
+        // only { email, name, type }. All rich profile fields — including the
+        // editable employee-id — belong to people:edit, keyed by email.
         "employee-id": reservedEmployeeId ? Number(reservedEmployeeId) : null,
-        type: "employee",
-        name: fullName,
         email: String(emp.email).trim().toLowerCase(),
         "phone-number": normPhone(emp.phone),
         gender: emp.gender ? String(emp.gender).toLowerCase() : null,
-        "date-of-birth": dobRp,
-        "date-of-joining": dojRp,
-        "hire-date": dojRp,
-        hire_date: dojRp,
+        "date-of-birth": dobIso,
+        "hiring-date": dojIso,
         department: deptName,
         title: wi!.job_role,
         pan,
-        "annual-ctc": ctcAnnual,
         "bank-account-number": bank!.account_number,
         "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
         "bank-account-holder-name": accountHolder,
       };
       // Remove null/empty optional keys.
-      for (const k of Object.keys(outboundData)) {
-        if (outboundData[k] === null || outboundData[k] === "") delete outboundData[k];
+      for (const k of Object.keys(fullEditData)) {
+        if (fullEditData[k] === null || fullEditData[k] === "") delete fullEditData[k];
       }
 
+      const createData: Record<string, any> = {
+        email: String(emp.email).trim().toLowerCase(),
+        name: fullName,
+        type: "employee",
+      };
+
       if (dryRun) {
-        return json(200, { ok: true, dry_run: true, payload: outboundData });
+        return json(200, { ok: true, dry_run: true, create_payload: createData, edit_payload: fullEditData });
       }
 
       const mapRazorpayEmployee = async (rpEmployeeId: string, snapshot: Record<string, any>, status: string) => {
@@ -5511,7 +5491,7 @@ Deno.serve(async (req) => {
         return await svc.from("hr_razorpay_employee_map").insert(payload);
       };
 
-      const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string, peopleId?: string | null) => {
+      const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string) => {
         const warnings: string[] = [];
         const applied: string[] = [];
         const rpIdNum = Number(rpEmployeeId);
@@ -5520,21 +5500,8 @@ Deno.serve(async (req) => {
         }
 
         const editData: Record<string, any> = {
-          ...(peopleId && /^\d+$/.test(String(peopleId)) ? { "people-id": Number(peopleId) } : {}),
+          ...fullEditData,
           "employee-id": rpIdNum,
-          "employee-type": "employee",
-          pan,
-          "phone-number": normPhone(emp.phone),
-          gender: emp.gender ? String(emp.gender).toLowerCase() : null,
-          "date-of-birth": dobRp,
-          "date-of-joining": dojRp,
-          "hire-date": dojRp,
-          hire_date: dojRp,
-          department: deptName,
-          title: wi!.job_role,
-          "bank-account-number": bank!.account_number,
-          "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
-          "bank-account-holder-name": accountHolder,
         };
         for (const k of Object.keys(editData)) {
           if (editData[k] === null || editData[k] === "" || editData[k] === undefined) delete editData[k];
@@ -5546,7 +5513,7 @@ Deno.serve(async (req) => {
           http_status: editRes.status,
           razorpay_employee_id: rpEmployeeId,
           hr_employee_id: hrId,
-          field_diff_summary: { source, fields: Object.keys(editData).sort() },
+          field_diff_summary: { source, fields: Object.keys(editData).sort(), contract_key: "email" },
           error_text: editRes.ok ? null : editRes.error,
           actor_user_id: authed.userId,
         });
@@ -5569,7 +5536,8 @@ Deno.serve(async (req) => {
                 data: {
                   "employee-id": rpIdNum,
                   "employee-type": "employee",
-                  salary: { "ctc-annual": ctcAnnual },
+                  "custom-salary-structure": false,
+                  "annual-ctc": ctcAnnual,
                 },
               }),
               signal: c.signal,
@@ -5601,7 +5569,7 @@ Deno.serve(async (req) => {
         const snapshot = verify.ok && verify.body ? { ...verify.body, _enriched_by: source } : null;
         if (verify.ok && verify.body) {
           const rpEmail = String(verify.body?.email || verify.body?.work_email || "").trim().toLowerCase();
-          const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+          const erpEmail = String((createData as any).email || "").trim().toLowerCase();
           if (!rpEmail || rpEmail !== erpEmail) warnings.push("RazorpayX read-back email did not match ERP email after enrichment.");
           const verifyPan = String(verify.body?.pan || "").trim().toUpperCase();
           if (pan && verifyPan && verifyPan !== pan) warnings.push("RazorpayX read-back PAN did not match ERP PAN after enrichment.");
@@ -5617,8 +5585,8 @@ Deno.serve(async (req) => {
         return { ok: warnings.length === 0, warnings, applied, snapshot };
       };
 
-      const completeSuccessResponse = async (rpEmployeeId: string, body: Record<string, any>, source: string, peopleId?: string | null) => {
-        const enrichment = await pushCompleteRazorpayDetails(rpEmployeeId, source, peopleId);
+      const completeSuccessResponse = async (rpEmployeeId: string, body: Record<string, any>, source: string) => {
+        const enrichment = await pushCompleteRazorpayDetails(rpEmployeeId, source);
         const responseBody: Record<string, any> = {
           ...body,
           razorpay_employee_id: rpEmployeeId,
@@ -5639,7 +5607,7 @@ Deno.serve(async (req) => {
       if (existingMap?.razorpay_employee_id) {
         const mappedId = String(existingMap.razorpay_employee_id);
         const mappedView = await opfinView(Number(mappedId), "employee");
-        const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+        const erpEmail = String(createData.email || "").trim().toLowerCase();
         const rpEmail = String(mappedView.body?.email || mappedView.body?.work_email || "").trim().toLowerCase();
         if (mappedView.ok && rpEmail && rpEmail !== erpEmail) {
           return json(200, {
@@ -5650,7 +5618,7 @@ Deno.serve(async (req) => {
           });
         }
         if (mappedView.ok) {
-          await mapRazorpayEmployee(mappedId, mappedView.body || outboundData, "created_via_erp");
+          await mapRazorpayEmployee(mappedId, mappedView.body || fullEditData, "created_via_erp");
           return await completeSuccessResponse(mappedId, {
             reason: "already_mapped",
             already_mapped: true,
@@ -5677,7 +5645,7 @@ Deno.serve(async (req) => {
       if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
         const existingRp = await opfinView(Number(reservedEmployeeId), "employee");
         if (existingRp.ok) {
-          const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+          const erpEmail = String(createData.email || "").trim().toLowerCase();
           const rpEmail = String(existingRp.body?.email || existingRp.body?.work_email || "").trim().toLowerCase();
           if (!rpEmail || rpEmail !== erpEmail) {
             return json(200, {
@@ -5687,7 +5655,7 @@ Deno.serve(async (req) => {
               http_status: existingRp.status,
             });
           }
-          const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, existingRp.body || outboundData, "created_via_erp");
+          const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, existingRp.body || fullEditData, "created_via_erp");
           if (repairErr) {
             return json(200, {
               ok: false,
@@ -5702,7 +5670,7 @@ Deno.serve(async (req) => {
             http_status: existingRp.status,
             razorpay_employee_id: reservedEmployeeId,
             hr_employee_id: hrId,
-            field_diff_summary: { source: "people:view_recovered_existing", payload_field_names: Object.keys(outboundData).sort() },
+            field_diff_summary: { source: "people:view_recovered_existing", payload_field_names: Object.keys(fullEditData).sort() },
             error_text: null,
             actor_user_id: authed.userId,
           });
@@ -5724,16 +5692,16 @@ Deno.serve(async (req) => {
       // eliminate the entire "Email already exists" recovery cascade.
       if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
         const preAttach = await attachReservedEmployeeIdByEmail(
-          String((outboundData as any).email || ""),
+          String(createData.email || ""),
           reservedEmployeeId,
         );
         if (preAttach.ok) {
           const verifyPre = await opfinView(Number(reservedEmployeeId), "employee");
-          const erpEmailPre = String((outboundData as any).email || "").trim().toLowerCase();
+          const erpEmailPre = String(createData.email || "").trim().toLowerCase();
           const rpEmailPre = String(verifyPre.body?.email || verifyPre.body?.work_email || "").trim().toLowerCase();
           if (verifyPre.ok && rpEmailPre && rpEmailPre === erpEmailPre) {
             const snapshotPre = {
-              ...(verifyPre.body || outboundData),
+              ...(verifyPre.body || fullEditData),
               _recovered_by: "r4_pre_flight_email_attach",
             };
             const { error: repairPreErr } = await mapRazorpayEmployee(
@@ -5748,7 +5716,7 @@ Deno.serve(async (req) => {
               hr_employee_id: hrId,
               field_diff_summary: {
                 source: "r4_pre_flight_email_attach",
-                payload_field_names: Object.keys(outboundData).sort(),
+                payload_field_names: Object.keys(fullEditData).sort(),
               },
               error_text: repairPreErr ? repairPreErr.message : null,
               actor_user_id: authed.userId,
@@ -5768,14 +5736,6 @@ Deno.serve(async (req) => {
 
       // Live create. Only runs when R4 pre-flight did not already claim an
       // existing person by email.
-      const createData: Record<string, any> = {
-        type: "employee",
-        name: fullName,
-        email: String(emp.email).trim().toLowerCase(),
-        "date-of-joining": dojRp,
-        "hire-date": dojRp,
-        hire_date: dojRp,
-      };
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
@@ -5799,29 +5759,19 @@ Deno.serve(async (req) => {
           const extracted = extractRazorpayError(bodyOut, rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
           errText = extracted.message || (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
         } else {
-          // RazorpayX Payroll (Opfin) — `people:create` creates an invite shell
-          // and usually returns `employee-id: ""`. Do not fail here. Treat the
-          // freshly returned people-id as the authoritative attach handle and let
-          // the shared enrichment path attach the reserved employee-id + details.
+          // Documented contract: create is intentionally minimal and may return
+          // employee-id blank in this tenant. We do NOT use people-id for attach;
+          // the next shared enrichment step calls documented people:edit by email.
           const respData = (bodyOut?.data && typeof bodyOut.data === "object") ? bodyOut.data : bodyOut;
           const peopleIdRaw = extractRazorpayPeopleId(bodyOut);
           const employeeIdEcho = respData?.["employee-id"] ?? respData?.employee_id ?? bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? null;
-
-          let attachedPeopleId: string | null = peopleIdRaw != null ? String(peopleIdRaw) : null;
 
           const employeeIdEchoStr = employeeIdEcho != null ? String(employeeIdEcho).trim() : "";
           if (employeeIdEchoStr && employeeIdEchoStr !== "0") {
             rpId = employeeIdEchoStr;
           } else if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            if (!attachedPeopleId || !/^\d+$/.test(attachedPeopleId)) {
-              errText = "Razorpay created the employee but returned no people-id, so ERP cannot attach the reserved Employee ID automatically.";
-              (bodyOut as any) = { ...(bodyOut || {}), _reserved_employee_id: reservedEmployeeId };
-            } else {
-              rpId = reservedEmployeeId;
-              (outboundData as any)._people_id = attachedPeopleId;
-              (bodyOut as any) = { ...(bodyOut || {}), _people_id: attachedPeopleId, _reserved_employee_id: reservedEmployeeId };
-            }
-
+            rpId = reservedEmployeeId;
+            (bodyOut as any) = { ...(bodyOut || {}), _people_id: peopleIdRaw != null ? String(peopleIdRaw) : undefined, _reserved_employee_id: reservedEmployeeId };
           } else {
             // Fallback for legacy shapes: try id/data.id.
             const cand = respData?.id ?? bodyOut?.id ?? null;
@@ -5841,7 +5791,7 @@ Deno.serve(async (req) => {
         http_status: httpStatus,
         razorpay_employee_id: rpId || "",
         hr_employee_id: hrId,
-        field_diff_summary: { payload_field_names: Object.keys(outboundData).sort() },
+        field_diff_summary: { contract: "people:create", payload_field_names: Object.keys(createData).sort() },
         error_text: errText,
         actor_user_id: authed.userId,
       });
@@ -5849,7 +5799,7 @@ Deno.serve(async (req) => {
       if ((errText || !rpId) && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
         const postFailureView = await opfinView(Number(reservedEmployeeId), "employee");
         if (postFailureView.ok) {
-          const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, postFailureView.body || outboundData, "created_via_erp");
+          const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, postFailureView.body || fullEditData, "created_via_erp");
           if (!repairErr) {
             return await completeSuccessResponse(reservedEmployeeId, {
               already_exists_in_razorpay: true,
@@ -5874,12 +5824,12 @@ Deno.serve(async (req) => {
         const rpMsg = extracted.message;
         if (rpCode === 7 || /email already exists/i.test(rpMsg)) {
           if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            const attach = await attachReservedEmployeeIdByEmail(String((outboundData as any).email || ""), reservedEmployeeId);
+            const attach = await attachReservedEmployeeIdByEmail(String(createData.email || ""), reservedEmployeeId);
             const verifyAttached = await opfinView(Number(reservedEmployeeId), "employee");
-            const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+            const erpEmail = String(createData.email || "").trim().toLowerCase();
             const rpEmail = String(verifyAttached.body?.email || verifyAttached.body?.work_email || "").trim().toLowerCase();
             if (attach.ok && verifyAttached.ok && rpEmail && rpEmail === erpEmail) {
-              const snapshot = { ...(verifyAttached.body || outboundData), _recovered_by: "email_keyed_people_edit" };
+              const snapshot = { ...(verifyAttached.body || fullEditData), _recovered_by: "email_keyed_people_edit" };
               const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snapshot, "created_via_erp");
               if (!repairErr) {
                 await logSync(svc, {
@@ -5887,7 +5837,7 @@ Deno.serve(async (req) => {
                   http_status: verifyAttached.status,
                   razorpay_employee_id: reservedEmployeeId,
                   hr_employee_id: hrId,
-                  field_diff_summary: { source: "email_exists_auto_attach_by_email", payload_field_names: Object.keys(outboundData).sort() },
+                  field_diff_summary: { source: "email_exists_auto_attach_by_email", payload_field_names: Object.keys(fullEditData).sort() },
                   error_text: null,
                   actor_user_id: authed.userId,
                 });
@@ -5914,26 +5864,26 @@ Deno.serve(async (req) => {
               http_status: attach.status || verifyAttached.status || httpStatus,
               razorpay_employee_id: reservedEmployeeId,
               hr_employee_id: hrId,
-              field_diff_summary: { source: "email_exists_auto_attach_by_email_failed", payload_field_names: Object.keys(outboundData).sort() },
+              field_diff_summary: { source: "email_exists_auto_attach_by_email_failed", payload_field_names: Object.keys(fullEditData).sort() },
               error_text: attach.error || `verification failed for employee-id ${reservedEmployeeId}`,
               actor_user_id: authed.userId,
             });
           }
 
-          const existingByEmail = await findRazorpayEmployeeByEmail(String((outboundData as any).email || ""), {
+          const existingByEmail = await findRazorpayEmployeeByEmail(String(createData.email || ""), {
             reservedEmployeeId,
             maxId: 250,
             concurrency: 8,
           });
           if (existingByEmail) {
-            const { error: repairErr } = await mapRazorpayEmployee(existingByEmail.employeeId, existingByEmail.body || outboundData, "created_via_erp");
+            const { error: repairErr } = await mapRazorpayEmployee(existingByEmail.employeeId, existingByEmail.body || fullEditData, "created_via_erp");
             if (!repairErr) {
               await logSync(svc, {
                 action: "create_person",
                 http_status: existingByEmail.status,
                 razorpay_employee_id: existingByEmail.employeeId,
                 hr_employee_id: hrId,
-                field_diff_summary: { source: "people:view_exact_email", payload_field_names: Object.keys(outboundData).sort() },
+                field_diff_summary: { source: "people:view_exact_email", payload_field_names: Object.keys(fullEditData).sort() },
                 error_text: null,
                 actor_user_id: authed.userId,
               });
@@ -5948,85 +5898,12 @@ Deno.serve(async (req) => {
               ok: false,
               http_status: httpStatus,
               code: "RAZORPAY_EMAIL_EXISTS_MAPPING_CONFLICT",
-              error: `RazorpayX already has employee-id ${existingByEmail.employeeId} with email "${(outboundData as any).email}", but ERP mapping repair failed: ${repairErr.message}`,
+              error: `RazorpayX already has employee-id ${existingByEmail.employeeId} with email "${createData.email}", but ERP mapping repair failed: ${repairErr.message}`,
               razorpay_employee_id: existingByEmail.employeeId,
               body: bodyOut,
             });
           }
           const existingPeopleId = extractRazorpayPeopleId(bodyOut);
-          if (existingPeopleId && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            let attachStatus = 0;
-            let attachErr: string | null = null;
-            try {
-              const attachRes = await fetch(`${BASE}/people`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json" },
-                body: JSON.stringify({
-                  auth: authBlock(),
-                  request: { type: "people", "sub-type": "edit" },
-                  data: {
-                    "people-id": Number(existingPeopleId),
-                    "employee-id": Number(reservedEmployeeId),
-                    "employee-type": "employee",
-                  },
-                }),
-              });
-              attachStatus = attachRes.status;
-              const attachRaw = await attachRes.text();
-              let attachBody: any = null;
-              try { attachBody = JSON.parse(attachRaw); } catch { attachBody = { raw: attachRaw.slice(0, 400) }; }
-              const attachRpErr = attachBody && typeof attachBody === "object" ? (attachBody.error ?? attachBody.message ?? null) : null;
-              if (!attachRes.ok || attachRpErr) {
-                attachErr = typeof attachRpErr === "string" ? attachRpErr : (attachRpErr ? JSON.stringify(attachRpErr) : `HTTP ${attachRes.status}`);
-              }
-            } catch (e) {
-              attachErr = `NETWORK: ${(e as Error).message}`;
-            }
-
-            if (!attachErr) {
-              const verifyAttached = await opfinView(Number(reservedEmployeeId), "employee");
-              const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
-              const rpEmail = String(verifyAttached.body?.email || verifyAttached.body?.work_email || "").trim().toLowerCase();
-              if (verifyAttached.ok && rpEmail && rpEmail === erpEmail) {
-                const snapshot = { ...(verifyAttached.body || outboundData), _people_id: existingPeopleId };
-                const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snapshot, "created_via_erp");
-                if (!repairErr) {
-                  await logSync(svc, {
-                    action: "create_person",
-                    http_status: verifyAttached.status,
-                    razorpay_employee_id: reservedEmployeeId,
-                    hr_employee_id: hrId,
-                    field_diff_summary: { source: "email_exists_auto_attach_people_id", people_id: existingPeopleId, payload_field_names: Object.keys(outboundData).sort() },
-                    error_text: null,
-                    actor_user_id: authed.userId,
-                  });
-                  return await completeSuccessResponse(reservedEmployeeId, {
-                    people_id: existingPeopleId,
-                    already_exists_in_razorpay: true,
-                    recovered_by_people_id: true,
-                    attached_reserved_employee_id: true,
-                    repaired_mapping: true,
-                    http_status: verifyAttached.status,
-                  }, "email_exists_auto_attach_people_id");
-                }
-                attachErr = `ERP mapping repair failed after attach: ${repairErr.message}`;
-              } else if (verifyAttached.ok) {
-                attachErr = `Razorpay verified employee-id ${reservedEmployeeId}, but its email (${rpEmail || "unknown"}) did not match ERP email.`;
-              } else {
-                attachErr = `Razorpay accepted attach, but people:view(${reservedEmployeeId}) could not verify it.`;
-              }
-            }
-
-            await logSync(svc, {
-              action: "create_person",
-              http_status: attachStatus || httpStatus,
-              razorpay_employee_id: reservedEmployeeId,
-              hr_employee_id: hrId,
-              field_diff_summary: { people_id: existingPeopleId, payload_field_names: Object.keys(outboundData).sort() },
-              error_text: attachErr,
-              actor_user_id: authed.userId,
-            });
-          }
           return json(200, {
             ok: false,
             http_status: httpStatus,
@@ -6045,7 +5922,7 @@ Deno.serve(async (req) => {
 
       // Wire up the map — baseline snapshot equals outbound payload so future
       // push_person diffs land cleanly without needing a re-pull.
-      const { error: mapErr } = await mapRazorpayEmployee(rpId, outboundData, "created_via_erp");
+      const { error: mapErr } = await mapRazorpayEmployee(rpId, { ...fullEditData, _create_response: bodyOut }, "created_via_erp");
       if (mapErr) {
         return json(200, {
           ok: false,
@@ -6056,7 +5933,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      return await completeSuccessResponse(rpId, { http_status: httpStatus, people_id: (outboundData as any)._people_id || undefined }, "fresh_create", (outboundData as any)._people_id || null);
+      return await completeSuccessResponse(rpId, { http_status: httpStatus, people_id: bodyOut?._people_id || undefined }, "fresh_create");
     }
 
     // ---------------------------------------------------------------------

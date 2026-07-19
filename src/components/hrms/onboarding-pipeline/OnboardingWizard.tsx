@@ -33,7 +33,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   const queryClient = useQueryClient();
   const [recordId, setRecordId] = useState<string | null>(onboardingId);
   const [activeStage, setActiveStage] = useState(1);
-  const [razorpayRecovery, setRazorpayRecovery] = useState<null | { employeeId: string; message: string; resolving: boolean }>(null);
+  const [razorpayRecovery, setRazorpayRecovery] = useState<null | { employeeId: string; hrEmployeeId: string; message: string; resolving: boolean }>(null);
 
   const { data: record, refetch } = useQuery({
     queryKey: ["onboarding-record", recordId],
@@ -220,13 +220,13 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   };
 
   const recoverRazorpayById = async () => {
-    if (!razorpayRecovery?.employeeId || !record?.employee_id) return;
+    if (!razorpayRecovery?.employeeId || !razorpayRecovery?.hrEmployeeId) return;
     setRazorpayRecovery(p => p ? { ...p, resolving: true } : p);
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
         body: {
           action: "recover_person_by_id",
-          hr_employee_id: record.employee_id,
+          hr_employee_id: razorpayRecovery.hrEmployeeId,
           razorpay_employee_id: razorpayRecovery.employeeId,
         },
       });
@@ -237,7 +237,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       toast.success(`Linked RazorpayX employee-id ${razorpayRecovery.employeeId}. Click Finalize again to complete.`);
       setRazorpayRecovery(null);
       await refetch();
-      queryClient.invalidateQueries({ queryKey: ["razorpay-map", record.employee_id] });
+      queryClient.invalidateQueries({ queryKey: ["razorpay-map", razorpayRecovery.hrEmployeeId] });
     } catch (e: any) {
       toast.error(e?.message || "Razorpay link failed");
       setRazorpayRecovery(p => p ? { ...p, resolving: false } : p);
@@ -498,7 +498,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           if (rpErr) throw new Error(await getFunctionErrorMessage(rpErr, "Razorpay create failed"));
           if (rpRes?.ok === false) {
             if (rpRes?.code === "RAZORPAY_EMAIL_EXISTS") {
-              setRazorpayRecovery({ employeeId: "", message: rpRes.error || "RazorpayX already has this email under another employee-id.", resolving: false });
+              setRazorpayRecovery({ employeeId: "", hrEmployeeId: emp.id, message: rpRes.error || "RazorpayX already has this email under another employee-id.", resolving: false });
             }
             const detail = rpRes?.missing?.length
               ? `Missing: ${rpRes.missing.join(", ")}`
@@ -773,7 +773,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={!!razorpayRecovery?.resolving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={recoverRazorpayById} disabled={!razorpayRecovery?.employeeId || !!razorpayRecovery?.resolving}>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); recoverRazorpayById(); }} disabled={!razorpayRecovery?.employeeId || !!razorpayRecovery?.resolving}>
               {razorpayRecovery?.resolving ? "Verifying…" : "Verify & Link"}
             </AlertDialogAction>
           </AlertDialogFooter>

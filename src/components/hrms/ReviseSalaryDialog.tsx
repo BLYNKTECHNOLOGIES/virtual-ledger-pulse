@@ -359,7 +359,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 </div>
               )}
             </>
-          ) : (
+          ) : mode === "one_time" ? (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -404,7 +404,70 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 Pay it out through the next payroll run or Razorpay one-off ad-hoc payout.
               </div>
             </>
+          ) : (
+            <>
+              <div>
+                <Label>Effective from</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-foreground")}>
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      {format(effectiveFrom, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={effectiveFrom} onSelect={(d) => d && setEffectiveFrom(d)} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="rounded-lg border border-border divide-y divide-border">
+                {[
+                  { key: "pf", label: "Provident Fund (PF)", hint: "Disable during unpaid training / stipend-only periods. When disabled, no 12% employee or 13% employer contribution.", value: pfEnabled, set: setPfEnabled, current: employee?.pf_enabled },
+                  { key: "esi", label: "Employee State Insurance (ESI)", hint: "Applies only if gross ≤ ₹21,000. Disable for training exemptions or when contractually excluded.", value: esiEnabled, set: setEsiEnabled, current: employee?.esi_enabled },
+                  { key: "pt", label: "Professional Tax (PT)", hint: "State-mandated slab tax on gross salary.", value: ptEnabled, set: setPtEnabled, current: employee?.pt_enabled },
+                ].map((row) => (
+                  <div key={row.key} className="flex items-start gap-3 p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">{row.label}</span>
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Current: {row.current === true ? "Enrolled" : row.current === false ? "Exempt" : "Unknown"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{row.hint}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Switch
+                        checked={row.value === true}
+                        onCheckedChange={(v) => row.set(v)}
+                      />
+                      <span className={cn("text-[10px]", row.value === true ? "text-success" : "text-muted-foreground")}>
+                        {row.value === true ? "Enrolled" : "Exempt"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <Label>Reason <span className="text-destructive">*</span></Label>
+                <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder="e.g. Training period exemption, contractual exclusion" rows={2} />
+              </div>
+
+              <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-1">
+                <p><strong>Two-way sync:</strong> This updates the employee flags in HRMS (used by the Shadow Payroll engine) and pushes the same toggles to RazorpayX (pf-enabled / esi-enabled / professional-tax-enabled).</p>
+                <p>RazorpayX requires operator envelope verification on the People edit endpoint before the change is finalised.</p>
+              </div>
+
+              {isScheduled && (
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
+                  Future-dated — will be scheduled and auto-applied on {format(effectiveFrom, "PPP")}.
+                </div>
+              )}
+            </>
           )}
+
         </div>
 
         <DialogFooter>

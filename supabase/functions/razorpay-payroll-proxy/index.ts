@@ -1415,15 +1415,7 @@ Deno.serve(async (req) => {
         // populating date_of_leaving/dismissed_at. We do NOT import or
         // match these — they must not appear in the ERP employee master.
         const rp = r.body || {};
-        const rpStatus = String(rp.status || "").toLowerCase();
-        const isDismissed =
-          rpStatus === "dismissed" ||
-          rpStatus === "terminated" ||
-          rpStatus === "resigned" ||
-          rp.is_active === false ||
-          !!rp.date_of_leaving ||
-          !!rp.dismissed_at;
-        if (isDismissed) {
+        if (isDismissedRazorpayPerson(rp)) {
           rows.push({
             employee_id: i,
             status: "skipped_dismissed",

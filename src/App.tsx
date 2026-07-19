@@ -103,6 +103,7 @@ const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
 const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPage'));
 const RazorpaySyncPage = lazy(() => import('./pages/hr/RazorpaySyncPage'));
 const ComplianceSettingsPage = lazy(() => import('./pages/horilla/ComplianceSettingsPage'));
+const LeaveAttendanceSettingsPage = lazy(() => import('./pages/horilla/LeaveAttendanceSettingsPage'));
 const PayslipHistoryImportPage = lazy(() => import('./pages/hr/PayslipHistoryImportPage'));
 const SalaryRegisterImportPage = lazy(() => import('./pages/hr/SalaryRegisterImportPage'));
 const PayrollInputsPage = lazy(() => import('./pages/hr/PayrollInputsPage'));

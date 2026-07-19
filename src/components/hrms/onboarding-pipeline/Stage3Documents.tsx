@@ -152,10 +152,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     const normalized = key === "pan" ? value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) : value;
     setDocs(prev => {
       const next = { ...prev, [key]: { ...prev[key], value: normalized } };
-      // Auto-persist PAN as user finishes typing valid 10 chars
-      if (key === "pan" && /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(normalized)) {
-        persistDocs(next);
-      }
+      persistDocs(next);
       return next;
     });
   };

@@ -431,20 +431,22 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
   const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
 
-  const getDraftPayload = () => ({
-    date_of_joining: form.date_of_joining || null,
-    essl_badge_id: form.essl_badge_id || null,
-    create_erp_account: form.create_erp_account,
-    erp_role_id: form.erp_role_id || null,
-    reporting_manager_id: form.reporting_manager_id || null,
+  const getDraftPayloadFrom = (source: typeof form) => ({
+    date_of_joining: source.date_of_joining || null,
+    essl_badge_id: source.essl_badge_id || null,
+    create_erp_account: source.create_erp_account,
+    erp_role_id: source.erp_role_id || null,
+    reporting_manager_id: source.reporting_manager_id || null,
     bank_details: {
-      account_number: form.bank_account_number.trim(),
-      ifsc_code: form.bank_ifsc_code.trim().toUpperCase(),
-      bank_name: form.bank_name.trim(),
-      branch: form.bank_branch.trim(),
-      account_holder: form.bank_account_holder.trim(),
+      account_number: source.bank_account_number.trim(),
+      ifsc_code: source.bank_ifsc_code.trim().toUpperCase(),
+      bank_name: source.bank_name.trim(),
+      branch: source.bank_branch.trim(),
+      account_holder: source.bank_account_holder.trim(),
     },
   });
+
+  const getDraftPayload = () => getDraftPayloadFrom(form);
 
   useEffect(() => {
     if (!dirtyRef.current || readOnly || !onSave) return;
@@ -459,8 +461,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   }, [form, onSave, readOnly]);
 
   const updateForm = (updates: Partial<typeof form>) => {
-    dirtyRef.current = true;
-    setForm(p => ({ ...p, ...updates }));
+    setForm(prev => {
+      const next = { ...prev, ...updates };
+      dirtyRef.current = false;
+      onSave?.(getDraftPayloadFrom(next)).catch((err: any) => console.warn("Stage 5 immediate save failed:", err));
+      return next;
+    });
+  };
+
+  const handleBack = async () => {
+    if (!readOnly && onSave) {
+      try {
+        await onSave(getDraftPayload());
+      } catch (err) {
+        console.warn("Stage 5 back-save failed:", err);
+      }
+    }
+    onBack();
   };
 
   const validate = () => {
@@ -857,7 +874,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
         {!readOnly && (
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={onBack}>← Back</Button>
+            <Button variant="outline" onClick={handleBack}>← Back</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onSave?.(getDraftPayload()).then(() => toast.success("Draft saved"))}
+            >
+              Save Draft
+            </Button>
             <Button
               onClick={handleFinalize}
               disabled={finalizing}

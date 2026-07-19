@@ -5645,11 +5645,15 @@ Deno.serve(async (req) => {
               actor_user_id: authed.userId,
             });
             if (!repairPreErr) {
-              // Fall through to enrichment so identity/bank/CTC still get
-              // pushed on the pre-existing unattached person.
-              rpId = reservedEmployeeId;
-              httpStatus = verifyPre.status;
-              bodyOut = verifyPre.body;
+              return json(200, {
+                ok: true,
+                razorpay_employee_id: reservedEmployeeId,
+                already_exists_in_razorpay: true,
+                recovered_by_r4_pre_flight: true,
+                repaired_mapping: true,
+                http_status: verifyPre.status,
+                note: "Email already existed in RazorpayX; reserved Employee ID was attached in a single call without a create attempt. Run enrichment separately if identity/bank/CTC still need to be pushed.",
+              });
             }
           }
         }

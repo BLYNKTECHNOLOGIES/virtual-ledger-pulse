@@ -2776,61 +2776,33 @@ Deno.serve(async (req) => {
         attByEmp.set(r.employee_id, s);
       }
 
-      // Per-employee working-day + leave computation (weekly-off pattern varies per emp).
+      // Per-employee working-day + leave computation via the shared SQL function
+      // `hr_compute_lop_days` — same function feeds the shadow payroll engine, so
+      // the drift ledger compares apples-to-apples. Local weekly-off/holiday scans
+      // above still power tenant advisories + the attByEmp present-day set below.
       const workingDaysByEmp = new Map<string, number>();
       const paidByEmp = new Map<string, number>();
       const unpaidByEmp = new Map<string, number>();
+      const incompleteHeldByEmp = new Map<string, number>();
+      const lopDaysByEmp = new Map<string, number>();
       const configErrorsByEmp = new Map<string, string[]>();
 
-      const leavesByEmp = new Map<string, any[]>();
-      for (const lr of (leaveRes.data || []) as any[]) {
-        const list = leavesByEmp.get(lr.employee_id) || [];
-        list.push(lr);
-        leavesByEmp.set(lr.employee_id, list);
+      const { data: lopRows, error: lopRpcErr } = await svc.rpc("hr_compute_lop_days", {
+        p_employee_ids: hrIds,
+        p_period_month: monthStartISO,
+      });
+      if (lopRpcErr) return json(500, { error: `hr_compute_lop_days: ${lopRpcErr.message}` });
+      for (const r of (lopRows || []) as any[]) {
+        workingDaysByEmp.set(r.employee_id, Number(r.working_days ?? 0));
+        paidByEmp.set(r.employee_id, Number(r.paid_leave_days ?? 0));
+        unpaidByEmp.set(r.employee_id, Number(r.unpaid_leave_days ?? 0));
+        incompleteHeldByEmp.set(r.employee_id, Number(r.incomplete_unresolved_days ?? 0));
+        lopDaysByEmp.set(r.employee_id, Number(r.lop_days ?? 0));
+        if (Array.isArray(r.config_errors) && r.config_errors.length) {
+          configErrorsByEmp.set(r.employee_id, r.config_errors);
+        }
       }
 
-      for (const hrId of hrIds) {
-        const offDays = new Set<number>(empPatternMap.get(hrId) || defaultPattern);
-        // Working days for this employee
-        let wd = 0;
-        for (let d = 1; d <= daysInMonth; d++) {
-          const dt = new Date(Date.UTC(year, month - 1, d));
-          const iso = dt.toISOString().slice(0, 10);
-          if (offDays.has(dt.getUTCDay())) continue;
-          if (holidayDates.has(iso)) continue;
-          wd++;
-        }
-        workingDaysByEmp.set(hrId, wd);
-
-        // Leaves (working-day overlap only), split paid vs unpaid; unresolved is_paid = config error.
-        let paid = 0, unpaid = 0;
-        const errs: string[] = [];
-        for (const lr of leavesByEmp.get(hrId) || []) {
-          const lt = ltMap.get(lr.leave_type_id);
-          if (!lt || lt.is_paid === null || lt.is_paid === undefined) {
-            errs.push(`Leave type "${lt?.name || lr.leave_type_id}" has no paid/unpaid setting — fix it in Leave Types before payroll.`);
-            continue;
-          }
-          const isPaid = !!lt.is_paid;
-          const ls = new Date(lr.start_date + "T00:00:00Z");
-          const le = new Date(lr.end_date + "T00:00:00Z");
-          const os = ls < monthStart ? monthStart : ls;
-          const oe = le > monthEnd ? monthEnd : le;
-          if (oe < os) continue;
-          let count = 0;
-          for (let t = os.getTime(); t <= oe.getTime(); t += 86400000) {
-            const dt = new Date(t);
-            const iso = dt.toISOString().slice(0, 10);
-            if (offDays.has(dt.getUTCDay())) continue;
-            if (holidayDates.has(iso)) continue;
-            count += lr.is_half_day ? 0.5 : 1;
-          }
-          if (isPaid) paid += count; else unpaid += count;
-        }
-        paidByEmp.set(hrId, paid);
-        unpaidByEmp.set(hrId, unpaid);
-        if (errs.length) configErrorsByEmp.set(hrId, Array.from(new Set(errs)));
-      }
 
       // Tenant-level advisory flags surfaced in the summary so an operator can spot silent
       // config drift (0 holidays, no explicit weekly-off pattern, etc.) at a glance.

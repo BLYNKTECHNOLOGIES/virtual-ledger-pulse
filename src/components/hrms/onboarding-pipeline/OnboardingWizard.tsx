@@ -525,11 +525,19 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             ? "razorpay_person_reused"
             : "razorpay_person_created";
           await logAudit(recordId, 5, rpAction, { razorpay_employee_id: razorpayEmployeeId, response: rpRes });
+          const enrichmentNote = Array.isArray(rpRes?.enrichment_applied) && rpRes.enrichment_applied.length
+            ? ` (pushed: ${rpRes.enrichment_applied.join(", ")})`
+            : "";
           successes.push(
             rpRes?.already_mapped || rpRes?.already_exists_in_razorpay
               ? `RazorpayX ID ${razorpayEmployeeId} reused`
-              : `RazorpayX ID ${razorpayEmployeeId}`,
+              : `RazorpayX ID ${razorpayEmployeeId}${enrichmentNote}`,
           );
+          if (Array.isArray(rpRes?.warnings) && rpRes.warnings.length) {
+            for (const w of rpRes.warnings) {
+              failures.push({ system: "RazorpayX (partial)", message: String(w) });
+            }
+          }
         } catch (rpErr: any) {
           const message = rpErr?.message || String(rpErr);
           console.error("Razorpay create failed:", rpErr);

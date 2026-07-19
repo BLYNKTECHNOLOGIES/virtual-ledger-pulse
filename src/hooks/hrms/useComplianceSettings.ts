@@ -26,7 +26,31 @@ export type ComplianceSettings = {
   pf_wage_cap_15000: boolean;
   esi_include_employer_in_ctc: boolean;
   esi_include_additions_in_wages: boolean;
+  // Leave & attendance mirror
+  attendance_enabled: boolean;
+  attendance_enabled_for_contractors: boolean;
+  weekend_sun: boolean;
+  weekend_sat_1: boolean;
+  weekend_sat_2: boolean;
+  weekend_sat_3: boolean;
+  weekend_sat_4: boolean;
+  weekend_sat_5: boolean;
+  leave_allow_negative_balance: boolean;
+  leave_allow_half_day: boolean;
+  leave_require_remark: boolean;
+  attendance_show_on_payslip: boolean;
+  lop_auto_add_for_unpaid: boolean;
+  lop_calc_on_working_days: boolean;
+  leave_calendar_financial_year: boolean;
+  shifts_track_timings: boolean;
+  leave_types_mirror: Array<{
+    code: string; name: string;
+    default_leave: number | null; monthly_increment: number | null;
+    max_leave: number | null; carry_forward: number | null;
+    include_weekends: boolean;
+  }>;
   compliance_settings_updated_at: string | null;
+  leave_settings_updated_at: string | null;
 };
 
 export function useComplianceSettings() {

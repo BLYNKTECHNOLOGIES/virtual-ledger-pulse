@@ -5504,6 +5504,14 @@ Deno.serve(async (req) => {
       // Live create. Verified against the official RazorpayX Payroll Postman
       // collection: `people:create` is the supported create mode. `people:add`
       // is not a valid request type for this tenant and returns code 23.
+      const createData: Record<string, any> = {
+        type: "employee",
+        name: fullName,
+        email: String(emp.email).trim().toLowerCase(),
+        "date-of-joining": dojRp,
+        "hire-date": dojRp,
+        hire_date: dojRp,
+      };
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
@@ -5515,7 +5523,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             auth: authBlock(),
             request: { type: "people", "sub-type": "create" },
-            data: outboundData,
+            data: createData,
           }),
           signal: ctrl.signal,
         });
@@ -5527,20 +5535,12 @@ Deno.serve(async (req) => {
           const extracted = extractRazorpayError(bodyOut, rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
           errText = extracted.message || (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
         } else {
-          // RazorpayX Payroll (Opfin) — on `people:create` the response reliably
-          // carries the internal `people-id`, but the caller-supplied
-          // `employee-id` is optional metadata that is NOT echoed and NOT
-          // auto-attached on invite-flow accounts. Result: the employee exists
-          // in Razorpay under a `people-id` but the dashboard shows Employee ID
-          // = "-NA-" and every subsequent `people:view` by our reserved id
-          // returns 404. To repair this within the same request, we:
-          //   1. Extract people-id from the response.
-          //   2. If our reserved employee-id was not echoed, call `people:edit`
-          //      with { "people-id": <internal>, "employee-id": <reserved> } to
-          //      attach the unified id.
-          //   3. Verify via people:view(employee-id) before treating as success.
-              const respData = (bodyOut?.data && typeof bodyOut.data === "object") ? bodyOut.data : bodyOut;
-              const peopleIdRaw = extractRazorpayPeopleId(bodyOut);
+          // RazorpayX Payroll (Opfin) — `people:create` creates an invite shell.
+          // Employee ID and details are attached by the documented email-keyed
+          // `people:edit` API immediately afterward; operators must not type the
+          // ID in the dashboard or copy internal people-id values.
+          const respData = (bodyOut?.data && typeof bodyOut.data === "object") ? bodyOut.data : bodyOut;
+          const peopleIdRaw = extractRazorpayPeopleId(bodyOut);
           const employeeIdEcho = respData?.["employee-id"] ?? respData?.employee_id ?? bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? null;
 
           let attachedPeopleId: string | null = peopleIdRaw != null ? String(peopleIdRaw) : null;
@@ -5548,33 +5548,8 @@ Deno.serve(async (req) => {
           const employeeIdEchoStr = employeeIdEcho != null ? String(employeeIdEcho).trim() : "";
           if (employeeIdEchoStr && employeeIdEchoStr !== "0") {
             rpId = employeeIdEchoStr;
-          } else if (attachedPeopleId && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            // Attach the reserved employee-id onto the freshly created people record.
-            let attachErr: string | null = null;
-            try {
-              const attachRes = await fetch(`${BASE}/people`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json" },
-                body: JSON.stringify({
-                  auth: authBlock(),
-                  request: { type: "people", "sub-type": "edit" },
-                  data: {
-                    "people-id": Number(attachedPeopleId),
-                    "employee-id": Number(reservedEmployeeId),
-                    "employee-type": "employee",
-                  },
-                }),
-              });
-              const attachRaw = await attachRes.text();
-              let attachBody: any = null;
-              try { attachBody = JSON.parse(attachRaw); } catch { attachBody = { raw: attachRaw.slice(0, 400) }; }
-              const attachRpErr = attachBody && typeof attachBody === "object" ? (attachBody.error ?? attachBody.message ?? null) : null;
-              if (!attachRes.ok || attachRpErr) {
-                attachErr = typeof attachRpErr === "string" ? attachRpErr : (attachRpErr ? JSON.stringify(attachRpErr) : `HTTP ${attachRes.status}`);
-              }
-            } catch (e) {
-              attachErr = `NETWORK: ${(e as Error).message}`;
-            }
+          } else if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+            const attach = await attachReservedEmployeeIdByEmail(String((outboundData as any).email || ""), reservedEmployeeId);
 
             // Verify by reading back — this is the only source of truth we trust.
             const verify = await opfinView(Number(reservedEmployeeId), "employee");
@@ -5583,10 +5558,10 @@ Deno.serve(async (req) => {
               // stash people-id in the snapshot for future recovery paths
               (outboundData as any)._people_id = attachedPeopleId;
             } else {
-              errText = attachErr
-                ? `Razorpay created the employee (people-id ${attachedPeopleId}) but attaching employee-id ${reservedEmployeeId} failed: ${attachErr}. Open RazorpayX, find this employee, and set the Employee ID field to ${reservedEmployeeId} — or use the "Attach by people-id" recovery in Stage 5.`
-                : `Razorpay created the employee (people-id ${attachedPeopleId}) but the reserved employee-id ${reservedEmployeeId} could not be verified after attach. Use the "Attach by people-id" recovery in Stage 5.`;
-              // Surface people-id to the client so the recovery UI can pre-fill it.
+              errText = attach.error
+                ? `Razorpay created the employee but automatic Employee ID attach by email failed: ${attach.error}. Reset the local ID and retry after deleting the partial Razorpay employee.`
+                : `Razorpay created the employee but the reserved employee-id ${reservedEmployeeId} could not be verified after automatic attach. Reset the local ID and retry after deleting the partial Razorpay employee.`;
+              // Keep people-id only as diagnostic data; UI should not ask the operator to use it.
               (bodyOut as any) = { ...(bodyOut || {}), _people_id: attachedPeopleId, _reserved_employee_id: reservedEmployeeId };
             }
           } else {

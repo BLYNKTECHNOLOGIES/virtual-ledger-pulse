@@ -244,7 +244,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
 
                 return (
                   <>
-                    <td className="p-3 font-medium cursor-pointer" onClick={() => onSelectOnboarding(r.id)}>
+                    <td className="p-3 font-medium cursor-pointer" onClick={() => r.status !== "cancelled" && onSelectOnboarding(r.id)}>
                       {r.first_name || r.last_name ? `${r.first_name || ""} ${r.last_name || ""}`.trim() : "—"}
                     </td>
                     <td className="p-3 text-muted-foreground">{r.email || "—"}</td>

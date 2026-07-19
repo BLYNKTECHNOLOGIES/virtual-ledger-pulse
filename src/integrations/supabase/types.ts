@@ -20718,9 +20718,17 @@ export type Database = {
         }
         Returns: Json
       }
+      hr_compute_salary_structure_drift: {
+        Args: { p_hr_employee_id: string }
+        Returns: Json
+      }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string
+      }
+      hr_pull_observed_salary: {
+        Args: { p_hr_employee_id: string }
+        Returns: Json
       }
       hr_rebuild_attendance_daily_range: {
         Args: { p_date_from: string; p_date_to: string; p_employee_id: string }

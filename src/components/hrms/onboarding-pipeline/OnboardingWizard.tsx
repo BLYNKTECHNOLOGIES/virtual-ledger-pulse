@@ -47,6 +47,81 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
   const isCompleted = record?.status === "completed";
 
+  const isBlankValue = (value: any) =>
+    value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+
+  const hasValue = (value: any) => !isBlankValue(value);
+
+  const mergeJsonPreservingExisting = (existing: any, incoming: any): any => {
+    if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) return incoming;
+    if (!existing || typeof existing !== "object" || Array.isArray(existing)) return incoming;
+
+    const merged: Record<string, any> = { ...existing };
+    Object.entries(incoming).forEach(([key, incomingValue]) => {
+      const existingValue = existing[key];
+      if (incomingValue && typeof incomingValue === "object" && !Array.isArray(incomingValue)) {
+        merged[key] = mergeJsonPreservingExisting(existingValue, incomingValue);
+        return;
+      }
+      if (isBlankValue(incomingValue) && hasValue(existingValue)) return;
+      merged[key] = incomingValue;
+    });
+    return merged;
+  };
+
+  const buildSafeOnboardingUpdate = (existing: Record<string, any> | null, updates: Record<string, any>) => {
+    const persistentFields = new Set([
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "gender",
+      "date_of_birth",
+      "department_id",
+      "position_id",
+      "job_role",
+      "shift_id",
+      "employee_type",
+      "ctc",
+      "date_of_joining",
+      "essl_badge_id",
+      "reporting_manager_id",
+      "erp_role_id",
+      "documents",
+      "document_mail_received_at",
+      "offer_policy_documents",
+      "bank_details",
+    ]);
+
+    const normalizedUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
+    Object.entries(updates || {}).forEach(([key, value]) => {
+      if (value === undefined) return;
+      const existingValue = existing?.[key];
+
+      if ((key === "documents" || key === "offer_policy_documents" || key === "bank_details") && value) {
+        normalizedUpdates[key] = mergeJsonPreservingExisting(existingValue, value);
+        return;
+      }
+
+      // Partial stage autosaves must never erase a value that was already
+      // entered elsewhere in the wizard. This is what was clearing Date of
+      // Joining and other Stage-5 values when another stage saved a smaller
+      // payload.
+      if (persistentFields.has(key) && isBlankValue(value) && hasValue(existingValue)) return;
+
+      normalizedUpdates[key] = value;
+    });
+
+    if ("reporting_manager_id" in updates && !hasValue(normalizedUpdates.reporting_manager_id) && !hasValue(existing?.reporting_manager_id)) {
+      normalizedUpdates.reporting_manager_id = null;
+    }
+    if (("erp_role_id" in updates || "create_erp_account" in updates) && updates.create_erp_account === false) {
+      normalizedUpdates.erp_role_id = null;
+    }
+
+    return normalizedUpdates;
+  };
+
   // Create new record if none exists
   const createRecord = async (stageData: any) => {
     const { data: user } = await supabase.auth.getUser();
@@ -64,20 +139,14 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   const updateRecord = async (updates: any) => {
     if (!recordId) return;
 
-    // Only normalize keys the caller actually sent. Previously we
-    // unconditionally forced `reporting_manager_id` and `erp_role_id` to null,
-    // which silently wiped those fields whenever ANY other stage saved (they
-    // aren't in Stage 2/3/4 payloads). That was the root cause of the
-    // "fields don't persist" complaint across the wizard.
-    const normalizedUpdates: Record<string, any> = { ...updates, updated_at: new Date().toISOString() };
-    if ("reporting_manager_id" in updates) {
-      normalizedUpdates.reporting_manager_id = updates.reporting_manager_id || null;
-    }
-    if ("erp_role_id" in updates || "create_erp_account" in updates) {
-      normalizedUpdates.erp_role_id = updates.create_erp_account
-        ? (updates.erp_role_id || null)
-        : (updates.erp_role_id ?? null);
-    }
+    const { data: existing, error: existingErr } = await supabase
+      .from("hr_employee_onboarding")
+      .select("*")
+      .eq("id", recordId)
+      .single();
+    if (existingErr) throw existingErr;
+
+    const normalizedUpdates = buildSafeOnboardingUpdate(existing as any, updates || {});
 
     const { error } = await supabase
       .from("hr_employee_onboarding")
@@ -543,6 +612,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         <Stage5Finalization
           onboardingRecord={record}
           onFinalize={handleFinalize}
+          onSave={(d) => handleSaveDraft(5, d)}
           onBack={() => setActiveStage(4)}
           readOnly={isCompleted}
         />

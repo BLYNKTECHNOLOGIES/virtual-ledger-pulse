@@ -64,12 +64,20 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   const updateRecord = async (updates: any) => {
     if (!recordId) return;
 
-    const normalizedUpdates = {
-      ...updates,
-      reporting_manager_id: updates.reporting_manager_id || null,
-      erp_role_id: updates.create_erp_account ? (updates.erp_role_id || null) : null,
-      updated_at: new Date().toISOString(),
-    };
+    // Only normalize keys the caller actually sent. Previously we
+    // unconditionally forced `reporting_manager_id` and `erp_role_id` to null,
+    // which silently wiped those fields whenever ANY other stage saved (they
+    // aren't in Stage 2/3/4 payloads). That was the root cause of the
+    // "fields don't persist" complaint across the wizard.
+    const normalizedUpdates: Record<string, any> = { ...updates, updated_at: new Date().toISOString() };
+    if ("reporting_manager_id" in updates) {
+      normalizedUpdates.reporting_manager_id = updates.reporting_manager_id || null;
+    }
+    if ("erp_role_id" in updates || "create_erp_account" in updates) {
+      normalizedUpdates.erp_role_id = updates.create_erp_account
+        ? (updates.erp_role_id || null)
+        : (updates.erp_role_id ?? null);
+    }
 
     const { error } = await supabase
       .from("hr_employee_onboarding")

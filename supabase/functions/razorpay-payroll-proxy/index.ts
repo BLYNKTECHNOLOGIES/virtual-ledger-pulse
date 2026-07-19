@@ -1450,6 +1450,7 @@ Deno.serve(async (req) => {
       const data: Record<string, any> = {
         "employee-id": Number(employeeId),
         "employee-type": "employee",
+        type: "employee",
         name,
         email,
         "date-of-joining": doj,

@@ -5442,6 +5442,13 @@ Deno.serve(async (req) => {
         gender: emp.gender ? String(emp.gender).toLowerCase() : null,
         "date-of-birth": dobIso,
         "hiring-date": dojIso,
+        // RazorpayX Payroll's live API rejects with code 43 ("hire_date is
+        // required") when only the documented "hiring-date" key is sent. The
+        // server accepts the snake_case `hire_date` variant in dd/mm/yyyy, so
+        // we send both to satisfy the runtime contract without breaking the
+        // documented one.
+        hire_date: dojRp,
+        "date-of-joining": dojRp,
         department: deptName,
         title: wi!.job_role,
         pan,

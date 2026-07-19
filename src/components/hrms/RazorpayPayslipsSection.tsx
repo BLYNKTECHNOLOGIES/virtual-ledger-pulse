@@ -197,10 +197,18 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       </td>
                       <td className="py-2.5 px-3 text-right text-foreground cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.gross_earnings)}</td>
                       <td className="py-2.5 px-3 text-right text-destructive cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.total_deductions)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.tds_amount)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.pf_amount)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.esi_amount)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.professional_tax)}</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.tds_amount} messages={complianceDriftForPayslip({ tds_amount: r.tds_amount }, compliance)} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.pf_amount} messages={complianceDriftForPayslip({ pf_amount: r.pf_amount }, compliance)} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.esi_amount} messages={complianceDriftForPayslip({ esi_amount: r.esi_amount }, compliance)} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.professional_tax} messages={complianceDriftForPayslip({ professional_tax: r.professional_tax }, compliance)} />
+                      </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(r.net_pay)}</td>
                       <td className="py-2.5 px-3 text-center">
                         {r.pdf_url ? <FileText className="w-4 h-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">—</span>}

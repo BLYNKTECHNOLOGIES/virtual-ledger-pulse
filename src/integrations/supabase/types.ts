@@ -10339,13 +10339,25 @@ export type Database = {
       }
       hr_razorpay_settings: {
         Row: {
+          bank_transfer_method: string
+          bank_verification_auto_approve_name_match: boolean
+          bank_verification_upload_proof: boolean
           base_url: string
           bulk_attendance_push_unlocked: boolean
           bulk_bank_push_unlocked: boolean
           bulk_push_unlocked: boolean
           bulk_salary_push_unlocked: boolean
           bulk_sync_unlocked: boolean
+          compliance_files_esi: boolean
+          compliance_files_nonsalary_tds: boolean
+          compliance_files_pf: boolean
+          compliance_files_pt: boolean
+          compliance_files_salary_tds: boolean
+          compliance_settings_updated_at: string | null
+          compliance_settings_updated_by: string | null
           created_at: string
+          esi_include_additions_in_wages: boolean
+          esi_include_employer_in_ctc: boolean
           id: string
           is_singleton: boolean
           last_attendance_push_at: string | null
@@ -10358,6 +10370,10 @@ export type Database = {
           last_salary_push_at: string | null
           last_taxdocs_pull_at: string | null
           ledger_recon_signoff_locked: boolean
+          pf_include_admin_edli_in_ctc: boolean
+          pf_include_employer_in_ctc: boolean
+          pf_wage_cap_15000: boolean
+          pf_wages_basic_only: boolean
           probe_pilot_contractor_id: string | null
           probe_pilot_employee_id: string | null
           pull_payouts_endpoint_verified: boolean
@@ -10397,15 +10413,29 @@ export type Database = {
           push_salary_pilot_hr_employee_id: string | null
           push_salary_pilot_verified_at: string | null
           updated_at: string
+          xpayroll_handles_contractors: boolean
+          xpayroll_handles_salary: boolean
         }
         Insert: {
+          bank_transfer_method?: string
+          bank_verification_auto_approve_name_match?: boolean
+          bank_verification_upload_proof?: boolean
           base_url?: string
           bulk_attendance_push_unlocked?: boolean
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
           bulk_salary_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
+          compliance_files_esi?: boolean
+          compliance_files_nonsalary_tds?: boolean
+          compliance_files_pf?: boolean
+          compliance_files_pt?: boolean
+          compliance_files_salary_tds?: boolean
+          compliance_settings_updated_at?: string | null
+          compliance_settings_updated_by?: string | null
           created_at?: string
+          esi_include_additions_in_wages?: boolean
+          esi_include_employer_in_ctc?: boolean
           id?: string
           is_singleton?: boolean
           last_attendance_push_at?: string | null
@@ -10418,6 +10448,10 @@ export type Database = {
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
           ledger_recon_signoff_locked?: boolean
+          pf_include_admin_edli_in_ctc?: boolean
+          pf_include_employer_in_ctc?: boolean
+          pf_wage_cap_15000?: boolean
+          pf_wages_basic_only?: boolean
           probe_pilot_contractor_id?: string | null
           probe_pilot_employee_id?: string | null
           pull_payouts_endpoint_verified?: boolean
@@ -10457,15 +10491,29 @@ export type Database = {
           push_salary_pilot_hr_employee_id?: string | null
           push_salary_pilot_verified_at?: string | null
           updated_at?: string
+          xpayroll_handles_contractors?: boolean
+          xpayroll_handles_salary?: boolean
         }
         Update: {
+          bank_transfer_method?: string
+          bank_verification_auto_approve_name_match?: boolean
+          bank_verification_upload_proof?: boolean
           base_url?: string
           bulk_attendance_push_unlocked?: boolean
           bulk_bank_push_unlocked?: boolean
           bulk_push_unlocked?: boolean
           bulk_salary_push_unlocked?: boolean
           bulk_sync_unlocked?: boolean
+          compliance_files_esi?: boolean
+          compliance_files_nonsalary_tds?: boolean
+          compliance_files_pf?: boolean
+          compliance_files_pt?: boolean
+          compliance_files_salary_tds?: boolean
+          compliance_settings_updated_at?: string | null
+          compliance_settings_updated_by?: string | null
           created_at?: string
+          esi_include_additions_in_wages?: boolean
+          esi_include_employer_in_ctc?: boolean
           id?: string
           is_singleton?: boolean
           last_attendance_push_at?: string | null
@@ -10478,6 +10526,10 @@ export type Database = {
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
           ledger_recon_signoff_locked?: boolean
+          pf_include_admin_edli_in_ctc?: boolean
+          pf_include_employer_in_ctc?: boolean
+          pf_wage_cap_15000?: boolean
+          pf_wages_basic_only?: boolean
           probe_pilot_contractor_id?: string | null
           probe_pilot_employee_id?: string | null
           pull_payouts_endpoint_verified?: boolean
@@ -10517,6 +10569,8 @@ export type Database = {
           push_salary_pilot_hr_employee_id?: string | null
           push_salary_pilot_verified_at?: string | null
           updated_at?: string
+          xpayroll_handles_contractors?: boolean
+          xpayroll_handles_salary?: boolean
         }
         Relationships: []
       }

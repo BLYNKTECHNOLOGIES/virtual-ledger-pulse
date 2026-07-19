@@ -961,6 +961,21 @@ export default function RazorpaySyncPage() {
         </div>
       </div>
 
+      {/* Statutory splits — API gap workaround: the RazorpayX API does not expose PF/ESI/PT/TDS breakdowns.
+          The monthly Salary Register CSV from the dashboard is the only source of these fields. */}
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm">
+          <div className="font-medium">Statutory splits missing? Upload the monthly Salary Register CSV.</div>
+          <div className="text-xs text-muted-foreground">PF, ESI, PT, TDS and employer contributions are not exposed by the RazorpayX API — the dashboard CSV fills that gap.</div>
+        </div>
+        <a
+          href="/hrms/payroll/salary-register-import"
+          className="text-xs font-medium px-3 py-1.5 rounded-md border border-primary/40 bg-background hover:bg-muted transition"
+        >
+          Open CSV importer →
+        </a>
+      </div>
+
       {/* Today's Focus — the one thing HR should do right now. Simple mode only. */}
       {simpleMode && (
         <>

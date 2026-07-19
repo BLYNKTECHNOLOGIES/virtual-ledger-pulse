@@ -12,9 +12,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type PushKind = "identity" | "bank" | "salary" | "employment" | "dismissal" | "create";
+type PushKind = "identity" | "bank" | "salary" | "employment" | "dismissal" | "create" | "statutory";
 
-const ACTION_BY_KIND: Record<Exclude<PushKind, "dismissal" | "create">, string> = {
+const ACTION_BY_KIND: Record<Exclude<PushKind, "dismissal" | "create" | "statutory">, string> = {
   identity: "push_person_apply_one",
   bank: "push_bank_apply_one",
   salary: "push_salary_apply_one",
@@ -28,6 +28,7 @@ const LABEL_BY_KIND: Record<PushKind, string> = {
   employment: "employment details",
   dismissal: "dismissal",
   create: "employee creation",
+  statutory: "statutory enrollment",
 };
 
 const DRIFT_FIELD_BY_KIND: Record<PushKind, string> = {
@@ -37,7 +38,9 @@ const DRIFT_FIELD_BY_KIND: Record<PushKind, string> = {
   employment: "employment_bundle",
   dismissal: "dismissal_state",
   create: "razorpay_link",
+  statutory: "statutory_enrollment",
 };
+
 
 async function resolveRazorpayEmployeeId(hrEmployeeId: string): Promise<string | null> {
   const { data, error } = await (supabase as any)
@@ -275,6 +278,115 @@ export async function dismissInRazorpay(
       "ERP separation saved, but Razorpay dismissal push failed. Retry from Data Health.",
       { description: msg.length > 160 ? msg.slice(0, 160) + "…" : msg },
     );
+    return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Push per-employee statutory enrollment (PF / ESI / PT toggle) to RazorpayX.
+ * Used when an employee is exempted from statutory deductions during training/probation
+ * (or re-enrolled afterwards). Reads the current pf_enabled/esi_enabled/pt_enabled from
+ * hr_employees and sends them via the operator-verified statutory envelope in the proxy.
+ *
+ * Failure paths:
+ *   - Envelope not verified → returns { ok:false, needsEnvelope:true } with a toast asking
+ *     the operator to record a probe-verified envelope in Data Health / Settings.
+ *   - Razorpay rejects → drift alert opened, warning toast, ERP save stands.
+ */
+export async function pushStatutoryToRazorpay(
+  hrEmployeeId: string,
+  opts?: { triggeredFrom?: string; silent?: boolean },
+): Promise<{ ok: boolean; skipped?: boolean; error?: string; needsEnvelope?: boolean }> {
+  const razorpayId = await resolveRazorpayEmployeeId(hrEmployeeId);
+  if (!razorpayId) {
+    await logPushback({
+      hr_employee_id: hrEmployeeId,
+      razorpay_employee_id: null,
+      kind: "statutory",
+      action: "push_statutory_apply_one",
+      status: "skipped",
+      error_message: "Employee not linked to Razorpay",
+      triggered_from: opts?.triggeredFrom,
+    });
+    return { ok: false, skipped: true };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+      body: { action: "push_statutory_apply_one", hr_employee_id: hrEmployeeId },
+    });
+    if (error) throw error;
+    const d = data as any;
+    if (d?.ok === false) {
+      const needsEnvelope = d?.code === "STATUTORY_ENVELOPE_UNVERIFIED";
+      const msg = d?.error || "Razorpay rejected the statutory push";
+      await logPushback({
+        hr_employee_id: hrEmployeeId,
+        razorpay_employee_id: razorpayId,
+        kind: "statutory",
+        action: "push_statutory_apply_one",
+        status: "failure",
+        request_snapshot: { hr_employee_id: hrEmployeeId },
+        response_snapshot: d,
+        error_message: msg,
+        triggered_from: opts?.triggeredFrom,
+      });
+      if (!needsEnvelope) {
+        await upsertDrift(hrEmployeeId, "statutory_enrollment", `Push failed: ${msg.slice(0, 200)}`);
+      }
+      if (!opts?.silent) {
+        if (needsEnvelope) {
+          toast.warning(
+            "ERP statutory toggle saved. Razorpay statutory push endpoint isn't verified yet — verify the envelope in Data Health, then retry.",
+          );
+        } else {
+          toast.warning(
+            "ERP saved, but Razorpay statutory push failed. Open Data Health to retry.",
+            { description: msg.length > 160 ? msg.slice(0, 160) + "…" : msg },
+          );
+        }
+      }
+      return { ok: false, error: msg, needsEnvelope };
+    }
+
+    await logPushback({
+      hr_employee_id: hrEmployeeId,
+      razorpay_employee_id: razorpayId,
+      kind: "statutory",
+      action: "push_statutory_apply_one",
+      status: "success",
+      response_snapshot: d ?? null,
+      triggered_from: opts?.triggeredFrom,
+    });
+
+    try {
+      await (supabase as any)
+        .from("hr_drift_alerts")
+        .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by push" })
+        .eq("hr_employee_id", hrEmployeeId)
+        .eq("field", "statutory_enrollment")
+        .is("resolved_at", null);
+    } catch { /* ignore */ }
+
+    if (!opts?.silent) toast.success("Razorpay statutory enrollment updated");
+    return { ok: true };
+  } catch (e: any) {
+    const msg = e?.message || String(e);
+    await logPushback({
+      hr_employee_id: hrEmployeeId,
+      razorpay_employee_id: razorpayId,
+      kind: "statutory",
+      action: "push_statutory_apply_one",
+      status: "failure",
+      error_message: msg,
+      triggered_from: opts?.triggeredFrom,
+    });
+    await upsertDrift(hrEmployeeId, "statutory_enrollment", `Push failed: ${msg.slice(0, 200)}`);
+    if (!opts?.silent) {
+      toast.warning("ERP saved, but Razorpay statutory push failed. Retry from Data Health.", {
+        description: msg.length > 160 ? msg.slice(0, 160) + "…" : msg,
+      });
+    }
     return { ok: false, error: msg };
   }
 }

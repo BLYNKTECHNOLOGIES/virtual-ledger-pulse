@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
+import { Switch } from "@/components/ui/switch";
+
 
 const RECURRING_TYPES = [
   { value: "increment", label: "Increment / Hike" },
@@ -37,7 +39,7 @@ interface Props {
   presetEmployeeId?: string;
 }
 
-type Mode = "recurring" | "one_time";
+type Mode = "recurring" | "one_time" | "statutory";
 
 export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Props) {
   const qc = useQueryClient();
@@ -56,6 +58,11 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const [payoutMonth, setPayoutMonth] = useState<Date>(new Date());
   const [notes, setNotes] = useState<string>("");
 
+  // Statutory toggle fields (null = "use global default")
+  const [pfEnabled, setPfEnabled] = useState<boolean | null>(null);
+  const [esiEnabled, setEsiEnabled] = useState<boolean | null>(null);
+  const [ptEnabled, setPtEnabled] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (open) {
       setMode("recurring");
@@ -68,19 +75,25 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       setOneTimeAmount("");
       setPayoutMonth(new Date());
       setNotes("");
+      setPfEnabled(null);
+      setEsiEnabled(null);
+      setPtEnabled(null);
     }
   }, [open, presetEmployeeId]);
 
   useEffect(() => {
-    setRevisionType(mode === "recurring" ? "increment" : "bonus");
+    if (mode === "recurring") setRevisionType("increment");
+    else if (mode === "one_time") setRevisionType("bonus");
+    else setRevisionType("statutory_toggle");
   }, [mode]);
+
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_for_revision"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, badge_id, basic_salary, total_salary, is_active")
+        .select("id, first_name, last_name, badge_id, basic_salary, total_salary, is_active, pf_enabled, esi_enabled, pt_enabled")
         .order("is_active", { ascending: false })
         .order("first_name");
       if (error) throw error;
@@ -93,6 +106,15 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
     () => employees.find((e: any) => e.id === employeeId),
     [employees, employeeId],
   );
+
+  // Seed statutory switches from the selected employee's current flags
+  useEffect(() => {
+    if (mode !== "statutory" || !employee) return;
+    setPfEnabled(employee.pf_enabled ?? null);
+    setEsiEnabled(employee.esi_enabled ?? null);
+    setPtEnabled(employee.pt_enabled ?? null);
+  }, [employeeId, mode, employee]);
+
 
   const currentBasic = Number(employee?.basic_salary || 0);
   const currentTotal = Number(employee?.total_salary || 0);
@@ -131,30 +153,52 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         return { kind: "recurring", data };
       }
 
-      // one_time
-      const amt = parseFloat(oneTimeAmount);
-      if (!amt || amt <= 0) throw new Error("Enter a valid amount");
+      if (mode === "one_time") {
+        const amt = parseFloat(oneTimeAmount);
+        if (!amt || amt <= 0) throw new Error("Enter a valid amount");
 
-      const { error } = await (supabase as any)
-        .from("hr_salary_revisions")
-        .insert({
-          employee_id: employeeId,
-          revision_type: revisionType,
-          one_time_amount: amt,
-          payout_month: format(payoutMonth, "yyyy-MM-01"),
-          effective_from: format(payoutMonth, "yyyy-MM-01"),
-          revision_reason: reason || null,
-          notes: notes || null,
-          approved_by: approvedBy,
-          status: "APPLIED",
-        });
+        const { error } = await (supabase as any)
+          .from("hr_salary_revisions")
+          .insert({
+            employee_id: employeeId,
+            revision_type: revisionType,
+            one_time_amount: amt,
+            payout_month: format(payoutMonth, "yyyy-MM-01"),
+            effective_from: format(payoutMonth, "yyyy-MM-01"),
+            revision_reason: reason || null,
+            notes: notes || null,
+            approved_by: approvedBy,
+            status: "APPLIED",
+          });
+        if (error) throw error;
+        return { kind: "one_time" };
+      }
+
+      // statutory toggle
+      if (!reason.trim()) throw new Error("Reason is mandatory for a statutory enrollment change (e.g. 'Training period exemption')");
+      // Resolve nulls against the employee's current flags (null means "leave as-is")
+      const finalPf = pfEnabled === null ? (employee?.pf_enabled ?? true) : pfEnabled;
+      const finalEsi = esiEnabled === null ? (employee?.esi_enabled ?? true) : esiEnabled;
+      const finalPt = ptEnabled === null ? (employee?.pt_enabled ?? true) : ptEnabled;
+
+      const { data, error } = await (supabase as any).rpc("apply_statutory_revision", {
+        p_employee_id: employeeId,
+        p_pf_enabled: finalPf,
+        p_esi_enabled: finalEsi,
+        p_pt_enabled: finalPt,
+        p_effective_from: format(effectiveFrom, "yyyy-MM-dd"),
+        p_reason: reason,
+        p_approved_by: approvedBy,
+      });
       if (error) throw error;
-      return { kind: "one_time" };
+      return { kind: "statutory", data };
     },
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
       qc.invalidateQueries({ queryKey: ["hr_employees"] });
       qc.invalidateQueries({ queryKey: ["employee-compensation-history"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_for_revision"] });
+      qc.invalidateQueries({ queryKey: ["data_health_unknown_enrollment"] });
       if (res?.kind === "recurring") {
         toast.success(
           res.data?.status === "SCHEDULED"
@@ -163,6 +207,18 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         );
         if (employeeId) {
           import("@/lib/razorpayPushback").then(m => m.pushSalaryToRazorpay(employeeId));
+        }
+      } else if (res?.kind === "statutory") {
+        const status = res.data?.status;
+        if (status === "NOOP") {
+          toast.info("No change — statutory flags already match.");
+        } else if (status === "SCHEDULED") {
+          toast.success(`Statutory change scheduled for ${res.data?.effective_from}`);
+        } else {
+          toast.success("Statutory enrollment updated locally. Pushing to Razorpay…");
+          if (employeeId) {
+            import("@/lib/razorpayPushback").then(m => m.pushStatutoryToRazorpay(employeeId, { triggeredFrom: "revise_salary_dialog" }));
+          }
         }
       } else {
         toast.success("One-time compensation recorded");
@@ -174,39 +230,51 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
   const typeOptions = mode === "recurring" ? RECURRING_TYPES : ONE_TIME_TYPES;
 
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Compensation Change</DialogTitle>
           <DialogDescription>
-            Record a recurring salary revision (CTC change) or a one-time payout (bonus, incentive, retention).
+            Record a recurring salary revision (CTC change), a one-time payout (bonus, incentive), or a statutory enrollment toggle (PF / ESI / PT — used for training-period exemptions).
           </DialogDescription>
         </DialogHeader>
 
         {/* Mode toggle */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg">
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted rounded-lg">
           <button
             type="button"
             onClick={() => setMode("recurring")}
             className={cn(
-              "text-xs font-medium py-2 rounded-md transition-colors",
+              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
               mode === "recurring" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
             )}
           >
-            Recurring — CTC change
+            CTC change
           </button>
           <button
             type="button"
             onClick={() => setMode("one_time")}
             className={cn(
-              "text-xs font-medium py-2 rounded-md transition-colors",
+              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
               mode === "one_time" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
             )}
           >
-            One-time — Bonus / Incentive
+            One-time payout
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("statutory")}
+            className={cn(
+              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
+              mode === "statutory" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+            )}
+          >
+            Statutory toggle
           </button>
         </div>
+
 
         <div className="space-y-3">
           <div>
@@ -230,15 +298,18 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             )}
           </div>
 
-          <div>
-            <Label>Type</Label>
-            <Select value={revisionType} onValueChange={setRevisionType}>
-              <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          {mode !== "statutory" && (
+            <div>
+              <Label>Type</Label>
+              <Select value={revisionType} onValueChange={setRevisionType}>
+                <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
 
           {mode === "recurring" ? (
             <>
@@ -288,7 +359,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 </div>
               )}
             </>
-          ) : (
+          ) : mode === "one_time" ? (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -333,7 +404,70 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 Pay it out through the next payroll run or Razorpay one-off ad-hoc payout.
               </div>
             </>
+          ) : (
+            <>
+              <div>
+                <Label>Effective from</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-foreground")}>
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      {format(effectiveFrom, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={effectiveFrom} onSelect={(d) => d && setEffectiveFrom(d)} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="rounded-lg border border-border divide-y divide-border">
+                {[
+                  { key: "pf", label: "Provident Fund (PF)", hint: "Disable during unpaid training / stipend-only periods. When disabled, no 12% employee or 13% employer contribution.", value: pfEnabled, set: setPfEnabled, current: employee?.pf_enabled },
+                  { key: "esi", label: "Employee State Insurance (ESI)", hint: "Applies only if gross ≤ ₹21,000. Disable for training exemptions or when contractually excluded.", value: esiEnabled, set: setEsiEnabled, current: employee?.esi_enabled },
+                  { key: "pt", label: "Professional Tax (PT)", hint: "State-mandated slab tax on gross salary.", value: ptEnabled, set: setPtEnabled, current: employee?.pt_enabled },
+                ].map((row) => (
+                  <div key={row.key} className="flex items-start gap-3 p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">{row.label}</span>
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Current: {row.current === true ? "Enrolled" : row.current === false ? "Exempt" : "Unknown"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{row.hint}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Switch
+                        checked={row.value === true}
+                        onCheckedChange={(v) => row.set(v)}
+                      />
+                      <span className={cn("text-[10px]", row.value === true ? "text-success" : "text-muted-foreground")}>
+                        {row.value === true ? "Enrolled" : "Exempt"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <Label>Reason <span className="text-destructive">*</span></Label>
+                <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder="e.g. Training period exemption, contractual exclusion" rows={2} />
+              </div>
+
+              <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-1">
+                <p><strong>Two-way sync:</strong> This updates the employee flags in HRMS (used by the Shadow Payroll engine) and pushes the same toggles to RazorpayX (pf-enabled / esi-enabled / professional-tax-enabled).</p>
+                <p>RazorpayX requires operator envelope verification on the People edit endpoint before the change is finalised.</p>
+              </div>
+
+              {isScheduled && (
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
+                  Future-dated — will be scheduled and auto-applied on {format(effectiveFrom, "PPP")}.
+                </div>
+              )}
+            </>
           )}
+
         </div>
 
         <DialogFooter>
@@ -343,13 +477,16 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             disabled={
               mutation.isPending ||
               !employeeId ||
-              (mode === "recurring" ? !newTotal : !oneTimeAmount)
+              (mode === "recurring" ? !newTotal : mode === "one_time" ? !oneTimeAmount : !reason.trim())
             }
           >
             {mode === "recurring"
               ? (isScheduled ? "Schedule revision" : "Apply revision")
-              : "Record payout"}
+              : mode === "one_time"
+                ? "Record payout"
+                : (isScheduled ? "Schedule statutory change" : "Apply & push to Razorpay")}
           </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>

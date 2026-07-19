@@ -746,8 +746,8 @@ async function createDraftEmployee(svc: SupabaseClient, e: any): Promise<string>
 
 async function readSettings(svc: SupabaseClient) {
   const { data } = await svc.from("hr_razorpay_settings")
-    .select("id,bulk_sync_unlocked").eq("is_singleton", true).maybeSingle();
-  return data;
+    .select("*").eq("is_singleton", true).maybeSingle();
+  return data as any;
 }
 async function markCredsValidated(svc: SupabaseClient) {
   await svc.from("hr_razorpay_settings").update({ last_creds_validated_at: new Date().toISOString() }).eq("is_singleton", true);
@@ -1044,7 +1044,7 @@ Deno.serve(async (req) => {
           error_body_snippet: r.ok ? null : preview, attempts: [attempt],
         });
       }
-      return json(200, { ok: r.ok, http_status: r.status, ...attempt, attempts: [attempt] });
+      return json(200, { ...attempt, ok: r.ok, http_status: r.status, attempts: [attempt] });
     }
 
     // ---------- fetch_one: preview + match, no writes ----------
@@ -1691,6 +1691,7 @@ Deno.serve(async (req) => {
 
 
     const settings = await readSettings(svc);
+    const settingsRow = settings;
 
     // ---------- dry_run_range / apply_range ----------
     if (action === "dry_run_range" || action === "apply_range") {

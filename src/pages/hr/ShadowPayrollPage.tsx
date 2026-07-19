@@ -353,7 +353,7 @@ function Row({ label, a }: { label: string; a: any }) {
     </div>
   );
 }
-function RowDiff({ label, shadow, rz }: { label: string; shadow: number; rz: number | null }) {
+function RowDiff({ label, shadow, rz, suppress }: { label: string; shadow: number; rz: number | null; suppress?: boolean }) {
   const d = diff(shadow, rz);
   return (
     <div className="flex justify-between gap-2">
@@ -364,7 +364,7 @@ function RowDiff({ label, shadow, rz }: { label: string; shadow: number; rz: num
           <>
             <span className="text-muted-foreground">vs</span>
             <span className="text-muted-foreground">{fmt(rz)}</span>
-            {d.badge && (
+            {d.badge && !suppress && (
               <Badge variant="outline" className={Math.abs(d.delta) > 50 ? "border-destructive/50 text-destructive text-[10px]" : "border-warning/50 text-warning text-[10px]"}>
                 {d.badge}
               </Badge>
@@ -373,5 +373,32 @@ function RowDiff({ label, shadow, rz }: { label: string; shadow: number; rz: num
         )}
       </span>
     </div>
+  );
+}
+
+function ProvenanceBadge({ source }: { source: string | null }) {
+  if (!source) return null;
+  const meta: Record<string, { label: string; className: string; title: string }> = {
+    payslip_verified: {
+      label: "PV",
+      className: "border-success/50 text-success",
+      title: "Statutory flags verified from a real Razorpay payslip.",
+    },
+    register_derived: {
+      label: "RD",
+      className: "border-warning/50 text-warning",
+      title: "Statutory flags inferred from imported salary-register CSV history.",
+    },
+    assumed_from_global: {
+      label: "AG",
+      className: "border-muted-foreground/40 text-muted-foreground",
+      title: "No per-employee statutory data yet — falling back to the global compliance toggle.",
+    },
+  };
+  const m = meta[source] ?? meta.assumed_from_global;
+  return (
+    <Badge variant="outline" className={cn("ml-1 shrink-0 text-[9px] px-1 py-0 h-4", m.className)} title={m.title}>
+      {m.label}
+    </Badge>
   );
 }

@@ -32,6 +32,13 @@ export default function PayrollInputsPage() {
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
 
+  // Mirror of Razorpay bonus catalogue — filters the Bonus subtype dropdown.
+  const { data: complianceSettings } = useComplianceSettings();
+  const enabledBonusTypes = useMemo(
+    () => (complianceSettings?.bonus_types ?? []).filter(b => b.enabled),
+    [complianceSettings],
+  );
+
   // Envelope gate — payroll writes require push_payroll_endpoint_verified on razorpay settings.
   const { data: settings } = useQuery({
     queryKey: ["hr_razorpay_settings_gate"],

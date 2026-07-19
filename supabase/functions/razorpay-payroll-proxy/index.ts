@@ -5189,6 +5189,22 @@ Deno.serve(async (req) => {
       }
 
       if (errText || !rpId) {
+        // Razorpay error code 7 ("Email already exists") means an employee
+        // with this email is already in RazorpayX under an employee-id we
+        // don't yet map. The reservedEmployeeId lookup above failed, so
+        // Razorpay auto-assigned a different id on the prior attempt.
+        // Surface an actionable 409 instead of a raw 502.
+        const rpCode = bodyOut?.error?.code ?? bodyOut?.code ?? null;
+        const rpMsg = String(bodyOut?.error?.message ?? bodyOut?.message ?? errText ?? "");
+        if (rpCode === 7 || /email already exists/i.test(rpMsg)) {
+          return json(409, {
+            ok: false,
+            http_status: httpStatus,
+            code: "RAZORPAY_EMAIL_EXISTS",
+            error: `RazorpayX already has an employee with email "${(outboundData as any).email}" under a different employee-id. Look it up in the RazorpayX dashboard, then map it manually or change the ERP email before retrying Finalize.`,
+            body: bodyOut,
+          });
+        }
         return json(errText ? 502 : 500, { ok: false, http_status: httpStatus, error: errText || "no_id_returned", body: bodyOut });
       }
 

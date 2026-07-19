@@ -153,30 +153,52 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         return { kind: "recurring", data };
       }
 
-      // one_time
-      const amt = parseFloat(oneTimeAmount);
-      if (!amt || amt <= 0) throw new Error("Enter a valid amount");
+      if (mode === "one_time") {
+        const amt = parseFloat(oneTimeAmount);
+        if (!amt || amt <= 0) throw new Error("Enter a valid amount");
 
-      const { error } = await (supabase as any)
-        .from("hr_salary_revisions")
-        .insert({
-          employee_id: employeeId,
-          revision_type: revisionType,
-          one_time_amount: amt,
-          payout_month: format(payoutMonth, "yyyy-MM-01"),
-          effective_from: format(payoutMonth, "yyyy-MM-01"),
-          revision_reason: reason || null,
-          notes: notes || null,
-          approved_by: approvedBy,
-          status: "APPLIED",
-        });
+        const { error } = await (supabase as any)
+          .from("hr_salary_revisions")
+          .insert({
+            employee_id: employeeId,
+            revision_type: revisionType,
+            one_time_amount: amt,
+            payout_month: format(payoutMonth, "yyyy-MM-01"),
+            effective_from: format(payoutMonth, "yyyy-MM-01"),
+            revision_reason: reason || null,
+            notes: notes || null,
+            approved_by: approvedBy,
+            status: "APPLIED",
+          });
+        if (error) throw error;
+        return { kind: "one_time" };
+      }
+
+      // statutory toggle
+      if (!reason.trim()) throw new Error("Reason is mandatory for a statutory enrollment change (e.g. 'Training period exemption')");
+      // Resolve nulls against the employee's current flags (null means "leave as-is")
+      const finalPf = pfEnabled === null ? (employee?.pf_enabled ?? true) : pfEnabled;
+      const finalEsi = esiEnabled === null ? (employee?.esi_enabled ?? true) : esiEnabled;
+      const finalPt = ptEnabled === null ? (employee?.pt_enabled ?? true) : ptEnabled;
+
+      const { data, error } = await (supabase as any).rpc("apply_statutory_revision", {
+        p_employee_id: employeeId,
+        p_pf_enabled: finalPf,
+        p_esi_enabled: finalEsi,
+        p_pt_enabled: finalPt,
+        p_effective_from: format(effectiveFrom, "yyyy-MM-dd"),
+        p_reason: reason,
+        p_approved_by: approvedBy,
+      });
       if (error) throw error;
-      return { kind: "one_time" };
+      return { kind: "statutory", data };
     },
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
       qc.invalidateQueries({ queryKey: ["hr_employees"] });
       qc.invalidateQueries({ queryKey: ["employee-compensation-history"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_for_revision"] });
+      qc.invalidateQueries({ queryKey: ["data_health_unknown_enrollment"] });
       if (res?.kind === "recurring") {
         toast.success(
           res.data?.status === "SCHEDULED"
@@ -185,6 +207,18 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         );
         if (employeeId) {
           import("@/lib/razorpayPushback").then(m => m.pushSalaryToRazorpay(employeeId));
+        }
+      } else if (res?.kind === "statutory") {
+        const status = res.data?.status;
+        if (status === "NOOP") {
+          toast.info("No change — statutory flags already match.");
+        } else if (status === "SCHEDULED") {
+          toast.success(`Statutory change scheduled for ${res.data?.effective_from}`);
+        } else {
+          toast.success("Statutory enrollment updated locally. Pushing to Razorpay…");
+          if (employeeId) {
+            import("@/lib/razorpayPushback").then(m => m.pushStatutoryToRazorpay(employeeId, { triggeredFrom: "revise_salary_dialog" }));
+          }
         }
       } else {
         toast.success("One-time compensation recorded");
@@ -195,6 +229,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   });
 
   const typeOptions = mode === "recurring" ? RECURRING_TYPES : ONE_TIME_TYPES;
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

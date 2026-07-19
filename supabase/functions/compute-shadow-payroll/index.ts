@@ -4,10 +4,23 @@
  * Doctrine: RazorpayX is authoritative. This engine writes into a fully
  * isolated `hr_shadow_*` namespace so its output CAN NEVER leak into any
  * payout-facing surface. It exists to let HR A/B our computation against
- * Razorpay's for 2-3 months and catch drift on either side.
+ * Razorpay's for 2–3 months and catch drift on either side.
  *
  * Trigger: POST { period_month: "YYYY-MM-01", employee_ids?: string[] }
  * Response: { run_id, computed_count }
+ *
+ * Rules mirrored (2026-07-19, verified against 10 real payslips):
+ *  - PF/ESI/PT enrollment is PER-EMPLOYEE (`hr_employees.pf_enabled` etc.);
+ *    global compliance toggles are only a fallback.
+ *  - Structure split can be overridden per-employee via `custom_structure_pct`
+ *    (JSON of Basic/HRA/Special/LTA %). Grandfathered pre-2026 hires.
+ *  - LOP + KPI-Loss shrink Basic/HRA/LTA proportionally; Special = residual.
+ *  - PF (all three lines) recomputed on shrunk Basic: 12% ee / 12% er (contra)
+ *    / 1% EDLI+Admin (deduction) / 13% employer earnings-side, all capped at
+ *    min(Basic, 15 000).
+ *  - ESI base = shrunk regular gross (Basic + HRA + Special + LTA), gate 21k.
+ *  - LWF is INTENTIONALLY NOT COMPUTED (owner directive; deducted once in error
+ *    on Jun-26 payslips and never to be re-enabled without approval).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -22,25 +35,26 @@ function pfWageBase(basic: number, da: number, s: any): number {
   const raw = s.pf_wages_basic_only ? (basic || 0) : (basic || 0) + (da || 0);
   return s.pf_wage_cap_15000 ? Math.min(raw, 15000) : raw;
 }
-function computeEpf(basic: number, da: number, s: any) {
-  if (!s?.compliance_files_pf) return { employee: 0, employer: 0, admin_edli: 0, base: 0 };
+function computeEpf(basic: number, da: number, s: any, enrolled: boolean) {
+  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0 };
   const base = pfWageBase(basic, da, s);
   const employee = Math.round(base * 0.12);
   const employer = Math.round(base * 0.12);
-  const admin_edli = s.pf_include_admin_edli_in_ctc ? Math.max(500, Math.round(base * 0.005)) : 0;
-  return { employee, employer, admin_edli, base };
+  const admin_edli = Math.round(base * 0.01);           // flat 1% — verified vs Priya
+  const employer_earnings_side = employer + admin_edli; // 13% line printed on payslip
+  return { employee, employer, admin_edli, employer_earnings_side, base };
 }
-function computeEsi(fullGross: number, regularGross: number, s: any) {
-  if (!s?.compliance_files_esi || regularGross > 21000) return { employee: 0, employer: 0, base: 0 };
-  const base = s.esi_include_additions_in_wages ? fullGross : regularGross;
+function computeEsi(fullGross: number, regularGross: number, s: any, enrolled: boolean) {
+  if (!enrolled || regularGross > 21000) return { employee: 0, employer: 0, base: 0 };
+  const base = s?.esi_include_additions_in_wages ? fullGross : regularGross;
   return {
     employee: Math.round(base * 0.0075),
     employer: Math.round(base * 0.0325),
     base,
   };
 }
-function computePt(base: number, stateCode: string, slabs: any[], s: any, periodMonth: Date): number {
-  if (!s?.compliance_files_pt || !slabs?.length || !stateCode) return 0;
+function computePt(base: number, stateCode: string, slabs: any[], enrolled: boolean, periodMonth: Date): number {
+  if (!enrolled || !slabs?.length || !stateCode) return 0;
   const stateSlabs = slabs.filter((sl) => sl.state_code === stateCode);
   if (!stateSlabs.length) return 0;
   const match = stateSlabs.find(
@@ -67,27 +81,34 @@ function projectAnnualTax(annual: number, regime: string): number {
   if (regime === "old" && annual <= 500000) tax = 0;
   return Math.max(0, tax);
 }
-function splitStructure(monthlyGross: number, components: any[]): Record<string, { label: string; amount: number }> {
-  const out: Record<string, { label: string; amount: number }> = {};
-  if (!components?.length || !monthlyGross) return out;
-  let remaining = monthlyGross;
-  const pct: any[] = [];
-  for (const c of components) {
-    if (c.mode === "fixed") {
-      const amt = Math.min(c.value, remaining);
-      out[c.key] = { label: c.label, amount: amt };
-      remaining -= amt;
-    } else pct.push(c);
+
+// Resolve % split — per-employee override wins over Razorpay default.
+function resolveStructurePct(
+  customPct: any,
+  components: any[] | null,
+  useDefault: boolean,
+): { basic: number; hra: number; special: number; lta: number } {
+  if (customPct && typeof customPct === "object") {
+    return {
+      basic: Number(customPct.basic ?? 50),
+      hra: Number(customPct.hra ?? 25),
+      special: Number(customPct.special ?? 15),
+      lta: Number(customPct.lta ?? 10),
+    };
   }
-  for (const c of pct) {
-    out[c.key] = { label: c.label, amount: Math.round(monthlyGross * (c.value / 100)) };
+  if (useDefault && components?.length) {
+    const pick = (k: string, fb: number) => {
+      const c = components.find((x: any) => x.key === k && x.mode === "percentage");
+      return c ? Number(c.value) : fb;
+    };
+    return {
+      basic: pick("basic", 50),
+      hra: pick("hra", 25),
+      special: pick("special_allowance", 15),
+      lta: pick("lta", 10),
+    };
   }
-  const special = out["special_allowance"];
-  if (special) {
-    const sum = Object.values(out).reduce((s: number, v: any) => s + v.amount, 0);
-    special.amount += monthlyGross - sum;
-  }
-  return out;
+  return { basic: 50, hra: 25, special: 15, lta: 10 };
 }
 
 Deno.serve(async (req) => {
@@ -114,15 +135,15 @@ Deno.serve(async (req) => {
     const settings = settingsArr?.[0];
     const { data: ptSlabs } = await supabase.from("hr_pt_slabs").select("*");
 
-    // 2. Load active employees
+    // 2. Load active employees — include per-employee statutory flags + custom split
     let empQ: any = supabase.from("hr_employees")
-      .select("id, first_name, last_name, badge_id, work_state, is_active, hr_filing_status_id, joining_date")
+      .select("id, first_name, last_name, badge_id, work_state, is_active, hr_filing_status_id, joining_date, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct")
       .eq("is_active", true);
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
     const { data: employees, error: empErr } = await empQ;
     if (empErr) throw empErr;
 
-    // 3. Create/upsert run
+    // 3. Create run
     const { data: existingRun } = await supabase
       .from("hr_shadow_payroll_runs")
       .select("*")
@@ -144,6 +165,8 @@ Deno.serve(async (req) => {
       .single();
     if (runErr) throw runErr;
 
+    const defaultComps = settings?.default_structure_components ?? [];
+    const useDefault = settings?.use_xpayroll_default_structure ?? true;
     let totalGross = 0, totalNet = 0;
 
     for (const emp of employees ?? []) {
@@ -158,14 +181,14 @@ Deno.serve(async (req) => {
       const monthlyGross = Number(salaryAssignArr?.[0]?.monthly_ctc ?? 0);
       if (monthlyGross <= 0) continue;
 
-      // Structure split from mirror
-      const components = settings?.default_structure_components ?? [];
-      const useDefault = settings?.use_xpayroll_default_structure ?? true;
-      const split = useDefault ? splitStructure(monthlyGross, components) : {};
-      const basic = split["basic"]?.amount ?? Math.round(monthlyGross * 0.5);
-      const hra = split["hra"]?.amount ?? Math.round(monthlyGross * 0.25);
-      const special = split["special_allowance"]?.amount ?? 0;
-      const lta = split["lta"]?.amount ?? 0;
+      // Resolve structure %
+      const pct = resolveStructurePct(emp.custom_structure_pct, defaultComps, useDefault);
+      const preBasic = Math.round(monthlyGross * (pct.basic / 100));
+      const preHra = Math.round(monthlyGross * (pct.hra / 100));
+      const preLta = Math.round(monthlyGross * (pct.lta / 100));
+      // Special = residual so 4 components == monthlyGross
+      const preSpecial = monthlyGross - preBasic - preHra - preLta;
+      const regularBase = preBasic + preHra + preSpecial + preLta; // == monthlyGross
 
       // LOP from v4 attendance daily rollup
       const monthEnd = new Date(period);
@@ -179,9 +202,31 @@ Deno.serve(async (req) => {
         .lte("attendance_date", monthEnd.toISOString().slice(0, 10));
       const lopDays = (attRows ?? []).reduce((s: number, r: any) => s + Number(r.lop_days ?? 0), 0);
       const totalDays = monthEnd.getUTCDate();
-      const lopAmount = totalDays > 0 ? Math.round(monthlyGross * (lopDays / totalDays)) : 0;
+      // Razorpay uses calendar-day divisor (verified Priya Jun-26 LOP 3 350 = 3 days × 33 500 / 30)
+      const lopAmount = totalDays > 0 ? Math.round(regularBase * (lopDays / totalDays)) : 0;
 
-      // Additions this period
+      // KPI-Loss / other gross-side recoveries (approved deductions this period)
+      const { data: deds } = await supabase
+        .from("hr_payroll_input_deductions")
+        .select("amount, category")
+        .eq("hr_employee_id", emp.id)
+        .eq("period_month", periodStr)
+        .eq("status", "approved");
+      const kpiLossAmount = (deds ?? [])
+        .filter((r: any) => (r.category ?? "").toUpperCase() === "KPI_LOSS")
+        .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+
+      // Per-component LOP + KPI shrink
+      const totalReduction = lopAmount + kpiLossAmount;
+      const factor = regularBase > 0 ? Math.max(0, 1 - totalReduction / regularBase) : 1;
+      const basic = Math.round(preBasic * factor);
+      const hra = Math.round(preHra * factor);
+      const lta = Math.round(preLta * factor);
+      const targetPost = Math.round(regularBase * factor);
+      const special = targetPost - basic - hra - lta;
+      const regularPost = basic + hra + special + lta;
+
+      // Additions this period (OT / Perf Bonus / PLI) — NOT LOP-shrunk
       const { data: adds } = await supabase
         .from("hr_payroll_input_additions")
         .select("amount")
@@ -190,10 +235,15 @@ Deno.serve(async (req) => {
         .eq("status", "approved");
       const additions = (adds ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
-      // Statutory
-      const epf = computeEpf(basic, 0, settings);
-      const esi = computeEsi(monthlyGross + additions, monthlyGross, settings);
-      const pt = computePt(monthlyGross - lopAmount, emp.work_state ?? "", ptSlabs ?? [], settings, period);
+      // Per-employee statutory enrollment (falls back to global compliance toggle)
+      const pfEnrolled = emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
+      const esiEnrolled = emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
+      const ptEnrolled = emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
+
+      // Statutory — PF on shrunk basic, ESI on shrunk regular gross, PT on shrunk gross
+      const epf = computeEpf(basic, 0, settings, pfEnrolled);
+      const esi = computeEsi(regularPost + additions, regularPost, settings, esiEnrolled);
+      const pt = computePt(regularPost, emp.work_state ?? "", ptSlabs ?? [], ptEnrolled, period);
 
       // TDS via projected annual
       const { data: fsArr } = emp.hr_filing_status_id
@@ -202,7 +252,7 @@ Deno.serve(async (req) => {
       const regime = fsArr?.[0]?.regime ?? "new";
       const fyStart = new Date(period.getUTCFullYear(), period.getUTCMonth() >= 3 ? 3 : -9, 1);
       const monthsRemaining = 12 - Math.max(0, (period.getUTCFullYear() * 12 + period.getUTCMonth()) - (fyStart.getFullYear() * 12 + fyStart.getMonth()));
-      const projectedAnnualTaxable = (monthlyGross - epf.employee - pt) * 12;
+      const projectedAnnualTaxable = (regularPost - epf.employee - pt) * 12;
       const { data: ytdTds } = await supabase
         .from("hr_razorpay_payslip_records")
         .select("tds_amount")
@@ -213,10 +263,10 @@ Deno.serve(async (req) => {
       const annualTax = projectAnnualTax(projectedAnnualTaxable, regime);
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
-      // Totals
-      const grossEffective = monthlyGross + additions - lopAmount;
-      const deductions = epf.employee + esi.employee + pt + tds;
-      const net = grossEffective - deductions;
+      // Totals — earnings side includes employer PF (RazorpayX prints it on the earnings column)
+      const earningsTotal = regularPost + additions + epf.employer_earnings_side;
+      const deductions = epf.employee + epf.employer + epf.admin_edli + esi.employee + pt + tds;
+      const net = earningsTotal - deductions;
 
       // Razorpay comparison snapshot (if imported)
       const { data: rzArr } = await supabase
@@ -234,8 +284,8 @@ Deno.serve(async (req) => {
           hr_employee_id: emp.id,
           period_month: periodStr,
           monthly_ctc: monthlyGross,
-          monthly_gross: monthlyGross,
-          earnings_total: monthlyGross,
+          monthly_gross: earningsTotal,
+          earnings_total: earningsTotal,
           additions_total: additions,
           lop_days: lopDays,
           lop_amount: lopAmount,
@@ -253,28 +303,34 @@ Deno.serve(async (req) => {
           razorpay_esi: rz?.esi_amount ?? null,
           razorpay_pt: rz?.professional_tax ?? null,
           razorpay_tds: rz?.tds_amount ?? null,
-          compute_notes: { regime, monthsRemaining, projectedAnnualTaxable, ytdTdsPaid, annualTax },
+          compute_notes: {
+            regime, monthsRemaining, projectedAnnualTaxable, ytdTdsPaid, annualTax,
+            pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
+          },
         }, { onConflict: "run_id,hr_employee_id" })
         .select()
         .single();
       if (lineErr) { console.error("line err", emp.id, lineErr); continue; }
 
-      // Component breakdown
+      // Component breakdown — mirrors Razorpay payslip layout
       const comps = [
         { key: "basic", label: "Basic", type: "earning", amount: basic },
         { key: "hra", label: "HRA", type: "earning", amount: hra },
         { key: "special_allowance", label: "Special Allowance", type: "earning", amount: special },
         { key: "lta", label: "LTA", type: "earning", amount: lta },
-        { key: "additions", label: "Additions (approved)", type: "earning", amount: additions },
-        { key: "lop", label: "Loss of Pay", type: "deduction", amount: lopAmount },
+        { key: "pf_employer_earnings", label: "Employer PF (Earnings)", type: "earning", amount: epf.employer_earnings_side },
+        { key: "esi_employer_earnings", label: "Employer ESI (Earnings)", type: "earning", amount: esi.employer },
+        { key: "additions", label: "Additions (OT / PLI / Bonus)", type: "earning", amount: additions },
+        { key: "lop", label: "Loss of Pay (informational)", type: "info_deduction", amount: lopAmount },
+        { key: "kpi_loss", label: "KPI Loss (informational)", type: "info_deduction", amount: kpiLossAmount },
         { key: "pf_employee", label: "PF (Employee)", type: "deduction", amount: epf.employee },
+        { key: "pf_employer_contra", label: "PF (Employer contra)", type: "deduction", amount: epf.employer },
+        { key: "pf_admin_edli", label: "EDLI + Admin (1%)", type: "deduction", amount: epf.admin_edli },
         { key: "esi_employee", label: "ESI (Employee)", type: "deduction", amount: esi.employee },
+        { key: "esi_employer_contra", label: "ESI (Employer contra)", type: "deduction", amount: esi.employer },
         { key: "pt", label: "Professional Tax", type: "deduction", amount: pt },
         { key: "tds", label: "TDS", type: "deduction", amount: tds },
-        { key: "pf_employer", label: "PF (Employer)", type: "employer_contribution", amount: epf.employer },
-        { key: "pf_admin_edli", label: "PF Admin + EDLI", type: "employer_contribution", amount: epf.admin_edli },
-        { key: "esi_employer", label: "ESI (Employer)", type: "employer_contribution", amount: esi.employer },
-      ];
+      ].filter((c) => c.amount !== 0);
       await supabase.from("hr_shadow_component_breakdown").delete().eq("line_id", line.id);
       await supabase.from("hr_shadow_component_breakdown").insert(comps.map((c) => ({
         line_id: line.id,
@@ -284,7 +340,7 @@ Deno.serve(async (req) => {
         amount: c.amount,
       })));
 
-      totalGross += grossEffective;
+      totalGross += earningsTotal;
       totalNet += net;
     }
 

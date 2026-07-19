@@ -254,9 +254,15 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "dd MMM yyyy")}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant={r.status === "completed" ? "outline" : "default"} onClick={() => onSelectOnboarding(r.id)}>
-                          {r.status === "completed" ? "View" : "Continue"}
-                        </Button>
+                        {r.status === "cancelled" ? (
+                          <Button size="sm" variant="outline" disabled title="This onboarding was cancelled">
+                            Cancelled
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant={r.status === "completed" ? "outline" : "default"} onClick={() => onSelectOnboarding(r.id)}>
+                            {r.status === "completed" ? "View" : "Continue"}
+                          </Button>
+                        )}
                         {r.status !== "completed" && (
                           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setToDelete(r)} title="Delete dropped onboarding">
                             <Trash2 className="h-4 w-4" />

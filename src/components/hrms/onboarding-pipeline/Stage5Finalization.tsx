@@ -35,9 +35,36 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   });
   const [finalizing, setFinalizing] = useState(false);
   const [pushingToDevices, setPushingToDevices] = useState(false);
+  const [reservingRpId, setReservingRpId] = useState(false);
+  const [reservedRpId, setReservedRpId] = useState<string | null>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
   const pushingRef = useRef(false);
+  const reservingRef = useRef(false);
+
+  // Reserve the next RazorpayX employee ID (per Unified ID doctrine: this same
+  // integer becomes the HRMS badge_id, ESSL device PIN, and Razorpay employee_id).
+  // Auto-fills the ESSL badge field and flips the "create in Razorpay" toggle on
+  // so the actual /people POST happens automatically at Finalize.
+  const handleReserveRazorpayId = async () => {
+    if (reservingRef.current || reservingRpId) return;
+    reservingRef.current = true;
+    setReservingRpId(true);
+    const t = toast.loading("Reserving next RazorpayX employee ID…");
+    try {
+      const { data: nextId, error } = await supabase.rpc("hr_next_razorpay_employee_id");
+      if (error) throw error;
+      const id = String(nextId);
+      setReservedRpId(id);
+      setForm(p => ({ ...p, essl_badge_id: id, create_in_razorpay: true }));
+      toast.success(`Reserved RazorpayX ID ${id} — same number will be the ESSL PIN.`, { id: t });
+    } catch (e: any) {
+      toast.error(`Reserve failed: ${e?.message || String(e)}`, { id: t });
+    } finally {
+      reservingRef.current = false;
+      setReservingRpId(false);
+    }
+  };
 
   const handlePushToBiometric = async () => {
     const pin = form.essl_badge_id.trim();

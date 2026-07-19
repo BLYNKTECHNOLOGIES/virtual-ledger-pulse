@@ -186,12 +186,37 @@ export default function ShadowPayrollPage() {
             onChange={(e) => setPeriod(`${e.target.value}-01`)}
             className="w-40 text-foreground"
           />
-          <Button onClick={() => compute.mutate()} disabled={compute.isPending}>
+          <Button
+            onClick={() => compute.mutate()}
+            disabled={compute.isPending || readinessLoading || !readiness?.can_run}
+            title={!readiness?.can_run
+              ? "Import attendance or a payroll register for this month before running."
+              : undefined}
+          >
             {compute.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
             Run shadow calculation
           </Button>
         </div>
       </header>
+
+      {/* Shadow readiness panel — the four inputs with RAG lights */}
+      <ShadowReadinessPanel data={readiness} isLoading={readinessLoading} period={period} />
+
+      {run?.readiness_tier && run.readiness_tier !== "trustworthy" && (
+        <div className={cn(
+          "rounded-lg border p-3 text-xs flex items-start gap-2",
+          run.readiness_tier === "unusable"
+            ? "border-destructive/40 bg-destructive/5 text-destructive"
+            : "border-warning/40 bg-warning/5 text-foreground",
+        )}>
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>
+            The last run for {period.slice(0, 7)} was tagged <strong>{run.readiness_tier}</strong>.
+            Drift alerts derived from it are approximate — verify against the missing input before acting.
+          </span>
+        </div>
+      )}
+
 
       {/* Totals */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

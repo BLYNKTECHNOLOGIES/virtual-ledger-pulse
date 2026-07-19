@@ -10339,6 +10339,9 @@ export type Database = {
       }
       hr_razorpay_settings: {
         Row: {
+          attendance_enabled: boolean
+          attendance_enabled_for_contractors: boolean
+          attendance_show_on_payslip: boolean
           bank_transfer_method: string
           bank_verification_auto_approve_name_match: boolean
           bank_verification_upload_proof: boolean
@@ -10369,7 +10372,16 @@ export type Database = {
           last_push_at: string | null
           last_salary_push_at: string | null
           last_taxdocs_pull_at: string | null
+          leave_allow_half_day: boolean
+          leave_allow_negative_balance: boolean
+          leave_calendar_financial_year: boolean
+          leave_require_remark: boolean
+          leave_settings_updated_at: string | null
+          leave_settings_updated_by: string | null
+          leave_types_mirror: Json
           ledger_recon_signoff_locked: boolean
+          lop_auto_add_for_unpaid: boolean
+          lop_calc_on_working_days: boolean
           pf_include_admin_edli_in_ctc: boolean
           pf_include_employer_in_ctc: boolean
           pf_wage_cap_15000: boolean
@@ -10412,11 +10424,21 @@ export type Database = {
           push_salary_envelope_verified_by: string | null
           push_salary_pilot_hr_employee_id: string | null
           push_salary_pilot_verified_at: string | null
+          shifts_track_timings: boolean
           updated_at: string
+          weekend_sat_1: boolean
+          weekend_sat_2: boolean
+          weekend_sat_3: boolean
+          weekend_sat_4: boolean
+          weekend_sat_5: boolean
+          weekend_sun: boolean
           xpayroll_handles_contractors: boolean
           xpayroll_handles_salary: boolean
         }
         Insert: {
+          attendance_enabled?: boolean
+          attendance_enabled_for_contractors?: boolean
+          attendance_show_on_payslip?: boolean
           bank_transfer_method?: string
           bank_verification_auto_approve_name_match?: boolean
           bank_verification_upload_proof?: boolean
@@ -10447,7 +10469,16 @@ export type Database = {
           last_push_at?: string | null
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
+          leave_allow_half_day?: boolean
+          leave_allow_negative_balance?: boolean
+          leave_calendar_financial_year?: boolean
+          leave_require_remark?: boolean
+          leave_settings_updated_at?: string | null
+          leave_settings_updated_by?: string | null
+          leave_types_mirror?: Json
           ledger_recon_signoff_locked?: boolean
+          lop_auto_add_for_unpaid?: boolean
+          lop_calc_on_working_days?: boolean
           pf_include_admin_edli_in_ctc?: boolean
           pf_include_employer_in_ctc?: boolean
           pf_wage_cap_15000?: boolean
@@ -10490,11 +10521,21 @@ export type Database = {
           push_salary_envelope_verified_by?: string | null
           push_salary_pilot_hr_employee_id?: string | null
           push_salary_pilot_verified_at?: string | null
+          shifts_track_timings?: boolean
           updated_at?: string
+          weekend_sat_1?: boolean
+          weekend_sat_2?: boolean
+          weekend_sat_3?: boolean
+          weekend_sat_4?: boolean
+          weekend_sat_5?: boolean
+          weekend_sun?: boolean
           xpayroll_handles_contractors?: boolean
           xpayroll_handles_salary?: boolean
         }
         Update: {
+          attendance_enabled?: boolean
+          attendance_enabled_for_contractors?: boolean
+          attendance_show_on_payslip?: boolean
           bank_transfer_method?: string
           bank_verification_auto_approve_name_match?: boolean
           bank_verification_upload_proof?: boolean
@@ -10525,7 +10566,16 @@ export type Database = {
           last_push_at?: string | null
           last_salary_push_at?: string | null
           last_taxdocs_pull_at?: string | null
+          leave_allow_half_day?: boolean
+          leave_allow_negative_balance?: boolean
+          leave_calendar_financial_year?: boolean
+          leave_require_remark?: boolean
+          leave_settings_updated_at?: string | null
+          leave_settings_updated_by?: string | null
+          leave_types_mirror?: Json
           ledger_recon_signoff_locked?: boolean
+          lop_auto_add_for_unpaid?: boolean
+          lop_calc_on_working_days?: boolean
           pf_include_admin_edli_in_ctc?: boolean
           pf_include_employer_in_ctc?: boolean
           pf_wage_cap_15000?: boolean
@@ -10568,7 +10618,14 @@ export type Database = {
           push_salary_envelope_verified_by?: string | null
           push_salary_pilot_hr_employee_id?: string | null
           push_salary_pilot_verified_at?: string | null
+          shifts_track_timings?: boolean
           updated_at?: string
+          weekend_sat_1?: boolean
+          weekend_sat_2?: boolean
+          weekend_sat_3?: boolean
+          weekend_sat_4?: boolean
+          weekend_sat_5?: boolean
+          weekend_sun?: boolean
           xpayroll_handles_contractors?: boolean
           xpayroll_handles_salary?: boolean
         }

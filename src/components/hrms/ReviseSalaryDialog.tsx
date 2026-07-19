@@ -298,15 +298,18 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             )}
           </div>
 
-          <div>
-            <Label>Type</Label>
-            <Select value={revisionType} onValueChange={setRevisionType}>
-              <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          {mode !== "statutory" && (
+            <div>
+              <Label>Type</Label>
+              <Select value={revisionType} onValueChange={setRevisionType}>
+                <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
 
           {mode === "recurring" ? (
             <>

@@ -5715,6 +5715,7 @@ Deno.serve(async (req) => {
         const preAttach = await attachReservedEmployeeIdByEmail(
           String(createData.email || ""),
           reservedEmployeeId,
+          fullEditData,
         );
         if (preAttach.ok) {
           const verifyPre = await opfinView(Number(reservedEmployeeId), "employee");

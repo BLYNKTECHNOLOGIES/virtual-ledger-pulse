@@ -8606,6 +8606,126 @@ export type Database = {
           },
         ]
       }
+      hr_payroll_input_additions: {
+        Row: {
+          addition_type: number
+          amount: number
+          created_at: string
+          created_by: string | null
+          hr_employee_id: string | null
+          id: string
+          label: string
+          period_month: string
+          push_response: Json | null
+          pushed_at: string | null
+          razorpay_employee_id: string
+          taxable: boolean
+          updated_at: string
+        }
+        Insert: {
+          addition_type?: number
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          label: string
+          period_month: string
+          push_response?: Json | null
+          pushed_at?: string | null
+          razorpay_employee_id: string
+          taxable?: boolean
+          updated_at?: string
+        }
+        Update: {
+          addition_type?: number
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          label?: string
+          period_month?: string
+          push_response?: Json | null
+          pushed_at?: string | null
+          razorpay_employee_id?: string
+          taxable?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payroll_input_additions_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_input_additions_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_payroll_input_deductions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          hr_employee_id: string | null
+          id: string
+          label: string
+          period_month: string
+          push_response: Json | null
+          pushed_at: string | null
+          razorpay_employee_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          label: string
+          period_month: string
+          push_response?: Json | null
+          pushed_at?: string | null
+          razorpay_employee_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          label?: string
+          period_month?: string
+          push_response?: Json | null
+          pushed_at?: string | null
+          razorpay_employee_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payroll_input_deductions_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_input_deductions_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_payroll_runs: {
         Row: {
           created_at: string
@@ -9562,6 +9682,28 @@ export type Database = {
           pulled_by: string | null
           razorpay_employee_id: string
           razorpay_payslip_id: string | null
+          reg_advance_salary: number | null
+          reg_basic: number | null
+          reg_da: number | null
+          reg_employer_esi_contr: number | null
+          reg_employer_pf_contr: number | null
+          reg_esi_ee: number | null
+          reg_esi_er: number | null
+          reg_gross_salary: number | null
+          reg_hra: number | null
+          reg_loan_emi: number | null
+          reg_lta: number | null
+          reg_net_pay: number | null
+          reg_one_time_payments: number | null
+          reg_pf_ee: number | null
+          reg_pf_er: number | null
+          reg_pt: number | null
+          reg_sa: number | null
+          reg_source_filename: string | null
+          reg_source_uploaded_at: string | null
+          reg_source_uploaded_by: string | null
+          reg_tds: number | null
+          reg_working_days: number | null
           run_id: string | null
           source_payload: Json | null
           tds_amount: number | null
@@ -9590,6 +9732,28 @@ export type Database = {
           pulled_by?: string | null
           razorpay_employee_id: string
           razorpay_payslip_id?: string | null
+          reg_advance_salary?: number | null
+          reg_basic?: number | null
+          reg_da?: number | null
+          reg_employer_esi_contr?: number | null
+          reg_employer_pf_contr?: number | null
+          reg_esi_ee?: number | null
+          reg_esi_er?: number | null
+          reg_gross_salary?: number | null
+          reg_hra?: number | null
+          reg_loan_emi?: number | null
+          reg_lta?: number | null
+          reg_net_pay?: number | null
+          reg_one_time_payments?: number | null
+          reg_pf_ee?: number | null
+          reg_pf_er?: number | null
+          reg_pt?: number | null
+          reg_sa?: number | null
+          reg_source_filename?: string | null
+          reg_source_uploaded_at?: string | null
+          reg_source_uploaded_by?: string | null
+          reg_tds?: number | null
+          reg_working_days?: number | null
           run_id?: string | null
           source_payload?: Json | null
           tds_amount?: number | null
@@ -9618,6 +9782,28 @@ export type Database = {
           pulled_by?: string | null
           razorpay_employee_id?: string
           razorpay_payslip_id?: string | null
+          reg_advance_salary?: number | null
+          reg_basic?: number | null
+          reg_da?: number | null
+          reg_employer_esi_contr?: number | null
+          reg_employer_pf_contr?: number | null
+          reg_esi_ee?: number | null
+          reg_esi_er?: number | null
+          reg_gross_salary?: number | null
+          reg_hra?: number | null
+          reg_loan_emi?: number | null
+          reg_lta?: number | null
+          reg_net_pay?: number | null
+          reg_one_time_payments?: number | null
+          reg_pf_ee?: number | null
+          reg_pf_er?: number | null
+          reg_pt?: number | null
+          reg_sa?: number | null
+          reg_source_filename?: string | null
+          reg_source_uploaded_at?: string | null
+          reg_source_uploaded_by?: string | null
+          reg_tds?: number | null
+          reg_working_days?: number | null
           run_id?: string | null
           source_payload?: Json | null
           tds_amount?: number | null
@@ -19603,8 +19789,8 @@ export type Database = {
       }
       fn_expire_compoff_allocations: { Args: never; Returns: undefined }
       fn_generate_payroll: {
-        Args: { p_payroll_run_id: string; p_triggered_by?: string }
-        Returns: Json
+        Args: { p_payroll_run_id: string; p_triggered_by: string }
+        Returns: undefined
       }
       fn_initialize_onboarding: {
         Args: { p_employee_id: string }

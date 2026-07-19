@@ -597,7 +597,7 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
 
   // Sales + purchases for the period and the previous period (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
-    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", startDate, endDate),
+    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id, terminal_sync_id, is_off_market", startDate, endDate),
     fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source, wallet_id", startDate, endDate),
     fetchAll(supabase, "sales_orders", "id, total_amount, status, effective_usdt_qty, effective_usdt_rate, quantity", prevStart, prevEnd),
     fetchAll(supabase, "purchase_orders", "id, total_amount, status, effective_usdt_qty", prevStart, prevEnd),
@@ -611,6 +611,40 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     for (const p of prods || []) productMap[p.id] = p.name;
   }
 
+  // ----- Actual Binance order create_time (ms) for synced orders -----
+  // For terminal-synced orders, `created_at` reflects the sync insertion time (often
+  // during a scheduled morning sync), which skews hourly/shift stats. The true order
+  // time lives in the sync row's `order_data.create_time` (unix ms).
+  const salesSyncIds = Array.from(new Set(salesRaw.map((s: any) => s.terminal_sync_id).filter(Boolean)));
+  const salesTsMap = new Map<string, number>(); // sales_order_id -> ms
+  if (salesSyncIds.length) {
+    const rows = await fetchAllRows(() =>
+      supabase.from("terminal_sales_sync").select("sales_order_id, order_data").in("id", salesSyncIds));
+    for (const r of rows) {
+      const ms = Number(r.order_data?.create_time);
+      if (r.sales_order_id && isFinite(ms) && ms > 0) salesTsMap.set(r.sales_order_id, ms);
+    }
+  }
+  const purTsMap = new Map<string, number>(); // purchase_order_id -> ms
+  const purIdsAll = purchasesRaw.map((o: any) => o.id);
+  if (purIdsAll.length) {
+    const rows = await fetchAllRows(() =>
+      supabase.from("terminal_purchase_sync").select("purchase_order_id, order_data").in("purchase_order_id", purIdsAll));
+    for (const r of rows) {
+      const ms = Number(r.order_data?.create_time);
+      if (r.purchase_order_id && isFinite(ms) && ms > 0) purTsMap.set(r.purchase_order_id, ms);
+    }
+  }
+  const orderIstHour = (o: any, kind: "sale" | "purchase"): number | null => {
+    const map = kind === "sale" ? salesTsMap : purTsMap;
+    const ms = map.get(o.id);
+    if (ms) {
+      const istMs = ms + 5.5 * 60 * 60 * 1000;
+      return new Date(istMs).getUTCHours();
+    }
+    return o.created_at ? istHour(o.created_at) : null;
+  };
+
   const salesCompleted = salesRaw.filter((o: any) => o.status === "COMPLETED");
   const purchasesCompleted = purchasesRaw.filter((o: any) => o.status === "COMPLETED");
 
@@ -623,7 +657,10 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     const value = Number(o.total_amount) || qty * rate;
     totalSalesQty += qty;
     totalSalesValue += value;
-    const asset = productMap[o.product_id] || "Unknown";
+    const baseAsset = productMap[o.product_id] || "USDT";
+    // RA-driven off-market trades get their own labelled row so operators can see the
+    // split at a glance (per owner directive — focus on RA-based off-market trades).
+    const asset = o.is_off_market ? `${baseAsset} · Off Market` : baseAsset;
     if (!salesByAsset[asset]) salesByAsset[asset] = { qty: 0, value: 0, count: 0 };
     salesByAsset[asset].qty += qty;
     salesByAsset[asset].value += value;
@@ -641,7 +678,7 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
       totalPurchaseQty += effQty;
       totalPurchaseValue += totalAmt;
     }
-    const asset = o.product_name || "Unknown";
+    const asset = o.product_name || "USDT";
     if (!purchaseByAsset[asset]) purchaseByAsset[asset] = { qty: 0, value: 0, count: 0 };
     purchaseByAsset[asset].qty += effQty;
     purchaseByAsset[asset].value += totalAmt;
@@ -732,8 +769,9 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     night:   { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
   };
   for (const o of salesCompleted) {
-    if (!o.created_at) continue;
-    const k = shiftOf(istHour(o.created_at));
+    const h = orderIstHour(o, "sale");
+    if (h === null) continue;
+    const k = shiftOf(h);
     const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
     const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
     const value = Number(o.total_amount) || qty * rate;
@@ -742,8 +780,9 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     shiftAgg[k].salCount += 1;
   }
   for (const o of purchasesCompleted) {
-    if (!o.created_at) continue;
-    const k = shiftOf(istHour(o.created_at));
+    const h = orderIstHour(o, "purchase");
+    if (h === null) continue;
+    const k = shiftOf(h);
     const qty = Number(o.effective_usdt_qty) || 0;
     const value = Number(o.total_amount) || 0;
     shiftAgg[k].purQty += qty;
@@ -835,8 +874,13 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
 
   // ----- Statistics -----
   const hourly = new Array(24).fill(0);
-  for (const o of [...salesCompleted, ...purchasesCompleted]) {
-    if (o.created_at) hourly[istHour(o.created_at)] += 1;
+  for (const o of salesCompleted) {
+    const h = orderIstHour(o, "sale");
+    if (h !== null) hourly[h] += 1;
+  }
+  for (const o of purchasesCompleted) {
+    const h = orderIstHour(o, "purchase");
+    if (h !== null) hourly[h] += 1;
   }
   let busiestHour = 0;
   for (let h = 1; h < 24; h++) if (hourly[h] > hourly[busiestHour]) busiestHour = h;

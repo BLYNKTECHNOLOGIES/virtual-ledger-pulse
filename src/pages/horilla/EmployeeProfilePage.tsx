@@ -27,41 +27,18 @@ const TABS = [
 ];
 
 // ─── Salary Summary Card ───
-function SalarySummaryCard({
-  totalSalary,
-  salaryTemplateId,
-  salaryStructureTemplateId,
-}: {
-  totalSalary?: number;
-  salaryTemplateId?: string | null;
-  salaryStructureTemplateId?: string | null;
-}) {
-  const resolvedTemplateId = salaryStructureTemplateId || salaryTemplateId;
-
-  const { data: templateInfo } = useQuery({
-    queryKey: ["salary-template-info", resolvedTemplateId],
-    queryFn: async () => {
-      if (!resolvedTemplateId) return null;
-
-      const { data: tmpl, error: tmplError } = await (supabase as any)
-        .from("hr_salary_structure_templates")
-        .select("name")
-        .eq("id", resolvedTemplateId)
-        .maybeSingle();
-      if (tmplError) throw tmplError;
-
-      return tmpl;
-    },
-    enabled: !!resolvedTemplateId,
-  });
-
+// Local templates were abolished — RazorpayX is the payroll authority and its
+// API exposes no template CRUD, so HRMS cannot verify which structure got
+// assigned there. We only show CTC here; the component breakdown is mirrored
+// read-only by <EmployeeSalaryStructure /> below.
+function SalarySummaryCard({ totalSalary }: { totalSalary?: number }) {
   const ctc = totalSalary || 0;
   const monthly = Math.round(ctc / 12);
 
   return (
     <div className="border border-border rounded-lg p-4 bg-muted/30 page-mount">
       <h3 className="text-sm font-semibold text-foreground mb-3">Salary Summary</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div>
           <p className="text-xs text-muted-foreground">Annual CTC</p>
           <p className="text-sm font-bold text-foreground">₹{ctc.toLocaleString("en-IN")}</p>
@@ -71,8 +48,8 @@ function SalarySummaryCard({
           <p className="text-sm font-semibold text-foreground">₹{monthly.toLocaleString("en-IN")}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Salary Template</p>
-          <p className="text-sm font-medium text-foreground">{templateInfo?.name || "No template"}</p>
+          <p className="text-xs text-muted-foreground">Structure Source</p>
+          <p className="text-sm font-medium text-foreground">RazorpayX (mirrored below)</p>
         </div>
       </div>
     </div>

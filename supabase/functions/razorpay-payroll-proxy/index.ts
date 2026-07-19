@@ -5671,11 +5671,12 @@ Deno.serve(async (req) => {
           }
           const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, existingRp.body || outboundData, "created_via_erp");
           if (repairErr) {
-            return json(207, {
-              ok: true,
+            return json(200, {
+              ok: false,
+              code: "RAZORPAY_MAPPING_FAILED",
               razorpay_employee_id: reservedEmployeeId,
               already_exists_in_razorpay: true,
-              warning: `Employee exists in Razorpay but ERP mapping repair failed: ${repairErr.message}`,
+              error: `Employee exists in Razorpay but ERP mapping repair failed: ${repairErr.message}`,
             });
           }
           await logSync(svc, {

@@ -657,7 +657,10 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     const value = Number(o.total_amount) || qty * rate;
     totalSalesQty += qty;
     totalSalesValue += value;
-    const asset = productMap[o.product_id] || "Unknown";
+    const baseAsset = productMap[o.product_id] || "USDT";
+    // RA-driven off-market trades get their own labelled row so operators can see the
+    // split at a glance (per owner directive — focus on RA-based off-market trades).
+    const asset = o.is_off_market ? `${baseAsset} · Off Market` : baseAsset;
     if (!salesByAsset[asset]) salesByAsset[asset] = { qty: 0, value: 0, count: 0 };
     salesByAsset[asset].qty += qty;
     salesByAsset[asset].value += value;
@@ -675,7 +678,7 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
       totalPurchaseQty += effQty;
       totalPurchaseValue += totalAmt;
     }
-    const asset = o.product_name || "Unknown";
+    const asset = o.product_name || "USDT";
     if (!purchaseByAsset[asset]) purchaseByAsset[asset] = { qty: 0, value: 0, count: 0 };
     purchaseByAsset[asset].qty += effQty;
     purchaseByAsset[asset].value += totalAmt;

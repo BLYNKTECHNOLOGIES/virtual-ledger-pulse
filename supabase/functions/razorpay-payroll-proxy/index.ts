@@ -2501,6 +2501,7 @@ Deno.serve(async (req) => {
         field_diff_summary: {
           template_id: templateId,
           annual_ctc: annualCtc,
+          structure_kind: structureKind,
           reserved_keys: Object.fromEntries(
             ["basic","da","hra","special-allowance","lta","employer-pf","employer-esi"]
               .map((k) => [k, Number((breakdown as any)[k]) || 0]),
@@ -2512,9 +2513,7 @@ Deno.serve(async (req) => {
         actor_user_id: authed.userId,
       });
 
-
       // Ledger the assignment regardless of outcome — failed attempts are valuable audit trail.
-      // Column names follow the assignment schema (employee_id / expanded_breakdown / razorpay_ack).
       const rpIdNum = Number(rpId);
       const { data: tmplNameRow } = await svc
         .from("hr_salary_structure_templates")
@@ -2532,12 +2531,23 @@ Deno.serve(async (req) => {
         push_error: errText,
         pushed_at: new Date().toISOString(),
         pushed_by: authed.userId,
+        structure_kind: structureKind,
       });
 
+      // Stamp lifecycle markers on hr_employee_work_info so the daily scheduler knows what's done.
+      if (ok) {
+        const stampCol = structureKind === "training" ? "training_structure_pushed_at" : (structureKind === "real" ? "real_structure_pushed_at" : null);
+        if (stampCol) {
+          await svc.from("hr_employee_work_info")
+            .update({ [stampCol]: new Date().toISOString() })
+            .eq("employee_id", hrEmployeeId);
+        }
+      }
 
       if (!ok) return json(502, { ok: false, error: errText, http_status: httpStatus, response: responseBody });
-      return json(200, { ok: true, razorpay_employee_id: rpId, http_status: httpStatus, response: responseBody });
+      return json(200, { ok: true, razorpay_employee_id: rpId, http_status: httpStatus, response: responseBody, structure_kind: structureKind });
     }
+
 
 
 

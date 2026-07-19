@@ -5152,7 +5152,7 @@ Deno.serve(async (req) => {
           errText = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
         } else {
           // Extract new employee id from common response shapes.
-          const cand = bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? bodyOut?.id ?? bodyOut?.data?.["employee-id"] ?? bodyOut?.data?.id;
+          const cand = bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? bodyOut?.id ?? bodyOut?.data?.["employee-id"] ?? bodyOut?.data?.id ?? reservedEmployeeId;
           rpId = cand !== undefined && cand !== null ? String(cand) : null;
           if (!rpId) errText = "Razorpay accepted the request but returned no employee-id";
         }

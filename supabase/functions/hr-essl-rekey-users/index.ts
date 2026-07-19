@@ -100,25 +100,39 @@ serve(async (req) => {
       }
 
       for (const dev of targets) {
-        // Guard: refuse if newPin already occupied on this device by a different name
-        const { data: occupant } = await supa
-          .from("hr_biometric_device_users")
-          .select("pin, name")
-          .eq("device_serial", dev)
-          .eq("pin", newPin)
-          .maybeSingle();
-        if (occupant && esslSafeName(occupant.name || "") !== name) {
+        if (!freedInBatch.has(dev)) freedInBatch.set(dev, new Set());
+        if (!claimedInBatch.has(dev)) claimedInBatch.set(dev, new Set());
+        const freed = freedInBatch.get(dev)!;
+        const claimed = claimedInBatch.get(dev)!;
+
+        // Guard: refuse if newPin already occupied on this device by a different name,
+        // unless it was freed by an earlier op in this same batch.
+        if (claimed.has(newPin)) {
           errors++;
-          const detail = `PIN ${newPin} occupied by "${occupant.name}" on ${dev}`;
+          const detail = `PIN ${newPin} already claimed earlier in this batch on ${dev}`;
           results.push({ device: dev, pin_old: oldPin, pin_new: newPin, status: "collision", detail });
-          await supa.from("hr_essl_pushback_log").insert({
-            device_serial: dev, pin: newPin, kind: "identity",
-            action: "REKEY collision guard",
-            status: "error", error_message: detail,
-            triggered_by: triggered_by ?? null, triggered_from,
-            request_snapshot: { pin_old: oldPin, pin_new: newPin, occupant },
-          });
           continue;
+        }
+        if (!freed.has(newPin)) {
+          const { data: occupant } = await supa
+            .from("hr_biometric_device_users")
+            .select("pin, name")
+            .eq("device_serial", dev)
+            .eq("pin", newPin)
+            .maybeSingle();
+          if (occupant && esslSafeName(occupant.name || "") !== name) {
+            errors++;
+            const detail = `PIN ${newPin} occupied by "${occupant.name}" on ${dev}`;
+            results.push({ device: dev, pin_old: oldPin, pin_new: newPin, status: "collision", detail });
+            await supa.from("hr_essl_pushback_log").insert({
+              device_serial: dev, pin: newPin, kind: "identity",
+              action: "REKEY collision guard",
+              status: "error", error_message: detail,
+              triggered_by: triggered_by ?? null, triggered_from,
+              request_snapshot: { pin_old: oldPin, pin_new: newPin, occupant },
+            });
+            continue;
+          }
         }
 
         // 1) DELETE old PIN
@@ -132,6 +146,9 @@ serve(async (req) => {
           results.push({ device: dev, pin_old: oldPin, pin_new: newPin, step: "delete", status: "error", error: delErr.message });
           continue;
         }
+        freed.add(oldPin);
+        // Optimistically remove the device_users row so future batches also see PIN as free.
+        await supa.from("hr_biometric_device_users").delete().eq("device_serial", dev).eq("pin", oldPin);
 
         // 2) CREATE under new PIN
         const parts = [`PIN=${esc(newPin)}`, `Name=${name}`, `Pri=${pri}`, `Grp=${grp}`];

@@ -1472,6 +1472,25 @@ Deno.serve(async (req) => {
       const rows: any[] = [];
       let pulled = 0, skipped = 0, missed = 0, errored = 0, wroteAny = 0;
 
+      // Executed-run gate for opfinSalary: fetch the set of months for which
+      // RazorpayX actually finalised a payroll run. Without this the API
+      // returns CTC/12 setup defaults for unexecuted months, which would
+      // corrupt the ERP CTC field on the profile projection.
+      const executedMonthsSet: string[] = await (async () => {
+        try {
+          const { data: runs } = await svc.from("hr_razorpay_payroll_runs")
+            .select("period_month,status")
+            .in("status", ["bulk_applied", "locked", "recalled"]);
+          const s = new Set<string>();
+          for (const r of runs || []) {
+            const pm = String(r.period_month || "");
+            const m = /^(\d{4})-(\d{2})/.exec(pm);
+            if (m) s.add(`${m[1]}-${m[2]}`);
+          }
+          return Array.from(s);
+        } catch { return []; }
+      })();
+
       for (const m of maps || []) {
         const eid = Number(m.razorpay_employee_id);
         if (!Number.isFinite(eid) || eid < 1) { skipped++; continue; }
@@ -1484,7 +1503,8 @@ Deno.serve(async (req) => {
         // Fetch salary sub-response as well — people:view never carries CTC.
         // Attach onto snapshot as __salary so projectors can read it. Silent on
         // failure (Razorpay returns nothing when salary structure isn't set).
-        const sal = await opfinSalary(eid, (r.body as any)?.email);
+        // GATED: only probes months with an executed RazorpayX payroll run.
+        const sal = await opfinSalary(eid, (r.body as any)?.email, executedMonthsSet);
         if (sal.ok) {
           (r.body as any).__salary = {
             annual_ctc: sal.annual_ctc,

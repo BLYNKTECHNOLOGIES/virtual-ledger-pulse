@@ -5462,6 +5462,64 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_biometric_pin_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          created_at: string
+          device_serial: string
+          hr_employee_id: string | null
+          id: string
+          new_pin: string
+          old_pin: string
+          reason: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          created_at?: string
+          device_serial: string
+          hr_employee_id?: string | null
+          id?: string
+          new_pin: string
+          old_pin: string
+          reason?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          created_at?: string
+          device_serial?: string
+          hr_employee_id?: string | null
+          id?: string
+          new_pin?: string
+          old_pin?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_biometric_pin_history_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_biometric_pin_history_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_biometric_pin_history_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_candidate_notes: {
         Row: {
           candidate_id: string
@@ -6344,6 +6402,79 @@ export type Database = {
           },
         ]
       }
+      hr_employee_id_rekey_log: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          devices_updated: Json
+          employee_display_name: string | null
+          error_detail: string | null
+          hr_employee_id: string | null
+          id: string
+          initiated_at: string
+          initiated_by: string | null
+          new_badge_id: string | null
+          old_badge_id: string | null
+          razorpay_employee_id: string | null
+          status: string
+          templates_replayed: Json
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          devices_updated?: Json
+          employee_display_name?: string | null
+          error_detail?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          initiated_at?: string
+          initiated_by?: string | null
+          new_badge_id?: string | null
+          old_badge_id?: string | null
+          razorpay_employee_id?: string | null
+          status?: string
+          templates_replayed?: Json
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          devices_updated?: Json
+          employee_display_name?: string | null
+          error_detail?: string | null
+          hr_employee_id?: string | null
+          id?: string
+          initiated_at?: string
+          initiated_by?: string | null
+          new_badge_id?: string | null
+          old_badge_id?: string | null
+          razorpay_employee_id?: string | null
+          status?: string
+          templates_replayed?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_id_rekey_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_id_rekey_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_id_rekey_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_employee_notes: {
         Row: {
           created_at: string
@@ -7036,6 +7167,7 @@ export type Database = {
           is_active: boolean
           last_name: string
           last_working_day: string | null
+          legacy_badge_id: string | null
           marital_status: string | null
           notice_period_end_date: string | null
           pan_number: string | null
@@ -7086,6 +7218,7 @@ export type Database = {
           is_active?: boolean
           last_name: string
           last_working_day?: string | null
+          legacy_badge_id?: string | null
           marital_status?: string | null
           notice_period_end_date?: string | null
           pan_number?: string | null
@@ -7136,6 +7269,7 @@ export type Database = {
           is_active?: boolean
           last_name?: string
           last_working_day?: string | null
+          legacy_badge_id?: string | null
           marital_status?: string | null
           notice_period_end_date?: string | null
           pan_number?: string | null
@@ -21386,6 +21520,7 @@ export type Database = {
         Args: { p_name: string }
         Returns: string
       }
+      hr_next_razorpay_employee_id: { Args: never; Returns: string }
       hr_pending_training_swaps: {
         Args: never
         Returns: {
@@ -21403,6 +21538,10 @@ export type Database = {
       hr_rebuild_attendance_daily_range: {
         Args: { p_date_from: string; p_date_to: string; p_employee_id: string }
         Returns: number
+      }
+      hr_resolve_employee_by_pin: {
+        Args: { _device_serial: string; _pin: string; _punch_time?: string }
+        Returns: string
       }
       hr_schedule_security_deposit: {
         Args: { p_employee_id: string }

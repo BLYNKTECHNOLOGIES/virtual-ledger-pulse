@@ -48,10 +48,12 @@ function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return `₹${Math.round(n).toLocaleString("en-IN")}`;
 }
-function diff(a: number, b: number | null | undefined): { delta: number; badge: string | null } {
+// P2: ±₹5 per-component tolerance to absorb ESI-Er-in-base circularity + rounding.
+const DRIFT_TOLERANCE = 5;
+function diff(a: number, b: number | null | undefined, tolerance = DRIFT_TOLERANCE): { delta: number; badge: string | null } {
   if (b === null || b === undefined) return { delta: 0, badge: null };
   const d = Math.round(a - b);
-  if (Math.abs(d) < 1) return { delta: 0, badge: null };
+  if (Math.abs(d) <= tolerance) return { delta: d, badge: null };
   return {
     delta: d,
     badge: `${d > 0 ? "+" : ""}${d.toLocaleString("en-IN")}`,

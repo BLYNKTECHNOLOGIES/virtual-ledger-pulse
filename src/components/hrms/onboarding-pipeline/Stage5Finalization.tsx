@@ -383,16 +383,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
   const pinStatus = useMemo(() => {
     const val = (form.essl_badge_id || "").trim();
-    if (!val) return null as null | { kind: "empty" | "unknown" | "conflict" | "ok"; msg: string; matches?: any[] };
+    if (!val) return null as null | { kind: "empty" | "unknown" | "queued" | "conflict" | "ok"; msg: string; matches?: any[] };
     const matches = (devicePins || []).filter((p: any) => (p.pin || "").trim() === val);
-    if (matches.length === 0) return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
+    if (matches.length === 0) {
+      // If we've already queued an identity for this PIN (or just created one this session),
+      // downgrade the scary "unknown" warning to a friendlier "queued — awaiting device sync".
+      if (existingPushLog || pushFeedback) {
+        return { kind: "queued", msg: `Identity queued for PIN ${val}. Waiting for the eSSL device to poll (usually 30–60s) and report the user back before punches are accepted.`, matches };
+      }
+      return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
+    }
     const usedByOther = new Set(usedBadgeIds.filter((b: string) => b !== (onboardingRecord?.essl_badge_id || "")));
     if (usedByOther.has(val)) return { kind: "conflict", msg: `PIN ${val} is already the badge ID of another finalized employee.`, matches };
     const canonical = canonicalDevicePins.find((p: any) => p.pin === val);
     const deviceCount = canonical?.deviceCount || matches.length;
     const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;
     return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
-  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id]);
+  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id, existingPushLog, pushFeedback]);
 
   const unassignedPins = useMemo(() => {
     const used = new Set(usedBadgeIds);

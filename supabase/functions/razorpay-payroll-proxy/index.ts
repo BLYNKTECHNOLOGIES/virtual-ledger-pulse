@@ -999,6 +999,91 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---------- reset_onboarding_razorpay_reservation ----------
+    // Operator recovery for failed/deleted Razorpay creates. Clears the local
+    // onboarding reservation plus linked local mirrors so Stage 5 can reserve a
+    // fresh unified ID. The allocator still treats previously queued eSSL pins
+    // as burned, so the next reserve advances instead of reusing the deleted ID.
+    if (action === "reset_onboarding_razorpay_reservation") {
+      const onboardingId = payload?.onboarding_id ? String(payload.onboarding_id) : "";
+      if (!onboardingId) return json(400, { ok: false, error: "onboarding_id required" });
+
+      const { data: ob, error: obErr } = await svc
+        .from("hr_employee_onboarding")
+        .select("id,email,employee_id,essl_badge_id")
+        .eq("id", onboardingId)
+        .maybeSingle();
+      if (obErr) return json(500, { ok: false, error: obErr.message });
+      if (!ob) return json(404, { ok: false, error: "Onboarding record not found" });
+
+      const staleId = String((ob as any).essl_badge_id || "").trim();
+      if (!staleId) return json(200, { ok: true, already_clear: true });
+      if (!/^\d+$/.test(staleId)) return json(400, { ok: false, error: `Current reservation "${staleId}" is not a numeric RazorpayX/ESSL ID.` });
+
+      const pendingBadge = `PENDING-${onboardingId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+      const touched: Record<string, number | boolean | string> = { stale_id: staleId };
+
+      const { error: onbErr } = await svc
+        .from("hr_employee_onboarding")
+        .update({ essl_badge_id: null, updated_at: new Date().toISOString() })
+        .eq("id", onboardingId)
+        .eq("essl_badge_id", staleId);
+      if (onbErr) return json(500, { ok: false, error: onbErr.message });
+      touched.onboarding_cleared = true;
+
+      if ((ob as any).employee_id) {
+        const { error: empErr } = await svc
+          .from("hr_employees")
+          .update({ badge_id: pendingBadge, updated_at: new Date().toISOString() })
+          .eq("id", (ob as any).employee_id)
+          .eq("badge_id", staleId);
+        if (empErr) return json(500, { ok: false, error: empErr.message });
+        touched.hr_employee_badge = pendingBadge;
+
+        await svc
+          .from("hr_razorpay_employee_map")
+          .delete()
+          .eq("hr_employee_id", (ob as any).employee_id)
+          .eq("razorpay_employee_id", staleId);
+      }
+
+      if ((ob as any).email) {
+        const { error: userErr } = await svc
+          .from("users")
+          .update({ badge_id: null, updated_at: new Date().toISOString() })
+          .eq("badge_id", staleId)
+          .ilike("email", String((ob as any).email));
+        if (userErr) return json(500, { ok: false, error: userErr.message });
+        touched.erp_user_badge_cleared = true;
+      }
+
+      const { error: pushErr } = await svc
+        .from("hr_essl_pushback_log")
+        .update({
+          status: "cancelled",
+          error_message: "Cancelled after operator reset a deleted/failed RazorpayX onboarding reservation.",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("pin", staleId)
+        .eq("kind", "identity")
+        .eq("triggered_from", "onboarding_stage5")
+        .in("status", ["queued", "pending"]);
+      if (pushErr) return json(500, { ok: false, error: pushErr.message });
+      touched.essl_commands_cancelled = true;
+
+      await logSync(svc, {
+        action: "reset_onboarding_razorpay_reservation",
+        http_status: 200,
+        razorpay_employee_id: staleId,
+        hr_employee_id: (ob as any).employee_id || null,
+        field_diff_summary: { onboarding_id: onboardingId, pending_badge: pendingBadge },
+        error_text: null,
+        actor_user_id: authed.userId,
+      });
+
+      return json(200, { ok: true, ...touched });
+    }
+
     // ---------- recover_person_by_id: operator-assisted mapping repair ----------
     // Used when Razorpay says "Email already exists" but the create API does
     // not return which employee-id owns that email. HR can copy the employee-id

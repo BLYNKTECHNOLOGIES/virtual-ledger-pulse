@@ -763,6 +763,7 @@ const router = createBrowserRouter([
         { path: "payroll/razorpay-sync", element: <RazorpaySyncPage /> },
         { path: "payroll/compliance-settings", element: <ComplianceSettingsPage /> },
         { path: "payroll/leave-attendance-settings", element: <LeaveAttendanceSettingsPage /> },
+        { path: "payroll/salary-structure-mirror", element: <SalaryStructureMirrorPage /> },
         { path: "payroll/payslip-history-import", element: <PayslipHistoryImportPage /> },
         { path: "payroll/salary-register-import", element: <SalaryRegisterImportPage /> },
         { path: "payroll/inputs", element: <PayrollInputsPage /> },

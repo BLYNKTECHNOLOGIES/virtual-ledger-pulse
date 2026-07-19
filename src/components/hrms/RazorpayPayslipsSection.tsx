@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal, AlertTriangle } from "lucide-react";
 import { PayrollAdjustmentDialog } from "@/components/hrms/employee-profile/PayrollAdjustmentDialog";
 import { SourceTag, DashboardLink, FreshnessStamp } from "@/components/hr/payroll/SourceTag";
+import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface Props {

@@ -5907,11 +5907,10 @@ Deno.serve(async (req) => {
         const rpMsg = extracted.message;
         if (rpCode === 7 || /email already exists/i.test(rpMsg)) {
           if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            const attach = await attachReservedEmployeeIdByEmail(String(createData.email || ""), reservedEmployeeId, fullEditData);
-            const verifyAttached = await opfinView(Number(reservedEmployeeId), "employee");
+            const { attach, verify: verifyAttached } = await retryAttachReservedEmployeeId("email_exists_auto_attach_by_email", 8);
             const erpEmail = String(createData.email || "").trim().toLowerCase();
-            const rpEmail = String(verifyAttached.body?.email || verifyAttached.body?.work_email || "").trim().toLowerCase();
-            if (attach.ok && verifyAttached.ok && rpEmail && rpEmail === erpEmail) {
+            const rpEmail = String(verifyAttached?.body?.email || verifyAttached?.body?.work_email || "").trim().toLowerCase();
+            if (attach.ok && verifyAttached?.ok && rpEmail && rpEmail === erpEmail) {
               const snapshot = { ...(verifyAttached.body || fullEditData), _recovered_by: "email_keyed_people_edit" };
               const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snapshot, "created_via_erp");
               if (!repairErr) {
@@ -5934,21 +5933,21 @@ Deno.serve(async (req) => {
               }
               return json(200, {
                 ok: false,
-                http_status: verifyAttached.status,
+                http_status: verifyAttached?.status || attach.status,
                 code: "RAZORPAY_EMAIL_EXISTS_MAPPING_CONFLICT",
                 error: `RazorpayX employee was auto-recovered and Employee ID ${reservedEmployeeId} verified, but ERP mapping repair failed: ${repairErr.message}`,
                 razorpay_employee_id: reservedEmployeeId,
-                body: verifyAttached.body,
+                body: verifyAttached?.body,
               });
             }
 
             await logSync(svc, {
               action: "create_person",
-              http_status: attach.status || verifyAttached.status || httpStatus,
+              http_status: attach.status || verifyAttached?.status || httpStatus,
               razorpay_employee_id: reservedEmployeeId,
               hr_employee_id: hrId,
               field_diff_summary: { source: "email_exists_auto_attach_by_email_failed", payload_field_names: Object.keys(fullEditData).sort() },
-              error_text: attach.error || `verification failed for employee-id ${reservedEmployeeId}`,
+              error_text: attach.error || verifyAttached?.errText || `verification failed for employee-id ${reservedEmployeeId}`,
               actor_user_id: authed.userId,
             });
           }
@@ -6001,6 +6000,23 @@ Deno.serve(async (req) => {
           });
         }
         return json(errText ? 502 : 500, { ok: false, http_status: httpStatus, error: errText || "no_id_returned", body: bodyOut });
+      }
+
+      if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId) && rpId === reservedEmployeeId) {
+        const { attach, verify } = await retryAttachReservedEmployeeId("fresh_create_attach_reserved_id", 8);
+        const erpEmail = String(createData.email || "").trim().toLowerCase();
+        const rpEmail = String(verify?.body?.email || verify?.body?.work_email || "").trim().toLowerCase();
+        if (!attach.ok || !verify?.ok || !rpEmail || rpEmail !== erpEmail) {
+          return json(200, {
+            ok: false,
+            code: "RAZORPAY_ATTACH_AFTER_CREATE_PENDING",
+            http_status: attach.status || verify?.status || httpStatus,
+            razorpay_employee_id: reservedEmployeeId,
+            people_id: bodyOut?._people_id || undefined,
+            error: `RazorpayX created the employee, but Employee ID ${reservedEmployeeId} could not be attached/verified after automatic retries: ${attach.error || verify?.errText || "verification pending"}. Delete the partial RazorpayX employee or wait briefly and click Finalize again.`,
+            body: verify?.body || attach.body || bodyOut,
+          });
+        }
       }
 
       // Wire up the map — baseline snapshot equals outbound payload so future

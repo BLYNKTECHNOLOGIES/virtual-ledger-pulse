@@ -106,6 +106,7 @@ export default function AttendanceCalendarPage() {
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDay = getDay(monthStart); // 0=Sun
+  const { data: complianceSettings } = useComplianceSettings();
 
   const filteredEmps = employees.filter((e: any) => {
     if (selectedEmp !== "all" && e.id !== selectedEmp) return false;

@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-19: RazorpayX onboarding partial-create root cause fixed — create_person now enriches mapped/recovered/fresh employees with ERP PAN/bank/CTC before returning success; incomplete enrichment blocks Stage 5 completion instead of silently leaving partial Razorpay records.
 - 2026-07-19: RazorpayX onboarding create/reset repair shipped — proxy now attempts automated email-keyed Employee ID attachment instead of asking operators for people-id; stuck Shubhams Singh local reservation 73 cleared, HR/ERP badges reset, and old eSSL PIN delete queued so Stage 5 can reserve fresh ID 74.
 - 2026-07-19: RazorpayX onboarding email-exists recovery improved — when Opfin exposes the internal people-id, the proxy now auto-attaches HRMS reserved Employee ID and repairs the map, avoiding manual Stage 5 people-id entry.
 - 2026-07-19: RazorpayX onboarding stale reservation reset hardened — local ID 72 was cleared after operator deleted the partial Razorpay employee; allocator now returns 73 and Stage 5 reset calls service-role proxy to clear onboarding/hr_employee/user badges, cancel pending eSSL identity commands, and avoid reusing burned IDs.

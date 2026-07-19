@@ -315,25 +315,18 @@ Deno.serve(async (req) => {
       const preSpecial = monthlyGross - preBasic - preHra - preLta;
       const regularBase = preBasic + preHra + preSpecial + preLta;
 
-      // LOP — derived from v4 daily rollup status (no lop_days column exists).
-      // 'absent' → 1 day, 'half_day' / 'incomplete' → 0.5 day.
-      const { data: attRows, error: attRowErr } = await supabase
-        .from("hr_attendance_daily")
-        .select("status")
-        .eq("employee_id", emp.id)
-        .gte("attendance_date", periodStr)
-        .lte("attendance_date", monthEndStr);
-      if (attRowErr) {
-        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `attendance: ${attRowErr.message}` });
+      // LOP — from the shared hr_compute_lop_days SQL function (single source of truth).
+      // Uses Razorpay-parity formula: LOP = working_days − (present + paid_leave + incomplete_held).
+      // Incomplete-punch days are held harmless (0 LOP) until an approved regularization exists.
+      const lop = lopByEmp.get(emp.id);
+      if (lop?.config_errors?.length) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "leave_config_error", detail: lop.config_errors.join(" ") });
         continue;
       }
-      const lopDays = (attRows ?? []).reduce((s: number, r: any) => {
-        const st = String(r.status ?? "").toLowerCase();
-        if (st === "absent") return s + 1;
-        if (st === "half_day" || st === "incomplete") return s + 0.5;
-        return s;
-      }, 0);
-      const lopAmount = totalDays > 0 ? Math.round(regularBase * (lopDays / totalDays)) : 0;
+      const lopDays = Number(lop?.lop_days ?? 0);
+      const lopDivisor = Number(lop?.working_days ?? 0) > 0 ? Number(lop!.working_days) : totalDays;
+      const lopAmount = lopDivisor > 0 ? Math.round(regularBase * (lopDays / lopDivisor)) : 0;
+
 
       // KPI-Loss / other gross-side recoveries — matched on label since the
       // hr_payroll_input_deductions table has no category column.

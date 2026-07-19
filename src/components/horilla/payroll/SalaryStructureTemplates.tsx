@@ -20,6 +20,8 @@ interface TemplateItem {
   percentage_of: "total_salary" | "basic_pay";
   formula: string;
   is_variable: boolean;
+  is_residual: boolean;
+  razorpay_taxable: "yes" | "no" | "flexi";
 }
 
 const FORMULA_VARIABLES = [

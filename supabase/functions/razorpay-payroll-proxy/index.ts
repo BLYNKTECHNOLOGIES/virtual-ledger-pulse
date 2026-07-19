@@ -1209,7 +1209,7 @@ Deno.serve(async (req) => {
           last_payload_hash: await canonicalHash(r.body),
         }).eq("hr_employee_id", hrId);
         await logSync(svc, {
-          action: "create_person_recovered_existing",
+          action: "create_person",
           http_status: r.status,
           razorpay_employee_id: String(rpId),
           hr_employee_id: hrId,
@@ -1290,7 +1290,7 @@ Deno.serve(async (req) => {
           last_payload_hash: await canonicalHash(snapshot),
         }).eq("hr_employee_id", hrId);
         await logSync(svc, {
-          action: "create_person_recovered_existing",
+          action: "create_person",
           http_status: v.status,
           razorpay_employee_id: String(desiredEid),
           hr_employee_id: hrId,
@@ -5651,7 +5651,7 @@ Deno.serve(async (req) => {
             const { error: repairErr } = await mapRazorpayEmployee(existingByEmail.employeeId, existingByEmail.body || outboundData, "created_via_erp");
             if (!repairErr) {
               await logSync(svc, {
-                action: "create_person_recovered_existing",
+                action: "create_person",
                 http_status: existingByEmail.status,
                 razorpay_employee_id: existingByEmail.employeeId,
                 hr_employee_id: hrId,
@@ -5716,7 +5716,7 @@ Deno.serve(async (req) => {
                 const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snapshot, "created_via_erp");
                 if (!repairErr) {
                   await logSync(svc, {
-                    action: "create_person_recovered_existing",
+                    action: "create_person",
                     http_status: verifyAttached.status,
                     razorpay_employee_id: reservedEmployeeId,
                     hr_employee_id: hrId,
@@ -5744,7 +5744,7 @@ Deno.serve(async (req) => {
             }
 
             await logSync(svc, {
-              action: "create_person_email_exists_auto_attach_failed",
+              action: "create_person",
               http_status: attachStatus || httpStatus,
               razorpay_employee_id: reservedEmployeeId,
               hr_employee_id: hrId,

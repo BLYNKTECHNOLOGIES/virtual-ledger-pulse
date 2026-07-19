@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Search, Pencil } from "lucide-react";
 import { evalFormula, buildVarsMap, resolveBasicPay, computeFullBreakdown } from "@/lib/hrms/salaryComputation";
+import SalaryDriftChip from "@/components/hrms/salary/SalaryDriftChip";
 
 export default function SalaryStructureAssignments() {
   const qc = useQueryClient();

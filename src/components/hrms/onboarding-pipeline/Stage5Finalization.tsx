@@ -785,10 +785,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 </SelectContent>
               </Select>
             </div>
-            {pinStatus && (
+            {pinStatus && !(bioAlreadyCreated && pinStatus.kind !== "conflict") && (
               <p className={`text-xs mt-1.5 flex items-start gap-1 ${
                 pinStatus.kind === "ok" ? "text-success" :
                 pinStatus.kind === "conflict" ? "text-destructive" :
+                pinStatus.kind === "queued" ? "text-muted-foreground" :
                 "text-warning"
               }`}>
                 {pinStatus.kind === "ok"

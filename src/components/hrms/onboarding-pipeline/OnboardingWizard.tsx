@@ -220,21 +220,22 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   };
 
   const recoverRazorpayById = async () => {
-    if (!razorpayRecovery?.employeeId || !razorpayRecovery?.hrEmployeeId) return;
+    if (!razorpayRecovery?.hrEmployeeId) return;
+    const mode = razorpayRecovery.mode;
+    if (mode === "employee_id" && !razorpayRecovery.employeeId) return;
+    if (mode === "people_id" && !razorpayRecovery.peopleId) return;
     setRazorpayRecovery(p => p ? { ...p, resolving: true } : p);
     try {
-      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-        body: {
-          action: "recover_person_by_id",
-          hr_employee_id: razorpayRecovery.hrEmployeeId,
-          razorpay_employee_id: razorpayRecovery.employeeId,
-        },
-      });
+      const body = mode === "people_id"
+        ? { action: "attach_employee_id_by_people_id", hr_employee_id: razorpayRecovery.hrEmployeeId, people_id: razorpayRecovery.peopleId }
+        : { action: "recover_person_by_id", hr_employee_id: razorpayRecovery.hrEmployeeId, razorpay_employee_id: razorpayRecovery.employeeId };
+      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body });
       if (error) throw new Error(await getFunctionErrorMessage(error, "Razorpay link failed"));
       if (data?.ok === false) throw new Error(data?.error || "Razorpay link failed");
 
-      await logAudit(recordId!, 5, "razorpay_person_recovered_by_id", { razorpay_employee_id: razorpayRecovery.employeeId });
-      toast.success(`Linked RazorpayX employee-id ${razorpayRecovery.employeeId}. Click Finalize again to complete.`);
+      const linkedId = data?.razorpay_employee_id ?? razorpayRecovery.employeeId;
+      await logAudit(recordId!, 5, mode === "people_id" ? "razorpay_person_attached_by_people_id" : "razorpay_person_recovered_by_id", { razorpay_employee_id: linkedId, people_id: data?.people_id });
+      toast.success(`Linked RazorpayX employee-id ${linkedId}. Click Finalize again to complete.`);
       setRazorpayRecovery(null);
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["razorpay-map", razorpayRecovery.hrEmployeeId] });

@@ -51,7 +51,7 @@ export function BiometricQuarantineBanner() {
           ))}
         </div>
         <Link
-          to="/hrms/biometric-devices"
+          to="/hrms/attendance/biometric-devices"
           className="inline-block mt-1 text-xs text-warning hover:underline"
         >
           Open device users →

@@ -976,6 +976,20 @@ export default function RazorpaySyncPage() {
         </a>
       </div>
 
+      {/* Payroll Inputs faucet — additions, deductions, do-not-pay, reset-modifications for RazorpayX. */}
+      <div className="rounded-lg border border-info/30 bg-info/5 p-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm">
+          <div className="font-medium">Stage payroll inputs for the current month</div>
+          <div className="text-xs text-muted-foreground">Additions, deductions, do-not-pay and reset-modifications land in RazorpayX and apply on the next pay run there.</div>
+        </div>
+        <a
+          href="/hrms/payroll/inputs"
+          className="text-xs font-medium px-3 py-1.5 rounded-md border border-info/40 bg-background hover:bg-muted transition"
+        >
+          Open Payroll Inputs →
+        </a>
+      </div>
+
       {/* Today's Focus — the one thing HR should do right now. Simple mode only. */}
       {simpleMode && (
         <>

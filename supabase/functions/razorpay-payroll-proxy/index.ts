@@ -3659,6 +3659,270 @@ Deno.serve(async (req) => {
         return json(200, { ok: true });
       }
 
+      // ---- Shared: view-payroll pilot probe + executed-run heuristic ----
+      // The RazorpayX Opfin API has NO list-payrolls endpoint (verified against
+      // the official Postman collection). To decide whether a given YYYY-MM was
+      // actually executed on the RazorpayX side (vs returning CTC/12 setup
+      // defaults from view-payroll), we probe ONE pilot employee for that
+      // period and read multiple execution signals from the response body.
+      async function viewPayrollProbe(email: string, periodYYYYMM: string) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        try {
+          const res = await fetch(`${BASE}/payroll`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: "payroll", "sub-type": "view-payroll" },
+              data: { email, "payroll-month": periodYYYYMM },
+            }),
+            signal: ctrl.signal,
+          });
+          const raw = await res.text();
+          let body: any = null; try { body = JSON.parse(raw); } catch { /* keep null */ }
+          return { http_status: res.status, body, raw };
+        } catch (e) {
+          return { http_status: 0, body: null, raw: `NETWORK: ${(e as Error).message}` };
+        } finally { clearTimeout(t); }
+      }
+
+      // Multi-signal heuristic. ANY of these means the month was executed on
+      // RazorpayX (not a setup-default response):
+      //   - a real payslip-id/payroll-id string (length > 4)
+      //   - a downloadable pdf-url
+      //   - total-deductions > 0
+      //   - explicit statutory deduction present: pf/esi/pt > 0
+      //   - a non-trivial tds/income-tax value
+      //   - net-pay strictly less than total-earnings (deductions applied)
+      // A response that ONLY has gross == basic (or gross == CTC/12) with zero
+      // deductions is a pre-execution default and returns false.
+      function looksExecutedFromBody(body: any): {
+        executed: boolean;
+        signals: Record<string, unknown>;
+        figures: ReturnType<typeof extractPayrollViewFigures>;
+      } {
+        const empty = {
+          executed: false,
+          signals: { reason: "no_body_or_error" },
+          figures: {
+            gross: null, deductions: null, net: null, tds: null, pdf: null,
+            payslipId: null, pf: null, esi: null, pt: null, additionsDetail: null,
+            doNotPay: false, employeeName: null, deductionAmount: 0,
+          } as any,
+        };
+        if (!body || typeof body !== "object") return empty;
+        const err = body.error || body.message;
+        if (err && typeof err === "string" && err.length > 0) {
+          return { ...empty, signals: { reason: "api_error", error: err } };
+        }
+        const fig = extractPayrollViewFigures(body);
+        const gross = Number(fig.gross ?? 0);
+        const net = Number(fig.net ?? 0);
+        const ded = Number(fig.deductions ?? 0);
+        const pf = Number(fig.pf ?? 0);
+        const esi = Number(fig.esi ?? 0);
+        const pt = Number(fig.pt ?? 0);
+        const tds = Number(fig.tds ?? 0);
+        const payslipId = fig.payslipId || "";
+        const hasRealPayslipId = typeof payslipId === "string" && payslipId.length > 4 &&
+          !/^-?\d+-\d{4}-\d{2}$/.test(payslipId); // filter synthetic `<rpId>-YYYY-MM`
+        const hasPdf = !!fig.pdf;
+        const hasStat = pf > 0 || esi > 0 || pt > 0;
+        const netLtGross = gross > 0 && net > 0 && net < gross - 0.5;
+        const executed = hasPdf || hasRealPayslipId || ded > 0 || hasStat || tds > 0 || netLtGross;
+        return {
+          executed,
+          signals: {
+            gross, net, deductions: ded, pf, esi, pt, tds,
+            hasPdf, hasRealPayslipId, netLtGross,
+          },
+          figures: fig,
+        };
+      }
+
+      // Resolve a pilot email for probing. Callers may pass either a Razorpay
+      // employee-id or an hr_employee_id; if neither, we pick the highest-value
+      // Razorpay employee-id from the map (leadership typically has statutory
+      // deductions and payslip-ids that unambiguously signal execution).
+      async function resolvePilotEmail(payload: any): Promise<{ email: string | null; rpId: string | null; hrId: string | null; reason: string }> {
+        const forcedEmail = String(payload?.pilot_email || "").trim().toLowerCase();
+        if (forcedEmail.includes("@")) return { email: forcedEmail, rpId: null, hrId: null, reason: "payload.pilot_email" };
+        const rpIdRaw = String(payload?.pilot_razorpay_employee_id || payload?.pilot_rp_id || "").trim();
+        if (rpIdRaw) {
+          const { data: m } = await svc.from("hr_razorpay_employee_map")
+            .select("hr_employee_id,razorpay_employee_id").eq("razorpay_employee_id", rpIdRaw).maybeSingle();
+          if (m?.hr_employee_id) {
+            const { data: e } = await svc.from("hr_employees").select("email").eq("id", m.hr_employee_id).maybeSingle();
+            const em = String((e as any)?.email || "").trim().toLowerCase();
+            if (em.includes("@")) return { email: em, rpId: String(m.razorpay_employee_id), hrId: m.hr_employee_id, reason: "payload.pilot_rp_id" };
+          }
+        }
+        // Auto-pick: highest numeric rpId with a real email.
+        const { data: maps } = await svc.from("hr_razorpay_employee_map")
+          .select("hr_employee_id,razorpay_employee_id");
+        const withHr = (maps || []).filter((m: any) => !!m.hr_employee_id);
+        if (!withHr.length) return { email: null, rpId: null, hrId: null, reason: "no_map_rows" };
+        const hrIds = withHr.map((m: any) => m.hr_employee_id);
+        const { data: emps } = await svc.from("hr_employees").select("id,email").in("id", hrIds);
+        const emailByHr = new Map<string, string>();
+        for (const e of (emps || []) as any[]) {
+          const em = String(e.email || "").trim().toLowerCase();
+          if (em.includes("@")) emailByHr.set(e.id, em);
+        }
+        const candidates = withHr
+          .map((m: any) => ({ rp: String(m.razorpay_employee_id), hrId: m.hr_employee_id, email: emailByHr.get(m.hr_employee_id) || "" }))
+          .filter((c: any) => c.email)
+          .sort((a: any, b: any) => (Number(b.rp) || 0) - (Number(a.rp) || 0));
+        if (!candidates.length) return { email: null, rpId: null, hrId: null, reason: "no_pilot_with_email" };
+        const top = candidates[0];
+        return { email: top.email, rpId: top.rp, hrId: top.hrId, reason: "auto_top_rp_id" };
+      }
+
+      // ---- probe_view_payroll_debug (introspection; no side effects) ----
+      if (action === "probe_view_payroll_debug") {
+        const periodMonth = String(payload?.period_month || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(periodMonth)) return json(400, { error: "period_month must be YYYY-MM" });
+        const pilot = await resolvePilotEmail(payload);
+        if (!pilot.email) return json(400, { error: "No pilot email resolved", reason: pilot.reason });
+        const probe = await viewPayrollProbe(pilot.email, periodMonth);
+        const verdict = looksExecutedFromBody(probe.body);
+        return json(200, {
+          ok: true,
+          period_month: periodMonth,
+          pilot: { email_domain: pilot.email.split("@")[1] || null, rp_id: pilot.rpId, hr_id: pilot.hrId, reason: pilot.reason },
+          http_status: probe.http_status,
+          executed: verdict.executed,
+          signals: verdict.signals,
+          body_field_names: probe.body && typeof probe.body === "object" ? Object.keys(probe.body) : [],
+        });
+      }
+
+      // ---- discover_and_seed_runs ----
+      // Iterate months in [period_from..period_to], probe view-payroll for a
+      // pilot employee, and for each month whose response looks executed,
+      // upsert a hr_razorpay_payroll_runs row with status='bulk_applied' so
+      // pull_payslips_for_period / import_payslip_history_range can proceed.
+      // Also auto-verifies the payslip envelope on first 2xx from the API.
+      if (action === "discover_and_seed_runs") {
+        const importParams = payload?.payload && typeof payload.payload === "object" ? payload.payload : payload;
+        const from = String(importParams?.period_from || "").trim();
+        const to = String(importParams?.period_to || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(from) || !/^\d{4}-\d{2}$/.test(to)) {
+          return json(400, { error: "period_from/period_to must be YYYY-MM" });
+        }
+        const [fy, fm] = from.split("-").map(Number);
+        const [ty, tm] = to.split("-").map(Number);
+        if (fy * 12 + fm > ty * 12 + tm) return json(400, { error: "period_from must be <= period_to" });
+
+        const pilot = await resolvePilotEmail(importParams);
+        if (!pilot.email) return json(400, { error: "No pilot email resolved for discovery", reason: pilot.reason });
+
+        const maxMonths = 36;
+        const months: string[] = [];
+        let cy = fy, cm2 = fm;
+        while (cy * 12 + cm2 <= ty * 12 + tm) {
+          months.push(`${String(cy).padStart(4, "0")}-${String(cm2).padStart(2, "0")}`);
+          cm2++; if (cm2 > 12) { cm2 = 1; cy++; }
+          if (months.length >= maxMonths) break;
+        }
+
+        let anySuccessfulHttp = false;
+        const perMonth: any[] = [];
+        for (const pm of months) {
+          const iso = `${pm}-01`;
+          const probe = await viewPayrollProbe(pilot.email, pm);
+          const verdict = looksExecutedFromBody(probe.body);
+          if (probe.http_status >= 200 && probe.http_status < 300) anySuccessfulHttp = true;
+
+          const { data: existing } = await svc.from("hr_razorpay_payroll_runs")
+            .select("id,status").eq("period_month", iso).maybeSingle();
+
+          let seeded = false;
+          let action_taken = "skipped";
+          if (verdict.executed) {
+            if (!existing) {
+              const { error: insErr } = await svc.from("hr_razorpay_payroll_runs").insert({
+                period_month: iso,
+                status: "bulk_applied",
+                envelope_verified: true,
+                envelope_verified_by: authed.userId,
+                envelope_verified_at: new Date().toISOString(),
+                apply_response: {
+                  source: "discover_and_seed_runs",
+                  pilot_rp_id: pilot.rpId,
+                  http_status: probe.http_status,
+                  signals: verdict.signals,
+                },
+                created_by: authed.userId,
+              });
+              if (!insErr) { seeded = true; action_taken = "inserted"; }
+              else action_taken = `insert_error: ${insErr.message}`;
+            } else if (existing.status === "draft") {
+              const { error: updErr } = await svc.from("hr_razorpay_payroll_runs")
+                .update({ status: "bulk_applied", updated_at: new Date().toISOString() })
+                .eq("id", existing.id);
+              if (!updErr) { seeded = true; action_taken = "promoted_from_draft"; }
+              else action_taken = `update_error: ${updErr.message}`;
+            } else {
+              action_taken = `existing_${existing.status}`;
+            }
+          } else {
+            action_taken = "not_executed";
+          }
+
+          perMonth.push({
+            period_month: pm,
+            http_status: probe.http_status,
+            executed: verdict.executed,
+            signals: verdict.signals,
+            existing_status: existing?.status ?? null,
+            seeded,
+            action: action_taken,
+          });
+        }
+
+        // Self-verify the payslip endpoint the first time we successfully hit
+        // view-payroll (the same endpoint pull_payslips_for_period uses).
+        if (anySuccessfulHttp && (!p9Settings?.pull_payslips_endpoint_verified || !p9Settings?.pull_payslips_envelope_key)) {
+          await svc.from("hr_razorpay_settings").update({
+            pull_payslips_endpoint_verified: true,
+            pull_payslips_envelope_key: "payroll:view-payroll",
+            pull_payslips_envelope_verified_at: new Date().toISOString(),
+            pull_payslips_envelope_verified_by: authed.userId,
+          }).eq("is_singleton", true);
+        }
+
+        await logSync(svc, {
+          action: "discover_and_seed_runs",
+          http_status: 200,
+          razorpay_employee_id: pilot.rpId || "",
+          hr_employee_id: pilot.hrId,
+          field_diff_summary: {
+            from, to, months: months.length,
+            pilot_reason: pilot.reason,
+            executed_count: perMonth.filter((m) => m.executed).length,
+            seeded_count: perMonth.filter((m) => m.seeded).length,
+          },
+          error_text: null,
+          actor_user_id: authed.userId,
+        });
+
+        return json(200, {
+          ok: true,
+          pilot: { email_domain: pilot.email.split("@")[1] || null, rp_id: pilot.rpId, hr_id: pilot.hrId, reason: pilot.reason },
+          months: months.length,
+          summary: {
+            executed: perMonth.filter((m) => m.executed).length,
+            seeded: perMonth.filter((m) => m.seeded).length,
+            already_bulk_applied: perMonth.filter((m) => (m.existing_status === "bulk_applied" || m.existing_status === "locked")).length,
+            not_executed: perMonth.filter((m) => !m.executed).length,
+          },
+          per_month: perMonth,
+          note: "Executed months are auto-seeded as bulk_applied so pull_payslips_for_period can proceed. Non-executed months are skipped (view-payroll would return CTC/12 defaults).",
+        });
+      }
+
       // ---- pull_payslips_for_period ----
       // Guards (mirroring pull_payouts_for_period): the underlying endpoint
       // is payroll:view-payroll, which returns *pre-execution defaults*

@@ -43,13 +43,14 @@ export default function PushStructureDialog({
       if (!ids.length) return [];
       const { data: emps } = await (supabase as any)
         .from("hr_employees")
-        .select("id, employee_first_name, employee_last_name, badge_id, is_active")
+        .select("id, first_name, last_name, badge_id, is_active")
         .in("id", ids)
         .eq("is_active", true);
       return (emps || []).map((e: any) => ({
         id: e.id,
-        label: `${e.badge_id ?? "—"} · ${e.employee_first_name ?? ""} ${e.employee_last_name ?? ""}`.trim(),
+        label: `${e.badge_id ?? "—"} · ${e.first_name ?? ""} ${e.last_name ?? ""}`.trim(),
       }));
+
     },
   });
 

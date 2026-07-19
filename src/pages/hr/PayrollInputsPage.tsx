@@ -245,6 +245,25 @@ export default function PayrollInputsPage() {
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.addition_type === "bonus" && enabledBonusTypes.length > 0 && (
+                      <div className="mt-2">
+                        <Label className="text-[10px] text-muted-foreground">Bonus subtype (mirrors Razorpay)</Label>
+                        <Select
+                          value=""
+                          onValueChange={(v) => {
+                            const bt = enabledBonusTypes.find(b => b.key === v);
+                            if (bt) setForm(prev => ({ ...prev, label: bt.label }));
+                          }}
+                        >
+                          <SelectTrigger className="text-foreground h-8 text-xs"><SelectValue placeholder="Pick from catalogue…" /></SelectTrigger>
+                          <SelectContent>
+                            {enabledBonusTypes.map(b => (
+                              <SelectItem key={b.key} value={b.key}>{b.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 ) : <div />}
               </div>

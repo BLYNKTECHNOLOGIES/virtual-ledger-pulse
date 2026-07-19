@@ -6512,6 +6512,68 @@ export type Database = {
           },
         ]
       }
+      hr_employee_salary_structure_assignments: {
+        Row: {
+          annual_ctc: number
+          created_at: string
+          employee_id: string
+          expanded_breakdown: Json
+          id: string
+          push_error: string | null
+          push_status: string
+          pushed_at: string
+          pushed_by: string | null
+          razorpay_ack: Json | null
+          razorpay_employee_id: number | null
+          razorpay_status_code: number | null
+          reason: string | null
+          template_id: string | null
+          template_name: string | null
+        }
+        Insert: {
+          annual_ctc: number
+          created_at?: string
+          employee_id: string
+          expanded_breakdown: Json
+          id?: string
+          push_error?: string | null
+          push_status?: string
+          pushed_at?: string
+          pushed_by?: string | null
+          razorpay_ack?: Json | null
+          razorpay_employee_id?: number | null
+          razorpay_status_code?: number | null
+          reason?: string | null
+          template_id?: string | null
+          template_name?: string | null
+        }
+        Update: {
+          annual_ctc?: number
+          created_at?: string
+          employee_id?: string
+          expanded_breakdown?: Json
+          id?: string
+          push_error?: string | null
+          push_status?: string
+          pushed_at?: string
+          pushed_by?: string | null
+          razorpay_ack?: Json | null
+          razorpay_employee_id?: number | null
+          razorpay_status_code?: number | null
+          reason?: string | null
+          template_id?: string | null
+          template_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_salary_structure_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_salary_structure_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_salary_structures: {
         Row: {
           amount: number
@@ -10869,6 +10931,7 @@ export type Database = {
           is_taxable: boolean | null
           name: string
           percentage_of: string | null
+          razorpay_key: string | null
           updated_at: string
         }
         Insert: {
@@ -10883,6 +10946,7 @@ export type Database = {
           is_taxable?: boolean | null
           name: string
           percentage_of?: string | null
+          razorpay_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -10897,6 +10961,7 @@ export type Database = {
           is_taxable?: boolean | null
           name?: string
           percentage_of?: string | null
+          razorpay_key?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -10999,8 +11064,10 @@ export type Database = {
           created_at: string
           formula: string | null
           id: string
+          is_residual: boolean
           is_variable: boolean
           percentage_of: string | null
+          razorpay_taxable: string | null
           template_id: string
           value: number
         }
@@ -11010,8 +11077,10 @@ export type Database = {
           created_at?: string
           formula?: string | null
           id?: string
+          is_residual?: boolean
           is_variable?: boolean
           percentage_of?: string | null
+          razorpay_taxable?: string | null
           template_id: string
           value?: number
         }
@@ -11021,8 +11090,10 @@ export type Database = {
           created_at?: string
           formula?: string | null
           id?: string
+          is_residual?: boolean
           is_variable?: boolean
           percentage_of?: string | null
+          razorpay_taxable?: string | null
           template_id?: string
           value?: number
         }

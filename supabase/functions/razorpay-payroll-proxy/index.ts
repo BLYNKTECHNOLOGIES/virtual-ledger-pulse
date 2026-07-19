@@ -568,6 +568,31 @@ function extractRazorpayError(body: any, fallback?: string | null): { code: numb
   return { code: Number.isFinite(code) ? code : null, message };
 }
 
+function extractRazorpayPeopleId(body: any): string | null {
+  if (!body || typeof body !== "object") return null;
+  const candidates = [
+    body?.["people-id"],
+    body?.people_id,
+    body?.peopleId,
+    body?.id,
+    body?.data?.["people-id"],
+    body?.data?.people_id,
+    body?.data?.peopleId,
+    body?.data?.id,
+    body?.person?.["people-id"],
+    body?.person?.people_id,
+    body?.employee?.["people-id"],
+    body?.employee?.people_id,
+  ];
+  for (const c of candidates) {
+    const v = c == null ? "" : String(c).trim();
+    if (/^\d+$/.test(v)) return v;
+  }
+  const text = JSON.stringify(body);
+  const match = text.match(/"people-id"\s*:\s*"?(\d+)"?|"people_id"\s*:\s*"?(\d+)"?|"peopleId"\s*:\s*"?(\d+)"?/);
+  return match ? (match[1] || match[2] || match[3] || null) : null;
+}
+
 function isDismissedRazorpayPerson(rp: any): boolean {
   if (!rp || typeof rp !== "object") return false;
   const rpStatus = String(rp.status || "").toLowerCase();
@@ -5449,8 +5474,8 @@ Deno.serve(async (req) => {
           //      with { "people-id": <internal>, "employee-id": <reserved> } to
           //      attach the unified id.
           //   3. Verify via people:view(employee-id) before treating as success.
-          const respData = (bodyOut?.data && typeof bodyOut.data === "object") ? bodyOut.data : bodyOut;
-          const peopleIdRaw = respData?.["people-id"] ?? respData?.people_id ?? bodyOut?.["people-id"] ?? bodyOut?.people_id ?? null;
+              const respData = (bodyOut?.data && typeof bodyOut.data === "object") ? bodyOut.data : bodyOut;
+              const peopleIdRaw = extractRazorpayPeopleId(bodyOut);
           const employeeIdEcho = respData?.["employee-id"] ?? respData?.employee_id ?? bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? null;
 
           let attachedPeopleId: string | null = peopleIdRaw != null ? String(peopleIdRaw) : null;
@@ -5587,13 +5612,17 @@ Deno.serve(async (req) => {
               body: bodyOut,
             });
           }
+          const existingPeopleId = extractRazorpayPeopleId(bodyOut);
           return json(200, {
             ok: false,
             http_status: httpStatus,
             code: "RAZORPAY_EMAIL_EXISTS",
             recoverable: true,
-            recovery_action: "recover_person_by_id",
-            error: `RazorpayX already has an employee with this email under a different employee-id. Open RazorpayX, search this employee by email, copy the employee-id, then enter it in Stage 5 to link safely.`,
+            recovery_action: "attach_employee_id_by_people_id",
+            people_id: existingPeopleId,
+            error: existingPeopleId
+              ? `RazorpayX already has an employee with this email, but Employee ID is not attached. ERP found people-id ${existingPeopleId}; click Verify & Link to attach reserved employee-id ${reservedEmployeeId || ""}.`
+              : `RazorpayX already has an employee with this email. If its Employee ID shows -NA-, copy the numeric people-id from the RazorpayX employee URL and enter it in Stage 5; ERP will attach the reserved employee-id safely.`,
             body: bodyOut,
           });
         }

@@ -4949,18 +4949,20 @@ Deno.serve(async (req) => {
       if (!hrId) return json(400, { error: "hr_employee_id required" });
       const dryRun = payload?.dry_run === true;
 
-      // Guard: already mapped?
+      // Guard: already mapped. This is an idempotent success because Stage-5
+      // retries can happen after ERP/Razorpay succeeded but onboarding status
+      // was not flipped yet.
       const { data: existingMap } = await svc
         .from("hr_razorpay_employee_map")
         .select("razorpay_employee_id")
         .eq("hr_employee_id", hrId)
         .maybeSingle();
       if (existingMap?.razorpay_employee_id) {
-        return json(409, {
-          ok: false,
+        return json(200, {
+          ok: true,
           reason: "already_mapped",
+          already_mapped: true,
           razorpay_employee_id: existingMap.razorpay_employee_id,
-          error: `Already linked to Razorpay employee ${existingMap.razorpay_employee_id}.`,
         });
       }
 
@@ -5061,6 +5063,51 @@ Deno.serve(async (req) => {
         return json(200, { ok: true, dry_run: true, payload: outboundData });
       }
 
+      const mapRazorpayEmployee = async (rpEmployeeId: string, snapshot: Record<string, any>, status: string) => {
+        return await svc.from("hr_razorpay_employee_map").upsert({
+          razorpay_employee_id: rpEmployeeId,
+          hr_employee_id: hrId,
+          sync_status: status,
+          is_pilot_verified: false,
+          last_synced_at: new Date().toISOString(),
+          last_pull_snapshot: snapshot,
+        }, { onConflict: "razorpay_employee_id" });
+      };
+
+      // If the reserved unified ID already exists in Razorpay but the local map
+      // is missing, repair the map and return success instead of trying to
+      // create a duplicate employee.
+      if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+        const existingRp = await opfinView(Number(reservedEmployeeId), "employee");
+        if (existingRp.ok) {
+          const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, existingRp.body || outboundData, "created_via_erp");
+          if (repairErr) {
+            return json(207, {
+              ok: true,
+              razorpay_employee_id: reservedEmployeeId,
+              already_exists_in_razorpay: true,
+              warning: `Employee exists in Razorpay but ERP mapping repair failed: ${repairErr.message}`,
+            });
+          }
+          await logSync(svc, {
+            action: "create_person_recovered_existing",
+            http_status: existingRp.status,
+            razorpay_employee_id: reservedEmployeeId,
+            hr_employee_id: hrId,
+            field_diff_summary: { source: "people:view", payload_field_names: Object.keys(outboundData).sort() },
+            error_text: null,
+            actor_user_id: authed.userId,
+          });
+          return json(200, {
+            ok: true,
+            razorpay_employee_id: reservedEmployeeId,
+            already_exists_in_razorpay: true,
+            repaired_mapping: true,
+            http_status: existingRp.status,
+          });
+        }
+      }
+
       // Live create. Verified against the official RazorpayX Payroll Postman
       // collection: `people:create` is the supported create mode. `people:add`
       // is not a valid request type for this tenant and returns code 23.
@@ -5106,20 +5153,30 @@ Deno.serve(async (req) => {
         actor_user_id: authed.userId,
       });
 
+      if ((errText || !rpId) && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+        const postFailureView = await opfinView(Number(reservedEmployeeId), "employee");
+        if (postFailureView.ok) {
+          const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, postFailureView.body || outboundData, "created_via_erp");
+          if (!repairErr) {
+            return json(200, {
+              ok: true,
+              razorpay_employee_id: reservedEmployeeId,
+              already_exists_in_razorpay: true,
+              repaired_mapping: true,
+              recovered_after_create_error: true,
+              http_status: postFailureView.status,
+            });
+          }
+        }
+      }
+
       if (errText || !rpId) {
         return json(errText ? 502 : 500, { ok: false, http_status: httpStatus, error: errText || "no_id_returned", body: bodyOut });
       }
 
       // Wire up the map — baseline snapshot equals outbound payload so future
       // push_person diffs land cleanly without needing a re-pull.
-      const { error: mapErr } = await svc.from("hr_razorpay_employee_map").upsert({
-        razorpay_employee_id: rpId,
-        hr_employee_id: hrId,
-        sync_status: "created_via_erp",
-        is_pilot_verified: false,
-        last_synced_at: new Date().toISOString(),
-        last_pull_snapshot: outboundData,
-      }, { onConflict: "razorpay_employee_id" });
+      const { error: mapErr } = await mapRazorpayEmployee(rpId, outboundData, "created_via_erp");
       if (mapErr) {
         return json(207, {
           ok: true, razorpay_employee_id: rpId, http_status: httpStatus,

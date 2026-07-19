@@ -429,8 +429,15 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             throw new Error(detail);
           }
           razorpayEmployeeId = rpRes?.razorpay_employee_id ?? null;
-          await logAudit(recordId, 5, "razorpay_person_created", { razorpay_employee_id: razorpayEmployeeId });
-          successes.push(`RazorpayX ID ${razorpayEmployeeId}`);
+          const rpAction = rpRes?.already_mapped || rpRes?.already_exists_in_razorpay
+            ? "razorpay_person_reused"
+            : "razorpay_person_created";
+          await logAudit(recordId, 5, rpAction, { razorpay_employee_id: razorpayEmployeeId, response: rpRes });
+          successes.push(
+            rpRes?.already_mapped || rpRes?.already_exists_in_razorpay
+              ? `RazorpayX ID ${razorpayEmployeeId} reused`
+              : `RazorpayX ID ${razorpayEmployeeId}`,
+          );
         } catch (rpErr: any) {
           const message = rpErr?.message || String(rpErr);
           console.error("Razorpay create failed:", rpErr);
@@ -462,43 +469,47 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
           const { userId: erpUserId, username: erpUsername, tempPassword } = erpResult;
 
-          // Send credentials email via hr@blynkex.com
-          const loginUrl = window.location.origin;
-          const credentialsHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #1a1a1a;">Welcome to Blynk ERP</h2>
-              <p>Dear ${r.first_name},</p>
-              <p>Your ERP account has been created. Here are your login credentials:</p>
-              <table style="border-collapse: collapse; margin: 20px 0;">
-                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Login URL</td><td style="padding: 8px 16px;"><a href="${loginUrl}">${loginUrl}</a></td></tr>
-                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Email</td><td style="padding: 8px 16px;">${r.email}</td></tr>
-                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Username</td><td style="padding: 8px 16px;">${erpUsername}</td></tr>
-                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Temporary Password</td><td style="padding: 8px 16px; font-family: monospace;">${tempPassword}</td></tr>
-              </table>
-              <p style="color: #d32f2f; font-weight: bold;">⚠️ You will be required to change your password on first login.</p>
-              <p>If you have any questions, please contact the HR department.</p>
-              <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
-              <p style="color: #888; font-size: 12px;">This is an automated message from Blynk Virtual Technologies HR.</p>
-            </div>
-          `;
+          if (tempPassword) {
+            // Send credentials email via hr@blynkex.com only for newly-created
+            // accounts. Reused retry accounts must not receive a bogus
+            // "undefined" password.
+            const loginUrl = window.location.origin;
+            const credentialsHtml = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1a1a1a;">Welcome to Blynk ERP</h2>
+                <p>Dear ${r.first_name},</p>
+                <p>Your ERP account has been created. Here are your login credentials:</p>
+                <table style="border-collapse: collapse; margin: 20px 0;">
+                  <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Login URL</td><td style="padding: 8px 16px;"><a href="${loginUrl}">${loginUrl}</a></td></tr>
+                  <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Email</td><td style="padding: 8px 16px;">${r.email}</td></tr>
+                  <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Username</td><td style="padding: 8px 16px;">${erpUsername}</td></tr>
+                  <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Temporary Password</td><td style="padding: 8px 16px; font-family: monospace;">${tempPassword}</td></tr>
+                </table>
+                <p style="color: #d32f2f; font-weight: bold;">⚠️ You will be required to change your password on first login.</p>
+                <p>If you have any questions, please contact the HR department.</p>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+                <p style="color: #888; font-size: 12px;">This is an automated message from Blynk Virtual Technologies HR.</p>
+              </div>
+            `;
 
-          try {
-            await supabase.functions.invoke("send-hr-email", {
-              body: {
-                recipientEmail: r.email,
-                subject: "Your Blynk ERP Login Credentials",
-                htmlBody: credentialsHtml,
-                templateName: "erp_credentials",
-              },
-            });
-          } catch (mailErr: any) {
-            console.warn("Credential email failed (ERP account was created):", mailErr);
-            toast.warning(`ERP account created but credential email failed: ${mailErr?.message || mailErr}`);
+            try {
+              await supabase.functions.invoke("send-hr-email", {
+                body: {
+                  recipientEmail: r.email,
+                  subject: "Your Blynk ERP Login Credentials",
+                  htmlBody: credentialsHtml,
+                  templateName: "erp_credentials",
+                },
+              });
+            } catch (mailErr: any) {
+              console.warn("Credential email failed (ERP account was created):", mailErr);
+              toast.warning(`ERP account created but credential email failed: ${mailErr?.message || mailErr}`);
+            }
           }
 
-          await logAudit(recordId, 5, "erp_account_created", { erp_user_id: erpUserId, username: erpUsername });
+          await logAudit(recordId, 5, erpResult?.alreadyExists ? "erp_account_reused" : "erp_account_created", { erp_user_id: erpUserId, username: erpUsername });
           erpUserSummary = erpUsername;
-          successes.push(`ERP account ${erpUsername}`);
+          successes.push(erpResult?.alreadyExists ? `ERP account ${erpUsername} reused` : `ERP account ${erpUsername}`);
         } catch (erpErr: any) {
           const message = erpErr?.message || String(erpErr);
           console.error("ERP account creation failed:", erpErr);

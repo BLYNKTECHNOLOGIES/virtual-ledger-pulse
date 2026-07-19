@@ -740,7 +740,7 @@ const router = createBrowserRouter([
         { path: "payroll/payslips", element: <PayslipsPage /> },
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
-        { path: "payroll/salary-structure", element: <SalaryStructurePage /> },
+        // Salary Structure page retired — Razorpay is the authority; per-employee breakdown is mirrored in the employee profile.
         { path: "payroll/penalties", element: <PenaltyManagementPage /> },
         { path: "payroll/deposits", element: <DepositManagementPage /> },
         { path: "payroll/loans", element: <LoansPage /> },

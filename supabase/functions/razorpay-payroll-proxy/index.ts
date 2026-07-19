@@ -3906,29 +3906,49 @@ Deno.serve(async (req) => {
         if (months.length >= maxMonths) break;
       }
 
+      // Preload payroll-run statuses for gating the pull step per month.
+      const monthISOs = months.map((m) => `${m}-01`);
+      const { data: runsForRange } = await svc
+        .from("hr_razorpay_payroll_runs")
+        .select("period_month,status")
+        .in("period_month", monthISOs);
+      const runStatusByISO = new Map<string, string>((runsForRange || []).map((r: any) => [String(r.period_month), String(r.status)]));
+      const allowRunStatuses = new Set(["bulk_applied", "locked", "recalled"]);
+
       const perMonth: any[] = [];
       let totalReflected = 0, totalWithPdf = 0, totalMissingMap = 0, totalPulled = 0, pullFailures = 0;
       let totalNoRecord = 0, totalNoEmail = 0, totalUpsertErrors = 0;
+      let skippedNoRun = 0, skippedUnfinalised = 0;
 
       for (const pm of months) {
         const iso = `${pm}-01`;
         let pulled = 0, pullErr: string | null = null;
+        const runStatus = runStatusByISO.get(iso) || null;
+        const runFinalised = runStatus ? allowRunStatuses.has(runStatus) : false;
 
         if (alsoPull) {
-          try {
-            const pull = await pullPayrollViewForPeriod(svc, pm, authed.userId || null);
-            pulled = pull.pulled;
-            totalNoRecord += pull.noRecord;
-            totalNoEmail += pull.noEmail;
-            totalUpsertErrors += pull.upsertErrors;
-            if (pull.failed || pull.upsertErrors) pullErr = `failed=${pull.failed}; upsertErrors=${pull.upsertErrors}`;
-          } catch (e) {
-            pullErr = (e as Error).message;
+          if (!runStatus) {
+            pullErr = "skipped: no RazorpayX payroll run for this month (view-payroll would return CTC/12 defaults)";
+            skippedNoRun++;
+          } else if (!runFinalised) {
+            pullErr = `skipped: RazorpayX run not finalised (status=${runStatus})`;
+            skippedUnfinalised++;
+          } else {
+            try {
+              const pull = await pullPayrollViewForPeriod(svc, pm, authed.userId || null);
+              pulled = pull.pulled;
+              totalNoRecord += pull.noRecord;
+              totalNoEmail += pull.noEmail;
+              totalUpsertErrors += pull.upsertErrors;
+              if (pull.failed || pull.upsertErrors) pullErr = `failed=${pull.failed}; upsertErrors=${pull.upsertErrors}`;
+            } catch (e) {
+              pullErr = (e as Error).message;
+            }
+            if (pullErr) pullFailures++;
           }
-          if (pullErr) pullFailures++;
         }
 
-        // Reflect whatever we have (existing rows + freshly pulled).
+        // Reflect whatever we have (existing rows only when there's no finalised run to pull).
         let refRes = { reflected: 0, withPdf: 0, missingMap: 0 };
         try { refRes = await reflectOne(iso); } catch (e) { pullErr = (pullErr || "") + `; reflect: ${(e as Error).message}`; }
 
@@ -3936,7 +3956,7 @@ Deno.serve(async (req) => {
         totalReflected += refRes.reflected;
         totalWithPdf += refRes.withPdf;
         totalMissingMap += refRes.missingMap;
-        perMonth.push({ period_month: pm, pulled, ...refRes, error: pullErr });
+        perMonth.push({ period_month: pm, run_status: runStatus, pulled, ...refRes, error: pullErr });
       }
 
       await svc.from("hr_razorpay_settings")

@@ -88,7 +88,11 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
   };
 
   const toggleDoc = (key: string) => {
-    setDocs(prev => ({ ...prev, [key]: { ...prev[key], received: !prev[key].received } }));
+    setDocs(prev => {
+      const next = { ...prev, [key]: { ...prev[key], received: !prev[key].received } };
+      persistDocs(next);
+      return next;
+    });
   };
 
   const allRequiredReceived = SIGNED_DOCS.filter(f => f.required).every(f => docs[f.key]?.received);

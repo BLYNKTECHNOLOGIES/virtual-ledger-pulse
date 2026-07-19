@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,8 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     shift_id: "",
     employee_type: "",
   });
+  const dirtyRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (data) {
@@ -79,7 +81,22 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   });
 
 
-  const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    if (!dirtyRef.current || readOnly) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      dirtyRef.current = false;
+      onSave(form).catch((err: any) => console.warn("Stage 1 autosave failed:", err));
+    }, 900);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [form, onSave, readOnly]);
+
+  const update = (field: string, value: string) => {
+    dirtyRef.current = true;
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
 
   const validate = () => {
     if (!form.first_name.trim()) { toast.error("First name is required"); return false; }

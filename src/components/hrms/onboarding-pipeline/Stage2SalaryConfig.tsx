@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,8 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     ctc: "",
     deposit_config: null as any,
   });
+  const dirtyRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (data) {
@@ -52,6 +54,18 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     deposit_config: form.deposit_config,
   });
 
+  useEffect(() => {
+    if (!dirtyRef.current || readOnly) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      dirtyRef.current = false;
+      onSave(getPayload()).catch((err: any) => console.warn("Stage 2 autosave failed:", err));
+    }, 900);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [form, onSave, readOnly]);
+
   return (
     <Card>
       <CardHeader className="py-3 px-4">
@@ -66,7 +80,10 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
             type="number"
             placeholder="e.g. 600000"
             value={form.ctc}
-            onChange={e => setForm(p => ({ ...p, ctc: e.target.value }))}
+            onChange={e => {
+              dirtyRef.current = true;
+              setForm(p => ({ ...p, ctc: e.target.value }));
+            }}
             disabled={readOnly}
           />
           <p className="text-[11px] text-muted-foreground mt-1">

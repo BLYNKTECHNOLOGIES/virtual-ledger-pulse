@@ -141,7 +141,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
   };
 
   const toggleDoc = (key: string) => {
-    setDocs(prev => ({ ...prev, [key]: { ...prev[key], received: !prev[key].received } }));
+    setDocs(prev => {
+      const next = { ...prev, [key]: { ...prev[key], received: !prev[key].received } };
+      persistDocs(next);
+      return next;
+    });
   };
 
   const updateDocValue = (key: string, value: string) => {
@@ -326,7 +330,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
           <Input
             type="date"
             value={mailReceivedDate}
-            onChange={e => setMailReceivedDate(e.target.value)}
+            onChange={e => {
+              const nextDate = e.target.value;
+              setMailReceivedDate(nextDate);
+              persistDocs(docs, nextDate);
+            }}
             disabled={readOnly}
           />
         </div>

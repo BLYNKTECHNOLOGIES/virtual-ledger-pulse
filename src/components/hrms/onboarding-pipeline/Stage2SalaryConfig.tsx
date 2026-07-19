@@ -34,6 +34,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (dirtyRef.current) return;
     if (data) {
       setForm({
         ctc: data.ctc?.toString() || "",

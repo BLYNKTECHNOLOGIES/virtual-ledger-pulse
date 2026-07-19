@@ -34,6 +34,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (dirtyRef.current) return;
     if (data) {
       setForm({
         first_name: data.first_name || "",

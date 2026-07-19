@@ -6,21 +6,26 @@
  * payout-facing surface. It exists to let HR A/B our computation against
  * Razorpay's for 2–3 months and catch drift on either side.
  *
- * Trigger: POST { period_month: "YYYY-MM-01", employee_ids?: string[] }
- * Response: { run_id, computed_count }
+ * Trigger: POST { period_month: "YYYY-MM-01", employee_ids?: string[], force?: boolean }
+ * Response: { run_id, computed_count, skipped_count, ... }
  *
- * Rules mirrored (2026-07-19, verified against 10 real payslips):
- *  - PF/ESI/PT enrollment is PER-EMPLOYEE (`hr_employees.pf_enabled` etc.);
- *    global compliance toggles are only a fallback.
- *  - Structure split can be overridden per-employee via `custom_structure_pct`
- *    (JSON of Basic/HRA/Special/LTA %). Grandfathered pre-2026 hires.
- *  - LOP + KPI-Loss shrink Basic/HRA/LTA proportionally; Special = residual.
- *  - PF (all three lines) recomputed on shrunk Basic: 12% ee / 12% er (contra)
- *    / 1% EDLI+Admin (deduction) / 13% employer earnings-side, all capped at
- *    min(Basic, 15 000).
- *  - ESI base = shrunk regular gross (Basic + HRA + Special + LTA), gate 21k.
- *  - LWF is INTENTIONALLY NOT COMPUTED (owner directive; deducted once in error
- *    on Jun-26 payslips and never to be re-enabled without approval).
+ * 2026-07-19 hardening (P0/P1/P2, per Claude audit review):
+ *  - Fixed schema mismatches that silently zeroed every employee's line:
+ *      * hr_attendance_daily      : hr_employee_id → employee_id,
+ *                                   attendance_status → status,
+ *                                   lop_days derived from status (no such column exists).
+ *      * hr_employee_salary_structure_assignments : hr_employee_id → employee_id.
+ *      * hr_employees.filing_status_id (was hr_filing_status_id).
+ *      * hr_employees.state           (was work_state — no such column).
+ *      * hr_payroll_input_additions/deductions : dropped .eq('status','approved')
+ *        (column does not exist); KPI-Loss now matched on label (no category col).
+ *  - Every select in the per-employee loop now checks `.error` and pushes into
+ *    `skipped_lines` instead of silently continuing.
+ *  - TDS math refreshed to FY26-27 (₹75k standard deduction, rebate ₹12L on new
+ *    regime, ₹5L on old) and is annualised on the PRE-LOP regular base to avoid
+ *    monthly LOP artificially pulling the projection down.
+ *  - TDS is written to shadow lines but the run defaults `include_tds_in_drift=false`
+ *    so drift alerts don't churn on the still-simplified projection.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -40,8 +45,8 @@ function computeEpf(basic: number, da: number, s: any, enrolled: boolean) {
   const base = pfWageBase(basic, da, s);
   const employee = Math.round(base * 0.12);
   const employer = Math.round(base * 0.12);
-  const admin_edli = Math.round(base * 0.01);           // flat 1% — verified vs Priya
-  const employer_earnings_side = employer + admin_edli; // 13% line printed on payslip
+  const admin_edli = Math.round(base * 0.01);
+  const employer_earnings_side = employer + admin_edli;
   return { employee, employer, admin_edli, employer_earnings_side, base };
 }
 function computeEsi(fullGross: number, regularGross: number, s: any, enrolled: boolean) {
@@ -66,23 +71,31 @@ function computePt(base: number, stateCode: string, slabs: any[], enrolled: bool
   }
   return match.monthly_amount;
 }
-function projectAnnualTax(annual: number, regime: string): number {
-  if (annual <= 0) return 0;
+
+// FY26-27 TDS projection (owner directive):
+//  - Standard deduction ₹75 000 (both regimes)
+//  - New regime rebate u/s 87A: tax = 0 if taxable ≤ ₹12 00 000
+//  - Old regime rebate: tax = 0 if taxable ≤ ₹5 00 000
+//  - Cess 4% on tax
+//  - Slabs updated for FY26-27 new regime; old regime unchanged.
+function projectAnnualTax(annualGrossPreLop: number, regime: string): number {
+  if (annualGrossPreLop <= 0) return 0;
+  const stdDeduction = 75000;
+  const taxable = Math.max(0, annualGrossPreLop - stdDeduction);
   const slabs = regime === "old"
     ? [[250000, 0], [500000, 0.05], [1000000, 0.20], [Infinity, 0.30]]
     : [[400000, 0], [800000, 0.05], [1200000, 0.10], [1600000, 0.15], [2000000, 0.20], [2400000, 0.25], [Infinity, 0.30]];
   let tax = 0, prev = 0;
   for (const [ceiling, rate] of slabs as [number, number][]) {
-    if (annual > ceiling) { tax += (ceiling - prev) * rate; prev = ceiling; }
-    else { tax += (annual - prev) * rate; break; }
+    if (taxable > ceiling) { tax += (ceiling - prev) * rate; prev = ceiling; }
+    else { tax += (taxable - prev) * rate; break; }
   }
+  if (regime === "new" && taxable <= 1200000) tax = 0;
+  if (regime === "old" && taxable <= 500000) tax = 0;
   tax *= 1.04;
-  if (regime === "new" && annual <= 700000) tax = 0;
-  if (regime === "old" && annual <= 500000) tax = 0;
   return Math.max(0, tax);
 }
 
-// Resolve % split — per-employee override wins over Razorpay default.
 function resolveStructurePct(
   customPct: any,
   components: any[] | null,
@@ -130,65 +143,65 @@ Deno.serve(async (req) => {
     const period = new Date(periodStr + "T00:00:00Z");
     const employeeIds: string[] | undefined = body.employee_ids;
 
-    // 1. Load compliance mirror + PT slabs
-    const { data: settingsArr } = await supabase.from("hr_razorpay_settings").select("*").eq("is_singleton", true).limit(1);
+    // 1. Compliance mirror + PT slabs
+    const { data: settingsArr, error: settingsErr } = await supabase
+      .from("hr_razorpay_settings").select("*").eq("is_singleton", true).limit(1);
+    if (settingsErr) throw settingsErr;
     const settings = settingsArr?.[0];
-    const { data: ptSlabs } = await supabase.from("hr_pt_slabs").select("*");
+    const { data: ptSlabs, error: ptErr } = await supabase.from("hr_pt_slabs").select("*");
+    if (ptErr) throw ptErr;
 
-    // 2. Load active employees — include per-employee statutory flags + custom split
+    // 2. Active employees + per-employee statutory flags + custom split + provenance
     let empQ: any = supabase.from("hr_employees")
-      .select("id, first_name, last_name, badge_id, work_state, is_active, hr_filing_status_id, joining_date, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct")
+      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source")
       .eq("is_active", true);
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
     const { data: employees, error: empErr } = await empQ;
     if (empErr) throw empErr;
 
-    // 3. Compute input readiness — this is what makes downstream drift trustworthy.
-    const monthEndProbe = new Date(period);
-    monthEndProbe.setUTCMonth(monthEndProbe.getUTCMonth() + 1);
-    monthEndProbe.setUTCDate(0);
-    const monthEndStr = monthEndProbe.toISOString().slice(0, 10);
+    // 3. Input readiness
+    const monthEnd = new Date(period);
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+    monthEnd.setUTCDate(0);
+    const monthEndStr = monthEnd.toISOString().slice(0, 10);
+    const totalDays = monthEnd.getUTCDate();
     const activeCount = employees?.length ?? 0;
 
-    // Attendance coverage — distinct employees with any daily row in the month
     let attendanceCoveragePct = 0;
     if (activeCount > 0) {
-      const { data: attEmps } = await supabase
+      const { data: attEmps, error: attErr } = await supabase
         .from("hr_attendance_daily")
-        .select("hr_employee_id")
+        .select("employee_id")
         .gte("attendance_date", periodStr)
         .lte("attendance_date", monthEndStr)
-        .in("hr_employee_id", employees!.map((e: any) => e.id));
-      const distinct = new Set((attEmps ?? []).map((r: any) => r.hr_employee_id));
+        .in("employee_id", employees!.map((e: any) => e.id));
+      if (attErr) console.error("readiness attendance err", attErr);
+      const distinct = new Set((attEmps ?? []).map((r: any) => r.employee_id));
       attendanceCoveragePct = Math.round((distinct.size / activeCount) * 100);
     }
 
-    // Register imported — any Razorpay payslip records for this period
-    const { data: regRows, count: regCount } = await supabase
+    const { data: regRows, count: regCount, error: regErr } = await supabase
       .from("hr_razorpay_payslip_records")
       .select("hr_employee_id", { count: "exact", head: false })
       .eq("period_month", periodStr);
+    if (regErr) console.error("readiness register err", regErr);
     const registerEmployeeCount = new Set((regRows ?? []).map((r: any) => r.hr_employee_id)).size;
     const registerImported = (regCount ?? 0) > 0;
 
-    // Payroll inputs staged (approved additions + deductions for the period)
     const [{ count: addCount }, { count: dedCount }] = await Promise.all([
       supabase.from("hr_payroll_input_additions").select("id", { count: "exact", head: true })
-        .eq("period_month", periodStr).eq("status", "approved"),
+        .eq("period_month", periodStr),
       supabase.from("hr_payroll_input_deductions").select("id", { count: "exact", head: true })
-        .eq("period_month", periodStr).eq("status", "approved"),
+        .eq("period_month", periodStr),
     ]);
     const inputsStagedCount = (addCount ?? 0) + (dedCount ?? 0);
 
-    // Enrollment resolved — PF/ESI/PT all non-null on the employee
     const enrollmentResolvedCount = (employees ?? []).filter(
       (e: any) => e.pf_enabled !== null && e.esi_enabled !== null && e.pt_enabled !== null,
     ).length;
     const enrollmentResolvedPct = activeCount > 0
-      ? Math.round((enrollmentResolvedCount / activeCount) * 100)
-      : 0;
+      ? Math.round((enrollmentResolvedCount / activeCount) * 100) : 0;
 
-    // Readiness tier — attendance OR register must exist, else unusable
     let readinessTier: "trustworthy" | "approximate" | "unusable" = "unusable";
     if (attendanceCoveragePct >= 90 && registerImported && enrollmentResolvedPct >= 80) {
       readinessTier = "trustworthy";
@@ -235,64 +248,85 @@ Deno.serve(async (req) => {
         total_employees: activeCount,
         input_completeness: inputCompleteness,
         readiness_tier: readinessTier,
+        include_tds_in_drift: false,
+        skipped_lines: [],
       })
       .select()
       .single();
     if (runErr) throw runErr;
 
-
     const defaultComps = settings?.default_structure_components ?? [];
     const useDefault = settings?.use_xpayroll_default_structure ?? true;
-    let totalGross = 0, totalNet = 0;
+    const skipped: Array<{ employee_id: string; name?: string; reason: string; detail?: string }> = [];
+    let totalGross = 0, totalNet = 0, computedCount = 0;
 
     for (const emp of employees ?? []) {
-      // Salary snapshot
-      const { data: salaryAssignArr } = await supabase
+      const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
+
+      // Salary snapshot — schema-correct column name.
+      const { data: salaryAssignArr, error: saErr } = await supabase
         .from("hr_employee_salary_structure_assignments")
         .select("*")
-        .eq("hr_employee_id", emp.id)
+        .eq("employee_id", emp.id)
         .lte("effective_from", periodStr)
         .order("effective_from", { ascending: false })
         .limit(1);
-      const monthlyGross = Number(salaryAssignArr?.[0]?.monthly_ctc ?? 0);
-      if (monthlyGross <= 0) continue;
+      if (saErr) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `salary_assignment: ${saErr.message}` });
+        continue;
+      }
+      if (!salaryAssignArr?.length) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "no_salary_assignment" });
+        continue;
+      }
+      const monthlyGross = Number(salaryAssignArr[0]?.monthly_ctc ?? 0);
+      if (monthlyGross <= 0) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "zero_ctc" });
+        continue;
+      }
 
-      // Resolve structure %
       const pct = resolveStructurePct(emp.custom_structure_pct, defaultComps, useDefault);
       const preBasic = Math.round(monthlyGross * (pct.basic / 100));
       const preHra = Math.round(monthlyGross * (pct.hra / 100));
       const preLta = Math.round(monthlyGross * (pct.lta / 100));
-      // Special = residual so 4 components == monthlyGross
       const preSpecial = monthlyGross - preBasic - preHra - preLta;
-      const regularBase = preBasic + preHra + preSpecial + preLta; // == monthlyGross
+      const regularBase = preBasic + preHra + preSpecial + preLta;
 
-      // LOP from v4 attendance daily rollup
-      const monthEnd = new Date(period);
-      monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
-      monthEnd.setUTCDate(0);
-      const { data: attRows } = await supabase
+      // LOP — derived from v4 daily rollup status (no lop_days column exists).
+      // 'absent' → 1 day, 'half_day' / 'incomplete' → 0.5 day.
+      const { data: attRows, error: attRowErr } = await supabase
         .from("hr_attendance_daily")
-        .select("attendance_status, lop_days")
-        .eq("hr_employee_id", emp.id)
+        .select("status")
+        .eq("employee_id", emp.id)
         .gte("attendance_date", periodStr)
-        .lte("attendance_date", monthEnd.toISOString().slice(0, 10));
-      const lopDays = (attRows ?? []).reduce((s: number, r: any) => s + Number(r.lop_days ?? 0), 0);
-      const totalDays = monthEnd.getUTCDate();
-      // Razorpay uses calendar-day divisor (verified Priya Jun-26 LOP 3 350 = 3 days × 33 500 / 30)
+        .lte("attendance_date", monthEndStr);
+      if (attRowErr) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `attendance: ${attRowErr.message}` });
+        continue;
+      }
+      const lopDays = (attRows ?? []).reduce((s: number, r: any) => {
+        const st = String(r.status ?? "").toLowerCase();
+        if (st === "absent") return s + 1;
+        if (st === "half_day" || st === "incomplete") return s + 0.5;
+        return s;
+      }, 0);
       const lopAmount = totalDays > 0 ? Math.round(regularBase * (lopDays / totalDays)) : 0;
 
-      // KPI-Loss / other gross-side recoveries (approved deductions this period)
-      const { data: deds } = await supabase
+      // KPI-Loss / other gross-side recoveries — matched on label since the
+      // hr_payroll_input_deductions table has no category column.
+      const { data: deds, error: dedsErr } = await supabase
         .from("hr_payroll_input_deductions")
-        .select("amount, category")
+        .select("amount, label")
         .eq("hr_employee_id", emp.id)
-        .eq("period_month", periodStr)
-        .eq("status", "approved");
+        .eq("period_month", periodStr);
+      if (dedsErr) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `deductions: ${dedsErr.message}` });
+        continue;
+      }
       const kpiLossAmount = (deds ?? [])
-        .filter((r: any) => (r.category ?? "").toUpperCase() === "KPI_LOSS")
+        .filter((r: any) => /kpi/i.test(String(r.label ?? "")))
         .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
-      // Per-component LOP + KPI shrink
       const totalReduction = lopAmount + kpiLossAmount;
       const factor = regularBase > 0 ? Math.max(0, 1 - totalReduction / regularBase) : 1;
       const basic = Math.round(preBasic * factor);
@@ -302,33 +336,45 @@ Deno.serve(async (req) => {
       const special = targetPost - basic - hra - lta;
       const regularPost = basic + hra + special + lta;
 
-      // Additions this period (OT / Perf Bonus / PLI) — NOT LOP-shrunk
-      const { data: adds } = await supabase
+      const { data: adds, error: addsErr } = await supabase
         .from("hr_payroll_input_additions")
         .select("amount")
         .eq("hr_employee_id", emp.id)
-        .eq("period_month", periodStr)
-        .eq("status", "approved");
+        .eq("period_month", periodStr);
+      if (addsErr) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `additions: ${addsErr.message}` });
+        continue;
+      }
       const additions = (adds ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
       // Per-employee statutory enrollment (falls back to global compliance toggle)
       const pfEnrolled = emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
       const esiEnrolled = emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
       const ptEnrolled = emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
+      const flagsSource = emp.statutory_flags_source
+        ?? ((emp.pf_enabled === null && emp.esi_enabled === null && emp.pt_enabled === null)
+            ? "assumed_from_global" : "assumed_from_global");
 
-      // Statutory — PF on shrunk basic, ESI on shrunk regular gross, PT on shrunk gross
       const epf = computeEpf(basic, 0, settings, pfEnrolled);
       const esi = computeEsi(regularPost + additions, regularPost, settings, esiEnrolled);
-      const pt = computePt(regularPost, emp.work_state ?? "", ptSlabs ?? [], ptEnrolled, period);
+      const pt = computePt(regularPost, emp.state ?? "", ptSlabs ?? [], ptEnrolled, period);
 
-      // TDS via projected annual
-      const { data: fsArr } = emp.hr_filing_status_id
-        ? await supabase.from("hr_filing_statuses").select("*").eq("id", emp.hr_filing_status_id).limit(1)
-        : { data: [] };
-      const regime = fsArr?.[0]?.regime ?? "new";
-      const fyStart = new Date(period.getUTCFullYear(), period.getUTCMonth() >= 3 ? 3 : -9, 1);
-      const monthsRemaining = 12 - Math.max(0, (period.getUTCFullYear() * 12 + period.getUTCMonth()) - (fyStart.getFullYear() * 12 + fyStart.getMonth()));
-      const projectedAnnualTaxable = (regularPost - epf.employee - pt) * 12;
+      // TDS — projected on PRE-LOP annual base (owner directive P2).
+      let regime = "new";
+      if (emp.filing_status_id) {
+        const { data: fsArr } = await supabase.from("hr_filing_statuses")
+          .select("regime").eq("id", emp.filing_status_id).limit(1);
+        regime = fsArr?.[0]?.regime ?? "new";
+      }
+      const fyStart = new Date(Date.UTC(
+        period.getUTCFullYear() - (period.getUTCMonth() < 3 ? 1 : 0),
+        3, 1,
+      ));
+      const monthsRemaining = Math.max(1, 12 - (
+        (period.getUTCFullYear() * 12 + period.getUTCMonth())
+        - (fyStart.getUTCFullYear() * 12 + fyStart.getUTCMonth())
+      ));
+      const annualBasePreLop = regularBase * 12;
       const { data: ytdTds } = await supabase
         .from("hr_razorpay_payslip_records")
         .select("tds_amount")
@@ -336,15 +382,13 @@ Deno.serve(async (req) => {
         .gte("period_month", fyStart.toISOString().slice(0, 10))
         .lt("period_month", periodStr);
       const ytdTdsPaid = (ytdTds ?? []).reduce((s: number, r: any) => s + Number(r.tds_amount ?? 0), 0);
-      const annualTax = projectAnnualTax(projectedAnnualTaxable, regime);
+      const annualTax = projectAnnualTax(annualBasePreLop, regime);
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
-      // Totals — earnings side includes employer PF (RazorpayX prints it on the earnings column)
       const earningsTotal = regularPost + additions + epf.employer_earnings_side;
       const deductions = epf.employee + epf.employer + epf.admin_edli + esi.employee + pt + tds;
       const net = earningsTotal - deductions;
 
-      // Razorpay comparison snapshot (if imported)
       const { data: rzArr } = await supabase
         .from("hr_razorpay_payslip_records")
         .select("gross_amount, net_pay, pf_amount, esi_amount, professional_tax, tds_amount")
@@ -380,15 +424,19 @@ Deno.serve(async (req) => {
           razorpay_pt: rz?.professional_tax ?? null,
           razorpay_tds: rz?.tds_amount ?? null,
           compute_notes: {
-            regime, monthsRemaining, projectedAnnualTaxable, ytdTdsPaid, annualTax,
+            regime, monthsRemaining, annualBasePreLop, ytdTdsPaid, annualTax,
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
+            statutory_flags_source: flagsSource,
+            tds_fy: "FY26-27",
           },
         }, { onConflict: "run_id,hr_employee_id" })
         .select()
         .single();
-      if (lineErr) { console.error("line err", emp.id, lineErr); continue; }
+      if (lineErr) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `line_upsert: ${lineErr.message}` });
+        continue;
+      }
 
-      // Component breakdown — mirrors Razorpay payslip layout
       const comps = [
         { key: "basic", label: "Basic", type: "earning", amount: basic },
         { key: "hra", label: "HRA", type: "earning", amount: hra },
@@ -418,18 +466,22 @@ Deno.serve(async (req) => {
 
       totalGross += earningsTotal;
       totalNet += net;
+      computedCount += 1;
     }
 
     await supabase.from("hr_shadow_payroll_runs").update({
       total_shadow_gross: totalGross,
       total_shadow_net: totalNet,
+      skipped_lines: skipped,
     }).eq("id", newRun.id);
 
     return new Response(JSON.stringify({
       run_id: newRun.id,
       period_month: periodStr,
       run_no: runNo,
-      computed_count: employees?.length ?? 0,
+      computed_count: computedCount,
+      skipped_count: skipped.length,
+      skipped_lines: skipped,
       total_gross: totalGross,
       total_net: totalNet,
       input_completeness: inputCompleteness,

@@ -48,10 +48,12 @@ function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return `₹${Math.round(n).toLocaleString("en-IN")}`;
 }
-function diff(a: number, b: number | null | undefined): { delta: number; badge: string | null } {
+// P2: ±₹5 per-component tolerance to absorb ESI-Er-in-base circularity + rounding.
+const DRIFT_TOLERANCE = 5;
+function diff(a: number, b: number | null | undefined, tolerance = DRIFT_TOLERANCE): { delta: number; badge: string | null } {
   if (b === null || b === undefined) return { delta: 0, badge: null };
   const d = Math.round(a - b);
-  if (Math.abs(d) < 1) return { delta: 0, badge: null };
+  if (Math.abs(d) <= tolerance) return { delta: d, badge: null };
   return {
     delta: d,
     badge: `${d > 0 ? "+" : ""}${d.toLocaleString("en-IN")}`,
@@ -99,10 +101,13 @@ export default function ShadowPayrollPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, badge_id");
-      const map: Record<string, string> = {};
+        .select("id, first_name, last_name, badge_id, statutory_flags_source");
+      const map: Record<string, { label: string; source: string | null }> = {};
       (data ?? []).forEach((e: any) => {
-        map[e.id] = `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "");
+        map[e.id] = {
+          label: `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : ""),
+          source: e.statutory_flags_source ?? null,
+        };
       });
       return map;
     },
@@ -218,6 +223,28 @@ export default function ShadowPayrollPage() {
         </div>
       )}
 
+      {run?.skipped_lines && Array.isArray(run.skipped_lines) && run.skipped_lines.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-foreground mb-2">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            {run.skipped_lines.length} employee{run.skipped_lines.length === 1 ? " was" : "s were"} skipped this run
+          </div>
+          <ul className="space-y-1 text-muted-foreground max-h-40 overflow-auto">
+            {run.skipped_lines.slice(0, 50).map((s: any, i: number) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="text-foreground">{s.name || s.employee_id?.slice(0, 8)}</span>
+                <Badge variant="outline" className="text-[10px] border-warning/50 text-warning">{s.reason}</Badge>
+                {s.detail && <span className="text-[10px] font-mono truncate">{s.detail}</span>}
+              </li>
+            ))}
+            {run.skipped_lines.length > 50 && (
+              <li className="text-[10px] italic">…and {run.skipped_lines.length - 50} more</li>
+            )}
+          </ul>
+        </div>
+      )}
+
+
 
       {/* Totals */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -284,7 +311,8 @@ export default function ShadowPayrollPage() {
                   >
                     <div className="col-span-3 flex items-center gap-1 text-foreground truncate">
                       {isOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-                      <span className="truncate">{employees?.[l.hr_employee_id] ?? l.hr_employee_id.slice(0, 8)}</span>
+                      <span className="truncate">{employees?.[l.hr_employee_id]?.label ?? l.hr_employee_id.slice(0, 8)}</span>
+                      <ProvenanceBadge source={employees?.[l.hr_employee_id]?.source ?? null} />
                     </div>
                     <div className="col-span-2 text-right text-foreground">{fmt(shadowGross)}</div>
                     <div className="col-span-2 text-right text-muted-foreground">{fmt(l.razorpay_gross)}</div>
@@ -309,13 +337,22 @@ export default function ShadowPayrollPage() {
                         <RowDiff label="PF (Employee)" shadow={l.pf_employee} rz={l.razorpay_pf} />
                         <RowDiff label="ESI (Employee)" shadow={l.esi_employee} rz={l.razorpay_esi} />
                         <RowDiff label="Professional Tax" shadow={l.pt_amount} rz={l.razorpay_pt} />
-                        <RowDiff label="TDS" shadow={l.tds_amount} rz={l.razorpay_tds} />
+                        <RowDiff
+                          label={run?.include_tds_in_drift ? "TDS" : "TDS (drift ignored)"}
+                          shadow={l.tds_amount}
+                          rz={l.razorpay_tds}
+                          suppress={!run?.include_tds_in_drift}
+                        />
                         <RowDiff label="Total deductions" shadow={l.deductions_total} rz={null} />
                         <RowDiff label="Net pay" shadow={l.net_pay} rz={l.razorpay_net} />
                       </div>
                       {l.compute_notes && (
                         <div className="mt-3 text-[10px] text-muted-foreground font-mono">
-                          Regime: {l.compute_notes.regime} · Months left: {l.compute_notes.monthsRemaining} · Projected annual taxable: ₹{Math.round(l.compute_notes.projectedAnnualTaxable ?? 0).toLocaleString("en-IN")} · YTD TDS paid: ₹{Math.round(l.compute_notes.ytdTdsPaid ?? 0).toLocaleString("en-IN")}
+                          Regime: {l.compute_notes.regime} · Months left: {l.compute_notes.monthsRemaining}
+                          {" · "}Annual base (pre-LOP): ₹{Math.round(l.compute_notes.annualBasePreLop ?? l.compute_notes.projectedAnnualTaxable ?? 0).toLocaleString("en-IN")}
+                          {" · "}YTD TDS paid: ₹{Math.round(l.compute_notes.ytdTdsPaid ?? 0).toLocaleString("en-IN")}
+                          {" · "}TDS: {l.compute_notes.tds_fy ?? "legacy"}
+                          {" · "}Flags: {l.compute_notes.statutory_flags_source ?? "unknown"}
                         </div>
                       )}
                     </div>
@@ -338,7 +375,7 @@ function Row({ label, a }: { label: string; a: any }) {
     </div>
   );
 }
-function RowDiff({ label, shadow, rz }: { label: string; shadow: number; rz: number | null }) {
+function RowDiff({ label, shadow, rz, suppress }: { label: string; shadow: number; rz: number | null; suppress?: boolean }) {
   const d = diff(shadow, rz);
   return (
     <div className="flex justify-between gap-2">
@@ -349,7 +386,7 @@ function RowDiff({ label, shadow, rz }: { label: string; shadow: number; rz: num
           <>
             <span className="text-muted-foreground">vs</span>
             <span className="text-muted-foreground">{fmt(rz)}</span>
-            {d.badge && (
+            {d.badge && !suppress && (
               <Badge variant="outline" className={Math.abs(d.delta) > 50 ? "border-destructive/50 text-destructive text-[10px]" : "border-warning/50 text-warning text-[10px]"}>
                 {d.badge}
               </Badge>
@@ -358,5 +395,32 @@ function RowDiff({ label, shadow, rz }: { label: string; shadow: number; rz: num
         )}
       </span>
     </div>
+  );
+}
+
+function ProvenanceBadge({ source }: { source: string | null }) {
+  if (!source) return null;
+  const meta: Record<string, { label: string; className: string; title: string }> = {
+    payslip_verified: {
+      label: "PV",
+      className: "border-success/50 text-success",
+      title: "Statutory flags verified from a real Razorpay payslip.",
+    },
+    register_derived: {
+      label: "RD",
+      className: "border-warning/50 text-warning",
+      title: "Statutory flags inferred from imported salary-register CSV history.",
+    },
+    assumed_from_global: {
+      label: "AG",
+      className: "border-muted-foreground/40 text-muted-foreground",
+      title: "No per-employee statutory data yet — falling back to the global compliance toggle.",
+    },
+  };
+  const m = meta[source] ?? meta.assumed_from_global;
+  return (
+    <Badge variant="outline" className={cn("ml-1 shrink-0 text-[9px] px-1 py-0 h-4", m.className)} title={m.title}>
+      {m.label}
+    </Badge>
   );
 }

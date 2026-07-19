@@ -1249,11 +1249,8 @@ export default function EmployeeProfilePage() {
         {activeTab === "Payroll" && (
           <div className="space-y-4">
             {/* Salary Summary Card */}
-            <SalarySummaryCard
-              totalSalary={emp?.total_salary}
-              salaryTemplateId={emp?.salary_template_id}
-              salaryStructureTemplateId={emp?.salary_structure_template_id}
-            />
+            <SalarySummaryCard totalSalary={emp?.total_salary} />
+
 
             {/* RazorpayX Payslip History — source of truth for payroll history */}
             <RazorpayPayslipsSection

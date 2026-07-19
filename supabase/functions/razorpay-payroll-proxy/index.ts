@@ -1495,6 +1495,27 @@ Deno.serve(async (req) => {
       } finally { clearTimeout(t); }
     }
 
+    // probe_attach_by_email: exercise attachReservedEmployeeIdByEmail directly
+    // so we can validate R4 pre-flight on a known email/id pair without going
+    // through the full create_person pipeline.
+    if (action === "probe_attach_by_email") {
+      const email = String(payload?.email ?? "").trim().toLowerCase();
+      const employeeId = String(payload?.employee_id ?? "").trim();
+      if (!email.includes("@")) return json(400, { error: "email required" });
+      if (!/^\d+$/.test(employeeId)) return json(400, { error: "numeric employee_id required" });
+      const attach = await attachReservedEmployeeIdByEmail(email, employeeId);
+      const verify = await opfinView(Number(employeeId), "employee");
+      return json(200, {
+        attach_ok: attach.ok,
+        attach_status: attach.status,
+        attach_error: attach.error,
+        attach_body: attach.body,
+        verify_ok: verify.ok,
+        verify_status: verify.status,
+        verify_email: verify.body?.email ?? verify.body?.work_email ?? null,
+        verify_name: verify.body?.name ?? null,
+      });
+
     // ---------- probe_endpoint: gated read-only sub-type validator ----------
     // Used by Phase-planning to prove which Opfin sub-types exist against the
     // live tenant BEFORE any Phase B/C/... UI is wired to them. Writes are

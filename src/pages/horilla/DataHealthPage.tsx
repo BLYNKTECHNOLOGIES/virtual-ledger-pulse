@@ -360,7 +360,45 @@ export default function DataHealthPage() {
           </div>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
+
+      {/* Unknown per-employee statutory enrollment */}
+      {unknownEnrollmentRows && unknownEnrollmentRows.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
+                  Statutory enrollment unknown — {unknownEnrollmentRows.length} employee{unknownEnrollmentRows.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Their per-employee PF / ESI / PT flags haven't been verified from a real RazorpayX payslip yet. The shadow engine falls back to the global compliance toggle for them, which is only correct if they truly follow the global default. Import the RazorpayX Salary Register for any month and we'll derive the flags automatically.
+              </p>
+              <div className="mt-2 text-[11px] text-muted-foreground">
+                Examples: {unknownEnrollmentRows.slice(0, 6).map((r: any) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || `#${r.badge_id}`).join(", ")}
+                {unknownEnrollmentRows.length > 6 ? ` … +${unknownEnrollmentRows.length - 6} more` : ""}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={deriveAllEnrollment}
+                disabled={derivingEnrollment}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap disabled:opacity-50"
+              >
+                {derivingEnrollment ? "Deriving…" : "Derive from history"}
+              </button>
+              <Link
+                to="/hrms/payroll/salary-register-import"
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap"
+              >
+                Import Register
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
         <Filter className="h-4 w-4 text-muted-foreground" />
         <select
           value={severity}

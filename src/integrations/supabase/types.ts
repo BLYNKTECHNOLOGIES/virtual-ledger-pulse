@@ -6547,6 +6547,7 @@ export type Database = {
       }
       hr_employee_onboarding: {
         Row: {
+          bank_details: Json | null
           candidate_id: string | null
           create_erp_account: boolean | null
           created_at: string
@@ -6583,6 +6584,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bank_details?: Json | null
           candidate_id?: string | null
           create_erp_account?: boolean | null
           created_at?: string
@@ -6619,6 +6621,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bank_details?: Json | null
           candidate_id?: string | null
           create_erp_account?: boolean | null
           created_at?: string

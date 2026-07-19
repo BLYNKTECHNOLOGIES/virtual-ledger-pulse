@@ -15,11 +15,12 @@ import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle } fr
 interface Stage5Props {
   onboardingRecord: any;
   onFinalize: (data: any) => Promise<void>;
+  onSave?: (data: any, options?: { silent?: boolean }) => Promise<void>;
   onBack: () => void;
   readOnly?: boolean;
 }
 
-export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readOnly }: Stage5Props) {
+export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBack, readOnly }: Stage5Props) {
   const [form, setForm] = useState({
     date_of_joining: "",
     essl_badge_id: "",
@@ -41,6 +42,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
   const pushingRef = useRef(false);
   const reservingRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydratedRecordIdRef = useRef<string | null>(null);
 
   // Reserve the next RazorpayX employee ID (per Unified ID doctrine: this same
   // integer becomes the HRMS badge_id, ESSL device PIN, and Razorpay employee_id).
@@ -72,7 +76,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       if (onboardingRecord?.id) {
         const { error: upErr } = await supabase
           .from("hr_employee_onboarding")
-          .update({ essl_badge_id: id })
+          .update({ essl_badge_id: id, updated_at: new Date().toISOString() })
           .eq("id", onboardingRecord.id);
         if (upErr) throw upErr;
         // Force the parent wizard's record query to refetch so on the next
@@ -231,7 +235,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   }, [linkedEmpId, existingBank, queryClient]);
 
   useEffect(() => {
-    if (onboardingRecord) {
+    if (onboardingRecord && hydratedRecordIdRef.current !== onboardingRecord.id) {
       const bd = (onboardingRecord.bank_details as any) || {};
       const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
       const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
@@ -247,14 +251,26 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
         bank_account_number: bd.account_number || existingBank?.account_number || "",
         bank_ifsc_code: bd.ifsc_code || existingBank?.ifsc_code || "",
-        bank_name: "",
-        bank_branch: "",
+        bank_name: bd.bank_name || existingBank?.bank_name || "",
+        bank_branch: bd.branch || (existingBank as any)?.branch || "",
         bank_account_holder: empName,
         create_in_razorpay: looksReserved,
       });
       if (looksReserved) setReservedRpId(existingBadge);
+      hydratedRecordIdRef.current = onboardingRecord.id;
     }
-  }, [onboardingRecord, existingBank]);
+  }, [onboardingRecord]);
+
+  useEffect(() => {
+    if (!existingBank) return;
+    setForm(prev => ({
+      ...prev,
+      bank_account_number: prev.bank_account_number || existingBank.account_number || "",
+      bank_ifsc_code: prev.bank_ifsc_code || existingBank.ifsc_code || "",
+      bank_name: prev.bank_name || existingBank.bank_name || "",
+      bank_branch: prev.bank_branch || (existingBank as any).branch || "",
+    }));
+  }, [existingBank]);
 
   const { data: roles } = useQuery({
     queryKey: ["erp-roles-list"],
@@ -415,6 +431,55 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
 
   const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
 
+  const getDraftPayloadFrom = (source: typeof form) => ({
+    date_of_joining: source.date_of_joining || null,
+    essl_badge_id: source.essl_badge_id || null,
+    create_erp_account: source.create_erp_account,
+    erp_role_id: source.erp_role_id || null,
+    reporting_manager_id: source.reporting_manager_id || null,
+    bank_details: {
+      account_number: source.bank_account_number.trim(),
+      ifsc_code: source.bank_ifsc_code.trim().toUpperCase(),
+      bank_name: source.bank_name.trim(),
+      branch: source.bank_branch.trim(),
+      account_holder: source.bank_account_holder.trim(),
+    },
+  });
+
+  const getDraftPayload = () => getDraftPayloadFrom(form);
+
+  useEffect(() => {
+    if (!dirtyRef.current || readOnly || !onSave) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      dirtyRef.current = false;
+      onSave(getDraftPayload(), { silent: true }).catch((err: any) => console.warn("Stage 5 autosave failed:", err));
+    }, 700);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [form, onSave, readOnly]);
+
+  const updateForm = (updates: Partial<typeof form>) => {
+    setForm(prev => {
+      const next = { ...prev, ...updates };
+      dirtyRef.current = false;
+      onSave?.(getDraftPayloadFrom(next), { silent: true }).catch((err: any) => console.warn("Stage 5 immediate save failed:", err));
+      return next;
+    });
+  };
+
+  const handleBack = async () => {
+    if (!readOnly && onSave) {
+      try {
+        await onSave(getDraftPayload(), { silent: true });
+      } catch (err) {
+        console.warn("Stage 5 back-save failed:", err);
+      }
+    }
+    onBack();
+  };
+
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
@@ -541,7 +606,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
             <Input
               type="date"
               value={form.date_of_joining}
-              onChange={e => setForm(p => ({ ...p, date_of_joining: e.target.value }))}
+              onChange={e => updateForm({ date_of_joining: e.target.value })}
               disabled={readOnly}
             />
           </div>
@@ -621,13 +686,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               <Input
                 placeholder={reservedRpId || alreadyInRazorpay ? "" : "Reserve a RazorpayX ID above, or type an unassigned PIN"}
                 value={form.essl_badge_id}
-                onChange={e => setForm(p => ({ ...p, essl_badge_id: e.target.value }))}
+                onChange={e => updateForm({ essl_badge_id: e.target.value })}
                 disabled={readOnly || !!reservedRpId}
                 className="font-mono"
               />
               <Select
                 value=""
-                onValueChange={v => setForm(p => ({ ...p, essl_badge_id: v }))}
+                onValueChange={v => updateForm({ essl_badge_id: v })}
                 disabled={readOnly || pinsLoading || bioAlreadyCreated || !!reservedRpId}
               >
                 <SelectTrigger className="w-[190px] shrink-0">
@@ -708,7 +773,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
           </div>
           <div>
             <Label>Reporting Manager</Label>
-            <Select value={form.reporting_manager_id} onValueChange={v => setForm(p => ({ ...p, reporting_manager_id: v }))} disabled={readOnly}>
+            <Select value={form.reporting_manager_id} onValueChange={v => updateForm({ reporting_manager_id: v })} disabled={readOnly}>
               <SelectTrigger><SelectValue placeholder="Select Manager" /></SelectTrigger>
               <SelectContent>
                 {managers?.map(m => <SelectItem key={m.id} value={m.id}>{`${m.first_name} ${m.last_name || ''}`.trim()}</SelectItem>)}
@@ -742,7 +807,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               <Input
                 placeholder="e.g. 123456789012"
                 value={form.bank_account_number}
-                onChange={e => setForm(p => ({ ...p, bank_account_number: e.target.value.replace(/\s/g, "") }))}
+                onChange={e => updateForm({ bank_account_number: e.target.value.replace(/\s/g, "") })}
                 disabled={readOnly}
                 className="font-mono"
                 inputMode="numeric"
@@ -753,7 +818,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               <Input
                 placeholder="e.g. HDFC0001234"
                 value={form.bank_ifsc_code}
-                onChange={e => setForm(p => ({ ...p, bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") }))}
+                onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") })}
                 disabled={readOnly}
                 className="font-mono uppercase"
                 maxLength={11}
@@ -775,7 +840,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
           <div className="flex items-center gap-3">
             <Switch
               checked={form.create_erp_account}
-              onCheckedChange={v => setForm(p => ({ ...p, create_erp_account: v }))}
+              onCheckedChange={v => updateForm({ create_erp_account: v, erp_role_id: v ? form.erp_role_id : "" })}
               disabled={readOnly}
             />
             <Label>Create ERP Account & Send Credentials</Label>
@@ -790,7 +855,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 <Label>Role *</Label>
                 <Select
                   value={form.erp_role_id}
-                  onValueChange={v => setForm(p => ({ ...p, erp_role_id: v }))}
+                  onValueChange={v => updateForm({ erp_role_id: v })}
                   disabled={readOnly}
                 >
                   <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
@@ -809,7 +874,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
 
         {!readOnly && (
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={onBack}>← Back</Button>
+            <Button variant="outline" onClick={handleBack}>← Back</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onSave?.(getDraftPayload()).then(() => toast.success("Draft saved"))}
+            >
+              Save Draft
+            </Button>
             <Button
               onClick={handleFinalize}
               disabled={finalizing}

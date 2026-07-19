@@ -13,7 +13,7 @@ import { smartUpload } from "@/lib/resumable-upload";
 interface Stage3Props {
   data: any;
   onboardingData: any;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: any, options?: { silent?: boolean }) => Promise<void>;
   onComplete: (data: any) => Promise<void>;
   onBack: () => void;
   readOnly?: boolean;
@@ -141,17 +141,18 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
   };
 
   const toggleDoc = (key: string) => {
-    setDocs(prev => ({ ...prev, [key]: { ...prev[key], received: !prev[key].received } }));
+    setDocs(prev => {
+      const next = { ...prev, [key]: { ...prev[key], received: !prev[key].received } };
+      persistDocs(next);
+      return next;
+    });
   };
 
   const updateDocValue = (key: string, value: string) => {
     const normalized = key === "pan" ? value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) : value;
     setDocs(prev => {
       const next = { ...prev, [key]: { ...prev[key], value: normalized } };
-      // Auto-persist PAN as user finishes typing valid 10 chars
-      if (key === "pan" && /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(normalized)) {
-        persistDocs(next);
-      }
+      persistDocs(next);
       return next;
     });
   };
@@ -326,7 +327,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
           <Input
             type="date"
             value={mailReceivedDate}
-            onChange={e => setMailReceivedDate(e.target.value)}
+            onChange={e => {
+              const nextDate = e.target.value;
+              setMailReceivedDate(nextDate);
+              persistDocs(docs, nextDate);
+            }}
             disabled={readOnly}
           />
         </div>

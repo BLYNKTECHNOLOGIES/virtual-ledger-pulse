@@ -5209,7 +5209,8 @@ Deno.serve(async (req) => {
         try { bodyOut = JSON.parse(raw); } catch { bodyOut = { raw: raw.slice(0, 800) }; }
         const rpErr = bodyOut && typeof bodyOut === "object" ? (bodyOut.error ?? bodyOut.message ?? null) : null;
         if (!res.ok || rpErr) {
-          errText = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
+          const extracted = extractRazorpayError(bodyOut, rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
+          errText = extracted.message || (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
         } else {
           // Extract new employee id from common response shapes.
           const cand = bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? bodyOut?.id ?? bodyOut?.data?.["employee-id"] ?? bodyOut?.data?.id ?? reservedEmployeeId;
@@ -5253,15 +5254,53 @@ Deno.serve(async (req) => {
         // with this email is already in RazorpayX under an employee-id we
         // don't yet map. The reservedEmployeeId lookup above failed, so
         // Razorpay auto-assigned a different id on the prior attempt.
-        // Surface an actionable 409 instead of a raw 502.
-        const rpCode = bodyOut?.error?.code ?? bodyOut?.code ?? null;
-        const rpMsg = String(bodyOut?.error?.message ?? bodyOut?.message ?? errText ?? "");
+        // First try a bounded exact-email recovery; if found, repair the map
+        // and let onboarding continue idempotently. If not found, surface an
+        // actionable 409 instead of a raw Edge 502.
+        const extracted = extractRazorpayError(bodyOut, errText);
+        const rpCode = extracted.code;
+        const rpMsg = extracted.message;
         if (rpCode === 7 || /email already exists/i.test(rpMsg)) {
+          const existingByEmail = await findRazorpayEmployeeByEmail(String((outboundData as any).email || ""), {
+            reservedEmployeeId,
+            maxId: 250,
+            concurrency: 8,
+          });
+          if (existingByEmail) {
+            const { error: repairErr } = await mapRazorpayEmployee(existingByEmail.employeeId, existingByEmail.body || outboundData, "created_via_erp");
+            if (!repairErr) {
+              await logSync(svc, {
+                action: "create_person_recovered_existing",
+                http_status: existingByEmail.status,
+                razorpay_employee_id: existingByEmail.employeeId,
+                hr_employee_id: hrId,
+                field_diff_summary: { source: "people:view_exact_email", payload_field_names: Object.keys(outboundData).sort() },
+                error_text: null,
+                actor_user_id: authed.userId,
+              });
+              return json(200, {
+                ok: true,
+                razorpay_employee_id: existingByEmail.employeeId,
+                already_exists_in_razorpay: true,
+                recovered_by_email: true,
+                repaired_mapping: true,
+                http_status: existingByEmail.status,
+              });
+            }
+            return json(409, {
+              ok: false,
+              http_status: httpStatus,
+              code: "RAZORPAY_EMAIL_EXISTS_MAPPING_CONFLICT",
+              error: `RazorpayX already has employee-id ${existingByEmail.employeeId} with email "${(outboundData as any).email}", but ERP mapping repair failed: ${repairErr.message}`,
+              razorpay_employee_id: existingByEmail.employeeId,
+              body: bodyOut,
+            });
+          }
           return json(409, {
             ok: false,
             http_status: httpStatus,
             code: "RAZORPAY_EMAIL_EXISTS",
-            error: `RazorpayX already has an employee with email "${(outboundData as any).email}" under a different employee-id. Look it up in the RazorpayX dashboard, then map it manually or change the ERP email before retrying Finalize.`,
+            error: `RazorpayX already has an employee with email "${(outboundData as any).email}" under a different employee-id, but the API does not expose a direct email lookup. Use RazorpayX dashboard to find that employee-id, then run Razorpay Sync for that ID or change the ERP email before retrying Finalize.`,
             body: bodyOut,
           });
         }

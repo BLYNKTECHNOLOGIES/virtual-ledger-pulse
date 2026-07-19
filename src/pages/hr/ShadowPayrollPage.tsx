@@ -315,13 +315,22 @@ export default function ShadowPayrollPage() {
                         <RowDiff label="PF (Employee)" shadow={l.pf_employee} rz={l.razorpay_pf} />
                         <RowDiff label="ESI (Employee)" shadow={l.esi_employee} rz={l.razorpay_esi} />
                         <RowDiff label="Professional Tax" shadow={l.pt_amount} rz={l.razorpay_pt} />
-                        <RowDiff label="TDS" shadow={l.tds_amount} rz={l.razorpay_tds} />
+                        <RowDiff
+                          label={run?.include_tds_in_drift ? "TDS" : "TDS (drift ignored)"}
+                          shadow={l.tds_amount}
+                          rz={l.razorpay_tds}
+                          suppress={!run?.include_tds_in_drift}
+                        />
                         <RowDiff label="Total deductions" shadow={l.deductions_total} rz={null} />
                         <RowDiff label="Net pay" shadow={l.net_pay} rz={l.razorpay_net} />
                       </div>
                       {l.compute_notes && (
                         <div className="mt-3 text-[10px] text-muted-foreground font-mono">
-                          Regime: {l.compute_notes.regime} · Months left: {l.compute_notes.monthsRemaining} · Projected annual taxable: ₹{Math.round(l.compute_notes.projectedAnnualTaxable ?? 0).toLocaleString("en-IN")} · YTD TDS paid: ₹{Math.round(l.compute_notes.ytdTdsPaid ?? 0).toLocaleString("en-IN")}
+                          Regime: {l.compute_notes.regime} · Months left: {l.compute_notes.monthsRemaining}
+                          {" · "}Annual base (pre-LOP): ₹{Math.round(l.compute_notes.annualBasePreLop ?? l.compute_notes.projectedAnnualTaxable ?? 0).toLocaleString("en-IN")}
+                          {" · "}YTD TDS paid: ₹{Math.round(l.compute_notes.ytdTdsPaid ?? 0).toLocaleString("en-IN")}
+                          {" · "}TDS: {l.compute_notes.tds_fy ?? "legacy"}
+                          {" · "}Flags: {l.compute_notes.statutory_flags_source ?? "unknown"}
                         </div>
                       )}
                     </div>

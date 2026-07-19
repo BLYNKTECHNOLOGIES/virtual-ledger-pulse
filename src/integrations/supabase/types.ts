@@ -20974,6 +20974,8 @@ export type Database = {
         | "import_payslip_history_range"
         | "attendance_edit_patch"
         | "attendance_fetch_range"
+        | "discover_and_seed_runs"
+        | "probe_view_payroll_debug"
       hr_razorpay_sync_status:
         | "imported"
         | "matched_existing"
@@ -21366,6 +21368,8 @@ export const Constants = {
         "import_payslip_history_range",
         "attendance_edit_patch",
         "attendance_fetch_range",
+        "discover_and_seed_runs",
+        "probe_view_payroll_debug",
       ],
       hr_razorpay_sync_status: [
         "imported",

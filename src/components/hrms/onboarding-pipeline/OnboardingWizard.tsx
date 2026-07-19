@@ -499,7 +499,21 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           if (rpErr) throw new Error(await getFunctionErrorMessage(rpErr, "Razorpay create failed"));
           if (rpRes?.ok === false) {
             if (rpRes?.code === "RAZORPAY_EMAIL_EXISTS") {
-              setRazorpayRecovery({ employeeId: "", hrEmployeeId: emp.id, message: rpRes.error || "RazorpayX already has this email under another employee-id.", resolving: false });
+              setRazorpayRecovery({ employeeId: "", peopleId: "", mode: "employee_id", hrEmployeeId: emp.id, message: rpRes.error || "RazorpayX already has this email under another employee-id.", resolving: false });
+            }
+            // Post-create "-NA- limbo" case: Razorpay created the person but did
+            // not attach our reserved employee-id. The proxy exposes _people_id
+            // on the body so the operator can attach it in one click.
+            const limboPeopleId = rpRes?.body?._people_id;
+            if (limboPeopleId) {
+              setRazorpayRecovery({
+                employeeId: "",
+                peopleId: String(limboPeopleId),
+                mode: "people_id",
+                hrEmployeeId: emp.id,
+                message: rpRes.error || `Razorpay created the employee under people-id ${limboPeopleId} but did not attach the reserved Employee ID. Click "Verify & Link" to attach it now.`,
+                resolving: false,
+              });
             }
             const detail = rpRes?.missing?.length
               ? `Missing: ${rpRes.missing.join(", ")}`

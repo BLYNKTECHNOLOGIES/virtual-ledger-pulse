@@ -223,6 +223,28 @@ export default function ShadowPayrollPage() {
         </div>
       )}
 
+      {run?.skipped_lines && Array.isArray(run.skipped_lines) && run.skipped_lines.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-foreground mb-2">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            {run.skipped_lines.length} employee{run.skipped_lines.length === 1 ? " was" : "s were"} skipped this run
+          </div>
+          <ul className="space-y-1 text-muted-foreground max-h-40 overflow-auto">
+            {run.skipped_lines.slice(0, 50).map((s: any, i: number) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="text-foreground">{s.name || s.employee_id?.slice(0, 8)}</span>
+                <Badge variant="outline" className="text-[10px] border-warning/50 text-warning">{s.reason}</Badge>
+                {s.detail && <span className="text-[10px] font-mono truncate">{s.detail}</span>}
+              </li>
+            ))}
+            {run.skipped_lines.length > 50 && (
+              <li className="text-[10px] italic">…and {run.skipped_lines.length - 50} more</li>
+            )}
+          </ul>
+        </div>
+      )}
+
+
 
       {/* Totals */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

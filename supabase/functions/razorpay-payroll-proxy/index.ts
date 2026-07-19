@@ -5475,11 +5475,22 @@ Deno.serve(async (req) => {
         if (fullEditData[k] === null || fullEditData[k] === "") delete fullEditData[k];
       }
 
+      // Live RazorpayX/Opfin behavior differs from the Postman collection here:
+      // `people:create` rejects minimal {email,name,type} with code 43
+      // ("hire_date is required"). It still ignores caller-supplied
+      // employee-id, so creation gets the full required profile EXCEPT
+      // employee-id; the reserved unified ID is attached by the follow-up
+      // email-keyed `people:edit` step below.
       const createData: Record<string, any> = {
+        ...fullEditData,
         email: String(emp.email).trim().toLowerCase(),
         name: fullName,
         type: "employee",
       };
+      delete createData["employee-id"];
+      for (const k of Object.keys(createData)) {
+        if (createData[k] === null || createData[k] === "" || createData[k] === undefined) delete createData[k];
+      }
 
       if (dryRun) {
         return json(200, { ok: true, dry_run: true, create_payload: createData, edit_payload: fullEditData });
@@ -5510,6 +5521,56 @@ Deno.serve(async (req) => {
         }
 
         return await svc.from("hr_razorpay_employee_map").insert(payload);
+      };
+
+      const retryAttachReservedEmployeeId = async (
+        source: string,
+        attempts = 8,
+      ): Promise<{ attach: Awaited<ReturnType<typeof attachReservedEmployeeIdByEmail>>; verify: Awaited<ReturnType<typeof opfinView>> | null }> => {
+        let lastAttach: Awaited<ReturnType<typeof attachReservedEmployeeIdByEmail>> = {
+          ok: false,
+          status: 0,
+          error: "attach not attempted",
+          body: null,
+        };
+        let lastVerify: Awaited<ReturnType<typeof opfinView>> | null = null;
+        if (!reservedEmployeeId || !/^\d+$/.test(reservedEmployeeId)) return { attach: lastAttach, verify: lastVerify };
+
+        const erpEmail = String(createData.email || "").trim().toLowerCase();
+        for (let i = 1; i <= attempts; i += 1) {
+          lastAttach = await attachReservedEmployeeIdByEmail(erpEmail, reservedEmployeeId, fullEditData);
+          if (lastAttach.ok) {
+            lastVerify = await opfinView(Number(reservedEmployeeId), "employee");
+            const rpEmail = String(lastVerify.body?.email || lastVerify.body?.work_email || "").trim().toLowerCase();
+            if (lastVerify.ok && rpEmail && rpEmail === erpEmail) {
+              return { attach: lastAttach, verify: lastVerify };
+            }
+          }
+
+          await logSync(svc, {
+            action: "create_person",
+            http_status: lastAttach.status || lastVerify?.status || 0,
+            razorpay_employee_id: reservedEmployeeId,
+            hr_employee_id: hrId,
+            field_diff_summary: {
+              source,
+              attempt: i,
+              max_attempts: attempts,
+              payload_field_names: Object.keys(fullEditData).sort(),
+            },
+            error_text: lastAttach.error || lastVerify?.errText || `employee-id ${reservedEmployeeId} not visible yet`,
+            actor_user_id: authed.userId,
+          });
+
+          if (i < attempts) {
+            // Opfin often accepts people:create immediately but its email-keyed
+            // people:edit index lags for a few seconds. Keep the finalization
+            // request alive and repair automatically instead of sending HR into
+            // a manual retry loop.
+            await new Promise((resolve) => setTimeout(resolve, Math.min(1500 * i, 8000)));
+          }
+        }
+        return { attach: lastAttach, verify: lastVerify };
       };
 
       const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string) => {

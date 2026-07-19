@@ -381,6 +381,29 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     refetchInterval: 30_000,
   });
 
+  // Idempotency lookup — has this PIN already been queued to biometric devices
+  // from an onboarding flow? Any successful/queued/ack row here means we
+  // must NOT push again, and the "Create" action should lock itself.
+  const currentPinTrim = (form.essl_badge_id || "").trim();
+  const { data: existingPushLog } = useQuery({
+    queryKey: ["hr_essl_pushback_log_stage5", currentPinTrim],
+    queryFn: async () => {
+      if (!currentPinTrim) return null;
+      const { data } = await (supabase as any)
+        .from("hr_essl_pushback_log")
+        .select("id, status, device_serial, created_at, triggered_from")
+        .eq("pin", currentPinTrim)
+        .eq("kind", "identity")
+        .in("status", ["queued", "ack", "acknowledged", "applied", "success"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!currentPinTrim,
+    refetchInterval: 30_000,
+  });
+
   const pinStatus = useMemo(() => {
     const val = (form.essl_badge_id || "").trim();
     if (!val) return null as null | { kind: "empty" | "unknown" | "queued" | "conflict" | "ok"; msg: string; matches?: any[] };
@@ -409,29 +432,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       .filter((p: any) => !used.has(String(p.pin).trim()) || p.pin === currentPin)
       .sort((a: any, b: any) => Number(a.pin) - Number(b.pin));
   }, [canonicalDevicePins, usedBadgeIds, form.essl_badge_id]);
-
-  // Idempotency lookup — has this PIN already been queued to biometric devices
-  // from an onboarding flow? Any successful/queued/ack row here means we
-  // must NOT push again, and the "Create" action should lock itself.
-  const currentPinTrim = (form.essl_badge_id || "").trim();
-  const { data: existingPushLog } = useQuery({
-    queryKey: ["hr_essl_pushback_log_stage5", currentPinTrim],
-    queryFn: async () => {
-      if (!currentPinTrim) return null;
-      const { data } = await (supabase as any)
-        .from("hr_essl_pushback_log")
-        .select("id, status, device_serial, created_at, triggered_from")
-        .eq("pin", currentPinTrim)
-        .eq("kind", "identity")
-        .in("status", ["queued", "ack", "acknowledged", "applied", "success"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!currentPinTrim,
-    refetchInterval: 30_000,
-  });
 
   // The identity is "already created" on devices when EITHER a live device
   // roster row exists for this PIN with a name (pinStatus.kind === "ok"),

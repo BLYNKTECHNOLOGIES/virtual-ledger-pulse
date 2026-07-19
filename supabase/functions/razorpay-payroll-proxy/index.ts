@@ -5617,6 +5617,55 @@ Deno.serve(async (req) => {
         const rpCode = extracted.code;
         const rpMsg = extracted.message;
         if (rpCode === 7 || /email already exists/i.test(rpMsg)) {
+          if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+            const attach = await attachReservedEmployeeIdByEmail(String((outboundData as any).email || ""), reservedEmployeeId);
+            const verifyAttached = await opfinView(Number(reservedEmployeeId), "employee");
+            const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+            const rpEmail = String(verifyAttached.body?.email || verifyAttached.body?.work_email || "").trim().toLowerCase();
+            if (attach.ok && verifyAttached.ok && rpEmail && rpEmail === erpEmail) {
+              const snapshot = { ...(verifyAttached.body || outboundData), _recovered_by: "email_keyed_people_edit" };
+              const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snapshot, "created_via_erp");
+              if (!repairErr) {
+                await logSync(svc, {
+                  action: "create_person",
+                  http_status: verifyAttached.status,
+                  razorpay_employee_id: reservedEmployeeId,
+                  hr_employee_id: hrId,
+                  field_diff_summary: { source: "email_exists_auto_attach_by_email", payload_field_names: Object.keys(outboundData).sort() },
+                  error_text: null,
+                  actor_user_id: authed.userId,
+                });
+                return json(200, {
+                  ok: true,
+                  razorpay_employee_id: reservedEmployeeId,
+                  already_exists_in_razorpay: true,
+                  recovered_by_email_edit: true,
+                  attached_reserved_employee_id: true,
+                  repaired_mapping: true,
+                  http_status: verifyAttached.status,
+                });
+              }
+              return json(200, {
+                ok: false,
+                http_status: verifyAttached.status,
+                code: "RAZORPAY_EMAIL_EXISTS_MAPPING_CONFLICT",
+                error: `RazorpayX employee was auto-recovered and Employee ID ${reservedEmployeeId} verified, but ERP mapping repair failed: ${repairErr.message}`,
+                razorpay_employee_id: reservedEmployeeId,
+                body: verifyAttached.body,
+              });
+            }
+
+            await logSync(svc, {
+              action: "create_person",
+              http_status: attach.status || verifyAttached.status || httpStatus,
+              razorpay_employee_id: reservedEmployeeId,
+              hr_employee_id: hrId,
+              field_diff_summary: { source: "email_exists_auto_attach_by_email_failed", payload_field_names: Object.keys(outboundData).sort() },
+              error_text: attach.error || `verification failed for employee-id ${reservedEmployeeId}`,
+              actor_user_id: authed.userId,
+            });
+          }
+
           const existingByEmail = await findRazorpayEmployeeByEmail(String((outboundData as any).email || ""), {
             reservedEmployeeId,
             maxId: 250,
@@ -5733,11 +5782,11 @@ Deno.serve(async (req) => {
             http_status: httpStatus,
             code: "RAZORPAY_EMAIL_EXISTS",
             recoverable: true,
-            recovery_action: "attach_employee_id_by_people_id",
+            recovery_action: "reset_local_id_after_deleted_partial",
             people_id: existingPeopleId,
             error: existingPeopleId
-              ? `RazorpayX already has an employee with this email, but Employee ID is not attached. ERP found people-id ${existingPeopleId}; click Verify & Link to attach reserved employee-id ${reservedEmployeeId || ""}.`
-              : `RazorpayX already has an employee with this email. If its Employee ID shows -NA-, copy the numeric people-id from the RazorpayX employee URL and enter it in Stage 5; ERP will attach the reserved employee-id safely.`,
+              ? `RazorpayX still reports this email as existing, but ERP could not auto-attach the reserved Employee ID by API. Delete the partial RazorpayX employee, then use Reset local ID and reserve again.`
+              : `RazorpayX still reports this email as existing, but ERP could not find or auto-repair that employee by API. Delete the partial RazorpayX employee, then use Reset local ID and reserve again.`,
             body: bodyOut,
           });
         }

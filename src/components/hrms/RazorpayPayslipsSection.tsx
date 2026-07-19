@@ -408,3 +408,23 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
   );
 }
 
+function ComplianceCell({ value, messages }: { value: any; messages: string[] }) {
+  if (!messages.length) return <>{INR(value)}</>;
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1 text-warning cursor-help">
+            <AlertTriangle className="h-3 w-3" />
+            {INR(value)}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-xs text-xs">
+          {messages.map((m, i) => <p key={i}>{m}</p>)}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+

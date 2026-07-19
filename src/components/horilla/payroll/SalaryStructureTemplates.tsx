@@ -40,6 +40,8 @@ export default function SalaryStructureTemplates() {
   const [description, setDescription] = useState("");
   const [items, setItems] = useState<TemplateItem[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pushTarget, setPushTarget] = useState<{ id: string; name: string } | null>(null);
+
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["hr_salary_structure_templates"],

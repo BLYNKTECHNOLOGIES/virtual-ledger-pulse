@@ -101,10 +101,13 @@ export default function ShadowPayrollPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, badge_id");
-      const map: Record<string, string> = {};
+        .select("id, first_name, last_name, badge_id, statutory_flags_source");
+      const map: Record<string, { label: string; source: string | null }> = {};
       (data ?? []).forEach((e: any) => {
-        map[e.id] = `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "");
+        map[e.id] = {
+          label: `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : ""),
+          source: e.statutory_flags_source ?? null,
+        };
       });
       return map;
     },

@@ -3658,11 +3658,40 @@ Deno.serve(async (req) => {
       }
 
       // ---- pull_payslips_for_period ----
+      // Guards (mirroring pull_payouts_for_period): the underlying endpoint
+      // is payroll:view-payroll, which returns *pre-execution defaults*
+      // (typically basic-component ≈ CTC/12) for months that have not yet
+      // been bulk_applied/locked in RazorpayX. Ingesting those as payslips
+      // pollutes hr_payslips history with fake identical months.
       if (action === "pull_payslips_for_period") {
+        if (!p9Settings?.pull_payslips_endpoint_verified || !p9Settings?.pull_payslips_envelope_key) {
+          return json(400, { error: "Payslips envelope not verified. Record a probe-verified envelope first." });
+        }
         const periodMonthStr = String(payload?.period_month || "").trim();
         const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
         if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
         const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
+
+        // Refuse the pull unless the payroll run for this month has actually
+        // been executed on the RazorpayX side. Otherwise view-payroll returns
+        // draft/setup defaults which are indistinguishable from finalised data.
+        const allowRunStatuses = ["bulk_applied", "locked", "recalled"];
+        const { data: preRunRow } = await svc.from("hr_razorpay_payroll_runs")
+          .select("status").eq("period_month", periodMonthISO).maybeSingle();
+        const bypassRunGate = payload?.bypass_run_gate === true;
+        if (!bypassRunGate) {
+          if (!preRunRow) {
+            return json(400, {
+              error: "No payroll run found for this period in RazorpayX. Payslip history is only available after a run is bulk_applied.",
+            });
+          }
+          if (!allowRunStatuses.includes(preRunRow.status)) {
+            return json(400, {
+              error: `Payslip pull requires the RazorpayX payroll run to be bulk_applied (or later). Current status: ${preRunRow.status}.`,
+            });
+          }
+        }
+
         const pull = await pullPayrollViewForPeriod(svc, periodMonthStr, authed.userId || null);
         await svc.from("hr_razorpay_settings")
           .update({ last_payslips_pull_at: new Date().toISOString() }).eq("is_singleton", true);
@@ -3675,6 +3704,8 @@ Deno.serve(async (req) => {
           field_diff_summary: {
             period_month: periodMonthISO,
             endpoint: "payroll:view-payroll",
+            run_status: preRunRow?.status ?? "none",
+            bypass_run_gate: bypassRunGate,
             ...pull,
           },
           error_text: null,
@@ -3875,29 +3906,49 @@ Deno.serve(async (req) => {
         if (months.length >= maxMonths) break;
       }
 
+      // Preload payroll-run statuses for gating the pull step per month.
+      const monthISOs = months.map((m) => `${m}-01`);
+      const { data: runsForRange } = await svc
+        .from("hr_razorpay_payroll_runs")
+        .select("period_month,status")
+        .in("period_month", monthISOs);
+      const runStatusByISO = new Map<string, string>((runsForRange || []).map((r: any) => [String(r.period_month), String(r.status)]));
+      const allowRunStatuses = new Set(["bulk_applied", "locked", "recalled"]);
+
       const perMonth: any[] = [];
       let totalReflected = 0, totalWithPdf = 0, totalMissingMap = 0, totalPulled = 0, pullFailures = 0;
       let totalNoRecord = 0, totalNoEmail = 0, totalUpsertErrors = 0;
+      let skippedNoRun = 0, skippedUnfinalised = 0;
 
       for (const pm of months) {
         const iso = `${pm}-01`;
         let pulled = 0, pullErr: string | null = null;
+        const runStatus = runStatusByISO.get(iso) || null;
+        const runFinalised = runStatus ? allowRunStatuses.has(runStatus) : false;
 
         if (alsoPull) {
-          try {
-            const pull = await pullPayrollViewForPeriod(svc, pm, authed.userId || null);
-            pulled = pull.pulled;
-            totalNoRecord += pull.noRecord;
-            totalNoEmail += pull.noEmail;
-            totalUpsertErrors += pull.upsertErrors;
-            if (pull.failed || pull.upsertErrors) pullErr = `failed=${pull.failed}; upsertErrors=${pull.upsertErrors}`;
-          } catch (e) {
-            pullErr = (e as Error).message;
+          if (!runStatus) {
+            pullErr = "skipped: no RazorpayX payroll run for this month (view-payroll would return CTC/12 defaults)";
+            skippedNoRun++;
+          } else if (!runFinalised) {
+            pullErr = `skipped: RazorpayX run not finalised (status=${runStatus})`;
+            skippedUnfinalised++;
+          } else {
+            try {
+              const pull = await pullPayrollViewForPeriod(svc, pm, authed.userId || null);
+              pulled = pull.pulled;
+              totalNoRecord += pull.noRecord;
+              totalNoEmail += pull.noEmail;
+              totalUpsertErrors += pull.upsertErrors;
+              if (pull.failed || pull.upsertErrors) pullErr = `failed=${pull.failed}; upsertErrors=${pull.upsertErrors}`;
+            } catch (e) {
+              pullErr = (e as Error).message;
+            }
+            if (pullErr) pullFailures++;
           }
-          if (pullErr) pullFailures++;
         }
 
-        // Reflect whatever we have (existing rows + freshly pulled).
+        // Reflect whatever we have (existing rows only when there's no finalised run to pull).
         let refRes = { reflected: 0, withPdf: 0, missingMap: 0 };
         try { refRes = await reflectOne(iso); } catch (e) { pullErr = (pullErr || "") + `; reflect: ${(e as Error).message}`; }
 
@@ -3905,7 +3956,7 @@ Deno.serve(async (req) => {
         totalReflected += refRes.reflected;
         totalWithPdf += refRes.withPdf;
         totalMissingMap += refRes.missingMap;
-        perMonth.push({ period_month: pm, pulled, ...refRes, error: pullErr });
+        perMonth.push({ period_month: pm, run_status: runStatus, pulled, ...refRes, error: pullErr });
       }
 
       await svc.from("hr_razorpay_settings")
@@ -3920,6 +3971,7 @@ Deno.serve(async (req) => {
           from, to, months: months.length,
             endpoint: "payroll:view-payroll", pdf_source: "dashboard_only_not_api", totalPulled, totalReflected, totalWithPdf,
             totalMissingMap, pullFailures, totalNoRecord, totalNoEmail, totalUpsertErrors,
+            skippedNoRun, skippedUnfinalised,
         },
         error_text: null,
         actor_user_id: authed.userId,
@@ -3931,9 +3983,9 @@ Deno.serve(async (req) => {
         endpoint: "payroll:view-payroll",
         pdf_source: "dashboard_only_not_api",
         months: months.length,
-        totals: { pulled: totalPulled, reflected: totalReflected, withPdf: totalWithPdf, missingMap: totalMissingMap, pullFailures, noRecord: totalNoRecord, noEmail: totalNoEmail, upsertErrors: totalUpsertErrors },
+        totals: { pulled: totalPulled, reflected: totalReflected, withPdf: totalWithPdf, missingMap: totalMissingMap, pullFailures, noRecord: totalNoRecord, noEmail: totalNoEmail, upsertErrors: totalUpsertErrors, skippedNoRun, skippedUnfinalised },
         per_month: perMonth,
-        note: "Pulled payroll history from RazorpayX payroll:view-payroll and reflected it into ERP history. Payslip PDFs are not exposed by the Opfin API and remain dashboard-only.",
+        note: "Only months whose RazorpayX payroll run is bulk_applied/locked/recalled are pulled. Months without a finalised run are skipped so CTC/12 defaults are never persisted as history. Payslip PDFs are not exposed by the Opfin API and remain dashboard-only.",
       });
     }
 

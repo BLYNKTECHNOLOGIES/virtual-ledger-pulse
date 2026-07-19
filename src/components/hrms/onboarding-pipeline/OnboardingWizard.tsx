@@ -39,9 +39,15 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     enabled: !!recordId,
   });
 
+  // Only hydrate activeStage from record ONCE when the record first loads.
+  // Refetches during Finalize (or any autosave) must NOT snap the user back
+  // to `record.current_stage` — that value lags behind the wizard UI and was
+  // bouncing users off Stage 5 mid-finalize, hiding the failure toast.
+  const hydratedStageRef = useRef(false);
   useEffect(() => {
-    if (record) {
+    if (record && !hydratedStageRef.current) {
       setActiveStage(record.current_stage || 1);
+      hydratedStageRef.current = true;
     }
   }, [record]);
 

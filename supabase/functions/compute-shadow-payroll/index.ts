@@ -260,6 +260,29 @@ Deno.serve(async (req) => {
     const skipped: Array<{ employee_id: string; name?: string; reason: string; detail?: string }> = [];
     let totalGross = 0, totalNet = 0, computedCount = 0;
 
+    // Batch-compute LOP for every active employee via the shared SQL function
+    // (single source of truth — same function feeds the razorpay-payroll-proxy attendance push).
+    const lopByEmp = new Map<string, { lop_days: number; working_days: number; formula: string; config_errors: string[] }>();
+    if (employees && employees.length) {
+      const { data: lopRows, error: lopErr } = await (supabase as any).rpc("hr_compute_lop_days", {
+        p_employee_ids: employees.map((e: any) => e.id),
+        p_period_month: periodStr,
+      });
+      if (lopErr) {
+        console.error("hr_compute_lop_days failed", lopErr);
+      } else {
+        for (const r of (lopRows ?? []) as any[]) {
+          lopByEmp.set(r.employee_id, {
+            lop_days: Number(r.lop_days ?? 0),
+            working_days: Number(r.working_days ?? 0),
+            formula: String(r.formula ?? ""),
+            config_errors: Array.isArray(r.config_errors) ? r.config_errors : [],
+          });
+        }
+      }
+    }
+
+
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
 

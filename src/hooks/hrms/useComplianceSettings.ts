@@ -59,9 +59,7 @@ export function useComplianceSettings() {
     queryFn: async (): Promise<ComplianceSettings | null> => {
       const { data, error } = await (supabase as any)
         .from("hr_razorpay_settings")
-        .select(
-          "xpayroll_handles_salary,xpayroll_handles_contractors,bank_transfer_method,bank_verification_upload_proof,bank_verification_auto_approve_name_match,compliance_files_salary_tds,compliance_files_nonsalary_tds,compliance_files_pf,compliance_files_esi,compliance_files_pt,pf_include_employer_in_ctc,pf_include_admin_edli_in_ctc,pf_wages_basic_only,pf_wage_cap_15000,esi_include_employer_in_ctc,esi_include_additions_in_wages,compliance_settings_updated_at"
-        )
+        .select("*")
         .eq("is_singleton", true)
         .maybeSingle();
       if (error) throw error;

@@ -233,9 +233,28 @@ export default function SalaryRegisterImportPage() {
         }
       }
 
+      // Auto-derive per-employee statutory enrollment + custom structure from the freshly-imported register.
+      // Runs the same function HR can invoke manually from Data Health — keeps flags honest.
+      const affectedEmployeeIds = Array.from(
+        new Set(
+          (existingPayslips ?? [])
+            .filter((p: any) => parsed.some((r) => r.razorpay_employee_id === String(p.razorpay_employee_id)))
+            .map((p: any) => p.hr_employee_id)
+            .filter(Boolean),
+        ),
+      );
+      let derivedCount = 0;
+      for (const empId of affectedEmployeeIds) {
+        const { data: derived } = await supabase.rpc("hr_derive_statutory_enrollment_from_history", { p_employee_id: empId });
+        if ((derived as any)?.status === "derived") derivedCount++;
+      }
+
       setResult({ updated, missing, mismatch });
-      toast.success(`Imported ${updated} rows. ${missing.length ? `${missing.length} not matched.` : "All matched."}`);
+      toast.success(
+        `Imported ${updated} rows${derivedCount ? ` · derived statutory enrollment for ${derivedCount} employees` : ""}. ${missing.length ? `${missing.length} not matched.` : "All matched."}`,
+      );
       await qc.invalidateQueries({ queryKey: ["payslip_records_for_period", periodMonth] });
+
     } catch (e: any) {
       toast.error(e.message || "Import failed");
     } finally {

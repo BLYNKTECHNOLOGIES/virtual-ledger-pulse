@@ -129,7 +129,11 @@ async function opfinView(employeeId: number, employeeType = "employee") {
 // If no processed payroll month exists for the employee, salary is NOT exposed
 // via the API and CTC must be entered manually in HRMS. We surface that
 // cleanly via ok:false + err: "not-exposed-by-api".
-async function opfinSalary(employeeId: number, email?: string | null): Promise<{
+async function opfinSalary(
+  employeeId: number,
+  email?: string | null,
+  executedMonths?: string[] | null,
+): Promise<{
   ok: boolean; annual_ctc: number | null; monthly_gross: number | null;
   components: any[]; raw: any; http_status: number; err: string | null;
 }> {
@@ -138,6 +142,14 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
   if (!email || typeof email !== "string" || !email.includes("@")) {
     console.log(`[opfinSalary] emp=${employeeId} SKIP no-email (payroll:view-payroll requires email)`);
     return { ...empty, err: "not-exposed-by-api: payroll view requires employee email which is missing on snapshot" };
+  }
+
+  // GATE: only probe months where a RazorpayX payroll run has actually
+  // executed (bulk_applied/locked/recalled). Otherwise view-payroll returns
+  // CTC/12 setup defaults which would mis-populate CTC on the ERP profile.
+  if (!executedMonths || executedMonths.length === 0) {
+    console.log(`[opfinSalary] emp=${employeeId} SKIP no-executed-payroll-run`);
+    return { ...empty, err: "not-exposed-by-api: no executed RazorpayX payroll run available; view-payroll would return CTC/12 setup defaults" };
   }
 
   const readNum = (obj: any, keys: string[]): number | null => {
@@ -150,13 +162,8 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
     return null;
   };
 
-  // Walk back up to 12 months from current month, newest first.
-  const now = new Date();
-  const months: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-    months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
-  }
+  // Newest-first traversal of executed months only (already validated by caller).
+  const months = [...executedMonths].sort().reverse();
 
   let lastStatus = 0;
   let lastRaw: any = null;
@@ -200,7 +207,7 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
       const monthly = readNum(body, ["salary"]);
       if (monthly && monthly > 0) {
         const annual = Math.round(monthly * 12);
-        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual}`);
+        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual} (executed-run gated)`);
         return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: [], raw: body, http_status: res.status, err: null };
       }
       perAttempt.push(`no salary field @ ${tag} keys=${Object.keys(body).slice(0, 10).join(",")}`);
@@ -211,8 +218,8 @@ async function opfinSalary(employeeId: number, email?: string | null): Promise<{
     } finally { clearTimeout(t); }
   }
 
-  console.log(`[opfinSalary] emp=${employeeId} NO_PROCESSED_PAYROLL email=${email} tried=${months.length} months | ${perAttempt.slice(0, 3).join(" || ")}`);
-  return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr || "not-exposed-by-api: no processed payroll month returned salary" };
+  console.log(`[opfinSalary] emp=${employeeId} NO_PROCESSED_PAYROLL email=${email} tried=${months.length} executed months | ${perAttempt.slice(0, 3).join(" || ")}`);
+  return { ...empty, http_status: lastStatus, raw: lastRaw, err: lastErr || "not-exposed-by-api: no executed payroll month returned salary" };
 }
 
 

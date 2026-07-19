@@ -68,10 +68,9 @@ serve(async (req) => {
     } else {
       const { data: devs, error: devErr } = await supa
         .from("hr_biometric_devices")
-        .select("serial_number, is_active")
-        .eq("is_active", true);
+        .select("device_serial");
       if (devErr) throw devErr;
-      targets = (devs || []).map((d: any) => d.serial_number);
+      targets = (devs || []).map((d: any) => d.device_serial).filter(Boolean);
     }
     if (targets.length === 0) {
       return new Response(

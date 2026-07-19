@@ -568,6 +568,7 @@ export default function EmployeeProfilePage() {
       joining_date: workInfo?.joining_date || "",
       contract_end_date: workInfo?.contract_end_date || "",
       experience_years: workInfo?.experience_years?.toString() || "",
+      level_band: (workInfo as any)?.level_band || "",
     });
     setEditingWorkInfo(true);
   };

@@ -3971,6 +3971,7 @@ Deno.serve(async (req) => {
           from, to, months: months.length,
             endpoint: "payroll:view-payroll", pdf_source: "dashboard_only_not_api", totalPulled, totalReflected, totalWithPdf,
             totalMissingMap, pullFailures, totalNoRecord, totalNoEmail, totalUpsertErrors,
+            skippedNoRun, skippedUnfinalised,
         },
         error_text: null,
         actor_user_id: authed.userId,
@@ -3982,9 +3983,9 @@ Deno.serve(async (req) => {
         endpoint: "payroll:view-payroll",
         pdf_source: "dashboard_only_not_api",
         months: months.length,
-        totals: { pulled: totalPulled, reflected: totalReflected, withPdf: totalWithPdf, missingMap: totalMissingMap, pullFailures, noRecord: totalNoRecord, noEmail: totalNoEmail, upsertErrors: totalUpsertErrors },
+        totals: { pulled: totalPulled, reflected: totalReflected, withPdf: totalWithPdf, missingMap: totalMissingMap, pullFailures, noRecord: totalNoRecord, noEmail: totalNoEmail, upsertErrors: totalUpsertErrors, skippedNoRun, skippedUnfinalised },
         per_month: perMonth,
-        note: "Pulled payroll history from RazorpayX payroll:view-payroll and reflected it into ERP history. Payslip PDFs are not exposed by the Opfin API and remain dashboard-only.",
+        note: "Only months whose RazorpayX payroll run is bulk_applied/locked/recalled are pulled. Months without a finalised run are skipped so CTC/12 defaults are never persisted as history. Payslip PDFs are not exposed by the Opfin API and remain dashboard-only.",
       });
     }
 

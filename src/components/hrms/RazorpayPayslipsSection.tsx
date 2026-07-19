@@ -240,41 +240,64 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           </DialogHeader>
           {openRow && (
             <div className="space-y-4">
-              {/* Summary */}
+              {/* Doctrine banner: this dialog mirrors RazorpayX. Statutory splits (when present) come from the monthly Salary Register CSV. */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/30 p-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <SourceTag source="razorpay" />
+                  <FreshnessStamp lastPulledAt={openRow.pulled_at ?? openRow.updated_at ?? null} />
+                </div>
+                <DashboardLink />
+              </div>
+
+              {/* Summary — every headline number tagged by real source */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="border border-border rounded p-3 bg-muted/30">
-                  <p className="text-[10px] uppercase text-muted-foreground">Gross</p>
+                  <div className="flex items-center justify-between"><p className="text-[10px] uppercase text-muted-foreground">Gross</p><SourceTag source="razorpay" compact /></div>
                   <p className="text-sm font-semibold">{INR(openRow.gross_earnings)}</p>
                 </div>
                 <div className="border border-border rounded p-3 bg-muted/30">
-                  <p className="text-[10px] uppercase text-muted-foreground">Deductions</p>
+                  <div className="flex items-center justify-between"><p className="text-[10px] uppercase text-muted-foreground">Deductions</p><SourceTag source="razorpay" compact /></div>
                   <p className="text-sm font-semibold text-destructive">{INR(openRow.total_deductions)}</p>
                 </div>
                 <div className="border border-border rounded p-3 bg-muted/30">
-                  <p className="text-[10px] uppercase text-muted-foreground">TDS</p>
-                  <p className="text-sm font-semibold">{INR(openRow.tds_amount)}</p>
+                  <div className="flex items-center justify-between"><p className="text-[10px] uppercase text-muted-foreground">TDS</p><SourceTag source={openRow.reg_tds != null ? "register_csv" : "razorpay"} compact /></div>
+                  <p className="text-sm font-semibold">{INR(openRow.reg_tds ?? openRow.tds_amount)}</p>
                 </div>
                 <div className="border border-primary/40 rounded p-3 bg-primary/5">
-                  <p className="text-[10px] uppercase text-muted-foreground">Net Pay</p>
+                  <div className="flex items-center justify-between"><p className="text-[10px] uppercase text-muted-foreground">Net Pay</p><SourceTag source="razorpay" compact /></div>
                   <p className="text-sm font-bold text-primary">{INR(openRow.net_pay)}</p>
                 </div>
               </div>
 
-              {/* Statutory strip — promoted first-class columns */}
-              {(openRow.pf_amount != null || openRow.esi_amount != null || openRow.professional_tax != null) && (
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="border border-border rounded p-3 bg-muted/30">
-                    <p className="text-[10px] uppercase text-muted-foreground">PF</p>
-                    <p className="text-sm font-semibold">{INR(openRow.pf_amount)}</p>
+              {/* Statutory strip — prefer register CSV (component-level) over API totals (aggregate) */}
+              {(openRow.reg_pf_ee != null || openRow.reg_esi_ee != null || openRow.reg_pt != null ||
+                openRow.pf_amount != null || openRow.esi_amount != null || openRow.professional_tax != null) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-foreground">Statutory</h4>
+                    <SourceTag source={openRow.reg_source_uploaded_at ? "register_csv" : "dashboard_only"} compact />
                   </div>
-                  <div className="border border-border rounded p-3 bg-muted/30">
-                    <p className="text-[10px] uppercase text-muted-foreground">ESI</p>
-                    <p className="text-sm font-semibold">{INR(openRow.esi_amount)}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="border border-border rounded p-3 bg-muted/30">
+                      <p className="text-[10px] uppercase text-muted-foreground">PF (Employee)</p>
+                      <p className="text-sm font-semibold">{INR(openRow.reg_pf_ee ?? openRow.pf_amount)}</p>
+                      {openRow.reg_pf_er != null && <p className="text-[10px] text-muted-foreground mt-0.5">Employer: {INR(openRow.reg_pf_er)}</p>}
+                    </div>
+                    <div className="border border-border rounded p-3 bg-muted/30">
+                      <p className="text-[10px] uppercase text-muted-foreground">ESI (Employee)</p>
+                      <p className="text-sm font-semibold">{INR(openRow.reg_esi_ee ?? openRow.esi_amount)}</p>
+                      {openRow.reg_esi_er != null && <p className="text-[10px] text-muted-foreground mt-0.5">Employer: {INR(openRow.reg_esi_er)}</p>}
+                    </div>
+                    <div className="border border-border rounded p-3 bg-muted/30">
+                      <p className="text-[10px] uppercase text-muted-foreground">Professional Tax</p>
+                      <p className="text-sm font-semibold">{INR(openRow.reg_pt ?? openRow.professional_tax)}</p>
+                    </div>
                   </div>
-                  <div className="border border-border rounded p-3 bg-muted/30">
-                    <p className="text-[10px] uppercase text-muted-foreground">Professional Tax</p>
-                    <p className="text-sm font-semibold">{INR(openRow.professional_tax)}</p>
-                  </div>
+                  {!openRow.reg_source_uploaded_at && (
+                    <p className="text-[11px] text-amber-600 mt-2">
+                      Statutory splits not yet ingested for this month — <a href="/hrms/payroll/salary-register-import" className="underline">upload the Salary Register CSV</a> to fill in PF/ESI/PT/TDS component-level values.
+                    </p>
+                  )}
                 </div>
               )}
 

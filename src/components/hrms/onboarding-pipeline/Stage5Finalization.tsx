@@ -47,7 +47,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
   // Auto-fills the ESSL badge field and flips the "create in Razorpay" toggle on
   // so the actual /people POST happens automatically at Finalize.
   const handleReserveRazorpayId = async () => {
-    if (reservingRef.current || reservingRpId) return;
+    if (reservingRef.current || reservingRpId || reservedRpId) return;
+    // Belt-and-suspenders: if the record ALREADY has a numeric badge on it
+    // (previous reservation from this wizard session), rehydrate instead of
+    // burning another sequence value.
+    const existingBadge = (onboardingRecord?.essl_badge_id || "").toString().trim();
+    if (/^\d+$/.test(existingBadge)) {
+      setReservedRpId(existingBadge);
+      setForm(p => ({ ...p, essl_badge_id: existingBadge, create_in_razorpay: true }));
+      toast.info(`Already reserved: RazorpayX ID ${existingBadge}`);
+      return;
+    }
     reservingRef.current = true;
     setReservingRpId(true);
     const t = toast.loading("Reserving next RazorpayX employee ID…");
@@ -65,6 +75,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
           .update({ essl_badge_id: id })
           .eq("id", onboardingRecord.id);
         if (upErr) throw upErr;
+        // Force the parent wizard's record query to refetch so on the next
+        // mount of Stage 5 the `onboardingRecord` prop already carries the
+        // reserved badge — otherwise the rehydrate effect below sees stale
+        // data and offers the Reserve button again.
+        await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
       }
       toast.success(`Reserved RazorpayX ID ${id} — same number will be the ESSL PIN.`, { id: t });
     } catch (e: any) {

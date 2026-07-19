@@ -5029,6 +5029,10 @@ Deno.serve(async (req) => {
       }
 
       const outboundData: Record<string, any> = {
+        // Unified ID doctrine: HRMS badge_id === ESSL PIN === Razorpay
+        // employee_id. Send our badge as the caller-supplied employee_id so
+        // Razorpay stores the same integer instead of minting its own.
+        employee_id: (emp.badge_id || "").toString().trim() || null,
         "employee-type": "employee",
         name: fullName,
         email: String(emp.email).trim().toLowerCase(),

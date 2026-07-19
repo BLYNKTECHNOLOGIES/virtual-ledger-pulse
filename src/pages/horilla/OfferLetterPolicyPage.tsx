@@ -383,3 +383,76 @@ function NumInput({ editing, value, onChange, step }: { editing: boolean; value:
     />
   );
 }
+
+function PathADoctrineCard() {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const { data: settings } = useQuery({
+    queryKey: ["hr_razorpay_settings_path_a"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_razorpay_settings")
+        .select("path_a_structure_swap_enabled, path_a_enabled_at, path_a_enabled_by")
+        .eq("is_singleton", true)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const enabled = !!settings?.path_a_structure_swap_enabled;
+
+  const toggle = async (next: boolean) => {
+    if (next && !confirm("Enable Path A structure swap? HRMS will be authorised to overwrite RazorpayX salary structures via the API. The mirror-only doctrine no longer applies.")) return;
+    setBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await (supabase as any).from("hr_razorpay_settings").update({
+        path_a_structure_swap_enabled: next,
+        path_a_enabled_at: next ? new Date().toISOString() : null,
+        path_a_enabled_by: next ? user?.id ?? null : null,
+      }).eq("is_singleton", true);
+      if (error) throw error;
+      toast.success(next ? "Path A structure swap ENABLED" : "Path A structure swap disabled");
+      qc.invalidateQueries({ queryKey: ["hr_razorpay_settings_path_a"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to toggle Path A");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className={enabled ? "border-amber-500/60" : ""}>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          {enabled ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <Lock className="h-4 w-4" />}
+          Path A — Structure Swap Doctrine {enabled ? <Badge variant="destructive">LIVE</Badge> : <Badge variant="outline">DISABLED</Badge>}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          When enabled, HRMS can overwrite RazorpayX salary structures via
+          <code className="px-1">people:set-salary</code>. The daily
+          <code className="px-1">hr-schedule-training-swaps</code> cron will then
+          flip trainees from the training structure to their real structure on
+          DOJ + training-period months, and stamp a synthetic statutory-toggle
+          revision at the same moment. Deposit installments (Clause 6b) are
+          scheduled automatically after each successful swap.
+        </p>
+        {enabled && (
+          <p className="text-xs text-amber-600">
+            Enabled {settings?.path_a_enabled_at ? formatDistanceToNow(new Date(settings.path_a_enabled_at), { addSuffix: true }) : "—"}.
+            RazorpayX dashboard will show two structure changes per new hire
+            (training on hire, real at end of training). Shadow drift comparator
+            will annotate these as expected.
+          </p>
+        )}
+        <div className="flex items-center gap-3">
+          <Switch checked={enabled} onCheckedChange={toggle} disabled={busy} />
+          <span className="text-sm">{enabled ? "Enabled — swaps will execute" : "Disabled — mirror-only doctrine"}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+}

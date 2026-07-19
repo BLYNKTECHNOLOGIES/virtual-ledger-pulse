@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-19: RazorpayX onboarding email-exists path converted from HTTP 409 runtime failure to `ok:false` business response; Stage 5 now offers operator-assisted verified linking by Razorpay employee-id when Opfin cannot expose direct email lookup.
 - 2026-07-19: RazorpayX onboarding finalize conflict handling hardened — Opfin code 7/email-exists now attempts exact-email recovery and repairs hr_razorpay_employee_map; Stage 5 now surfaces parsed business errors instead of raw Edge 502 runtime text.
 - 2026-07-19: Onboarding finalize retry idempotency shipped — existing ERP users and existing/mapped RazorpayX employees are now reused/repaired and linked back to hr_employees instead of blocking Stage 5 completion after partial prior attempts.
 - 2026-07-19: Onboarding finalization retry hardening shipped — RazorpayX create_person now uses official people:create payload/casing instead of rejected people:add; create-erp-user now reuses orphan Supabase Auth identities on retry instead of failing "email already registered".

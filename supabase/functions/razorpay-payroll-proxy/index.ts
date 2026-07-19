@@ -5346,7 +5346,7 @@ Deno.serve(async (req) => {
                 http_status: existingByEmail.status,
               });
             }
-            return json(409, {
+            return json(200, {
               ok: false,
               http_status: httpStatus,
               code: "RAZORPAY_EMAIL_EXISTS_MAPPING_CONFLICT",
@@ -5355,11 +5355,13 @@ Deno.serve(async (req) => {
               body: bodyOut,
             });
           }
-          return json(409, {
+          return json(200, {
             ok: false,
             http_status: httpStatus,
             code: "RAZORPAY_EMAIL_EXISTS",
-            error: `RazorpayX already has an employee with email "${(outboundData as any).email}" under a different employee-id, but the API does not expose a direct email lookup. Use RazorpayX dashboard to find that employee-id, then run Razorpay Sync for that ID or change the ERP email before retrying Finalize.`,
+            recoverable: true,
+            recovery_action: "recover_person_by_id",
+            error: `RazorpayX already has an employee with this email under a different employee-id. Open RazorpayX, search this employee by email, copy the employee-id, then enter it in Stage 5 to link safely.`,
             body: bodyOut,
           });
         }

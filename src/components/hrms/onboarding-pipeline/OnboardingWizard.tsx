@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Stage1BasicDetails } from "./Stage1BasicDetails";
 import { Stage2SalaryConfig } from "./Stage2SalaryConfig";
 import { Stage3Documents } from "./Stage3Documents";
@@ -23,6 +33,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   const queryClient = useQueryClient();
   const [recordId, setRecordId] = useState<string | null>(onboardingId);
   const [activeStage, setActiveStage] = useState(1);
+  const [razorpayRecovery, setRazorpayRecovery] = useState<null | { employeeId: string; message: string; resolving: boolean }>(null);
 
   const { data: record, refetch } = useQuery({
     queryKey: ["onboarding-record", recordId],
@@ -206,6 +217,31 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     }
 
     return base;
+  };
+
+  const recoverRazorpayById = async () => {
+    if (!razorpayRecovery?.employeeId || !record?.employee_id) return;
+    setRazorpayRecovery(p => p ? { ...p, resolving: true } : p);
+    try {
+      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: {
+          action: "recover_person_by_id",
+          hr_employee_id: record.employee_id,
+          razorpay_employee_id: razorpayRecovery.employeeId,
+        },
+      });
+      if (error) throw new Error(await getFunctionErrorMessage(error, "Razorpay link failed"));
+      if (data?.ok === false) throw new Error(data?.error || "Razorpay link failed");
+
+      await logAudit(recordId!, 5, "razorpay_person_recovered_by_id", { razorpay_employee_id: razorpayRecovery.employeeId });
+      toast.success(`Linked RazorpayX employee-id ${razorpayRecovery.employeeId}. Click Finalize again to complete.`);
+      setRazorpayRecovery(null);
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["razorpay-map", record.employee_id] });
+    } catch (e: any) {
+      toast.error(e?.message || "Razorpay link failed");
+      setRazorpayRecovery(p => p ? { ...p, resolving: false } : p);
+    }
   };
 
   // Generic save draft handler
@@ -461,6 +497,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           });
           if (rpErr) throw new Error(await getFunctionErrorMessage(rpErr, "Razorpay create failed"));
           if (rpRes?.ok === false) {
+            if (rpRes?.code === "RAZORPAY_EMAIL_EXISTS") {
+              setRazorpayRecovery({ employeeId: "", message: rpRes.error || "RazorpayX already has this email under another employee-id.", resolving: false });
+            }
             const detail = rpRes?.missing?.length
               ? `Missing: ${rpRes.missing.join(", ")}`
               : (rpRes?.error || rpRes?.reason || "Razorpay rejected the request");
@@ -714,6 +753,32 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           readOnly={isCompleted}
         />
       )}
+
+      <AlertDialog open={!!razorpayRecovery} onOpenChange={(open) => !open && setRazorpayRecovery(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Link existing RazorpayX employee?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <span className="block whitespace-pre-line">{razorpayRecovery?.message}</span>
+              <span className="block">Enter the employee-id shown in RazorpayX for this same email. ERP will verify the email before linking.</span>
+              <input
+                value={razorpayRecovery?.employeeId || ""}
+                onChange={(e) => setRazorpayRecovery(p => p ? { ...p, employeeId: e.target.value.replace(/\D/g, "") } : p)}
+                inputMode="numeric"
+                placeholder="RazorpayX employee-id"
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                disabled={!!razorpayRecovery?.resolving}
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!razorpayRecovery?.resolving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={recoverRazorpayById} disabled={!razorpayRecovery?.employeeId || !!razorpayRecovery?.resolving}>
+              {razorpayRecovery?.resolving ? "Verifying…" : "Verify & Link"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Onboarding Task Checklist */}
       {recordId && (

@@ -274,6 +274,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 </div>
               </div>
 
+              <DefaultStructurePreview annualCtc={nT} />
+
+
               <div>
                 <Label>Reason / notes {reasonRequired && <span className="text-destructive">*</span>}</Label>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder={reasonRequired ? "Required for promotion/demotion" : "Optional"} rows={2} />

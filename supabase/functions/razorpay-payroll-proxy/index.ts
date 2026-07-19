@@ -623,7 +623,11 @@ async function opfinEditPerson(data: Record<string, any>): Promise<{ ok: boolean
   } finally { clearTimeout(t); }
 }
 
-async function attachReservedEmployeeIdByEmail(email: string, reservedEmployeeId: string | null): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
+async function attachReservedEmployeeIdByEmail(
+  email: string,
+  reservedEmployeeId: string | null,
+  extra: Record<string, any> = {},
+): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
   const cleanEmail = String(email || "").trim().toLowerCase();
   const reserved = String(reservedEmployeeId || "").trim();
   if (!cleanEmail.includes("@")) return { ok: false, status: 0, error: "email required for people:edit", body: null };
@@ -633,11 +637,21 @@ async function attachReservedEmployeeIdByEmail(email: string, reservedEmployeeId
   // by email, not by the internal people-id. This is the API-side equivalent of
   // typing the Employee ID into the dashboard, so the operator no longer has to
   // copy/paste the people-id manually for -NA limbo records.
-  return await opfinEditPerson({
+  //
+  // RazorpayX's live server rejects minimal edits on newly-invited persons with
+  // code 43 ("hire_date is required"), so callers may pass an `extra` payload
+  // (typically the ERP's fullEditData) to satisfy required-field validation in
+  // a single round-trip.
+  const payload: Record<string, any> = {
+    ...extra,
     email: cleanEmail,
     "employee-id": Number(reserved),
     "employee-type": "employee",
-  });
+  };
+  for (const k of Object.keys(payload)) {
+    if (payload[k] === null || payload[k] === "" || payload[k] === undefined) delete payload[k];
+  }
+  return await opfinEditPerson(payload);
 }
 
 function isDismissedRazorpayPerson(rp: any): boolean {

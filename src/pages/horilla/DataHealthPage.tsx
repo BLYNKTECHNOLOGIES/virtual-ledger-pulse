@@ -141,6 +141,43 @@ export default function DataHealthPage() {
     return { count, employees: affected.size, samples };
   }, [complianceSettings, statutoryRollup]);
 
+  // Unknown per-employee statutory enrollment — every active employee whose
+  // pf/esi/pt flags are NULL. Shadow engine falls back to global compliance
+  // for these, which is only correct if they truly follow the global default.
+  const { data: unknownEnrollmentRows } = useQuery({
+    queryKey: ["data_health_unknown_enrollment"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_employees")
+        .select("id, first_name, last_name, badge_id, pf_enabled, esi_enabled, pt_enabled")
+        .eq("is_active", true)
+        .or("pf_enabled.is.null,esi_enabled.is.null,pt_enabled.is.null")
+        .order("badge_id", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+    staleTime: 60_000,
+  });
+  const [derivingEnrollment, setDerivingEnrollment] = useState(false);
+  async function deriveAllEnrollment() {
+    setDerivingEnrollment(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("hr_derive_all_statutory_enrollments");
+      if (error) throw error;
+      const updated = (data as any)?.updated_from_history ?? 0;
+      const remaining = (data as any)?.still_unknown_no_history ?? 0;
+      toast.success(
+        `Derived enrollment for ${updated} employee${updated === 1 ? "" : "s"} from register history. ${remaining} still unknown (no register imported yet).`,
+      );
+      qc.invalidateQueries({ queryKey: ["data_health_unknown_enrollment"] });
+    } catch (e: any) {
+      toast.error(`Derivation failed: ${e?.message || e}`);
+    } finally {
+      setDerivingEnrollment(false);
+    }
+  }
+
+
   const filtered = useMemo(() => {
     if (!drifts) return [];
     return drifts.filter((d) => {
@@ -323,8 +360,48 @@ export default function DataHealthPage() {
           </div>
         </div>
       )}
+
+      {/* Unknown per-employee statutory enrollment */}
+      {unknownEnrollmentRows && unknownEnrollmentRows.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
+                  Statutory enrollment unknown — {unknownEnrollmentRows.length} employee{unknownEnrollmentRows.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Their per-employee PF / ESI / PT flags haven't been verified from a real RazorpayX payslip yet. The shadow engine falls back to the global compliance toggle for them, which is only correct if they truly follow the global default. Import the RazorpayX Salary Register for any month and we'll derive the flags automatically.
+              </p>
+              <div className="mt-2 text-[11px] text-muted-foreground">
+                Examples: {unknownEnrollmentRows.slice(0, 6).map((r: any) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || `#${r.badge_id}`).join(", ")}
+                {unknownEnrollmentRows.length > 6 ? ` … +${unknownEnrollmentRows.length - 6} more` : ""}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={deriveAllEnrollment}
+                disabled={derivingEnrollment}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap disabled:opacity-50"
+              >
+                {derivingEnrollment ? "Deriving…" : "Derive from history"}
+              </button>
+              <Link
+                to="/hrms/payroll/salary-register-import"
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap"
+              >
+                Import Register
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
+
         <select
           value={severity}
           onChange={(e) => setSeverity(e.target.value)}

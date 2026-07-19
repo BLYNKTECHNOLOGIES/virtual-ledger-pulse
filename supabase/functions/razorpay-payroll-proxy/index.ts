@@ -999,6 +999,65 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---------- recover_person_by_id: operator-assisted mapping repair ----------
+    // Used when Razorpay says "Email already exists" but the create API does
+    // not return which employee-id owns that email. HR can copy the employee-id
+    // from RazorpayX; we verify the ID via people:view and only map it when the
+    // Razorpay email exactly matches the ERP employee email.
+    if (action === "recover_person_by_id") {
+      const hrId = payload?.hr_employee_id ? String(payload.hr_employee_id) : "";
+      const rpId = Number(payload?.razorpay_employee_id);
+      if (!hrId) return json(400, { error: "hr_employee_id required" });
+      if (!Number.isFinite(rpId) || rpId < 1) return json(400, { error: "razorpay_employee_id required" });
+
+      const { data: emp, error: empErr } = await svc
+        .from("hr_employees")
+        .select("id,email")
+        .eq("id", hrId)
+        .maybeSingle();
+      if (empErr) return json(500, { error: empErr.message });
+      if (!emp?.email) return json(400, { error: "ERP employee email missing" });
+
+      const r = await opfinView(rpId, "employee");
+      if (!r.ok) return json(200, { ok: false, code: "RAZORPAY_ID_NOT_FOUND", error: `Razorpay employee-id ${rpId} was not found or is inactive.`, http_status: r.status });
+      if (isDismissedRazorpayPerson(r.body)) {
+        return json(200, { ok: false, code: "RAZORPAY_EMPLOYEE_DISMISSED", error: `Razorpay employee-id ${rpId} is dismissed/inactive and cannot be linked.`, http_status: r.status });
+      }
+
+      const erpEmail = String(emp.email || "").trim().toLowerCase();
+      const rpEmail = String(r.body?.email || r.body?.work_email || "").trim().toLowerCase();
+      if (!rpEmail || rpEmail !== erpEmail) {
+        return json(200, {
+          ok: false,
+          code: "RAZORPAY_EMAIL_MISMATCH",
+          error: `Razorpay employee-id ${rpId} email does not match this onboarding record. Link blocked to prevent identity corruption.`,
+          email_domain: rpEmail ? rpEmail.split("@")[1] || null : null,
+          http_status: r.status,
+        });
+      }
+
+      try {
+        await upsertMap(svc, String(rpId), hrId, false, false);
+        await svc.from("hr_razorpay_employee_map").update({
+          last_pull_snapshot: r.body,
+          last_pulled_at: new Date().toISOString(),
+          last_payload_hash: await canonicalHash(r.body),
+        }).eq("hr_employee_id", hrId);
+        await logSync(svc, {
+          action: "create_person_recovered_existing",
+          http_status: r.status,
+          razorpay_employee_id: String(rpId),
+          hr_employee_id: hrId,
+          field_diff_summary: { source: "operator_confirmed_id", field_names: fieldNames(r.body) },
+          error_text: null,
+          actor_user_id: authed.userId,
+        });
+        return json(200, { ok: true, razorpay_employee_id: String(rpId), already_exists_in_razorpay: true, repaired_mapping: true, http_status: r.status });
+      } catch (e) {
+        return json(200, { ok: false, code: "RAZORPAY_MAPPING_REPAIR_FAILED", error: (e as Error).message, http_status: r.status });
+      }
+    }
+
     // ---------- apply_one: pilot write (unlocks bulk on success) ----------
     if (action === "apply_one") {
       const eid = Number(payload?.employee_id);
@@ -5287,7 +5346,7 @@ Deno.serve(async (req) => {
                 http_status: existingByEmail.status,
               });
             }
-            return json(409, {
+            return json(200, {
               ok: false,
               http_status: httpStatus,
               code: "RAZORPAY_EMAIL_EXISTS_MAPPING_CONFLICT",
@@ -5296,11 +5355,13 @@ Deno.serve(async (req) => {
               body: bodyOut,
             });
           }
-          return json(409, {
+          return json(200, {
             ok: false,
             http_status: httpStatus,
             code: "RAZORPAY_EMAIL_EXISTS",
-            error: `RazorpayX already has an employee with email "${(outboundData as any).email}" under a different employee-id, but the API does not expose a direct email lookup. Use RazorpayX dashboard to find that employee-id, then run Razorpay Sync for that ID or change the ERP email before retrying Finalize.`,
+            recoverable: true,
+            recovery_action: "recover_person_by_id",
+            error: `RazorpayX already has an employee with this email under a different employee-id. Open RazorpayX, search this employee by email, copy the employee-id, then enter it in Stage 5 to link safely.`,
             body: bodyOut,
           });
         }

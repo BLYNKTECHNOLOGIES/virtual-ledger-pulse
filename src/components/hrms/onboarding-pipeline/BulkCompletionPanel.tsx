@@ -127,16 +127,8 @@ export function BulkCompletionPanel() {
     },
   });
 
-  const { data: templates = [] } = useQuery({
-    queryKey: ["salary_templates_min"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("hr_salary_structure_templates")
-        .select("id, name")
-        .order("name");
-      return data || [];
-    },
-  });
+  // Local salary-structure templates were abolished — nothing to fetch here.
+  // Component breakdowns live on RazorpayX and are mirrored per-employee read-only.
 
   const { data: positions = [] } = useQuery({
     queryKey: ["positions_min"],

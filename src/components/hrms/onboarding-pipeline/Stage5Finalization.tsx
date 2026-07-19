@@ -219,9 +219,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     if (onboardingRecord) {
       const bd = (onboardingRecord.bank_details as any) || {};
       const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
+      const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
+      // If the record already carries a numeric badge, treat it as a previously
+      // reserved RazorpayX ID so we don't offer to reserve a fresh one and burn
+      // the sequence when the operator navigates back into Stage 5.
+      const looksReserved = /^\d+$/.test(existingBadge);
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
-        essl_badge_id: onboardingRecord.essl_badge_id || "",
+        essl_badge_id: existingBadge,
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
@@ -230,8 +235,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         bank_name: "",
         bank_branch: "",
         bank_account_holder: empName,
-        create_in_razorpay: false,
+        create_in_razorpay: looksReserved,
       });
+      if (looksReserved) setReservedRpId(existingBadge);
     }
   }, [onboardingRecord, existingBank]);
 

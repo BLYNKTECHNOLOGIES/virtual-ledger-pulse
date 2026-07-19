@@ -1264,16 +1264,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ---------- attach_employee_id_by_people_id ----------
+    // ---------- attach_employee_id_by_email ----------
     // Repair path for records that were created in Razorpay but lost their
-    // reserved employee-id (the "-NA-" limbo state). Operator copies the
-    // internal `people-id` from the RazorpayX dashboard URL, ERP calls
-    // people:edit to attach the badge_id, verifies email match, then maps.
-    if (action === "attach_employee_id_by_people_id") {
+    // reserved employee-id (the "-NA-" limbo state). Official contract uses
+    // people:edit keyed by email; internal people-id is deliberately ignored.
+    if (action === "attach_employee_id_by_email" || action === "attach_employee_id_by_people_id") {
       const hrId = payload?.hr_employee_id ? String(payload.hr_employee_id) : "";
-      const peopleId = Number(payload?.people_id);
       if (!hrId) return json(400, { error: "hr_employee_id required" });
-      if (!Number.isFinite(peopleId) || peopleId < 1) return json(400, { error: "people_id required" });
 
       const { data: emp, error: empErr } = await svc
         .from("hr_employees")
@@ -1287,44 +1284,25 @@ Deno.serve(async (req) => {
         return json(400, { error: "desired_employee_id (or hr_employees.badge_id) required" });
       }
 
-      // Attach employee-id via people:edit.
-      let attachStatus = 0; let attachErr: string | null = null;
-      try {
-        const r = await fetch(`${BASE}/people`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            auth: authBlock(),
-            request: { type: "people", "sub-type": "edit" },
-            data: { "people-id": peopleId, "employee-id": desiredEid, "employee-type": "employee" },
-          }),
-        });
-        attachStatus = r.status;
-        const raw = await r.text();
-        let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
-        const rpErr = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
-        if (!r.ok || rpErr) attachErr = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${r.status}`);
-      } catch (e) {
-        attachErr = `NETWORK: ${(e as Error).message}`;
-      }
-      if (attachErr) {
-        return json(200, { ok: false, code: "RAZORPAY_ATTACH_FAILED", error: `Attaching employee-id ${desiredEid} to people-id ${peopleId} failed: ${attachErr}`, http_status: attachStatus });
+      const attach = await attachReservedEmployeeIdByEmail(emp.email, String(desiredEid));
+      if (!attach.ok) {
+        return json(200, { ok: false, code: "RAZORPAY_ATTACH_FAILED", error: `Attaching employee-id ${desiredEid} to email ${emp.email} failed: ${attach.error}`, http_status: attach.status });
       }
 
       // Verify by reading back with the newly attached employee-id.
       const v = await opfinView(desiredEid, "employee");
       if (!v.ok) {
-        return json(200, { ok: false, code: "RAZORPAY_ATTACH_UNVERIFIED", error: `Razorpay accepted the attach for people-id ${peopleId} → employee-id ${desiredEid}, but a follow-up people:view could not confirm it.`, http_status: v.status });
+        return json(200, { ok: false, code: "RAZORPAY_ATTACH_UNVERIFIED", error: `Razorpay accepted the attach for email ${emp.email} → employee-id ${desiredEid}, but a follow-up people:view could not confirm it.`, http_status: v.status });
       }
       const erpEmail = String(emp.email || "").trim().toLowerCase();
       const rpEmail = String(v.body?.email || v.body?.work_email || "").trim().toLowerCase();
       if (!rpEmail || rpEmail !== erpEmail) {
-        return json(200, { ok: false, code: "RAZORPAY_EMAIL_MISMATCH", error: `people-id ${peopleId} belongs to a different email (${rpEmail || "unknown"}). Refusing to link.`, http_status: v.status });
+        return json(200, { ok: false, code: "RAZORPAY_EMAIL_MISMATCH", error: `Employee-id ${desiredEid} belongs to a different email (${rpEmail || "unknown"}). Refusing to link.`, http_status: v.status });
       }
 
       try {
         await upsertMap(svc, String(desiredEid), hrId, false, false);
-        const snapshot = { ...(v.body || {}), _people_id: String(peopleId) };
+        const snapshot = { ...(v.body || {}), _attached_by: "email_keyed_people_edit" };
         await svc.from("hr_razorpay_employee_map").update({
           last_pull_snapshot: snapshot,
           last_pulled_at: new Date().toISOString(),
@@ -1335,11 +1313,11 @@ Deno.serve(async (req) => {
           http_status: v.status,
           razorpay_employee_id: String(desiredEid),
           hr_employee_id: hrId,
-          field_diff_summary: { source: "attach_employee_id_by_people_id", people_id: String(peopleId), field_names: fieldNames(v.body) },
+          field_diff_summary: { source: "attach_employee_id_by_email", field_names: fieldNames(v.body) },
           error_text: null,
           actor_user_id: authed.userId,
         });
-        return json(200, { ok: true, razorpay_employee_id: String(desiredEid), people_id: String(peopleId), attached: true, http_status: v.status });
+        return json(200, { ok: true, razorpay_employee_id: String(desiredEid), attached: true, http_status: v.status });
       } catch (e) {
         return json(200, { ok: false, code: "RAZORPAY_MAPPING_REPAIR_FAILED", error: (e as Error).message, http_status: v.status });
       }

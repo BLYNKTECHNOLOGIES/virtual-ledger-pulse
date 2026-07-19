@@ -550,6 +550,74 @@ async function logSync(svc: SupabaseClient, row: {
   }
 }
 
+function extractRazorpayError(body: any, fallback?: string | null): { code: number | null; message: string } {
+  const rawErr = body && typeof body === "object" ? (body.error ?? body.message ?? null) : null;
+  let parsedErr: any = rawErr;
+  if (typeof rawErr === "string") {
+    try { parsedErr = JSON.parse(rawErr); } catch { /* keep string */ }
+  }
+  const codeRaw = parsedErr && typeof parsedErr === "object"
+    ? (parsedErr.code ?? body?.code ?? body?.error_code ?? null)
+    : (body?.code ?? body?.error_code ?? null);
+  const code = Number(codeRaw);
+  const message = String(
+    parsedErr && typeof parsedErr === "object"
+      ? (parsedErr.message ?? parsedErr.error ?? fallback ?? "")
+      : (parsedErr ?? fallback ?? "")
+  );
+  return { code: Number.isFinite(code) ? code : null, message };
+}
+
+function isDismissedRazorpayPerson(rp: any): boolean {
+  if (!rp || typeof rp !== "object") return false;
+  const rpStatus = String(rp.status || "").toLowerCase();
+  return rpStatus === "dismissed" ||
+    rpStatus === "terminated" ||
+    rpStatus === "resigned" ||
+    rp.is_active === false ||
+    !!rp.date_of_leaving ||
+    !!rp.dismissed_at;
+}
+
+async function findRazorpayEmployeeByEmail(
+  email: string,
+  options: { reservedEmployeeId?: string | null; maxId?: number; concurrency?: number } = {},
+): Promise<{ employeeId: string; body: any; status: number } | null> {
+  const wanted = String(email || "").trim().toLowerCase();
+  if (!wanted.includes("@")) return null;
+
+  const reserved = Number(options.reservedEmployeeId || 0);
+  const maxId = Math.min(
+    Math.max(
+      Number.isFinite(reserved) ? reserved + 100 : 0,
+      Number(options.maxId || 0),
+      250,
+    ),
+    1000,
+  );
+  const ids: number[] = [];
+  if (Number.isFinite(reserved) && reserved > 0) ids.push(reserved);
+  for (let i = 1; i <= maxId; i++) if (i !== reserved) ids.push(i);
+
+  const concurrency = Math.min(Math.max(Number(options.concurrency || 8), 1), 12);
+  let cursor = 0;
+  let found: { employeeId: string; body: any; status: number } | null = null;
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (!found && cursor < ids.length) {
+      const id = ids[cursor++];
+      const r = await opfinView(id, "employee");
+      if (!r.ok || !r.body || isDismissedRazorpayPerson(r.body)) continue;
+      const rpEmail = String(r.body.email || r.body.work_email || "").trim().toLowerCase();
+      if (rpEmail === wanted) {
+        found = { employeeId: String(id), body: r.body, status: r.status };
+        break;
+      }
+    }
+  });
+  await Promise.all(workers);
+  return found;
+}
+
 async function upsertMap(svc: SupabaseClient, razorpayId: string, hrEmployeeId: string, isPilot: boolean, created: boolean) {
   // Two unique constraints exist on this table: (razorpay_employee_id) and
   // (hr_employee_id). A single upsert can only reference one conflict target,

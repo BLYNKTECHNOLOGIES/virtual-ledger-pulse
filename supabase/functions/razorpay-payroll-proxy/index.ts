@@ -5846,7 +5846,7 @@ Deno.serve(async (req) => {
         const rpMsg = extracted.message;
         if (rpCode === 7 || /email already exists/i.test(rpMsg)) {
           if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            const attach = await attachReservedEmployeeIdByEmail(String(createData.email || ""), reservedEmployeeId);
+            const attach = await attachReservedEmployeeIdByEmail(String(createData.email || ""), reservedEmployeeId, fullEditData);
             const verifyAttached = await opfinView(Number(reservedEmployeeId), "employee");
             const erpEmail = String(createData.email || "").trim().toLowerCase();
             const rpEmail = String(verifyAttached.body?.email || verifyAttached.body?.work_email || "").trim().toLowerCase();

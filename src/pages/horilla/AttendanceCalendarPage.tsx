@@ -227,17 +227,23 @@ export default function AttendanceCalendarPage() {
                       const status = record?.attendance_status;
                       const dotColor = status ? STATUS_COLORS[status] || "bg-muted/20" : "";
                       const today = isToday(day);
+                      const weeklyOff = isWeeklyOff(day, complianceSettings);
 
                       return (
                         <div
                           key={dateStr}
                           className={`text-center py-1 rounded text-[11px] relative ${today ? "ring-1 ring-primary font-bold" : ""} ${
                             status ? "font-medium" : "text-muted-foreground"
-                          }`}
-                          title={status ? `${format(day, "MMM d")} — ${status}` : format(day, "MMM d")}
+                          } ${weeklyOff && !status ? "bg-muted/40 text-muted-foreground/70" : ""}`}
+                          title={
+                            status ? `${format(day, "MMM d")} — ${status}` :
+                            weeklyOff ? `${format(day, "MMM d")} — Weekly off` :
+                            format(day, "MMM d")
+                          }
                         >
                           {day.getDate()}
                           {status && <div className={`w-1.5 h-1.5 rounded-full ${dotColor} mx-auto mt-0.5`} />}
+                          {weeklyOff && !status && <div className="w-1 h-1 rounded-full bg-muted-foreground/40 mx-auto mt-0.5" />}
                         </div>
                       );
                     })}

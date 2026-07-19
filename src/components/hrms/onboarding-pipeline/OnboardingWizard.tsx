@@ -174,6 +174,40 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     });
   };
 
+  const getFunctionErrorMessage = async (err: any, fallback = "Edge function failed") => {
+    const context = err?.context;
+    const base = err?.message || fallback;
+
+    if (context && typeof context === "object") {
+      try {
+        const body = typeof context.clone === "function"
+          ? await context.clone().json()
+          : await context.json();
+        const detail = body?.error || body?.message || body?.reason || body?.code;
+        if (detail) return typeof detail === "string" ? detail : JSON.stringify(detail);
+      } catch {
+        try {
+          const text = typeof context.clone === "function"
+            ? await context.clone().text()
+            : await context.text();
+          if (text) {
+            try {
+              const parsed = JSON.parse(text);
+              const detail = parsed?.error || parsed?.message || parsed?.reason || parsed?.code;
+              if (detail) return typeof detail === "string" ? detail : JSON.stringify(detail);
+            } catch {
+              return text;
+            }
+          }
+        } catch {
+          // fall through to base message
+        }
+      }
+    }
+
+    return base;
+  };
+
   // Generic save draft handler
   const handleSaveDraft = async (stage: number, stageData: any, options?: { silent?: boolean }) => {
     try {
@@ -425,7 +459,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           const { data: rpRes, error: rpErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
             body: { action: "create_person", hr_employee_id: emp.id },
           });
-          if (rpErr) throw new Error(rpErr.message || "Razorpay create failed");
+          if (rpErr) throw new Error(await getFunctionErrorMessage(rpErr, "Razorpay create failed"));
           if (rpRes?.ok === false) {
             const detail = rpRes?.missing?.length
               ? `Missing: ${rpRes.missing.join(", ")}`
@@ -468,7 +502,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             },
           });
 
-          if (erpError) throw new Error(erpError.message || "ERP user creation failed");
+          if (erpError) throw new Error(await getFunctionErrorMessage(erpError, "ERP user creation failed"));
           if (erpResult?.error) throw new Error(erpResult.error);
 
           const { userId: erpUserId, username: erpUsername, tempPassword } = erpResult;

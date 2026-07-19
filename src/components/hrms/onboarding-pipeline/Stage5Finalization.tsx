@@ -922,7 +922,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             ) : (
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             )}
-            <span>{finalizeFeedback.message}</span>
+            <span className="whitespace-pre-line">{finalizeFeedback.message}</span>
           </div>
         )}
       </CardContent>

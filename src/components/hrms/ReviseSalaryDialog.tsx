@@ -14,6 +14,7 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 
 const RECURRING_TYPES = [
   { value: "increment", label: "Increment / Hike" },
@@ -273,6 +274,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 </div>
               </div>
 
+              <DefaultStructurePreview annualCtc={nT} />
+
+
               <div>
                 <Label>Reason / notes {reasonRequired && <span className="text-destructive">*</span>}</Label>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder={reasonRequired ? "Required for promotion/demotion" : "Optional"} rows={2} />
@@ -349,5 +353,39 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Live breakdown mirroring the RazorpayX default structure. Renders only when
+// the org toggle `use_xpayroll_default_structure` is ON in the compliance mirror
+// and the user has typed a valid CTC — so revisions align with what Razorpay
+// will actually apply on push.
+function DefaultStructurePreview({ annualCtc }: { annualCtc: number }) {
+  const { data: settings } = useComplianceSettings();
+  if (!settings?.use_xpayroll_default_structure) return null;
+  const components = settings.default_structure_components ?? [];
+  if (!annualCtc || annualCtc <= 0 || components.length === 0) return null;
+  const monthly = annualCtc / 12;
+  const rows = components.map(c => {
+    const monthlyAmt = c.mode === "percentage" ? (monthly * (c.value || 0)) / 100 : (c.value || 0);
+    return { ...c, monthly: monthlyAmt, annual: monthlyAmt * 12 };
+  });
+  return (
+    <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="font-medium text-foreground">RazorpayX default breakup</span>
+        <span className="text-[10px] text-muted-foreground">Mirror preview · not yet pushed</span>
+      </div>
+      <div className="space-y-0.5">
+        {rows.map(r => (
+          <div key={r.key} className="flex justify-between font-mono tabular-nums">
+            <span className="text-muted-foreground">
+              {r.label} {r.mode === "percentage" ? `(${r.value}%)` : "(fixed)"}
+            </span>
+            <span>₹{Math.round(r.monthly).toLocaleString("en-IN")}/mo</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

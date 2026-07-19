@@ -70,7 +70,7 @@ export default function ComplianceSettingsPage() {
   const [draft, setDraft] = useState<Partial<Settings>>({});
 
   const { data: settings, isLoading } = useQuery({
-    queryKey: ["hr_razorpay_settings_compliance"],
+    queryKey: ["hr_razorpay_settings_compliance_public"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_razorpay_settings")
@@ -110,7 +110,7 @@ export default function ComplianceSettingsPage() {
     if (error) { toast.error(error.message || "Failed to save"); return; }
     toast.success("Compliance mirror updated");
     setEditing(false);
-    qc.invalidateQueries({ queryKey: ["hr_razorpay_settings_compliance"] });
+    qc.invalidateQueries({ queryKey: ["hr_razorpay_settings_compliance_public"] });
   };
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;

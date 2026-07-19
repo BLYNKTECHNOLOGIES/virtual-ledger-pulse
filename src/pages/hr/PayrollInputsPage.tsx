@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
+import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
 const currentPeriod = () => {
@@ -30,6 +31,13 @@ export default function PayrollInputsPage() {
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
+
+  // Mirror of Razorpay bonus catalogue — filters the Bonus subtype dropdown.
+  const { data: complianceSettings } = useComplianceSettings();
+  const enabledBonusTypes = useMemo(
+    () => (complianceSettings?.bonus_types ?? []).filter(b => b.enabled),
+    [complianceSettings],
+  );
 
   // Envelope gate — payroll writes require push_payroll_endpoint_verified on razorpay settings.
   const { data: settings } = useQuery({
@@ -237,6 +245,25 @@ export default function PayrollInputsPage() {
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.addition_type === "bonus" && enabledBonusTypes.length > 0 && (
+                      <div className="mt-2">
+                        <Label className="text-[10px] text-muted-foreground">Bonus subtype (mirrors Razorpay)</Label>
+                        <Select
+                          value=""
+                          onValueChange={(v) => {
+                            const bt = enabledBonusTypes.find(b => b.key === v);
+                            if (bt) setForm(prev => ({ ...prev, label: bt.label }));
+                          }}
+                        >
+                          <SelectTrigger className="text-foreground h-8 text-xs"><SelectValue placeholder="Pick from catalogue…" /></SelectTrigger>
+                          <SelectContent>
+                            {enabledBonusTypes.map(b => (
+                              <SelectItem key={b.key} value={b.key}>{b.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 ) : <div />}
               </div>

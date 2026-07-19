@@ -16,6 +16,7 @@ import { ChevronLeft, ChevronRight, Search, Users, Calendar } from "lucide-react
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
 
 const STATUS_COLORS: Record<string, string> = {
   present: "bg-success",
@@ -105,6 +106,7 @@ export default function AttendanceCalendarPage() {
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDay = getDay(monthStart); // 0=Sun
+  const { data: complianceSettings } = useComplianceSettings();
 
   const filteredEmps = employees.filter((e: any) => {
     if (selectedEmp !== "all" && e.id !== selectedEmp) return false;
@@ -225,17 +227,23 @@ export default function AttendanceCalendarPage() {
                       const status = record?.attendance_status;
                       const dotColor = status ? STATUS_COLORS[status] || "bg-muted/20" : "";
                       const today = isToday(day);
+                      const weeklyOff = isWeeklyOff(day, complianceSettings);
 
                       return (
                         <div
                           key={dateStr}
                           className={`text-center py-1 rounded text-[11px] relative ${today ? "ring-1 ring-primary font-bold" : ""} ${
                             status ? "font-medium" : "text-muted-foreground"
-                          }`}
-                          title={status ? `${format(day, "MMM d")} — ${status}` : format(day, "MMM d")}
+                          } ${weeklyOff && !status ? "bg-muted/40 text-muted-foreground/70" : ""}`}
+                          title={
+                            status ? `${format(day, "MMM d")} — ${status}` :
+                            weeklyOff ? `${format(day, "MMM d")} — Weekly off` :
+                            format(day, "MMM d")
+                          }
                         >
                           {day.getDate()}
                           {status && <div className={`w-1.5 h-1.5 rounded-full ${dotColor} mx-auto mt-0.5`} />}
+                          {weeklyOff && !status && <div className="w-1 h-1 rounded-full bg-muted-foreground/40 mx-auto mt-0.5" />}
                         </div>
                       );
                     })}

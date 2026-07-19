@@ -597,7 +597,7 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
 
   // Sales + purchases for the period and the previous period (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
-    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", startDate, endDate),
+    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id, terminal_sync_id, is_off_market", startDate, endDate),
     fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source, wallet_id", startDate, endDate),
     fetchAll(supabase, "sales_orders", "id, total_amount, status, effective_usdt_qty, effective_usdt_rate, quantity", prevStart, prevEnd),
     fetchAll(supabase, "purchase_orders", "id, total_amount, status, effective_usdt_qty", prevStart, prevEnd),
@@ -610,6 +610,40 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
     const { data: prods } = await supabase.from("products").select("id, name").in("id", productIds);
     for (const p of prods || []) productMap[p.id] = p.name;
   }
+
+  // ----- Actual Binance order create_time (ms) for synced orders -----
+  // For terminal-synced orders, `created_at` reflects the sync insertion time (often
+  // during a scheduled morning sync), which skews hourly/shift stats. The true order
+  // time lives in the sync row's `order_data.create_time` (unix ms).
+  const salesSyncIds = Array.from(new Set(salesRaw.map((s: any) => s.terminal_sync_id).filter(Boolean)));
+  const salesTsMap = new Map<string, number>(); // sales_order_id -> ms
+  if (salesSyncIds.length) {
+    const rows = await fetchAllRows(() =>
+      supabase.from("terminal_sales_sync").select("sales_order_id, order_data").in("id", salesSyncIds));
+    for (const r of rows) {
+      const ms = Number(r.order_data?.create_time);
+      if (r.sales_order_id && isFinite(ms) && ms > 0) salesTsMap.set(r.sales_order_id, ms);
+    }
+  }
+  const purTsMap = new Map<string, number>(); // purchase_order_id -> ms
+  const purIdsAll = purchasesRaw.map((o: any) => o.id);
+  if (purIdsAll.length) {
+    const rows = await fetchAllRows(() =>
+      supabase.from("terminal_purchase_sync").select("purchase_order_id, order_data").in("purchase_order_id", purIdsAll));
+    for (const r of rows) {
+      const ms = Number(r.order_data?.create_time);
+      if (r.purchase_order_id && isFinite(ms) && ms > 0) purTsMap.set(r.purchase_order_id, ms);
+    }
+  }
+  const orderIstHour = (o: any, kind: "sale" | "purchase"): number | null => {
+    const map = kind === "sale" ? salesTsMap : purTsMap;
+    const ms = map.get(o.id);
+    if (ms) {
+      const istMs = ms + 5.5 * 60 * 60 * 1000;
+      return new Date(istMs).getUTCHours();
+    }
+    return o.created_at ? istHour(o.created_at) : null;
+  };
 
   const salesCompleted = salesRaw.filter((o: any) => o.status === "COMPLETED");
   const purchasesCompleted = purchasesRaw.filter((o: any) => o.status === "COMPLETED");

@@ -759,6 +759,7 @@ const router = createBrowserRouter([
         { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },
         { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
         { path: "payroll/razorpay-sync", element: <RazorpaySyncPage /> },
+        { path: "payroll/compliance-settings", element: <ComplianceSettingsPage /> },
         { path: "payroll/payslip-history-import", element: <PayslipHistoryImportPage /> },
         { path: "payroll/salary-register-import", element: <SalaryRegisterImportPage /> },
         { path: "payroll/inputs", element: <PayrollInputsPage /> },

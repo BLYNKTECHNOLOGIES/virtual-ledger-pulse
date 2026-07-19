@@ -70,7 +70,7 @@ export default function ComplianceSettingsPage() {
   const [draft, setDraft] = useState<Partial<Settings>>({});
 
   const { data: settings, isLoading } = useQuery({
-    queryKey: ["hr_razorpay_settings_compliance"],
+    queryKey: ["hr_razorpay_settings_compliance_public"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_razorpay_settings")

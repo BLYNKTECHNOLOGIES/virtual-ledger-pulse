@@ -53,16 +53,16 @@ export function useShadowReadiness(periodMonth: string) {
       const activeCount = active.length;
       const ids = active.map((e: any) => e.id);
 
-      // attendance coverage
+      // attendance coverage — hr_attendance_daily uses employee_id (not hr_employee_id)
       let attendanceCoveragePct = 0;
       if (activeCount > 0 && ids.length > 0) {
         const { data: attRows } = await (supabase as any)
           .from("hr_attendance_daily")
-          .select("hr_employee_id")
+          .select("employee_id")
           .gte("attendance_date", periodMonth)
           .lte("attendance_date", endStr)
-          .in("hr_employee_id", ids);
-        const distinct = new Set((attRows ?? []).map((r: any) => r.hr_employee_id));
+          .in("employee_id", ids);
+        const distinct = new Set((attRows ?? []).map((r: any) => r.employee_id));
         attendanceCoveragePct = Math.round((distinct.size / activeCount) * 100);
       }
 
@@ -74,12 +74,12 @@ export function useShadowReadiness(periodMonth: string) {
       const registerEmployeeCount = new Set((regRows ?? []).map((r: any) => r.hr_employee_id)).size;
       const registerImported = (regCount ?? 0) > 0;
 
-      // inputs staged
+      // inputs staged — neither input table has a `status` column; count all rows for the period.
       const [{ count: addCount }, { count: dedCount }] = await Promise.all([
         (supabase as any).from("hr_payroll_input_additions").select("id", { count: "exact", head: true })
-          .eq("period_month", periodMonth).eq("status", "approved"),
+          .eq("period_month", periodMonth),
         (supabase as any).from("hr_payroll_input_deductions").select("id", { count: "exact", head: true })
-          .eq("period_month", periodMonth).eq("status", "approved"),
+          .eq("period_month", periodMonth),
       ]);
       const inputsStagedCount = (addCount ?? 0) + (dedCount ?? 0);
 

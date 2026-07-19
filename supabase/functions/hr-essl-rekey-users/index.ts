@@ -163,6 +163,8 @@ serve(async (req) => {
           results.push({ device: dev, pin_old: oldPin, pin_new: newPin, step: "create", status: "error", error: setErr.message, delete_command_id: delRow?.id });
           continue;
         }
+        claimed.add(newPin);
+
 
         queued++;
         results.push({

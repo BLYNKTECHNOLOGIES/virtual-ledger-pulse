@@ -19998,6 +19998,10 @@ export type Database = {
         Args: { p_date_from: string; p_date_to: string; p_employee_id: string }
         Returns: number
       }
+      hr_trigger_razorpay_payslip_history_restore: {
+        Args: { p_period_from?: string; p_period_to?: string }
+        Returns: number
+      }
       hr_v4_is_window_locked: { Args: { p_date: string }; Returns: boolean }
       hr_v4_recompute_range: {
         Args: { p_employee_id: string; p_from: string; p_to: string }

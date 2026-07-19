@@ -477,7 +477,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             // Send credentials email via hr@blynkex.com only for newly-created
             // accounts. Reused retry accounts must not receive a bogus
             // "undefined" password.
-            const loginUrl = window.location.origin;
+            const loginUrl = "https://erp.blynkex.com";
             const credentialsHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #1a1a1a;">Welcome to Blynk ERP</h2>

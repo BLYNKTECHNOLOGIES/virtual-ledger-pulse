@@ -5370,8 +5370,9 @@ Deno.serve(async (req) => {
 
           let attachedPeopleId: string | null = peopleIdRaw != null ? String(peopleIdRaw) : null;
 
-          if (employeeIdEcho != null) {
-            rpId = String(employeeIdEcho);
+          const employeeIdEchoStr = employeeIdEcho != null ? String(employeeIdEcho).trim() : "";
+          if (employeeIdEchoStr && employeeIdEchoStr !== "0") {
+            rpId = employeeIdEchoStr;
           } else if (attachedPeopleId && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
             // Attach the reserved employee-id onto the freshly created people record.
             let attachErr: string | null = null;

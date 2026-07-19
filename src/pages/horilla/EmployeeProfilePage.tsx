@@ -983,8 +983,16 @@ export default function EmployeeProfilePage() {
                     <label className="text-xs text-muted-foreground block mb-1">Experience (years)</label>
                     <input type="number" value={workInfoForm.experience_years || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, experience_years: e.target.value })} className={inputCls} />
                   </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Level Band (drives training-period pay)</label>
+                    <select value={workInfoForm.level_band || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, level_band: e.target.value })} className={inputCls}>
+                      <option value="">— Not set —</option>
+                      {["L1","L2","L3","L4","L5","L6","L7","L8"].map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
+
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">

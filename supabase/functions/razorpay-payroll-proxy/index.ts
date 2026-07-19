@@ -1089,7 +1089,7 @@ Deno.serve(async (req) => {
       // Each entry maps to a real endpoint that exists in the doc.
       const CATALOGUE: Array<{ phase: string; key: string; mode: "read" | "write" }> = [
         { phase: "People", key: "people:view", mode: "read" },
-        { phase: "People", key: "people:add", mode: "write" },
+        { phase: "People", key: "people:create", mode: "write" },
         { phase: "People", key: "people:edit", mode: "write" },
         { phase: "People", key: "people:set-salary", mode: "write" },
         { phase: "People", key: "people:dismiss", mode: "write" },
@@ -5028,25 +5028,29 @@ Deno.serve(async (req) => {
         return json(400, { ok: false, reason: "missing_fields", missing });
       }
 
+      const reservedEmployeeId = (emp.badge_id || "").toString().trim() || null;
       const outboundData: Record<string, any> = {
         // Unified ID doctrine: HRMS badge_id === ESSL PIN === Razorpay
         // employee_id. Send our badge as the caller-supplied employee_id so
         // Razorpay stores the same integer instead of minting its own.
-        employee_id: (emp.badge_id || "").toString().trim() || null,
-        "employee-type": "employee",
+        // Razorpay/Opfin's documented API uses hyphenated keys. The previous
+        // underscore payload was paired with an undocumented people:add mode,
+        // which this tenant rejects with code 23 "Unknown request type".
+        "employee-id": reservedEmployeeId ? Number(reservedEmployeeId) : null,
+        type: "employee",
         name: fullName,
         email: String(emp.email).trim().toLowerCase(),
-        phone_number: normPhone(emp.phone),
+        "phone-number": normPhone(emp.phone),
         gender: emp.gender ? String(emp.gender).toLowerCase() : null,
         "date-of-birth": dobRp,
-        "date-of-joining": dojRp,
+        "hiring-date": dojIso,
         department: deptName,
         title: wi!.job_role,
         pan,
-        annual_ctc: ctcAnnual,
-        bank_account_number: bank!.account_number,
-        bank_ifsc: (bank!.ifsc_code || "").toUpperCase(),
-        bank_account_holder_name: accountHolder,
+        "annual-ctc": ctcAnnual,
+        "bank-account-number": bank!.account_number,
+        "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
+        "bank-account-holder-name": accountHolder,
       };
       // Remove null/empty optional keys.
       for (const k of Object.keys(outboundData)) {
@@ -5057,7 +5061,9 @@ Deno.serve(async (req) => {
         return json(200, { ok: true, dry_run: true, payload: outboundData });
       }
 
-      // Live create.
+      // Live create. Verified against the official RazorpayX Payroll Postman
+      // collection: `people:create` is the supported create mode. `people:add`
+      // is not a valid request type for this tenant and returns code 23.
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
@@ -5068,7 +5074,7 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({
             auth: authBlock(),
-            request: { type: "people", "sub-type": "add" },
+            request: { type: "people", "sub-type": "create" },
             data: outboundData,
           }),
           signal: ctrl.signal,

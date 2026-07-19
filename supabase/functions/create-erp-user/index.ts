@@ -26,6 +26,18 @@ function generatePassword(length = 12): string {
   return Array.from(array, (b) => chars[b % chars.length]).join("");
 }
 
+async function findAuthUserByEmail(adminClient: any, email: string) {
+  const target = email.trim().toLowerCase();
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const hit = (data?.users || []).find((u: any) => String(u.email || "").trim().toLowerCase() === target);
+    if (hit) return hit;
+    if (!data?.users?.length || data.users.length < 1000) break;
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -164,22 +176,53 @@ Deno.serve(async (req) => {
     // ── Generate password ──
     const tempPassword = generatePassword(12);
 
-    // ── Create auth user ──
-    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-    });
-
-    if (authError) {
-      console.error("Auth user creation failed:", authError);
-      return new Response(JSON.stringify({ error: `Auth error: ${authError.message}` }), {
+    // ── Create/reuse auth user ──
+    // Onboarding retries can leave a Supabase Auth identity behind even when
+    // the public.users insert failed. Reuse that orphan identity instead of
+    // failing with "email already registered" or burning another employee flow.
+    let reusedAuthUser = false;
+    let authUserRecord: any = null;
+    try {
+      authUserRecord = await findAuthUserByEmail(adminClient, email);
+    } catch (lookupError) {
+      console.error("Auth email lookup failed:", lookupError);
+      return new Response(JSON.stringify({ error: "Unable to verify existing auth user for this email. Please retry." }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const newUserId = authUser.user.id;
+    if (authUserRecord?.id) {
+      reusedAuthUser = true;
+      const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(authUserRecord.id, {
+        password: tempPassword,
+        email_confirm: true,
+      });
+      if (updateAuthError) {
+        console.error("Existing auth user password reset failed:", updateAuthError);
+        return new Response(JSON.stringify({ error: `Auth link error: ${updateAuthError.message}` }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+    } else {
+      const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+      });
+
+      if (authError) {
+        console.error("Auth user creation failed:", authError);
+        return new Response(JSON.stringify({ error: `Auth error: ${authError.message}` }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      authUserRecord = authUser.user;
+    }
+
+    const newUserId = authUserRecord.id;
 
     // ── Create public.users record ──
     const { error: userInsertError } = await adminClient.from("users").insert({
@@ -198,8 +241,10 @@ Deno.serve(async (req) => {
 
     if (userInsertError) {
       console.error("public.users insert failed:", userInsertError);
-      // Cleanup auth user
-      await adminClient.auth.admin.deleteUser(newUserId);
+      // Cleanup only auth identities created by this request. If this was an
+      // orphan auth identity from a previous partial failure, keep it for the
+      // next retry/manual repair rather than deleting a real Auth record.
+      if (!reusedAuthUser) await adminClient.auth.admin.deleteUser(newUserId);
       const raw = `${userInsertError.message} ${(userInsertError as any).details ?? ""}`.toLowerCase();
       let friendly = `User record error: ${userInsertError.message}`;
       if (raw.includes("users_unique_phone_normalized")) {
@@ -232,6 +277,7 @@ Deno.serve(async (req) => {
         userId: newUserId,
         username,
         tempPassword,
+        reusedAuthUser,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

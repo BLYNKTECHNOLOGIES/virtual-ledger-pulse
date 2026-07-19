@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-19: RazorpayX onboarding email-exists recovery improved — when Opfin exposes the internal people-id, the proxy now auto-attaches HRMS reserved Employee ID and repairs the map, avoiding manual Stage 5 people-id entry.
 - 2026-07-19: RazorpayX onboarding stale reservation reset hardened — local ID 72 was cleared after operator deleted the partial Razorpay employee; allocator now returns 73 and Stage 5 reset calls service-role proxy to clear onboarding/hr_employee/user badges, cancel pending eSSL identity commands, and avoid reusing burned IDs.
 - 2026-07-19: RazorpayX onboarding email-exists path converted from HTTP 409 runtime failure to `ok:false` business response; Stage 5 now offers operator-assisted verified linking by Razorpay employee-id when Opfin cannot expose direct email lookup.
 - 2026-07-19: RazorpayX onboarding finalize conflict handling hardened — Opfin code 7/email-exists now attempts exact-email recovery and repairs hr_razorpay_employee_map; Stage 5 now surfaces parsed business errors instead of raw Edge 502 runtime text.

@@ -5613,6 +5613,81 @@ Deno.serve(async (req) => {
             });
           }
           const existingPeopleId = extractRazorpayPeopleId(bodyOut);
+          if (existingPeopleId && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+            let attachStatus = 0;
+            let attachErr: string | null = null;
+            try {
+              const attachRes = await fetch(`${BASE}/people`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({
+                  auth: authBlock(),
+                  request: { type: "people", "sub-type": "edit" },
+                  data: {
+                    "people-id": Number(existingPeopleId),
+                    "employee-id": Number(reservedEmployeeId),
+                    "employee-type": "employee",
+                  },
+                }),
+              });
+              attachStatus = attachRes.status;
+              const attachRaw = await attachRes.text();
+              let attachBody: any = null;
+              try { attachBody = JSON.parse(attachRaw); } catch { attachBody = { raw: attachRaw.slice(0, 400) }; }
+              const attachRpErr = attachBody && typeof attachBody === "object" ? (attachBody.error ?? attachBody.message ?? null) : null;
+              if (!attachRes.ok || attachRpErr) {
+                attachErr = typeof attachRpErr === "string" ? attachRpErr : (attachRpErr ? JSON.stringify(attachRpErr) : `HTTP ${attachRes.status}`);
+              }
+            } catch (e) {
+              attachErr = `NETWORK: ${(e as Error).message}`;
+            }
+
+            if (!attachErr) {
+              const verifyAttached = await opfinView(Number(reservedEmployeeId), "employee");
+              const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+              const rpEmail = String(verifyAttached.body?.email || verifyAttached.body?.work_email || "").trim().toLowerCase();
+              if (verifyAttached.ok && rpEmail && rpEmail === erpEmail) {
+                const snapshot = { ...(verifyAttached.body || outboundData), _people_id: existingPeopleId };
+                const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snapshot, "created_via_erp");
+                if (!repairErr) {
+                  await logSync(svc, {
+                    action: "create_person_recovered_existing",
+                    http_status: verifyAttached.status,
+                    razorpay_employee_id: reservedEmployeeId,
+                    hr_employee_id: hrId,
+                    field_diff_summary: { source: "email_exists_auto_attach_people_id", people_id: existingPeopleId, payload_field_names: Object.keys(outboundData).sort() },
+                    error_text: null,
+                    actor_user_id: authed.userId,
+                  });
+                  return json(200, {
+                    ok: true,
+                    razorpay_employee_id: reservedEmployeeId,
+                    people_id: existingPeopleId,
+                    already_exists_in_razorpay: true,
+                    recovered_by_people_id: true,
+                    attached_reserved_employee_id: true,
+                    repaired_mapping: true,
+                    http_status: verifyAttached.status,
+                  });
+                }
+                attachErr = `ERP mapping repair failed after attach: ${repairErr.message}`;
+              } else if (verifyAttached.ok) {
+                attachErr = `Razorpay verified employee-id ${reservedEmployeeId}, but its email (${rpEmail || "unknown"}) did not match ERP email.`;
+              } else {
+                attachErr = `Razorpay accepted attach, but people:view(${reservedEmployeeId}) could not verify it.`;
+              }
+            }
+
+            await logSync(svc, {
+              action: "create_person_email_exists_auto_attach_failed",
+              http_status: attachStatus || httpStatus,
+              razorpay_employee_id: reservedEmployeeId,
+              hr_employee_id: hrId,
+              field_diff_summary: { people_id: existingPeopleId, payload_field_names: Object.keys(outboundData).sort() },
+              error_text: attachErr,
+              actor_user_id: authed.userId,
+            });
+          }
           return json(200, {
             ok: false,
             http_status: httpStatus,

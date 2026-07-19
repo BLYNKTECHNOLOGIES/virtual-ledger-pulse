@@ -188,12 +188,14 @@ export default function SalaryStructureTemplates() {
       percentage_of: i.percentage_of || "total_salary",
       formula: i.formula || "",
       is_variable: i.is_variable || false,
+      is_residual: i.is_residual || false,
+      razorpay_taxable: i.razorpay_taxable || "yes",
     })));
     setShowForm(true);
   };
 
   const addItem = () => {
-    setItems([...items, { component_id: "", calculation_type: "percentage", value: 0, percentage_of: "total_salary", formula: "", is_variable: false }]);
+    setItems([...items, { component_id: "", calculation_type: "percentage", value: 0, percentage_of: "total_salary", formula: "", is_variable: false, is_residual: false, razorpay_taxable: "yes" }]);
   };
 
   const updateItem = (idx: number, field: string, val: any) => {

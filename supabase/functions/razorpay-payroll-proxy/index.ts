@@ -5450,38 +5450,36 @@ Deno.serve(async (req) => {
       }
 
       const reservedEmployeeId = (emp.badge_id || "").toString().trim() || null;
-      const outboundData: Record<string, any> = {
-        // Unified ID doctrine: HRMS badge_id === ESSL PIN === Razorpay
-        // employee_id. Send our badge as the caller-supplied employee_id so
-        // Razorpay stores the same integer instead of minting its own.
-        // Razorpay/Opfin's documented API uses hyphenated keys. The previous
-        // underscore payload was paired with an undocumented people:add mode,
-        // which this tenant rejects with code 23 "Unknown request type".
+      const fullEditData: Record<string, any> = {
+        // Official RazorpayX Payroll Postman contract: people:create accepts
+        // only { email, name, type }. All rich profile fields — including the
+        // editable employee-id — belong to people:edit, keyed by email.
         "employee-id": reservedEmployeeId ? Number(reservedEmployeeId) : null,
-        type: "employee",
-        name: fullName,
         email: String(emp.email).trim().toLowerCase(),
         "phone-number": normPhone(emp.phone),
         gender: emp.gender ? String(emp.gender).toLowerCase() : null,
-        "date-of-birth": dobRp,
-        "date-of-joining": dojRp,
-        "hire-date": dojRp,
-        hire_date: dojRp,
+        "date-of-birth": dobIso,
+        "hiring-date": dojIso,
         department: deptName,
         title: wi!.job_role,
         pan,
-        "annual-ctc": ctcAnnual,
         "bank-account-number": bank!.account_number,
         "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
         "bank-account-holder-name": accountHolder,
       };
       // Remove null/empty optional keys.
-      for (const k of Object.keys(outboundData)) {
-        if (outboundData[k] === null || outboundData[k] === "") delete outboundData[k];
+      for (const k of Object.keys(fullEditData)) {
+        if (fullEditData[k] === null || fullEditData[k] === "") delete fullEditData[k];
       }
 
+      const createData: Record<string, any> = {
+        email: String(emp.email).trim().toLowerCase(),
+        name: fullName,
+        type: "employee",
+      };
+
       if (dryRun) {
-        return json(200, { ok: true, dry_run: true, payload: outboundData });
+        return json(200, { ok: true, dry_run: true, create_payload: createData, edit_payload: fullEditData });
       }
 
       const mapRazorpayEmployee = async (rpEmployeeId: string, snapshot: Record<string, any>, status: string) => {
@@ -5511,7 +5509,7 @@ Deno.serve(async (req) => {
         return await svc.from("hr_razorpay_employee_map").insert(payload);
       };
 
-      const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string, peopleId?: string | null) => {
+      const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string) => {
         const warnings: string[] = [];
         const applied: string[] = [];
         const rpIdNum = Number(rpEmployeeId);
@@ -5520,21 +5518,8 @@ Deno.serve(async (req) => {
         }
 
         const editData: Record<string, any> = {
-          ...(peopleId && /^\d+$/.test(String(peopleId)) ? { "people-id": Number(peopleId) } : {}),
+          ...fullEditData,
           "employee-id": rpIdNum,
-          "employee-type": "employee",
-          pan,
-          "phone-number": normPhone(emp.phone),
-          gender: emp.gender ? String(emp.gender).toLowerCase() : null,
-          "date-of-birth": dobRp,
-          "date-of-joining": dojRp,
-          "hire-date": dojRp,
-          hire_date: dojRp,
-          department: deptName,
-          title: wi!.job_role,
-          "bank-account-number": bank!.account_number,
-          "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
-          "bank-account-holder-name": accountHolder,
         };
         for (const k of Object.keys(editData)) {
           if (editData[k] === null || editData[k] === "" || editData[k] === undefined) delete editData[k];
@@ -5546,7 +5531,7 @@ Deno.serve(async (req) => {
           http_status: editRes.status,
           razorpay_employee_id: rpEmployeeId,
           hr_employee_id: hrId,
-          field_diff_summary: { source, fields: Object.keys(editData).sort() },
+          field_diff_summary: { source, fields: Object.keys(editData).sort(), contract_key: "email" },
           error_text: editRes.ok ? null : editRes.error,
           actor_user_id: authed.userId,
         });
@@ -5569,7 +5554,8 @@ Deno.serve(async (req) => {
                 data: {
                   "employee-id": rpIdNum,
                   "employee-type": "employee",
-                  salary: { "ctc-annual": ctcAnnual },
+                  "custom-salary-structure": false,
+                  "annual-ctc": ctcAnnual,
                 },
               }),
               signal: c.signal,
@@ -5601,7 +5587,7 @@ Deno.serve(async (req) => {
         const snapshot = verify.ok && verify.body ? { ...verify.body, _enriched_by: source } : null;
         if (verify.ok && verify.body) {
           const rpEmail = String(verify.body?.email || verify.body?.work_email || "").trim().toLowerCase();
-          const erpEmail = String((outboundData as any).email || "").trim().toLowerCase();
+          const erpEmail = String((createData as any).email || "").trim().toLowerCase();
           if (!rpEmail || rpEmail !== erpEmail) warnings.push("RazorpayX read-back email did not match ERP email after enrichment.");
           const verifyPan = String(verify.body?.pan || "").trim().toUpperCase();
           if (pan && verifyPan && verifyPan !== pan) warnings.push("RazorpayX read-back PAN did not match ERP PAN after enrichment.");
@@ -5617,8 +5603,8 @@ Deno.serve(async (req) => {
         return { ok: warnings.length === 0, warnings, applied, snapshot };
       };
 
-      const completeSuccessResponse = async (rpEmployeeId: string, body: Record<string, any>, source: string, peopleId?: string | null) => {
-        const enrichment = await pushCompleteRazorpayDetails(rpEmployeeId, source, peopleId);
+      const completeSuccessResponse = async (rpEmployeeId: string, body: Record<string, any>, source: string) => {
+        const enrichment = await pushCompleteRazorpayDetails(rpEmployeeId, source);
         const responseBody: Record<string, any> = {
           ...body,
           razorpay_employee_id: rpEmployeeId,

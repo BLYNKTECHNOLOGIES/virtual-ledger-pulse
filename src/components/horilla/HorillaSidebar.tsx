@@ -143,6 +143,7 @@ const navGroups: NavGroup[] = [
           { label: "Deposits", path: "/hrms/payroll/deposits" },
           { label: "Compliance Settings", path: "/hrms/payroll/compliance-settings" },
           { label: "Leave & Attendance Settings", path: "/hrms/payroll/leave-attendance-settings" },
+          { label: "Salary Structure & Bonuses", path: "/hrms/payroll/salary-structure-mirror" },
           { label: "Razorpay Diagnostics", path: "/hrms/payroll/razorpay-sync" },
           { label: "Data Health", path: "/hrms/data-health" },
         ],

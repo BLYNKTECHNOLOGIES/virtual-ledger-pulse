@@ -650,9 +650,26 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   </Button>
                   {reservedRpId && (
                     <span className="text-[11px] text-success flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> ESSL PIN auto-filled below · Razorpay create queued for Finalize
+                      <CheckCircle2 className="h-3 w-3" /> ESSL PIN auto-filled below
                     </span>
                   )}
+                </div>
+              )}
+              {!alreadyInRazorpay && reservedRpId && (
+                <div className="flex items-start gap-3 rounded-md border bg-background p-3">
+                  <Switch
+                    checked={form.create_in_razorpay}
+                    onCheckedChange={v => updateForm({ create_in_razorpay: v })}
+                    disabled={readOnly}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <Label className="text-sm">Also create this employee in RazorpayX at Finalize</Label>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {form.create_in_razorpay
+                        ? `On Finalize, employee_id ${reservedRpId} will be created in Razorpay with the fields below.`
+                        : "Toggle OFF to only reserve the ID locally — Razorpay will NOT be called."}
+                    </p>
+                  </div>
                 </div>
               )}
               {form.create_in_razorpay && !alreadyInRazorpay && (

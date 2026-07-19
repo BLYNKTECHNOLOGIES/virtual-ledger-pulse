@@ -105,6 +105,7 @@ const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPa
 const RazorpaySyncPage = lazy(() => import('./pages/hr/RazorpaySyncPage'));
 const PayslipHistoryImportPage = lazy(() => import('./pages/hr/PayslipHistoryImportPage'));
 const SalaryRegisterImportPage = lazy(() => import('./pages/hr/SalaryRegisterImportPage'));
+const PayrollInputsPage = lazy(() => import('./pages/hr/PayrollInputsPage'));
 const DataHealthPage = lazy(() => import('./pages/horilla/DataHealthPage'));
 const PenaltyAutoCalcPage = lazy(() => import('./pages/horilla/PenaltyAutoCalcPage'));
 const AssetPage = lazy(() => import('./pages/horilla/AssetPage'));
@@ -760,6 +761,7 @@ const router = createBrowserRouter([
         { path: "payroll/razorpay-sync", element: <RazorpaySyncPage /> },
         { path: "payroll/payslip-history-import", element: <PayslipHistoryImportPage /> },
         { path: "payroll/salary-register-import", element: <SalaryRegisterImportPage /> },
+        { path: "payroll/inputs", element: <PayrollInputsPage /> },
         { path: "data-health", element: <DataHealthPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
         

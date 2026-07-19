@@ -88,15 +88,22 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-sm font-semibold flex items-center gap-1.5">
-          <DollarSign className="h-4 w-4" /> Salary Structure Overrides
+          <DollarSign className="h-4 w-4" /> Salary Structure
+          <Badge variant="outline" className="text-[10px] uppercase ml-1">Mirror · RazorpayX</Badge>
         </h3>
-        <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add Component</Button>
+        <Button asChild size="sm" variant="outline">
+          <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">Edit on RazorpayX ↗</a>
+        </Button>
+      </div>
+
+      <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+        This is a read-only mirror of the salary structure stored on RazorpayX. Salary edits happen on RazorpayX; the mirror re-syncs after the next sync run.
       </div>
 
       {structures.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No custom salary structure — using template defaults</p>
+        <p className="text-sm text-muted-foreground py-4 text-center">No mirrored structure yet — sync from RazorpayX to populate.</p>
       ) : (
         <>
           <div className="flex gap-2">
@@ -120,7 +127,6 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
                 <TableHead>Component</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -132,13 +138,8 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
                       {s.hr_salary_components?.component_type || "—"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="text-sm tabular-nums">
                     {s.is_percentage ? `${s.amount}%` : `₹${Number(s.amount).toLocaleString("en-IN")}`}
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => removeMutation.mutate(s.id)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -147,39 +148,7 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
         </>
       )}
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Salary Component</DialogTitle>
-            <DialogDescription>Override or add a specific salary component for this employee</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Component</Label>
-              <Select value={form.component_id} onValueChange={v => setForm({ ...form, component_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select component..." /></SelectTrigger>
-                <SelectContent>
-                  {components.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} ({c.component_type})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Amount</Label>
-              <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="e.g. 5000" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={form.is_percentage} onCheckedChange={v => setForm({ ...form, is_percentage: v })} />
-              <Label>Percentage-based</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={addMutation.isPending}>Add</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add-component dialog retired — structures are managed on RazorpayX. */}
     </div>
   );
 }

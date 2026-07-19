@@ -176,11 +176,27 @@ export default function PayrollDashboardPage() {
         title="Payroll Dashboard"
         description="Manage payroll runs, generate payslips and process payments"
         actions={
-          <Button onClick={() => setShowCreate(true)} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
-            <Plus className="h-4 w-4 mr-2" /> New Payroll Run
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline" className="h-9">
+              <a href="/hrms/payroll/inputs">Payroll Inputs</a>
+            </Button>
+            <Button asChild size="sm" className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
+              <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">Open RazorpayX ↗</a>
+            </Button>
+          </div>
         }
       />
+
+      <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm flex items-start gap-2">
+        <Lock className="h-4 w-4 mt-0.5 text-warning" />
+        <div>
+          <div className="font-medium">RazorpayX is the payroll authority</div>
+          <div className="text-muted-foreground mt-1">
+            Payroll is <strong>computed and executed on RazorpayX</strong>. The rows below are a read-only mirror kept for record. Provide inputs (additions, deductions, do-not-pay, attendance) via <a className="underline" href="/hrms/payroll/inputs">Payroll Inputs</a>, then run the pay-cycle on the <a className="underline" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">RazorpayX dashboard</a>.
+          </div>
+        </div>
+      </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[
@@ -241,44 +257,34 @@ export default function PayrollDashboardPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        {/* Draft: Generate */}
+                        {/* Draft: compute on RazorpayX (button retired) */}
                         {r.status === "draft" && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
-                            {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><FileText className="h-3 w-3 mr-1" /> Generate</>}
-                          </Button>
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
+                            <Lock className="h-3 w-3" /> Compute on RazorpayX
+                          </span>
                         )}
-                        {/* Processing: Review + Re-generate */}
+                        {/* Processing: mirroring RazorpayX (regenerate retired) */}
                         {r.status === "processing" && !r.is_locked && (
                           <>
-                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
-                              {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
-                            </Button>
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
+                              <RefreshCw className="h-3 w-3" /> Mirroring RazorpayX
+                            </span>
                             <Button size="sm" variant="ghost" className="h-7 text-xs text-primary" onClick={() => setReviewDialog(r)}>
                               <CheckCircle className="h-3 w-3 mr-1" /> Review & Approve
                             </Button>
                           </>
                         )}
-                        {/* Reviewed: Lock or Re-generate */}
+                        {/* Reviewed: Lock only (regenerate retired) */}
                         {r.status === "reviewed" && !r.is_locked && (
-                          <>
-                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
-                              {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs text-warning" onClick={() => setLockConfirm(r)}>
-                              <Lock className="h-3 w-3 mr-1" /> Lock & Complete
-                            </Button>
-                          </>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs text-warning" onClick={() => setLockConfirm(r)}>
+                            <Lock className="h-3 w-3 mr-1" /> Lock & Complete
+                          </Button>
                         )}
-                        {/* Completed & Locked: Mark Paid + Re-run */}
+                        {/* Completed & Locked: Mark Paid only (unlock/re-run retired — re-run on RazorpayX) */}
                         {r.status === "completed" && r.is_locked && (
-                          <>
-                            <Button size="sm" className="h-7 text-xs bg-success hover:bg-success/90 text-success-foreground" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
-                              <CheckCircle className="h-3 w-3 mr-1" /> Mark as Paid
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-warning border-warning/30 hover:bg-warning/10" onClick={() => setRerunDialog(r)}>
-                              <Unlock className="h-3 w-3 mr-1" /> Unlock & Re-run
-                            </Button>
-                          </>
+                          <Button size="sm" className="h-7 text-xs bg-success hover:bg-success/90 text-success-foreground" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
+                            <CheckCircle className="h-3 w-3 mr-1" /> Mark as Paid
+                          </Button>
                         )}
                         {/* Paid: Final state */}
                         {r.status === "paid" && (

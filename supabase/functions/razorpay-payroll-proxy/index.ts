@@ -2416,32 +2416,37 @@ Deno.serve(async (req) => {
     }
 
     // ---- push_salary_from_template ----------------------------------------------------------
-    // Single-employee salary push driven by an HRMS local template. The client is expected to
-    // have already expanded the template into a RazorpayX-shape breakdown (see
-    // src/lib/hrms/salaryStructureExpansion.ts) — we do NOT re-run the calculation server-side
-    // because template CRUD is HRMS-native and the expansion is deterministic. This endpoint
-    // only handles: RazorpayX id lookup, endpoint/pilot gating, POST /people set-salary with
-    // a `custom-salary-structure`, and the assignment ledger write.
+    // PATH A (structure-swap doctrine). Un-retired 2026-07-19. Owner authorised HRMS to overwrite
+    // RazorpayX salary structures via people:set-salary so training → real transitions can be
+    // driven automatically at DOJ + training_period_months. Every call must:
+    //   1. Have `hr_razorpay_settings.path_a_structure_swap_enabled = true` (explicit doctrine opt-in),
+    //   2. Carry a `structure_kind` of "training", "real", or "ad_hoc" for provenance,
+    //   3. Log a full audit ledger row regardless of outcome.
     //
     // Payload shape:
     //   { action: "push_salary_from_template", hr_employee_id, template_id, annual_ctc,
+    //     structure_kind: "training"|"real"|"ad_hoc",
     //     breakdown: { basic, da, hra, "special-allowance", lta, "employer-pf", "employer-esi",
     //                  "custom-allowances": [...], deductions: [...] } }
     if (action === "push_salary_from_template") {
-      // Retired: local salary-structure templates were abolished (RazorpayX API
-      // exposes no template CRUD, so HRMS cannot verify assignments). Structure
-      // assignment happens directly on the RazorpayX dashboard.
-      return json(410, {
-        error: "push_salary_from_template is retired. Assign the salary structure directly on RazorpayX; HRMS mirrors it read-only per employee.",
-      });
+      if (!settingsRow?.path_a_structure_swap_enabled) {
+        return json(403, {
+          error: "Path A structure swap is disabled. Enable hr_razorpay_settings.path_a_structure_swap_enabled first (Offer Letter Policy → Path A doctrine).",
+        });
+      }
       const hrEmployeeId = String(payload?.hr_employee_id || "").trim();
       const templateId = String(payload?.template_id || "").trim();
       const annualCtc = Number(payload?.annual_ctc);
       const breakdown = payload?.breakdown;
+      const structureKind = String(payload?.structure_kind || "real").toLowerCase();
       if (!hrEmployeeId) return json(400, { error: "hr_employee_id is required" });
       if (!templateId) return json(400, { error: "template_id is required" });
       if (!Number.isFinite(annualCtc) || annualCtc <= 0) return json(400, { error: "annual_ctc must be a positive number" });
       if (!breakdown || typeof breakdown !== "object") return json(400, { error: "breakdown is required" });
+      if (!["training","real","ad_hoc"].includes(structureKind)) {
+        return json(400, { error: "structure_kind must be 'training', 'real', or 'ad_hoc'" });
+      }
+
 
       const { data: mapRow, error: mapErr } = await svc
         .from("hr_razorpay_employee_map")

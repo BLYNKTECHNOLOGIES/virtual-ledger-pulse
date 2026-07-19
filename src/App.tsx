@@ -91,7 +91,6 @@ const AttendancePeriodLockPage = lazy(() => import('./pages/horilla/AttendancePe
 const PayrollDashboardPage = lazy(() => import('./pages/horilla/PayrollDashboardPage'));
 const PayslipsPage = lazy(() => import('./pages/horilla/PayslipsPage'));
 const SalaryComponentsPage = lazy(() => import('./pages/horilla/SalaryComponentsPage'));
-const SalaryStructurePage = lazy(() => import('./pages/horilla/SalaryStructurePage'));
 const PenaltyManagementPage = lazy(() => import('./pages/horilla/PenaltyManagementPage'));
 const CompOffPage = lazy(() => import('./pages/horilla/CompOffPage'));
 const DepositManagementPage = lazy(() => import('./pages/horilla/DepositManagementPage'));
@@ -741,7 +740,7 @@ const router = createBrowserRouter([
         { path: "payroll/payslips", element: <PayslipsPage /> },
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
-        { path: "payroll/salary-structure", element: <SalaryStructurePage /> },
+        // Salary Structure page retired — Razorpay is the authority; per-employee breakdown is mirrored in the employee profile.
         { path: "payroll/penalties", element: <PenaltyManagementPage /> },
         { path: "payroll/deposits", element: <DepositManagementPage /> },
         { path: "payroll/loans", element: <LoansPage /> },

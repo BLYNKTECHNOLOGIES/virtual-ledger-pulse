@@ -2304,9 +2304,12 @@ Deno.serve(async (req) => {
     //     breakdown: { basic, da, hra, "special-allowance", lta, "employer-pf", "employer-esi",
     //                  "custom-allowances": [...], deductions: [...] } }
     if (action === "push_salary_from_template") {
-      if (!settingsRow?.push_salary_endpoint_verified || !settingsRow?.push_salary_envelope_key) {
-        return json(400, { error: "Salary push envelope not verified. Complete Step E first." });
-      }
+      // Retired: local salary-structure templates were abolished (RazorpayX API
+      // exposes no template CRUD, so HRMS cannot verify assignments). Structure
+      // assignment happens directly on the RazorpayX dashboard.
+      return json(410, {
+        error: "push_salary_from_template is retired. Assign the salary structure directly on RazorpayX; HRMS mirrors it read-only per employee.",
+      });
       const hrEmployeeId = String(payload?.hr_employee_id || "").trim();
       const templateId = String(payload?.template_id || "").trim();
       const annualCtc = Number(payload?.annual_ctc);

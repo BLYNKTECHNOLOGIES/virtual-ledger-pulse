@@ -132,7 +132,7 @@ const navGroups: NavGroup[] = [
         children: [
           { label: "Dashboard", path: "/hrms/payroll" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
-          { label: "Salary Structure", path: "/hrms/payroll/salary-structure" },
+          // Salary Structure entry retired — Razorpay is authority; view per-employee mirror inside the employee profile.
           { label: "Salary Revisions", path: "/hrms/payroll/salary-revisions" },
           { label: "Allowances", path: "/hrms/payroll/allowances" },
           { label: "Deductions", path: "/hrms/payroll/deductions" },

@@ -386,7 +386,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     // Payability warning (S2): confirm activation of an employee who can't be paid yet
     const docs = (onboardingRecord?.documents as any) || {};
     const hasBank = hasBankInput || !!docs.bank_details?.value;
-    const hasSalary = !!(onboardingRecord?.salary_template_id || Number(onboardingRecord?.ctc) > 0);
+    const hasSalary = Number(onboardingRecord?.ctc) > 0;
     if (!hasBank || !hasSalary) {
       const missing = [!hasBank && "Bank details", !hasSalary && "Salary/CTC"].filter(Boolean).join(" & ");
       if (!window.confirm(`${missing} missing. Activate anyway? Payroll will fail until these are filled.`)) {
@@ -405,7 +405,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       hasBankInput,
       ifscValid,
       ctc: onboardingRecord?.ctc,
-      salary_template_id: onboardingRecord?.salary_template_id,
     });
     if (!validate()) {
       console.warn("[Stage5] Finalize validation blocked");

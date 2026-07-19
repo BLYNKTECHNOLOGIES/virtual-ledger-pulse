@@ -303,17 +303,11 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         if (legacyBankErr) throw legacyBankErr;
       }
 
-      // 5. Apply salary template if selected
-      if (r.salary_template_id) {
-        try {
-          await supabase.rpc("apply_salary_template", {
-            p_employee_id: emp.id,
-            p_template_id: r.salary_template_id,
-          });
-        } catch (e) {
-          console.warn("Salary template application failed:", e);
-        }
-      }
+      // 5. Salary structure assignment — retired.
+      //    Local templates were abolished (RazorpayX API exposes no template CRUD,
+      //    so we cannot verify which structure got assigned). CTC is captured here;
+      //    the component breakdown is assigned on the RazorpayX dashboard and
+      //    mirrored read-only inside the employee profile after the next sync.
 
       // 6. Mark onboarding as completed
       const { data: user } = await supabase.auth.getUser();

@@ -296,9 +296,15 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <div className="hrms-mobile-kv"><span>Started</span><strong>{format(new Date(r.created_at), "dd MMM yyyy")}</strong></div>
                     <div className="flex flex-wrap gap-1">{chip("Bank", c?.has_bank)}{chip("Salary", c?.has_salary)}{chip("DOJ", c?.has_doj)}</div>
                     <div className="flex gap-2 pt-1">
-                      <Button size="sm" className="flex-1" variant={r.status === "completed" ? "outline" : "default"} onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}>
-                        {r.status === "completed" ? "View" : "Continue"}
-                      </Button>
+                      {r.status === "cancelled" ? (
+                        <Button size="sm" className="flex-1" variant="outline" disabled onClick={(e) => e.stopPropagation()}>
+                          Cancelled
+                        </Button>
+                      ) : (
+                        <Button size="sm" className="flex-1" variant={r.status === "completed" ? "outline" : "default"} onClick={(e) => { e.stopPropagation(); onSelectOnboarding(r.id); }}>
+                          {r.status === "completed" ? "View" : "Continue"}
+                        </Button>
+                      )}
                       {r.status !== "completed" && (
                         <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setToDelete(r); }} title="Delete dropped onboarding">
                           <Trash2 className="h-4 w-4" />

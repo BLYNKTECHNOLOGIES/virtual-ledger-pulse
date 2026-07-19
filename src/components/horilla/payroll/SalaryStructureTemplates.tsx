@@ -111,6 +111,8 @@ export default function SalaryStructureTemplates() {
               percentage_of: i.calculation_type === "percentage" ? i.percentage_of : null,
               formula: i.calculation_type === "formula" ? i.formula : null,
               is_variable: i.is_variable,
+              is_residual: i.is_residual,
+              razorpay_taxable: i.razorpay_taxable,
             })));
           if (itemErr) throw itemErr;
         }
@@ -133,6 +135,8 @@ export default function SalaryStructureTemplates() {
               percentage_of: i.calculation_type === "percentage" ? i.percentage_of : null,
               formula: i.calculation_type === "formula" ? i.formula : null,
               is_variable: i.is_variable,
+              is_residual: i.is_residual,
+              razorpay_taxable: i.razorpay_taxable,
             })));
           if (itemErr) throw itemErr;
         }

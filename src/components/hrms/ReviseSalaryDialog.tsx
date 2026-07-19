@@ -477,13 +477,16 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             disabled={
               mutation.isPending ||
               !employeeId ||
-              (mode === "recurring" ? !newTotal : !oneTimeAmount)
+              (mode === "recurring" ? !newTotal : mode === "one_time" ? !oneTimeAmount : !reason.trim())
             }
           >
             {mode === "recurring"
               ? (isScheduled ? "Schedule revision" : "Apply revision")
-              : "Record payout"}
+              : mode === "one_time"
+                ? "Record payout"
+                : (isScheduled ? "Schedule statutory change" : "Apply & push to Razorpay")}
           </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>

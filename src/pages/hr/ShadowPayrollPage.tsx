@@ -62,6 +62,8 @@ export default function ShadowPayrollPage() {
   const [period, setPeriod] = useState<string>(format(startOfMonth(new Date()), "yyyy-MM-01"));
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const { data: readiness, isLoading: readinessLoading } = useShadowReadiness(period);
+
   // Load latest run for this period
   const { data: run } = useQuery({
     queryKey: ["shadow_run", period],

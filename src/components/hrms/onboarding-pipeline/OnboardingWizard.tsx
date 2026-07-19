@@ -236,7 +236,11 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       const { bank_details: bankDetails, create_in_razorpay: _rpToggle, ...onboardingUpdate } = stage5Data || {};
 
       // 1. Update onboarding record with stage 5 data
-      await updateRecord(onboardingUpdate);
+      await updateRecord({
+        ...onboardingUpdate,
+        current_stage: 5,
+        status: record.status === "completed" ? "completed" : "stage_4",
+      });
 
       const r = { ...record, ...onboardingUpdate, bank_details: bankDetails } as any;
       const docs = r.documents || {};

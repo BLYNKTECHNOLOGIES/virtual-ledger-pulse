@@ -26,6 +26,11 @@ function generatePassword(length = 12): string {
   return Array.from(array, (b) => chars[b % chars.length]).join("");
 }
 
+function normalizePhone(value?: string | null): string {
+  const digits = String(value || "").replace(/\D/g, "").replace(/^0+/, "");
+  return digits.slice(-10);
+}
+
 async function findAuthUserByEmail(adminClient: any, email: string) {
   const target = email.trim().toLowerCase();
   for (let page = 1; page <= 20; page++) {
@@ -123,32 +128,92 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Pre-check email / phone collisions with a friendly message so the
-    // wizard doesn't have to interpret raw PG unique-index errors on retry.
-    const { data: emailHit } = await adminClient
-      .from("users").select("id, username, first_name, last_name")
-      .ilike("email", email).maybeSingle();
-    if (emailHit?.id) {
+    // ── Pre-check email / phone / badge collisions. Onboarding retries are
+    // expected to hit the same user created by an earlier partial finalize;
+    // treat that as idempotent success instead of blocking completion.
+    const [{ data: emailHit }, { data: badgeHit }] = await Promise.all([
+      adminClient
+        .from("users")
+        .select("id, username, first_name, last_name, email, phone, badge_id")
+        .ilike("email", email)
+        .maybeSingle(),
+      badgeId
+        ? adminClient
+          .from("users")
+          .select("id, username, first_name, last_name, email, phone, badge_id")
+          .eq("badge_id", badgeId)
+          .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    let phoneHit: any = null;
+    const targetPhone = normalizePhone(phone);
+    if (targetPhone.length >= 10) {
+      const { data: phoneHits } = await adminClient
+        .from("users")
+        .select("id, username, first_name, last_name, email, phone, badge_id")
+        .not("phone", "is", null);
+      phoneHit = (phoneHits || []).find((r: any) => normalizePhone(r.phone) === targetPhone) || null;
+    }
+
+    const hits = [emailHit, phoneHit, badgeHit].filter((row: any) => row?.id);
+    const hitIds = new Set(hits.map((row: any) => row.id));
+    if (hitIds.size > 1) {
+      const labels = hits.map((row: any) => `${row.username || row.email || row.id} (${row.id})`).join(", ");
       return new Response(JSON.stringify({
-        error: `Email ${email} already belongs to ERP user "${emailHit.username}" (${[emailHit.first_name, emailHit.last_name].filter(Boolean).join(" ")}). Use a different email or link to that user.`,
+        error: `ERP identity conflict: email/phone/badge point to different users: ${labels}. Resolve the duplicate before onboarding can complete.`,
       }), { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
-    if (phone) {
-      const digits = String(phone).replace(/\D/g, "").replace(/^0+/, "");
-      const last10 = digits.slice(-10);
-      if (last10.length >= 10) {
-        const { data: phoneHits } = await adminClient
-          .from("users").select("id, username, first_name, last_name, phone")
-          .not("phone", "is", null);
-        const phoneHit = (phoneHits || []).find((r: any) =>
-          String(r.phone || "").replace(/\D/g, "").replace(/^0+/, "").slice(-10) === last10
-        );
-        if (phoneHit) {
-          return new Response(JSON.stringify({
-            error: `Phone ${phone} already belongs to ERP user "${phoneHit.username}" (${[phoneHit.first_name, phoneHit.last_name].filter(Boolean).join(" ")}). Update the onboarding phone number or link to that user.`,
-          }), { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } });
-        }
+
+    const existingUser = hits[0] || null;
+    if (existingUser?.id) {
+      const emailMatches = String(existingUser.email || "").trim().toLowerCase() === email.trim().toLowerCase();
+      if (!emailMatches) {
+        return new Response(JSON.stringify({
+          error: `ERP identity conflict: ${phoneHit?.id === existingUser.id ? "phone" : "badge"} already belongs to ERP user "${existingUser.username}" (${[existingUser.first_name, existingUser.last_name].filter(Boolean).join(" ")}). Update the onboarding details or link the correct employee.`,
+        }), { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
+
+      const authUser = await findAuthUserByEmail(adminClient, email);
+      if (!authUser?.id) {
+        return new Response(JSON.stringify({
+          error: `ERP user "${existingUser.username}" exists, but the Supabase Auth identity for ${email} is missing. Create/reset the auth identity before retrying.`,
+        }), { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+
+      const { error: userUpdateError } = await adminClient
+        .from("users")
+        .update({
+          first_name: firstName,
+          last_name: lastName || null,
+          phone: phone || existingUser.phone || null,
+          badge_id: badgeId || existingUser.badge_id || null,
+          role_id: roleId,
+          department_id: departmentId || null,
+          position_id: positionId || null,
+          status: "ACTIVE",
+        })
+        .eq("id", existingUser.id);
+      if (userUpdateError) {
+        return new Response(JSON.stringify({ error: `Existing ERP user update failed: ${userUpdateError.message}` }), {
+          status: 409,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      await adminClient.from("user_roles").upsert({ user_id: existingUser.id, role_id: roleId }, { onConflict: "user_id,role_id" });
+
+      console.log("ERP user already existed; reused for onboarding:", { userId: existingUser.id, username: existingUser.username, email });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          alreadyExists: true,
+          userId: existingUser.id,
+          username: existingUser.username,
+          tempPassword: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     const baseUsername = `${firstName}${lastName}`.toLowerCase().replace(/\s+/g, "");
@@ -233,6 +298,8 @@ Deno.serve(async (req) => {
       last_name: lastName || null,
       phone: phone || null,
       badge_id: badgeId || null,
+      department_id: departmentId || null,
+      position_id: positionId || null,
       role_id: roleId,
       password_hash: "SUPABASE_AUTH",
       status: "ACTIVE",

@@ -237,33 +237,44 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         <DialogHeader>
           <DialogTitle>Compensation Change</DialogTitle>
           <DialogDescription>
-            Record a recurring salary revision (CTC change) or a one-time payout (bonus, incentive, retention).
+            Record a recurring salary revision (CTC change), a one-time payout (bonus, incentive), or a statutory enrollment toggle (PF / ESI / PT — used for training-period exemptions).
           </DialogDescription>
         </DialogHeader>
 
         {/* Mode toggle */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg">
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted rounded-lg">
           <button
             type="button"
             onClick={() => setMode("recurring")}
             className={cn(
-              "text-xs font-medium py-2 rounded-md transition-colors",
+              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
               mode === "recurring" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
             )}
           >
-            Recurring — CTC change
+            CTC change
           </button>
           <button
             type="button"
             onClick={() => setMode("one_time")}
             className={cn(
-              "text-xs font-medium py-2 rounded-md transition-colors",
+              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
               mode === "one_time" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
             )}
           >
-            One-time — Bonus / Incentive
+            One-time payout
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("statutory")}
+            className={cn(
+              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
+              mode === "statutory" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+            )}
+          >
+            Statutory toggle
           </button>
         </div>
+
 
         <div className="space-y-3">
           <div>

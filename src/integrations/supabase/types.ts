@@ -21158,6 +21158,22 @@ export type Database = {
         }
         Returns: Json
       }
+      hr_compute_lop_days: {
+        Args: { p_employee_ids: string[]; p_period_month: string }
+        Returns: {
+          config_errors: string[]
+          employee_id: string
+          formula: string
+          incomplete_unresolved_days: number
+          lop_days: number
+          paid_leave_days: number
+          present_days: number
+          unpaid_leave_days: number
+          weekly_off_days: number[]
+          weekly_off_source: string
+          working_days: number
+        }[]
+      }
       hr_compute_salary_structure_drift: {
         Args: { p_hr_employee_id: string }
         Returns: Json

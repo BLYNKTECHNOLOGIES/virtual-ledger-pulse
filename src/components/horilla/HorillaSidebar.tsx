@@ -141,6 +141,7 @@ const navGroups: NavGroup[] = [
           { label: "Loans & Advances", path: "/hrms/payroll/loans" },
           { label: "Tax Config", path: "/hrms/payroll/tax-config" },
           { label: "Deposits", path: "/hrms/payroll/deposits" },
+          { label: "Compliance Settings", path: "/hrms/payroll/compliance-settings" },
           { label: "Razorpay Diagnostics", path: "/hrms/payroll/razorpay-sync" },
           { label: "Data Health", path: "/hrms/data-health" },
         ],

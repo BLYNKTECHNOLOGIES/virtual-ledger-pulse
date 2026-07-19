@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal, AlertTriangle } from "lucide-react";
 import { PayrollAdjustmentDialog } from "@/components/hrms/employee-profile/PayrollAdjustmentDialog";
 import { SourceTag, DashboardLink, FreshnessStamp } from "@/components/hr/payroll/SourceTag";
+import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface Props {
@@ -47,6 +49,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
   const [openRow, setOpenRow] = useState<any | null>(null);
   const [adjustRow, setAdjustRow] = useState<any | null>(null);
   const qc = useQueryClient();
+  const { data: compliance } = useComplianceSettings();
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["rzp_payslips_emp", hrEmployeeId],
@@ -194,10 +197,18 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       </td>
                       <td className="py-2.5 px-3 text-right text-foreground cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.gross_earnings)}</td>
                       <td className="py-2.5 px-3 text-right text-destructive cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.total_deductions)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.tds_amount)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.pf_amount)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.esi_amount)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{INR(r.professional_tax)}</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.tds_amount} messages={complianceDriftForPayslip({ tds_amount: r.tds_amount }, compliance)} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.pf_amount} messages={complianceDriftForPayslip({ pf_amount: r.pf_amount }, compliance)} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.esi_amount} messages={complianceDriftForPayslip({ esi_amount: r.esi_amount }, compliance)} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <ComplianceCell value={r.professional_tax} messages={complianceDriftForPayslip({ professional_tax: r.professional_tax }, compliance)} />
+                      </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(r.net_pay)}</td>
                       <td className="py-2.5 px-3 text-center">
                         {r.pdf_url ? <FileText className="w-4 h-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">—</span>}
@@ -396,4 +407,24 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
     </div>
   );
 }
+
+function ComplianceCell({ value, messages }: { value: any; messages: string[] }) {
+  if (!messages.length) return <>{INR(value)}</>;
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1 text-warning cursor-help">
+            <AlertTriangle className="h-3 w-3" />
+            {INR(value)}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-xs text-xs">
+          {messages.map((m, i) => <p key={i}>{m}</p>)}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 

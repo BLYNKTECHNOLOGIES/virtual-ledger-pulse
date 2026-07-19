@@ -399,7 +399,9 @@ export default function DataHealthPage() {
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
+
         <select
           value={severity}
           onChange={(e) => setSeverity(e.target.value)}

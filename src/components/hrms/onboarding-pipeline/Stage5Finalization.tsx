@@ -405,7 +405,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       hasBankInput,
       ifscValid,
       ctc: onboardingRecord?.ctc,
-      salary_template_id: onboardingRecord?.salary_template_id,
     });
     if (!validate()) {
       console.warn("[Stage5] Finalize validation blocked");

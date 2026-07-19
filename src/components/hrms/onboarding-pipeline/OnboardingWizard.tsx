@@ -772,23 +772,47 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       <AlertDialog open={!!razorpayRecovery} onOpenChange={(open) => !open && setRazorpayRecovery(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Link existing RazorpayX employee?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {razorpayRecovery?.mode === "people_id" ? "Attach reserved Employee ID in RazorpayX?" : "Link existing RazorpayX employee?"}
+            </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <span className="block whitespace-pre-line">{razorpayRecovery?.message}</span>
-              <span className="block">Enter the employee-id shown in RazorpayX for this same email. ERP will verify the email before linking.</span>
-              <input
-                value={razorpayRecovery?.employeeId || ""}
-                onChange={(e) => setRazorpayRecovery(p => p ? { ...p, employeeId: e.target.value.replace(/\D/g, "") } : p)}
-                inputMode="numeric"
-                placeholder="RazorpayX employee-id"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-                disabled={!!razorpayRecovery?.resolving}
-              />
+              {razorpayRecovery?.mode === "people_id" ? (
+                <>
+                  <span className="block">Confirm the internal <b>people-id</b> (from the RazorpayX employee URL). ERP will attach the reserved Employee ID and verify the email before linking.</span>
+                  <input
+                    value={razorpayRecovery?.peopleId || ""}
+                    onChange={(e) => setRazorpayRecovery(p => p ? { ...p, peopleId: e.target.value.replace(/\D/g, "") } : p)}
+                    inputMode="numeric"
+                    placeholder="RazorpayX people-id"
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    disabled={!!razorpayRecovery?.resolving}
+                  />
+                </>
+              ) : (
+                <>
+                  <span className="block">Enter the employee-id shown in RazorpayX for this same email. ERP will verify the email before linking.</span>
+                  <input
+                    value={razorpayRecovery?.employeeId || ""}
+                    onChange={(e) => setRazorpayRecovery(p => p ? { ...p, employeeId: e.target.value.replace(/\D/g, "") } : p)}
+                    inputMode="numeric"
+                    placeholder="RazorpayX employee-id"
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    disabled={!!razorpayRecovery?.resolving}
+                  />
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={!!razorpayRecovery?.resolving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); recoverRazorpayById(); }} disabled={!razorpayRecovery?.employeeId || !!razorpayRecovery?.resolving}>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); recoverRazorpayById(); }}
+              disabled={
+                !!razorpayRecovery?.resolving ||
+                (razorpayRecovery?.mode === "people_id" ? !razorpayRecovery?.peopleId : !razorpayRecovery?.employeeId)
+              }
+            >
               {razorpayRecovery?.resolving ? "Verifying…" : "Verify & Link"}
             </AlertDialogAction>
           </AlertDialogFooter>

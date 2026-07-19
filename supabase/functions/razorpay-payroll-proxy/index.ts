@@ -5475,11 +5475,22 @@ Deno.serve(async (req) => {
         if (fullEditData[k] === null || fullEditData[k] === "") delete fullEditData[k];
       }
 
+      // Live RazorpayX/Opfin behavior differs from the Postman collection here:
+      // `people:create` rejects minimal {email,name,type} with code 43
+      // ("hire_date is required"). It still ignores caller-supplied
+      // employee-id, so creation gets the full required profile EXCEPT
+      // employee-id; the reserved unified ID is attached by the follow-up
+      // email-keyed `people:edit` step below.
       const createData: Record<string, any> = {
+        ...fullEditData,
         email: String(emp.email).trim().toLowerCase(),
         name: fullName,
         type: "employee",
       };
+      delete createData["employee-id"];
+      for (const k of Object.keys(createData)) {
+        if (createData[k] === null || createData[k] === "" || createData[k] === undefined) delete createData[k];
+      }
 
       if (dryRun) {
         return json(200, { ok: true, dry_run: true, create_payload: createData, edit_payload: fullEditData });
@@ -5510,6 +5521,56 @@ Deno.serve(async (req) => {
         }
 
         return await svc.from("hr_razorpay_employee_map").insert(payload);
+      };
+
+      const retryAttachReservedEmployeeId = async (
+        source: string,
+        attempts = 8,
+      ): Promise<{ attach: Awaited<ReturnType<typeof attachReservedEmployeeIdByEmail>>; verify: Awaited<ReturnType<typeof opfinView>> | null }> => {
+        let lastAttach: Awaited<ReturnType<typeof attachReservedEmployeeIdByEmail>> = {
+          ok: false,
+          status: 0,
+          error: "attach not attempted",
+          body: null,
+        };
+        let lastVerify: Awaited<ReturnType<typeof opfinView>> | null = null;
+        if (!reservedEmployeeId || !/^\d+$/.test(reservedEmployeeId)) return { attach: lastAttach, verify: lastVerify };
+
+        const erpEmail = String(createData.email || "").trim().toLowerCase();
+        for (let i = 1; i <= attempts; i += 1) {
+          lastAttach = await attachReservedEmployeeIdByEmail(erpEmail, reservedEmployeeId, fullEditData);
+          if (lastAttach.ok) {
+            lastVerify = await opfinView(Number(reservedEmployeeId), "employee");
+            const rpEmail = String(lastVerify.body?.email || lastVerify.body?.work_email || "").trim().toLowerCase();
+            if (lastVerify.ok && rpEmail && rpEmail === erpEmail) {
+              return { attach: lastAttach, verify: lastVerify };
+            }
+          }
+
+          await logSync(svc, {
+            action: "create_person",
+            http_status: lastAttach.status || lastVerify?.status || 0,
+            razorpay_employee_id: reservedEmployeeId,
+            hr_employee_id: hrId,
+            field_diff_summary: {
+              source,
+              attempt: i,
+              max_attempts: attempts,
+              payload_field_names: Object.keys(fullEditData).sort(),
+            },
+            error_text: lastAttach.error || lastVerify?.errText || `employee-id ${reservedEmployeeId} not visible yet`,
+            actor_user_id: authed.userId,
+          });
+
+          if (i < attempts) {
+            // Opfin often accepts people:create immediately but its email-keyed
+            // people:edit index lags for a few seconds. Keep the finalization
+            // request alive and repair automatically instead of sending HR into
+            // a manual retry loop.
+            await new Promise((resolve) => setTimeout(resolve, Math.min(1500 * i, 8000)));
+          }
+        }
+        return { attach: lastAttach, verify: lastVerify };
       };
 
       const pushCompleteRazorpayDetails = async (rpEmployeeId: string, source: string) => {
@@ -5846,11 +5907,10 @@ Deno.serve(async (req) => {
         const rpMsg = extracted.message;
         if (rpCode === 7 || /email already exists/i.test(rpMsg)) {
           if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            const attach = await attachReservedEmployeeIdByEmail(String(createData.email || ""), reservedEmployeeId, fullEditData);
-            const verifyAttached = await opfinView(Number(reservedEmployeeId), "employee");
+            const { attach, verify: verifyAttached } = await retryAttachReservedEmployeeId("email_exists_auto_attach_by_email", 8);
             const erpEmail = String(createData.email || "").trim().toLowerCase();
-            const rpEmail = String(verifyAttached.body?.email || verifyAttached.body?.work_email || "").trim().toLowerCase();
-            if (attach.ok && verifyAttached.ok && rpEmail && rpEmail === erpEmail) {
+            const rpEmail = String(verifyAttached?.body?.email || verifyAttached?.body?.work_email || "").trim().toLowerCase();
+            if (attach.ok && verifyAttached?.ok && rpEmail && rpEmail === erpEmail) {
               const snapshot = { ...(verifyAttached.body || fullEditData), _recovered_by: "email_keyed_people_edit" };
               const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snapshot, "created_via_erp");
               if (!repairErr) {
@@ -5873,21 +5933,21 @@ Deno.serve(async (req) => {
               }
               return json(200, {
                 ok: false,
-                http_status: verifyAttached.status,
+                http_status: verifyAttached?.status || attach.status,
                 code: "RAZORPAY_EMAIL_EXISTS_MAPPING_CONFLICT",
                 error: `RazorpayX employee was auto-recovered and Employee ID ${reservedEmployeeId} verified, but ERP mapping repair failed: ${repairErr.message}`,
                 razorpay_employee_id: reservedEmployeeId,
-                body: verifyAttached.body,
+                body: verifyAttached?.body,
               });
             }
 
             await logSync(svc, {
               action: "create_person",
-              http_status: attach.status || verifyAttached.status || httpStatus,
+              http_status: attach.status || verifyAttached?.status || httpStatus,
               razorpay_employee_id: reservedEmployeeId,
               hr_employee_id: hrId,
               field_diff_summary: { source: "email_exists_auto_attach_by_email_failed", payload_field_names: Object.keys(fullEditData).sort() },
-              error_text: attach.error || `verification failed for employee-id ${reservedEmployeeId}`,
+              error_text: attach.error || verifyAttached?.errText || `verification failed for employee-id ${reservedEmployeeId}`,
               actor_user_id: authed.userId,
             });
           }
@@ -5934,12 +5994,29 @@ Deno.serve(async (req) => {
             recovery_action: "reset_local_id_after_deleted_partial",
             people_id: existingPeopleId,
             error: existingPeopleId
-              ? `RazorpayX still reports this email as existing, but ERP could not auto-attach the reserved Employee ID by API. Delete the partial RazorpayX employee, then use Reset local ID and reserve again.`
-              : `RazorpayX still reports this email as existing, but ERP could not find or auto-repair that employee by API. Delete the partial RazorpayX employee, then use Reset local ID and reserve again.`,
+              ? `RazorpayX still reports this email as existing, but the Payroll API cannot edit or read it. This is a Razorpay-side ghost/pending invite state, not an ERP retry issue. Use a different employee email/alias for this onboarding, or ask Razorpay to purge the hidden invite for this email before reserving a fresh ID.`
+              : `RazorpayX still reports this email as existing, but the Payroll API cannot find, edit, or auto-repair that employee. This is a Razorpay-side ghost/pending invite state, not an ERP retry issue. Use a different employee email/alias for this onboarding, or ask Razorpay to purge the hidden invite for this email before reserving a fresh ID.`,
             body: bodyOut,
           });
         }
         return json(errText ? 502 : 500, { ok: false, http_status: httpStatus, error: errText || "no_id_returned", body: bodyOut });
+      }
+
+      if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId) && rpId === reservedEmployeeId) {
+        const { attach, verify } = await retryAttachReservedEmployeeId("fresh_create_attach_reserved_id", 8);
+        const erpEmail = String(createData.email || "").trim().toLowerCase();
+        const rpEmail = String(verify?.body?.email || verify?.body?.work_email || "").trim().toLowerCase();
+        if (!attach.ok || !verify?.ok || !rpEmail || rpEmail !== erpEmail) {
+          return json(200, {
+            ok: false,
+            code: "RAZORPAY_ATTACH_AFTER_CREATE_PENDING",
+            http_status: attach.status || verify?.status || httpStatus,
+            razorpay_employee_id: reservedEmployeeId,
+            people_id: bodyOut?._people_id || undefined,
+            error: `RazorpayX created the employee, but Employee ID ${reservedEmployeeId} could not be attached/verified after automatic retries: ${attach.error || verify?.errText || "verification pending"}. The ERP will not complete onboarding from this partial state. Delete/purge the partial RazorpayX invite or use a different email, then reset the local ID and reserve again.`,
+            body: verify?.body || attach.body || bodyOut,
+          });
+        }
       }
 
       // Wire up the map — baseline snapshot equals outbound payload so future

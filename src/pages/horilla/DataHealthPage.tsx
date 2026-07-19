@@ -292,7 +292,37 @@ export default function DataHealthPage() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Statutory drift rollup — Razorpay filing toggles vs actual payslip amounts */}
+      {statutoryDrift.count > 0 && (
+        <div className="rounded-xl border border-warning/40 bg-warning/5 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <span className="text-sm font-medium text-foreground">
+                  Statutory filing drift — {statutoryDrift.count} mismatch{statutoryDrift.count === 1 ? "" : "es"} across {statutoryDrift.employees} employee{statutoryDrift.employees === 1 ? "" : "s"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Imported Razorpay payslips show amounts for TDS / PF / ESI / PT while the compliance mirror says Razorpay isn't filing them — you must remit those manually or enable the filing in Compliance Settings.
+              </p>
+              <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
+                {statutoryDrift.samples.slice(0, 3).map((s: any) => (
+                  <li key={s.id}>
+                    <span className="font-mono">{s.period_month}</span> · {s.msgs[0]}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Link
+              to="/hrms/payroll/compliance-settings"
+              className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-warning/10 whitespace-nowrap"
+            >
+              Review Compliance
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <select

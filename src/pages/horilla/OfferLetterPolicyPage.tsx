@@ -185,6 +185,9 @@ export default function OfferLetterPolicyPage() {
           )}
         </div>
       </div>
+      {/* Path A doctrine toggle (lives on hr_razorpay_settings) */}
+      <PathADoctrineCard />
+
 
       {/* Clause 6a — training salary */}
       <Card>

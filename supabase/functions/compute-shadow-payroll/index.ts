@@ -432,7 +432,10 @@ Deno.serve(async (req) => {
       computed_count: employees?.length ?? 0,
       total_gross: totalGross,
       total_net: totalNet,
+      input_completeness: inputCompleteness,
+      readiness_tier: readinessTier,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   } catch (e) {
     console.error("compute-shadow-payroll error", e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {

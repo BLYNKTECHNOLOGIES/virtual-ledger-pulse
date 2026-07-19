@@ -6980,6 +6980,7 @@ export type Database = {
           salary_template_id: string | null
           separation_reason: string | null
           state: string | null
+          statutory_flags_source: string | null
           termination_date: string | null
           total_salary: number | null
           uan_number: string | null
@@ -7029,6 +7030,7 @@ export type Database = {
           salary_template_id?: string | null
           separation_reason?: string | null
           state?: string | null
+          statutory_flags_source?: string | null
           termination_date?: string | null
           total_salary?: number | null
           uan_number?: string | null
@@ -7078,6 +7080,7 @@ export type Database = {
           salary_template_id?: string | null
           separation_reason?: string | null
           state?: string | null
+          statutory_flags_source?: string | null
           termination_date?: string | null
           total_salary?: number | null
           uan_number?: string | null
@@ -11472,11 +11475,13 @@ export type Database = {
           computed_by: string | null
           created_at: string
           id: string
+          include_tds_in_drift: boolean
           input_completeness: Json
           notes: string | null
           period_month: string
           readiness_tier: string
           run_no: number
+          skipped_lines: Json
           status: string
           total_employees: number
           total_razorpay_gross: number | null
@@ -11490,11 +11495,13 @@ export type Database = {
           computed_by?: string | null
           created_at?: string
           id?: string
+          include_tds_in_drift?: boolean
           input_completeness?: Json
           notes?: string | null
           period_month: string
           readiness_tier?: string
           run_no?: number
+          skipped_lines?: Json
           status?: string
           total_employees?: number
           total_razorpay_gross?: number | null
@@ -11508,11 +11515,13 @@ export type Database = {
           computed_by?: string | null
           created_at?: string
           id?: string
+          include_tds_in_drift?: boolean
           input_completeness?: Json
           notes?: string | null
           period_month?: string
           readiness_tier?: string
           run_no?: number
+          skipped_lines?: Json
           status?: string
           total_employees?: number
           total_razorpay_gross?: number | null

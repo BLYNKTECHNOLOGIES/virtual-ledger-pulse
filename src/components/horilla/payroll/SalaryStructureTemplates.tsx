@@ -242,6 +242,15 @@ export default function SalaryStructureTemplates() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-primary hidden sm:inline-flex"
+                        title="Push to RazorpayX"
+                        onClick={(e) => { e.stopPropagation(); setPushTarget({ id: t.id, name: t.name }); }}
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(t); }}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -250,6 +259,7 @@ export default function SalaryStructureTemplates() {
                       </Button>
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                     </div>
+
                   </div>
 
                   {isExpanded && (

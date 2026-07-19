@@ -482,6 +482,7 @@ export default function EmployeeProfilePage() {
         joining_date: workInfoForm.joining_date || null,
         contract_end_date: workInfoForm.contract_end_date || null,
         experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
+        level_band: workInfoForm.level_band || null,
       };
 
       if (workInfo?.id) {
@@ -567,6 +568,7 @@ export default function EmployeeProfilePage() {
       joining_date: workInfo?.joining_date || "",
       contract_end_date: workInfo?.contract_end_date || "",
       experience_years: workInfo?.experience_years?.toString() || "",
+      level_band: (workInfo as any)?.level_band || "",
     });
     setEditingWorkInfo(true);
   };
@@ -981,8 +983,16 @@ export default function EmployeeProfilePage() {
                     <label className="text-xs text-muted-foreground block mb-1">Experience (years)</label>
                     <input type="number" value={workInfoForm.experience_years || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, experience_years: e.target.value })} className={inputCls} />
                   </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Level Band (drives training-period pay)</label>
+                    <select value={workInfoForm.level_band || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, level_band: e.target.value })} className={inputCls}>
+                      <option value="">— Not set —</option>
+                      {["L1","L2","L3","L4","L5","L6","L7","L8"].map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
+
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -1024,6 +1034,7 @@ export default function EmployeeProfilePage() {
                       </div>
                     </div>
                     <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Level Band</p><p className="text-sm text-foreground">{(workInfo as any)?.level_band || "None"}</p></div>
                   </div>
                 </div>
               </>

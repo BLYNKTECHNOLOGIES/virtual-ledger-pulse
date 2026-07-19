@@ -6583,6 +6583,7 @@ export type Database = {
           razorpay_employee_id: number | null
           razorpay_status_code: number | null
           reason: string | null
+          structure_kind: string
           template_id: string | null
           template_name: string | null
         }
@@ -6600,6 +6601,7 @@ export type Database = {
           razorpay_employee_id?: number | null
           razorpay_status_code?: number | null
           reason?: string | null
+          structure_kind?: string
           template_id?: string | null
           template_name?: string | null
         }
@@ -6617,6 +6619,7 @@ export type Database = {
           razorpay_employee_id?: number | null
           razorpay_status_code?: number | null
           reason?: string | null
+          structure_kind?: string
           template_id?: string | null
           template_name?: string | null
         }
@@ -6867,10 +6870,14 @@ export type Database = {
           level_band: string | null
           location: string | null
           probation_end_date: string | null
+          real_structure_pushed_at: string | null
+          real_structure_template_id: string | null
           reporting_manager_id: string | null
           salary_per_hour: number | null
           shift_id: string | null
           tags: string[] | null
+          training_structure_pushed_at: string | null
+          training_swap_scheduled_for: string | null
           updated_at: string
           work_email: string | null
           work_phone: string | null
@@ -6896,10 +6903,14 @@ export type Database = {
           level_band?: string | null
           location?: string | null
           probation_end_date?: string | null
+          real_structure_pushed_at?: string | null
+          real_structure_template_id?: string | null
           reporting_manager_id?: string | null
           salary_per_hour?: number | null
           shift_id?: string | null
           tags?: string[] | null
+          training_structure_pushed_at?: string | null
+          training_swap_scheduled_for?: string | null
           updated_at?: string
           work_email?: string | null
           work_phone?: string | null
@@ -6925,10 +6936,14 @@ export type Database = {
           level_band?: string | null
           location?: string | null
           probation_end_date?: string | null
+          real_structure_pushed_at?: string | null
+          real_structure_template_id?: string | null
           reporting_manager_id?: string | null
           salary_per_hour?: number | null
           shift_id?: string | null
           tags?: string[] | null
+          training_structure_pushed_at?: string | null
+          training_swap_scheduled_for?: string | null
           updated_at?: string
           work_email?: string | null
           work_phone?: string | null
@@ -10541,6 +10556,9 @@ export type Database = {
           ledger_recon_signoff_locked: boolean
           lop_auto_add_for_unpaid: boolean
           lop_calc_on_working_days: boolean
+          path_a_enabled_at: string | null
+          path_a_enabled_by: string | null
+          path_a_structure_swap_enabled: boolean
           pf_include_admin_edli_in_ctc: boolean
           pf_include_employer_in_ctc: boolean
           pf_wage_cap_15000: boolean
@@ -10649,6 +10667,9 @@ export type Database = {
           ledger_recon_signoff_locked?: boolean
           lop_auto_add_for_unpaid?: boolean
           lop_calc_on_working_days?: boolean
+          path_a_enabled_at?: string | null
+          path_a_enabled_by?: string | null
+          path_a_structure_swap_enabled?: boolean
           pf_include_admin_edli_in_ctc?: boolean
           pf_include_employer_in_ctc?: boolean
           pf_wage_cap_15000?: boolean
@@ -10757,6 +10778,9 @@ export type Database = {
           ledger_recon_signoff_locked?: boolean
           lop_auto_add_for_unpaid?: boolean
           lop_calc_on_working_days?: boolean
+          path_a_enabled_at?: string | null
+          path_a_enabled_by?: string | null
+          path_a_structure_swap_enabled?: boolean
           pf_include_admin_edli_in_ctc?: boolean
           pf_include_employer_in_ctc?: boolean
           pf_wage_cap_15000?: boolean
@@ -11611,6 +11635,7 @@ export type Database = {
           computed_at: string | null
           computed_by: string | null
           created_at: string
+          expected_swap_events: Json
           id: string
           include_tds_in_drift: boolean
           input_completeness: Json
@@ -11631,6 +11656,7 @@ export type Database = {
           computed_at?: string | null
           computed_by?: string | null
           created_at?: string
+          expected_swap_events?: Json
           id?: string
           include_tds_in_drift?: boolean
           input_completeness?: Json
@@ -11651,6 +11677,7 @@ export type Database = {
           computed_at?: string | null
           computed_by?: string | null
           created_at?: string
+          expected_swap_events?: Json
           id?: string
           include_tds_in_drift?: boolean
           input_completeness?: Json
@@ -21358,6 +21385,16 @@ export type Database = {
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string
+      }
+      hr_pending_training_swaps: {
+        Args: never
+        Returns: {
+          employee_id: string
+          joining_date: string
+          level_band: string
+          swap_due: string
+          training_period_months: number
+        }[]
       }
       hr_pull_observed_salary: {
         Args: { p_hr_employee_id: string }

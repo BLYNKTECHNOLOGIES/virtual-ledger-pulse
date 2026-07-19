@@ -200,9 +200,9 @@ export function BulkCompletionPanel() {
           </p>
         </div>
         <Button asChild size="sm" variant="outline">
-          <Link to="/hrms/payroll/salary-structure">
-            <ExternalLink className="h-3.5 w-3.5 mr-1" /> Manage Templates
-          </Link>
+          <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">
+            <ExternalLink className="h-3.5 w-3.5 mr-1" /> Structures on RazorpayX
+          </a>
         </Button>
       </CardHeader>
 

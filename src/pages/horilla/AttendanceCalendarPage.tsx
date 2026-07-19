@@ -16,6 +16,7 @@ import { ChevronLeft, ChevronRight, Search, Users, Calendar } from "lucide-react
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
 
 const STATUS_COLORS: Record<string, string> = {
   present: "bg-success",

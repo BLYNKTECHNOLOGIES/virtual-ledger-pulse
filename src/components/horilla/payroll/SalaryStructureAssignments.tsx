@@ -152,6 +152,7 @@ export default function SalaryStructureAssignments() {
                       <Button size="sm" variant="outline" onClick={() => openAssign(emp)}>
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Assign
                       </Button>
+                      <SalaryDriftChip employeeId={emp.id} />
                     </div>
                   </div>
 

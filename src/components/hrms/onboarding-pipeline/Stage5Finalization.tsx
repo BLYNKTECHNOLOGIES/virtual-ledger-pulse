@@ -100,14 +100,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     setResettingRpId(true);
     const t = toast.loading("Resetting local RazorpayX reservation…");
     try {
-      const { error } = await supabase
-        .from("hr_employee_onboarding")
-        .update({
-          essl_badge_id: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", onboardingRecord.id);
+      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: {
+          action: "reset_onboarding_razorpay_reservation",
+          onboarding_id: onboardingRecord.id,
+        },
+      });
       if (error) throw error;
+      const payload = (data || {}) as any;
+      if (!payload.ok) throw new Error(payload.error || "Reset failed");
 
       setReservedRpId(null);
       setForm(p => ({ ...p, essl_badge_id: "", create_in_razorpay: false }));

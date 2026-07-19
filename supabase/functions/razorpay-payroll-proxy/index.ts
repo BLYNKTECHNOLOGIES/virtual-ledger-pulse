@@ -4076,24 +4076,50 @@ Deno.serve(async (req) => {
       async function reflectOne(periodISO: string) {
         const { data: shadow, error: shErr } = await svc
           .from("hr_razorpay_payslip_records")
-          .select("hr_employee_id,gross_earnings,total_deductions,net_pay,tds_amount,pdf_url,razorpay_payslip_id,period_month")
+          .select("hr_employee_id,gross_earnings,total_deductions,net_pay,tds_amount,pdf_url,razorpay_payslip_id,period_month,pf_amount,esi_amount,professional_tax,deduction_amount,additions_detail,source_payload")
           .eq("period_month", periodISO)
           .not("hr_employee_id", "is", null);
         if (shErr) throw new Error(`shadow load failed: ${shErr.message}`);
         const rows = shadow || [];
         if (!rows.length) return { reflected: 0, withPdf: 0, missingMap: 0 };
 
-        // Count unmapped shadow rows too (for reporting).
         const { count: unmappedCount } = await svc
           .from("hr_razorpay_payslip_records")
           .select("razorpay_employee_id", { count: "exact", head: true })
           .eq("period_month", periodISO)
           .is("hr_employee_id", null);
 
+        const toMoneyMap = (obj: any): Record<string, number> | null => {
+          if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+          const out: Record<string, number> = {};
+          for (const [k, v] of Object.entries(obj)) {
+            if (v == null) continue;
+            if (typeof v === "number" && isFinite(v)) { out[k] = Number(v); continue; }
+            if (typeof v === "object" && v !== null && "amount" in (v as any)) {
+              const n = Number((v as any).amount);
+              if (isFinite(n)) out[k] = n;
+              continue;
+            }
+            const n = Number(v as any);
+            if (isFinite(n)) out[k] = n;
+          }
+          return Object.keys(out).length ? out : null;
+        };
+
         const inserts = rows.map((r: any) => {
           const gross = Number(r.gross_earnings || 0);
           const ded = Number(r.total_deductions || 0);
           const net = Number(r.net_pay || 0);
+          const resp = r?.source_payload?.response || {};
+          // Earnings breakdown = { salary, arrears, ...additions }
+          const earnings: Record<string, number> = {};
+          const salaryN = Number(resp?.salary);
+          if (isFinite(salaryN) && salaryN) earnings["Salary"] = salaryN;
+          const arrearsN = Number(resp?.arrears);
+          if (isFinite(arrearsN) && arrearsN) earnings["Arrears"] = arrearsN;
+          const addsMap = toMoneyMap(r?.additions_detail || resp?.additions);
+          if (addsMap) Object.assign(earnings, addsMap);
+          const dedMap = toMoneyMap(resp?.deductions);
           return {
             employee_id: r.hr_employee_id,
             payroll_run_id: null,
@@ -4106,8 +4132,11 @@ Deno.serve(async (req) => {
             total_deductions: ded,
             net_salary: net,
             tds_amount: Number(r.tds_amount || 0),
-            earnings_breakdown: null,
-            deductions_breakdown: null,
+            pf_amount: r.pf_amount,
+            esi_amount: r.esi_amount,
+            professional_tax: r.professional_tax,
+            earnings_breakdown: Object.keys(earnings).length ? earnings : null,
+            deductions_breakdown: dedMap,
             status: "imported",
           };
         });
@@ -4124,6 +4153,7 @@ Deno.serve(async (req) => {
         }
         return { reflected, withPdf, missingMap: unmappedCount || 0 };
       }
+
 
       if (action === "reflect_payslip_period") {
         const pm = String(payload?.period_month || "").trim();

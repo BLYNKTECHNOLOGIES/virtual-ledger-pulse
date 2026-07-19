@@ -5647,21 +5647,57 @@ Deno.serve(async (req) => {
           if (employeeIdEchoStr && employeeIdEchoStr !== "0") {
             rpId = employeeIdEchoStr;
           } else if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
-            const attach = await attachReservedEmployeeIdByEmail(String((outboundData as any).email || ""), reservedEmployeeId);
+            // Prefer attach-by-people-id (we just got it from create). RazorpayX's
+            // email index lags a few seconds for freshly-created invites, which
+            // is why attach-by-email throws "Unable to locate the user" (code 8).
+            let attachErrMsg: string | null = null;
+            if (attachedPeopleId && /^\d+$/.test(attachedPeopleId)) {
+              try {
+                const r = await fetch(`${BASE}/people`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Accept: "application/json" },
+                  body: JSON.stringify({
+                    auth: authBlock(),
+                    request: { type: "people", "sub-type": "edit" },
+                    data: {
+                      "people-id": Number(attachedPeopleId),
+                      "employee-id": Number(reservedEmployeeId),
+                      "employee-type": "employee",
+                    },
+                  }),
+                });
+                const raw = await r.text();
+                let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
+                const rpErr = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
+                if (!r.ok || rpErr) {
+                  attachErrMsg = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${r.status}`);
+                }
+              } catch (e) {
+                attachErrMsg = `NETWORK: ${(e as Error).message}`;
+              }
+            } else {
+              attachErrMsg = "no people-id returned from create";
+            }
 
-            // Verify by reading back — this is the only source of truth we trust.
+            // Fallback: retry via email after a short delay to let the index catch up.
+            if (attachErrMsg) {
+              await new Promise((res) => setTimeout(res, 1500));
+              const attach = await attachReservedEmployeeIdByEmail(String((outboundData as any).email || ""), reservedEmployeeId);
+              if (attach.ok) attachErrMsg = null;
+              else attachErrMsg = attach.error || attachErrMsg;
+            }
+
             const verify = await opfinView(Number(reservedEmployeeId), "employee");
             if (verify.ok) {
               rpId = reservedEmployeeId;
-              // stash people-id in the snapshot for future recovery paths
               (outboundData as any)._people_id = attachedPeopleId;
             } else {
-              errText = attach.error
-                ? `Razorpay created the employee but automatic Employee ID attach by email failed: ${attach.error}. Reset the local ID and retry after deleting the partial Razorpay employee.`
-                : `Razorpay created the employee but the reserved employee-id ${reservedEmployeeId} could not be verified after automatic attach. Reset the local ID and retry after deleting the partial Razorpay employee.`;
-              // Keep people-id only as diagnostic data; UI should not ask the operator to use it.
+              errText = attachErrMsg
+                ? `Razorpay created the employee (people-id ${attachedPeopleId ?? "?"}) but automatic Employee ID attach failed: ${attachErrMsg}. Recovery will retry.`
+                : `Razorpay created the employee but the reserved employee-id ${reservedEmployeeId} could not be verified after automatic attach.`;
               (bodyOut as any) = { ...(bodyOut || {}), _people_id: attachedPeopleId, _reserved_employee_id: reservedEmployeeId };
             }
+
           } else {
             // Fallback for legacy shapes: try id/data.id.
             const cand = respData?.id ?? bodyOut?.id ?? null;

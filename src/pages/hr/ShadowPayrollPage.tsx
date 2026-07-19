@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { SourceTag } from "@/components/hr/payroll/SourceTag";
 import { ShadowReadinessPanel } from "@/components/hr/payroll/ShadowReadinessPanel";
 import { useShadowReadiness } from "@/hooks/hrms/useShadowReadiness";
+import { cn } from "@/lib/utils";
 
 type Line = {
   id: string;

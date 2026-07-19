@@ -1058,6 +1058,87 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---------- attach_employee_id_by_people_id ----------
+    // Repair path for records that were created in Razorpay but lost their
+    // reserved employee-id (the "-NA-" limbo state). Operator copies the
+    // internal `people-id` from the RazorpayX dashboard URL, ERP calls
+    // people:edit to attach the badge_id, verifies email match, then maps.
+    if (action === "attach_employee_id_by_people_id") {
+      const hrId = payload?.hr_employee_id ? String(payload.hr_employee_id) : "";
+      const peopleId = Number(payload?.people_id);
+      if (!hrId) return json(400, { error: "hr_employee_id required" });
+      if (!Number.isFinite(peopleId) || peopleId < 1) return json(400, { error: "people_id required" });
+
+      const { data: emp, error: empErr } = await svc
+        .from("hr_employees")
+        .select("id,email,badge_id")
+        .eq("id", hrId)
+        .maybeSingle();
+      if (empErr) return json(500, { error: empErr.message });
+      if (!emp?.email) return json(400, { error: "ERP employee email missing" });
+      const desiredEid = Number(payload?.desired_employee_id ?? emp.badge_id);
+      if (!Number.isFinite(desiredEid) || desiredEid < 1) {
+        return json(400, { error: "desired_employee_id (or hr_employees.badge_id) required" });
+      }
+
+      // Attach employee-id via people:edit.
+      let attachStatus = 0; let attachErr: string | null = null;
+      try {
+        const r = await fetch(`${BASE}/people`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type: "people", "sub-type": "edit" },
+            data: { "people-id": peopleId, "employee-id": desiredEid, "employee-type": "employee" },
+          }),
+        });
+        attachStatus = r.status;
+        const raw = await r.text();
+        let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
+        const rpErr = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
+        if (!r.ok || rpErr) attachErr = typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${r.status}`);
+      } catch (e) {
+        attachErr = `NETWORK: ${(e as Error).message}`;
+      }
+      if (attachErr) {
+        return json(200, { ok: false, code: "RAZORPAY_ATTACH_FAILED", error: `Attaching employee-id ${desiredEid} to people-id ${peopleId} failed: ${attachErr}`, http_status: attachStatus });
+      }
+
+      // Verify by reading back with the newly attached employee-id.
+      const v = await opfinView(desiredEid, "employee");
+      if (!v.ok) {
+        return json(200, { ok: false, code: "RAZORPAY_ATTACH_UNVERIFIED", error: `Razorpay accepted the attach for people-id ${peopleId} → employee-id ${desiredEid}, but a follow-up people:view could not confirm it.`, http_status: v.status });
+      }
+      const erpEmail = String(emp.email || "").trim().toLowerCase();
+      const rpEmail = String(v.body?.email || v.body?.work_email || "").trim().toLowerCase();
+      if (!rpEmail || rpEmail !== erpEmail) {
+        return json(200, { ok: false, code: "RAZORPAY_EMAIL_MISMATCH", error: `people-id ${peopleId} belongs to a different email (${rpEmail || "unknown"}). Refusing to link.`, http_status: v.status });
+      }
+
+      try {
+        await upsertMap(svc, String(desiredEid), hrId, false, false);
+        const snapshot = { ...(v.body || {}), _people_id: String(peopleId) };
+        await svc.from("hr_razorpay_employee_map").update({
+          last_pull_snapshot: snapshot,
+          last_pulled_at: new Date().toISOString(),
+          last_payload_hash: await canonicalHash(snapshot),
+        }).eq("hr_employee_id", hrId);
+        await logSync(svc, {
+          action: "create_person_recovered_existing",
+          http_status: v.status,
+          razorpay_employee_id: String(desiredEid),
+          hr_employee_id: hrId,
+          field_diff_summary: { source: "attach_employee_id_by_people_id", people_id: String(peopleId), field_names: fieldNames(v.body) },
+          error_text: null,
+          actor_user_id: authed.userId,
+        });
+        return json(200, { ok: true, razorpay_employee_id: String(desiredEid), people_id: String(peopleId), attached: true, http_status: v.status });
+      } catch (e) {
+        return json(200, { ok: false, code: "RAZORPAY_MAPPING_REPAIR_FAILED", error: (e as Error).message, http_status: v.status });
+      }
+    }
+
     // ---------- apply_one: pilot write (unlocks bulk on success) ----------
     if (action === "apply_one") {
       const eid = Number(payload?.employee_id);
@@ -5271,10 +5352,75 @@ Deno.serve(async (req) => {
           const extracted = extractRazorpayError(bodyOut, rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
           errText = extracted.message || (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`);
         } else {
-          // Extract new employee id from common response shapes.
-          const cand = bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? bodyOut?.id ?? bodyOut?.data?.["employee-id"] ?? bodyOut?.data?.id ?? reservedEmployeeId;
-          rpId = cand !== undefined && cand !== null ? String(cand) : null;
-          if (!rpId) errText = "Razorpay accepted the request but returned no employee-id";
+          // RazorpayX Payroll (Opfin) — on `people:create` the response reliably
+          // carries the internal `people-id`, but the caller-supplied
+          // `employee-id` is optional metadata that is NOT echoed and NOT
+          // auto-attached on invite-flow accounts. Result: the employee exists
+          // in Razorpay under a `people-id` but the dashboard shows Employee ID
+          // = "-NA-" and every subsequent `people:view` by our reserved id
+          // returns 404. To repair this within the same request, we:
+          //   1. Extract people-id from the response.
+          //   2. If our reserved employee-id was not echoed, call `people:edit`
+          //      with { "people-id": <internal>, "employee-id": <reserved> } to
+          //      attach the unified id.
+          //   3. Verify via people:view(employee-id) before treating as success.
+          const respData = (bodyOut?.data && typeof bodyOut.data === "object") ? bodyOut.data : bodyOut;
+          const peopleIdRaw = respData?.["people-id"] ?? respData?.people_id ?? bodyOut?.["people-id"] ?? bodyOut?.people_id ?? null;
+          const employeeIdEcho = respData?.["employee-id"] ?? respData?.employee_id ?? bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? null;
+
+          let attachedPeopleId: string | null = peopleIdRaw != null ? String(peopleIdRaw) : null;
+
+          if (employeeIdEcho != null) {
+            rpId = String(employeeIdEcho);
+          } else if (attachedPeopleId && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+            // Attach the reserved employee-id onto the freshly created people record.
+            let attachErr: string | null = null;
+            try {
+              const attachRes = await fetch(`${BASE}/people`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({
+                  auth: authBlock(),
+                  request: { type: "people", "sub-type": "edit" },
+                  data: {
+                    "people-id": Number(attachedPeopleId),
+                    "employee-id": Number(reservedEmployeeId),
+                    "employee-type": "employee",
+                  },
+                }),
+              });
+              const attachRaw = await attachRes.text();
+              let attachBody: any = null;
+              try { attachBody = JSON.parse(attachRaw); } catch { attachBody = { raw: attachRaw.slice(0, 400) }; }
+              const attachRpErr = attachBody && typeof attachBody === "object" ? (attachBody.error ?? attachBody.message ?? null) : null;
+              if (!attachRes.ok || attachRpErr) {
+                attachErr = typeof attachRpErr === "string" ? attachRpErr : (attachRpErr ? JSON.stringify(attachRpErr) : `HTTP ${attachRes.status}`);
+              }
+            } catch (e) {
+              attachErr = `NETWORK: ${(e as Error).message}`;
+            }
+
+            // Verify by reading back — this is the only source of truth we trust.
+            const verify = await opfinView(Number(reservedEmployeeId), "employee");
+            if (verify.ok) {
+              rpId = reservedEmployeeId;
+              // stash people-id in the snapshot for future recovery paths
+              (outboundData as any)._people_id = attachedPeopleId;
+            } else {
+              errText = attachErr
+                ? `Razorpay created the employee (people-id ${attachedPeopleId}) but attaching employee-id ${reservedEmployeeId} failed: ${attachErr}. Open RazorpayX, find this employee, and set the Employee ID field to ${reservedEmployeeId} — or use the "Attach by people-id" recovery in Stage 5.`
+                : `Razorpay created the employee (people-id ${attachedPeopleId}) but the reserved employee-id ${reservedEmployeeId} could not be verified after attach. Use the "Attach by people-id" recovery in Stage 5.`;
+              // Surface people-id to the client so the recovery UI can pre-fill it.
+              (bodyOut as any) = { ...(bodyOut || {}), _people_id: attachedPeopleId, _reserved_employee_id: reservedEmployeeId };
+            }
+          } else {
+            // Fallback for legacy shapes: try id/data.id.
+            const cand = respData?.id ?? bodyOut?.id ?? null;
+            rpId = cand != null ? String(cand) : null;
+            if (!rpId) {
+              errText = "Razorpay accepted the request but returned no people-id or employee-id";
+            }
+          }
         }
       } catch (e) {
         errText = `NETWORK: ${(e as Error).message}`;

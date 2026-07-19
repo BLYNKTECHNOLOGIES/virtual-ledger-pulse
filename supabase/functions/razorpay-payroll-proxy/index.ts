@@ -5524,7 +5524,129 @@ Deno.serve(async (req) => {
         });
       }
 
-      return json(200, { ok: true, razorpay_employee_id: rpId, http_status: httpStatus });
+      // ---- FULL-DETAILS ENRICHMENT (invite-flow → complete record) ----------
+      // Razorpay's `people:create` only persists name / email / date-of-joining
+      // even when additional fields are supplied. Everything else (PAN, phone,
+      // DOB, gender, department, title, bank details, annual CTC) has to be
+      // written via follow-up sub-types. We do that here so operators using
+      // the "create complete employee" path in Stage 5 don't have to open the
+      // Razorpay dashboard to finish the record by hand.
+      //
+      // Failures here do NOT reverse the create — the map already exists and
+      // is idempotent. Individual step errors are surfaced as `warnings` so
+      // the wizard can show which fields still need manual attention.
+      const enrichWarnings: string[] = [];
+      const enrichmentApplied: string[] = [];
+      const rpIdNumFinal = Number(rpId);
+
+      const opfinCall = async (
+        urlPath: string,
+        bodyType: string,
+        subType: string,
+        data: Record<string, any>,
+      ): Promise<{ ok: boolean; status: number; error: string | null; body: any }> => {
+        const c = new AbortController();
+        const to = setTimeout(() => c.abort(), 20000);
+        try {
+          const r = await fetch(`${BASE}/${urlPath}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: bodyType, "sub-type": subType },
+              data,
+            }),
+            signal: c.signal,
+          });
+          const raw = await r.text();
+          let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
+          const rpErr = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
+          const ok = r.ok && !rpErr;
+          const err = ok ? null : (typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${r.status}`));
+          return { ok, status: r.status, error: err, body: b };
+        } catch (e) {
+          return { ok: false, status: 0, error: `NETWORK: ${(e as Error).message}`, body: null };
+        } finally { clearTimeout(to); }
+      };
+
+      // 1) people:edit — push identity + employment + bank in a single call.
+      //    Razorpay accepts bank-account-number / bank-ifsc / bank-account-holder-name
+      //    on the same edit envelope used by Phase-4 push_bank.
+      const editData: Record<string, any> = {
+        "employee-id": rpIdNumFinal,
+        "employee-type": "employee",
+        pan,
+        "phone-number": normPhone(emp.phone),
+        gender: emp.gender ? String(emp.gender).toLowerCase() : null,
+        "date-of-birth": dobRp,
+        department: deptName,
+        title: wi!.job_role,
+        "bank-account-number": bank!.account_number,
+        "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
+        "bank-account-holder-name": accountHolder,
+      };
+      for (const k of Object.keys(editData)) {
+        if (editData[k] === null || editData[k] === "" || editData[k] === undefined) delete editData[k];
+      }
+      const editRes = await opfinCall("people", "people", "edit", editData);
+      await logSync(svc, {
+        action: "create_person_enrich_edit",
+        http_status: editRes.status,
+        razorpay_employee_id: rpId,
+        hr_employee_id: hrId,
+        field_diff_summary: { fields: Object.keys(editData).sort() },
+        error_text: editRes.ok ? null : editRes.error,
+        actor_user_id: authed.userId,
+      });
+      if (editRes.ok) {
+        enrichmentApplied.push("identity_bank");
+      } else {
+        enrichWarnings.push(`Identity/bank details push failed: ${editRes.error}`);
+      }
+
+      // 2) people:set-salary — annual CTC. Uses the same envelope as
+      //    push_salary_from_template but is not gated behind Path-A because
+      //    this is the record's initial salary, not a template swap.
+      const salaryRes = await opfinCall("people", "people", "set-salary", {
+        "employee-id": rpIdNumFinal,
+        "employee-type": "employee",
+        salary: { "ctc-annual": ctcAnnual },
+      });
+      await logSync(svc, {
+        action: "create_person_enrich_salary",
+        http_status: salaryRes.status,
+        razorpay_employee_id: rpId,
+        hr_employee_id: hrId,
+        field_diff_summary: { annual_ctc: ctcAnnual },
+        error_text: salaryRes.ok ? null : salaryRes.error,
+        actor_user_id: authed.userId,
+      });
+      if (salaryRes.ok) {
+        enrichmentApplied.push("annual_ctc");
+      } else {
+        enrichWarnings.push(`Annual CTC push failed: ${salaryRes.error}`);
+      }
+
+      // Refresh the baseline snapshot from Razorpay so subsequent diff-based
+      // pushes (Phase 3/4) start clean and don't re-attempt fields we just set.
+      try {
+        const verify = await opfinView(rpIdNumFinal, "employee");
+        if (verify.ok && verify.body) {
+          await svc.from("hr_razorpay_employee_map")
+            .update({ last_pull_snapshot: verify.body, last_synced_at: new Date().toISOString() })
+            .eq("razorpay_employee_id", rpId);
+        }
+      } catch (_e) {
+        // non-fatal
+      }
+
+      return json(200, {
+        ok: true,
+        razorpay_employee_id: rpId,
+        http_status: httpStatus,
+        enrichment_applied: enrichmentApplied,
+        warnings: enrichWarnings.length ? enrichWarnings : undefined,
+      });
     }
 
     // ---------------------------------------------------------------------

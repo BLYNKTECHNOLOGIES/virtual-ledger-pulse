@@ -498,13 +498,26 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           });
           if (rpErr) throw new Error(await getFunctionErrorMessage(rpErr, "Razorpay create failed"));
           if (rpRes?.ok === false) {
+            const responsePeopleId = rpRes?.people_id
+              ?? rpRes?.body?._people_id
+              ?? rpRes?.body?.["people-id"]
+              ?? rpRes?.body?.people_id
+              ?? rpRes?.body?.data?.["people-id"]
+              ?? rpRes?.body?.data?.people_id;
             if (rpRes?.code === "RAZORPAY_EMAIL_EXISTS") {
-              setRazorpayRecovery({ employeeId: "", peopleId: "", mode: "employee_id", hrEmployeeId: emp.id, message: rpRes.error || "RazorpayX already has this email under another employee-id.", resolving: false });
+              setRazorpayRecovery({
+                employeeId: "",
+                peopleId: responsePeopleId ? String(responsePeopleId) : "",
+                mode: "people_id",
+                hrEmployeeId: emp.id,
+                message: rpRes.error || "RazorpayX already has this email, but the Employee ID may be blank (-NA-). Paste the numeric people-id from the RazorpayX employee URL so ERP can attach the reserved ID safely.",
+                resolving: false,
+              });
             }
             // Post-create "-NA- limbo" case: Razorpay created the person but did
             // not attach our reserved employee-id. The proxy exposes _people_id
             // on the body so the operator can attach it in one click.
-            const limboPeopleId = rpRes?.body?._people_id;
+            const limboPeopleId = responsePeopleId;
             if (limboPeopleId) {
               setRazorpayRecovery({
                 employeeId: "",
@@ -787,12 +800,12 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
               <span className="block whitespace-pre-line">{razorpayRecovery?.message}</span>
               {razorpayRecovery?.mode === "people_id" ? (
                 <>
-                  <span className="block">Confirm the internal <b>people-id</b> (from the RazorpayX employee URL). ERP will attach the reserved Employee ID and verify the email before linking.</span>
+                  <span className="block">If RazorpayX shows Employee ID as <b>-NA-</b>, do not enter -NA. Copy the numeric <b>people-id</b> from the RazorpayX employee URL. ERP will attach the reserved Employee ID and verify the email before linking.</span>
                   <input
                     value={razorpayRecovery?.peopleId || ""}
                     onChange={(e) => setRazorpayRecovery(p => p ? { ...p, peopleId: e.target.value.replace(/\D/g, "") } : p)}
                     inputMode="numeric"
-                    placeholder="RazorpayX people-id"
+                    placeholder="RazorpayX people-id from URL"
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
                     disabled={!!razorpayRecovery?.resolving}
                   />

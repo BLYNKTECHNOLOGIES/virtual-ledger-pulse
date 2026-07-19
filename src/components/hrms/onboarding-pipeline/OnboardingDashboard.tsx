@@ -282,7 +282,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                 );
 
                 return (
-                  <div className="hrms-mobile-card space-y-3" onClick={() => onSelectOnboarding(r.id)}>
+                  <div className="hrms-mobile-card space-y-3" onClick={() => r.status !== "cancelled" && onSelectOnboarding(r.id)}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground break-words">

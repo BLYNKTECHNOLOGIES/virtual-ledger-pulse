@@ -1432,68 +1432,9 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
-    // ---------- probe_create_person: one-shot verbatim probe (R1) ----------
-    // Fires the exact official-collection people:create shape and returns the
-    // raw Razorpay response so we can prove whether create alone attaches the
-    // reserved employee-id. Requires operator to pass a real email + numeric
-    // reserved employee-id + name + doj (dd/mm/yyyy). No DB writes, no repair.
-    if (action === "probe_create_person") {
-      const email = String(payload?.email ?? "").trim().toLowerCase();
-      const employeeId = String(payload?.employee_id ?? "").trim();
-      const name = String(payload?.name ?? "Probe User").trim();
-      const doj = String(payload?.doj ?? "").trim(); // dd/mm/yyyy
-      const subType = String(payload?.sub_type ?? "create").trim(); // "create" or "add"
-      if (!email.includes("@")) return json(400, { error: "email required" });
-      if (!/^\d+$/.test(employeeId)) return json(400, { error: "numeric employee_id required" });
-      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(doj)) return json(400, { error: "doj required as dd/mm/yyyy" });
+    // (Removed: probe_create_person / probe_attach_by_email — R1 proved the
+    // shape and R4 pre-flight is now inlined into create_person.)
 
-      const data: Record<string, any> = {
-        "employee-id": Number(employeeId),
-        "employee-type": "employee",
-        type: "employee",
-        name,
-        email,
-        "date-of-joining": doj,
-        "hire-date": doj,
-        hire_date: doj,
-      };
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 25000);
-      try {
-        const res = await fetch(`${BASE}/people`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            auth: authBlock(),
-            request: { type: "people", "sub-type": subType },
-            data,
-          }),
-          signal: ctrl.signal,
-        });
-        const raw = await res.text();
-        let body: any = null;
-        try { body = JSON.parse(raw); } catch { body = { raw }; }
-        // Immediately read-back employee-id to see if create alone attached it.
-        const verify = await opfinView(Number(employeeId), "employee");
-        return json(200, {
-          ok: res.ok,
-          http_status: res.status,
-          sub_type: subType,
-          request_data: data,
-          response_body: body,
-          raw_preview: raw.slice(0, 2000),
-          verify_by_reserved_id: {
-            ok: verify.ok,
-            status: verify.status,
-            error: verify.error,
-            email_on_record: verify.body?.email ?? verify.body?.work_email ?? null,
-            name_on_record: verify.body?.name ?? null,
-          },
-        });
-      } catch (e) {
-        return json(200, { ok: false, error: (e as Error).message });
-      } finally { clearTimeout(t); }
-    }
 
     // ---------- probe_endpoint: gated read-only sub-type validator ----------
     // Used by Phase-planning to prove which Opfin sub-types exist against the
@@ -5605,9 +5546,62 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Live create. Verified against the official RazorpayX Payroll Postman
-      // collection: `people:create` is the supported create mode. `people:add`
-      // is not a valid request type for this tenant and returns code 23.
+      // ---- R4 PRE-FLIGHT: email-keyed attach BEFORE create -------------------
+      // The R1 probe proved Razorpay's `people:create` ALWAYS returns
+      // employee-id: null and never accepts a caller-supplied employee-id at
+      // create time. The only working attach path is a subsequent
+      // people:edit keyed by email. If a prior attempt already created an
+      // unattached person for this email (the "-NA-" limbo case), we can
+      // fix it here in a single call BEFORE ever hitting people:create, and
+      // eliminate the entire "Email already exists" recovery cascade.
+      if (reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+        const preAttach = await attachReservedEmployeeIdByEmail(
+          String((outboundData as any).email || ""),
+          reservedEmployeeId,
+        );
+        if (preAttach.ok) {
+          const verifyPre = await opfinView(Number(reservedEmployeeId), "employee");
+          const erpEmailPre = String((outboundData as any).email || "").trim().toLowerCase();
+          const rpEmailPre = String(verifyPre.body?.email || verifyPre.body?.work_email || "").trim().toLowerCase();
+          if (verifyPre.ok && rpEmailPre && rpEmailPre === erpEmailPre) {
+            const snapshotPre = {
+              ...(verifyPre.body || outboundData),
+              _recovered_by: "r4_pre_flight_email_attach",
+            };
+            const { error: repairPreErr } = await mapRazorpayEmployee(
+              reservedEmployeeId,
+              snapshotPre,
+              "created_via_erp",
+            );
+            await logSync(svc, {
+              action: "create_person",
+              http_status: verifyPre.status,
+              razorpay_employee_id: reservedEmployeeId,
+              hr_employee_id: hrId,
+              field_diff_summary: {
+                source: "r4_pre_flight_email_attach",
+                payload_field_names: Object.keys(outboundData).sort(),
+              },
+              error_text: repairPreErr ? repairPreErr.message : null,
+              actor_user_id: authed.userId,
+            });
+            if (!repairPreErr) {
+              return json(200, {
+                ok: true,
+                razorpay_employee_id: reservedEmployeeId,
+                already_exists_in_razorpay: true,
+                recovered_by_r4_pre_flight: true,
+                repaired_mapping: true,
+                http_status: verifyPre.status,
+                note: "Email already existed in RazorpayX; reserved Employee ID was attached in a single call without a create attempt. Run enrichment separately if identity/bank/CTC still need to be pushed.",
+              });
+            }
+          }
+        }
+      }
+
+      // Live create. Only runs when R4 pre-flight did not already claim an
+      // existing person by email.
       const createData: Record<string, any> = {
         type: "employee",
         name: fullName,

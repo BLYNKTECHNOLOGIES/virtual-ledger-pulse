@@ -2382,18 +2382,26 @@ Deno.serve(async (req) => {
 
 
       // Ledger the assignment regardless of outcome — failed attempts are valuable audit trail.
+      // Column names follow the assignment schema (employee_id / expanded_breakdown / razorpay_ack).
+      const rpIdNum = Number(rpId);
+      const { data: tmplNameRow } = await svc
+        .from("hr_salary_structure_templates")
+        .select("name").eq("id", templateId).maybeSingle();
       await svc.from("hr_employee_salary_structure_assignments").insert({
-        hr_employee_id: hrEmployeeId,
+        employee_id: hrEmployeeId,
         template_id: templateId,
+        template_name: tmplNameRow?.name ?? null,
         annual_ctc: annualCtc,
-        breakdown,
-        pushed_to_razorpay: ok,
-        razorpay_employee_id: rpId,
-        razorpay_response: responseBody,
+        expanded_breakdown: breakdown,
+        razorpay_employee_id: Number.isFinite(rpIdNum) ? rpIdNum : null,
+        razorpay_ack: responseBody,
+        razorpay_status_code: httpStatus || null,
         push_status: ok ? "pushed" : "failed",
-        error_text: errText,
+        push_error: errText,
+        pushed_at: new Date().toISOString(),
         pushed_by: authed.userId,
       });
+
 
       if (!ok) return json(502, { ok: false, error: errText, http_status: httpStatus, response: responseBody });
       return json(200, { ok: true, razorpay_employee_id: rpId, http_status: httpStatus, response: responseBody });

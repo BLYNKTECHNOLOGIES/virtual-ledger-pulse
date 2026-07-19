@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -37,6 +37,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const [finalizing, setFinalizing] = useState(false);
   const [pushingToDevices, setPushingToDevices] = useState(false);
   const [reservingRpId, setReservingRpId] = useState(false);
+  const [resettingRpId, setResettingRpId] = useState(false);
   const [reservedRpId, setReservedRpId] = useState<string | null>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
@@ -91,6 +92,32 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     } finally {
       reservingRef.current = false;
       setReservingRpId(false);
+    }
+  };
+
+  const handleResetRazorpayReservation = async () => {
+    if (!onboardingRecord?.id || resettingRpId || readOnly) return;
+    setResettingRpId(true);
+    const t = toast.loading("Resetting local RazorpayX reservation…");
+    try {
+      const { error } = await supabase
+        .from("hr_employee_onboarding")
+        .update({
+          essl_badge_id: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", onboardingRecord.id);
+      if (error) throw error;
+
+      setReservedRpId(null);
+      setForm(p => ({ ...p, essl_badge_id: "", create_in_razorpay: false }));
+      dirtyRef.current = false;
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+      toast.success("Local reservation cleared. Reserve again before Finalize.", { id: t });
+    } catch (e: any) {
+      toast.error(`Reset failed: ${e?.message || String(e)}`, { id: t });
+    } finally {
+      setResettingRpId(false);
     }
   };
 
@@ -648,6 +675,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         ? `Reserved: ${reservedRpId}`
                         : "Reserve RazorpayX Employee ID"}
                   </Button>
+                  {reservedRpId && !alreadyInRazorpay && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleResetRazorpayReservation}
+                      disabled={readOnly || resettingRpId || reservingRpId}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                      {resettingRpId ? "Resetting…" : "Reset local ID"}
+                    </Button>
+                  )}
                   {reservedRpId && (
                     <span className="text-[11px] text-success flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" /> ESSL PIN auto-filled below

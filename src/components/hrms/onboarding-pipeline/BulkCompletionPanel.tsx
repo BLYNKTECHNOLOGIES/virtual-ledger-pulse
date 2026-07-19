@@ -363,12 +363,14 @@ export function BulkCompletionPanel() {
 // ══════════════════════════════════════════════════════════════
 // Bulk Salary Assign
 // ══════════════════════════════════════════════════════════════
+// Bulk CTC set — templates abolished. RazorpayX owns the component
+// breakdown; HRMS only captures the Annual CTC in bulk here.
+// ══════════════════════════════════════════════════════════════
 function BulkSalaryDialog({
-  rows, templates, onClose, onDone,
+  rows, onClose, onDone,
 }: {
-  rows: Row[]; templates: any[]; onClose: () => void; onDone: () => void;
+  rows: Row[]; onClose: () => void; onDone: () => void;
 }) {
-  const [templateId, setTemplateId] = useState("");
   const [ctc, setCtc] = useState<Record<string, string>>(
     Object.fromEntries(rows.map(r => [r.employee_id!, r.total_salary?.toString() || ""]))
   );
@@ -381,7 +383,6 @@ function BulkSalaryDialog({
   };
 
   const run = async () => {
-    if (!templateId) { toast.error("Pick a template"); return; }
     for (const r of rows) {
       const v = Number(ctc[r.employee_id!]);
       if (!v || v <= 0) { toast.error(`CTC missing for ${r.first_name}`); return; }
@@ -396,19 +397,13 @@ function BulkSalaryDialog({
           .update({ total_salary: total })
           .eq("id", r.employee_id!);
         if (uErr) throw uErr;
-        const { error: rErr } = await supabase.rpc("apply_salary_template", {
-          p_employee_id: r.employee_id!,
-          p_template_id: templateId,
-        });
-        if (rErr) throw rErr;
-        // Mirror onto onboarding row so wizard stays in sync
         await supabase
           .from("hr_employee_onboarding")
-          .update({ ctc: total, salary_template_id: templateId })
+          .update({ ctc: total })
           .eq("id", r.onboarding_id);
         ok++;
       } catch (e: any) {
-        console.error("Bulk salary fail", r, e);
+        console.error("Bulk CTC fail", r, e);
         fail++;
       }
     }
@@ -421,37 +416,25 @@ function BulkSalaryDialog({
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Bulk Assign Salary Structure</DialogTitle>
+          <DialogTitle>Bulk set Annual CTC</DialogTitle>
           <DialogDescription>
-            Applies the selected template to each employee using their CTC.
-            Basic pay defaults to 50% of CTC. No employees are activated.
+            Captures the Annual CTC on the HRMS record only. The component
+            breakdown (Basic / HRA / PF / ESI etc.) is assigned on RazorpayX
+            and mirrored read-only in the employee profile.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <Label>Template</Label>
-              <Select value={templateId} onValueChange={setTemplateId}>
-                <SelectTrigger><SelectValue placeholder="Select template" /></SelectTrigger>
-                <SelectContent>
-                  {templates.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Apply CTC to all (optional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="e.g. 600000"
-                  value={applyAll}
-                  onChange={e => setApplyAll(e.target.value)}
-                />
-                <Button variant="outline" size="sm" onClick={setAll}>Fill</Button>
-              </div>
+          <div>
+            <Label>Apply CTC to all (optional)</Label>
+            <div className="flex gap-2 max-w-sm">
+              <Input
+                type="number"
+                placeholder="e.g. 600000"
+                value={applyAll}
+                onChange={e => setApplyAll(e.target.value)}
+              />
+              <Button variant="outline" size="sm" onClick={setAll}>Fill</Button>
             </div>
           </div>
 
@@ -486,7 +469,7 @@ function BulkSalaryDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={running}>Cancel</Button>
-          <Button onClick={run} disabled={running || !templateId}>
+          <Button onClick={run} disabled={running}>
             {running && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
             Apply to {rows.length}
           </Button>

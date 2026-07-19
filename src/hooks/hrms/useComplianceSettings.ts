@@ -49,6 +49,13 @@ export type ComplianceSettings = {
     max_leave: number | null; carry_forward: number | null;
     include_weekends: boolean;
   }>;
+  use_xpayroll_default_structure: boolean;
+  default_structure_components: Array<{
+    key: string; label: string;
+    value: number; mode: "percentage" | "fixed";
+    taxable: "yes" | "no" | "partially";
+  }>;
+  bonus_types: Array<{ key: string; label: string; enabled: boolean }>;
   compliance_settings_updated_at: string | null;
   leave_settings_updated_at: string | null;
 };

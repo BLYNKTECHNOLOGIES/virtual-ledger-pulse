@@ -5968,6 +5968,7 @@ export type Database = {
           id: string
           last_seen_at: string
           razorpay_value: string | null
+          resolution_direction: string | null
           resolution_note: string | null
           resolved_at: string | null
           resolved_by: string | null
@@ -5985,6 +5986,7 @@ export type Database = {
           id?: string
           last_seen_at?: string
           razorpay_value?: string | null
+          resolution_direction?: string | null
           resolution_note?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -6002,6 +6004,7 @@ export type Database = {
           id?: string
           last_seen_at?: string
           razorpay_value?: string | null
+          resolution_direction?: string | null
           resolution_note?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -11257,6 +11260,220 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_shadow_component_breakdown: {
+        Row: {
+          amount: number
+          component_key: string
+          component_label: string
+          component_type: string
+          created_at: string
+          formula_note: string | null
+          id: string
+          line_id: string
+        }
+        Insert: {
+          amount?: number
+          component_key: string
+          component_label: string
+          component_type: string
+          created_at?: string
+          formula_note?: string | null
+          id?: string
+          line_id: string
+        }
+        Update: {
+          amount?: number
+          component_key?: string
+          component_label?: string
+          component_type?: string
+          created_at?: string
+          formula_note?: string | null
+          id?: string
+          line_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_shadow_component_breakdown_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shadow_payroll_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_shadow_payroll_lines: {
+        Row: {
+          additions_total: number
+          compute_notes: Json | null
+          created_at: string
+          deductions_total: number
+          diff_summary: Json | null
+          earnings_total: number
+          esi_employee: number
+          esi_employer: number
+          hr_employee_id: string
+          id: string
+          lop_amount: number
+          lop_days: number
+          monthly_ctc: number
+          monthly_gross: number
+          net_pay: number
+          period_month: string
+          pf_employee: number
+          pf_employer: number
+          pt_amount: number
+          razorpay_esi: number | null
+          razorpay_gross: number | null
+          razorpay_net: number | null
+          razorpay_pf: number | null
+          razorpay_pt: number | null
+          razorpay_tds: number | null
+          run_id: string
+          tds_amount: number
+          updated_at: string
+        }
+        Insert: {
+          additions_total?: number
+          compute_notes?: Json | null
+          created_at?: string
+          deductions_total?: number
+          diff_summary?: Json | null
+          earnings_total?: number
+          esi_employee?: number
+          esi_employer?: number
+          hr_employee_id: string
+          id?: string
+          lop_amount?: number
+          lop_days?: number
+          monthly_ctc?: number
+          monthly_gross?: number
+          net_pay?: number
+          period_month: string
+          pf_employee?: number
+          pf_employer?: number
+          pt_amount?: number
+          razorpay_esi?: number | null
+          razorpay_gross?: number | null
+          razorpay_net?: number | null
+          razorpay_pf?: number | null
+          razorpay_pt?: number | null
+          razorpay_tds?: number | null
+          run_id: string
+          tds_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          additions_total?: number
+          compute_notes?: Json | null
+          created_at?: string
+          deductions_total?: number
+          diff_summary?: Json | null
+          earnings_total?: number
+          esi_employee?: number
+          esi_employer?: number
+          hr_employee_id?: string
+          id?: string
+          lop_amount?: number
+          lop_days?: number
+          monthly_ctc?: number
+          monthly_gross?: number
+          net_pay?: number
+          period_month?: string
+          pf_employee?: number
+          pf_employer?: number
+          pt_amount?: number
+          razorpay_esi?: number | null
+          razorpay_gross?: number | null
+          razorpay_net?: number | null
+          razorpay_pf?: number | null
+          razorpay_pt?: number | null
+          razorpay_tds?: number | null
+          run_id?: string
+          tds_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_shadow_payroll_lines_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_shadow_payroll_lines_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_shadow_payroll_lines_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "hr_shadow_payroll_lines_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shadow_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_shadow_payroll_runs: {
+        Row: {
+          computed_at: string | null
+          computed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          period_month: string
+          run_no: number
+          status: string
+          total_employees: number
+          total_razorpay_gross: number | null
+          total_razorpay_net: number | null
+          total_shadow_gross: number
+          total_shadow_net: number
+          updated_at: string
+        }
+        Insert: {
+          computed_at?: string | null
+          computed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          period_month: string
+          run_no?: number
+          status?: string
+          total_employees?: number
+          total_razorpay_gross?: number | null
+          total_razorpay_net?: number | null
+          total_shadow_gross?: number
+          total_shadow_net?: number
+          updated_at?: string
+        }
+        Update: {
+          computed_at?: string | null
+          computed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          period_month?: string
+          run_no?: number
+          status?: string
+          total_employees?: number
+          total_razorpay_gross?: number | null
+          total_razorpay_net?: number | null
+          total_shadow_gross?: number
+          total_shadow_net?: number
           updated_at?: string
         }
         Relationships: []
@@ -19549,24 +19766,58 @@ export type Database = {
       }
       hr_drift_open: {
         Row: {
-          badge_id: string | null
           created_at: string | null
-          employee_name: string | null
           essl_value: string | null
           field: string | null
           first_seen_at: string | null
           hr_employee_id: string | null
           hrms_value: string | null
           id: string | null
-          is_active: boolean | null
           last_seen_at: string | null
           razorpay_value: string | null
+          resolution_direction: string | null
           resolution_note: string | null
           resolved_at: string | null
           resolved_by: string | null
           severity: string | null
           systems_involved: string[] | null
           updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          essl_value?: string | null
+          field?: string | null
+          first_seen_at?: string | null
+          hr_employee_id?: string | null
+          hrms_value?: string | null
+          id?: string | null
+          last_seen_at?: string | null
+          razorpay_value?: string | null
+          resolution_direction?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          systems_involved?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          essl_value?: string | null
+          field?: string | null
+          first_seen_at?: string | null
+          hr_employee_id?: string | null
+          hrms_value?: string | null
+          id?: string | null
+          last_seen_at?: string | null
+          razorpay_value?: string | null
+          resolution_direction?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          systems_involved?: string[] | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -20450,10 +20701,12 @@ export type Database = {
         Returns: number[]
       }
       fn_expire_compoff_allocations: { Args: never; Returns: undefined }
-      fn_generate_payroll: {
-        Args: { p_payroll_run_id: string; p_triggered_by: string }
-        Returns: undefined
-      }
+      fn_generate_payroll:
+        | { Args: { p_payroll_run_id: string }; Returns: Json }
+        | {
+            Args: { p_payroll_run_id: string; p_triggered_by: string }
+            Returns: undefined
+          }
       fn_initialize_onboarding: {
         Args: { p_employee_id: string }
         Returns: undefined

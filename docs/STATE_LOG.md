@@ -6,6 +6,9 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-19: Payroll doctrine v2 — Stages 1–3 shipped. `fn_generate_payroll` + `apply_due_scheduled_salary_revisions` retired (both raise). New isolated Shadow Payroll namespace (`hr_shadow_payroll_runs`/`_lines`/`_component_breakdown`) + `compute-shadow-payroll` edge fn + `/hrms/payroll/shadow-calculator` "Payroll Calculation (Building)" page compute PF/ESI/PT/TDS/LOP locally using the Razorpay compliance mirror and diff line-by-line against imported Razorpay payslips. `hr_drift_alerts.resolution_direction` added (update_hrms | push_to_razorpay | update_essl | dismissed) with `hr_drift_open` view rebuilt around it — bidirectional resolution ledger for Stage 3 Data Health surface. Stages 4–6 (per-employee structure push, bulk CSV structure importer, unified profile history) queued.
+
+
 - 2026-07-18: RazorpayX payroll history restore verified after redeploy — hr_razorpay_payslip_records=61 and reflected hr_payslips(source=razorpay_import)=61 across 16 employees, spanning 2024-07 to 2026-03.
 - 2026-07-18: RazorpayX payroll history restored to API-first model — `payroll:view-payroll` is the canonical Opfin source for monthly payroll amounts/components; no payslip PDF/download endpoint exists in official surface, so PDFs are dashboard-only.
 - 2026-07-18: v4 attendance engine — Phase 0 schema deployed (sessions table, engine settings, punch classification columns); Phases 1–2.5 code deployed but engine unhydrated (punches wiped); Phases 3–7 parked pending Monday's real punches.

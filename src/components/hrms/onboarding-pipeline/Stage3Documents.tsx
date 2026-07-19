@@ -230,7 +230,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <span className="text-sm">{f.label}</span>
                     {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
                   </div>
-                  {mode === "manual" && !readOnly && (
+                  {mode === "manual" && !readOnly && f.key !== "pan" && (
                     <Input
                       placeholder={`${f.label} number`}
                       className="max-w-[180px] h-8"
@@ -239,6 +239,26 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     />
                   )}
                 </div>
+                {f.key === "pan" && !readOnly && (
+                  <div className="pl-1 space-y-1">
+                    <Input
+                      placeholder="PAN Number (e.g. ABCDE1234F)"
+                      className="max-w-[240px] h-8 uppercase tracking-wider text-foreground"
+                      value={panValue}
+                      maxLength={10}
+                      onChange={e => updateDocValue("pan", e.target.value)}
+                    />
+                    {panValue.length > 0 && !panValid && (
+                      <p className="text-[11px] text-destructive">Invalid format. Expected: 5 letters + 4 digits + 1 letter.</p>
+                    )}
+                    {panValid && (
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ Valid PAN</p>
+                    )}
+                  </div>
+                )}
+                {f.key === "pan" && readOnly && panValue && (
+                  <p className="text-xs pl-1 font-mono">{panValue}</p>
+                )}
                 {!readOnly && (
                   <div className="flex items-center gap-2 flex-wrap pl-1">
                     {d?.file_url ? (

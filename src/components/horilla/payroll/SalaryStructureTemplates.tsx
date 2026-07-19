@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Send } from "lucide-react";
+import PushStructureDialog from "@/components/hrms/salary/PushStructureDialog";
+
 
 interface TemplateItem {
   id?: string;
@@ -38,6 +40,8 @@ export default function SalaryStructureTemplates() {
   const [description, setDescription] = useState("");
   const [items, setItems] = useState<TemplateItem[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pushTarget, setPushTarget] = useState<{ id: string; name: string } | null>(null);
+
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["hr_salary_structure_templates"],
@@ -238,6 +242,15 @@ export default function SalaryStructureTemplates() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-primary hidden sm:inline-flex"
+                        title="Push to RazorpayX"
+                        onClick={(e) => { e.stopPropagation(); setPushTarget({ id: t.id, name: t.name }); }}
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(t); }}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -246,6 +259,7 @@ export default function SalaryStructureTemplates() {
                       </Button>
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                     </div>
+
                   </div>
 
                   {isExpanded && (
@@ -442,6 +456,16 @@ export default function SalaryStructureTemplates() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {pushTarget && (
+        <PushStructureDialog
+          open={!!pushTarget}
+          onOpenChange={(v) => { if (!v) setPushTarget(null); }}
+          templateId={pushTarget.id}
+          templateName={pushTarget.name}
+        />
+      )}
     </div>
   );
 }
+

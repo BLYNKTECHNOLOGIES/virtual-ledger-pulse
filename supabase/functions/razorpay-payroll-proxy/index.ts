@@ -19,7 +19,11 @@
 // PII policy: only field NAMES land in hr_razorpay_sync_log.field_diff_summary.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 const KEY_ID = Deno.env.get("RAZORPAY_PAYROLL_KEY_ID") ?? "";
 const KEY_SECRET = Deno.env.get("RAZORPAY_PAYROLL_KEY_SECRET") ?? "";

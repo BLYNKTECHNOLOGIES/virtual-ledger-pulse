@@ -49,6 +49,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
   const [openRow, setOpenRow] = useState<any | null>(null);
   const [adjustRow, setAdjustRow] = useState<any | null>(null);
   const qc = useQueryClient();
+  const { data: compliance } = useComplianceSettings();
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["rzp_payslips_emp", hrEmployeeId],

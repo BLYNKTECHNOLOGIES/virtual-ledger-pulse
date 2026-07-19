@@ -208,10 +208,13 @@ export default function OfferLetterPolicyPage() {
                 className="max-w-sm"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Optional. If set and Path A is enabled, hires will be assigned this
-                structure for month 1 and swapped to the real structure on month 2.
-                Currently the salary-structure endpoint is retired in the proxy —
-                enabling Path A requires a doctrine change.
+                Optional. If set and Path A is enabled, hires are assigned this
+                structure for month 1 and swapped to the real structure at the
+                end of the training period. Path A is live in the proxy — flip
+                the doctrine toggle on the RazorpayX Compliance Settings page
+                and the daily <code>hr-schedule-training-swaps</code> cron
+                (01:00 UTC) will handle the swap + statutory toggle-off
+                automatically.
               </p>
             </div>
           </FieldRow>

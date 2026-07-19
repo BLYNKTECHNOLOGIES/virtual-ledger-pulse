@@ -1,0 +1,20 @@
+DO $$
+BEGIN
+  PERFORM cron.unschedule(46);
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+DO $$
+BEGIN
+  PERFORM cron.unschedule(47);
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+DO $$
+BEGIN
+  PERFORM cron.unschedule(48);
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;

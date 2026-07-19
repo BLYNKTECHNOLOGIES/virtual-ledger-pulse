@@ -2014,7 +2014,131 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
+    // ---- Statutory enrollment push (PF / ESI / PT toggle per employee) ------------------
+    // RazorpayX Payroll's public API does not publish a documented statutory-toggle
+    // endpoint. Their dashboard sends the toggles via people:update with the hyphen-cased
+    // keys `pf-enabled`, `esi-enabled`, `professional-tax-enabled`. We treat that as an
+    // OPERATOR-VERIFIED envelope: writes are BLOCKED until an operator records a Postman/probe
+    // verified envelope key via `record_statutory_envelope_verified`. Failure is surfaced
+    // via drift alert — we never fabricate a success.
+    if (action === "record_statutory_envelope_verified") {
+      const key = String(payload?.envelope_key || "").trim();
+      const verified = !!payload?.verified;
+      if (verified && !key) return json(400, { error: "envelope_key is required when verified=true" });
+      const patch: any = {
+        push_statutory_endpoint_verified: verified,
+        push_statutory_envelope_key: verified ? key : null,
+        push_statutory_envelope_verified_at: verified ? new Date().toISOString() : null,
+        push_statutory_envelope_verified_by: verified ? authed.userId : null,
+      };
+      if (!verified || (settingsRow?.push_statutory_envelope_key && settingsRow.push_statutory_envelope_key !== key)) {
+        patch.push_statutory_pilot_verified_at = null;
+        patch.push_statutory_pilot_hr_employee_id = null;
+      }
+      const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+      if (error) return json(500, { error: error.message });
+      return json(200, { ok: true });
+    }
+
+    if (action === "push_statutory_apply_one") {
+      const hrEmployeeId = String(payload?.hr_employee_id || "").trim();
+      const rpIdStr = payload?.razorpay_employee_id ? String(payload.razorpay_employee_id) : null;
+      if (!hrEmployeeId && !rpIdStr) {
+        return json(400, { error: "hr_employee_id or razorpay_employee_id is required" });
+      }
+      if (!settingsRow?.push_statutory_endpoint_verified || !settingsRow?.push_statutory_envelope_key) {
+        return json(400, {
+          error: "Statutory write path is disabled — verify the Razorpay statutory envelope via probe first, then record it.",
+          code: "STATUTORY_ENVELOPE_UNVERIFIED",
+        });
+      }
+
+      // Resolve the map row
+      let mapQuery = svc.from("hr_razorpay_employee_map")
+        .select("hr_employee_id,razorpay_employee_id");
+      if (hrEmployeeId) mapQuery = mapQuery.eq("hr_employee_id", hrEmployeeId);
+      else mapQuery = mapQuery.eq("razorpay_employee_id", rpIdStr!);
+      const { data: mapRow, error: mapErr } = await mapQuery.maybeSingle();
+      if (mapErr) return json(500, { error: mapErr.message });
+      if (!mapRow) return json(400, { error: "Employee is not mapped to RazorpayX." });
+
+      const { data: emp, error: empErr } = await svc.from("hr_employees")
+        .select("id,pf_enabled,esi_enabled,pt_enabled")
+        .eq("id", mapRow.hr_employee_id)
+        .maybeSingle();
+      if (empErr) return json(500, { error: empErr.message });
+      if (!emp) return json(400, { error: "Employee not found." });
+
+      // Compliance fallback for null flags: fetch global toggles once.
+      const globalPfOn = settingsRow?.compliance_files_pf ?? true;
+      const globalEsiOn = settingsRow?.compliance_files_esi ?? true;
+      const globalPtOn = settingsRow?.compliance_files_pt ?? true;
+      const pfEnabled = emp.pf_enabled ?? globalPfOn;
+      const esiEnabled = emp.esi_enabled ?? globalEsiOn;
+      const ptEnabled = emp.pt_enabled ?? globalPtOn;
+
+      const eid = Number(mapRow.razorpay_employee_id);
+      if (!Number.isFinite(eid) || eid < 1) return json(400, { error: "Invalid razorpay_employee_id." });
+
+      const envelopeKey = String(settingsRow.push_statutory_envelope_key);
+      let [type, subType] = envelopeKey.split(":");
+      if (!type) type = "people";
+      if (!subType) subType = "edit";
+
+      const statutoryPayload = {
+        "pf-enabled": pfEnabled,
+        "esi-enabled": esiEnabled,
+        "professional-tax-enabled": ptEnabled,
+      };
+
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 20000);
+      let httpStatus = 0; let ok = false; let errText: string | null = null; let responseBody: any = null;
+      try {
+        const res = await fetch(`${BASE}/${type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            auth: authBlock(),
+            request: { type, "sub-type": subType },
+            data: { "employee-id": eid, "employee-type": "employee", ...statutoryPayload },
+          }),
+          signal: ctrl.signal,
+        });
+        httpStatus = res.status;
+        const raw = await res.text();
+        try { responseBody = JSON.parse(raw); } catch { responseBody = raw; }
+        const rpErr = responseBody && typeof responseBody === "object" ? (responseBody.error || responseBody.message || null) : null;
+        ok = res.ok && !rpErr;
+        if (!ok) errText = rpErr || (typeof responseBody === "string" ? responseBody.slice(0, 400) : `HTTP ${res.status}`);
+      } catch (e) {
+        errText = `NETWORK: ${(e as Error).message}`;
+      } finally { clearTimeout(t); }
+
+      await logSync(svc, {
+        action: "push_statutory",
+        http_status: httpStatus,
+        razorpay_employee_id: String(eid),
+        hr_employee_id: mapRow.hr_employee_id,
+        field_diff_summary: { pf: pfEnabled, esi: esiEnabled, pt: ptEnabled },
+        error_text: ok ? null : errText,
+        actor_user_id: authed.userId,
+      });
+
+      if (ok) {
+        const patch: any = { last_statutory_push_at: new Date().toISOString() };
+        if (!settingsRow?.push_statutory_pilot_verified_at) {
+          patch.push_statutory_pilot_verified_at = new Date().toISOString();
+          patch.push_statutory_pilot_hr_employee_id = mapRow.hr_employee_id;
+        }
+        await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
+        return json(200, { ok: true, pushed: { pf: pfEnabled, esi: esiEnabled, pt: ptEnabled }, response: responseBody });
+      }
+      return json(200, { ok: false, error: errText, http_status: httpStatus, response: responseBody });
+    }
+
     // ---- Phase 5: Salary structure sync ---------------------------------------------------
+
     // Discovery-first: writes are BLOCKED until the operator records a verified salary
     // envelope (Postman probe result). Dry-run works without verification so an operator
     // can review the ERP-derived structure vs Razorpay's last-known snapshot before

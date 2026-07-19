@@ -10389,6 +10389,7 @@ export type Database = {
           last_payslips_pull_at: string | null
           last_push_at: string | null
           last_salary_push_at: string | null
+          last_statutory_push_at: string | null
           last_taxdocs_pull_at: string | null
           leave_allow_half_day: boolean
           leave_allow_negative_balance: boolean
@@ -10442,6 +10443,12 @@ export type Database = {
           push_salary_envelope_verified_by: string | null
           push_salary_pilot_hr_employee_id: string | null
           push_salary_pilot_verified_at: string | null
+          push_statutory_endpoint_verified: boolean
+          push_statutory_envelope_key: string | null
+          push_statutory_envelope_verified_at: string | null
+          push_statutory_envelope_verified_by: string | null
+          push_statutory_pilot_hr_employee_id: string | null
+          push_statutory_pilot_verified_at: string | null
           shifts_track_timings: boolean
           updated_at: string
           use_xpayroll_default_structure: boolean
@@ -10490,6 +10497,7 @@ export type Database = {
           last_payslips_pull_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          last_statutory_push_at?: string | null
           last_taxdocs_pull_at?: string | null
           leave_allow_half_day?: boolean
           leave_allow_negative_balance?: boolean
@@ -10543,6 +10551,12 @@ export type Database = {
           push_salary_envelope_verified_by?: string | null
           push_salary_pilot_hr_employee_id?: string | null
           push_salary_pilot_verified_at?: string | null
+          push_statutory_endpoint_verified?: boolean
+          push_statutory_envelope_key?: string | null
+          push_statutory_envelope_verified_at?: string | null
+          push_statutory_envelope_verified_by?: string | null
+          push_statutory_pilot_hr_employee_id?: string | null
+          push_statutory_pilot_verified_at?: string | null
           shifts_track_timings?: boolean
           updated_at?: string
           use_xpayroll_default_structure?: boolean
@@ -10591,6 +10605,7 @@ export type Database = {
           last_payslips_pull_at?: string | null
           last_push_at?: string | null
           last_salary_push_at?: string | null
+          last_statutory_push_at?: string | null
           last_taxdocs_pull_at?: string | null
           leave_allow_half_day?: boolean
           leave_allow_negative_balance?: boolean
@@ -10644,6 +10659,12 @@ export type Database = {
           push_salary_envelope_verified_by?: string | null
           push_salary_pilot_hr_employee_id?: string | null
           push_salary_pilot_verified_at?: string | null
+          push_statutory_endpoint_verified?: boolean
+          push_statutory_envelope_key?: string | null
+          push_statutory_envelope_verified_at?: string | null
+          push_statutory_envelope_verified_by?: string | null
+          push_statutory_pilot_hr_employee_id?: string | null
+          push_statutory_pilot_verified_at?: string | null
           shifts_track_timings?: boolean
           updated_at?: string
           use_xpayroll_default_structure?: boolean
@@ -11125,6 +11146,7 @@ export type Database = {
           revision_reason: string | null
           revision_type: string
           status: string
+          statutory_snapshot: Json | null
           updated_at: string
         }
         Insert: {
@@ -11147,6 +11169,7 @@ export type Database = {
           revision_reason?: string | null
           revision_type?: string
           status?: string
+          statutory_snapshot?: Json | null
           updated_at?: string
         }
         Update: {
@@ -11169,6 +11192,7 @@ export type Database = {
           revision_reason?: string | null
           revision_type?: string
           status?: string
+          statutory_snapshot?: Json | null
           updated_at?: string
         }
         Relationships: [
@@ -20001,6 +20025,7 @@ export type Database = {
         Returns: boolean
       }
       apply_due_scheduled_salary_revisions: { Args: never; Returns: number }
+      apply_due_statutory_revisions: { Args: never; Returns: number }
       apply_salary_revision: {
         Args: {
           p_approved_by: string
@@ -20016,6 +20041,18 @@ export type Database = {
       apply_salary_template: {
         Args: { p_employee_id: string; p_template_id: string }
         Returns: undefined
+      }
+      apply_statutory_revision: {
+        Args: {
+          p_approved_by: string
+          p_effective_from: string
+          p_employee_id: string
+          p_esi_enabled: boolean
+          p_pf_enabled: boolean
+          p_pt_enabled: boolean
+          p_reason: string
+        }
+        Returns: Json
       }
       approve_product_conversion: {
         Args: { p_approved_by: string; p_conversion_id: string }

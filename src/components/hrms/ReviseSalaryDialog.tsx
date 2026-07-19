@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
+import { Switch } from "@/components/ui/switch";
+
 
 const RECURRING_TYPES = [
   { value: "increment", label: "Increment / Hike" },
@@ -37,7 +39,7 @@ interface Props {
   presetEmployeeId?: string;
 }
 
-type Mode = "recurring" | "one_time";
+type Mode = "recurring" | "one_time" | "statutory";
 
 export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Props) {
   const qc = useQueryClient();
@@ -56,6 +58,11 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const [payoutMonth, setPayoutMonth] = useState<Date>(new Date());
   const [notes, setNotes] = useState<string>("");
 
+  // Statutory toggle fields (null = "use global default")
+  const [pfEnabled, setPfEnabled] = useState<boolean | null>(null);
+  const [esiEnabled, setEsiEnabled] = useState<boolean | null>(null);
+  const [ptEnabled, setPtEnabled] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (open) {
       setMode("recurring");
@@ -68,12 +75,18 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       setOneTimeAmount("");
       setPayoutMonth(new Date());
       setNotes("");
+      setPfEnabled(null);
+      setEsiEnabled(null);
+      setPtEnabled(null);
     }
   }, [open, presetEmployeeId]);
 
   useEffect(() => {
-    setRevisionType(mode === "recurring" ? "increment" : "bonus");
+    if (mode === "recurring") setRevisionType("increment");
+    else if (mode === "one_time") setRevisionType("bonus");
+    else setRevisionType("statutory_toggle");
   }, [mode]);
+
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_for_revision"],

@@ -507,6 +507,14 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             }
           }
 
+          if (erpUserId) {
+            const { error: linkUserErr } = await supabase
+              .from("hr_employees")
+              .update({ user_id: erpUserId })
+              .eq("id", emp.id);
+            if (linkUserErr) throw new Error(`ERP account created but employee link failed: ${linkUserErr.message}`);
+          }
+
           await logAudit(recordId, 5, erpResult?.alreadyExists ? "erp_account_reused" : "erp_account_created", { erp_user_id: erpUserId, username: erpUsername });
           erpUserSummary = erpUsername;
           successes.push(erpResult?.alreadyExists ? `ERP account ${erpUsername} reused` : `ERP account ${erpUsername}`);

@@ -57,6 +57,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       const id = String(nextId);
       setReservedRpId(id);
       setForm(p => ({ ...p, essl_badge_id: id, create_in_razorpay: true }));
+      // Persist immediately so the reservation survives navigating away
+      // from Stage 5 (e.g. back to Basic Details) without burning a new ID.
+      if (onboardingRecord?.id) {
+        const { error: upErr } = await supabase
+          .from("hr_employee_onboarding")
+          .update({ essl_badge_id: id })
+          .eq("id", onboardingRecord.id);
+        if (upErr) throw upErr;
+      }
       toast.success(`Reserved RazorpayX ID ${id} — same number will be the ESSL PIN.`, { id: t });
     } catch (e: any) {
       toast.error(`Reserve failed: ${e?.message || String(e)}`, { id: t });

@@ -204,6 +204,17 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         if (updErr) throw updErr;
         empId = linkedEmployeeId;
       } else {
+        // Unified ID doctrine: allocate a single sequential integer ID that
+        // will simultaneously become the HRMS badge_id, ESSL device PIN, and
+        // RazorpayX employee_id. Operator-typed essl_badge_id is honored only
+        // as a legacy fallback (kept for backward compatibility with drafts
+        // created before the doctrine landed).
+        let unifiedId = (r.essl_badge_id || "").toString().trim();
+        if (!unifiedId) {
+          const { data: nextId, error: nextIdErr } = await supabase.rpc("hr_next_razorpay_employee_id");
+          if (nextIdErr) throw new Error(`ID allocation failed: ${nextIdErr.message}`);
+          unifiedId = String(nextId);
+        }
         const { data: emp, error: empErr } = await supabase
           .from("hr_employees")
           .insert({
@@ -213,7 +224,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             phone: r.phone || null,
             gender: r.gender || null,
             dob: r.date_of_birth || null,
-            badge_id: r.essl_badge_id,
+            badge_id: unifiedId,
             total_salary: r.ctc || 0,
             is_active: true,
             pan_number: docs.pan?.value || null,

@@ -167,6 +167,13 @@ Deno.serve(async (req) => {
 
     const existingUser = hits[0] || null;
     if (existingUser?.id) {
+      const emailMatches = String(existingUser.email || "").trim().toLowerCase() === email.trim().toLowerCase();
+      if (!emailMatches) {
+        return new Response(JSON.stringify({
+          error: `ERP identity conflict: ${phoneHit?.id === existingUser.id ? "phone" : "badge"} already belongs to ERP user "${existingUser.username}" (${[existingUser.first_name, existingUser.last_name].filter(Boolean).join(" ")}). Update the onboarding details or link the correct employee.`,
+        }), { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+
       const authUser = await findAuthUserByEmail(adminClient, email);
       if (!authUser?.id) {
         return new Response(JSON.stringify({

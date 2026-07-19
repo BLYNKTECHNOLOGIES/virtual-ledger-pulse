@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-19: Shubhams Singh stuck onboarding reservation ID 75 cleared after deleted/partial Razorpay record; linked HR badge moved to PENDING-8A047792, pending eSSL create commands cancelled, delete commands queued, next unified RazorpayX/ESSL ID is 76.
 - 2026-07-19: RazorpayX onboarding create contract corrected per official Postman collection — people:create now sends only email/name/type, all Employee ID/PAN/bank/CTC enrichment uses documented email-keyed people:edit/set-salary, and off-contract people-id attach recovery was retired.
 - 2026-07-19: RazorpayX onboarding proxy redeployed after removing a stale unreachable enrichment path and restoring attendance push lock checks; Stage 5 create_person now routes fresh/create/recovered records through the single people-id-aware enrichment helper.
 - 2026-07-19: RazorpayX onboarding partial-create root cause fixed — create_person now enriches mapped/recovered/fresh employees with ERP PAN/bank/CTC before returning success; incomplete enrichment blocks Stage 5 completion instead of silently leaving partial Razorpay records.

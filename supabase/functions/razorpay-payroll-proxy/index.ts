@@ -3658,11 +3658,40 @@ Deno.serve(async (req) => {
       }
 
       // ---- pull_payslips_for_period ----
+      // Guards (mirroring pull_payouts_for_period): the underlying endpoint
+      // is payroll:view-payroll, which returns *pre-execution defaults*
+      // (typically basic-component ≈ CTC/12) for months that have not yet
+      // been bulk_applied/locked in RazorpayX. Ingesting those as payslips
+      // pollutes hr_payslips history with fake identical months.
       if (action === "pull_payslips_for_period") {
+        if (!p9Settings?.pull_payslips_endpoint_verified || !p9Settings?.pull_payslips_envelope_key) {
+          return json(400, { error: "Payslips envelope not verified. Record a probe-verified envelope first." });
+        }
         const periodMonthStr = String(payload?.period_month || "").trim();
         const pmMatch = /^(\d{4})-(\d{2})$/.exec(periodMonthStr);
         if (!pmMatch) return json(400, { error: "period_month must be YYYY-MM" });
         const periodMonthISO = `${pmMatch[1]}-${pmMatch[2]}-01`;
+
+        // Refuse the pull unless the payroll run for this month has actually
+        // been executed on the RazorpayX side. Otherwise view-payroll returns
+        // draft/setup defaults which are indistinguishable from finalised data.
+        const allowRunStatuses = ["bulk_applied", "locked", "recalled"];
+        const { data: preRunRow } = await svc.from("hr_razorpay_payroll_runs")
+          .select("status").eq("period_month", periodMonthISO).maybeSingle();
+        const bypassRunGate = payload?.bypass_run_gate === true;
+        if (!bypassRunGate) {
+          if (!preRunRow) {
+            return json(400, {
+              error: "No payroll run found for this period in RazorpayX. Payslip history is only available after a run is bulk_applied.",
+            });
+          }
+          if (!allowRunStatuses.includes(preRunRow.status)) {
+            return json(400, {
+              error: `Payslip pull requires the RazorpayX payroll run to be bulk_applied (or later). Current status: ${preRunRow.status}.`,
+            });
+          }
+        }
+
         const pull = await pullPayrollViewForPeriod(svc, periodMonthStr, authed.userId || null);
         await svc.from("hr_razorpay_settings")
           .update({ last_payslips_pull_at: new Date().toISOString() }).eq("is_singleton", true);
@@ -3675,6 +3704,8 @@ Deno.serve(async (req) => {
           field_diff_summary: {
             period_month: periodMonthISO,
             endpoint: "payroll:view-payroll",
+            run_status: preRunRow?.status ?? "none",
+            bypass_run_gate: bypassRunGate,
             ...pull,
           },
           error_text: null,

@@ -6070,11 +6070,16 @@ Deno.serve(async (req) => {
       // push_person diffs land cleanly without needing a re-pull.
       const { error: mapErr } = await mapRazorpayEmployee(rpId, outboundData, "created_via_erp");
       if (mapErr) {
-        return json(207, {
-          ok: true, razorpay_employee_id: rpId, http_status: httpStatus,
-          warning: `Employee created in Razorpay but ERP mapping failed: ${mapErr.message}`,
+        return json(200, {
+          ok: false,
+          code: "RAZORPAY_MAPPING_FAILED",
+          razorpay_employee_id: rpId,
+          http_status: httpStatus,
+          error: `Employee created in Razorpay but ERP mapping failed: ${mapErr.message}`,
         });
       }
+
+      return await completeSuccessResponse(rpId, { http_status: httpStatus }, "fresh_create");
 
       // ---- FULL-DETAILS ENRICHMENT (invite-flow → complete record) ----------
       // Razorpay's `people:create` only persists name / email / date-of-joining

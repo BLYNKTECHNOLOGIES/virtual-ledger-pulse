@@ -335,7 +335,6 @@ export function BulkCompletionPanel() {
       {dialog === "salary" && (
         <BulkSalaryDialog
           rows={selectedRows}
-          templates={templates}
           onClose={() => setDialog(null)}
           onDone={() => { setDialog(null); setSelected(new Set()); invalidate(); }}
         />

@@ -38,6 +38,18 @@ const upper = (v: unknown) => norm(v).toUpperCase();
 
 const pick = (...vals: unknown[]) => vals.map(norm).find(Boolean) || "";
 
+const titleToken = (v: unknown) => ci(v).replace(/[.\s_-]+/g, "");
+
+const inferGenderFromTitle = (v: unknown) => {
+  const token = titleToken(v);
+  if (!token) return "";
+  if (["mr", "mister", "master", "shri", "sri", "dmd"].includes(token)) return "male";
+  if (["mrs", "ms", "miss", "misses", "smt", "kumari"].includes(token)) return "female";
+  return "";
+};
+
+const isGenderTitle = (v: unknown) => !!inferGenderFromTitle(v);
+
 const splitName = (value: unknown) => {
   const s = norm(value).replace(/\s+/g, " ");
   if (!s) return { first: "", last: "" };
@@ -145,12 +157,13 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     rp?.employment_type,
     rp?.["employment-type"],
   ));
+  const rpTitle = pick(rp?.title, rp?.salutation, rp?.["name-title"], rp?.name_title);
   const rpJobRole = pick(
     rp?.job_title,
     rp?.jobTitle,
     rp?.["job-title"],
     rp?.designation,
-    rp?.title,
+    isGenderTitle(rpTitle) ? "" : rp?.title,
   );
   const rpTaxRegime = ci(pick(
     rp?.tax_regime,
@@ -234,8 +247,9 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     (() => {
       // RazorpayX exposes gender under several key spellings depending on
       // whether the record came from Payroll vs the newer HRMS module. We
-      // also fall back to the `title`/`salutation` prefix (Mr/Ms/Mrs/Miss)
-      // which the dashboard always sets even when `gender` itself is blank.
+      // also fall back to the `title`/`salutation` prefix. For this tenant,
+      // RazorpayX has emitted `title: "Dmd"` as the only gender-bearing field
+      // for a male employee, with no explicit `gender` key in people:view.
       const rawGender = pick(
         rp?.gender,
         rp?.sex,
@@ -244,17 +258,7 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
         rp?.personal_details?.gender,
         rp?.["personal-details"]?.gender,
       );
-      const salutation = pick(
-        rp?.title,
-        rp?.salutation,
-        rp?.["name-title"],
-        rp?.name_title,
-      ).toLowerCase().replace(/\./g, "").trim();
-      let inferred = rawGender;
-      if (!inferred && salutation) {
-        if (["mr", "master", "shri"].includes(salutation)) inferred = "male";
-        else if (["mrs", "ms", "miss", "smt"].includes(salutation)) inferred = "female";
-      }
+      const inferred = rawGender || inferGenderFromTitle(rpTitle);
       const display = norm(inferred);
       return {
         field: "gender",

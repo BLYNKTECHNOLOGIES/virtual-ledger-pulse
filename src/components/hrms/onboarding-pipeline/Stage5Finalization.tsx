@@ -1105,7 +1105,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim() || bioAlreadyCreated}
+                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim() || bioAlreadyCreated || (!alreadyInRazorpay && !rpVerification?.ok)}
                 onClick={handlePushToBiometric}
               >
                 <Fingerprint className="h-3.5 w-3.5 mr-1.5" />

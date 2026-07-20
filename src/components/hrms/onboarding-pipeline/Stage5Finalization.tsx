@@ -78,7 +78,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // resolved (Use RazorpayX value) or overridden. `snapshot` is the raw RP body
   // kept in memory for the "Use RazorpayX value" click handlers.
   const [reconcileDiffs, setReconcileDiffs] = useState<ReconcileDiff[] | null>(null);
-  const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, boolean>>({});
+  const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, 'hrms' | 'razorpay'>>({});
   const [rpSnapshot, setRpSnapshot] = useState<any>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
@@ -124,7 +124,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // checkboxes) without re-hitting RazorpayX.
   const persistReconciliation = async (
     diffs: ReconcileDiff[] | null,
-    overrides: Record<string, boolean>,
+    overrides: Record<string, 'hrms' | 'razorpay'>,
     snapshot: any,
   ) => {
     if (!onboardingRecord?.id) return;
@@ -204,9 +204,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           .filter(d => d.status !== "match")
           .map(d => d.field),
       );
-      const preservedOverrides: Record<string, boolean> = {};
+      const preservedOverrides: Record<string, 'hrms' | 'razorpay'> = {};
       Object.entries(priorOverrides).forEach(([field, val]) => {
-        if (val && stillMismatched.has(field)) preservedOverrides[field] = true;
+        if (val && stillMismatched.has(field)) {
+          preservedOverrides[field] = val === 'razorpay' ? 'razorpay' : 'hrms';
+        }
       });
       setRpSnapshot(snap);
       setReconcileDiffs(diffs);
@@ -266,21 +268,22 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const applyRazorpayValue = async (diff: ReconcileDiff) => {
     if (!rpSnapshot) return;
     const rp = rpSnapshot;
+    const rpVal = diff.rpRawValue ?? null;
     let touched = false;
     switch (diff.field) {
       case "date_of_joining": {
-        const iso = String(diff.rpRawValue || "");
-        if (iso) { updateForm({ date_of_joining: iso }); touched = true; }
+        updateForm({ date_of_joining: rpVal ? String(rpVal) : "" });
+        touched = true;
         break;
       }
       case "bank_account_number": {
-        const v = String(diff.rpRawValue || "");
-        if (v) { updateForm({ bank_account_number: v }); touched = true; }
+        updateForm({ bank_account_number: rpVal ? String(rpVal) : "" });
+        touched = true;
         break;
       }
       case "bank_ifsc_code": {
-        const v = String(diff.rpRawValue || "").toUpperCase();
-        if (v) { updateForm({ bank_ifsc_code: v }); touched = true; }
+        updateForm({ bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" });
+        touched = true;
         break;
       }
       case "first_name":
@@ -290,15 +293,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "gender":
       case "date_of_birth":
       case "ctc": {
-        // These live on hr_employee_onboarding directly (not on the Stage 5 form).
-        // Write via onSave so the parent record + query cache stay in sync.
         if (!onboardingRecord?.id) break;
-        const rpVal = diff.rpRawValue;
-        const col = diff.field === "ctc" ? "ctc" : diff.field;
+        const col = diff.field;
         try {
           await supabase
             .from("hr_employee_onboarding")
-            .update({ [col]: rpVal ?? null, updated_at: new Date().toISOString() } as any)
+            .update({ [col]: rpVal, updated_at: new Date().toISOString() } as any)
             .eq("id", onboardingRecord.id);
           await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
           touched = true;
@@ -309,29 +309,22 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         break;
       }
       default: {
-        toast.info("This field can't be auto-copied from RazorpayX — override it or update it manually.");
-        return;
+        // Non-writable fields (PAN/UAN from Stage 3, reporting manager). The
+        // 'razorpay' choice is still recorded so Finalize treats it as resolved.
+        break;
       }
     }
-    if (!touched) {
-      toast.info("RazorpayX has no value for this field — nothing to copy.");
-      return;
-    }
-    // Re-reconcile immediately using the freshly patched ERP input.
     const nextDiffs = reconcileOnboarding(buildErpInput(), rp);
     setReconcileDiffs(nextDiffs);
-    // Clear any override for this field since it's now actually fixed.
-    const nextOverrides = { ...reconcileOverrides };
-    delete nextOverrides[diff.field];
-    setReconcileOverrides(nextOverrides);
-    persistReconciliation(nextDiffs, nextOverrides, rp);
-    toast.success(`Applied RazorpayX value for ${diff.label}.`);
+    if (touched) toast.success(`Applied RazorpayX value for ${diff.label}.`);
   };
 
-  const toggleOverride = (field: string, checked: boolean) => {
+
+  const setChoice = (field: string, choice: 'hrms' | 'razorpay' | null) => {
     setReconcileOverrides(prev => {
-      const next = { ...prev, [field]: checked };
-      if (!checked) delete next[field];
+      const next: Record<string, 'hrms' | 'razorpay'> = { ...prev };
+      if (choice) next[field] = choice;
+      else delete next[field];
       persistReconciliation(reconcileDiffs, next, rpSnapshot);
       return next;
     });
@@ -559,7 +552,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               },
             }, restoredSnapshot)
           : rec.diffs as ReconcileDiff[]);
-        setReconcileOverrides((rec.overrides as Record<string, boolean>) || {});
+        {
+          const raw = (rec.overrides as Record<string, unknown>) || {};
+          const norm: Record<string, 'hrms' | 'razorpay'> = {};
+          Object.entries(raw).forEach(([k, v]) => {
+            if (v === 'razorpay') norm[k] = 'razorpay';
+            else if (v) norm[k] = 'hrms';
+          });
+          setReconcileOverrides(norm);
+        }
         setRpSnapshot(restoredSnapshot);
       } else {
         setReconcileDiffs(null);
@@ -930,7 +931,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const overrideFields: Record<string, any> = {};
       if (reconcileDiffs && rpId) {
         for (const d of reconcileDiffs) {
-          if (!reconcileOverrides[d.field]) continue;
+          if (reconcileOverrides[d.field] !== 'hrms') continue;
           if (d.status === "match") continue;
           // Use the ERP-side value from the diff row (already normalized).
           if (d.erp) overrideFields[d.field] = d.erp;
@@ -1163,11 +1164,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       </div>
                       <div className="divide-y divide-border">
                         {reconcileDiffs.map((d) => {
-                          const overridden = !!reconcileOverrides[d.field];
+                          const choice = reconcileOverrides[d.field];
                           const isMatch = d.status === "match";
-                          const rowOk = isMatch || overridden;
+                          const rowOk = isMatch || !!choice;
                           const rpDisplay = d.razorpay;
                           const erpDisplay = d.erp;
+                          const hrmsActive = choice === 'hrms';
+                          const rpActive = choice === 'razorpay';
                           return (
                             <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
                               <div className="flex items-center gap-1.5">
@@ -1192,16 +1195,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                     <button
                                       type="button"
                                       disabled={readOnly}
-                                      onClick={() => toggleOverride(d.field, true)}
-                                      className={`h-6 px-2 text-[11px] transition-colors ${overridden ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                      onClick={() => setChoice(d.field, 'hrms')}
+                                      className={`h-6 px-2 text-[11px] transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                     >
                                       Use HRMS
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={readOnly || !rpDisplay}
-                                      onClick={() => applyRazorpayValue(d)}
-                                      className={`h-6 px-2 text-[11px] border-l border-border transition-colors bg-background hover:bg-muted disabled:opacity-50`}
+                                      disabled={readOnly}
+                                      onClick={() => { setChoice(d.field, 'razorpay'); applyRazorpayValue(d); }}
+                                      className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                     >
                                       Use RazorpayX
                                     </button>

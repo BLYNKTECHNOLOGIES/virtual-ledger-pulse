@@ -88,7 +88,7 @@ interface ErpInput {
   probation_end_date?: string | null;
   employee_type?: string | null;
   job_role?: string | null;
-  tax_regime?: string | null;
+  
   ctc?: number | string | null;
   documents?: any;
   bank?: {

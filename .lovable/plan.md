@@ -1,62 +1,68 @@
-## Goal
-Stop trying to force RazorpayX to create a fully active employee from ERP. Align onboarding with what the RazorpayX API actually supports: invite-only creation, then the employee self-completes and RazorpayX assigns the real `employee-id`. ERP then uses that ID as the single canonical ID across RazorpayX + eSSL + HRMS.
+## What changes
 
-## New onboarding flow (Stage 5 Finalization)
+Pivot Stage 5 Finalization away from "reserve an ID and force-create in Razorpay" and align with how RazorpayX actually works: Razorpay only issues an Employee ID after the employee completes self-registration. You will paste that ID into Stage 5, and the ERP uses it as the single unified ID everywhere (HRMS badge_id + ESSL PIN + Razorpay employee_id).
 
-Two modes, chosen on the finalization screen:
+## Stage 5 UI rework (`Stage5Finalization.tsx`)
 
-**Mode A — Invite via RazorpayX (default for brand-new hires)**
-1. ERP calls `people:create` with only the fields RazorpayX accepts for invite (name, email, type). No `employee-id`, no salary, no bank, no PAN pushed here.
-2. RazorpayX emails the invite. ERP saves the onboarding as `awaiting_razorpay_id` (draft persists, wizard resumable).
-3. Employee opens the invite, completes RazorpayX self-registration; RazorpayX assigns the real `employee-id`.
-4. Owner comes back to the same onboarding draft, sees a "Enter RazorpayX Employee ID" field on Stage 5, pastes the ID, clicks **Verify & Finalize**.
-5. ERP calls `people:fetch` (or `people:edit` probe) to confirm the ID exists and matches the invited email; then:
-   - writes `hr_razorpay_employee_map` (hr_employee_id ↔ razorpay_employee_id),
-   - stamps the same numeric ID as the ERP badge_id / employee_id and as the eSSL PIN,
-   - queues eSSL push (existing `hr-essl-push`) with that PIN,
-   - creates the ERP user account (existing `create-erp-user` flow),
-   - marks onboarding `completed`.
+Replace the reserved-ID banner with a two-mode picker at the top of the card:
 
-**Mode B — Employee already exists in RazorpayX**
-Owner toggles "Employee already has a RazorpayX ID" on Stage 5, enters the ID directly, clicks Verify & Finalize. Same verify → map → eSSL → ERP-user path as step 5 above. No `people:create` call.
+1. **Waiting for Razorpay Employee ID** (default for fresh drafts)
+   - Explains: "RazorpayX only issues an Employee ID after the new hire completes self-registration on their invite. Save the draft here — no HRMS employee, no ESSL PIN, no ERP account is created yet."
+   - Only **Save Draft** and **Back** are enabled. Finalize is disabled with a tooltip explaining why.
+   - `essl_badge_id` field is disabled with helper text: "Locked until Razorpay Employee ID is entered."
 
-## What gets removed / gated
+2. **Razorpay Employee ID received** (operator toggles / enters the number)
+   - Input for the numeric Razorpay Employee ID (validated: digits only, non-empty).
+   - Auto-fills `essl_badge_id` with that same value and disables manual edit — enforces the unified-ID doctrine.
+   - Optional "Verify with Razorpay" button that calls the proxy to confirm the ID exists and pull `first_name/last_name/email/status` for a diff preview. Shows green tick on match, red warning on mismatch.
+   - Only then does **Finalize & Create Employee** become enabled.
 
-- Remove the "reserve sequential ID + force-active create + retry loop + Gmail alias fallback + people-id ghost recovery" logic from `Stage5Finalization.tsx` and from `razorpay-payroll-proxy` (`create_person` / recovery branches). Keep it behind a feature flag we can delete later, or delete outright — plan is delete outright.
-- Remove `hr_next_razorpay_employee_id()` usage from the wizard (the number no longer comes from us; RazorpayX owns it).
-- The current failure banner ("Employee ID 77 could not be attached/verified…") goes away because we never pretend to attach an ID we don't yet have.
+Remove:
+- The `hr_next_razorpay_employee_id()` reservation call and its status pills.
+- The `create_in_razorpay` switch (creation via API is retired; the ID must exist first).
+- All "reservation released / recovered" plumbing on this page.
 
-## What gets added
+## Wizard finalize flow (`OnboardingWizard.tsx`)
 
-- `razorpay-payroll-proxy` action `invite_person`: minimal `people:create` (name, email, type only). Returns `{ ok, invited: true, email }`.
-- `razorpay-payroll-proxy` action `verify_person_by_id`: calls `people:fetch` for the supplied `employee-id`, returns the RazorpayX record. Used by Stage 5 verify step. Rejects if email doesn't match the onboarding draft's email (safety net so the owner doesn't paste the wrong ID).
-- `razorpay-payroll-proxy` action `finalize_person` (post-verify enrichment): pushes the profile bundle RazorpayX accepts *after* self-registration (department, title, hire_date, PAN, bank, IFSC, salary structure if we already have it). Non-fatal if any field is rejected — logged to `hr_razorpay_pushback_log` and surfaced as a drift alert (existing mechanism), never blocks finalization.
-- Onboarding draft schema: add `razorpay_invite_sent_at`, `razorpay_employee_id_entered`, `finalization_mode` ('invite' | 'existing_id'). Wizard resumes into Stage 5 with the entered ID pre-filled.
-- Stage 5 UI: two clearly labeled cards ("Invite via RazorpayX" / "Employee already has a RazorpayX ID"), an "Enter RazorpayX Employee ID" input that appears after invite is sent, a **Verify & Finalize** primary button, and a plain-English status line ("Waiting for employee to complete RazorpayX self-registration — come back and enter the ID here once they're done.").
+Rewrite `handleFinalize` so it never calls `create_person`:
 
-## ID unification rule (unchanged intent, cleaner mechanics)
+1. Require `stage5Data.razorpay_employee_id` (numeric). Abort with a clear message if missing.
+2. Use that ID as `unifiedId` for:
+   - `hr_employees.badge_id`
+   - `essl_badge_id` (and the eSSL device push after activation)
+   - RazorpayX linkage row in `hr_razorpay_employee_map`
+3. Call the proxy with a lightweight `verify_and_link_person` action (see next section) instead of `create_person`. On success, upsert the map row and push identity/bank/salary via existing pushback helpers.
+4. Keep the existing ERP-account creation, leave allocations, work info, bank details, and biometric queueing flow.
+5. Drop the reserved-ID release paths — nothing to release anymore.
 
-Once verified, the RazorpayX `employee-id` becomes:
-- ERP `hr_employees.badge_id` and `employee_id`,
-- eSSL device PIN (via `hr-essl-push`),
-- The key in `hr_razorpay_employee_map`.
+## Proxy (`razorpay-payroll-proxy/index.ts`)
 
-No sequential reservation on our side. If the owner uses Mode B for an existing employee whose current ERP badge differs, we show a confirm dialog explaining that ERP badge/eSSL PIN will be rekeyed to the RazorpayX ID (existing rekey path).
+Add one new action, reuse existing code paths for the rest:
 
-## Files touched
+- `verify_and_link_person`
+  - Input: `{ hr_employee_id, razorpay_employee_id }`.
+  - Calls Razorpay `people:fetch` (or the existing recovery lookup) by Employee ID.
+  - Returns `{ ok, razorpay_people_id, first_name, last_name, email, status }` or `{ ok:false, error }` if the ID isn't found or is dismissed.
+  - Upserts `hr_razorpay_employee_map (hr_employee_id, razorpay_employee_id, razorpay_people_id)`.
 
-- `src/components/hrms/onboarding-pipeline/Stage5Finalization.tsx` — new two-mode UI, remove reserve/retry logic, add verify+finalize.
-- `src/components/hrms/onboarding-pipeline/OnboardingWizard.tsx` — new draft fields, resume into Stage 5 with saved invite state.
-- `supabase/functions/razorpay-payroll-proxy/index.ts` — add `invite_person`, `verify_person_by_id`, `finalize_person`; delete forced-active create, alias fallback, ghost recovery, 45s retry loop.
-- `src/lib/razorpayPushback.ts` — no behavior change; enrichment failures continue to log + open drift alerts.
-- `hr_onboarding_drafts` (or equivalent) — migration for the three new columns.
+Leave the legacy `create_person` / recovery / reservation actions in place (still used by imports and the existing "already exists in Razorpay" repair flow) but stop calling them from onboarding.
 
-## Out of scope (explicit)
+## Draft schema
 
-- No change to the eSSL push contract, biometric webhook, or ERP user creation flow beyond receiving the canonical ID from the verify step.
-- No change to attendance engine v4, payroll, or statutory logic.
-- We are not building a webhook listener for RazorpayX "employee activated" events in this pass — verification is owner-driven by pasting the ID. Webhook-driven auto-finalize can be a later enhancement if RazorpayX exposes it.
+Add two nullable columns to `hr_employee_onboarding` via migration:
+- `razorpay_employee_id text` — the operator-entered ID.
+- `razorpay_verified_at timestamptz` — set when Verify succeeds.
 
-## One clarification before I build
+Both are optional so existing drafts keep working. No RLS/grant changes needed (table already granted).
 
-Once the owner pastes the RazorpayX employee ID, do you want me to **hard-block** finalization if the email on the RazorpayX record doesn't exactly match the onboarding draft's email, or just **warn and let you proceed** (in case the employee registered with a slightly different email casing/alias)? Default in the plan above is hard-block; say the word if you'd rather warn-only.
+## Technical notes
+
+- Unified ID stays a plain integer string; no ID generator is called anywhere in the onboarding path anymore. Range-check it against the existing 6-digit ESSL PIN limit and reject if the Razorpay ID exceeds it.
+- `hr_next_razorpay_employee_id()` RPC is left in the DB for other callers (import backfill) but removed from Stage 5.
+- Finalize keeps the "draft employee row (is_active=false) → activate on full success" pattern so a failed ERP-account step still lets you retry.
+- No changes to statutory / salary / bank push helpers — they run after activation as today.
+
+## Out of scope
+
+- Sending the Razorpay invite from ERP (Razorpay dashboard already does this; API path doesn't reliably activate).
+- Any automated polling for the newly issued ID — operator enters it manually per your instruction.

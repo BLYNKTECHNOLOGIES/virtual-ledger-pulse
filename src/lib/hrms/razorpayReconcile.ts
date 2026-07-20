@@ -231,15 +231,41 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: last10(erp.phone),
       compareRp: last10(rpPhone),
     },
-    {
-      field: "gender",
-      label: "Gender",
-      erp: norm(erp.gender),
-      razorpay: norm(pick(rp?.gender, rp?.sex)),
-      rpRawValue: pick(rp?.gender, rp?.sex) || null,
-      compareErp: ci(erp.gender),
-      compareRp: ci(pick(rp?.gender, rp?.sex)),
-    },
+    (() => {
+      // RazorpayX exposes gender under several key spellings depending on
+      // whether the record came from Payroll vs the newer HRMS module. We
+      // also fall back to the `title`/`salutation` prefix (Mr/Ms/Mrs/Miss)
+      // which the dashboard always sets even when `gender` itself is blank.
+      const rawGender = pick(
+        rp?.gender,
+        rp?.sex,
+        rp?.gender_identity,
+        rp?.["gender-identity"],
+        rp?.personal_details?.gender,
+        rp?.["personal-details"]?.gender,
+      );
+      const salutation = pick(
+        rp?.title,
+        rp?.salutation,
+        rp?.["name-title"],
+        rp?.name_title,
+      ).toLowerCase().replace(/\./g, "").trim();
+      let inferred = rawGender;
+      if (!inferred && salutation) {
+        if (["mr", "master", "shri"].includes(salutation)) inferred = "male";
+        else if (["mrs", "ms", "miss", "smt"].includes(salutation)) inferred = "female";
+      }
+      const display = norm(inferred);
+      return {
+        field: "gender",
+        label: "Gender",
+        erp: norm(erp.gender),
+        razorpay: display,
+        rpRawValue: inferred || null,
+        compareErp: ci(erp.gender),
+        compareRp: ci(inferred),
+      };
+    })(),
     {
       field: "date_of_birth",
       label: "Date of birth",

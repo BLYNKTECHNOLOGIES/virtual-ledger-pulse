@@ -497,45 +497,33 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       const failures: { system: string; message: string }[] = [];
       const successes: string[] = [];
 
-      // 6a. RazorpayX employee creation.
+      // 6a. Verify + link the operator-entered RazorpayX Employee ID to this
+      //     HRMS row. RazorpayX itself owns employee creation now — the ID must
+      //     already exist on RazorpayX (issued after the new hire completes
+      //     self-registration). We only verify + upsert the mapping row here.
       let razorpayEmployeeId: string | null = null;
-      if (stage5Data?.create_in_razorpay) {
+      if (operatorRazorpayId) {
         try {
           const rpRes = await invokeLongRunningFunction<any>("razorpay-payroll-proxy", {
-            action: "create_person",
+            action: "recover_person_by_id",
             hr_employee_id: emp.id,
+            razorpay_employee_id: Number(operatorRazorpayId),
           });
           if (rpRes?.ok === false) {
-            const detail = rpRes?.missing?.length
-              ? `Missing: ${rpRes.missing.join(", ")}`
-              : (rpRes?.error || rpRes?.reason || "Razorpay rejected the request");
+            const detail = rpRes?.error || rpRes?.reason || "RazorpayX rejected the verification";
             throw new Error(detail);
           }
-          razorpayEmployeeId = rpRes?.razorpay_employee_id ?? null;
-          const rpAction = rpRes?.already_mapped || rpRes?.already_exists_in_razorpay
-            ? "razorpay_person_reused"
-            : "razorpay_person_created";
-          await logAudit(recordId, 5, rpAction, { razorpay_employee_id: razorpayEmployeeId, response: rpRes });
-          const enrichmentNote = Array.isArray(rpRes?.enrichment_applied) && rpRes.enrichment_applied.length
-            ? ` (pushed: ${rpRes.enrichment_applied.join(", ")})`
-            : "";
-          successes.push(
-            rpRes?.already_mapped || rpRes?.already_exists_in_razorpay
-              ? `RazorpayX ID ${razorpayEmployeeId} reused`
-              : `RazorpayX ID ${razorpayEmployeeId}${enrichmentNote}`,
-          );
-          if (Array.isArray(rpRes?.warnings) && rpRes.warnings.length) {
-            for (const w of rpRes.warnings) {
-              failures.push({ system: "RazorpayX (partial)", message: String(w) });
-            }
-          }
+          razorpayEmployeeId = rpRes?.razorpay_employee_id ?? operatorRazorpayId;
+          await logAudit(recordId, 5, "razorpay_person_verified", { razorpay_employee_id: razorpayEmployeeId, response: rpRes });
+          successes.push(`RazorpayX ID ${razorpayEmployeeId} linked`);
         } catch (rpErr: any) {
           const message = rpErr?.message || String(rpErr);
-          console.error("Razorpay create failed:", rpErr);
-          await logAudit(recordId, 5, "razorpay_person_failed", { error: message });
+          console.error("Razorpay verify+link failed:", rpErr);
+          await logAudit(recordId, 5, "razorpay_person_verify_failed", { error: message });
           failures.push({ system: "RazorpayX", message });
         }
       }
+
 
       // RazorpayX is the payroll authority. If its provisioning failed, stop
       // here: do not create ERP accounts or mark the local employee active.

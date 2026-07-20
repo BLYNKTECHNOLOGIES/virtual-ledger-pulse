@@ -931,7 +931,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const overrideFields: Record<string, any> = {};
       if (reconcileDiffs && rpId) {
         for (const d of reconcileDiffs) {
-          if (!reconcileOverrides[d.field]) continue;
+          if (reconcileOverrides[d.field] !== 'hrms') continue;
           if (d.status === "match") continue;
           // Use the ERP-side value from the diff row (already normalized).
           if (d.erp) overrideFields[d.field] = d.erp;

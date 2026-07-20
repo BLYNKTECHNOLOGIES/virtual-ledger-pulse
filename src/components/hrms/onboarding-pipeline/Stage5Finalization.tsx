@@ -920,26 +920,52 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         const resp = (editData || {}) as any;
         if (!resp.ok) throw new Error(`RazorpayX write-back rejected: ${resp.error || "unknown"}`);
       }
+      // "Use RazorpayX" write-back: apply RP → HRMS now (deferred from click time).
+      let effectiveForm = form;
+      const onboardingPatchAgg: Record<string, any> = {};
+      if (reconcileDiffs) {
+        for (const d of reconcileDiffs) {
+          if (reconcileOverrides[d.field] !== 'razorpay') continue;
+          if (d.status === "match") continue;
+          const { formPatch, onboardingPatch } = buildRazorpayPatch(d);
+          if (formPatch) effectiveForm = { ...effectiveForm, ...formPatch };
+          if (onboardingPatch) Object.assign(onboardingPatchAgg, onboardingPatch);
+        }
+      }
+      if (Object.keys(onboardingPatchAgg).length > 0 && onboardingRecord?.id) {
+        toast.loading(`Pulling ${Object.keys(onboardingPatchAgg).length} RazorpayX field(s) into HRMS…`, { id: toastId });
+        const { error: pullErr } = await supabase
+          .from("hr_employee_onboarding")
+          .update({ ...onboardingPatchAgg, updated_at: new Date().toISOString() } as any)
+          .eq("id", onboardingRecord.id);
+        if (pullErr) throw new Error(`HRMS write-back failed: ${pullErr.message || pullErr}`);
+        await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+      }
+      // Persist form-level patches so subsequent stages see them.
+      if (effectiveForm !== form) {
+        setForm(effectiveForm);
+      }
 
       const payload: any = {
-        date_of_joining: form.date_of_joining,
-        essl_badge_id: form.essl_badge_id,
-        create_erp_account: form.create_erp_account,
-        erp_role_id: form.erp_role_id,
-        reporting_manager_id: form.reporting_manager_id,
-        razorpay_employee_id: form.razorpay_employee_id.trim() || null,
+        date_of_joining: effectiveForm.date_of_joining,
+        essl_badge_id: effectiveForm.essl_badge_id,
+        create_erp_account: effectiveForm.create_erp_account,
+        erp_role_id: effectiveForm.erp_role_id,
+        reporting_manager_id: effectiveForm.reporting_manager_id,
+        razorpay_employee_id: effectiveForm.razorpay_employee_id.trim() || null,
         razorpay_hrms_overrides: reconcileOverrides,
         razorpay_reconciliation: reconcileDiffs
           ? { diffs: reconcileDiffs, overrides: reconcileOverrides, snapshot: rpSnapshot, finalized_at: new Date().toISOString() }
           : null,
       };
-      if (hasBankInput) {
+      const hasBankInputEff = !!(effectiveForm.bank_account_number.trim() && effectiveForm.bank_ifsc_code.trim());
+      if (hasBankInputEff) {
         payload.bank_details = {
-          account_number: form.bank_account_number.trim(),
-          ifsc_code: form.bank_ifsc_code.trim().toUpperCase(),
-          bank_name: form.bank_name.trim() || null,
-          branch: form.bank_branch.trim() || null,
-          account_holder: form.bank_account_holder.trim() || null,
+          account_number: effectiveForm.bank_account_number.trim(),
+          ifsc_code: effectiveForm.bank_ifsc_code.trim().toUpperCase(),
+          bank_name: effectiveForm.bank_name.trim() || null,
+          branch: effectiveForm.bank_branch.trim() || null,
+          account_holder: effectiveForm.bank_account_holder.trim() || null,
         };
       }
       console.log("[Stage5] Calling onFinalize with payload", payload);

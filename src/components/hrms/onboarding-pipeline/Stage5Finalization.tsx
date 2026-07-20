@@ -1019,21 +1019,27 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             </Label>
             <div className="flex gap-2 mt-1">
               <Input
-                placeholder={alreadyInRazorpay ? "" : "Enter RazorpayX Employee ID above — it auto-fills here"}
+                placeholder={
+                  alreadyInRazorpay
+                    ? ""
+                    : rpVerification?.ok
+                      ? "Auto-filled from verified RazorpayX Employee ID"
+                      : "Verify a RazorpayX Employee ID first — Badge ID is locked until then"
+                }
                 value={form.essl_badge_id}
                 onChange={e => updateForm({ essl_badge_id: e.target.value })}
-                disabled={readOnly || (!alreadyInRazorpay && !!form.razorpay_employee_id.trim())}
+                disabled={readOnly || (!alreadyInRazorpay && !rpVerification?.ok)}
                 className="font-mono"
               />
               <Select
                 value=""
                 onValueChange={v => updateForm({ essl_badge_id: v })}
-                disabled={readOnly || pinsLoading || bioAlreadyCreated || (!alreadyInRazorpay && !!form.razorpay_employee_id.trim())}
+                disabled={readOnly || pinsLoading || bioAlreadyCreated || (!alreadyInRazorpay && !rpVerification?.ok)}
               >
                 <SelectTrigger className="w-[190px] shrink-0">
                   <SelectValue placeholder={
-                    (!alreadyInRazorpay && form.razorpay_employee_id.trim())
-                      ? "Using RazorpayX ID"
+                    (!alreadyInRazorpay && !rpVerification?.ok)
+                      ? "Locked until RazorpayX verify"
                       : bioAlreadyCreated
                         ? "Locked — already created"
                         : pinsLoading
@@ -1056,6 +1062,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 </SelectContent>
               </Select>
             </div>
+            {!alreadyInRazorpay && !rpVerification?.ok && (
+              <p className="text-[11px] text-muted-foreground mt-1.5 flex items-start gap-1">
+                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>Send the RazorpayX invite, wait for the hire to self-register, then paste and verify the issued Employee ID above. The ESSL Badge ID unlocks only after successful verification.</span>
+              </p>
+            )}
             {pinStatus && !(bioAlreadyCreated && pinStatus.kind !== "conflict") && (
               <p className={`text-xs mt-1.5 flex items-start gap-1 ${
                 pinStatus.kind === "ok" ? "text-success" :

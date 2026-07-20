@@ -97,6 +97,8 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       "document_mail_received_at",
       "offer_policy_documents",
       "bank_details",
+      "razorpay_employee_id",
+      "razorpay_verified_at",
     ]);
 
     const normalizedUpdates: Record<string, any> = { updated_at: new Date().toISOString() };

@@ -989,11 +989,74 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       console.log("[Stage5] Calling onFinalize with payload", payload);
       await onFinalize(payload);
       console.log("[Stage5] onFinalize resolved");
+
+      // Post-finalize tally: re-fetch RazorpayX and diff against HRMS. Data
+      // consistency across HRMS ↔ RazorpayX ↔ ESSL is a core rule, so we do
+      // NOT trust the write-back responses alone — we read RazorpayX back and
+      // confirm every field matches (or is explicitly overridden). If not,
+      // revert the onboarding status so the operator can fix it.
+      if (rpId) {
+        toast.loading("Verifying RazorpayX ↔ HRMS tally…", { id: toastId });
+        const { data: verifyData, error: verifyErr } = await supabase.functions.invoke(
+          "razorpay-payroll-proxy",
+          { body: { action: "read_person_by_id", razorpay_employee_id: Number(rpId) } },
+        );
+        if (verifyErr || !(verifyData as any)?.ok) {
+          const msg = verifyErr?.message || (verifyData as any)?.error || "Could not re-read RazorpayX for tally.";
+          if (onboardingRecord?.id) {
+            await supabase.from("hr_employee_onboarding")
+              .update({ status: "stage_4", updated_at: new Date().toISOString() } as any)
+              .eq("id", onboardingRecord.id);
+          }
+          throw new Error(`Post-finalize verification failed: ${msg}`);
+        }
+        const snap = (verifyData as any).snapshot || {};
+        const erpInputAfter = { ...buildErpInput(), ...(effectiveForm !== form ? {
+          bank: {
+            account_number: effectiveForm.bank_account_number,
+            ifsc_code: effectiveForm.bank_ifsc_code,
+            account_holder: effectiveForm.bank_account_holder,
+          },
+          date_of_joining: effectiveForm.date_of_joining || onboardingRecord?.date_of_joining,
+        } : {}) };
+        const verifyDiffs = reconcileOnboarding(erpInputAfter as any, snap);
+        const unresolved = verifyDiffs.filter(d => d.status !== "match" && reconcileOverrides[d.field] !== 'hrms' && reconcileOverrides[d.field] !== 'razorpay');
+        // Persist the fresh snapshot for the audit trail regardless of outcome.
+        if (onboardingRecord?.id) {
+          await supabase.from("hr_employee_onboarding")
+            .update({
+              razorpay_reconciliation: {
+                diffs: verifyDiffs,
+                overrides: reconcileOverrides,
+                snapshot: snap,
+                verified_at: new Date().toISOString(),
+                verification_ok: unresolved.length === 0,
+              },
+              updated_at: new Date().toISOString(),
+            } as any)
+            .eq("id", onboardingRecord.id);
+        }
+        if (unresolved.length > 0) {
+          // Roll status back so Completed list doesn't misrepresent state.
+          if (onboardingRecord?.id) {
+            await supabase.from("hr_employee_onboarding")
+              .update({ status: "stage_4", updated_at: new Date().toISOString() } as any)
+              .eq("id", onboardingRecord.id);
+          }
+          setReconcileDiffs(verifyDiffs);
+          const names = unresolved.map(d => d.label).join(", ");
+          throw new Error(
+            `RazorpayX did not accept the following field(s) after Finalize: ${names}. ` +
+            `Status kept at "In Progress" — retry Finalize after resolving.`,
+          );
+        }
+      }
+
       const successMessage = `${firstName || "Employee"} ${lastName || ""}`.trim()
-        ? `${`${firstName || "Employee"} ${lastName || ""}`.trim()} has been created successfully.`
-        : "Employee has been created successfully.";
+        ? `${`${firstName || "Employee"} ${lastName || ""}`.trim()} has been created and verified against RazorpayX.`
+        : "Employee has been created and verified against RazorpayX.";
       setFinalizeFeedback({ kind: "success", message: successMessage });
-      toast.success(successMessage, { id: toastId, description: "Onboarding is now marked as completed." });
+      toast.success(successMessage, { id: toastId, description: "HRMS ↔ RazorpayX tally confirmed." });
     } catch (err: any) {
       console.error("[Stage5] onFinalize threw", err);
       const message = getFinalizeErrorMessage(err);

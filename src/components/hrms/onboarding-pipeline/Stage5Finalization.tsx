@@ -899,6 +899,30 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     setFinalizing(true);
     const toastId = toast.loading("Creating employee…");
     try {
+      // Bi-directional reconcile write-back:
+      //   • "Use RazorpayX"  → already wrote RazorpayX value into HRMS on click.
+      //   • "Keep HRMS"      → push HRMS value into RazorpayX right now, before
+      //                        finalize, so both systems end up identical.
+      const rpId = (form.razorpay_employee_id || (razorpayMap as any)?.razorpay_employee_id || "").toString().trim();
+      const overrideFields: Record<string, any> = {};
+      if (reconcileDiffs && rpId) {
+        for (const d of reconcileDiffs) {
+          if (!reconcileOverrides[d.field]) continue;
+          if (d.status === "match") continue;
+          // Use the ERP-side value from the diff row (already normalized).
+          if (d.erp) overrideFields[d.field] = d.erp;
+        }
+      }
+      if (Object.keys(overrideFields).length > 0) {
+        toast.loading(`Pushing ${Object.keys(overrideFields).length} HRMS field(s) to RazorpayX…`, { id: toastId });
+        const { data: editData, error: editErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+          body: { action: "edit_person_by_id", razorpay_employee_id: Number(rpId), fields: overrideFields },
+        });
+        if (editErr) throw new Error(`RazorpayX write-back failed: ${editErr.message || editErr}`);
+        const resp = (editData || {}) as any;
+        if (!resp.ok) throw new Error(`RazorpayX write-back rejected: ${resp.error || "unknown"}`);
+      }
+
       const payload: any = {
         date_of_joining: form.date_of_joining,
         essl_badge_id: form.essl_badge_id,

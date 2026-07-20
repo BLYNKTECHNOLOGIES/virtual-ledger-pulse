@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-20: RazorpayX onboarding Stage 5 flow corrected — create-in-RazorpayX invite step added, unverified stale ESSL badge IDs no longer hydrate, ESSL writes only unlock after verified RazorpayX Employee ID, and HRMS-wins reconciliation pushes HRMS data back to RazorpayX on finalize.
 - 2026-07-19: RazorpayX onboarding create path re-aligned to live Opfin behavior — people:create now includes required hire_date/full profile minus Employee ID, then retries email-keyed attach/read-back automatically to avoid manual finalize loops.
 - 2026-07-19: RazorpayX onboarding ghost-email behavior identified — `artwithakriti2529@gmail.com` returns email-exists but API edit/view cannot locate it; HRMS now stops downstream ERP/local activation on Razorpay failure and requires email purge/change before retry.
 - 2026-07-19: Shubhams Singh stuck onboarding reservation ID 75 cleared after deleted/partial Razorpay record; linked HR badge moved to PENDING-8A047792, pending eSSL create commands cancelled, delete commands queued, next unified RazorpayX/ESSL ID is 76.

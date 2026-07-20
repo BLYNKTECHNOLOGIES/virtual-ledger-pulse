@@ -42,6 +42,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const [finalizing, setFinalizing] = useState(false);
   const [pushingToDevices, setPushingToDevices] = useState(false);
   const [verifyingRpId, setVerifyingRpId] = useState(false);
+  const [creatingRazorpayInvite, setCreatingRazorpayInvite] = useState(false);
   const [rpVerification, setRpVerification] = useState<null | {
     ok: boolean;
     message: string;
@@ -310,8 +311,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     // Idempotency guard — if this PIN is already registered on a device with
     // a name, or we've already queued a create for it from this onboarding,
     // do not re-queue.
-    if (pinStatus?.kind === "ok" || existingPushLog) {
-      toast.info(`PIN ${pin} is already registered on the biometric device(s). Skipping duplicate create.`);
+    if (pinStatus?.kind === "conflict") {
+      toast.error(pinStatus.msg);
+      return;
+    }
+    if (pushLogBelongsToThisOnboarding) {
+      toast.info(`PIN ${pin} was already queued from this onboarding. Skipping duplicate create.`);
       return;
     }
     pushingRef.current = true;
@@ -396,6 +401,21 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   });
   const alreadyInRazorpay = !!(razorpayMap as any)?.razorpay_employee_id;
 
+  useEffect(() => {
+    const mappedId = String((razorpayMap as any)?.razorpay_employee_id || "").trim();
+    if (!mappedId) return;
+    setForm(prev => ({
+      ...prev,
+      razorpay_employee_id: prev.razorpay_employee_id || mappedId,
+      essl_badge_id: prev.essl_badge_id || mappedId,
+    }));
+    setRpVerification(prev => prev ?? {
+      ok: true,
+      message: `Already linked to RazorpayX Employee ID ${mappedId}.`,
+      razorpay_employee_id: mappedId,
+    });
+  }, [razorpayMap]);
+
   // Auto-pull bank/IFSC from Razorpay for pending onboardings that were imported
   // from Razorpay but haven't had their bank details projected yet. Runs once
   // per open of the wizard, silently — if it fails (permissions, offline
@@ -437,11 +457,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
       const savedRpId = String((onboardingRecord as any).razorpay_employee_id || "").trim();
       const savedRpVerifiedAt = (onboardingRecord as any).razorpay_verified_at;
+      const hasStaleUnverifiedBadge = !!existingBadge && !(savedRpId && savedRpVerifiedAt);
       // Only seed the badge from Razorpay ID when it was actually verified.
       // Otherwise leave it blank so ESSL cannot be created pre-verification.
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
-        essl_badge_id: existingBadge || (savedRpId && savedRpVerifiedAt ? savedRpId : ""),
+        essl_badge_id: savedRpId && savedRpVerifiedAt ? savedRpId : "",
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
@@ -452,6 +473,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         bank_account_holder: empName,
         razorpay_employee_id: savedRpId,
       });
+      if (hasStaleUnverifiedBadge && onSave && !readOnly) {
+        onSave({ essl_badge_id: null }, { silent: true }).catch((err: any) => {
+          console.warn("Failed to clear stale unverified ESSL badge ID:", err);
+        });
+      }
       if (savedRpId && (onboardingRecord as any).razorpay_verified_at) {
         setRpVerification({
           ok: true,
@@ -507,7 +533,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   });
 
   // Live eSSL device-user roster: only PINs actually seen by a device.
-  const { data: devicePins = [], isLoading: pinsLoading } = useQuery({
+  const { data: devicePins = [] } = useQuery({
     queryKey: ["hr_biometric_device_users_for_stage5"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -576,7 +602,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       if (!currentPinTrim) return null;
       const { data } = await (supabase as any)
         .from("hr_essl_pushback_log")
-        .select("id, status, device_serial, created_at, triggered_from")
+        .select("id, status, device_serial, created_at, triggered_from, request_snapshot, hr_employee_id")
         .eq("pin", currentPinTrim)
         .eq("kind", "identity")
         .in("status", ["queued", "ack", "acknowledged", "applied", "success"])
@@ -609,23 +635,25 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
   }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id, existingPushLog, pushFeedback]);
 
-  const unassignedPins = useMemo(() => {
-    const used = new Set(usedBadgeIds);
-    // Keep the PIN currently on this onboarding record visible so HR can re-pick it.
-    const currentPin = (form.essl_badge_id || "").trim();
-    return canonicalDevicePins
-      .filter((p: any) => !used.has(String(p.pin).trim()) || p.pin === currentPin)
-      .sort((a: any, b: any) => Number(a.pin) - Number(b.pin));
-  }, [canonicalDevicePins, usedBadgeIds, form.essl_badge_id]);
 
-  // The identity is "already created" on devices when EITHER a live device
-  // roster row exists for this PIN with a name (pinStatus.kind === "ok"),
-  // OR we have a queued/ack pushback-log entry for this PIN.
-  const bioAlreadyCreated = !!(pinStatus?.kind === "ok" || existingPushLog || pushFeedback);
+  const pushLogBelongsToThisOnboarding = !!existingPushLog && (
+    (existingPushLog as any)?.request_snapshot?.onboarding_id === onboardingRecord?.id ||
+    (!!(existingPushLog as any)?.hr_employee_id && (existingPushLog as any).hr_employee_id === onboardingRecord?.employee_id)
+  );
+
+  // Only a create/update queued by THIS onboarding locks the action. A live roster
+  // PIN by itself is not treated as "done" because old device users can be
+  // overwritten with the verified RazorpayX/HRMS identity after confirmation.
+  const bioAlreadyCreated = !!(pushLogBelongsToThisOnboarding || pushFeedback);
 
   // Finalize gate: unless this record was already linked in Razorpay (legacy
   // imports), the operator must have run Verify and either matched or overridden
   // every mismatched field on the reconciliation panel.
+  const onboardingReconciliationMeta = (onboardingRecord as any)?.razorpay_reconciliation && typeof (onboardingRecord as any).razorpay_reconciliation === "object"
+    ? (onboardingRecord as any).razorpay_reconciliation
+    : null;
+  const razorpayCreateRequest = onboardingReconciliationMeta?.create_request || null;
+
   const reconcileUnresolved = reconcileDiffs ? unresolvedCount(reconcileDiffs, reconcileOverrides) : 0;
   const reconcileReady = alreadyInRazorpay
     ? true
@@ -668,6 +696,44 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   }, [onboardingRecord, form.date_of_joining, form.bank_account_number, form.bank_ifsc_code, ifscValid, panFromDocs]);
 
   const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
+
+  const handleCreateRazorpayInvite = async () => {
+    if (!onboardingRecord?.id) {
+      toast.error("Save the onboarding draft before creating it in RazorpayX.");
+      return;
+    }
+    if (!razorpayChecklist.allOk) {
+      toast.error(`Complete these fields first: ${razorpayChecklist.missing.join(", ")}`);
+      return;
+    }
+    setCreatingRazorpayInvite(true);
+    const t = toast.loading("Creating RazorpayX employee invite…");
+    try {
+      if (onSave) {
+        await onSave(getDraftPayload(), { silent: true });
+      }
+      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: {
+          action: "create_onboarding_invite",
+          onboarding_id: onboardingRecord.id,
+        },
+      });
+      if (error) throw error;
+      const resp = (data || {}) as any;
+      if (!resp.ok) throw new Error(resp.error || "RazorpayX create failed");
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+      toast.success(
+        resp.already_exists
+          ? "RazorpayX already has this employee email. Paste and verify the Employee ID from RazorpayX."
+          : "RazorpayX employee invite created. Paste and verify the Employee ID once RazorpayX shows it.",
+        { id: t },
+      );
+    } catch (e: any) {
+      toast.error(`RazorpayX create failed: ${e?.message || e}`, { id: t });
+    } finally {
+      setCreatingRazorpayInvite(false);
+    }
+  };
 
   const getDraftPayloadFrom = (source: typeof form) => ({
     date_of_joining: source.date_of_joining || null,
@@ -788,7 +854,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         erp_role_id: form.erp_role_id,
         reporting_manager_id: form.reporting_manager_id,
         razorpay_employee_id: form.razorpay_employee_id.trim() || null,
-        razorpay_reconciled: reconcileReady,
+        razorpay_hrms_overrides: reconcileOverrides,
         razorpay_reconciliation: reconcileDiffs
           ? { diffs: reconcileDiffs, overrides: reconcileOverrides, snapshot: rpSnapshot, finalized_at: new Date().toISOString() }
           : null,
@@ -861,22 +927,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             />
           </div>
           <div className="sm:col-span-2">
-            {/* Step 1 — RazorpayX Employee ID (operator-entered).
-                RazorpayX only issues an Employee ID after the new hire completes
-                self-registration on their RazorpayX invite. Once issued, the
-                operator pastes it here. Per Unified ID doctrine that same
-                integer becomes the HRMS badge_id and ESSL device PIN. */}
+            {/* Step 1 — create/verify RazorpayX identity first. */}
             <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <Cloud className="h-4 w-4 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Step 1 — RazorpayX Employee ID</p>
+                  <p className="text-sm font-medium">Step 1 — Create / Verify RazorpayX Employee ID</p>
                   <p className="text-xs text-muted-foreground">
                     {alreadyInRazorpay
                       ? `Already linked to RazorpayX Employee ID ${(razorpayMap as any)?.razorpay_employee_id}. Reuse this ID as the ESSL PIN below.`
                       : rpVerification?.ok
                         ? "Verified. This ID will be the HRMS badge, ESSL PIN, and RazorpayX employee ID."
-                        : "RazorpayX only issues an Employee ID after the new hire completes self-registration on their RazorpayX invite. Paste the issued ID here — no HRMS employee, ESSL PIN, or ERP account is created until you Finalize."}
+                        : "First create the employee invite in RazorpayX. After the hire self-registers and RazorpayX shows the Employee ID, paste and verify that ID here. ESSL stays locked until verification."}
                   </p>
                 </div>
                 {(rpVerification?.ok || alreadyInRazorpay) && (
@@ -887,6 +949,35 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               </div>
               {!alreadyInRazorpay && (
                 <div className="space-y-2">
+                  <div className="rounded-md border bg-background/60 p-3 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium">Create RazorpayX employee invite</p>
+                        <p className="text-[11px] text-muted-foreground">Uses this HRMS onboarding data to create the RazorpayX employee record first.</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateRazorpayInvite}
+                        disabled={readOnly || creatingRazorpayInvite || !razorpayChecklist.allOk}
+                      >
+                        <Cloud className="h-3.5 w-3.5 mr-1.5" />
+                        {creatingRazorpayInvite ? "Creating…" : razorpayCreateRequest?.status ? "Create / Retry RazorpayX" : "Create in RazorpayX"}
+                      </Button>
+                    </div>
+                    {!razorpayChecklist.allOk && (
+                      <p className="text-[11px] text-warning flex items-start gap-1">
+                        <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                        <span>Complete before create: {razorpayChecklist.missing.join(", ")}</span>
+                      </p>
+                    )}
+                    {razorpayCreateRequest?.status && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Last RazorpayX create status: <span className="font-mono">{razorpayCreateRequest.status}</span>
+                      </p>
+                    )}
+                  </div>
+
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="flex-1 min-w-[180px]">
                       <Label className="text-xs">RazorpayX Employee ID (from Razorpay dashboard)</Label>
@@ -953,7 +1044,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         </Badge>
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        Every mismatched row must be either fixed (use the RazorpayX value or update the draft) or overridden before Finalize unlocks.
+                        Every mismatch must be resolved. Use RazorpayX to copy that value into HRMS, or choose Keep HRMS so Finalize pushes HRMS data back to RazorpayX.
                       </div>
                       <div className="divide-y divide-border">
                         {reconcileDiffs.map((d) => {
@@ -1000,7 +1091,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                       onCheckedChange={(c) => toggleOverride(d.field, !!c)}
                                       disabled={readOnly}
                                     />
-                                    Override
+                                    Keep HRMS
                                   </label>
                                 )}
                               </div>
@@ -1011,7 +1102,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground">
-                    Tip: send the invite from the RazorpayX dashboard first. The Employee ID appears on their profile only after they submit the self-registration form.
+                    Tip: create the RazorpayX invite here first. The Employee ID appears on their RazorpayX profile only after they submit the self-registration form.
                   </p>
                 </div>
               )}
@@ -1021,50 +1112,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             <Label className="flex items-center gap-1.5">
               <Fingerprint className="h-3.5 w-3.5" /> Step 2 — ESSL Badge ID (device PIN) *
             </Label>
-            <div className="flex gap-2 mt-1">
+            <div className="mt-1">
               <Input
                 placeholder={
-                  alreadyInRazorpay
-                    ? ""
-                    : rpVerification?.ok
-                      ? "Auto-filled from verified RazorpayX Employee ID"
-                      : "Verify a RazorpayX Employee ID first — Badge ID is locked until then"
+                  alreadyInRazorpay || rpVerification?.ok
+                    ? "Auto-filled from verified RazorpayX Employee ID"
+                    : "Locked until RazorpayX Employee ID is verified"
                 }
                 value={form.essl_badge_id}
-                onChange={e => updateForm({ essl_badge_id: e.target.value })}
+                readOnly
                 disabled={readOnly || (!alreadyInRazorpay && !rpVerification?.ok)}
                 className="font-mono"
               />
-              <Select
-                value=""
-                onValueChange={v => updateForm({ essl_badge_id: v })}
-                disabled={readOnly || pinsLoading || bioAlreadyCreated || (!alreadyInRazorpay && !rpVerification?.ok)}
-              >
-                <SelectTrigger className="w-[190px] shrink-0">
-                  <SelectValue placeholder={
-                    (!alreadyInRazorpay && !rpVerification?.ok)
-                      ? "Locked until RazorpayX verify"
-                      : bioAlreadyCreated
-                        ? "Locked — already created"
-                        : pinsLoading
-                          ? "Loading…"
-                          : `Pick unassigned (${unassignedPins.length})`
-                  } />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {unassignedPins.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">No unassigned PINs on any device.</div>
-                  ) : unassignedPins.map((p: any) => (
-                    <SelectItem key={p.pin} value={p.pin}>
-                      <span className="font-mono">{p.pin}</span>
-                      {p.name && <span className="text-muted-foreground"> · {p.name}</span>}
-                      <span className="text-[10px] text-muted-foreground">
-                        · {p.deviceCount} device{p.deviceCount === 1 ? "" : "s"}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             {!alreadyInRazorpay && !rpVerification?.ok && (
               <p className="text-[11px] text-muted-foreground mt-1.5 flex items-start gap-1">
@@ -1093,9 +1152,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     Biometric identity created for {firstName} {lastName} (PIN {currentPinTrim}).
                   </div>
                   <div className="text-success/80">
-                    {pinStatus?.kind === "ok"
-                      ? "Confirmed live on device roster — punches from this PIN will match this employee."
-                      : "Queued to IN + OUT devices. They will apply it on the next poll (30–60s). This action is locked to prevent duplicate identities."}
+                    Queued to IN + OUT devices. They will apply it on the next poll (30–60s). This action is locked to prevent duplicate identities from this onboarding.
                   </div>
                 </div>
               </div>
@@ -1113,12 +1170,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   ? "Already created on devices"
                   : pushingToDevices
                     ? "Queuing…"
-                    : "Create on IN + OUT biometric devices"}
+                    : pinStatus?.kind === "ok"
+                      ? "Update IN + OUT biometric devices"
+                      : "Create on IN + OUT biometric devices"}
               </Button>
               <span className="text-[11px] text-muted-foreground">
                 {bioAlreadyCreated
                   ? "Locked — this PIN is already registered. Delete the device user first if you need to re-create."
-                  : "Queues a name/PIN write to both eSSL devices. They apply it on the next poll (30–60s)."}
+                  : "Queues a verified RazorpayX Employee ID as the eSSL PIN on both devices."}
               </span>
             </div>
 

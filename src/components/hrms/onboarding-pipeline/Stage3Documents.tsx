@@ -230,18 +230,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
           <span className="font-medium text-foreground">Professional Tax (PT):</span> always <strong>Madhya Pradesh</strong> — applied automatically to every employee. No per-employee entry required.
         </div>
 
-        {/* Tax Regime — RazorpayX `tax-regime`. Old vs New. Employee-declared. */}
-        <div className="rounded border p-3 space-y-2">
-          <Label className="text-sm">Tax Regime</Label>
-          <Select value={taxRegime} onValueChange={(v) => { setTaxRegime(v); persistDocs(docs, mailReceivedDate, v); }} disabled={readOnly}>
-            <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select regime (Old / New)" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="old">Old Regime</SelectItem>
-              <SelectItem value="new">New Regime</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-muted-foreground">Mirrored to RazorpayX <code>tax-regime</code>. Employee can update later; defaults to New if left blank.</p>
-        </div>
 
 
         {/* Document checklist */}

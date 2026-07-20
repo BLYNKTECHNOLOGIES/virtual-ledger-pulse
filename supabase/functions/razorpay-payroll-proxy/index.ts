@@ -6087,7 +6087,7 @@ Deno.serve(async (req) => {
             }
           }
 
-
+          const aliasEmail = buildGmailAliasForRazorpay(String(emp.email || ""), reservedEmployeeId);
           if (aliasEmail && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
             const aliasCreateData: Record<string, any> = {
               ...createData,

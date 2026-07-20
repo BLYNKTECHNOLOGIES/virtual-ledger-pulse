@@ -144,6 +144,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       if (mode === "recurring") {
         if (!newTotal) throw new Error("Enter the new total salary");
         if (reasonRequired && !reason.trim()) throw new Error("Reason is mandatory for Promotion / Demotion");
+        if (isFutureDated) throw new Error("Future-dated revisions are not supported — the scheduler has been retired. Set effective date to today and push to RazorpayX.");
 
         const { data, error } = await (supabase as any).rpc("apply_salary_revision", {
           p_employee_id: employeeId,
@@ -181,10 +182,20 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
       // statutory toggle
       if (!reason.trim()) throw new Error("Reason is mandatory for a statutory enrollment change (e.g. 'Training period exemption')");
-      // Resolve nulls against the employee's current flags (null means "leave as-is")
-      const finalPf = pfEnabled === null ? (employee?.pf_enabled ?? true) : pfEnabled;
-      const finalEsi = esiEnabled === null ? (employee?.esi_enabled ?? true) : esiEnabled;
-      const finalPt = ptEnabled === null ? (employee?.pt_enabled ?? true) : ptEnabled;
+      if (isFutureDated) throw new Error("Future-dated statutory changes are not supported — the scheduler has been retired. Set effective date to today.");
+      // Require an explicit choice for any flag whose current value is unknown —
+      // otherwise the switch's default "Exempt" appearance would silently push
+      // Enrolled=true to Razorpay.
+      const unknownUntouched: string[] = [];
+      if (pfEnabled === null && (employee?.pf_enabled ?? null) === null) unknownUntouched.push("PF");
+      if (esiEnabled === null && (employee?.esi_enabled ?? null) === null) unknownUntouched.push("ESI");
+      if (ptEnabled === null && (employee?.pt_enabled ?? null) === null) unknownUntouched.push("PT");
+      if (unknownUntouched.length > 0) {
+        throw new Error(`Current ${unknownUntouched.join(", ")} enrollment is unknown — toggle each switch explicitly to Enrolled or Exempt before applying.`);
+      }
+      const finalPf = pfEnabled === null ? (employee?.pf_enabled as boolean) : pfEnabled;
+      const finalEsi = esiEnabled === null ? (employee?.esi_enabled as boolean) : esiEnabled;
+      const finalPt = ptEnabled === null ? (employee?.pt_enabled as boolean) : ptEnabled;
 
       const { data, error } = await (supabase as any).rpc("apply_statutory_revision", {
         p_employee_id: employeeId,

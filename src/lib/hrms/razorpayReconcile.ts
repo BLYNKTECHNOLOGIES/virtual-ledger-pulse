@@ -73,6 +73,10 @@ interface ErpInput {
   gender?: string | null;
   date_of_birth?: string | null;
   date_of_joining?: string | null;
+  probation_end_date?: string | null;
+  employee_type?: string | null;
+  job_role?: string | null;
+  tax_regime?: string | null;
   ctc?: number | string | null;
   documents?: any;
   bank?: {
@@ -91,6 +95,7 @@ interface ErpInput {
   /** Human-readable name of the selected manager, for the diff display. */
   reporting_manager_label?: string | null;
 }
+
 
 /**
  * Reconcile the ERP onboarding draft against a RazorpayX snapshot.

@@ -616,6 +616,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // OR we have a queued/ack pushback-log entry for this PIN.
   const bioAlreadyCreated = !!(pinStatus?.kind === "ok" || existingPushLog || pushFeedback);
 
+  // Finalize gate: unless this record was already linked in Razorpay (legacy
+  // imports), the operator must have run Verify and either matched or overridden
+  // every mismatched field on the reconciliation panel.
+  const reconcileUnresolved = reconcileDiffs ? unresolvedCount(reconcileDiffs, reconcileOverrides) : 0;
+  const reconcileReady = alreadyInRazorpay
+    ? true
+    : !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, reconcileOverrides));
+  const reconcileBlockReason = alreadyInRazorpay
+    ? ""
+    : !rpVerification?.ok
+      ? "Verify the RazorpayX Employee ID before finalizing."
+      : !reconcileDiffs
+        ? "Run RazorpayX verification to compare the fields."
+        : reconcileUnresolved > 0
+          ? `${reconcileUnresolved} field${reconcileUnresolved === 1 ? "" : "s"} still differ between RazorpayX and ERP. Resolve or override each row before finalizing.`
+          : "";
+
+
 
 
 

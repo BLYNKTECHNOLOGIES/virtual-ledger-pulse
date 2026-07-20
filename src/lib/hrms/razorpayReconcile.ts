@@ -175,10 +175,10 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       field: "gender",
       label: "Gender",
       erp: norm(erp.gender),
-      razorpay: norm(rp?.gender),
-      rpRawValue: rp?.gender ?? null,
+      razorpay: norm(pick(rp?.gender, rp?.sex)),
+      rpRawValue: pick(rp?.gender, rp?.sex) || null,
       compareErp: ci(erp.gender),
-      compareRp: ci(rp?.gender),
+      compareRp: ci(pick(rp?.gender, rp?.sex)),
     },
     {
       field: "date_of_birth",
@@ -198,15 +198,25 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: norm(erp.date_of_joining),
       compareRp: rpDoj,
     },
-    {
-      field: "ctc",
-      label: "Annual CTC (₹)",
-      erp: num(erp.ctc) != null ? String(num(erp.ctc)) : "",
-      razorpay: num(rp?.annual_ctc ?? rp?.ctc) != null ? String(num(rp?.annual_ctc ?? rp?.ctc)) : "",
-      rpRawValue: num(rp?.annual_ctc ?? rp?.ctc),
-      compareErp: (() => { const n = num(erp.ctc); return n == null ? "" : String(Math.round(n)); })(),
-      compareRp: (() => { const n = num(rp?.annual_ctc ?? rp?.ctc); return n == null ? "" : String(Math.round(n)); })(),
-    },
+    (() => {
+      const rpCtcRaw =
+        rp?.annual_ctc ??
+        rp?.__salary?.annual_ctc ??
+        rp?.ctc ??
+        rp?.["annual-ctc"] ??
+        rp?.["ctc-annual"] ??
+        (rp?.__salary?.monthly_gross ? rp.__salary.monthly_gross * 12 : null);
+      const rpCtc = num(rpCtcRaw);
+      return {
+        field: "ctc",
+        label: "Annual CTC (₹)",
+        erp: num(erp.ctc) != null ? String(num(erp.ctc)) : "",
+        razorpay: rpCtc != null ? String(rpCtc) : "",
+        rpRawValue: rpCtc,
+        compareErp: (() => { const n = num(erp.ctc); return n == null ? "" : String(Math.round(n)); })(),
+        compareRp: rpCtc == null ? "" : String(Math.round(rpCtc)),
+      };
+    })(),
     {
       field: "pan",
       label: "PAN",

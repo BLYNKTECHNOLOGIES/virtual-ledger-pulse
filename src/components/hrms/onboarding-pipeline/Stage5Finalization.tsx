@@ -265,58 +265,32 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // write into the current draft/form are actionable here; PAN/UAN come from
   // Stage 3 documents and are shown read-only in the panel (the operator must
   // go back to Stage 3 to fix those, or override them).
-  const applyRazorpayValue = async (diff: ReconcileDiff) => {
-    if (!rpSnapshot) return;
-    const rp = rpSnapshot;
+  // Compute the concrete write the "Use RazorpayX" choice implies for a diff row.
+  // Returns a patch describing what to write to form / hr_employee_onboarding.
+  // NOTE: this is invoked at Finalize time only — button clicks just record the choice.
+  const buildRazorpayPatch = (diff: ReconcileDiff): {
+    formPatch?: Partial<typeof form>;
+    onboardingPatch?: Record<string, any>;
+  } => {
     const rpVal = diff.rpRawValue ?? null;
-    let touched = false;
     switch (diff.field) {
-      case "date_of_joining": {
-        updateForm({ date_of_joining: rpVal ? String(rpVal) : "" });
-        touched = true;
-        break;
-      }
-      case "bank_account_number": {
-        updateForm({ bank_account_number: rpVal ? String(rpVal) : "" });
-        touched = true;
-        break;
-      }
-      case "bank_ifsc_code": {
-        updateForm({ bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" });
-        touched = true;
-        break;
-      }
+      case "date_of_joining":
+        return { formPatch: { date_of_joining: rpVal ? String(rpVal) : "" } };
+      case "bank_account_number":
+        return { formPatch: { bank_account_number: rpVal ? String(rpVal) : "" } };
+      case "bank_ifsc_code":
+        return { formPatch: { bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" } };
       case "first_name":
       case "last_name":
       case "email":
       case "phone":
       case "gender":
       case "date_of_birth":
-      case "ctc": {
-        if (!onboardingRecord?.id) break;
-        const col = diff.field;
-        try {
-          await supabase
-            .from("hr_employee_onboarding")
-            .update({ [col]: rpVal, updated_at: new Date().toISOString() } as any)
-            .eq("id", onboardingRecord.id);
-          await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
-          touched = true;
-        } catch (e: any) {
-          toast.error(`Failed to apply RazorpayX value: ${e?.message || e}`);
-          return;
-        }
-        break;
-      }
-      default: {
-        // Non-writable fields (PAN/UAN from Stage 3, reporting manager). The
-        // 'razorpay' choice is still recorded so Finalize treats it as resolved.
-        break;
-      }
+      case "ctc":
+        return { onboardingPatch: { [diff.field]: rpVal } };
+      default:
+        return {};
     }
-    const nextDiffs = reconcileOnboarding(buildErpInput(), rp);
-    setReconcileDiffs(nextDiffs);
-    if (touched) toast.success(`Applied RazorpayX value for ${diff.label}.`);
   };
 
 

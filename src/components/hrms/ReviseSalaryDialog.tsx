@@ -124,7 +124,12 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const totalDeltaPct = currentTotal > 0 ? (totalDelta / currentTotal) * 100 : 0;
 
   const reasonRequired = revisionType === "promotion" || revisionType === "demotion";
-  const isScheduled = mode === "recurring" && effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
+  // Scheduling is retired — the promoter job/edge function was removed as part
+  // of the RazorpayX-primary doctrine. Reject any future-dated effective date
+  // in the UI so operators never save something that will silently never apply.
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const isFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -139,6 +144,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       if (mode === "recurring") {
         if (!newTotal) throw new Error("Enter the new total salary");
         if (reasonRequired && !reason.trim()) throw new Error("Reason is mandatory for Promotion / Demotion");
+        if (isFutureDated) throw new Error("Future-dated revisions are not supported — the scheduler has been retired. Set effective date to today and push to RazorpayX.");
 
         const { data, error } = await (supabase as any).rpc("apply_salary_revision", {
           p_employee_id: employeeId,
@@ -176,10 +182,20 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
       // statutory toggle
       if (!reason.trim()) throw new Error("Reason is mandatory for a statutory enrollment change (e.g. 'Training period exemption')");
-      // Resolve nulls against the employee's current flags (null means "leave as-is")
-      const finalPf = pfEnabled === null ? (employee?.pf_enabled ?? true) : pfEnabled;
-      const finalEsi = esiEnabled === null ? (employee?.esi_enabled ?? true) : esiEnabled;
-      const finalPt = ptEnabled === null ? (employee?.pt_enabled ?? true) : ptEnabled;
+      if (isFutureDated) throw new Error("Future-dated statutory changes are not supported — the scheduler has been retired. Set effective date to today.");
+      // Require an explicit choice for any flag whose current value is unknown —
+      // otherwise the switch's default "Exempt" appearance would silently push
+      // Enrolled=true to Razorpay.
+      const unknownUntouched: string[] = [];
+      if (pfEnabled === null && (employee?.pf_enabled ?? null) === null) unknownUntouched.push("PF");
+      if (esiEnabled === null && (employee?.esi_enabled ?? null) === null) unknownUntouched.push("ESI");
+      if (ptEnabled === null && (employee?.pt_enabled ?? null) === null) unknownUntouched.push("PT");
+      if (unknownUntouched.length > 0) {
+        throw new Error(`Current ${unknownUntouched.join(", ")} enrollment is unknown — toggle each switch explicitly to Enrolled or Exempt before applying.`);
+      }
+      const finalPf = pfEnabled === null ? (employee?.pf_enabled as boolean) : pfEnabled;
+      const finalEsi = esiEnabled === null ? (employee?.esi_enabled as boolean) : esiEnabled;
+      const finalPt = ptEnabled === null ? (employee?.pt_enabled as boolean) : ptEnabled;
 
       const { data, error } = await (supabase as any).rpc("apply_statutory_revision", {
         p_employee_id: employeeId,
@@ -353,9 +369,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder={reasonRequired ? "Required for promotion/demotion" : "Optional"} rows={2} />
               </div>
 
-              {isScheduled && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Future-dated — will be scheduled and auto-applied on {format(effectiveFrom, "PPP")}.
+              {isFutureDated && (
+                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
+                  Future-dated revisions are not supported — the scheduler has been retired. Set the effective date to today, then push to RazorpayX.
                 </div>
               )}
             </>
@@ -426,28 +442,44 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                   { key: "pf", label: "Provident Fund (PF)", hint: "Disable during unpaid training / stipend-only periods. When disabled, no 12% employee or 13% employer contribution.", value: pfEnabled, set: setPfEnabled, current: employee?.pf_enabled },
                   { key: "esi", label: "Employee State Insurance (ESI)", hint: "Applies only if gross ≤ ₹21,000. Disable for training exemptions or when contractually excluded.", value: esiEnabled, set: setEsiEnabled, current: employee?.esi_enabled },
                   { key: "pt", label: "Professional Tax (PT)", hint: "State-mandated slab tax on gross salary.", value: ptEnabled, set: setPtEnabled, current: employee?.pt_enabled },
-                ].map((row) => (
-                  <div key={row.key} className="flex items-start gap-3 p-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium">{row.label}</span>
-                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                          Current: {row.current === true ? "Enrolled" : row.current === false ? "Exempt" : "Unknown"}
+                ].map((row) => {
+                  const currentUnknown = row.current === null || row.current === undefined;
+                  const untouchedUnknown = currentUnknown && row.value === null;
+                  return (
+                    <div key={row.key} className="flex items-start gap-3 p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">{row.label}</span>
+                          <span className={cn(
+                            "text-[10px] uppercase tracking-wide",
+                            currentUnknown ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"
+                          )}>
+                            Current: {row.current === true ? "Enrolled" : row.current === false ? "Exempt" : "Unknown"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{row.hint}</p>
+                        {untouchedUnknown && (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                            Choose Enrolled or Exempt explicitly — the switch will not be pushed until you do.
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <Switch
+                          checked={row.value === true}
+                          onCheckedChange={(v) => row.set(v)}
+                        />
+                        <span className={cn(
+                          "text-[10px]",
+                          untouchedUnknown ? "text-amber-600 dark:text-amber-400 font-semibold"
+                            : row.value === true ? "text-success" : "text-muted-foreground"
+                        )}>
+                          {untouchedUnknown ? "Not set" : row.value === true ? "Enrolled" : "Exempt"}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{row.hint}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Switch
-                        checked={row.value === true}
-                        onCheckedChange={(v) => row.set(v)}
-                      />
-                      <span className={cn("text-[10px]", row.value === true ? "text-success" : "text-muted-foreground")}>
-                        {row.value === true ? "Enrolled" : "Exempt"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div>
@@ -460,9 +492,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <p>RazorpayX requires operator envelope verification on the People edit endpoint before the change is finalised.</p>
               </div>
 
-              {isScheduled && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Future-dated — will be scheduled and auto-applied on {format(effectiveFrom, "PPP")}.
+              {isFutureDated && (
+                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
+                  Future-dated statutory changes are not supported — the scheduler has been retired. Set the effective date to today.
                 </div>
               )}
             </>
@@ -477,14 +509,15 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             disabled={
               mutation.isPending ||
               !employeeId ||
+              isFutureDated ||
               (mode === "recurring" ? !newTotal : mode === "one_time" ? !oneTimeAmount : !reason.trim())
             }
           >
             {mode === "recurring"
-              ? (isScheduled ? "Schedule revision" : "Apply revision")
+              ? "Apply revision"
               : mode === "one_time"
                 ? "Record payout"
-                : (isScheduled ? "Schedule statutory change" : "Apply & push to Razorpay")}
+                : "Apply & push to Razorpay"}
           </Button>
 
         </DialogFooter>

@@ -267,10 +267,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const bd = (onboardingRecord.bank_details as any) || {};
       const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
       const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
-      // If the record already carries a numeric badge, treat it as a previously
-      // reserved RazorpayX ID so we don't offer to reserve a fresh one and burn
-      // the sequence when the operator navigates back into Stage 5.
-      const looksReserved = /^\d+$/.test(existingBadge);
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
         essl_badge_id: existingBadge,
@@ -282,9 +278,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         bank_name: bd.bank_name || existingBank?.bank_name || "",
         bank_branch: bd.branch || (existingBank as any)?.branch || "",
         bank_account_holder: empName,
-        create_in_razorpay: looksReserved,
+        // Never auto-opt an existing draft into RazorpayX just because its
+        // ESSL badge happens to be numeric — the operator must explicitly
+        // click "Reserve RazorpayX ID" (or toggle the switch) to opt in.
+        // This protects old drafts (pre-Unified-ID doctrine) that used a
+        // numeric badge purely for the eSSL device.
+        create_in_razorpay: false,
       });
-      if (looksReserved) setReservedRpId(existingBadge);
+      // Do not auto-lock the badge field from hydration either — reservedRpId
+      // is only set when the operator explicitly reserves an ID in-session,
+      // so old drafts can still edit their badge if needed.
       hydratedRecordIdRef.current = onboardingRecord.id;
     }
   }, [onboardingRecord]);

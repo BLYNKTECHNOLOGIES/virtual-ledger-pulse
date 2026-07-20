@@ -29,6 +29,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     job_role: "",
     shift_id: "",
     employee_type: "",
+    probation_end_date: "",
   });
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,9 +49,11 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         job_role: data.job_role || "",
         shift_id: data.shift_id || "",
         employee_type: data.employee_type || "",
+        probation_end_date: data.probation_end_date || "",
       });
     }
   }, [data]);
+
 
   const { data: departments } = useQuery({
     queryKey: ["departments-list"],
@@ -196,6 +199,17 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label>Probation End Date</Label>
+            <Input
+              type="date"
+              value={form.probation_end_date}
+              onChange={e => update("probation_end_date", e.target.value)}
+              disabled={readOnly}
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">Mirrored to RazorpayX <code>probation-end-date</code>.</p>
+          </div>
+
         </div>
         {!readOnly && (
           <div className="flex gap-2 pt-2">

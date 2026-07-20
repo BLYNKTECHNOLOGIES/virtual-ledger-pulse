@@ -258,6 +258,43 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: norm(erp.date_of_joining),
       compareRp: rpDoj,
     },
+    {
+      field: "probation_end_date",
+      label: "Probation end date",
+      erp: norm(erp.probation_end_date),
+      razorpay: rpProbationEnd,
+      rpRawValue: rpProbationEnd || null,
+      compareErp: norm(erp.probation_end_date),
+      compareRp: rpProbationEnd,
+    },
+    {
+      field: "employee_type",
+      label: "Employee type",
+      erp: norm(erp.employee_type),
+      razorpay: rpEmployeeType,
+      rpRawValue: rpEmployeeType || null,
+      compareErp: ci(erp.employee_type),
+      compareRp: rpEmployeeType,
+    },
+    {
+      field: "job_role",
+      label: "Job title",
+      erp: norm(erp.job_role),
+      razorpay: rpJobRole,
+      rpRawValue: rpJobRole || null,
+      compareErp: ci(erp.job_role),
+      compareRp: ci(rpJobRole),
+    },
+    {
+      field: "tax_regime",
+      label: "Tax regime",
+      erp: norm(erp.tax_regime),
+      razorpay: rpTaxRegime,
+      rpRawValue: rpTaxRegime || null,
+      compareErp: ci(erp.tax_regime).replace(/[^a-z]/g, ""),
+      compareRp: rpTaxRegime,
+    },
+
     (() => {
       const rpCtcRaw =
         rp?.annual_ctc ??

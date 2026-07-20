@@ -369,9 +369,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder={reasonRequired ? "Required for promotion/demotion" : "Optional"} rows={2} />
               </div>
 
-              {isScheduled && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Future-dated — will be scheduled and auto-applied on {format(effectiveFrom, "PPP")}.
+              {isFutureDated && (
+                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
+                  Future-dated revisions are not supported — the scheduler has been retired. Set the effective date to today, then push to RazorpayX.
                 </div>
               )}
             </>

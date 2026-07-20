@@ -666,6 +666,32 @@ async function attachReservedEmployeeIdByEmail(
   return await opfinEditPerson(payload);
 }
 
+// Some tenants leave the ghost person addressable only by its internal
+// `people-id` (returned in the create error body) until an employee-id is
+// stamped on. This variant of people:edit keys by people-id AND stamps the
+// reserved employee-id + full profile in a single round-trip, upgrading the
+// invite from inactive → active without needing a Gmail +alias.
+async function attachReservedEmployeeIdByPeopleId(
+  peopleId: string | null,
+  reservedEmployeeId: string | null,
+  extra: Record<string, any> = {},
+): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
+  const pid = String(peopleId || "").trim();
+  const reserved = String(reservedEmployeeId || "").trim();
+  if (!/^\d+$/.test(pid)) return { ok: false, status: 0, error: "numeric people-id required for people:edit", body: null };
+  if (!/^\d+$/.test(reserved)) return { ok: false, status: 0, error: "numeric reserved employee-id required for people:edit", body: null };
+  const payload: Record<string, any> = {
+    ...extra,
+    "people-id": Number(pid),
+    "employee-id": Number(reserved),
+    "employee-type": "employee",
+  };
+  for (const k of Object.keys(payload)) {
+    if (payload[k] === null || payload[k] === "" || payload[k] === undefined) delete payload[k];
+  }
+  return await opfinEditPerson(payload);
+}
+
 function isDismissedRazorpayPerson(rp: any): boolean {
   if (!rp || typeof rp !== "object") return false;
   const rpStatus = String(rp.status || "").toLowerCase();

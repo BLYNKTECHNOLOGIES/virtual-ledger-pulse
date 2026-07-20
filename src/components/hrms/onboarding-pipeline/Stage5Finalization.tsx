@@ -10,7 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw, ArrowRight } from "lucide-react";
+import { reconcileOnboarding, isReconciled, unresolvedCount, type ReconcileDiff } from "@/lib/hrms/razorpayReconcile";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Stage5Props {
   onboardingRecord: any;

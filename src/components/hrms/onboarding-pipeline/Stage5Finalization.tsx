@@ -406,8 +406,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     if (!mappedId) return;
     setForm(prev => ({
       ...prev,
-      razorpay_employee_id: prev.razorpay_employee_id || mappedId,
-      essl_badge_id: prev.essl_badge_id || mappedId,
+      razorpay_employee_id: mappedId,
+      essl_badge_id: mappedId,
     }));
     setRpVerification(prev => prev ?? {
       ok: true,

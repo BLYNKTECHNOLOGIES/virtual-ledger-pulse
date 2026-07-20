@@ -508,6 +508,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const rec = (onboardingRecord as any).razorpay_reconciliation;
       if (rec && Array.isArray(rec.diffs)) {
         const restoredSnapshot = rec.snapshot ?? null;
+        const hydratedMgr = (managers || []).find((m: any) => m.id === onboardingRecord.reporting_manager_id);
+        const hydratedMgrName = hydratedMgr ? `${hydratedMgr.first_name || ""} ${hydratedMgr.last_name || ""}`.trim() : "";
         setReconcileDiffs(restoredSnapshot
           ? reconcileOnboarding({
               first_name: onboardingRecord?.first_name,
@@ -527,6 +529,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 ifsc_code: bd.ifsc_code || existingBank?.ifsc_code || "",
                 account_holder: empName,
               },
+              reporting_manager_badge_id: hydratedMgr?.badge_id || null,
+              reporting_manager_label: hydratedMgrName,
             }, restoredSnapshot)
           : rec.diffs as ReconcileDiff[]);
         {

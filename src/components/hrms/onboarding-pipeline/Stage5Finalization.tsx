@@ -129,7 +129,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   ) => {
     if (!onboardingRecord?.id) return;
     try {
-      await supabase
+      const { error } = await supabase
         .from("hr_employee_onboarding")
         .update({
           razorpay_reconciliation: diffs
@@ -138,8 +138,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           updated_at: new Date().toISOString(),
         } as any)
         .eq("id", onboardingRecord.id);
-    } catch (e) {
+      if (error) throw error;
+      // Keep react-query cache in sync so re-mount / navigation replays the
+      // exact same override selections without a stale window.
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+    } catch (e: any) {
       console.warn("Failed to persist Razorpay reconciliation:", e);
+      toast.error(`Could not save reconciliation choice: ${e?.message || e}`);
     }
   };
 
@@ -190,9 +195,22 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       }
 
       const diffs = reconcileOnboarding(buildErpInput(), snap);
+      // Preserve prior "Keep HRMS" overrides for fields that are STILL
+      // mismatched after re-verification. Only drop overrides for fields that
+      // are now matching or no longer present in the new diff set.
+      const priorOverrides = (onboardingRecord as any)?.razorpay_reconciliation?.overrides || {};
+      const stillMismatched = new Set(
+        diffs
+          .filter(d => d.status !== "match")
+          .map(d => d.field),
+      );
+      const preservedOverrides: Record<string, boolean> = {};
+      Object.entries(priorOverrides).forEach(([field, val]) => {
+        if (val && stillMismatched.has(field)) preservedOverrides[field] = true;
+      });
       setRpSnapshot(snap);
       setReconcileDiffs(diffs);
-      setReconcileOverrides({});
+      setReconcileOverrides(preservedOverrides);
       setRpVerification({
         ok: true,
         message: `Verified. Comparing RazorpayX employee ${idStr} against this onboarding record.`,
@@ -213,7 +231,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               essl_badge_id: idStr,
               razorpay_reconciliation: {
                 diffs,
-                overrides: {},
+                overrides: preservedOverrides,
                 snapshot: snap,
                 last_checked_at: new Date().toISOString(),
               },
@@ -225,7 +243,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           console.warn("Failed to persist Razorpay verification:", e);
         }
       }
-      const remaining = unresolvedCount(diffs, {});
+      const remaining = unresolvedCount(diffs, preservedOverrides);
       if (remaining === 0) {
         toast.success(`Verified — all fields match. You can finalize now.`, { id: t });
       } else {

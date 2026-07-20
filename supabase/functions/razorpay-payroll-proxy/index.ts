@@ -1314,10 +1314,26 @@ Deno.serve(async (req) => {
           error_text: null,
           actor_user_id: authed.userId,
         });
-        return json(200, { ok: true, razorpay_employee_id: String(rpId), already_exists_in_razorpay: true, repaired_mapping: true, http_status: r.status });
+        return json(200, { ok: true, razorpay_employee_id: String(rpId), already_exists_in_razorpay: true, repaired_mapping: true, snapshot: r.body, http_status: r.status });
       } catch (e) {
         return json(200, { ok: false, code: "RAZORPAY_MAPPING_REPAIR_FAILED", error: (e as Error).message, http_status: r.status });
       }
+    }
+
+    // ---------- read_person_by_id: read-only fetch for reconciliation UI ----------
+    // Returns the raw RazorpayX people:view snapshot for an employee-id. Does NOT
+    // touch hr_razorpay_employee_map or require a linked hr_employees row. Used by
+    // the Stage 5 reconciliation panel to show a field-by-field diff BEFORE the
+    // operator commits to linking. Refuses dismissed employees.
+    if (action === "read_person_by_id") {
+      const rpId = Number(payload?.razorpay_employee_id);
+      if (!Number.isFinite(rpId) || rpId < 1) return json(400, { error: "razorpay_employee_id required" });
+      const r = await opfinView(rpId, "employee");
+      if (!r.ok) return json(200, { ok: false, code: "RAZORPAY_ID_NOT_FOUND", error: `Razorpay employee-id ${rpId} was not found or is inactive.`, http_status: r.status });
+      if (isDismissedRazorpayPerson(r.body)) {
+        return json(200, { ok: false, code: "RAZORPAY_EMPLOYEE_DISMISSED", error: `Razorpay employee-id ${rpId} is dismissed/inactive and cannot be linked.`, http_status: r.status });
+      }
+      return json(200, { ok: true, razorpay_employee_id: String(rpId), snapshot: r.body, http_status: r.status });
     }
 
     // ---------- attach_employee_id_by_email ----------

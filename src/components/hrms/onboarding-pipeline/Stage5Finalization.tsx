@@ -265,58 +265,32 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // write into the current draft/form are actionable here; PAN/UAN come from
   // Stage 3 documents and are shown read-only in the panel (the operator must
   // go back to Stage 3 to fix those, or override them).
-  const applyRazorpayValue = async (diff: ReconcileDiff) => {
-    if (!rpSnapshot) return;
-    const rp = rpSnapshot;
+  // Compute the concrete write the "Use RazorpayX" choice implies for a diff row.
+  // Returns a patch describing what to write to form / hr_employee_onboarding.
+  // NOTE: this is invoked at Finalize time only — button clicks just record the choice.
+  const buildRazorpayPatch = (diff: ReconcileDiff): {
+    formPatch?: Partial<typeof form>;
+    onboardingPatch?: Record<string, any>;
+  } => {
     const rpVal = diff.rpRawValue ?? null;
-    let touched = false;
     switch (diff.field) {
-      case "date_of_joining": {
-        updateForm({ date_of_joining: rpVal ? String(rpVal) : "" });
-        touched = true;
-        break;
-      }
-      case "bank_account_number": {
-        updateForm({ bank_account_number: rpVal ? String(rpVal) : "" });
-        touched = true;
-        break;
-      }
-      case "bank_ifsc_code": {
-        updateForm({ bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" });
-        touched = true;
-        break;
-      }
+      case "date_of_joining":
+        return { formPatch: { date_of_joining: rpVal ? String(rpVal) : "" } };
+      case "bank_account_number":
+        return { formPatch: { bank_account_number: rpVal ? String(rpVal) : "" } };
+      case "bank_ifsc_code":
+        return { formPatch: { bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" } };
       case "first_name":
       case "last_name":
       case "email":
       case "phone":
       case "gender":
       case "date_of_birth":
-      case "ctc": {
-        if (!onboardingRecord?.id) break;
-        const col = diff.field;
-        try {
-          await supabase
-            .from("hr_employee_onboarding")
-            .update({ [col]: rpVal, updated_at: new Date().toISOString() } as any)
-            .eq("id", onboardingRecord.id);
-          await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
-          touched = true;
-        } catch (e: any) {
-          toast.error(`Failed to apply RazorpayX value: ${e?.message || e}`);
-          return;
-        }
-        break;
-      }
-      default: {
-        // Non-writable fields (PAN/UAN from Stage 3, reporting manager). The
-        // 'razorpay' choice is still recorded so Finalize treats it as resolved.
-        break;
-      }
+      case "ctc":
+        return { onboardingPatch: { [diff.field]: rpVal } };
+      default:
+        return {};
     }
-    const nextDiffs = reconcileOnboarding(buildErpInput(), rp);
-    setReconcileDiffs(nextDiffs);
-    if (touched) toast.success(`Applied RazorpayX value for ${diff.label}.`);
   };
 
 
@@ -946,26 +920,52 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         const resp = (editData || {}) as any;
         if (!resp.ok) throw new Error(`RazorpayX write-back rejected: ${resp.error || "unknown"}`);
       }
+      // "Use RazorpayX" write-back: apply RP → HRMS now (deferred from click time).
+      let effectiveForm = form;
+      const onboardingPatchAgg: Record<string, any> = {};
+      if (reconcileDiffs) {
+        for (const d of reconcileDiffs) {
+          if (reconcileOverrides[d.field] !== 'razorpay') continue;
+          if (d.status === "match") continue;
+          const { formPatch, onboardingPatch } = buildRazorpayPatch(d);
+          if (formPatch) effectiveForm = { ...effectiveForm, ...formPatch };
+          if (onboardingPatch) Object.assign(onboardingPatchAgg, onboardingPatch);
+        }
+      }
+      if (Object.keys(onboardingPatchAgg).length > 0 && onboardingRecord?.id) {
+        toast.loading(`Pulling ${Object.keys(onboardingPatchAgg).length} RazorpayX field(s) into HRMS…`, { id: toastId });
+        const { error: pullErr } = await supabase
+          .from("hr_employee_onboarding")
+          .update({ ...onboardingPatchAgg, updated_at: new Date().toISOString() } as any)
+          .eq("id", onboardingRecord.id);
+        if (pullErr) throw new Error(`HRMS write-back failed: ${pullErr.message || pullErr}`);
+        await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+      }
+      // Persist form-level patches so subsequent stages see them.
+      if (effectiveForm !== form) {
+        setForm(effectiveForm);
+      }
 
       const payload: any = {
-        date_of_joining: form.date_of_joining,
-        essl_badge_id: form.essl_badge_id,
-        create_erp_account: form.create_erp_account,
-        erp_role_id: form.erp_role_id,
-        reporting_manager_id: form.reporting_manager_id,
-        razorpay_employee_id: form.razorpay_employee_id.trim() || null,
+        date_of_joining: effectiveForm.date_of_joining,
+        essl_badge_id: effectiveForm.essl_badge_id,
+        create_erp_account: effectiveForm.create_erp_account,
+        erp_role_id: effectiveForm.erp_role_id,
+        reporting_manager_id: effectiveForm.reporting_manager_id,
+        razorpay_employee_id: effectiveForm.razorpay_employee_id.trim() || null,
         razorpay_hrms_overrides: reconcileOverrides,
         razorpay_reconciliation: reconcileDiffs
           ? { diffs: reconcileDiffs, overrides: reconcileOverrides, snapshot: rpSnapshot, finalized_at: new Date().toISOString() }
           : null,
       };
-      if (hasBankInput) {
+      const hasBankInputEff = !!(effectiveForm.bank_account_number.trim() && effectiveForm.bank_ifsc_code.trim());
+      if (hasBankInputEff) {
         payload.bank_details = {
-          account_number: form.bank_account_number.trim(),
-          ifsc_code: form.bank_ifsc_code.trim().toUpperCase(),
-          bank_name: form.bank_name.trim() || null,
-          branch: form.bank_branch.trim() || null,
-          account_holder: form.bank_account_holder.trim() || null,
+          account_number: effectiveForm.bank_account_number.trim(),
+          ifsc_code: effectiveForm.bank_ifsc_code.trim().toUpperCase(),
+          bank_name: effectiveForm.bank_name.trim() || null,
+          branch: effectiveForm.bank_branch.trim() || null,
+          account_holder: effectiveForm.bank_account_holder.trim() || null,
         };
       }
       console.log("[Stage5] Calling onFinalize with payload", payload);
@@ -1203,7 +1203,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                     <button
                                       type="button"
                                       disabled={readOnly}
-                                      onClick={() => { setChoice(d.field, 'razorpay'); applyRazorpayValue(d); }}
+                                      onClick={() => setChoice(d.field, 'razorpay')}
                                       className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                     >
                                       Use RazorpayX

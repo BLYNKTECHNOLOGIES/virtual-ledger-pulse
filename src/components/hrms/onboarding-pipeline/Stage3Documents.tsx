@@ -19,15 +19,19 @@ interface Stage3Props {
   readOnly?: boolean;
 }
 
-const DOC_FIELDS = [
+// `noValue: true` means the doc has NO textual/numeric field — file upload only.
+// ABHA is intentionally upload-only per policy: no number capture, no matching.
+const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean }> = [
   { key: "pan", label: "PAN Card", required: true },
   { key: "aadhaar", label: "Aadhaar Card", required: true },
   { key: "passport_photo", label: "Passport Photo", required: true },
   { key: "bank_details", label: "Bank Details (Cheque/Passbook)", required: true },
   { key: "educational_certificate", label: "Educational Certificate", required: true },
   { key: "experience_letter", label: "Previous Experience Letter", required: false },
-  { key: "uan", label: "UAN", required: false },
-  { key: "esic", label: "ESIC", required: false },
+  { key: "uan", label: "UAN (optional)", required: false },
+  { key: "esic", label: "ESIC (optional)", required: false },
+  { key: "pf_account_number", label: "PF Account Number (optional)", required: false },
+  { key: "abha", label: "ABHA (upload only — no number needed)", required: false, noValue: true },
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {

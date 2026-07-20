@@ -1174,11 +1174,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       </div>
                       <div className="divide-y divide-border">
                         {reconcileDiffs.map((d) => {
-                          const overridden = !!reconcileOverrides[d.field];
+                          const choice = reconcileOverrides[d.field];
                           const isMatch = d.status === "match";
-                          const rowOk = isMatch || overridden;
+                          const rowOk = isMatch || !!choice;
                           const rpDisplay = d.razorpay;
                           const erpDisplay = d.erp;
+                          const hrmsActive = choice === 'hrms';
+                          const rpActive = choice === 'razorpay';
                           return (
                             <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
                               <div className="flex items-center gap-1.5">
@@ -1203,16 +1205,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                     <button
                                       type="button"
                                       disabled={readOnly}
-                                      onClick={() => toggleOverride(d.field, true)}
-                                      className={`h-6 px-2 text-[11px] transition-colors ${overridden ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                      onClick={() => setChoice(d.field, 'hrms')}
+                                      className={`h-6 px-2 text-[11px] transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                     >
                                       Use HRMS
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={readOnly || !rpDisplay}
-                                      onClick={() => applyRazorpayValue(d)}
-                                      className={`h-6 px-2 text-[11px] border-l border-border transition-colors bg-background hover:bg-muted disabled:opacity-50`}
+                                      disabled={readOnly}
+                                      onClick={() => { setChoice(d.field, 'razorpay'); applyRazorpayValue(d); }}
+                                      className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                     >
                                       Use RazorpayX
                                     </button>

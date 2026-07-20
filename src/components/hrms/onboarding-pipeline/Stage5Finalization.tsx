@@ -929,6 +929,73 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       </div>
                     </div>
                   )}
+                  {reconcileDiffs && reconcileDiffs.length > 0 && (
+                    <div className="rounded-md border border-border bg-background/60 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-medium">
+                          Field reconciliation — RazorpayX vs ERP draft
+                        </div>
+                        <Badge variant={reconcileReady ? "default" : "destructive"} className="text-[10px]">
+                          {reconcileReady
+                            ? "All fields reconciled"
+                            : `${reconcileUnresolved} unresolved`}
+                        </Badge>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Every mismatched row must be either fixed (use the RazorpayX value or update the draft) or overridden before Finalize unlocks.
+                      </div>
+                      <div className="divide-y divide-border">
+                        {reconcileDiffs.map((d) => {
+                          const overridden = !!reconcileOverrides[d.field];
+                          const rowOk = d.match || overridden;
+                          return (
+                            <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
+                              <div className="flex items-center gap-1.5">
+                                {rowOk
+                                  ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                  : <AlertTriangle className="h-3 w-3 text-warning shrink-0" />}
+                                <span className="font-medium">{d.label}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RazorpayX</div>
+                                <div className="font-mono break-all">{d.rpDisplay || <span className="opacity-50">—</span>}</div>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">ERP draft</div>
+                                <div className={`font-mono break-all ${d.match ? "" : "text-warning"}`}>
+                                  {d.erpDisplay || <span className="opacity-50">—</span>}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-start sm:items-end gap-1">
+                                {!d.match && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 text-[11px] px-2"
+                                    disabled={readOnly || !d.rpDisplay}
+                                    onClick={() => applyRazorpayValue(d)}
+                                  >
+                                    Use RazorpayX
+                                  </Button>
+                                )}
+                                {!d.match && (
+                                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                    <Checkbox
+                                      checked={overridden}
+                                      onCheckedChange={(c) => toggleOverride(d.field, !!c)}
+                                      disabled={readOnly}
+                                    />
+                                    Override
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <p className="text-[11px] text-muted-foreground">
                     Tip: send the invite from the RazorpayX dashboard first. The Employee ID appears on their profile only after they submit the self-registration form.
                   </p>

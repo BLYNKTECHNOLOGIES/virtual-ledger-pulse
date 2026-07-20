@@ -55,80 +55,90 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRecordIdRef = useRef<string | null>(null);
 
-  // Reserve the next RazorpayX employee ID (per Unified ID doctrine: this same
-  // integer becomes the HRMS badge_id, ESSL device PIN, and Razorpay employee_id).
-  // Auto-fills the ESSL badge field and flips the "create in Razorpay" toggle on
-  // so the actual /people POST happens automatically at Finalize.
-  const handleReserveRazorpayId = async () => {
-    if (reservingRef.current || reservingRpId || reservedRpId) return;
-    // Belt-and-suspenders: if the record ALREADY has a numeric badge on it
-    // (previous reservation from this wizard session), rehydrate instead of
-    // burning another sequence value.
-    const existingBadge = (onboardingRecord?.essl_badge_id || "").toString().trim();
-    if (/^\d+$/.test(existingBadge)) {
-      setReservedRpId(existingBadge);
-      setForm(p => ({ ...p, essl_badge_id: existingBadge, create_in_razorpay: true }));
-      toast.info(`Already reserved: RazorpayX ID ${existingBadge}`);
+  // Verify the operator-entered RazorpayX Employee ID against the RazorpayX API.
+  // Reuses the proxy's `recover_person_by_id` action, which:
+  //   1. Reads the RazorpayX employee record by employee_id,
+  //   2. Confirms the RazorpayX email matches this ERP onboarding email,
+  //   3. Upserts the hr_razorpay_employee_map row.
+  // The employee must be linked to a local hr_employees row for the proxy to
+  // resolve the email — for fresh drafts (no linked employee yet) we still do a
+  // client-side sanity check on format and defer the full verification to
+  // Finalize, which creates the local employee first, then calls this action.
+  const handleVerifyRazorpayId = async () => {
+    const idStr = form.razorpay_employee_id.trim();
+    if (!/^\d+$/.test(idStr)) {
+      toast.error("RazorpayX Employee ID must be numeric.");
       return;
     }
-    reservingRef.current = true;
-    setReservingRpId(true);
-    const t = toast.loading("Reserving next RazorpayX employee ID…");
-    try {
-      const { data: nextId, error } = await supabase.rpc("hr_next_razorpay_employee_id");
-      if (error) throw error;
-      const id = String(nextId);
-      setReservedRpId(id);
-      setForm(p => ({ ...p, essl_badge_id: id, create_in_razorpay: true }));
-      // Persist immediately so the reservation survives navigating away
-      // from Stage 5 (e.g. back to Basic Details) without burning a new ID.
-      if (onboardingRecord?.id) {
-        const { error: upErr } = await supabase
-          .from("hr_employee_onboarding")
-          .update({ essl_badge_id: id, updated_at: new Date().toISOString() })
-          .eq("id", onboardingRecord.id);
-        if (upErr) throw upErr;
-        // Force the parent wizard's record query to refetch so on the next
-        // mount of Stage 5 the `onboardingRecord` prop already carries the
-        // reserved badge — otherwise the rehydrate effect below sees stale
-        // data and offers the Reserve button again.
-        await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
-      }
-      toast.success(`Reserved RazorpayX ID ${id} — same number will be the ESSL PIN.`, { id: t });
-    } catch (e: any) {
-      toast.error(`Reserve failed: ${e?.message || String(e)}`, { id: t });
-    } finally {
-      reservingRef.current = false;
-      setReservingRpId(false);
+    const linkedEmpId = (onboardingRecord as any)?.employee_id as string | null;
+    if (!linkedEmpId) {
+      // Fresh onboarding — we can't call recover_person_by_id yet because
+      // no hr_employees row exists to compare emails against. Accept the ID
+      // provisionally; full verification happens automatically at Finalize.
+      setRpVerification({
+        ok: true,
+        message: `ID ${idStr} accepted. RazorpayX will be re-verified against this record at Finalize.`,
+        razorpay_employee_id: idStr,
+      });
+      updateForm({ essl_badge_id: idStr });
+      toast.success(`Employee ID ${idStr} accepted — verification will complete at Finalize.`);
+      return;
     }
-  };
-
-  const handleResetRazorpayReservation = async () => {
-    if (!onboardingRecord?.id || resettingRpId || readOnly) return;
-    setResettingRpId(true);
-    const t = toast.loading("Resetting local RazorpayX reservation…");
+    setVerifyingRpId(true);
+    const t = toast.loading(`Verifying Employee ID ${idStr} with RazorpayX…`);
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
         body: {
-          action: "reset_onboarding_razorpay_reservation",
-          onboarding_id: onboardingRecord.id,
+          action: "recover_person_by_id",
+          hr_employee_id: linkedEmpId,
+          razorpay_employee_id: Number(idStr),
         },
       });
       if (error) throw error;
       const payload = (data || {}) as any;
-      if (!payload.ok) throw new Error(payload.error || "Reset failed");
-
-      setReservedRpId(null);
-      setForm(p => ({ ...p, essl_badge_id: "", create_in_razorpay: false }));
-      dirtyRef.current = false;
-      await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
-      toast.success("Local reservation cleared. Reserve again before Finalize.", { id: t });
+      if (!payload.ok) {
+        const msg = payload.error || "RazorpayX verification failed";
+        setRpVerification({ ok: false, message: msg });
+        toast.error(msg, { id: t });
+        return;
+      }
+      const snap = payload?.snapshot || payload?.last_pull_snapshot || {};
+      setRpVerification({
+        ok: true,
+        message: `Verified. RazorpayX employee ${idStr} is linked to this record.`,
+        razorpay_employee_id: idStr,
+        first_name: snap?.first_name,
+        last_name: snap?.last_name,
+        email: snap?.email || snap?.work_email,
+      });
+      updateForm({ essl_badge_id: idStr });
+      // Persist verified state on the draft so a reload keeps the green tick.
+      if (onboardingRecord?.id) {
+        try {
+          await supabase
+            .from("hr_employee_onboarding")
+            .update({
+              razorpay_employee_id: idStr,
+              razorpay_verified_at: new Date().toISOString(),
+              essl_badge_id: idStr,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", onboardingRecord.id);
+          await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+        } catch (e) {
+          console.warn("Failed to persist Razorpay verification:", e);
+        }
+      }
+      toast.success(`Verified Employee ID ${idStr}`, { id: t });
     } catch (e: any) {
-      toast.error(`Reset failed: ${e?.message || String(e)}`, { id: t });
+      const msg = e?.message || String(e);
+      setRpVerification({ ok: false, message: msg });
+      toast.error(`Verify failed: ${msg}`, { id: t });
     } finally {
-      setResettingRpId(false);
+      setVerifyingRpId(false);
     }
   };
+
 
   const handlePushToBiometric = async () => {
     const pin = form.essl_badge_id.trim();

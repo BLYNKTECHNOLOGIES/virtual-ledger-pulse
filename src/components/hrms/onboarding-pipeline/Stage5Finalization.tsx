@@ -538,12 +538,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
+    const rpId = form.razorpay_employee_id.trim();
+    if (!alreadyInRazorpay) {
+      if (!rpId) {
+        toast.error("Enter the RazorpayX Employee ID (issued after the new hire completes RazorpayX self-registration).");
+        return false;
+      }
+      if (!/^\d+$/.test(rpId)) {
+        toast.error("RazorpayX Employee ID must be numeric.");
+        return false;
+      }
+    }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }
-    if (pinStatus?.kind === "conflict") { toast.error(pinStatus.msg); return false; }
-    if (form.create_in_razorpay && !razorpayChecklist.allOk) {
-      toast.error(`Cannot create in Razorpay — missing: ${razorpayChecklist.missing.join(", ")}`);
+    if (!alreadyInRazorpay && form.essl_badge_id.trim() !== rpId) {
+      toast.error("ESSL Badge ID must equal the RazorpayX Employee ID (unified ID doctrine).");
       return false;
     }
+    if (pinStatus?.kind === "conflict") { toast.error(pinStatus.msg); return false; }
     if (pinStatus?.kind === "unknown") {
       if (!window.confirm(`${pinStatus.msg}\n\nSave this PIN anyway?`)) {
         toast.message("Finalize cancelled — PIN not confirmed.");
@@ -551,7 +562,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       }
     }
     if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
-    // Bank details: partial entry is invalid — either fully entered or fully blank
     const anyBank = form.bank_account_number.trim() || form.bank_ifsc_code.trim();
     if (anyBank && !hasBankInput) {
       toast.error("Enter both Account Number and IFSC, or leave both blank");
@@ -561,7 +571,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       toast.error("IFSC must be 11 characters (e.g. HDFC0001234)");
       return false;
     }
-    // Payability warning (S2): confirm activation of an employee who can't be paid yet
     const docs = (onboardingRecord?.documents as any) || {};
     const hasBank = hasBankInput || !!docs.bank_details?.value;
     const hasSalary = Number(onboardingRecord?.ctc) > 0;
@@ -577,13 +586,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
   const handleFinalize = async () => {
     setFinalizeFeedback(null);
-    console.log("[Stage5] Finalize clicked", {
-      form,
-      pinStatus,
-      hasBankInput,
-      ifscValid,
-      ctc: onboardingRecord?.ctc,
-    });
+    console.log("[Stage5] Finalize clicked", { form, pinStatus, hasBankInput, ifscValid, ctc: onboardingRecord?.ctc });
     if (!validate()) {
       console.warn("[Stage5] Finalize validation blocked");
       return;
@@ -597,7 +600,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         create_erp_account: form.create_erp_account,
         erp_role_id: form.erp_role_id,
         reporting_manager_id: form.reporting_manager_id,
-        create_in_razorpay: form.create_in_razorpay && !alreadyInRazorpay,
+        razorpay_employee_id: form.razorpay_employee_id.trim() || null,
       };
       if (hasBankInput) {
         payload.bank_details = {

@@ -1255,6 +1255,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     </div>
                     );
                   })()}
+                  <p className="text-[11px] text-muted-foreground">
+                    Tip: create the RazorpayX invite here first. The Employee ID appears on their RazorpayX profile only after they submit the self-registration form.
+                  </p>
                 </div>
               )}
             </div>

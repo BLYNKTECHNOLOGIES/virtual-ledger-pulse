@@ -124,7 +124,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // checkboxes) without re-hitting RazorpayX.
   const persistReconciliation = async (
     diffs: ReconcileDiff[] | null,
-    overrides: Record<string, boolean>,
+    overrides: Record<string, 'hrms' | 'razorpay'>,
     snapshot: any,
   ) => {
     if (!onboardingRecord?.id) return;

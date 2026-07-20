@@ -303,8 +303,11 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     try {
       // Split off fields that are NOT columns on hr_employee_onboarding.
       // bank_details -> written to hr_employee_bank_details below.
-      // create_in_razorpay -> Stage-5-only toggle, handled after activation.
-      const { bank_details: bankDetails, create_in_razorpay: _rpToggle, ...onboardingUpdate } = stage5Data || {};
+      // razorpay_employee_id -> operator-entered RazorpayX Employee ID; kept
+      //   in the onboarding record for audit but also used below to link the
+      //   HRMS row and verify against RazorpayX.
+      const { bank_details: bankDetails, ...onboardingUpdate } = stage5Data || {};
+      const operatorRazorpayId = String((stage5Data?.razorpay_employee_id ?? "")).trim();
 
       // 1. Update onboarding record with stage 5 data
       await updateRecord({
@@ -325,11 +328,17 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       const linkedEmployeeId = (record as any)?.employee_id as string | null;
       let empId: string;
 
+      // Unified ID doctrine: badge_id === RazorpayX employee_id === ESSL PIN.
+      // Prefer the operator-entered Razorpay ID; fall back to any pre-existing
+      // essl_badge_id on the draft (legacy path). Never allocate a new ID from
+      // hr_next_razorpay_employee_id here — creation happens on RazorpayX now,
+      // not from ERP.
+      const unifiedId = operatorRazorpayId || (r.essl_badge_id || "").toString().trim();
+      if (!unifiedId) {
+        throw new Error("RazorpayX Employee ID is required. Enter the ID issued by RazorpayX after the new hire completes self-registration.");
+      }
+
       if (linkedEmployeeId) {
-        // Load prior additional_info from the linked hr_employees row (NOT
-        // from the onboarding record — that table has no additional_info
-        // column). This preserves the `source: "razorpay_import"` marker and
-        // any imported-at audit data set by the Razorpay import proxy.
         const { data: existingEmp } = await supabase
           .from("hr_employees")
           .select("additional_info")
@@ -345,11 +354,8 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             phone: r.phone || null,
             gender: r.gender || null,
             dob: r.date_of_birth || null,
-            badge_id: r.essl_badge_id,
+            badge_id: unifiedId,
             total_salary: r.ctc || 0,
-            // Keep the local employee as a draft until every selected external
-            // system succeeds. This prevents a failed RazorpayX create from
-            // leaving an apparently active HRMS employee behind.
             is_active: false,
             pan_number: docs.pan?.value || null,
             uan_number: docs.uan?.value || null,
@@ -366,17 +372,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         if (updErr) throw updErr;
         empId = linkedEmployeeId;
       } else {
-        // Unified ID doctrine: allocate a single sequential integer ID that
-        // will simultaneously become the HRMS badge_id, ESSL device PIN, and
-        // RazorpayX employee_id. Operator-typed essl_badge_id is honored only
-        // as a legacy fallback (kept for backward compatibility with drafts
-        // created before the doctrine landed).
-        let unifiedId = (r.essl_badge_id || "").toString().trim();
-        if (!unifiedId) {
-          const { data: nextId, error: nextIdErr } = await supabase.rpc("hr_next_razorpay_employee_id");
-          if (nextIdErr) throw new Error(`ID allocation failed: ${nextIdErr.message}`);
-          unifiedId = String(nextId);
-        }
         const { data: emp, error: empErr } = await supabase
           .from("hr_employees")
           .insert({
@@ -388,7 +383,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             dob: r.date_of_birth || null,
             badge_id: unifiedId,
             total_salary: r.ctc || 0,
-            // Draft until RazorpayX / ERP provisioning finishes successfully.
             is_active: false,
             pan_number: docs.pan?.value || null,
             uan_number: docs.uan?.value || null,

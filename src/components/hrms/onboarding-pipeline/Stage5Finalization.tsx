@@ -285,9 +285,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const bd = (onboardingRecord.bank_details as any) || {};
       const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
       const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
+      const savedRpId = String((onboardingRecord as any).razorpay_employee_id || "").trim();
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
-        essl_badge_id: existingBadge,
+        essl_badge_id: existingBadge || savedRpId,
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
@@ -296,16 +297,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         bank_name: bd.bank_name || existingBank?.bank_name || "",
         bank_branch: bd.branch || (existingBank as any)?.branch || "",
         bank_account_holder: empName,
-        // Never auto-opt an existing draft into RazorpayX just because its
-        // ESSL badge happens to be numeric — the operator must explicitly
-        // click "Reserve RazorpayX ID" (or toggle the switch) to opt in.
-        // This protects old drafts (pre-Unified-ID doctrine) that used a
-        // numeric badge purely for the eSSL device.
-        create_in_razorpay: false,
+        razorpay_employee_id: savedRpId,
       });
-      // Do not auto-lock the badge field from hydration either — reservedRpId
-      // is only set when the operator explicitly reserves an ID in-session,
-      // so old drafts can still edit their badge if needed.
+      if (savedRpId && (onboardingRecord as any).razorpay_verified_at) {
+        setRpVerification({
+          ok: true,
+          message: `Previously verified. RazorpayX Employee ID ${savedRpId} is linked to this record.`,
+          razorpay_employee_id: savedRpId,
+        });
+      }
       hydratedRecordIdRef.current = onboardingRecord.id;
     }
   }, [onboardingRecord]);

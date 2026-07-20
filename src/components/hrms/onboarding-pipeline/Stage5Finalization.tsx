@@ -562,7 +562,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               },
             }, restoredSnapshot)
           : rec.diffs as ReconcileDiff[]);
-        setReconcileOverrides((rec.overrides as Record<string, boolean>) || {});
+        {
+          const raw = (rec.overrides as Record<string, unknown>) || {};
+          const norm: Record<string, 'hrms' | 'razorpay'> = {};
+          Object.entries(raw).forEach(([k, v]) => {
+            if (v === 'razorpay') norm[k] = 'razorpay';
+            else if (v) norm[k] = 'hrms';
+          });
+          setReconcileOverrides(norm);
+        }
         setRpSnapshot(restoredSnapshot);
       } else {
         setReconcileDiffs(null);

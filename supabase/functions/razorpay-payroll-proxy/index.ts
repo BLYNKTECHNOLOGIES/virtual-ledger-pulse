@@ -1333,6 +1333,34 @@ Deno.serve(async (req) => {
       if (isDismissedRazorpayPerson(r.body)) {
         return json(200, { ok: false, code: "RAZORPAY_EMPLOYEE_DISMISSED", error: `Razorpay employee-id ${rpId} is dismissed/inactive and cannot be linked.`, http_status: r.status });
       }
+      // Best-effort salary attach — people:view never carries CTC; the
+      // separate payroll:view-payroll endpoint returns it, but only after an
+      // executed payroll run. We probe executed months only (same gating as
+      // the bulk pull) so a brand-new hire cleanly reports "not exposed".
+      try {
+        const { data: runs } = await svc.from("hr_razorpay_payroll_runs")
+          .select("period_month,status")
+          .in("status", ["bulk_applied", "locked", "recalled"]);
+        const months = new Set<string>();
+        for (const run of runs || []) {
+          const m = /^(\d{4})-(\d{2})/.exec(String(run.period_month || ""));
+          if (m) months.add(`${m[1]}-${m[2]}`);
+        }
+        const rpEmail = (r.body as any)?.email || (r.body as any)?.work_email || null;
+        const sal = await opfinSalary(rpId, rpEmail, Array.from(months));
+        if (sal.ok) {
+          (r.body as any).__salary = {
+            annual_ctc: sal.annual_ctc,
+            monthly_gross: sal.monthly_gross,
+            components: sal.components,
+          };
+          (r.body as any).annual_ctc = sal.annual_ctc;
+        } else {
+          (r.body as any).__salary_probe_error = sal.err;
+        }
+      } catch (e) {
+        (r.body as any).__salary_probe_error = (e as Error).message;
+      }
       return json(200, { ok: true, razorpay_employee_id: String(rpId), snapshot: r.body, http_status: r.status });
     }
 

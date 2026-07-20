@@ -308,15 +308,8 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: ci(erp.job_role),
       compareRp: ci(rpJobRole),
     },
-    {
-      field: "tax_regime",
-      label: "Tax regime",
-      erp: norm(erp.tax_regime),
-      razorpay: rpTaxRegime,
-      rpRawValue: rpTaxRegime || null,
-      compareErp: ci(erp.tax_regime).replace(/[^a-z]/g, ""),
-      compareRp: rpTaxRegime,
-    },
+
+
 
     (() => {
       const rpCtcRaw =

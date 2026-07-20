@@ -80,6 +80,16 @@ interface ErpInput {
     ifsc_code?: string | null;
     account_holder?: string | null;
   } | null;
+  /**
+   * badge_id of the manager selected in the ERP onboarding form. We compare
+   * this against the RazorpayX `manager-employee-id` (which is that manager's
+   * RazorpayX employee_id === HRMS badge_id under the Unified ID doctrine) to
+   * infer whether the reporting manager selection matches on both sides —
+   * without ever asking the operator to type a manager employee-id.
+   */
+  reporting_manager_badge_id?: string | null;
+  /** Human-readable name of the selected manager, for the diff display. */
+  reporting_manager_label?: string | null;
 }
 
 /**

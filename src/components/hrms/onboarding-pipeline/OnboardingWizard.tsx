@@ -88,6 +88,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       "job_role",
       "shift_id",
       "employee_type",
+      "probation_end_date",
       "ctc",
       "date_of_joining",
       "essl_badge_id",

@@ -1165,7 +1165,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       </div>
                     </div>
                   )}
-                  {reconcileDiffs && reconcileDiffs.length > 0 && (
+                  {reconcileDiffs && reconcileDiffs.length > 0 && (() => {
+                    const mismatchDiffs = reconcileDiffs.filter(d => d.status !== "match");
+                    return (
                     <div className="rounded-md border border-border bg-background/60 p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-xs font-medium">
@@ -1177,67 +1179,82 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                             : `${reconcileUnresolved} unresolved`}
                         </Badge>
                       </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        For every mismatch, pick one side. "Use HRMS" pushes the ERP draft value into RazorpayX on Finalize; "Use RazorpayX" copies the RazorpayX value into HRMS now.
-                      </div>
-                      <div className="divide-y divide-border">
-                        {reconcileDiffs.map((d) => {
-                          const choice = reconcileOverrides[d.field];
-                          const isMatch = d.status === "match";
-                          const rowOk = isMatch || !!choice;
-                          const rpDisplay = d.razorpay;
-                          const erpDisplay = d.erp;
-                          const hrmsActive = choice === 'hrms';
-                          const rpActive = choice === 'razorpay';
-                          return (
-                            <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
-                              <div className="flex items-center gap-1.5">
-                                {rowOk
-                                  ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
-                                  : <AlertTriangle className="h-3 w-3 text-warning shrink-0" />}
-                                <span className="font-medium">{d.label}</span>
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RazorpayX</div>
-                                <div className="font-mono break-all">{rpDisplay || <span className="opacity-50">—</span>}</div>
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">ERP draft</div>
-                                <div className={`font-mono break-all ${isMatch ? "" : "text-warning"}`}>
-                                  {erpDisplay || <span className="opacity-50">—</span>}
-                                </div>
-                              </div>
-                              <div className="flex flex-col items-start sm:items-end gap-1">
-                                {!isMatch && (
-                                  <div className="inline-flex rounded-md border border-border overflow-hidden">
-                                    <button
-                                      type="button"
-                                      disabled={readOnly}
-                                      onClick={() => setChoice(d.field, 'hrms')}
-                                      className={`h-6 px-2 text-[11px] transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                                    >
-                                      Use HRMS
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={readOnly}
-                                      onClick={() => setChoice(d.field, 'razorpay')}
-                                      className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                                    >
-                                      Use RazorpayX
-                                    </button>
+                      {mismatchDiffs.length === 0 ? (
+                        <div className="text-[11px] text-success flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3 w-3" />
+                          All {reconcileDiffs.length} fields match RazorpayX — nothing to reconcile.
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-[11px] text-muted-foreground">
+                            Only mismatched fields are shown. For each, pick one side. "Use HRMS" pushes the ERP draft value into RazorpayX on Finalize; "Use RazorpayX" copies the RazorpayX value into HRMS on Finalize.
+                          </div>
+                          <div className="divide-y divide-border">
+                            {mismatchDiffs.map((d) => {
+                              const choice = reconcileOverrides[d.field];
+                              const rowOk = !!choice;
+                              let rpDisplay = d.razorpay;
+                              let erpDisplay = d.erp;
+                              if (d.field === "reporting_manager") {
+                                const rpBadge = String(d.rpRawValue || "").trim();
+                                const erpBadgeMatch = /#(\d+)/.exec(d.erp || "");
+                                const erpBadge = erpBadgeMatch ? erpBadgeMatch[1] : "";
+                                const rpMgr = rpBadge ? (managers || []).find((m: any) => String(m.badge_id) === rpBadge) : null;
+                                const erpMgr = erpBadge ? (managers || []).find((m: any) => String(m.badge_id) === erpBadge) : null;
+                                const rpName = rpMgr ? `${rpMgr.first_name || ""} ${rpMgr.last_name || ""}`.trim() : "";
+                                const erpName = erpMgr ? `${erpMgr.first_name || ""} ${erpMgr.last_name || ""}`.trim() : "";
+                                rpDisplay = rpBadge ? (rpName ? `${rpName} (#${rpBadge})` : `Unknown employee (#${rpBadge})`) : "";
+                                erpDisplay = erpBadge ? (erpName ? `${erpName} (#${erpBadge})` : d.erp) : "";
+                              }
+                              const hrmsActive = choice === 'hrms';
+                              const rpActive = choice === 'razorpay';
+                              return (
+                                <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
+                                  <div className="flex items-center gap-1.5">
+                                    {rowOk
+                                      ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                      : <AlertTriangle className="h-3 w-3 text-warning shrink-0" />}
+                                    <span className="font-medium">{d.label}</span>
                                   </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                                  <div className="min-w-0">
+                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RazorpayX</div>
+                                    <div className="font-mono break-all">{rpDisplay || <span className="opacity-50">—</span>}</div>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">ERP draft</div>
+                                    <div className="font-mono break-all text-warning">
+                                      {erpDisplay || <span className="opacity-50">—</span>}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-start sm:items-end gap-1">
+                                    <div className="inline-flex rounded-md border border-border overflow-hidden">
+                                      <button
+                                        type="button"
+                                        disabled={readOnly}
+                                        onClick={() => setChoice(d.field, 'hrms')}
+                                        className={`h-6 px-2 text-[11px] transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                      >
+                                        Use HRMS
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={readOnly}
+                                        onClick={() => setChoice(d.field, 'razorpay')}
+                                        className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                      >
+                                        Use RazorpayX
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
-                  )}
-                  <p className="text-[11px] text-muted-foreground">
-                    Tip: create the RazorpayX invite here first. The Employee ID appears on their RazorpayX profile only after they submit the self-registration form.
-                  </p>
+                    );
+                  })()}
                 </div>
               )}
             </div>

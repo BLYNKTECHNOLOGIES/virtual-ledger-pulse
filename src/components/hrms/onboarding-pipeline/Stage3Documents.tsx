@@ -57,7 +57,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     });
     setDocs(init);
     setMailReceivedDate(data?.document_mail_received_at || "");
-    setTaxRegime(data?.tax_regime || "");
   }, [data]);
 
 

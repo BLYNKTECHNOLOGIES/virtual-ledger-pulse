@@ -268,21 +268,22 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const applyRazorpayValue = async (diff: ReconcileDiff) => {
     if (!rpSnapshot) return;
     const rp = rpSnapshot;
+    const rpVal = diff.rpRawValue ?? null;
     let touched = false;
     switch (diff.field) {
       case "date_of_joining": {
-        const iso = String(diff.rpRawValue || "");
-        if (iso) { updateForm({ date_of_joining: iso }); touched = true; }
+        updateForm({ date_of_joining: rpVal ? String(rpVal) : "" });
+        touched = true;
         break;
       }
       case "bank_account_number": {
-        const v = String(diff.rpRawValue || "");
-        if (v) { updateForm({ bank_account_number: v }); touched = true; }
+        updateForm({ bank_account_number: rpVal ? String(rpVal) : "" });
+        touched = true;
         break;
       }
       case "bank_ifsc_code": {
-        const v = String(diff.rpRawValue || "").toUpperCase();
-        if (v) { updateForm({ bank_ifsc_code: v }); touched = true; }
+        updateForm({ bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" });
+        touched = true;
         break;
       }
       case "first_name":
@@ -292,15 +293,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "gender":
       case "date_of_birth":
       case "ctc": {
-        // These live on hr_employee_onboarding directly (not on the Stage 5 form).
-        // Write via onSave so the parent record + query cache stay in sync.
         if (!onboardingRecord?.id) break;
-        const rpVal = diff.rpRawValue;
-        const col = diff.field === "ctc" ? "ctc" : diff.field;
+        const col = diff.field;
         try {
           await supabase
             .from("hr_employee_onboarding")
-            .update({ [col]: rpVal ?? null, updated_at: new Date().toISOString() } as any)
+            .update({ [col]: rpVal, updated_at: new Date().toISOString() } as any)
             .eq("id", onboardingRecord.id);
           await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
           touched = true;
@@ -311,24 +309,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         break;
       }
       default: {
-        toast.info("This field can't be auto-copied from RazorpayX — override it or update it manually.");
-        return;
+        // Non-writable fields (PAN/UAN from Stage 3, reporting manager). The
+        // 'razorpay' choice is still recorded so Finalize treats it as resolved.
+        break;
       }
     }
-    if (!touched) {
-      toast.info("RazorpayX has no value for this field — nothing to copy.");
-      return;
-    }
-    // Re-reconcile immediately using the freshly patched ERP input.
     const nextDiffs = reconcileOnboarding(buildErpInput(), rp);
     setReconcileDiffs(nextDiffs);
-    // Clear any override for this field since it's now actually fixed.
-    const nextOverrides = { ...reconcileOverrides };
-    delete nextOverrides[diff.field];
-    setReconcileOverrides(nextOverrides);
-    persistReconciliation(nextDiffs, nextOverrides, rp);
-    toast.success(`Applied RazorpayX value for ${diff.label}.`);
+    if (touched) toast.success(`Applied RazorpayX value for ${diff.label}.`);
   };
+
 
   const setChoice = (field: string, choice: 'hrms' | 'razorpay' | null) => {
     setReconcileOverrides(prev => {

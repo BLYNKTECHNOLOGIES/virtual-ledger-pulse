@@ -217,6 +217,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
           </div>
         )}
 
+        {/* Statutory context — PT is a company-wide fixed setting, not per-employee input. */}
+        <div className="rounded border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Professional Tax (PT):</span> always <strong>Madhya Pradesh</strong> — applied automatically to every employee. No per-employee entry required.
+        </div>
+
         {/* Document checklist */}
         <div className="space-y-3">
           <p className="text-sm font-medium">Document Checklist</p>

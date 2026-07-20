@@ -597,6 +597,18 @@ function extractRazorpayPeopleId(body: any): string | null {
   return match ? (match[1] || match[2] || match[3] || null) : null;
 }
 
+function buildGmailAliasForRazorpay(email: string, reservedEmployeeId: string | null): string | null {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const reserved = String(reservedEmployeeId || "").trim();
+  if (!cleanEmail.includes("@") || !/^\d+$/.test(reserved)) return null;
+  const [localRaw, domainRaw] = cleanEmail.split("@");
+  const domain = String(domainRaw || "").trim().toLowerCase();
+  if (!localRaw || !["gmail.com", "googlemail.com"].includes(domain)) return null;
+  const localBase = localRaw.split("+")[0];
+  if (!localBase) return null;
+  return `${localBase}+rzp${reserved}@${domain}`;
+}
+
 async function opfinEditPerson(data: Record<string, any>): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20000);

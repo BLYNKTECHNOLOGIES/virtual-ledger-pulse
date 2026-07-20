@@ -766,6 +766,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       console.warn("[Stage5] Finalize validation blocked");
       return;
     }
+    if (!reconcileReady) {
+      toast.error(reconcileBlockReason || "Resolve RazorpayX ↔ ERP field differences before finalizing.");
+      setFinalizeFeedback({ kind: "error", message: reconcileBlockReason || "Reconciliation incomplete." });
+      return;
+    }
     setFinalizing(true);
     const toastId = toast.loading("Creating employee…");
     try {
@@ -776,6 +781,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         erp_role_id: form.erp_role_id,
         reporting_manager_id: form.reporting_manager_id,
         razorpay_employee_id: form.razorpay_employee_id.trim() || null,
+        razorpay_reconciled: reconcileReady,
+        razorpay_reconciliation: reconcileDiffs
+          ? { diffs: reconcileDiffs, overrides: reconcileOverrides, snapshot: rpSnapshot, finalized_at: new Date().toISOString() }
+          : null,
       };
       if (hasBankInput) {
         payload.bank_details = {

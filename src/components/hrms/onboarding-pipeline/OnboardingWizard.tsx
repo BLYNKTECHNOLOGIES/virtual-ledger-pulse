@@ -324,7 +324,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         ...onboardingUpdate
       } = stage5Data || {};
       const operatorRazorpayId = String((stage5Data?.razorpay_employee_id ?? "")).trim();
-      const hasHrmsWinsOverride = Object.values((razorpayHrmsOverrides || {}) as Record<string, unknown>).some(Boolean);
+      const hasHrmsWinsOverride = Object.values((razorpayHrmsOverrides || {}) as Record<string, unknown>).some(v => v === "hrms");
 
       // 1. Update onboarding record with stage 5 data
       await updateRecord({
@@ -534,15 +534,13 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           await logAudit(recordId, 5, "razorpay_person_verified", { razorpay_employee_id: razorpayEmployeeId, response: rpRes });
 
           if (hasHrmsWinsOverride) {
-            const pushRes = await invokeLongRunningFunction<any>("razorpay-payroll-proxy", {
-              action: "create_person",
-              hr_employee_id: emp.id,
-            });
-            if (pushRes?.ok === false) {
-              throw new Error(pushRes?.error || "RazorpayX HRMS-data push failed");
-            }
-            await logAudit(recordId, 5, "razorpay_person_hrms_push", { razorpay_employee_id: razorpayEmployeeId });
-            successes.push(`RazorpayX ID ${razorpayEmployeeId} linked + updated from HRMS`);
+            // Stage5Finalization already pushes only the selected "Use HRMS"
+            // field-level overrides through edit_person_by_id before it calls
+            // this parent finalize handler. Do NOT call create_person here:
+            // that path is for initial RazorpayX invite creation/enrichment and
+            // can reopen the old create/attach loop after a valid ID is linked.
+            await logAudit(recordId, 5, "razorpay_person_hrms_overrides_confirmed", { razorpay_employee_id: razorpayEmployeeId });
+            successes.push(`RazorpayX ID ${razorpayEmployeeId} linked + selected HRMS fields updated`);
           } else {
             successes.push(`RazorpayX ID ${razorpayEmployeeId} linked`);
           }

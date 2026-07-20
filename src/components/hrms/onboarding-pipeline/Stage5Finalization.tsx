@@ -65,33 +65,58 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRecordIdRef = useRef<string | null>(null);
 
-  // Verify the operator-entered RazorpayX Employee ID against the RazorpayX API.
-  // Reuses the proxy's `recover_person_by_id` action, which:
-  //   1. Reads the RazorpayX employee record by employee_id,
-  //   2. Confirms the RazorpayX email matches this ERP onboarding email,
-  //   3. Upserts the hr_razorpay_employee_map row.
-  // The employee must be linked to a local hr_employees row for the proxy to
-  // resolve the email — for fresh drafts (no linked employee yet) we still do a
-  // client-side sanity check on format and defer the full verification to
-  // Finalize, which creates the local employee first, then calls this action.
+  // Build the ERP-side reconcile input from the current onboarding record + form.
+  // Kept as a helper so we can re-run reconcile after every "Use RazorpayX value"
+  // click without having to re-fetch the snapshot.
+  const buildErpInput = () => ({
+    first_name: onboardingRecord?.first_name,
+    last_name: onboardingRecord?.last_name,
+    email: onboardingRecord?.email,
+    phone: onboardingRecord?.phone,
+    gender: onboardingRecord?.gender,
+    date_of_birth: onboardingRecord?.date_of_birth,
+    date_of_joining: form.date_of_joining || onboardingRecord?.date_of_joining,
+    ctc: onboardingRecord?.ctc,
+    documents: onboardingRecord?.documents,
+    bank: {
+      account_number: form.bank_account_number,
+      ifsc_code: form.bank_ifsc_code,
+      account_holder: form.bank_account_holder,
+    },
+  });
+
+  // Persist the reconciliation snapshot + overrides on the draft so a reload
+  // restores the exact state (green ticks, remaining amber rows, override
+  // checkboxes) without re-hitting RazorpayX.
+  const persistReconciliation = async (
+    diffs: ReconcileDiff[] | null,
+    overrides: Record<string, boolean>,
+    snapshot: any,
+  ) => {
+    if (!onboardingRecord?.id) return;
+    try {
+      await supabase
+        .from("hr_employee_onboarding")
+        .update({
+          razorpay_reconciliation: diffs
+            ? { diffs, overrides, snapshot, last_checked_at: new Date().toISOString() }
+            : null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", onboardingRecord.id);
+    } catch (e) {
+      console.warn("Failed to persist Razorpay reconciliation:", e);
+    }
+  };
+
+  // Verify the operator-entered RazorpayX Employee ID against the RazorpayX API
+  // via the proxy's read-only `read_person_by_id` action, then reconcile the
+  // returned people:view snapshot against the ERP onboarding draft field by
+  // field. Finalize stays disabled until every row matches or is overridden.
   const handleVerifyRazorpayId = async () => {
     const idStr = form.razorpay_employee_id.trim();
     if (!/^\d+$/.test(idStr)) {
       toast.error("RazorpayX Employee ID must be numeric.");
-      return;
-    }
-    const linkedEmpId = (onboardingRecord as any)?.employee_id as string | null;
-    if (!linkedEmpId) {
-      // Fresh onboarding — we can't call recover_person_by_id yet because
-      // no hr_employees row exists to compare emails against. Accept the ID
-      // provisionally; full verification happens automatically at Finalize.
-      setRpVerification({
-        ok: true,
-        message: `ID ${idStr} accepted. RazorpayX will be re-verified against this record at Finalize.`,
-        razorpay_employee_id: idStr,
-      });
-      updateForm({ essl_badge_id: idStr });
-      toast.success(`Employee ID ${idStr} accepted — verification will complete at Finalize.`);
       return;
     }
     setVerifyingRpId(true);
@@ -99,30 +124,50 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
         body: {
-          action: "recover_person_by_id",
-          hr_employee_id: linkedEmpId,
+          action: "read_person_by_id",
           razorpay_employee_id: Number(idStr),
         },
       });
       if (error) throw error;
-      const payload = (data || {}) as any;
-      if (!payload.ok) {
-        const msg = payload.error || "RazorpayX verification failed";
+      const resp = (data || {}) as any;
+      if (!resp.ok) {
+        const msg = resp.error || "RazorpayX verification failed";
         setRpVerification({ ok: false, message: msg });
+        setReconcileDiffs(null);
+        setReconcileOverrides({});
+        setRpSnapshot(null);
         toast.error(msg, { id: t });
         return;
       }
-      const snap = payload?.snapshot || payload?.last_pull_snapshot || {};
+      const snap = resp.snapshot || {};
+      // Hard block: if this draft has an email and RazorpayX shows a different
+      // one, refuse to link (Unified ID doctrine — identity must not diverge).
+      const erpEmail = String(onboardingRecord?.email || "").trim().toLowerCase();
+      const rpEmail = String(snap?.email || snap?.work_email || snap?.personal_email || "").trim().toLowerCase();
+      if (erpEmail && rpEmail && erpEmail !== rpEmail) {
+        const msg = `Email mismatch: RazorpayX employee ${idStr} belongs to ${rpEmail}, not ${erpEmail}. Refusing to link — pick the correct Employee ID.`;
+        setRpVerification({ ok: false, message: msg });
+        setReconcileDiffs(null);
+        setReconcileOverrides({});
+        setRpSnapshot(null);
+        toast.error(msg, { id: t });
+        return;
+      }
+
+      const diffs = reconcileOnboarding(buildErpInput(), snap);
+      setRpSnapshot(snap);
+      setReconcileDiffs(diffs);
+      setReconcileOverrides({});
       setRpVerification({
         ok: true,
-        message: `Verified. RazorpayX employee ${idStr} is linked to this record.`,
+        message: `Verified. Comparing RazorpayX employee ${idStr} against this onboarding record.`,
         razorpay_employee_id: idStr,
         first_name: snap?.first_name,
         last_name: snap?.last_name,
         email: snap?.email || snap?.work_email,
       });
       updateForm({ essl_badge_id: idStr });
-      // Persist verified state on the draft so a reload keeps the green tick.
+      // Persist verified state + reconciliation for reload durability.
       if (onboardingRecord?.id) {
         try {
           await supabase
@@ -131,15 +176,26 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               razorpay_employee_id: idStr,
               razorpay_verified_at: new Date().toISOString(),
               essl_badge_id: idStr,
+              razorpay_reconciliation: {
+                diffs,
+                overrides: {},
+                snapshot: snap,
+                last_checked_at: new Date().toISOString(),
+              },
               updated_at: new Date().toISOString(),
-            })
+            } as any)
             .eq("id", onboardingRecord.id);
           await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
         } catch (e) {
           console.warn("Failed to persist Razorpay verification:", e);
         }
       }
-      toast.success(`Verified Employee ID ${idStr}`, { id: t });
+      const remaining = unresolvedCount(diffs, {});
+      if (remaining === 0) {
+        toast.success(`Verified — all fields match. You can finalize now.`, { id: t });
+      } else {
+        toast.warning(`Verified — ${remaining} field${remaining === 1 ? "" : "s"} need reconciliation before Finalize.`, { id: t });
+      }
     } catch (e: any) {
       const msg = e?.message || String(e);
       setRpVerification({ ok: false, message: msg });
@@ -148,6 +204,86 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       setVerifyingRpId(false);
     }
   };
+
+  // Copy the RazorpayX value for a specific field back into the ERP draft, then
+  // re-run reconcile so the row flips to green. Only the fields we know how to
+  // write into the current draft/form are actionable here; PAN/UAN come from
+  // Stage 3 documents and are shown read-only in the panel (the operator must
+  // go back to Stage 3 to fix those, or override them).
+  const applyRazorpayValue = async (diff: ReconcileDiff) => {
+    if (!rpSnapshot) return;
+    const rp = rpSnapshot;
+    let touched = false;
+    switch (diff.field) {
+      case "date_of_joining": {
+        const iso = String(diff.rpRawValue || "");
+        if (iso) { updateForm({ date_of_joining: iso }); touched = true; }
+        break;
+      }
+      case "bank_account_number": {
+        const v = String(diff.rpRawValue || "");
+        if (v) { updateForm({ bank_account_number: v }); touched = true; }
+        break;
+      }
+      case "bank_ifsc_code": {
+        const v = String(diff.rpRawValue || "").toUpperCase();
+        if (v) { updateForm({ bank_ifsc_code: v }); touched = true; }
+        break;
+      }
+      case "first_name":
+      case "last_name":
+      case "email":
+      case "phone":
+      case "gender":
+      case "date_of_birth":
+      case "ctc": {
+        // These live on hr_employee_onboarding directly (not on the Stage 5 form).
+        // Write via onSave so the parent record + query cache stay in sync.
+        if (!onboardingRecord?.id) break;
+        const rpVal = diff.rpRawValue;
+        const col = diff.field === "ctc" ? "ctc" : diff.field;
+        try {
+          await supabase
+            .from("hr_employee_onboarding")
+            .update({ [col]: rpVal ?? null, updated_at: new Date().toISOString() } as any)
+            .eq("id", onboardingRecord.id);
+          await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+          touched = true;
+        } catch (e: any) {
+          toast.error(`Failed to apply RazorpayX value: ${e?.message || e}`);
+          return;
+        }
+        break;
+      }
+      default: {
+        toast.info("This field can't be auto-copied from RazorpayX — override it or update it manually.");
+        return;
+      }
+    }
+    if (!touched) {
+      toast.info("RazorpayX has no value for this field — nothing to copy.");
+      return;
+    }
+    // Re-reconcile immediately using the freshly patched ERP input.
+    const nextDiffs = reconcileOnboarding(buildErpInput(), rp);
+    setReconcileDiffs(nextDiffs);
+    // Clear any override for this field since it's now actually fixed.
+    const nextOverrides = { ...reconcileOverrides };
+    delete nextOverrides[diff.field];
+    setReconcileOverrides(nextOverrides);
+    persistReconciliation(nextDiffs, nextOverrides, rp);
+    toast.success(`Applied RazorpayX value for ${diff.label}.`);
+  };
+
+  const toggleOverride = (field: string, checked: boolean) => {
+    setReconcileOverrides(prev => {
+      const next = { ...prev, [field]: checked };
+      if (!checked) delete next[field];
+      persistReconciliation(reconcileDiffs, next, rpSnapshot);
+      return next;
+    });
+  };
+
 
 
   const handlePushToBiometric = async () => {

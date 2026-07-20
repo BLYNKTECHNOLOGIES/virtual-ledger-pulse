@@ -584,6 +584,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     },
   });
 
+  // Re-run reconciliation when managers list finishes loading or the
+  // reporting-manager selection changes, so the "Reporting manager" row
+  // reflects the correct ERP-side badge/name rather than a stale blank.
+  useEffect(() => {
+    if (!rpSnapshot) return;
+    if (!managers) return;
+    const diffs = reconcileOnboarding(buildErpInput(), rpSnapshot);
+    setReconcileDiffs(diffs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [managers, form.reporting_manager_id, rpSnapshot]);
+
   // Live eSSL device-user roster: only PINs actually seen by a device.
   const { data: devicePins = [] } = useQuery({
     queryKey: ["hr_biometric_device_users_for_stage5"],

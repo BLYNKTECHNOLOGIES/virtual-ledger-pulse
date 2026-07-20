@@ -62,7 +62,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
   }, [data]);
 
 
-  const persistDocs = async (nextDocs: typeof docs, nextMailDate: string = mailReceivedDate) => {
+  const persistDocs = async (
+    nextDocs: typeof docs,
+    nextMailDate: string = mailReceivedDate,
+    nextRegime: string = taxRegime,
+  ) => {
     if (!onboardingData?.id) return;
     const allReq = DOC_FIELDS.filter(f => f.required).every(f => nextDocs[f.key]?.received);
     try {
@@ -72,12 +76,14 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
           documents: nextDocs,
           document_mail_received_at: nextMailDate || null,
           document_collection_status: allReq ? "completed" : "pending",
+          tax_regime: nextRegime || null,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", onboardingData.id);
     } catch (e) {
       console.warn("Auto-save Stage 3 documents failed:", e);
     }
+
   };
 
   const handleUpload = async (key: string, file: File) => {

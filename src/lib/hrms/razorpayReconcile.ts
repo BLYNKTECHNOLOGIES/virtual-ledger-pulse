@@ -88,7 +88,7 @@ interface ErpInput {
   probation_end_date?: string | null;
   employee_type?: string | null;
   job_role?: string | null;
-  tax_regime?: string | null;
+  
   ctc?: number | string | null;
   documents?: any;
   bank?: {
@@ -165,13 +165,6 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     rp?.designation,
     isGenderTitle(rpTitle) ? "" : rp?.title,
   );
-  const rpTaxRegime = ci(pick(
-    rp?.tax_regime,
-    rp?.taxRegime,
-    rp?.["tax-regime"],
-    rp?.income_tax_regime,
-    rp?.["income-tax-regime"],
-  )).replace(/[^a-z]/g, "");
   const rpPan = upper(pick(rp?.pan, rp?.pan_number, rp?.panNumber, rp?.["pan-number"]));
   const rpUan = digits(pick(rp?.uan, rp?.uan_number, rp?.uanNumber, rp?.["uan-number"]));
 
@@ -315,15 +308,8 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: ci(erp.job_role),
       compareRp: ci(rpJobRole),
     },
-    {
-      field: "tax_regime",
-      label: "Tax regime",
-      erp: norm(erp.tax_regime),
-      razorpay: rpTaxRegime,
-      rpRawValue: rpTaxRegime || null,
-      compareErp: ci(erp.tax_regime).replace(/[^a-z]/g, ""),
-      compareRp: rpTaxRegime,
-    },
+
+
 
     (() => {
       const rpCtcRaw =

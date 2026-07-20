@@ -104,7 +104,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       probation_end_date: onboardingRecord?.probation_end_date,
       employee_type: onboardingRecord?.employee_type,
       job_role: onboardingRecord?.job_role,
-      tax_regime: onboardingRecord?.tax_regime,
+      
       ctc: onboardingRecord?.ctc,
       documents: onboardingRecord?.documents,
       bank: {
@@ -735,7 +735,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       : !reconcileDiffs
         ? "Run RazorpayX verification to compare the fields."
         : reconcileUnresolved > 0
-          ? `${reconcileUnresolved} field${reconcileUnresolved === 1 ? "" : "s"} still differ between RazorpayX and ERP. Resolve or override each row before finalizing.`
+          ? (() => {
+              const names = (reconcileDiffs || [])
+                .filter(d => d.status !== "match" && !reconcileOverrides[d.field])
+                .map(d => d.label);
+              return `${reconcileUnresolved} field${reconcileUnresolved === 1 ? "" : "s"} still differ between RazorpayX and ERP: ${names.join(", ")}. Choose "Use HRMS" or "Use RazorpayX" on each row before finalizing.`;
+            })()
           : "";
 
 
@@ -1154,7 +1159,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         </Badge>
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        Every mismatch must be resolved. Use RazorpayX to copy that value into HRMS, or choose Keep HRMS so Finalize pushes HRMS data back to RazorpayX.
+                        For every mismatch, pick one side. "Use HRMS" pushes the ERP draft value into RazorpayX on Finalize; "Use RazorpayX" copies the RazorpayX value into HRMS now.
                       </div>
                       <div className="divide-y divide-border">
                         {reconcileDiffs.map((d) => {
@@ -1183,26 +1188,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                               </div>
                               <div className="flex flex-col items-start sm:items-end gap-1">
                                 {!isMatch && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 text-[11px] px-2"
-                                    disabled={readOnly || !rpDisplay}
-                                    onClick={() => applyRazorpayValue(d)}
-                                  >
-                                    Use RazorpayX
-                                  </Button>
-                                )}
-                                {!isMatch && (
-                                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                    <Checkbox
-                                      checked={overridden}
-                                      onCheckedChange={(c) => toggleOverride(d.field, !!c)}
+                                  <div className="inline-flex rounded-md border border-border overflow-hidden">
+                                    <button
+                                      type="button"
                                       disabled={readOnly}
-                                    />
-                                    Keep HRMS
-                                  </label>
+                                      onClick={() => toggleOverride(d.field, true)}
+                                      className={`h-6 px-2 text-[11px] transition-colors ${overridden ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                    >
+                                      Use HRMS
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={readOnly || !rpDisplay}
+                                      onClick={() => applyRazorpayValue(d)}
+                                      className={`h-6 px-2 text-[11px] border-l border-border transition-colors bg-background hover:bg-muted disabled:opacity-50`}
+                                    >
+                                      Use RazorpayX
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </div>

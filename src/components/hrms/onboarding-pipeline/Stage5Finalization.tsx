@@ -552,6 +552,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     }
   }, [onboardingRecord]);
 
+  // Re-run reconciliation when the managers list finishes loading or the
+  // reporting-manager selection changes, so the "Reporting manager" row
+  // shows the correct ERP-side badge/name rather than a stale blank.
+  useEffect(() => {
+    if (!rpSnapshot) return;
+    if (!managers) return;
+    const diffs = reconcileOnboarding(buildErpInput(), rpSnapshot);
+    setReconcileDiffs(diffs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [managers, form.reporting_manager_id, rpSnapshot]);
+
   useEffect(() => {
     if (!existingBank) return;
     setForm(prev => ({

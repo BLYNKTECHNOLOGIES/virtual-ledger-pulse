@@ -961,11 +961,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             </Button>
             <Button
               onClick={handleFinalize}
-              disabled={finalizing}
+              disabled={finalizing || !reconcileReady}
               className="bg-success hover:bg-success text-primary-foreground"
+              title={reconcileReady ? undefined : reconcileBlockReason}
             >
               {finalizing ? "Creating Employee..." : "✅ Finalize & Create Employee"}
             </Button>
+          </div>
+        )}
+        {!readOnly && !reconcileReady && reconcileBlockReason && (
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning flex items-start gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>{reconcileBlockReason}</span>
           </div>
         )}
 

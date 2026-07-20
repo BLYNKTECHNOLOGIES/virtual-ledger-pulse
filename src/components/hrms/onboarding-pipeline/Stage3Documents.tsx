@@ -177,7 +177,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     documents: docs,
     document_mail_received_at: mailReceivedDate || null,
     document_collection_status: allRequiredReceived ? "completed" : "pending",
-    tax_regime: taxRegime || null,
   });
 
 

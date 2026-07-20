@@ -289,6 +289,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const handlePushToBiometric = async () => {
     const pin = form.essl_badge_id.trim();
     const name = `${onboardingRecord?.first_name || ""} ${onboardingRecord?.last_name || ""}`.trim();
+    if (!alreadyInRazorpay && !rpVerification?.ok) {
+      toast.error("Verify the RazorpayX Employee ID first — ESSL Badge ID must equal that verified ID.");
+      return;
+    }
     if (!pin) {
       toast.error("Enter an ESSL Badge ID first.");
       return;

@@ -1383,7 +1383,24 @@ Deno.serve(async (req) => {
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
         return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
       };
+      // RazorpayX people:edit identifies the target person by EMAIL (see
+      // opfinEditPerson doc). Without email in the payload the API returns
+      // 200 but silently no-ops the write. Fetch the current email upfront
+      // so every edit round-trip is addressed to the right person.
+      let currentEmail = "";
+      try {
+        const view = await opfinView(rpId, "employee");
+        if (view.ok) {
+          currentEmail = String(
+            (view.body as any)?.email
+            ?? (view.body as any)?.work_email
+            ?? (view.body as any)?.["work-email"]
+            ?? ""
+          ).trim().toLowerCase();
+        }
+      } catch { /* fall through — edit will fail loudly below if email missing */ }
       const data: Record<string, any> = { "employee-id": rpId };
+      if (currentEmail) data["email"] = currentEmail;
       const applied: string[] = [];
       const skipped: string[] = [];
       for (const [k, raw] of Object.entries(fields)) {

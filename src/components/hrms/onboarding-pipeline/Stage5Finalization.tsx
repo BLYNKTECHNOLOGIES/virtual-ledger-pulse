@@ -670,98 +670,84 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             />
           </div>
           <div className="sm:col-span-2">
-            {/* RazorpayX Payroll ID — reserved FIRST, then flows into ESSL PIN.
-                Per Unified ID doctrine, the same integer becomes HRMS badge_id,
-                ESSL device PIN, and RazorpayX employee_id. */}
+            {/* Step 1 — RazorpayX Employee ID (operator-entered).
+                RazorpayX only issues an Employee ID after the new hire completes
+                self-registration on their RazorpayX invite. Once issued, the
+                operator pastes it here. Per Unified ID doctrine that same
+                integer becomes the HRMS badge_id and ESSL device PIN. */}
             <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <Cloud className="h-4 w-4 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Step 1 — RazorpayX Payroll ID</p>
+                  <p className="text-sm font-medium">Step 1 — RazorpayX Employee ID</p>
                   <p className="text-xs text-muted-foreground">
                     {alreadyInRazorpay
-                      ? `Already linked to Razorpay employee ${(razorpayMap as any)?.razorpay_employee_id}. Reuse this ID as the ESSL PIN below.`
-                      : reservedRpId || form.essl_badge_id
-                        ? "This ID will be pushed to Razorpay at Finalize and mirrored on both eSSL devices."
-                        : "Reserve the next sequential employee ID. It becomes the ESSL PIN and Razorpay employee_id."}
+                      ? `Already linked to RazorpayX Employee ID ${(razorpayMap as any)?.razorpay_employee_id}. Reuse this ID as the ESSL PIN below.`
+                      : rpVerification?.ok
+                        ? "Verified. This ID will be the HRMS badge, ESSL PIN, and RazorpayX employee ID."
+                        : "RazorpayX only issues an Employee ID after the new hire completes self-registration on their RazorpayX invite. Paste the issued ID here — no HRMS employee, ESSL PIN, or ERP account is created until you Finalize."}
                   </p>
                 </div>
-                {(reservedRpId || alreadyInRazorpay) && (
+                {(rpVerification?.ok || alreadyInRazorpay) && (
                   <Badge variant="default" className="font-mono shrink-0">
-                    ID {reservedRpId || (razorpayMap as any)?.razorpay_employee_id}
+                    ID {form.razorpay_employee_id || (razorpayMap as any)?.razorpay_employee_id}
                   </Badge>
                 )}
               </div>
               {!alreadyInRazorpay && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleReserveRazorpayId}
-                    disabled={readOnly || reservingRpId || !!reservedRpId}
-                  >
-                    <Cloud className="h-3.5 w-3.5 mr-1.5" />
-                    {reservingRpId
-                      ? "Reserving…"
-                      : reservedRpId
-                        ? `Reserved: ${reservedRpId}`
-                        : "Reserve RazorpayX Employee ID"}
-                  </Button>
-                  {reservedRpId && !alreadyInRazorpay && (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex-1 min-w-[180px]">
+                      <Label className="text-xs">RazorpayX Employee ID (from Razorpay dashboard)</Label>
+                      <Input
+                        placeholder="e.g. 77"
+                        value={form.razorpay_employee_id}
+                        onChange={e => {
+                          const v = e.target.value.replace(/\D/g, "");
+                          setRpVerification(null);
+                          updateForm({ razorpay_employee_id: v, essl_badge_id: v });
+                        }}
+                        disabled={readOnly}
+                        className="font-mono"
+                        inputMode="numeric"
+                      />
+                    </div>
                     <Button
                       type="button"
                       size="sm"
-                      variant="outline"
-                      onClick={handleResetRazorpayReservation}
-                      disabled={readOnly || resettingRpId || reservingRpId}
+                      onClick={handleVerifyRazorpayId}
+                      disabled={readOnly || verifyingRpId || !form.razorpay_employee_id.trim()}
                     >
-                      <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                      {resettingRpId ? "Resetting…" : "Reset local ID"}
+                      <Cloud className="h-3.5 w-3.5 mr-1.5" />
+                      {verifyingRpId ? "Verifying…" : "Verify with RazorpayX"}
                     </Button>
-                  )}
-                  {reservedRpId && (
-                    <span className="text-[11px] text-success flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> ESSL PIN auto-filled below
-                    </span>
-                  )}
-                </div>
-              )}
-              {!alreadyInRazorpay && reservedRpId && (
-                <div className="flex items-start gap-3 rounded-md border bg-background p-3">
-                  <Switch
-                    checked={form.create_in_razorpay}
-                    onCheckedChange={v => updateForm({ create_in_razorpay: v })}
-                    disabled={readOnly}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <Label className="text-sm">Also create this employee in RazorpayX at Finalize</Label>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {form.create_in_razorpay
-                        ? `On Finalize, employee_id ${reservedRpId} will be created in Razorpay with the fields below.`
-                        : "Toggle OFF to only reserve the ID locally — Razorpay will NOT be called."}
-                    </p>
                   </div>
-                </div>
-              )}
-              {form.create_in_razorpay && !alreadyInRazorpay && (
-                <div className="pl-2 border-l-2 border-primary/30 space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">Razorpay create checklist</p>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    {razorpayChecklist.items.map(it => (
-                      <li key={it.key} className="flex items-center gap-1.5">
-                        {it.ok
-                          ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
-                          : <XCircle className="h-3 w-3 text-destructive shrink-0" />}
-                        <span className={it.ok ? "" : "text-destructive"}>{it.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {!razorpayChecklist.allOk && (
-                    <p className="text-xs text-destructive flex items-start gap-1">
-                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                      <span>Fill the missing fields (Stage 3 for PAN, Stage 1 for department, bank details below) before Finalize.</span>
-                    </p>
+                  {rpVerification && (
+                    <div className={`rounded-md border px-3 py-2 text-xs flex items-start gap-2 ${
+                      rpVerification.ok
+                        ? "border-success/40 bg-success/10 text-success"
+                        : "border-destructive/40 bg-destructive/10 text-destructive"
+                    }`}>
+                      {rpVerification.ok
+                        ? <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        : <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />}
+                      <div className="min-w-0">
+                        <div className="font-medium">{rpVerification.message}</div>
+                        {rpVerification.ok && (rpVerification.first_name || rpVerification.email) && (
+                          <div className="text-[11px] opacity-80 mt-0.5">
+                            RazorpayX profile:{" "}
+                            <span className="font-mono">
+                              {`${rpVerification.first_name || ""} ${rpVerification.last_name || ""}`.trim()}
+                              {rpVerification.email ? ` · ${rpVerification.email}` : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Tip: send the invite from the RazorpayX dashboard first. The Employee ID appears on their profile only after they submit the self-registration form.
+                  </p>
                 </div>
               )}
             </div>
@@ -772,22 +758,42 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             </Label>
             <div className="flex gap-2 mt-1">
               <Input
-                placeholder={reservedRpId || alreadyInRazorpay ? "" : "Reserve a RazorpayX ID above, or type an unassigned PIN"}
+                placeholder={alreadyInRazorpay ? "" : "Enter RazorpayX Employee ID above — it auto-fills here"}
                 value={form.essl_badge_id}
                 onChange={e => updateForm({ essl_badge_id: e.target.value })}
-                disabled={readOnly || !!reservedRpId}
+                disabled={readOnly || (!alreadyInRazorpay && !!form.razorpay_employee_id.trim())}
                 className="font-mono"
               />
               <Select
                 value=""
                 onValueChange={v => updateForm({ essl_badge_id: v })}
-                disabled={readOnly || pinsLoading || bioAlreadyCreated || !!reservedRpId}
+                disabled={readOnly || pinsLoading || bioAlreadyCreated || (!alreadyInRazorpay && !!form.razorpay_employee_id.trim())}
               >
                 <SelectTrigger className="w-[190px] shrink-0">
                   <SelectValue placeholder={
-                    reservedRpId
-                      ? "Using reserved ID"
+                    (!alreadyInRazorpay && form.razorpay_employee_id.trim())
+                      ? "Using RazorpayX ID"
                       : bioAlreadyCreated
+                        ? "Locked — already created"
+                        : pinsLoading
+                          ? "Loading…"
+                          : `Pick unassigned (${unassignedPins.length})`
+                  } />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {unassignedPins.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No unassigned PINs on any device.</div>
+                  ) : unassignedPins.map((p: any) => (
+                    <SelectItem key={p.pin} value={p.pin}>
+                      <span className="font-mono">{p.pin}</span>
+                      {p.name && <span className="text-muted-foreground"> · {p.name}</span>}
+                      <span className="text-[10px] text-muted-foreground">
+                        · {p.deviceCount} device{p.deviceCount === 1 ? "" : "s"}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
                         ? "Locked — already created"
                         : pinsLoading
                           ? "Loading…"

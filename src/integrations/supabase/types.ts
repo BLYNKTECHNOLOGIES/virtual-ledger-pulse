@@ -6576,6 +6576,7 @@ export type Database = {
           offer_policy_status: string | null
           phone: string | null
           position_id: string | null
+          probation_end_date: string | null
           razorpay_employee_id: string | null
           razorpay_reconciliation: Json | null
           razorpay_verified_at: string | null
@@ -6584,6 +6585,7 @@ export type Database = {
           shift_id: string | null
           stage_completions: Json | null
           status: string
+          tax_regime: string | null
           updated_at: string
         }
         Insert: {
@@ -6616,6 +6618,7 @@ export type Database = {
           offer_policy_status?: string | null
           phone?: string | null
           position_id?: string | null
+          probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
           razorpay_verified_at?: string | null
@@ -6624,6 +6627,7 @@ export type Database = {
           shift_id?: string | null
           stage_completions?: Json | null
           status?: string
+          tax_regime?: string | null
           updated_at?: string
         }
         Update: {
@@ -6656,6 +6660,7 @@ export type Database = {
           offer_policy_status?: string | null
           phone?: string | null
           position_id?: string | null
+          probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
           razorpay_verified_at?: string | null
@@ -6664,6 +6669,7 @@ export type Database = {
           shift_id?: string | null
           stage_completions?: Json | null
           status?: string
+          tax_regime?: string | null
           updated_at?: string
         }
         Relationships: [

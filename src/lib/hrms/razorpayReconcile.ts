@@ -165,13 +165,6 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     rp?.designation,
     isGenderTitle(rpTitle) ? "" : rp?.title,
   );
-  const rpTaxRegime = ci(pick(
-    rp?.tax_regime,
-    rp?.taxRegime,
-    rp?.["tax-regime"],
-    rp?.income_tax_regime,
-    rp?.["income-tax-regime"],
-  )).replace(/[^a-z]/g, "");
   const rpPan = upper(pick(rp?.pan, rp?.pan_number, rp?.panNumber, rp?.["pan-number"]));
   const rpUan = digits(pick(rp?.uan, rp?.uan_number, rp?.uanNumber, rp?.["uan-number"]));
 

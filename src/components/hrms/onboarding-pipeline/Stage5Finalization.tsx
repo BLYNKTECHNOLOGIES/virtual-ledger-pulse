@@ -78,7 +78,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // resolved (Use RazorpayX value) or overridden. `snapshot` is the raw RP body
   // kept in memory for the "Use RazorpayX value" click handlers.
   const [reconcileDiffs, setReconcileDiffs] = useState<ReconcileDiff[] | null>(null);
-  const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, boolean>>({});
+  const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, 'hrms' | 'razorpay'>>({});
   const [rpSnapshot, setRpSnapshot] = useState<any>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);

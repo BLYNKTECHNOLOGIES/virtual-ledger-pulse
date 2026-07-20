@@ -32,17 +32,25 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     bank_name: "",
     bank_branch: "",
     bank_account_holder: "",
-    create_in_razorpay: false,
+    // Operator enters the RazorpayX-issued Employee ID here once the new hire
+    // completes self-registration on RazorpayX. This same integer becomes the
+    // HRMS badge_id, the ESSL device PIN, and the RazorpayX employee_id.
+    razorpay_employee_id: "",
   });
   const [finalizing, setFinalizing] = useState(false);
   const [pushingToDevices, setPushingToDevices] = useState(false);
-  const [reservingRpId, setReservingRpId] = useState(false);
-  const [resettingRpId, setResettingRpId] = useState(false);
-  const [reservedRpId, setReservedRpId] = useState<string | null>(null);
+  const [verifyingRpId, setVerifyingRpId] = useState(false);
+  const [rpVerification, setRpVerification] = useState<null | {
+    ok: boolean;
+    message: string;
+    razorpay_employee_id?: string;
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+  }>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
   const pushingRef = useRef(false);
-  const reservingRef = useRef(false);
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRecordIdRef = useRef<string | null>(null);

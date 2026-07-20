@@ -735,7 +735,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       : !reconcileDiffs
         ? "Run RazorpayX verification to compare the fields."
         : reconcileUnresolved > 0
-          ? `${reconcileUnresolved} field${reconcileUnresolved === 1 ? "" : "s"} still differ between RazorpayX and ERP. Resolve or override each row before finalizing.`
+          ? (() => {
+              const names = (reconcileDiffs || [])
+                .filter(d => d.status !== "match" && !reconcileOverrides[d.field])
+                .map(d => d.label);
+              return `${reconcileUnresolved} field${reconcileUnresolved === 1 ? "" : "s"} still differ between RazorpayX and ERP: ${names.join(", ")}. Choose "Use HRMS" or "Use RazorpayX" on each row before finalizing.`;
+            })()
           : "";
 
 

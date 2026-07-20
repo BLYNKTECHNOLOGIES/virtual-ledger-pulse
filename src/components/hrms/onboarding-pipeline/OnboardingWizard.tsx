@@ -208,6 +208,43 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     return base;
   };
 
+  const invokeLongRunningFunction = async <T,>(functionName: string, body: unknown, timeoutMs = 120_000): Promise<T> => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !supabaseKey) throw new Error("Supabase configuration is missing");
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseKey,
+          Authorization: `Bearer ${accessToken || supabaseKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      const text = await response.text();
+      let payload: any = null;
+      try { payload = text ? JSON.parse(text) : null; } catch { payload = { error: text }; }
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.message || `Edge function returned ${response.status}`);
+      }
+      return payload as T;
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        throw new Error("RazorpayX is still processing after two minutes. No local completion was made; retry Finalize after checking RazorpayX.");
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  };
+
   // Generic save draft handler
   const handleSaveDraft = async (stage: number, stageData: any, options?: { silent?: boolean }) => {
     try {
@@ -470,10 +507,10 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       let razorpayEmployeeId: string | null = null;
       if (stage5Data?.create_in_razorpay) {
         try {
-          const { data: rpRes, error: rpErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-            body: { action: "create_person", hr_employee_id: emp.id },
+          const rpRes = await invokeLongRunningFunction<any>("razorpay-payroll-proxy", {
+            action: "create_person",
+            hr_employee_id: emp.id,
           });
-          if (rpErr) throw new Error(await getFunctionErrorMessage(rpErr, "Razorpay create failed"));
           if (rpRes?.ok === false) {
             const detail = rpRes?.missing?.length
               ? `Missing: ${rpRes.missing.join(", ")}`

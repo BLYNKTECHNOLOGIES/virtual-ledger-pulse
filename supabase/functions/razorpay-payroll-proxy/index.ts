@@ -597,6 +597,18 @@ function extractRazorpayPeopleId(body: any): string | null {
   return match ? (match[1] || match[2] || match[3] || null) : null;
 }
 
+function buildGmailAliasForRazorpay(email: string, reservedEmployeeId: string | null): string | null {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const reserved = String(reservedEmployeeId || "").trim();
+  if (!cleanEmail.includes("@") || !/^\d+$/.test(reserved)) return null;
+  const [localRaw, domainRaw] = cleanEmail.split("@");
+  const domain = String(domainRaw || "").trim().toLowerCase();
+  if (!localRaw || !["gmail.com", "googlemail.com"].includes(domain)) return null;
+  const localBase = localRaw.split("+")[0];
+  if (!localBase) return null;
+  return `${localBase}+rzp${reserved}@${domain}`;
+}
+
 async function opfinEditPerson(data: Record<string, any>): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20000);
@@ -5526,6 +5538,7 @@ Deno.serve(async (req) => {
       const retryAttachReservedEmployeeId = async (
         source: string,
         attempts = 8,
+        emailOverride?: string,
       ): Promise<{ attach: Awaited<ReturnType<typeof attachReservedEmployeeIdByEmail>>; verify: Awaited<ReturnType<typeof opfinView>> | null }> => {
         let lastAttach: Awaited<ReturnType<typeof attachReservedEmployeeIdByEmail>> = {
           ok: false,
@@ -5536,9 +5549,10 @@ Deno.serve(async (req) => {
         let lastVerify: Awaited<ReturnType<typeof opfinView>> | null = null;
         if (!reservedEmployeeId || !/^\d+$/.test(reservedEmployeeId)) return { attach: lastAttach, verify: lastVerify };
 
-        const erpEmail = String(createData.email || "").trim().toLowerCase();
+        const erpEmail = String(emailOverride || createData.email || "").trim().toLowerCase();
+        const editPayload = emailOverride ? { ...fullEditData, email: erpEmail } : fullEditData;
         for (let i = 1; i <= attempts; i += 1) {
-          lastAttach = await attachReservedEmployeeIdByEmail(erpEmail, reservedEmployeeId, fullEditData);
+          lastAttach = await attachReservedEmployeeIdByEmail(erpEmail, reservedEmployeeId, editPayload);
           if (lastAttach.ok) {
             lastVerify = await opfinView(Number(reservedEmployeeId), "employee");
             const rpEmail = String(lastVerify.body?.email || lastVerify.body?.work_email || "").trim().toLowerCase();
@@ -5986,6 +6000,96 @@ Deno.serve(async (req) => {
             });
           }
           const existingPeopleId = extractRazorpayPeopleId(bodyOut);
+          const aliasEmail = buildGmailAliasForRazorpay(String(emp.email || ""), reservedEmployeeId);
+          if (aliasEmail && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+            const aliasCreateData: Record<string, any> = {
+              ...createData,
+              email: aliasEmail,
+            };
+            const aliasCtrl = new AbortController();
+            const aliasTimeout = setTimeout(() => aliasCtrl.abort(), 25000);
+            let aliasStatus = 0;
+            let aliasBody: any = null;
+            let aliasErr: string | null = null;
+            try {
+              const aliasRes = await fetch(`${BASE}/people`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({
+                  auth: authBlock(),
+                  request: { type: "people", "sub-type": "create" },
+                  data: aliasCreateData,
+                }),
+                signal: aliasCtrl.signal,
+              });
+              aliasStatus = aliasRes.status;
+              const aliasRaw = await aliasRes.text();
+              try { aliasBody = JSON.parse(aliasRaw); } catch { aliasBody = { raw: aliasRaw.slice(0, 800) }; }
+              const aliasRpErr = aliasBody && typeof aliasBody === "object" ? (aliasBody.error ?? aliasBody.message ?? null) : null;
+              if (!aliasRes.ok || aliasRpErr) {
+                const extractedAlias = extractRazorpayError(aliasBody, aliasRpErr ? JSON.stringify(aliasRpErr) : `HTTP ${aliasRes.status}`);
+                aliasErr = extractedAlias.message || (aliasRpErr ? JSON.stringify(aliasRpErr) : `HTTP ${aliasRes.status}`);
+              }
+            } catch (e) {
+              aliasErr = `NETWORK: ${(e as Error).message}`;
+            } finally {
+              clearTimeout(aliasTimeout);
+            }
+
+            await logSync(svc, {
+              action: "create_person",
+              http_status: aliasStatus,
+              razorpay_employee_id: reservedEmployeeId,
+              hr_employee_id: hrId,
+              field_diff_summary: {
+                contract: "people:create",
+                source: "gmail_alias_after_ghost_email",
+                original_email_domain: String(emp.email || "").split("@")[1] || null,
+                alias_email_domain: aliasEmail.split("@")[1] || null,
+                payload_field_names: Object.keys(aliasCreateData).sort(),
+              },
+              error_text: aliasErr,
+              actor_user_id: authed.userId,
+            });
+
+            if (!aliasErr) {
+              const { attach: aliasAttach, verify: aliasVerify } = await retryAttachReservedEmployeeId(
+                "gmail_alias_after_ghost_email",
+                10,
+                aliasEmail,
+              );
+              const aliasVerifyEmail = String(aliasVerify?.body?.email || aliasVerify?.body?.work_email || "").trim().toLowerCase();
+              if (aliasAttach.ok && aliasVerify?.ok && aliasVerifyEmail === aliasEmail) {
+                fullEditData.email = aliasEmail;
+                createData.email = aliasEmail;
+                const aliasSnapshot = {
+                  ...(aliasVerify.body || fullEditData),
+                  _erp_original_email: String(emp.email || "").trim().toLowerCase(),
+                  _razorpay_email_alias: aliasEmail,
+                  _recovered_by: "gmail_alias_after_ghost_email",
+                };
+                const { error: aliasMapErr } = await mapRazorpayEmployee(reservedEmployeeId, aliasSnapshot, "created_via_erp");
+                if (!aliasMapErr) {
+                  return await completeSuccessResponse(reservedEmployeeId, {
+                    already_exists_in_razorpay: false,
+                    created_with_email_alias: true,
+                    original_email_blocked_by_razorpay_ghost: true,
+                    razorpay_email_alias: aliasEmail,
+                    repaired_mapping: true,
+                    http_status: aliasVerify.status || aliasStatus,
+                    note: "Original Gmail address is blocked by a Razorpay hidden invite; ERP created RazorpayX with a Gmail +alias that delivers to the same inbox.",
+                  }, "gmail_alias_after_ghost_email");
+                }
+                return json(200, {
+                  ok: false,
+                  http_status: aliasVerify.status || aliasStatus,
+                  code: "RAZORPAY_ALIAS_MAPPING_FAILED",
+                  error: `RazorpayX employee was created with email alias and Employee ID ${reservedEmployeeId} verified, but ERP mapping repair failed: ${aliasMapErr.message}`,
+                  razorpay_employee_id: reservedEmployeeId,
+                });
+              }
+            }
+          }
           return json(200, {
             ok: false,
             http_status: httpStatus,

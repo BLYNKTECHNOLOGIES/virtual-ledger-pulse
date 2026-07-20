@@ -889,7 +889,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         onChange={e => {
                           const v = e.target.value.replace(/\D/g, "");
                           setRpVerification(null);
-                          updateForm({ razorpay_employee_id: v, essl_badge_id: v });
+                          // Do NOT mirror into essl_badge_id here. The Badge ID
+                          // stays empty until Verify with RazorpayX succeeds,
+                          // so an unverified typed number can never create an
+                          // ESSL PIN.
+                          updateForm({ razorpay_employee_id: v, essl_badge_id: "" });
                         }}
                         disabled={readOnly}
                         className="font-mono"

@@ -452,6 +452,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           razorpay_employee_id: savedRpId,
         });
       }
+      // Restore field-level reconciliation state so a reload keeps the panel.
+      const rec = (onboardingRecord as any).razorpay_reconciliation;
+      if (rec && Array.isArray(rec.diffs)) {
+        setReconcileDiffs(rec.diffs as ReconcileDiff[]);
+        setReconcileOverrides((rec.overrides as Record<string, boolean>) || {});
+        setRpSnapshot(rec.snapshot ?? null);
+      } else {
+        setReconcileDiffs(null);
+        setReconcileOverrides({});
+        setRpSnapshot(null);
+      }
       hydratedRecordIdRef.current = onboardingRecord.id;
     }
   }, [onboardingRecord]);

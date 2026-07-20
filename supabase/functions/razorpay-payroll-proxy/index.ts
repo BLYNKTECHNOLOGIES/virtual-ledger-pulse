@@ -1447,6 +1447,9 @@ Deno.serve(async (req) => {
       }
       let editRes: any = { ok: true, status: 0, body: null };
       if (applied.length > 0) {
+        if (!data["email"]) {
+          return json(200, { ok: false, error: "Could not resolve RazorpayX email for this employee-id; people:edit needs email to identify the person.", applied, skipped });
+        }
         editRes = await opfinEditPerson(data);
         if (!editRes.ok) {
           return json(200, { ok: false, error: editRes.error || `HTTP ${editRes.status}`, http_status: editRes.status, applied, skipped, sent: data });

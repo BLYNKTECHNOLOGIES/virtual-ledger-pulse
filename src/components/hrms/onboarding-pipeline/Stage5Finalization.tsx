@@ -330,10 +330,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     toast.success(`Applied RazorpayX value for ${diff.label}.`);
   };
 
-  const toggleOverride = (field: string, checked: boolean) => {
+  const setChoice = (field: string, choice: 'hrms' | 'razorpay' | null) => {
     setReconcileOverrides(prev => {
-      const next = { ...prev, [field]: checked };
-      if (!checked) delete next[field];
+      const next: Record<string, 'hrms' | 'razorpay'> = { ...prev };
+      if (choice) next[field] = choice;
+      else delete next[field];
       persistReconciliation(reconcileDiffs, next, rpSnapshot);
       return next;
     });

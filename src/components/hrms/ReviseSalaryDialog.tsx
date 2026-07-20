@@ -492,9 +492,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <p>RazorpayX requires operator envelope verification on the People edit endpoint before the change is finalised.</p>
               </div>
 
-              {isScheduled && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Future-dated — will be scheduled and auto-applied on {format(effectiveFrom, "PPP")}.
+              {isFutureDated && (
+                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
+                  Future-dated statutory changes are not supported — the scheduler has been retired. Set the effective date to today.
                 </div>
               )}
             </>
@@ -509,14 +509,15 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             disabled={
               mutation.isPending ||
               !employeeId ||
+              isFutureDated ||
               (mode === "recurring" ? !newTotal : mode === "one_time" ? !oneTimeAmount : !reason.trim())
             }
           >
             {mode === "recurring"
-              ? (isScheduled ? "Schedule revision" : "Apply revision")
+              ? "Apply revision"
               : mode === "one_time"
                 ? "Record payout"
-                : (isScheduled ? "Schedule statutory change" : "Apply & push to Razorpay")}
+                : "Apply & push to Razorpay"}
           </Button>
 
         </DialogFooter>

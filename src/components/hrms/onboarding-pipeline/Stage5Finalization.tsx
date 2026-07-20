@@ -1049,15 +1049,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         <p className="text-xs font-medium">Create RazorpayX employee invite</p>
                         <p className="text-[11px] text-muted-foreground">Uses this HRMS onboarding data to create the RazorpayX employee record first.</p>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleCreateRazorpayInvite}
-                        disabled={readOnly || creatingRazorpayInvite || !razorpayChecklist.allOk}
-                      >
-                        <Cloud className="h-3.5 w-3.5 mr-1.5" />
-                        {creatingRazorpayInvite ? "Creating…" : razorpayCreateRequest?.status ? "Create / Retry RazorpayX" : "Create in RazorpayX"}
-                      </Button>
+                      {(() => {
+                        const createStatus = razorpayCreateRequest?.status;
+                        const alreadyCreated = createStatus === "created" || createStatus === "email_exists" || rpVerification?.ok;
+                        return (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleCreateRazorpayInvite}
+                            disabled={readOnly || creatingRazorpayInvite || !razorpayChecklist.allOk || alreadyCreated}
+                            title={alreadyCreated ? "Already created in RazorpayX — creating again would produce a duplicate." : undefined}
+                          >
+                            <Cloud className="h-3.5 w-3.5 mr-1.5" />
+                            {creatingRazorpayInvite
+                              ? "Creating…"
+                              : alreadyCreated
+                                ? "Already created in RazorpayX"
+                                : createStatus
+                                  ? "Retry RazorpayX create"
+                                  : "Create in RazorpayX"}
+                          </Button>
+                        );
+                      })()}
                     </div>
                     {!razorpayChecklist.allOk && (
                       <p className="text-[11px] text-warning flex items-start gap-1">
@@ -1068,6 +1081,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     {razorpayCreateRequest?.status && (
                       <p className="text-[11px] text-muted-foreground">
                         Last RazorpayX create status: <span className="font-mono">{razorpayCreateRequest.status}</span>
+                        {(razorpayCreateRequest.status === "created" || razorpayCreateRequest.status === "email_exists") && (
+                          <> — paste and verify the Employee ID from the RazorpayX dashboard below.</>
+                        )}
                       </p>
                     )}
                   </div>

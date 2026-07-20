@@ -201,7 +201,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const priorOverrides = (onboardingRecord as any)?.razorpay_reconciliation?.overrides || {};
       const stillMismatched = new Set(
         diffs
-          .filter(d => (d.compareErp || "") !== (d.compareRp || ""))
+          .filter(d => d.status !== "match")
           .map(d => d.field),
       );
       const preservedOverrides: Record<string, boolean> = {};

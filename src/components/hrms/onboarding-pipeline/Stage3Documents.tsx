@@ -40,7 +40,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
   const [mode, setMode] = useState<"email" | "manual">("email");
   const [emailSending, setEmailSending] = useState(false);
   const [mailReceivedDate, setMailReceivedDate] = useState("");
-  const [taxRegime, setTaxRegime] = useState<string>("");
 
   const [docs, setDocs] = useState<Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);

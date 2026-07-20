@@ -6577,6 +6577,7 @@ export type Database = {
           phone: string | null
           position_id: string | null
           razorpay_employee_id: string | null
+          razorpay_reconciliation: Json | null
           razorpay_verified_at: string | null
           reporting_manager_id: string | null
           salary_template_id: string | null
@@ -6616,6 +6617,7 @@ export type Database = {
           phone?: string | null
           position_id?: string | null
           razorpay_employee_id?: string | null
+          razorpay_reconciliation?: Json | null
           razorpay_verified_at?: string | null
           reporting_manager_id?: string | null
           salary_template_id?: string | null
@@ -6655,6 +6657,7 @@ export type Database = {
           phone?: string | null
           position_id?: string | null
           razorpay_employee_id?: string | null
+          razorpay_reconciliation?: Json | null
           razorpay_verified_at?: string | null
           reporting_manager_id?: string | null
           salary_template_id?: string | null

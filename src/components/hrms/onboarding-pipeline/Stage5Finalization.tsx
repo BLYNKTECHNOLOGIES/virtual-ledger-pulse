@@ -1188,26 +1188,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                               </div>
                               <div className="flex flex-col items-start sm:items-end gap-1">
                                 {!isMatch && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 text-[11px] px-2"
-                                    disabled={readOnly || !rpDisplay}
-                                    onClick={() => applyRazorpayValue(d)}
-                                  >
-                                    Use RazorpayX
-                                  </Button>
-                                )}
-                                {!isMatch && (
-                                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                    <Checkbox
-                                      checked={overridden}
-                                      onCheckedChange={(c) => toggleOverride(d.field, !!c)}
+                                  <div className="inline-flex rounded-md border border-border overflow-hidden">
+                                    <button
+                                      type="button"
                                       disabled={readOnly}
-                                    />
-                                    Keep HRMS
-                                  </label>
+                                      onClick={() => toggleOverride(d.field, true)}
+                                      className={`h-6 px-2 text-[11px] transition-colors ${overridden ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                    >
+                                      Use HRMS
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={readOnly || !rpDisplay}
+                                      onClick={() => applyRazorpayValue(d)}
+                                      className={`h-6 px-2 text-[11px] border-l border-border transition-colors bg-background hover:bg-muted disabled:opacity-50`}
+                                    >
+                                      Use RazorpayX
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </div>

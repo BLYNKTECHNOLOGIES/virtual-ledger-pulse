@@ -10,7 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw, ArrowRight } from "lucide-react";
+import { reconcileOnboarding, isReconciled, unresolvedCount, type ReconcileDiff } from "@/lib/hrms/razorpayReconcile";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -48,6 +50,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     last_name?: string;
     email?: string;
   }>(null);
+  // RazorpayX ↔ ERP field-level reconciliation state. `diffs` is what the panel
+  // renders; `overrides` records which mismatched rows the operator explicitly
+  // acknowledged. Finalize stays disabled until every non-match row is either
+  // resolved (Use RazorpayX value) or overridden. `snapshot` is the raw RP body
+  // kept in memory for the "Use RazorpayX value" click handlers.
+  const [reconcileDiffs, setReconcileDiffs] = useState<ReconcileDiff[] | null>(null);
+  const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, boolean>>({});
+  const [rpSnapshot, setRpSnapshot] = useState<any>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
   const pushingRef = useRef(false);
@@ -55,33 +65,58 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRecordIdRef = useRef<string | null>(null);
 
-  // Verify the operator-entered RazorpayX Employee ID against the RazorpayX API.
-  // Reuses the proxy's `recover_person_by_id` action, which:
-  //   1. Reads the RazorpayX employee record by employee_id,
-  //   2. Confirms the RazorpayX email matches this ERP onboarding email,
-  //   3. Upserts the hr_razorpay_employee_map row.
-  // The employee must be linked to a local hr_employees row for the proxy to
-  // resolve the email — for fresh drafts (no linked employee yet) we still do a
-  // client-side sanity check on format and defer the full verification to
-  // Finalize, which creates the local employee first, then calls this action.
+  // Build the ERP-side reconcile input from the current onboarding record + form.
+  // Kept as a helper so we can re-run reconcile after every "Use RazorpayX value"
+  // click without having to re-fetch the snapshot.
+  const buildErpInput = () => ({
+    first_name: onboardingRecord?.first_name,
+    last_name: onboardingRecord?.last_name,
+    email: onboardingRecord?.email,
+    phone: onboardingRecord?.phone,
+    gender: onboardingRecord?.gender,
+    date_of_birth: onboardingRecord?.date_of_birth,
+    date_of_joining: form.date_of_joining || onboardingRecord?.date_of_joining,
+    ctc: onboardingRecord?.ctc,
+    documents: onboardingRecord?.documents,
+    bank: {
+      account_number: form.bank_account_number,
+      ifsc_code: form.bank_ifsc_code,
+      account_holder: form.bank_account_holder,
+    },
+  });
+
+  // Persist the reconciliation snapshot + overrides on the draft so a reload
+  // restores the exact state (green ticks, remaining amber rows, override
+  // checkboxes) without re-hitting RazorpayX.
+  const persistReconciliation = async (
+    diffs: ReconcileDiff[] | null,
+    overrides: Record<string, boolean>,
+    snapshot: any,
+  ) => {
+    if (!onboardingRecord?.id) return;
+    try {
+      await supabase
+        .from("hr_employee_onboarding")
+        .update({
+          razorpay_reconciliation: diffs
+            ? { diffs, overrides, snapshot, last_checked_at: new Date().toISOString() }
+            : null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", onboardingRecord.id);
+    } catch (e) {
+      console.warn("Failed to persist Razorpay reconciliation:", e);
+    }
+  };
+
+  // Verify the operator-entered RazorpayX Employee ID against the RazorpayX API
+  // via the proxy's read-only `read_person_by_id` action, then reconcile the
+  // returned people:view snapshot against the ERP onboarding draft field by
+  // field. Finalize stays disabled until every row matches or is overridden.
   const handleVerifyRazorpayId = async () => {
     const idStr = form.razorpay_employee_id.trim();
     if (!/^\d+$/.test(idStr)) {
       toast.error("RazorpayX Employee ID must be numeric.");
-      return;
-    }
-    const linkedEmpId = (onboardingRecord as any)?.employee_id as string | null;
-    if (!linkedEmpId) {
-      // Fresh onboarding — we can't call recover_person_by_id yet because
-      // no hr_employees row exists to compare emails against. Accept the ID
-      // provisionally; full verification happens automatically at Finalize.
-      setRpVerification({
-        ok: true,
-        message: `ID ${idStr} accepted. RazorpayX will be re-verified against this record at Finalize.`,
-        razorpay_employee_id: idStr,
-      });
-      updateForm({ essl_badge_id: idStr });
-      toast.success(`Employee ID ${idStr} accepted — verification will complete at Finalize.`);
       return;
     }
     setVerifyingRpId(true);
@@ -89,30 +124,50 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
         body: {
-          action: "recover_person_by_id",
-          hr_employee_id: linkedEmpId,
+          action: "read_person_by_id",
           razorpay_employee_id: Number(idStr),
         },
       });
       if (error) throw error;
-      const payload = (data || {}) as any;
-      if (!payload.ok) {
-        const msg = payload.error || "RazorpayX verification failed";
+      const resp = (data || {}) as any;
+      if (!resp.ok) {
+        const msg = resp.error || "RazorpayX verification failed";
         setRpVerification({ ok: false, message: msg });
+        setReconcileDiffs(null);
+        setReconcileOverrides({});
+        setRpSnapshot(null);
         toast.error(msg, { id: t });
         return;
       }
-      const snap = payload?.snapshot || payload?.last_pull_snapshot || {};
+      const snap = resp.snapshot || {};
+      // Hard block: if this draft has an email and RazorpayX shows a different
+      // one, refuse to link (Unified ID doctrine — identity must not diverge).
+      const erpEmail = String(onboardingRecord?.email || "").trim().toLowerCase();
+      const rpEmail = String(snap?.email || snap?.work_email || snap?.personal_email || "").trim().toLowerCase();
+      if (erpEmail && rpEmail && erpEmail !== rpEmail) {
+        const msg = `Email mismatch: RazorpayX employee ${idStr} belongs to ${rpEmail}, not ${erpEmail}. Refusing to link — pick the correct Employee ID.`;
+        setRpVerification({ ok: false, message: msg });
+        setReconcileDiffs(null);
+        setReconcileOverrides({});
+        setRpSnapshot(null);
+        toast.error(msg, { id: t });
+        return;
+      }
+
+      const diffs = reconcileOnboarding(buildErpInput(), snap);
+      setRpSnapshot(snap);
+      setReconcileDiffs(diffs);
+      setReconcileOverrides({});
       setRpVerification({
         ok: true,
-        message: `Verified. RazorpayX employee ${idStr} is linked to this record.`,
+        message: `Verified. Comparing RazorpayX employee ${idStr} against this onboarding record.`,
         razorpay_employee_id: idStr,
         first_name: snap?.first_name,
         last_name: snap?.last_name,
         email: snap?.email || snap?.work_email,
       });
       updateForm({ essl_badge_id: idStr });
-      // Persist verified state on the draft so a reload keeps the green tick.
+      // Persist verified state + reconciliation for reload durability.
       if (onboardingRecord?.id) {
         try {
           await supabase
@@ -121,15 +176,26 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               razorpay_employee_id: idStr,
               razorpay_verified_at: new Date().toISOString(),
               essl_badge_id: idStr,
+              razorpay_reconciliation: {
+                diffs,
+                overrides: {},
+                snapshot: snap,
+                last_checked_at: new Date().toISOString(),
+              },
               updated_at: new Date().toISOString(),
-            })
+            } as any)
             .eq("id", onboardingRecord.id);
           await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
         } catch (e) {
           console.warn("Failed to persist Razorpay verification:", e);
         }
       }
-      toast.success(`Verified Employee ID ${idStr}`, { id: t });
+      const remaining = unresolvedCount(diffs, {});
+      if (remaining === 0) {
+        toast.success(`Verified — all fields match. You can finalize now.`, { id: t });
+      } else {
+        toast.warning(`Verified — ${remaining} field${remaining === 1 ? "" : "s"} need reconciliation before Finalize.`, { id: t });
+      }
     } catch (e: any) {
       const msg = e?.message || String(e);
       setRpVerification({ ok: false, message: msg });
@@ -138,6 +204,86 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       setVerifyingRpId(false);
     }
   };
+
+  // Copy the RazorpayX value for a specific field back into the ERP draft, then
+  // re-run reconcile so the row flips to green. Only the fields we know how to
+  // write into the current draft/form are actionable here; PAN/UAN come from
+  // Stage 3 documents and are shown read-only in the panel (the operator must
+  // go back to Stage 3 to fix those, or override them).
+  const applyRazorpayValue = async (diff: ReconcileDiff) => {
+    if (!rpSnapshot) return;
+    const rp = rpSnapshot;
+    let touched = false;
+    switch (diff.field) {
+      case "date_of_joining": {
+        const iso = String(diff.rpRawValue || "");
+        if (iso) { updateForm({ date_of_joining: iso }); touched = true; }
+        break;
+      }
+      case "bank_account_number": {
+        const v = String(diff.rpRawValue || "");
+        if (v) { updateForm({ bank_account_number: v }); touched = true; }
+        break;
+      }
+      case "bank_ifsc_code": {
+        const v = String(diff.rpRawValue || "").toUpperCase();
+        if (v) { updateForm({ bank_ifsc_code: v }); touched = true; }
+        break;
+      }
+      case "first_name":
+      case "last_name":
+      case "email":
+      case "phone":
+      case "gender":
+      case "date_of_birth":
+      case "ctc": {
+        // These live on hr_employee_onboarding directly (not on the Stage 5 form).
+        // Write via onSave so the parent record + query cache stay in sync.
+        if (!onboardingRecord?.id) break;
+        const rpVal = diff.rpRawValue;
+        const col = diff.field === "ctc" ? "ctc" : diff.field;
+        try {
+          await supabase
+            .from("hr_employee_onboarding")
+            .update({ [col]: rpVal ?? null, updated_at: new Date().toISOString() } as any)
+            .eq("id", onboardingRecord.id);
+          await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+          touched = true;
+        } catch (e: any) {
+          toast.error(`Failed to apply RazorpayX value: ${e?.message || e}`);
+          return;
+        }
+        break;
+      }
+      default: {
+        toast.info("This field can't be auto-copied from RazorpayX — override it or update it manually.");
+        return;
+      }
+    }
+    if (!touched) {
+      toast.info("RazorpayX has no value for this field — nothing to copy.");
+      return;
+    }
+    // Re-reconcile immediately using the freshly patched ERP input.
+    const nextDiffs = reconcileOnboarding(buildErpInput(), rp);
+    setReconcileDiffs(nextDiffs);
+    // Clear any override for this field since it's now actually fixed.
+    const nextOverrides = { ...reconcileOverrides };
+    delete nextOverrides[diff.field];
+    setReconcileOverrides(nextOverrides);
+    persistReconciliation(nextDiffs, nextOverrides, rp);
+    toast.success(`Applied RazorpayX value for ${diff.label}.`);
+  };
+
+  const toggleOverride = (field: string, checked: boolean) => {
+    setReconcileOverrides(prev => {
+      const next = { ...prev, [field]: checked };
+      if (!checked) delete next[field];
+      persistReconciliation(reconcileDiffs, next, rpSnapshot);
+      return next;
+    });
+  };
+
 
 
   const handlePushToBiometric = async () => {
@@ -306,6 +452,17 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           razorpay_employee_id: savedRpId,
         });
       }
+      // Restore field-level reconciliation state so a reload keeps the panel.
+      const rec = (onboardingRecord as any).razorpay_reconciliation;
+      if (rec && Array.isArray(rec.diffs)) {
+        setReconcileDiffs(rec.diffs as ReconcileDiff[]);
+        setReconcileOverrides((rec.overrides as Record<string, boolean>) || {});
+        setRpSnapshot(rec.snapshot ?? null);
+      } else {
+        setReconcileDiffs(null);
+        setReconcileOverrides({});
+        setRpSnapshot(null);
+      }
       hydratedRecordIdRef.current = onboardingRecord.id;
     }
   }, [onboardingRecord]);
@@ -459,6 +616,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // OR we have a queued/ack pushback-log entry for this PIN.
   const bioAlreadyCreated = !!(pinStatus?.kind === "ok" || existingPushLog || pushFeedback);
 
+  // Finalize gate: unless this record was already linked in Razorpay (legacy
+  // imports), the operator must have run Verify and either matched or overridden
+  // every mismatched field on the reconciliation panel.
+  const reconcileUnresolved = reconcileDiffs ? unresolvedCount(reconcileDiffs, reconcileOverrides) : 0;
+  const reconcileReady = alreadyInRazorpay
+    ? true
+    : !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, reconcileOverrides));
+  const reconcileBlockReason = alreadyInRazorpay
+    ? ""
+    : !rpVerification?.ok
+      ? "Verify the RazorpayX Employee ID before finalizing."
+      : !reconcileDiffs
+        ? "Run RazorpayX verification to compare the fields."
+        : reconcileUnresolved > 0
+          ? `${reconcileUnresolved} field${reconcileUnresolved === 1 ? "" : "s"} still differ between RazorpayX and ERP. Resolve or override each row before finalizing.`
+          : "";
+
+
 
 
 
@@ -591,6 +766,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       console.warn("[Stage5] Finalize validation blocked");
       return;
     }
+    if (!reconcileReady) {
+      toast.error(reconcileBlockReason || "Resolve RazorpayX ↔ ERP field differences before finalizing.");
+      setFinalizeFeedback({ kind: "error", message: reconcileBlockReason || "Reconciliation incomplete." });
+      return;
+    }
     setFinalizing(true);
     const toastId = toast.loading("Creating employee…");
     try {
@@ -601,6 +781,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         erp_role_id: form.erp_role_id,
         reporting_manager_id: form.reporting_manager_id,
         razorpay_employee_id: form.razorpay_employee_id.trim() || null,
+        razorpay_reconciled: reconcileReady,
+        razorpay_reconciliation: reconcileDiffs
+          ? { diffs: reconcileDiffs, overrides: reconcileOverrides, snapshot: rpSnapshot, finalized_at: new Date().toISOString() }
+          : null,
       };
       if (hasBankInput) {
         payload.bank_details = {
@@ -742,6 +926,76 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                             </span>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  )}
+                  {reconcileDiffs && reconcileDiffs.length > 0 && (
+                    <div className="rounded-md border border-border bg-background/60 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-medium">
+                          Field reconciliation — RazorpayX vs ERP draft
+                        </div>
+                        <Badge variant={reconcileReady ? "default" : "destructive"} className="text-[10px]">
+                          {reconcileReady
+                            ? "All fields reconciled"
+                            : `${reconcileUnresolved} unresolved`}
+                        </Badge>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Every mismatched row must be either fixed (use the RazorpayX value or update the draft) or overridden before Finalize unlocks.
+                      </div>
+                      <div className="divide-y divide-border">
+                        {reconcileDiffs.map((d) => {
+                          const overridden = !!reconcileOverrides[d.field];
+                          const isMatch = d.status === "match";
+                          const rowOk = isMatch || overridden;
+                          const rpDisplay = d.razorpay;
+                          const erpDisplay = d.erp;
+                          return (
+                            <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
+                              <div className="flex items-center gap-1.5">
+                                {rowOk
+                                  ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                  : <AlertTriangle className="h-3 w-3 text-warning shrink-0" />}
+                                <span className="font-medium">{d.label}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RazorpayX</div>
+                                <div className="font-mono break-all">{rpDisplay || <span className="opacity-50">—</span>}</div>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">ERP draft</div>
+                                <div className={`font-mono break-all ${isMatch ? "" : "text-warning"}`}>
+                                  {erpDisplay || <span className="opacity-50">—</span>}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-start sm:items-end gap-1">
+                                {!isMatch && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 text-[11px] px-2"
+                                    disabled={readOnly || !rpDisplay}
+                                    onClick={() => applyRazorpayValue(d)}
+                                  >
+                                    Use RazorpayX
+                                  </Button>
+                                )}
+                                {!isMatch && (
+                                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                    <Checkbox
+                                      checked={overridden}
+                                      onCheckedChange={(c) => toggleOverride(d.field, !!c)}
+                                      disabled={readOnly}
+                                    />
+                                    Override
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -959,11 +1213,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             </Button>
             <Button
               onClick={handleFinalize}
-              disabled={finalizing}
+              disabled={finalizing || !reconcileReady}
               className="bg-success hover:bg-success text-primary-foreground"
+              title={reconcileReady ? undefined : reconcileBlockReason}
             >
               {finalizing ? "Creating Employee..." : "✅ Finalize & Create Employee"}
             </Button>
+          </div>
+        )}
+        {!readOnly && !reconcileReady && reconcileBlockReason && (
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning flex items-start gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>{reconcileBlockReason}</span>
           </div>
         )}
 

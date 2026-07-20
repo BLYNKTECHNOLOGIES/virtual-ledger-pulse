@@ -50,6 +50,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     last_name?: string;
     email?: string;
   }>(null);
+  // RazorpayX ↔ ERP field-level reconciliation state. `diffs` is what the panel
+  // renders; `overrides` records which mismatched rows the operator explicitly
+  // acknowledged. Finalize stays disabled until every non-match row is either
+  // resolved (Use RazorpayX value) or overridden. `snapshot` is the raw RP body
+  // kept in memory for the "Use RazorpayX value" click handlers.
+  const [reconcileDiffs, setReconcileDiffs] = useState<ReconcileDiff[] | null>(null);
+  const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, boolean>>({});
+  const [rpSnapshot, setRpSnapshot] = useState<any>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
   const pushingRef = useRef(false);

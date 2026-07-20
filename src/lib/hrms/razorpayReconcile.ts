@@ -401,14 +401,14 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
 
 export function isReconciled(
   diffs: ReconcileDiff[],
-  overrides: Record<string, boolean>,
+  overrides: Record<string, unknown>,
 ): boolean {
-  return diffs.every(d => d.status === "match" || overrides[d.field]);
+  return diffs.every(d => d.status === "match" || !!overrides[d.field]);
 }
 
 export function unresolvedCount(
   diffs: ReconcileDiff[],
-  overrides: Record<string, boolean>,
+  overrides: Record<string, unknown>,
 ): number {
   return diffs.filter(d => d.status !== "match" && !overrides[d.field]).length;
 }

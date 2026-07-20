@@ -432,9 +432,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
       const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
       const savedRpId = String((onboardingRecord as any).razorpay_employee_id || "").trim();
+      const savedRpVerifiedAt = (onboardingRecord as any).razorpay_verified_at;
+      // Only seed the badge from Razorpay ID when it was actually verified.
+      // Otherwise leave it blank so ESSL cannot be created pre-verification.
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
-        essl_badge_id: existingBadge || savedRpId,
+        essl_badge_id: existingBadge || (savedRpId && savedRpVerifiedAt ? savedRpId : ""),
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",

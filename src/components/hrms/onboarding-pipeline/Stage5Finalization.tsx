@@ -289,6 +289,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const handlePushToBiometric = async () => {
     const pin = form.essl_badge_id.trim();
     const name = `${onboardingRecord?.first_name || ""} ${onboardingRecord?.last_name || ""}`.trim();
+    if (!alreadyInRazorpay && !rpVerification?.ok) {
+      toast.error("Verify the RazorpayX Employee ID first — ESSL Badge ID must equal that verified ID.");
+      return;
+    }
     if (!pin) {
       toast.error("Enter an ESSL Badge ID first.");
       return;
@@ -432,9 +436,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const empName = `${onboardingRecord.first_name || ""} ${onboardingRecord.last_name || ""}`.trim();
       const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
       const savedRpId = String((onboardingRecord as any).razorpay_employee_id || "").trim();
+      const savedRpVerifiedAt = (onboardingRecord as any).razorpay_verified_at;
+      // Only seed the badge from Razorpay ID when it was actually verified.
+      // Otherwise leave it blank so ESSL cannot be created pre-verification.
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
-        essl_badge_id: existingBadge || savedRpId,
+        essl_badge_id: existingBadge || (savedRpId && savedRpVerifiedAt ? savedRpId : ""),
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
@@ -889,7 +896,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         onChange={e => {
                           const v = e.target.value.replace(/\D/g, "");
                           setRpVerification(null);
-                          updateForm({ razorpay_employee_id: v, essl_badge_id: v });
+                          // Do NOT mirror into essl_badge_id here. The Badge ID
+                          // stays empty until Verify with RazorpayX succeeds,
+                          // so an unverified typed number can never create an
+                          // ESSL PIN.
+                          updateForm({ razorpay_employee_id: v, essl_badge_id: "" });
                         }}
                         disabled={readOnly}
                         className="font-mono"
@@ -1012,21 +1023,27 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             </Label>
             <div className="flex gap-2 mt-1">
               <Input
-                placeholder={alreadyInRazorpay ? "" : "Enter RazorpayX Employee ID above — it auto-fills here"}
+                placeholder={
+                  alreadyInRazorpay
+                    ? ""
+                    : rpVerification?.ok
+                      ? "Auto-filled from verified RazorpayX Employee ID"
+                      : "Verify a RazorpayX Employee ID first — Badge ID is locked until then"
+                }
                 value={form.essl_badge_id}
                 onChange={e => updateForm({ essl_badge_id: e.target.value })}
-                disabled={readOnly || (!alreadyInRazorpay && !!form.razorpay_employee_id.trim())}
+                disabled={readOnly || (!alreadyInRazorpay && !rpVerification?.ok)}
                 className="font-mono"
               />
               <Select
                 value=""
                 onValueChange={v => updateForm({ essl_badge_id: v })}
-                disabled={readOnly || pinsLoading || bioAlreadyCreated || (!alreadyInRazorpay && !!form.razorpay_employee_id.trim())}
+                disabled={readOnly || pinsLoading || bioAlreadyCreated || (!alreadyInRazorpay && !rpVerification?.ok)}
               >
                 <SelectTrigger className="w-[190px] shrink-0">
                   <SelectValue placeholder={
-                    (!alreadyInRazorpay && form.razorpay_employee_id.trim())
-                      ? "Using RazorpayX ID"
+                    (!alreadyInRazorpay && !rpVerification?.ok)
+                      ? "Locked until RazorpayX verify"
                       : bioAlreadyCreated
                         ? "Locked — already created"
                         : pinsLoading
@@ -1049,6 +1066,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 </SelectContent>
               </Select>
             </div>
+            {!alreadyInRazorpay && !rpVerification?.ok && (
+              <p className="text-[11px] text-muted-foreground mt-1.5 flex items-start gap-1">
+                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>Send the RazorpayX invite, wait for the hire to self-register, then paste and verify the issued Employee ID above. The ESSL Badge ID unlocks only after successful verification.</span>
+              </p>
+            )}
             {pinStatus && !(bioAlreadyCreated && pinStatus.kind !== "conflict") && (
               <p className={`text-xs mt-1.5 flex items-start gap-1 ${
                 pinStatus.kind === "ok" ? "text-success" :
@@ -1082,7 +1105,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim() || bioAlreadyCreated}
+                disabled={readOnly || pushingToDevices || !form.essl_badge_id.trim() || bioAlreadyCreated || (!alreadyInRazorpay && !rpVerification?.ok)}
                 onClick={handlePushToBiometric}
               >
                 <Fingerprint className="h-3.5 w-3.5 mr-1.5" />

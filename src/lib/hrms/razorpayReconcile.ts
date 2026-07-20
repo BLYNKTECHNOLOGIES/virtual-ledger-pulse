@@ -141,6 +141,23 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     rp?.["bank-account-holder-name"],
   );
 
+  // Manager identity: RazorpayX exposes the manager's employee_id under
+  // `manager-employee-id` (or dotted variants / `manager.id`). Under the
+  // Unified ID doctrine that RazorpayX ID is identical to the manager's HRMS
+  // badge_id, so a straight digits-only compare tells us whether the manager
+  // chosen in the ERP dropdown matches the one set on RazorpayX — no
+  // free-text "manager employee ID" field required from the operator.
+  const rpManagerId = digits(pick(
+    rp?.["manager-employee-id"],
+    rp?.manager_employee_id,
+    rp?.managerEmployeeId,
+    rp?.manager?.id,
+    rp?.manager?.employee_id,
+    rp?.manager?.["employee-id"],
+  ));
+  const erpManagerBadge = digits(erp.reporting_manager_badge_id);
+  const erpManagerLabel = norm(erp.reporting_manager_label) || (erpManagerBadge ? `Badge ${erpManagerBadge}` : "");
+
   const rows: Array<Omit<ReconcileDiff, "status"> & {
     compareErp: string;
     compareRp: string;

@@ -1364,6 +1364,70 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, razorpay_employee_id: String(rpId), snapshot: r.body, http_status: r.status });
     }
 
+    // ---------- edit_person_by_id ----------
+    // Write-back path used by the Stage 5 reconciliation panel when the
+    // operator picks "Keep HRMS" for one or more field diffs. The client sends
+    // the RazorpayX employee-id it verified plus a `fields` map of ERP values
+    // that should overwrite RazorpayX. We translate ERP keys → the RazorpayX
+    // people:edit contract and hit opfinEditPerson.
+    if (action === "edit_person_by_id") {
+      const rpId = Number(payload?.razorpay_employee_id);
+      if (!Number.isFinite(rpId) || rpId < 1) return json(400, { error: "razorpay_employee_id required" });
+      const fields = (payload?.fields ?? {}) as Record<string, any>;
+      if (!fields || typeof fields !== "object" || !Object.keys(fields).length) {
+        return json(400, { error: "fields payload required" });
+      }
+      const isoToRp = (v: any): string | null => {
+        const s = v == null ? "" : String(v).trim();
+        if (!s) return null;
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+      };
+      const data: Record<string, any> = { "employee-id": rpId };
+      const applied: string[] = [];
+      const skipped: string[] = [];
+      for (const [k, raw] of Object.entries(fields)) {
+        if (raw == null || raw === "") continue;
+        switch (k) {
+          case "first_name": data["first-name"] = String(raw); applied.push(k); break;
+          case "last_name": data["last-name"] = String(raw); applied.push(k); break;
+          case "email": data["email"] = String(raw).trim().toLowerCase(); applied.push(k); break;
+          case "phone": data["phone-number"] = String(raw).replace(/\D/g, "").slice(-10); applied.push(k); break;
+          case "gender": data["gender"] = String(raw).toLowerCase(); applied.push(k); break;
+          case "date_of_birth": { const d = isoToRp(raw); if (d) { data["date-of-birth"] = d; applied.push(k); } break; }
+          case "date_of_joining": { const d = isoToRp(raw); if (d) { data["date-of-hiring"] = d; data["hire_date"] = d; applied.push(k); } break; }
+          case "probation_end_date": { const d = isoToRp(raw); if (d) { data["probation-end-date"] = d; applied.push(k); } break; }
+          case "employee_type": data["employee-type"] = String(raw).toLowerCase(); applied.push(k); break;
+          case "job_role": data["title"] = String(raw); applied.push(k); break;
+          case "tax_regime": data["tax-regime"] = String(raw).toLowerCase().replace(/[^a-z]/g, ""); applied.push(k); break;
+          case "pan": data["pan-number"] = String(raw).toUpperCase(); applied.push(k); break;
+          case "uan": data["uan-number"] = String(raw).replace(/\D/g, ""); applied.push(k); break;
+          case "bank_account_number": data["bank-account-number"] = String(raw); applied.push(k); break;
+          case "bank_ifsc_code": data["ifsc"] = String(raw).toUpperCase(); applied.push(k); break;
+          case "bank_account_holder": data["bank-account-holder-name"] = String(raw); applied.push(k); break;
+          case "reporting_manager": {
+            const mid = String(raw).replace(/\D/g, "");
+            if (mid) { data["manager-employee-id"] = Number(mid); applied.push(k); }
+            break;
+          }
+          case "ctc": {
+            const n = Number(raw);
+            if (Number.isFinite(n) && n > 0) { data["annual-ctc"] = n; applied.push(k); }
+            break;
+          }
+          default: skipped.push(k);
+        }
+      }
+      if (applied.length === 0) {
+        return json(400, { error: "no writable fields in payload", skipped });
+      }
+      const r = await opfinEditPerson(data);
+      if (!r.ok) {
+        return json(200, { ok: false, error: r.error || `HTTP ${r.status}`, http_status: r.status, applied, skipped, sent: data });
+      }
+      return json(200, { ok: true, http_status: r.status, applied, skipped, body: r.body });
+    }
+
     // ---------- attach_employee_id_by_email ----------
     // Repair path for records that were created in Razorpay but lost their
     // reserved employee-id (the "-NA-" limbo state). Official contract uses

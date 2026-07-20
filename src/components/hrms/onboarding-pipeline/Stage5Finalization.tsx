@@ -1159,7 +1159,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         </Badge>
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        Every mismatch must be resolved. Use RazorpayX to copy that value into HRMS, or choose Keep HRMS so Finalize pushes HRMS data back to RazorpayX.
+                        For every mismatch, pick one side. "Use HRMS" pushes the ERP draft value into RazorpayX on Finalize; "Use RazorpayX" copies the RazorpayX value into HRMS now.
                       </div>
                       <div className="divide-y divide-border">
                         {reconcileDiffs.map((d) => {

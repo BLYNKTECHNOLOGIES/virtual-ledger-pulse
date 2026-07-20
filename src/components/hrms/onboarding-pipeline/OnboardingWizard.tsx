@@ -115,7 +115,15 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       // entered elsewhere in the wizard. This is what was clearing Date of
       // Joining and other Stage-5 values when another stage saved a smaller
       // payload.
-      if (persistentFields.has(key) && isBlankValue(value) && hasValue(existingValue)) return;
+      if (persistentFields.has(key) && isBlankValue(value) && hasValue(existingValue)) {
+        // Stage 5 must be able to clear stale, unverified ESSL badge IDs.
+        // Otherwise old numeric PINs keep reappearing before RazorpayX ID verification.
+        if (key === "essl_badge_id" && !hasValue(existing?.razorpay_verified_at)) {
+          normalizedUpdates[key] = null;
+          return;
+        }
+        return;
+      }
 
       normalizedUpdates[key] = value;
     });
@@ -308,8 +316,14 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       // razorpay_employee_id -> operator-entered RazorpayX Employee ID; kept
       //   in the onboarding record for audit but also used below to link the
       //   HRMS row and verify against RazorpayX.
-      const { bank_details: bankDetails, ...onboardingUpdate } = stage5Data || {};
+      const {
+        bank_details: bankDetails,
+        razorpay_hrms_overrides: razorpayHrmsOverrides,
+        razorpay_reconciled: _razorpayReconciled,
+        ...onboardingUpdate
+      } = stage5Data || {};
       const operatorRazorpayId = String((stage5Data?.razorpay_employee_id ?? "")).trim();
+      const hasHrmsWinsOverride = Object.values((razorpayHrmsOverrides || {}) as Record<string, unknown>).some(Boolean);
 
       // 1. Update onboarding record with stage 5 data
       await updateRecord({
@@ -517,7 +531,20 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           }
           razorpayEmployeeId = rpRes?.razorpay_employee_id ?? operatorRazorpayId;
           await logAudit(recordId, 5, "razorpay_person_verified", { razorpay_employee_id: razorpayEmployeeId, response: rpRes });
-          successes.push(`RazorpayX ID ${razorpayEmployeeId} linked`);
+
+          if (hasHrmsWinsOverride) {
+            const pushRes = await invokeLongRunningFunction<any>("razorpay-payroll-proxy", {
+              action: "create_person",
+              hr_employee_id: emp.id,
+            });
+            if (pushRes?.ok === false) {
+              throw new Error(pushRes?.error || "RazorpayX HRMS-data push failed");
+            }
+            await logAudit(recordId, 5, "razorpay_person_hrms_push", { razorpay_employee_id: razorpayEmployeeId });
+            successes.push(`RazorpayX ID ${razorpayEmployeeId} linked + updated from HRMS`);
+          } else {
+            successes.push(`RazorpayX ID ${razorpayEmployeeId} linked`);
+          }
         } catch (rpErr: any) {
           const message = rpErr?.message || String(rpErr);
           console.error("Razorpay verify+link failed:", rpErr);

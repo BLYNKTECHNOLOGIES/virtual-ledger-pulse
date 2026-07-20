@@ -1411,21 +1411,63 @@ Deno.serve(async (req) => {
             break;
           }
           case "ctc": {
+            // CTC is NOT writable via people:edit. RazorpayX silently drops
+            // `annual-ctc` on people:edit payloads; the only accepted write
+            // path is people:set-salary. We handle it in a second round-trip
+            // below so operators can push CTC without envelope gating during
+            // onboarding reconciliation.
             const n = Number(raw);
-            if (Number.isFinite(n) && n > 0) { data["annual-ctc"] = n; applied.push(k); }
+            if (Number.isFinite(n) && n > 0) { (data as any).__ctc_annual = n; }
             break;
           }
           default: skipped.push(k);
         }
       }
-      if (applied.length === 0) {
+      const ctcAnnual = (data as any).__ctc_annual as number | undefined;
+      delete (data as any).__ctc_annual;
+      if (applied.length === 0 && !ctcAnnual) {
         return json(400, { error: "no writable fields in payload", skipped });
       }
-      const r = await opfinEditPerson(data);
-      if (!r.ok) {
-        return json(200, { ok: false, error: r.error || `HTTP ${r.status}`, http_status: r.status, applied, skipped, sent: data });
+      let editRes: any = { ok: true, status: 0, body: null };
+      if (applied.length > 0) {
+        editRes = await opfinEditPerson(data);
+        if (!editRes.ok) {
+          return json(200, { ok: false, error: editRes.error || `HTTP ${editRes.status}`, http_status: editRes.status, applied, skipped, sent: data });
+        }
       }
-      return json(200, { ok: true, http_status: r.status, applied, skipped, body: r.body });
+      let salaryResult: any = null;
+      if (ctcAnnual) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        try {
+          const res = await fetch(`${BASE}/people`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: "people", "sub-type": "set-salary" },
+              data: {
+                "employee-id": rpId,
+                "employee-type": "employee",
+                salary: { "ctc-annual": ctcAnnual },
+              },
+            }),
+            signal: ctrl.signal,
+          });
+          const raw = await res.text();
+          let body: any = null; try { body = JSON.parse(raw); } catch { body = { raw: raw.slice(0, 400) }; }
+          const rpErr = body && typeof body === "object" ? (body.error ?? body.message ?? null) : null;
+          const ok = res.ok && !rpErr;
+          salaryResult = { ok, http_status: res.status, error: ok ? null : (typeof rpErr === "string" ? rpErr : (rpErr ? JSON.stringify(rpErr) : `HTTP ${res.status}`)), body };
+          if (ok) applied.push("ctc");
+        } catch (e) {
+          salaryResult = { ok: false, http_status: 0, error: `NETWORK: ${(e as Error).message}`, body: null };
+        } finally { clearTimeout(t); }
+        if (!salaryResult.ok) {
+          return json(200, { ok: false, error: `Salary push failed: ${salaryResult.error}`, http_status: salaryResult.http_status, applied, skipped, salary: salaryResult });
+        }
+      }
+      return json(200, { ok: true, http_status: editRes.status, applied, skipped, body: editRes.body, salary: salaryResult });
     }
 
     // ---------- attach_employee_id_by_email ----------

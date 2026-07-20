@@ -567,7 +567,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const { data: managers } = useQuery({
     queryKey: ["managers-list-stage5"],
     queryFn: async () => {
-      const data = await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name"));
+      const data = await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true).order("first_name"));
       return data;
     },
   });

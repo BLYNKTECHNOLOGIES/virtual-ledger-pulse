@@ -794,26 +794,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   ))}
                 </SelectContent>
               </Select>
-                        ? "Locked — already created"
-                        : pinsLoading
-                          ? "Loading…"
-                          : `Pick unassigned (${unassignedPins.length})`
-                  } />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {unassignedPins.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">No unassigned PINs on any device.</div>
-                  ) : unassignedPins.map((p: any) => (
-                    <SelectItem key={p.pin} value={p.pin}>
-                      <span className="font-mono">{p.pin}</span>
-                      {p.name && <span className="text-muted-foreground"> · {p.name}</span>}
-                      <span className="text-[10px] text-muted-foreground">
-                        · {p.deviceCount} device{p.deviceCount === 1 ? "" : "s"}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             {pinStatus && !(bioAlreadyCreated && pinStatus.kind !== "conflict") && (
               <p className={`text-xs mt-1.5 flex items-start gap-1 ${

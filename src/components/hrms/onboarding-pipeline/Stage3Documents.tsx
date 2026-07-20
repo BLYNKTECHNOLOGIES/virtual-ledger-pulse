@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { FileText, Mail, Upload, Paperclip, ExternalLink, Loader2, X } from "lucide-react";
@@ -38,6 +40,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
   const [mode, setMode] = useState<"email" | "manual">("email");
   const [emailSending, setEmailSending] = useState(false);
   const [mailReceivedDate, setMailReceivedDate] = useState("");
+  const [taxRegime, setTaxRegime] = useState<string>("");
 
   const [docs, setDocs] = useState<Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
@@ -55,9 +58,15 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     });
     setDocs(init);
     setMailReceivedDate(data?.document_mail_received_at || "");
+    setTaxRegime(data?.tax_regime || "");
   }, [data]);
 
-  const persistDocs = async (nextDocs: typeof docs, nextMailDate: string = mailReceivedDate) => {
+
+  const persistDocs = async (
+    nextDocs: typeof docs,
+    nextMailDate: string = mailReceivedDate,
+    nextRegime: string = taxRegime,
+  ) => {
     if (!onboardingData?.id) return;
     const allReq = DOC_FIELDS.filter(f => f.required).every(f => nextDocs[f.key]?.received);
     try {
@@ -67,12 +76,14 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
           documents: nextDocs,
           document_mail_received_at: nextMailDate || null,
           document_collection_status: allReq ? "completed" : "pending",
+          tax_regime: nextRegime || null,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", onboardingData.id);
     } catch (e) {
       console.warn("Auto-save Stage 3 documents failed:", e);
     }
+
   };
 
   const handleUpload = async (key: string, file: File) => {
@@ -170,7 +181,9 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     documents: docs,
     document_mail_received_at: mailReceivedDate || null,
     document_collection_status: allRequiredReceived ? "completed" : "pending",
+    tax_regime: taxRegime || null,
   });
+
 
   return (
     <Card>
@@ -221,6 +234,20 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         <div className="rounded border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Professional Tax (PT):</span> always <strong>Madhya Pradesh</strong> — applied automatically to every employee. No per-employee entry required.
         </div>
+
+        {/* Tax Regime — RazorpayX `tax-regime`. Old vs New. Employee-declared. */}
+        <div className="rounded border p-3 space-y-2">
+          <Label className="text-sm">Tax Regime</Label>
+          <Select value={taxRegime} onValueChange={(v) => { setTaxRegime(v); persistDocs(docs, mailReceivedDate, v); }} disabled={readOnly}>
+            <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select regime (Old / New)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="old">Old Regime</SelectItem>
+              <SelectItem value="new">New Regime</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">Mirrored to RazorpayX <code>tax-regime</code>. Employee can update later; defaults to New if left blank.</p>
+        </div>
+
 
         {/* Document checklist */}
         <div className="space-y-3">

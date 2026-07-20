@@ -101,6 +101,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       gender: onboardingRecord?.gender,
       date_of_birth: onboardingRecord?.date_of_birth,
       date_of_joining: form.date_of_joining || onboardingRecord?.date_of_joining,
+      probation_end_date: onboardingRecord?.probation_end_date,
+      employee_type: onboardingRecord?.employee_type,
+      job_role: onboardingRecord?.job_role,
+      tax_regime: onboardingRecord?.tax_regime,
       ctc: onboardingRecord?.ctc,
       documents: onboardingRecord?.documents,
       bank: {
@@ -112,6 +116,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       reporting_manager_label: mgrName,
     };
   };
+
 
 
   // Persist the reconciliation snapshot + overrides on the draft so a reload

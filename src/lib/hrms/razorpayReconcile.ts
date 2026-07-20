@@ -73,6 +73,10 @@ interface ErpInput {
   gender?: string | null;
   date_of_birth?: string | null;
   date_of_joining?: string | null;
+  probation_end_date?: string | null;
+  employee_type?: string | null;
+  job_role?: string | null;
+  tax_regime?: string | null;
   ctc?: number | string | null;
   documents?: any;
   bank?: {
@@ -91,6 +95,7 @@ interface ErpInput {
   /** Human-readable name of the selected manager, for the diff display. */
   reporting_manager_label?: string | null;
 }
+
 
 /**
  * Reconcile the ERP onboarding draft against a RazorpayX snapshot.
@@ -127,8 +132,36 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     rp?.["date-of-hiring"],
     rp?.["date-of-joining"],
   ));
+  const rpProbationEnd = rpDateToIso(pick(
+    rp?.probation_end_date,
+    rp?.probationEndDate,
+    rp?.["probation-end-date"],
+    rp?.probation?.end_date,
+  ));
+  const rpEmployeeType = ci(pick(
+    rp?.employee_type,
+    rp?.employeeType,
+    rp?.["employee-type"],
+    rp?.employment_type,
+    rp?.["employment-type"],
+  ));
+  const rpJobRole = pick(
+    rp?.job_title,
+    rp?.jobTitle,
+    rp?.["job-title"],
+    rp?.designation,
+    rp?.title,
+  );
+  const rpTaxRegime = ci(pick(
+    rp?.tax_regime,
+    rp?.taxRegime,
+    rp?.["tax-regime"],
+    rp?.income_tax_regime,
+    rp?.["income-tax-regime"],
+  )).replace(/[^a-z]/g, "");
   const rpPan = upper(pick(rp?.pan, rp?.pan_number, rp?.panNumber, rp?.["pan-number"]));
   const rpUan = digits(pick(rp?.uan, rp?.uan_number, rp?.uanNumber, rp?.["uan-number"]));
+
   const rpBankAccount = pick(rpBank?.account_number, rpBank?.accountNumber, rp?.account_number, rp?.bank_account_number, rp?.["bank-account-number"]);
   const rpBankIfsc = upper(pick(rpBank?.ifsc, rpBank?.ifsc_code, rpBank?.ifscCode, rp?.ifsc, rp?.ifsc_code, rp?.bank_ifsc, rp?.["bank-ifsc"]));
   const rpBankHolder = pick(
@@ -225,6 +258,43 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: norm(erp.date_of_joining),
       compareRp: rpDoj,
     },
+    {
+      field: "probation_end_date",
+      label: "Probation end date",
+      erp: norm(erp.probation_end_date),
+      razorpay: rpProbationEnd,
+      rpRawValue: rpProbationEnd || null,
+      compareErp: norm(erp.probation_end_date),
+      compareRp: rpProbationEnd,
+    },
+    {
+      field: "employee_type",
+      label: "Employee type",
+      erp: norm(erp.employee_type),
+      razorpay: rpEmployeeType,
+      rpRawValue: rpEmployeeType || null,
+      compareErp: ci(erp.employee_type),
+      compareRp: rpEmployeeType,
+    },
+    {
+      field: "job_role",
+      label: "Job title",
+      erp: norm(erp.job_role),
+      razorpay: rpJobRole,
+      rpRawValue: rpJobRole || null,
+      compareErp: ci(erp.job_role),
+      compareRp: ci(rpJobRole),
+    },
+    {
+      field: "tax_regime",
+      label: "Tax regime",
+      erp: norm(erp.tax_regime),
+      razorpay: rpTaxRegime,
+      rpRawValue: rpTaxRegime || null,
+      compareErp: ci(erp.tax_regime).replace(/[^a-z]/g, ""),
+      compareRp: rpTaxRegime,
+    },
+
     (() => {
       const rpCtcRaw =
         rp?.annual_ctc ??

@@ -204,9 +204,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           .filter(d => d.status !== "match")
           .map(d => d.field),
       );
-      const preservedOverrides: Record<string, boolean> = {};
+      const preservedOverrides: Record<string, 'hrms' | 'razorpay'> = {};
       Object.entries(priorOverrides).forEach(([field, val]) => {
-        if (val && stillMismatched.has(field)) preservedOverrides[field] = true;
+        if (val && stillMismatched.has(field)) {
+          preservedOverrides[field] = val === 'razorpay' ? 'razorpay' : 'hrms';
+        }
       });
       setRpSnapshot(snap);
       setReconcileDiffs(diffs);

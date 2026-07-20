@@ -129,7 +129,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   ) => {
     if (!onboardingRecord?.id) return;
     try {
-      await supabase
+      const { error } = await supabase
         .from("hr_employee_onboarding")
         .update({
           razorpay_reconciliation: diffs
@@ -138,8 +138,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           updated_at: new Date().toISOString(),
         } as any)
         .eq("id", onboardingRecord.id);
-    } catch (e) {
+      if (error) throw error;
+      // Keep react-query cache in sync so re-mount / navigation replays the
+      // exact same override selections without a stale window.
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-record", onboardingRecord.id] });
+    } catch (e: any) {
       console.warn("Failed to persist Razorpay reconciliation:", e);
+      toast.error(`Could not save reconciliation choice: ${e?.message || e}`);
     }
   };
 

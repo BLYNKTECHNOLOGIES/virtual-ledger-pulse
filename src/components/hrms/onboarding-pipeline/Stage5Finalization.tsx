@@ -104,7 +104,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       probation_end_date: onboardingRecord?.probation_end_date,
       employee_type: onboardingRecord?.employee_type,
       job_role: onboardingRecord?.job_role,
-      tax_regime: onboardingRecord?.tax_regime,
+      
       ctc: onboardingRecord?.ctc,
       documents: onboardingRecord?.documents,
       bank: {

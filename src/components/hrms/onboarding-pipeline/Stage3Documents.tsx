@@ -19,15 +19,19 @@ interface Stage3Props {
   readOnly?: boolean;
 }
 
-const DOC_FIELDS = [
+// `noValue: true` means the doc has NO textual/numeric field — file upload only.
+// ABHA is intentionally upload-only per policy: no number capture, no matching.
+const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean }> = [
   { key: "pan", label: "PAN Card", required: true },
   { key: "aadhaar", label: "Aadhaar Card", required: true },
   { key: "passport_photo", label: "Passport Photo", required: true },
   { key: "bank_details", label: "Bank Details (Cheque/Passbook)", required: true },
   { key: "educational_certificate", label: "Educational Certificate", required: true },
   { key: "experience_letter", label: "Previous Experience Letter", required: false },
-  { key: "uan", label: "UAN", required: false },
-  { key: "esic", label: "ESIC", required: false },
+  { key: "uan", label: "UAN (optional)", required: false },
+  { key: "esic", label: "ESIC (optional)", required: false },
+  { key: "pf_account_number", label: "PF Account Number (optional)", required: false },
+  { key: "abha", label: "ABHA (upload only — no number needed)", required: false, noValue: true },
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {
@@ -213,6 +217,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
           </div>
         )}
 
+        {/* Statutory context — PT is a company-wide fixed setting, not per-employee input. */}
+        <div className="rounded border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Professional Tax (PT):</span> always <strong>Madhya Pradesh</strong> — applied automatically to every employee. No per-employee entry required.
+        </div>
+
         {/* Document checklist */}
         <div className="space-y-3">
           <p className="text-sm font-medium">Document Checklist</p>
@@ -231,7 +240,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <span className="text-sm">{f.label}</span>
                     {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
                   </div>
-                  {mode === "manual" && !readOnly && f.key !== "pan" && (
+                  {mode === "manual" && !readOnly && f.key !== "pan" && !f.noValue && (
                     <Input
                       placeholder={`${f.label} number`}
                       className="max-w-[180px] h-8"

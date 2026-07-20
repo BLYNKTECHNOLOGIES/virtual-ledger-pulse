@@ -189,8 +189,8 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             <Select value={form.employee_type} onValueChange={v => update("employee_type", v)} disabled={readOnly}>
               <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="full_time">Full Time</SelectItem>
-                <SelectItem value="part_time">Part Time</SelectItem>
+                {/* RazorpayX-aligned employee types only. */}
+                <SelectItem value="permanent">Permanent</SelectItem>
                 <SelectItem value="contract">Contract</SelectItem>
                 <SelectItem value="intern">Intern</SelectItem>
               </SelectContent>

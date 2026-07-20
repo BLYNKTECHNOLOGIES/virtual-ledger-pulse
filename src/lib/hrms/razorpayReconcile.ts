@@ -80,6 +80,16 @@ interface ErpInput {
     ifsc_code?: string | null;
     account_holder?: string | null;
   } | null;
+  /**
+   * badge_id of the manager selected in the ERP onboarding form. We compare
+   * this against the RazorpayX `manager-employee-id` (which is that manager's
+   * RazorpayX employee_id === HRMS badge_id under the Unified ID doctrine) to
+   * infer whether the reporting manager selection matches on both sides —
+   * without ever asking the operator to type a manager employee-id.
+   */
+  reporting_manager_badge_id?: string | null;
+  /** Human-readable name of the selected manager, for the diff display. */
+  reporting_manager_label?: string | null;
 }
 
 /**
@@ -130,6 +140,23 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     rp?.bank_account_holder_name,
     rp?.["bank-account-holder-name"],
   );
+
+  // Manager identity: RazorpayX exposes the manager's employee_id under
+  // `manager-employee-id` (or dotted variants / `manager.id`). Under the
+  // Unified ID doctrine that RazorpayX ID is identical to the manager's HRMS
+  // badge_id, so a straight digits-only compare tells us whether the manager
+  // chosen in the ERP dropdown matches the one set on RazorpayX — no
+  // free-text "manager employee ID" field required from the operator.
+  const rpManagerId = digits(pick(
+    rp?.["manager-employee-id"],
+    rp?.manager_employee_id,
+    rp?.managerEmployeeId,
+    rp?.manager?.id,
+    rp?.manager?.employee_id,
+    rp?.manager?.["employee-id"],
+  ));
+  const erpManagerBadge = digits(erp.reporting_manager_badge_id);
+  const erpManagerLabel = norm(erp.reporting_manager_label) || (erpManagerBadge ? `Badge ${erpManagerBadge}` : "");
 
   const rows: Array<Omit<ReconcileDiff, "status"> & {
     compareErp: string;
@@ -261,6 +288,15 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       rpRawValue: rpBankHolder || null,
       compareErp: ci(erp.bank?.account_holder),
       compareRp: ci(rpBankHolder),
+    },
+    {
+      field: "reporting_manager",
+      label: "Reporting manager",
+      erp: erpManagerLabel + (erpManagerBadge ? ` (#${erpManagerBadge})` : ""),
+      razorpay: rpManagerId ? `#${rpManagerId}` : "",
+      rpRawValue: rpManagerId || null,
+      compareErp: erpManagerBadge,
+      compareRp: rpManagerId,
     },
   ];
 

@@ -90,22 +90,29 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // Build the ERP-side reconcile input from the current onboarding record + form.
   // Kept as a helper so we can re-run reconcile after every "Use RazorpayX value"
   // click without having to re-fetch the snapshot.
-  const buildErpInput = () => ({
-    first_name: onboardingRecord?.first_name,
-    last_name: onboardingRecord?.last_name,
-    email: onboardingRecord?.email,
-    phone: onboardingRecord?.phone,
-    gender: onboardingRecord?.gender,
-    date_of_birth: onboardingRecord?.date_of_birth,
-    date_of_joining: form.date_of_joining || onboardingRecord?.date_of_joining,
-    ctc: onboardingRecord?.ctc,
-    documents: onboardingRecord?.documents,
-    bank: {
-      account_number: form.bank_account_number,
-      ifsc_code: form.bank_ifsc_code,
-      account_holder: form.bank_account_holder,
-    },
-  });
+  const buildErpInput = () => {
+    const mgr = (managers || []).find((m: any) => m.id === form.reporting_manager_id);
+    const mgrName = mgr ? `${mgr.first_name || ""} ${mgr.last_name || ""}`.trim() : "";
+    return {
+      first_name: onboardingRecord?.first_name,
+      last_name: onboardingRecord?.last_name,
+      email: onboardingRecord?.email,
+      phone: onboardingRecord?.phone,
+      gender: onboardingRecord?.gender,
+      date_of_birth: onboardingRecord?.date_of_birth,
+      date_of_joining: form.date_of_joining || onboardingRecord?.date_of_joining,
+      ctc: onboardingRecord?.ctc,
+      documents: onboardingRecord?.documents,
+      bank: {
+        account_number: form.bank_account_number,
+        ifsc_code: form.bank_ifsc_code,
+        account_holder: form.bank_account_holder,
+      },
+      reporting_manager_badge_id: mgr?.badge_id || null,
+      reporting_manager_label: mgrName,
+    };
+  };
+
 
   // Persist the reconciliation snapshot + overrides on the draft so a reload
   // restores the exact state (green ticks, remaining amber rows, override
@@ -567,7 +574,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const { data: managers } = useQuery({
     queryKey: ["managers-list-stage5"],
     queryFn: async () => {
-      const data = await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name"));
+      const data = await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true).order("first_name"));
       return data;
     },
   });

@@ -36,6 +36,18 @@ const digits = (v: unknown) => norm(v).replace(/\D/g, "");
 const last10 = (v: unknown) => digits(v).slice(-10);
 const upper = (v: unknown) => norm(v).toUpperCase();
 
+const pick = (...vals: unknown[]) => vals.map(norm).find(Boolean) || "";
+
+const splitName = (value: unknown) => {
+  const s = norm(value).replace(/\s+/g, " ");
+  if (!s) return { first: "", last: "" };
+  const parts = s.split(" ");
+  return {
+    first: parts[0] || "",
+    last: parts.slice(1).join(" "),
+  };
+};
+
 /** RazorpayX returns dd/mm/yyyy; convert to yyyy-mm-dd for compare + display. */
 const rpDateToIso = (v: unknown): string => {
   const s = norm(v);
@@ -79,7 +91,45 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
   const erpPan = upper(docs.pan?.value);
   const erpUan = digits(docs.uan?.value);
 
-  const rpBank = (rp?.bank_account ?? rp?.bank_details ?? {}) as any;
+  const rpBank = (rp?.bank_account ?? rp?.bank_details ?? rp?.bank_information ?? rp?.bank ?? {}) as any;
+  const rpName = splitName(rp?.name);
+  const rpFirstName = pick(rp?.first_name, rp?.firstName, rp?.["first-name"], rpName.first);
+  const rpLastName = pick(rp?.last_name, rp?.lastName, rp?.["last-name"], rpName.last);
+  const rpEmail = pick(rp?.email, rp?.work_email, rp?.personal_email, rp?.["work-email"], rp?.["personal-email"]);
+  const rpPhone = pick(
+    rp?.contact_number,
+    rp?.contactNumber,
+    rp?.phone_number,
+    rp?.phoneNumber,
+    rp?.phone,
+    rp?.mobile_number,
+    rp?.mobileNumber,
+    rp?.["phone-number"],
+    rp?.["mobile-number"],
+  );
+  const rpDob = rpDateToIso(pick(rp?.dob, rp?.date_of_birth, rp?.dateOfBirth, rp?.["date-of-birth"]));
+  const rpDoj = rpDateToIso(pick(
+    rp?.hire_date,
+    rp?.hiring_date,
+    rp?.date_of_hiring,
+    rp?.date_of_joining,
+    rp?.joining_date,
+    rp?.["date-of-hiring"],
+    rp?.["date-of-joining"],
+  ));
+  const rpPan = upper(pick(rp?.pan, rp?.pan_number, rp?.panNumber, rp?.["pan-number"]));
+  const rpUan = digits(pick(rp?.uan, rp?.uan_number, rp?.uanNumber, rp?.["uan-number"]));
+  const rpBankAccount = pick(rpBank?.account_number, rpBank?.accountNumber, rp?.account_number, rp?.bank_account_number, rp?.["bank-account-number"]);
+  const rpBankIfsc = upper(pick(rpBank?.ifsc, rpBank?.ifsc_code, rpBank?.ifscCode, rp?.ifsc, rp?.ifsc_code, rp?.bank_ifsc, rp?.["bank-ifsc"]));
+  const rpBankHolder = pick(
+    rpBank?.name,
+    rpBank?.account_holder,
+    rpBank?.accountHolder,
+    rpBank?.account_holder_name,
+    rp?.bank_account_holder,
+    rp?.bank_account_holder_name,
+    rp?.["bank-account-holder-name"],
+  );
 
   const rows: Array<Omit<ReconcileDiff, "status"> & {
     compareErp: string;
@@ -89,37 +139,37 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       field: "first_name",
       label: "First name",
       erp: norm(erp.first_name),
-      razorpay: norm(rp?.first_name),
-      rpRawValue: rp?.first_name ?? null,
+      razorpay: rpFirstName,
+      rpRawValue: rpFirstName || null,
       compareErp: ci(erp.first_name),
-      compareRp: ci(rp?.first_name),
+      compareRp: ci(rpFirstName),
     },
     {
       field: "last_name",
       label: "Last name",
       erp: norm(erp.last_name),
-      razorpay: norm(rp?.last_name),
-      rpRawValue: rp?.last_name ?? null,
+      razorpay: rpLastName,
+      rpRawValue: rpLastName || null,
       compareErp: ci(erp.last_name),
-      compareRp: ci(rp?.last_name),
+      compareRp: ci(rpLastName),
     },
     {
       field: "email",
       label: "Email",
       erp: norm(erp.email),
-      razorpay: norm(rp?.email ?? rp?.work_email ?? rp?.personal_email),
-      rpRawValue: rp?.email ?? rp?.work_email ?? rp?.personal_email ?? null,
+      razorpay: rpEmail,
+      rpRawValue: rpEmail || null,
       compareErp: ci(erp.email),
-      compareRp: ci(rp?.email ?? rp?.work_email ?? rp?.personal_email),
+      compareRp: ci(rpEmail),
     },
     {
       field: "phone",
       label: "Phone",
       erp: norm(erp.phone),
-      razorpay: norm(rp?.contact_number ?? rp?.phone ?? rp?.mobile_number),
-      rpRawValue: rp?.contact_number ?? rp?.phone ?? rp?.mobile_number ?? null,
+      razorpay: rpPhone,
+      rpRawValue: rpPhone || null,
       compareErp: last10(erp.phone),
-      compareRp: last10(rp?.contact_number ?? rp?.phone ?? rp?.mobile_number),
+      compareRp: last10(rpPhone),
     },
     {
       field: "gender",
@@ -134,19 +184,19 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       field: "date_of_birth",
       label: "Date of birth",
       erp: norm(erp.date_of_birth),
-      razorpay: rpDateToIso(rp?.dob ?? rp?.date_of_birth),
-      rpRawValue: rpDateToIso(rp?.dob ?? rp?.date_of_birth) || null,
+      razorpay: rpDob,
+      rpRawValue: rpDob || null,
       compareErp: norm(erp.date_of_birth),
-      compareRp: rpDateToIso(rp?.dob ?? rp?.date_of_birth),
+      compareRp: rpDob,
     },
     {
       field: "date_of_joining",
       label: "Date of joining",
       erp: norm(erp.date_of_joining),
-      razorpay: rpDateToIso(rp?.hire_date ?? rp?.date_of_joining),
-      rpRawValue: rpDateToIso(rp?.hire_date ?? rp?.date_of_joining) || null,
+      razorpay: rpDoj,
+      rpRawValue: rpDoj || null,
       compareErp: norm(erp.date_of_joining),
-      compareRp: rpDateToIso(rp?.hire_date ?? rp?.date_of_joining),
+      compareRp: rpDoj,
     },
     {
       field: "ctc",
@@ -161,46 +211,46 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       field: "pan",
       label: "PAN",
       erp: erpPan,
-      razorpay: upper(rp?.pan ?? rp?.pan_number),
-      rpRawValue: upper(rp?.pan ?? rp?.pan_number) || null,
+      razorpay: rpPan,
+      rpRawValue: rpPan || null,
       compareErp: erpPan,
-      compareRp: upper(rp?.pan ?? rp?.pan_number),
+      compareRp: rpPan,
     },
     {
       field: "uan",
       label: "UAN (PF)",
       erp: erpUan,
-      razorpay: digits(rp?.uan ?? rp?.uan_number),
-      rpRawValue: digits(rp?.uan ?? rp?.uan_number) || null,
+      razorpay: rpUan,
+      rpRawValue: rpUan || null,
       compareErp: erpUan,
-      compareRp: digits(rp?.uan ?? rp?.uan_number),
+      compareRp: rpUan,
     },
     {
       field: "bank_account_number",
       label: "Bank account number",
       erp: norm(erp.bank?.account_number),
-      razorpay: norm(rpBank?.account_number),
-      rpRawValue: rpBank?.account_number ?? null,
+      razorpay: rpBankAccount,
+      rpRawValue: rpBankAccount || null,
       compareErp: digits(erp.bank?.account_number),
-      compareRp: digits(rpBank?.account_number),
+      compareRp: digits(rpBankAccount),
     },
     {
       field: "bank_ifsc_code",
       label: "Bank IFSC",
       erp: upper(erp.bank?.ifsc_code),
-      razorpay: upper(rpBank?.ifsc ?? rpBank?.ifsc_code),
-      rpRawValue: upper(rpBank?.ifsc ?? rpBank?.ifsc_code) || null,
+      razorpay: rpBankIfsc,
+      rpRawValue: rpBankIfsc || null,
       compareErp: upper(erp.bank?.ifsc_code),
-      compareRp: upper(rpBank?.ifsc ?? rpBank?.ifsc_code),
+      compareRp: rpBankIfsc,
     },
     {
       field: "bank_account_holder",
       label: "Bank account holder",
       erp: norm(erp.bank?.account_holder),
-      razorpay: norm(rpBank?.name ?? rpBank?.account_holder),
-      rpRawValue: rpBank?.name ?? rpBank?.account_holder ?? null,
+      razorpay: rpBankHolder,
+      rpRawValue: rpBankHolder || null,
       compareErp: ci(erp.bank?.account_holder),
-      compareRp: ci(rpBank?.name ?? rpBank?.account_holder),
+      compareRp: ci(rpBankHolder),
     },
   ];
 

@@ -22,6 +22,27 @@ interface Stage5Props {
   readOnly?: boolean;
 }
 
+const pickRazorpayString = (...vals: unknown[]) =>
+  vals
+    .map((v) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim()))
+    .find(Boolean) || "";
+
+const splitRazorpayName = (value: unknown) => {
+  const name = pickRazorpayString(value).replace(/\s+/g, " ");
+  if (!name) return { first: "", last: "" };
+  const parts = name.split(" ");
+  return { first: parts[0] || "", last: parts.slice(1).join(" ") };
+};
+
+const readRazorpayIdentity = (snap: any) => {
+  const fromName = splitRazorpayName(snap?.name);
+  return {
+    first_name: pickRazorpayString(snap?.first_name, snap?.firstName, snap?.["first-name"], fromName.first),
+    last_name: pickRazorpayString(snap?.last_name, snap?.lastName, snap?.["last-name"], fromName.last),
+    email: pickRazorpayString(snap?.email, snap?.work_email, snap?.personal_email, snap?.["work-email"], snap?.["personal-email"]),
+  };
+};
+
 export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBack, readOnly }: Stage5Props) {
   const [form, setForm] = useState({
     date_of_joining: "",
@@ -141,10 +162,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         return;
       }
       const snap = resp.snapshot || {};
+      const rpIdentity = readRazorpayIdentity(snap);
       // Hard block: if this draft has an email and RazorpayX shows a different
       // one, refuse to link (Unified ID doctrine — identity must not diverge).
       const erpEmail = String(onboardingRecord?.email || "").trim().toLowerCase();
-      const rpEmail = String(snap?.email || snap?.work_email || snap?.personal_email || "").trim().toLowerCase();
+      const rpEmail = rpIdentity.email.trim().toLowerCase();
       if (erpEmail && rpEmail && erpEmail !== rpEmail) {
         const msg = `Email mismatch: RazorpayX employee ${idStr} belongs to ${rpEmail}, not ${erpEmail}. Refusing to link — pick the correct Employee ID.`;
         setRpVerification({ ok: false, message: msg });
@@ -163,9 +185,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         ok: true,
         message: `Verified. Comparing RazorpayX employee ${idStr} against this onboarding record.`,
         razorpay_employee_id: idStr,
-        first_name: snap?.first_name,
-        last_name: snap?.last_name,
-        email: snap?.email || snap?.work_email,
+        first_name: rpIdentity.first_name,
+        last_name: rpIdentity.last_name,
+        email: rpIdentity.email,
       });
       updateForm({ essl_badge_id: idStr });
       // Persist verified state + reconciliation for reload durability.
@@ -488,9 +510,27 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       // Restore field-level reconciliation state so a reload keeps the panel.
       const rec = (onboardingRecord as any).razorpay_reconciliation;
       if (rec && Array.isArray(rec.diffs)) {
-        setReconcileDiffs(rec.diffs as ReconcileDiff[]);
+        const restoredSnapshot = rec.snapshot ?? null;
+        setReconcileDiffs(restoredSnapshot
+          ? reconcileOnboarding({
+              first_name: onboardingRecord?.first_name,
+              last_name: onboardingRecord?.last_name,
+              email: onboardingRecord?.email,
+              phone: onboardingRecord?.phone,
+              gender: onboardingRecord?.gender,
+              date_of_birth: onboardingRecord?.date_of_birth,
+              date_of_joining: onboardingRecord?.date_of_joining,
+              ctc: onboardingRecord?.ctc,
+              documents: onboardingRecord?.documents,
+              bank: {
+                account_number: bd.account_number || existingBank?.account_number || "",
+                ifsc_code: bd.ifsc_code || existingBank?.ifsc_code || "",
+                account_holder: empName,
+              },
+            }, restoredSnapshot)
+          : rec.diffs as ReconcileDiff[]);
         setReconcileOverrides((rec.overrides as Record<string, boolean>) || {});
-        setRpSnapshot(rec.snapshot ?? null);
+        setRpSnapshot(restoredSnapshot);
       } else {
         setReconcileDiffs(null);
         setReconcileOverrides({});

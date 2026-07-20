@@ -1,95 +1,62 @@
-# Payroll doctrine v2 — build shadow engine, drop legacy, wire drift resolution
+## Goal
+Stop trying to force RazorpayX to create a fully active employee from ERP. Align onboarding with what the RazorpayX API actually supports: invite-only creation, then the employee self-completes and RazorpayX assigns the real `employee-id`. ERP then uses that ID as the single canonical ID across RazorpayX + eSSL + HRMS.
 
-Locking the three answers into a coherent build. Sequenced so each stage is safe to ship on its own.
+## New onboarding flow (Stage 5 Finalization)
 
-## Stage 1 — Retire the legacy engine cleanly
+Two modes, chosen on the finalization screen:
 
-Purpose: eliminate the "two engines, unclear source" confusion before the new one goes in.
+**Mode A — Invite via RazorpayX (default for brand-new hires)**
+1. ERP calls `people:create` with only the fields RazorpayX accepts for invite (name, email, type). No `employee-id`, no salary, no bank, no PAN pushed here.
+2. RazorpayX emails the invite. ERP saves the onboarding as `awaiting_razorpay_id` (draft persists, wizard resumable).
+3. Employee opens the invite, completes RazorpayX self-registration; RazorpayX assigns the real `employee-id`.
+4. Owner comes back to the same onboarding draft, sees a "Enter RazorpayX Employee ID" field on Stage 5, pastes the ID, clicks **Verify & Finalize**.
+5. ERP calls `people:fetch` (or `people:edit` probe) to confirm the ID exists and matches the invited email; then:
+   - writes `hr_razorpay_employee_map` (hr_employee_id ↔ razorpay_employee_id),
+   - stamps the same numeric ID as the ERP badge_id / employee_id and as the eSSL PIN,
+   - queues eSSL push (existing `hr-essl-push`) with that PIN,
+   - creates the ERP user account (existing `create-erp-user` flow),
+   - marks onboarding `completed`.
 
-- Drop `public.fn_generate_payroll` and `public.apply_due_scheduled_salary_revisions` (the last remaining local-compute callers) via migration.
-- Delete `supabase/functions/apply-scheduled-salary-revisions/index.ts` and remove its cron entry.
-- Remove any HRMS UI that still points at legacy runs (`hr_payroll_runs`, "Generate Payroll" buttons) — keep the tables read-only for history until the new engine has ≥1 month of data, then archive.
-- Anything reading `hr_payslips` gets a "legacy" badge; new authoritative payslips are Razorpay-imported (`hr_razorpay_payslip_records`) already.
+**Mode B — Employee already exists in RazorpayX**
+Owner toggles "Employee already has a RazorpayX ID" on Stage 5, enters the ID directly, clicks Verify & Finalize. Same verify → map → eSSL → ERP-user path as step 5 above. No `people:create` call.
 
-## Stage 2 — Shadow engine ("Payroll Calculation (Building)")
+## What gets removed / gated
 
-Purpose: fully-built independent calculator, RazorpayX-settings-driven, output isolated for A/B against Razorpay.
+- Remove the "reserve sequential ID + force-active create + retry loop + Gmail alias fallback + people-id ghost recovery" logic from `Stage5Finalization.tsx` and from `razorpay-payroll-proxy` (`create_person` / recovery branches). Keep it behind a feature flag we can delete later, or delete outright — plan is delete outright.
+- Remove `hr_next_razorpay_employee_id()` usage from the wizard (the number no longer comes from us; RazorpayX owns it).
+- The current failure banner ("Employee ID 77 could not be attached/verified…") goes away because we never pretend to attach an ID we don't yet have.
 
-New schema (fully separate namespace — no other module reads it):
-- `hr_shadow_payroll_runs` — one row per (period_month, run_no)
-- `hr_shadow_payroll_lines` — one per employee per run with computed CTC → gross → statutory → net breakdown
-- `hr_shadow_component_breakdown` — Basic/HRA/Special/LTA/OT/LOP/Bonus per line
-- All tables marked `shadow_only=true`; RLS grants read to HR/Admin only.
+## What gets added
 
-Calculator (`compute-shadow-payroll` edge function):
-- Reads employee monthly gross + `hr_razorpay_settings` (compliance + leave/attendance + default structure mirror + bonus catalogue).
-- CTC split follows the Razorpay Default Structure mirror (Basic 50%, HRA 25%, Special 15%, LTA 10%) when `use_xpayroll_default_structure=true`; otherwise reads whatever custom structure the mirror stored for that employee.
-- Statutory deductions computed dynamically (matching Razorpay behavior — no hardcoded slabs in the structure UI):
-  - **EPF**: 12% of PF wage base per `pfWageBase()` helper, respecting `pf_wages_basic_only` and `pf_wage_cap_15000` toggles. Employer share follows `pf_include_employer_in_ctc` / `pf_include_admin_edli_in_ctc`.
-  - **ESI**: eligibility gate on regular-wage-only gross ≤ ₹21,000/mo; 0.75% employee + 3.25% employer on full gross including additions (per `esi_include_additions_in_wages`). Half-year contribution period respected.
-  - **PT**: state-slab lookup (`hr_pt_slabs`) on `v_stat_base`.
-  - **TDS**: YTD projection true-up per selected regime (`hr_filing_statuses`), New vs Old.
-- LOP: `lopPerDayBasis()` × unpaid days (from v4 attendance daily rollup).
-- Additions/one-offs consumed from `hr_payroll_input_additions` / `hr_payroll_input_deductions` (bonus subtype tags flow through).
-- Output tagged `shadow_only`. Never referenced by profile pages, payslip PDFs, employee CTC surfaces, or Razorpay push flows.
+- `razorpay-payroll-proxy` action `invite_person`: minimal `people:create` (name, email, type only). Returns `{ ok, invited: true, email }`.
+- `razorpay-payroll-proxy` action `verify_person_by_id`: calls `people:fetch` for the supplied `employee-id`, returns the RazorpayX record. Used by Stage 5 verify step. Rejects if email doesn't match the onboarding draft's email (safety net so the owner doesn't paste the wrong ID).
+- `razorpay-payroll-proxy` action `finalize_person` (post-verify enrichment): pushes the profile bundle RazorpayX accepts *after* self-registration (department, title, hire_date, PAN, bank, IFSC, salary structure if we already have it). Non-fatal if any field is rejected — logged to `hr_razorpay_pushback_log` and surfaced as a drift alert (existing mechanism), never blocks finalization.
+- Onboarding draft schema: add `razorpay_invite_sent_at`, `razorpay_employee_id_entered`, `finalization_mode` ('invite' | 'existing_id'). Wizard resumes into Stage 5 with the entered ID pre-filled.
+- Stage 5 UI: two clearly labeled cards ("Invite via RazorpayX" / "Employee already has a RazorpayX ID"), an "Enter RazorpayX Employee ID" input that appears after invite is sent, a **Verify & Finalize** primary button, and a plain-English status line ("Waiting for employee to complete RazorpayX self-registration — come back and enter the ID here once they're done.").
 
-UI: `/hrms/payroll/shadow-calculator` (new tab, sidebar entry under Payroll with "Building" pill)
-- Period selector + "Run shadow calculation" button.
-- Table: Employee | Shadow Gross | Razorpay Gross | Shadow Net | Razorpay Net | Δ Statutory | Actions.
-- Row expand → component-by-component diff (Basic/HRA/…/PF/ESI/PT/TDS/LOP) with side-by-side numbers.
-- Big banner: "Advisory only — do not use for payout." across the whole page.
+## ID unification rule (unchanged intent, cleaner mechanics)
 
-## Stage 3 — Drift ledger on Data Health (bidirectional resolve)
+Once verified, the RazorpayX `employee-id` becomes:
+- ERP `hr_employees.badge_id` and `employee_id`,
+- eSSL device PIN (via `hr-essl-push`),
+- The key in `hr_razorpay_employee_map`.
 
-Purpose: every mismatch between HRMS and Razorpay gets a human resolution recorded.
+No sequential reservation on our side. If the owner uses Mode B for an existing employee whose current ERP badge differs, we show a confirm dialog explaining that ERP badge/eSSL PIN will be rekeyed to the RazorpayX ID (existing rekey path).
 
-- Extend `hr_drift_alerts` with `resolution_direction` (`hrms_wins` | `razorpay_wins`), `resolved_at`, `resolved_by`, `resolution_note`.
-- New "Resolve" action per row on `DataHealthPage.tsx` (already the drift hub) with two clearly-labeled buttons:
-  - **"Razorpay is correct → update HRMS"** — patches the local field, writes an audit entry.
-  - **"HRMS is correct → push to Razorpay"** — calls the appropriate razorpay-payroll-proxy verb (`push-employee-field`, `push-structure`, `push-attendance`), refetches, closes alert.
-- Add drift detectors for the fields not currently monitored: bank details, PAN, DOB, filing status, salary structure components, monthly gross, weekly-off pattern, LOP days.
-- Sidebar Data Health tile shows unresolved count; row filters by field/employee/period.
-- Statutory-filing rollup already there — leave it, just gets the same resolve action.
+## Files touched
 
-## Stage 4 — Structure management via HRMS (deferred detail)
+- `src/components/hrms/onboarding-pipeline/Stage5Finalization.tsx` — new two-mode UI, remove reserve/retry logic, add verify+finalize.
+- `src/components/hrms/onboarding-pipeline/OnboardingWizard.tsx` — new draft fields, resume into Stage 5 with saved invite state.
+- `supabase/functions/razorpay-payroll-proxy/index.ts` — add `invite_person`, `verify_person_by_id`, `finalize_person`; delete forced-active create, alias fallback, ghost recovery, 45s retry loop.
+- `src/lib/razorpayPushback.ts` — no behavior change; enrichment failures continue to log + open drift alerts.
+- `hr_onboarding_drafts` (or equivalent) — migration for the three new columns.
 
-Waiting for the sample payslips you mentioned — they'll show me exactly which statutory rows are on the Razorpay-generated payslip so I can confirm my dynamic PF/ESI/PT/TDS logic matches. Once received:
-- Per-employee structure editor in `EmployeeProfilePage` (Basic/HRA/Special/LTA % or fixed) that POSTs to Razorpay `custom-structure` via proxy → refetch → mirror upsert. The Razorpay default template stays as the fallback preview when no custom structure is set.
-- Structure edits are RLS-guarded (service_role only in DB, edge function does the push+refetch) — HR can't silently override the mirror.
-- Bulk CSV importer: extend `SalaryRegisterImportPage.tsx` to also parse the "structure" columns (Basic/HRA/…) from the Razorpay salary register and update the mirror for every listed employee. Same import flow, extra column pass.
+## Out of scope (explicit)
 
-## Stage 5 — Employee profile: payroll history reflection
+- No change to the eSSL push contract, biometric webhook, or ERP user creation flow beyond receiving the canonical ID from the verify step.
+- No change to attendance engine v4, payroll, or statutory logic.
+- We are not building a webhook listener for RazorpayX "employee activated" events in this pass — verification is owner-driven by pasting the ID. Webhook-driven auto-finalize can be a later enhancement if RazorpayX exposes it.
 
-Purpose: make Razorpay-imported history the single visible source in every profile.
+## One clarification before I build
 
-- `EmployeeProfilePage → Payroll` tab already lists `hr_razorpay_payslip_records` — audit that every month with a Razorpay record shows: month, gross, net, PF/ESI/PT/TDS (register CSV values when available with source tag), Razorpay dashboard link.
-- Bulk historical fetch: one-click "Backfill from Razorpay" button that runs `discover_and_seed_runs` + `import-payslip-history` for the selected employee across all available months.
-- After the CSV structure importer (Stage 4) lands, the profile also shows the current structure with source tag (`register_csv` vs `razorpay_pushed`).
-
-## Stage 6 — Extend HRMS-driven operations (ongoing)
-
-Add each API-supported operation as its own small PR, not one big batch:
-- eSSL: bulk enroll, fingerprint template pull, per-device user list diff report (device commands infrastructure already exists).
-- Razorpay: push additions/deductions, push filing-status changes, trigger payroll run, dismiss employee, update bank account. Each becomes an HRMS button that calls proxy → refetches → mirror. Dashboard-only actions (payroll execute button, TDS certificate download) stay as deep links.
-
-## Technical notes
-
-Files created/edited (Stage 1–3, immediate):
-- Migration: drop legacy fn + apply_due_scheduled_salary_revisions; add shadow tables; extend `hr_drift_alerts` columns.
-- `supabase/functions/compute-shadow-payroll/index.ts` — new.
-- `supabase/functions/apply-scheduled-salary-revisions/` — delete + cron entry removed.
-- `src/pages/hr/ShadowPayrollPage.tsx` — new.
-- `src/pages/horilla/DataHealthPage.tsx` — add resolve dialog, direction buttons, expanded field coverage.
-- `src/components/hrms/HorillaSidebar.tsx` — add "Payroll Calculation (Building)" entry.
-- `src/lib/hrms/statutoryCalculator.ts` — new: shared PF/ESI/PT/TDS helpers used only by the shadow engine.
-
-Non-negotiables carried forward:
-- `<SourceTag>` on every payroll figure. Shadow numbers tagged `shadow_only` (new tag variant).
-- Razorpay stays the authority. Zero reads from shadow output outside the shadow tab.
-- Attendance engine v4 remains local and unchanged — it's the input feed, not a payroll authority.
-
-## Open item
-
-Awaiting the sample payslips you offered — those unlock Stage 4 (structure editor) and let me validate the Stage 2 statutory math against a real Razorpay output before shipping the shadow engine to HR.
-
-Approve and I'll start with Stage 1 (kill legacy) and Stage 2 (shadow engine + UI) in the same batch, then Stage 3 (drift resolve). Stages 4–5 land after you share the payslip samples.
+Once the owner pastes the RazorpayX employee ID, do you want me to **hard-block** finalization if the email on the RazorpayX record doesn't exactly match the onboarding draft's email, or just **warn and let you proceed** (in case the employee registered with a slightly different email casing/alias)? Default in the plan above is hard-block; say the word if you'd rather warn-only.

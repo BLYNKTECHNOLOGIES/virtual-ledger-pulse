@@ -289,6 +289,15 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: ci(erp.bank?.account_holder),
       compareRp: ci(rpBankHolder),
     },
+    {
+      field: "reporting_manager",
+      label: "Reporting manager",
+      erp: erpManagerLabel + (erpManagerBadge ? ` (#${erpManagerBadge})` : ""),
+      razorpay: rpManagerId ? `#${rpManagerId}` : "",
+      rpRawValue: rpManagerId || null,
+      compareErp: erpManagerBadge,
+      compareRp: rpManagerId,
+    },
   ];
 
   return rows.map(r => {

@@ -442,28 +442,44 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                   { key: "pf", label: "Provident Fund (PF)", hint: "Disable during unpaid training / stipend-only periods. When disabled, no 12% employee or 13% employer contribution.", value: pfEnabled, set: setPfEnabled, current: employee?.pf_enabled },
                   { key: "esi", label: "Employee State Insurance (ESI)", hint: "Applies only if gross ≤ ₹21,000. Disable for training exemptions or when contractually excluded.", value: esiEnabled, set: setEsiEnabled, current: employee?.esi_enabled },
                   { key: "pt", label: "Professional Tax (PT)", hint: "State-mandated slab tax on gross salary.", value: ptEnabled, set: setPtEnabled, current: employee?.pt_enabled },
-                ].map((row) => (
-                  <div key={row.key} className="flex items-start gap-3 p-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium">{row.label}</span>
-                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                          Current: {row.current === true ? "Enrolled" : row.current === false ? "Exempt" : "Unknown"}
+                ].map((row) => {
+                  const currentUnknown = row.current === null || row.current === undefined;
+                  const untouchedUnknown = currentUnknown && row.value === null;
+                  return (
+                    <div key={row.key} className="flex items-start gap-3 p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">{row.label}</span>
+                          <span className={cn(
+                            "text-[10px] uppercase tracking-wide",
+                            currentUnknown ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"
+                          )}>
+                            Current: {row.current === true ? "Enrolled" : row.current === false ? "Exempt" : "Unknown"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{row.hint}</p>
+                        {untouchedUnknown && (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                            Choose Enrolled or Exempt explicitly — the switch will not be pushed until you do.
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <Switch
+                          checked={row.value === true}
+                          onCheckedChange={(v) => row.set(v)}
+                        />
+                        <span className={cn(
+                          "text-[10px]",
+                          untouchedUnknown ? "text-amber-600 dark:text-amber-400 font-semibold"
+                            : row.value === true ? "text-success" : "text-muted-foreground"
+                        )}>
+                          {untouchedUnknown ? "Not set" : row.value === true ? "Enrolled" : "Exempt"}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{row.hint}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Switch
-                        checked={row.value === true}
-                        onCheckedChange={(v) => row.set(v)}
-                      />
-                      <span className={cn("text-[10px]", row.value === true ? "text-success" : "text-muted-foreground")}>
-                        {row.value === true ? "Enrolled" : "Exempt"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div>

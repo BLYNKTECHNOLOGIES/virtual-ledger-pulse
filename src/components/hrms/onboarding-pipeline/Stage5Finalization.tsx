@@ -947,7 +947,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       <div className="divide-y divide-border">
                         {reconcileDiffs.map((d) => {
                           const overridden = !!reconcileOverrides[d.field];
-                          const rowOk = d.match || overridden;
+                          const isMatch = d.status === "match";
+                          const rowOk = isMatch || overridden;
+                          const rpDisplay = d.razorpay;
+                          const erpDisplay = d.erp;
                           return (
                             <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
                               <div className="flex items-center gap-1.5">
@@ -958,28 +961,28 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                               </div>
                               <div className="min-w-0">
                                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RazorpayX</div>
-                                <div className="font-mono break-all">{d.rpDisplay || <span className="opacity-50">—</span>}</div>
+                                <div className="font-mono break-all">{rpDisplay || <span className="opacity-50">—</span>}</div>
                               </div>
                               <div className="min-w-0">
                                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">ERP draft</div>
-                                <div className={`font-mono break-all ${d.match ? "" : "text-warning"}`}>
-                                  {d.erpDisplay || <span className="opacity-50">—</span>}
+                                <div className={`font-mono break-all ${isMatch ? "" : "text-warning"}`}>
+                                  {erpDisplay || <span className="opacity-50">—</span>}
                                 </div>
                               </div>
                               <div className="flex flex-col items-start sm:items-end gap-1">
-                                {!d.match && (
+                                {!isMatch && (
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     className="h-6 text-[11px] px-2"
-                                    disabled={readOnly || !d.rpDisplay}
+                                    disabled={readOnly || !rpDisplay}
                                     onClick={() => applyRazorpayValue(d)}
                                   >
                                     Use RazorpayX
                                   </Button>
                                 )}
-                                {!d.match && (
+                                {!isMatch && (
                                   <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                     <Checkbox
                                       checked={overridden}

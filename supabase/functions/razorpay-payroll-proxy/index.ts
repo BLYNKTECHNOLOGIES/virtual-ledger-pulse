@@ -6026,7 +6026,68 @@ Deno.serve(async (req) => {
             });
           }
           const existingPeopleId = extractRazorpayPeopleId(bodyOut);
-          const aliasEmail = buildGmailAliasForRazorpay(String(emp.email || ""), reservedEmployeeId);
+
+          // PRIMARY GHOST RECOVERY: Razorpay's create error carries the
+          // internal people-id of the invited-but-inactive record. Stamp the
+          // reserved employee-id on that people-id with the full profile so
+          // the person moves invited → active in a single edit call. This
+          // avoids the Gmail +alias workaround for the common case where a
+          // prior attempt only created the invite envelope.
+          if (existingPeopleId && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
+            const pidAttach = await attachReservedEmployeeIdByPeopleId(
+              existingPeopleId,
+              reservedEmployeeId,
+              { ...fullEditData, email: String(createData.email || "").trim().toLowerCase(), name: fullName },
+            );
+            await logSync(svc, {
+              action: "create_person",
+              http_status: pidAttach.status,
+              razorpay_employee_id: reservedEmployeeId,
+              hr_employee_id: hrId,
+              field_diff_summary: {
+                source: "people_id_ghost_upgrade",
+                people_id: existingPeopleId,
+                payload_field_names: Object.keys(fullEditData).sort(),
+              },
+              error_text: pidAttach.ok ? null : pidAttach.error,
+              actor_user_id: authed.userId,
+            });
+            if (pidAttach.ok) {
+              // Verify the reserved employee-id is now readable and matches.
+              // Retry briefly in case Opfin's read replica lags after edit.
+              let ghostVerify: Awaited<ReturnType<typeof opfinView>> | null = null;
+              for (let i = 0; i < 6; i++) {
+                ghostVerify = await opfinView(Number(reservedEmployeeId), "employee");
+                const rpE = String(ghostVerify.body?.email || ghostVerify.body?.work_email || "").trim().toLowerCase();
+                const wantE = String(createData.email || "").trim().toLowerCase();
+                if (ghostVerify.ok && rpE && rpE === wantE) break;
+                await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+              }
+              const rpE = String(ghostVerify?.body?.email || ghostVerify?.body?.work_email || "").trim().toLowerCase();
+              const wantE = String(createData.email || "").trim().toLowerCase();
+              if (ghostVerify?.ok && rpE === wantE) {
+                const snap = {
+                  ...(ghostVerify.body || fullEditData),
+                  _recovered_by: "people_id_ghost_upgrade",
+                  _people_id: existingPeopleId,
+                };
+                const { error: repairErr } = await mapRazorpayEmployee(reservedEmployeeId, snap, "created_via_erp");
+                if (!repairErr) {
+                  return await completeSuccessResponse(reservedEmployeeId, {
+                    already_exists_in_razorpay: true,
+                    recovered_by_people_id: true,
+                    ghost_upgraded_to_active: true,
+                    people_id: existingPeopleId,
+                    repaired_mapping: true,
+                    http_status: ghostVerify.status,
+                    note: "RazorpayX had an inactive/invited record for this email from a prior attempt; ERP stamped the reserved Employee ID on it via people-id and pushed the full profile to activate it.",
+                  }, "people_id_ghost_upgrade");
+                }
+              }
+            }
+          }
+
+
           if (aliasEmail && reservedEmployeeId && /^\d+$/.test(reservedEmployeeId)) {
             const aliasCreateData: Record<string, any> = {
               ...createData,

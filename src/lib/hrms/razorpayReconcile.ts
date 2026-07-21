@@ -422,13 +422,32 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     let status: ReconcileStatus;
     const erpEmpty = isEmpty(r.compareErp);
     const rpEmpty = isEmpty(r.compareRp);
+    const apiUnavailable = API_UNAVAILABLE_FIELDS.has(r.field);
     if (erpEmpty && rpEmpty) status = "match"; // both blank = nothing to reconcile
     else if (erpEmpty) status = "missing_erp";
-    else if (rpEmpty) status = "missing_rp";
+    else if (rpEmpty) {
+      // RazorpayX read API is known to omit this field — accept the HRMS
+      // value as authoritative rather than force a fake mismatch.
+      status = apiUnavailable ? "match" : "missing_rp";
+    }
     else status = r.compareErp === r.compareRp ? "match" : "mismatch";
     const { compareErp, compareRp, ...rest } = r;
-    return { ...rest, status };
+    return { ...rest, status, apiUnavailable };
   });
+}
+
+export function isReconciled(
+  diffs: ReconcileDiff[],
+  overrides: Record<string, unknown>,
+): boolean {
+  return diffs.every(d => d.status === "match" || !!overrides[d.field]);
+}
+
+export function unresolvedCount(
+  diffs: ReconcileDiff[],
+  overrides: Record<string, unknown>,
+): number {
+  return diffs.filter(d => d.status !== "match" && !overrides[d.field]).length;
 }
 
 export function isReconciled(

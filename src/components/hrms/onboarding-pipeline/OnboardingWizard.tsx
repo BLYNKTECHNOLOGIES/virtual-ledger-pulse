@@ -180,7 +180,12 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     const safeStageData = normalizeDatabaseBlanks(stageData || {});
     const { data, error } = await supabase
       .from("hr_employee_onboarding")
-      .insert({ ...safeStageData, status: "draft", current_stage: 1, created_by: user?.user?.id })
+      .insert({
+        ...safeStageData,
+        status: safeStageData.status || "draft",
+        current_stage: safeStageData.current_stage || 1,
+        created_by: user?.user?.id,
+      })
       .select("id")
       .single();
     if (error) throw error;

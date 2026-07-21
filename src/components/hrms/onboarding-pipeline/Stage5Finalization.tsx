@@ -961,7 +961,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       console.warn("[Stage5] Finalize validation blocked");
       return;
     }
-    if (!reconcileReady) {
+    const activeOverrides = { ...reconcileOverridesRef.current };
+    const activeReconcileReady = !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, activeOverrides));
+    if (!activeReconcileReady) {
       toast.error(reconcileBlockReason || "Resolve RazorpayX ↔ ERP field differences before finalizing.");
       setFinalizeFeedback({ kind: "error", message: reconcileBlockReason || "Reconciliation incomplete." });
       return;
@@ -969,7 +971,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     setFinalizing(true);
     const toastId = toast.loading("Creating employee…");
     try {
-      const activeOverrides = { ...reconcileOverridesRef.current };
       // Bi-directional reconcile write-back:
       //   • "Use RazorpayX"  → already wrote RazorpayX value into HRMS on click.
       //   • "Keep HRMS"      → push HRMS value into RazorpayX right now, before

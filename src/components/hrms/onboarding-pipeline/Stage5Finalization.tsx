@@ -1180,8 +1180,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   </Badge>
                 )}
               </div>
-              {!alreadyInRazorpay && (
-                <div className="space-y-2">
+              <div className="space-y-2">
+                  {!alreadyInRazorpay && (
                   <div className="rounded-md border bg-background/60 p-3 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
@@ -1226,7 +1226,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       </p>
                     )}
                   </div>
+                  )}
 
+                  {!alreadyInRazorpay ? (
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="flex-1 min-w-[180px]">
                       <Label className="text-xs">RazorpayX Employee ID (from Razorpay dashboard)</Label>
@@ -1257,6 +1259,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       {verifyingRpId ? "Verifying…" : "Verify with RazorpayX"}
                     </Button>
                   </div>
+                  ) : (
+                    <div className="rounded-md border bg-background/60 p-3 flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0 text-xs">
+                        <div className="font-medium">Linked RazorpayX Employee ID</div>
+                        <div className="font-mono text-muted-foreground">{form.razorpay_employee_id || (razorpayMap as any)?.razorpay_employee_id}</div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleVerifyRazorpayId}
+                        disabled={readOnly || verifyingRpId || !(form.razorpay_employee_id || (razorpayMap as any)?.razorpay_employee_id)}
+                      >
+                        <Cloud className="h-3.5 w-3.5 mr-1.5" />
+                        {verifyingRpId ? "Refreshing…" : "Refresh tally"}
+                      </Button>
+                    </div>
+                  )}
                   {rpVerification && (
                     <div className={`rounded-md border px-3 py-2 text-xs flex items-start gap-2 ${
                       rpVerification.ok
@@ -1374,7 +1394,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     Tip: create the RazorpayX invite here first. The Employee ID appears on their RazorpayX profile only after they submit the self-registration form.
                   </p>
                 </div>
-              )}
             </div>
           </div>
           <div className="sm:col-span-2">

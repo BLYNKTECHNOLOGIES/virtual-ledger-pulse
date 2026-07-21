@@ -461,7 +461,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         job_position_id: r.position_id || null,
         shift_id: r.shift_id || null,
         joining_date: r.date_of_joining,
-        employee_type: r.employee_type || "full_time",
+        employee_type: r.employee_type || "permanent",
         job_role: r.job_role || null,
         reporting_manager_id: r.reporting_manager_id || null,
       });

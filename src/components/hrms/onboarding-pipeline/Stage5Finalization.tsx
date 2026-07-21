@@ -271,15 +271,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const buildRazorpayPatch = (diff: ReconcileDiff): {
     formPatch?: Partial<typeof form>;
     onboardingPatch?: Record<string, any>;
+    docsPatch?: Record<string, any>;
   } => {
     const rpVal = diff.rpRawValue ?? null;
+    const rpStr = rpVal == null ? "" : String(rpVal);
     switch (diff.field) {
       case "date_of_joining":
-        return { formPatch: { date_of_joining: rpVal ? String(rpVal) : "" } };
+        return { formPatch: { date_of_joining: rpStr } };
       case "bank_account_number":
-        return { formPatch: { bank_account_number: rpVal ? String(rpVal) : "" } };
+        return { formPatch: { bank_account_number: rpStr } };
       case "bank_ifsc_code":
-        return { formPatch: { bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" } };
+        return { formPatch: { bank_ifsc_code: rpStr.toUpperCase() } };
+      case "bank_account_holder":
+        return { formPatch: { bank_account_holder: rpStr } };
       case "first_name":
       case "last_name":
       case "email":
@@ -287,7 +291,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "gender":
       case "date_of_birth":
       case "ctc":
+      case "probation_end_date":
+      case "employee_type":
+      case "job_role":
         return { onboardingPatch: { [diff.field]: rpVal } };
+      case "pan":
+        return { docsPatch: { pan: { value: rpStr.toUpperCase() } } };
+      case "uan":
+        return { docsPatch: { uan: { value: rpStr } } };
+      case "reporting_manager": {
+        const mgr = (managers || []).find((m: any) => String(m.badge_id) === rpStr);
+        return mgr ? { formPatch: { reporting_manager_id: mgr.id } as any } : {};
+      }
       default:
         return {};
     }

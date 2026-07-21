@@ -75,6 +75,41 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     return merged;
   };
 
+  const dateFields = new Set([
+    "date_of_birth",
+    "probation_end_date",
+    "date_of_joining",
+    "document_mail_received_at",
+    "document_email_sent_at",
+    "razorpay_verified_at",
+  ]);
+
+  const nullableUuidFields = new Set([
+    "department_id",
+    "position_id",
+    "shift_id",
+    "reporting_manager_id",
+    "erp_role_id",
+    "salary_template_id",
+    "candidate_id",
+    "employee_id",
+  ]);
+
+  const normalizeDatabaseBlanks = (payload: Record<string, any>) => {
+    const normalized: Record<string, any> = { ...(payload || {}) };
+    dateFields.forEach((field) => {
+      if (field in normalized && isBlankValue(normalized[field])) {
+        normalized[field] = null;
+      }
+    });
+    nullableUuidFields.forEach((field) => {
+      if (field in normalized && isBlankValue(normalized[field])) {
+        normalized[field] = null;
+      }
+    });
+    return normalized;
+  };
+
   const buildSafeOnboardingUpdate = (existing: Record<string, any> | null, updates: Record<string, any>) => {
     const persistentFields = new Set([
       "first_name",
@@ -103,7 +138,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     ]);
 
     const normalizedUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
-    Object.entries(updates || {}).forEach(([key, value]) => {
+    Object.entries(normalizeDatabaseBlanks(updates || {})).forEach(([key, value]) => {
       if (value === undefined) return;
       const existingValue = existing?.[key];
 
@@ -142,14 +177,20 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   // Create new record if none exists
   const createRecord = async (stageData: any) => {
     const { data: user } = await supabase.auth.getUser();
+    const safeStageData = normalizeDatabaseBlanks(stageData || {});
     const { data, error } = await supabase
       .from("hr_employee_onboarding")
-      .insert({ ...stageData, status: "draft", current_stage: 1, created_by: user?.user?.id })
+      .insert({
+        ...safeStageData,
+        status: safeStageData.status || "draft",
+        current_stage: safeStageData.current_stage || 1,
+        created_by: user?.user?.id,
+      })
       .select("id")
       .single();
     if (error) throw error;
     setRecordId(data.id);
-    await logAudit(data.id, 1, "created", stageData);
+    await logAudit(data.id, 1, "created", safeStageData);
     return data.id;
   };
 
@@ -303,7 +344,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       setActiveStage(nextStage);
       toast.success(`Stage ${stage} completed`);
     } catch (err: any) {
-      toast.error(err.message);
+      console.error(`Stage ${stage} completion failed:`, err);
+      toast.error(`Could not complete Stage ${stage}: ${err?.message || "Unknown error"}`);
+      throw err;
     }
   };
 

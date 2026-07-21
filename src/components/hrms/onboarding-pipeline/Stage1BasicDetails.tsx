@@ -37,6 +37,12 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   useEffect(() => {
     if (dirtyRef.current) return;
     if (data) {
+      // Legacy drafts stored `full_time` / `part_time`; the Select only offers
+      // permanent/contract/intern now. Map legacy → permanent so the field
+      // hydrates visibly (and downstream inserts get a valid value) instead
+      // of silently blanking the trigger while the DB keeps the old value.
+      const rawType = data.employee_type || "";
+      const normalizedType = rawType === "full_time" || rawType === "part_time" ? "permanent" : rawType;
       setForm({
         first_name: data.first_name || "",
         last_name: data.last_name || "",
@@ -48,9 +54,14 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         position_id: data.position_id || "",
         job_role: data.job_role || "",
         shift_id: data.shift_id || "",
-        employee_type: data.employee_type || "",
+        employee_type: normalizedType,
         probation_end_date: data.probation_end_date || "",
       });
+      // If we rewrote the legacy value, mark dirty so the autosave persists
+      // the normalized value back to the draft on the next tick.
+      if (rawType && rawType !== normalizedType) {
+        dirtyRef.current = true;
+      }
     }
   }, [data]);
 

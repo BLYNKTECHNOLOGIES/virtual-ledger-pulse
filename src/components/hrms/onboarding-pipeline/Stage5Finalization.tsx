@@ -314,14 +314,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
 
   const setChoice = (field: string, choice: 'hrms' | 'razorpay' | null) => {
-    setReconcileOverrides(prev => {
-      const next: Record<string, 'hrms' | 'razorpay'> = { ...prev };
-      if (choice) next[field] = choice;
-      else delete next[field];
-      reconcileOverridesRef.current = next;
-      persistReconciliation(reconcileDiffs, next, rpSnapshot);
-      return next;
-    });
+    const next: Record<string, 'hrms' | 'razorpay'> = { ...reconcileOverridesRef.current };
+    if (choice) next[field] = choice;
+    else delete next[field];
+    reconcileOverridesRef.current = next;
+    setReconcileOverrides(next);
+    persistReconciliation(reconcileDiffs, next, rpSnapshot);
   };
 
   useEffect(() => {

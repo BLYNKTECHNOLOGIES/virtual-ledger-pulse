@@ -491,12 +491,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const existingBadge = (onboardingRecord.essl_badge_id || "").toString().trim();
       const savedRpId = String((onboardingRecord as any).razorpay_employee_id || "").trim();
       const savedRpVerifiedAt = (onboardingRecord as any).razorpay_verified_at;
-      const hasStaleUnverifiedBadge = !!existingBadge && !(savedRpId && savedRpVerifiedAt);
-      // Only seed the badge from Razorpay ID when it was actually verified.
-      // Otherwise leave it blank so ESSL cannot be created pre-verification.
+      const mappedRpId = String((razorpayMap as any)?.razorpay_employee_id || "").trim();
+      // Prefer the linked RazorpayX ID from hr_razorpay_employee_map when the
+      // onboarding record itself hasn't been stamped yet — otherwise this
+      // hydration wipes the badge/id that the mapping effect seeds.
+      const effectiveRpId = savedRpId || mappedRpId;
+      const rpTrusted = !!((savedRpId && savedRpVerifiedAt) || mappedRpId);
+      const hasStaleUnverifiedBadge = !!existingBadge && !rpTrusted;
       setForm({
         date_of_joining: onboardingRecord.date_of_joining || "",
-        essl_badge_id: savedRpId && savedRpVerifiedAt ? savedRpId : "",
+        essl_badge_id: rpTrusted ? effectiveRpId : "",
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
         reporting_manager_id: onboardingRecord.reporting_manager_id || "",
@@ -505,7 +509,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         bank_name: bd.bank_name || existingBank?.bank_name || "",
         bank_branch: bd.branch || (existingBank as any)?.branch || "",
         bank_account_holder: empName,
-        razorpay_employee_id: savedRpId,
+        razorpay_employee_id: effectiveRpId,
       });
       if (hasStaleUnverifiedBadge && onSave && !readOnly) {
         onSave({ essl_badge_id: null }, { silent: true }).catch((err: any) => {

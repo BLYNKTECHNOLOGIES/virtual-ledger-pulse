@@ -271,15 +271,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const buildRazorpayPatch = (diff: ReconcileDiff): {
     formPatch?: Partial<typeof form>;
     onboardingPatch?: Record<string, any>;
+    docsPatch?: Record<string, any>;
   } => {
     const rpVal = diff.rpRawValue ?? null;
+    const rpStr = rpVal == null ? "" : String(rpVal);
     switch (diff.field) {
       case "date_of_joining":
-        return { formPatch: { date_of_joining: rpVal ? String(rpVal) : "" } };
+        return { formPatch: { date_of_joining: rpStr } };
       case "bank_account_number":
-        return { formPatch: { bank_account_number: rpVal ? String(rpVal) : "" } };
+        return { formPatch: { bank_account_number: rpStr } };
       case "bank_ifsc_code":
-        return { formPatch: { bank_ifsc_code: rpVal ? String(rpVal).toUpperCase() : "" } };
+        return { formPatch: { bank_ifsc_code: rpStr.toUpperCase() } };
+      case "bank_account_holder":
+        return { formPatch: { bank_account_holder: rpStr } };
       case "first_name":
       case "last_name":
       case "email":
@@ -287,7 +291,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "gender":
       case "date_of_birth":
       case "ctc":
+      case "probation_end_date":
+      case "employee_type":
+      case "job_role":
         return { onboardingPatch: { [diff.field]: rpVal } };
+      case "pan":
+        return { docsPatch: { pan: { value: rpStr.toUpperCase() } } };
+      case "uan":
+        return { docsPatch: { uan: { value: rpStr } } };
+      case "reporting_manager": {
+        const mgr = (managers || []).find((m: any) => String(m.badge_id) === rpStr);
+        return mgr ? { formPatch: { reporting_manager_id: mgr.id } as any } : {};
+      }
       default:
         return {};
     }
@@ -941,14 +956,27 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       // "Use RazorpayX" write-back: apply RP → HRMS now (deferred from click time).
       let effectiveForm = form;
       const onboardingPatchAgg: Record<string, any> = {};
+      const docsPatchAgg: Record<string, any> = {};
       if (reconcileDiffs) {
         for (const d of reconcileDiffs) {
           if (reconcileOverrides[d.field] !== 'razorpay') continue;
           if (d.status === "match") continue;
-          const { formPatch, onboardingPatch } = buildRazorpayPatch(d);
+          const { formPatch, onboardingPatch, docsPatch } = buildRazorpayPatch(d);
           if (formPatch) effectiveForm = { ...effectiveForm, ...formPatch };
           if (onboardingPatch) Object.assign(onboardingPatchAgg, onboardingPatch);
+          if (docsPatch) Object.assign(docsPatchAgg, docsPatch);
         }
+      }
+      // Merge document overrides (pan/uan) into onboarding.documents preserving
+      // existing entries.
+      let mergedDocs: Record<string, any> | null = null;
+      if (Object.keys(docsPatchAgg).length > 0) {
+        const existingDocs = (onboardingRecord?.documents as Record<string, any>) || {};
+        mergedDocs = { ...existingDocs };
+        for (const [k, v] of Object.entries(docsPatchAgg)) {
+          mergedDocs[k] = { ...(existingDocs[k] || {}), ...(v as any) };
+        }
+        onboardingPatchAgg.documents = mergedDocs;
       }
       if (Object.keys(onboardingPatchAgg).length > 0 && onboardingRecord?.id) {
         toast.loading(`Pulling ${Object.keys(onboardingPatchAgg).length} RazorpayX field(s) into HRMS…`, { id: toastId });
@@ -965,6 +993,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       }
 
       const payload: any = {
+        // Forward RP→HRMS pulled fields so OnboardingWizard.handleFinalize's
+        // r = { ...record, ...onboardingUpdate } sees the FRESH values rather
+        // than the stale react-query snapshot captured before this write.
+        ...onboardingPatchAgg,
         date_of_joining: effectiveForm.date_of_joining,
         essl_badge_id: effectiveForm.essl_badge_id,
         create_erp_account: effectiveForm.create_erp_account,

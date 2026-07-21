@@ -87,6 +87,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRecordIdRef = useRef<string | null>(null);
+  const autoTallyRef = useRef<string | null>(null);
 
   // Build the ERP-side reconcile input from the current onboarding record + form.
   // Kept as a helper so we can re-run reconcile after every "Use RazorpayX value"
@@ -201,7 +202,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       // Preserve prior "Keep HRMS" overrides for fields that are STILL
       // mismatched after re-verification. Only drop overrides for fields that
       // are now matching or no longer present in the new diff set.
-      const priorOverrides = (onboardingRecord as any)?.razorpay_reconciliation?.overrides || {};
+      const priorOverrides = Object.keys(reconcileOverridesRef.current).length > 0
+        ? reconcileOverridesRef.current
+        : ((onboardingRecord as any)?.razorpay_reconciliation?.overrides || {});
       const stillMismatched = new Set(
         diffs
           .filter(d => d.status !== "match")
@@ -622,6 +625,20 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     setReconcileDiffs(diffs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [managers, form.reporting_manager_id, rpSnapshot]);
+
+  // Already-linked records used to bypass the reconciliation panel completely,
+  // so Finalize could look clickable while sending a null/empty tally. Refresh
+  // the RazorpayX snapshot once the manager list is available so the same
+  // mismatch/choice gate is enforced for linked and newly-created employees.
+  useEffect(() => {
+    const mappedId = String((razorpayMap as any)?.razorpay_employee_id || "").trim();
+    if (!alreadyInRazorpay || !mappedId || !managers) return;
+    const key = `${onboardingRecord?.id || "unknown"}:${mappedId}`;
+    if (autoTallyRef.current === key || rpVerification?.ok || verifyingRpId) return;
+    autoTallyRef.current = key;
+    handleVerifyRazorpayId();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alreadyInRazorpay, razorpayMap, managers, onboardingRecord?.id, rpVerification?.ok, verifyingRpId]);
 
   // Live eSSL device-user roster: only PINs actually seen by a device.
   const { data: devicePins = [] } = useQuery({

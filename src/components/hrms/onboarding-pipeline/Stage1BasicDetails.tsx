@@ -128,8 +128,8 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     setIsCompleting(true);
     try {
       await onComplete(form);
-    } catch (err: any) {
-      toast.error(err?.message || "Unable to complete Basic Details");
+    } catch {
+      // Parent wizard shows the detailed failure toast.
     } finally {
       setIsCompleting(false);
     }

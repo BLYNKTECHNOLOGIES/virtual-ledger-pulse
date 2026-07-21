@@ -134,8 +134,9 @@
        { value: "refunds_received", label: "Refunds received" },
        { value: "insurance_claims", label: "Insurance claims" },
        { value: "fx_gain", label: "FX gain" },
-        { value: "other_income_misc", label: "Other income" },
-        { value: "lien_released", label: "Lien Released" },
+         { value: "other_income_misc", label: "Other income" },
+         { value: "lien_released", label: "Lien Released" },
+         { value: "write_off", label: "Write Off" },
      ],
    },
  ];

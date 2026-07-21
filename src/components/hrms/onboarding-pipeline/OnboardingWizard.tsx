@@ -323,7 +323,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       setActiveStage(nextStage);
       toast.success(`Stage ${stage} completed`);
     } catch (err: any) {
-      toast.error(err.message);
+      console.error(`Stage ${stage} completion failed:`, err);
+      toast.error(`Could not complete Stage ${stage}: ${err?.message || "Unknown error"}`);
+      throw err;
     }
   };
 

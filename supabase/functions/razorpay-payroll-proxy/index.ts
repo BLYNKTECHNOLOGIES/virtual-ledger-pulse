@@ -609,6 +609,68 @@ function buildGmailAliasForRazorpay(email: string, reservedEmployeeId: string | 
   return `${localBase}+rzp${reserved}@${domain}`;
 }
 
+const trimString = (v: unknown) => v == null ? "" : String(v).trim();
+const digitsOnly = (v: unknown) => trimString(v).replace(/\D/g, "");
+const lastTenDigits = (v: unknown) => digitsOnly(v).slice(-10);
+const lowerTrim = (v: unknown) => trimString(v).toLowerCase();
+const upperTrim = (v: unknown) => trimString(v).toUpperCase();
+const pickNonEmpty = (...vals: unknown[]) => vals.map(trimString).find(Boolean) || "";
+const employeeKind = (v: unknown) => {
+  const s = lowerTrim(v).replace(/[\s-]+/g, "_");
+  if (["full_time", "fulltime", "permanent", "regular", "employee"].includes(s)) return "employee";
+  if (["contract", "contractor", "consultant"].includes(s)) return "contractor";
+  if (["intern", "trainee", "probation", "probationer"].includes(s)) return "intern";
+  return s;
+};
+
+function readBackForField(snap: any, field: string): { value: string; present: boolean } {
+  const bank = (snap?.bank_account ?? snap?.bank_details ?? snap?.bank_information ?? snap?.bank ?? {}) as any;
+  let value = "";
+  switch (field) {
+    case "first_name": value = pickNonEmpty(snap?.first_name, snap?.firstName, snap?.["first-name"], trimString(snap?.name).split(/\s+/)[0]); break;
+    case "last_name": value = pickNonEmpty(snap?.last_name, snap?.lastName, snap?.["last-name"], trimString(snap?.name).split(/\s+/).slice(1).join(" ")); break;
+    case "email": value = pickNonEmpty(snap?.email, snap?.work_email, snap?.personal_email, snap?.["work-email"], snap?.["personal-email"]); break;
+    case "phone": value = pickNonEmpty(snap?.phone_number, snap?.phoneNumber, snap?.phone, snap?.contact_number, snap?.["phone-number"], snap?.["mobile-number"]); break;
+    case "gender": value = pickNonEmpty(snap?.gender, snap?.sex, snap?.gender_identity, snap?.["gender-identity"], snap?.personal_details?.gender, snap?.["personal-details"]?.gender); break;
+    case "date_of_birth": value = pickNonEmpty(snap?.["date-of-birth"], snap?.date_of_birth, snap?.dob); break;
+    case "date_of_joining": value = pickNonEmpty(snap?.["date-of-hiring"], snap?.["date-of-joining"], snap?.date_of_hiring, snap?.date_of_joining, snap?.hire_date, snap?.joining_date); break;
+    case "probation_end_date": value = pickNonEmpty(snap?.["probation-end-date"], snap?.probation_end_date, snap?.probation?.end_date); break;
+    case "employee_type": value = pickNonEmpty(snap?.employment_type, snap?.["employment-type"], snap?.type, snap?.["employee-type"]); break;
+    case "job_role": value = pickNonEmpty(snap?.title, snap?.designation, snap?.job_title, snap?.["job-title"]); break;
+    case "pan": value = pickNonEmpty(snap?.pan, snap?.pan_number, snap?.panNumber, snap?.["pan-number"]); break;
+    case "uan": value = pickNonEmpty(snap?.uan, snap?.uan_number, snap?.uanNumber, snap?.["uan-number"]); break;
+    case "bank_account_number": value = pickNonEmpty(bank?.account_number, bank?.accountNumber, snap?.account_number, snap?.bank_account_number, snap?.["bank-account-number"]); break;
+    case "bank_ifsc_code": value = pickNonEmpty(bank?.ifsc, bank?.ifsc_code, bank?.ifscCode, snap?.ifsc, snap?.ifsc_code, snap?.bank_ifsc, snap?.["bank-ifsc"]); break;
+    case "bank_account_holder": value = pickNonEmpty(bank?.name, bank?.account_holder, bank?.accountHolder, bank?.account_holder_name, snap?.bank_account_holder, snap?.bank_account_holder_name, snap?.["bank-account-holder-name"]); break;
+    case "reporting_manager": value = pickNonEmpty(snap?.["manager-employee-id"], snap?.manager_employee_id, snap?.managerEmployeeId, snap?.manager?.employee_id, snap?.manager?.["employee-id"], snap?.manager?.id); break;
+    default: value = "";
+  }
+  return { value, present: value !== "" };
+}
+
+function normalizeForReadBack(field: string, value: unknown): string {
+  const isoToRpDate = (v: unknown) => {
+    const s = trimString(v);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+  };
+  switch (field) {
+    case "email": return lowerTrim(value);
+    case "phone": return lastTenDigits(value);
+    case "gender": return lowerTrim(value);
+    case "date_of_birth":
+    case "date_of_joining":
+    case "probation_end_date": return isoToRpDate(value);
+    case "employee_type": return employeeKind(value);
+    case "pan": return upperTrim(value);
+    case "uan":
+    case "bank_account_number":
+    case "reporting_manager": return digitsOnly(value);
+    case "bank_ifsc_code": return upperTrim(value);
+    default: return lowerTrim(value);
+  }
+}
+
 async function opfinEditPerson(data: Record<string, any>): Promise<{ ok: boolean; status: number; error: string | null; body: any }> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20000);
@@ -1403,28 +1465,29 @@ Deno.serve(async (req) => {
       if (currentEmail) data["email"] = currentEmail;
       const applied: string[] = [];
       const skipped: string[] = [];
+      const expectedReadBack: Record<string, any> = {};
       for (const [k, raw] of Object.entries(fields)) {
         if (raw == null || raw === "") continue;
         switch (k) {
-          case "first_name": data["first-name"] = String(raw); applied.push(k); break;
-          case "last_name": data["last-name"] = String(raw); applied.push(k); break;
-          case "email": data["email"] = String(raw).trim().toLowerCase(); applied.push(k); break;
-          case "phone": data["phone-number"] = String(raw).replace(/\D/g, "").slice(-10); applied.push(k); break;
-          case "gender": data["gender"] = String(raw).toLowerCase(); applied.push(k); break;
-          case "date_of_birth": { const d = isoToRp(raw); if (d) { data["date-of-birth"] = d; applied.push(k); } break; }
-          case "date_of_joining": { const d = isoToRp(raw); if (d) { data["date-of-hiring"] = d; data["hire_date"] = d; applied.push(k); } break; }
-          case "probation_end_date": { const d = isoToRp(raw); if (d) { data["probation-end-date"] = d; applied.push(k); } break; }
-          case "employee_type": data["employee-type"] = String(raw).toLowerCase(); applied.push(k); break;
-          case "job_role": data["title"] = String(raw); applied.push(k); break;
+          case "first_name": data["first-name"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
+          case "last_name": data["last-name"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
+          case "email": data["email"] = String(raw).trim().toLowerCase(); applied.push(k); expectedReadBack[k] = raw; break;
+          case "phone": data["phone-number"] = String(raw).replace(/\D/g, "").slice(-10); applied.push(k); expectedReadBack[k] = raw; break;
+          case "gender": data["gender"] = String(raw).toLowerCase(); applied.push(k); expectedReadBack[k] = raw; break;
+          case "date_of_birth": { const d = isoToRp(raw); if (d) { data["date-of-birth"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
+          case "date_of_joining": { const d = isoToRp(raw); if (d) { data["date-of-hiring"] = d; data["hire_date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
+          case "probation_end_date": { const d = isoToRp(raw); if (d) { data["probation-end-date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
+          case "employee_type": data["employment-type"] = employeeKind(raw); applied.push(k); expectedReadBack[k] = raw; break;
+          case "job_role": data["title"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "tax_regime": data["tax-regime"] = String(raw).toLowerCase().replace(/[^a-z]/g, ""); applied.push(k); break;
-          case "pan": data["pan-number"] = String(raw).toUpperCase(); applied.push(k); break;
-          case "uan": data["uan-number"] = String(raw).replace(/\D/g, ""); applied.push(k); break;
-          case "bank_account_number": data["bank-account-number"] = String(raw); applied.push(k); break;
-          case "bank_ifsc_code": data["ifsc"] = String(raw).toUpperCase(); applied.push(k); break;
-          case "bank_account_holder": data["bank-account-holder-name"] = String(raw); applied.push(k); break;
+          case "pan": data["pan-number"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
+          case "uan": data["uan-number"] = String(raw).replace(/\D/g, ""); applied.push(k); expectedReadBack[k] = raw; break;
+          case "bank_account_number": data["bank-account-number"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
+          case "bank_ifsc_code": data["bank-ifsc"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
+          case "bank_account_holder": data["bank-account-holder-name"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "reporting_manager": {
             const mid = String(raw).replace(/\D/g, "");
-            if (mid) { data["manager-employee-id"] = Number(mid); applied.push(k); }
+            if (mid) { data["manager-employee-id"] = Number(mid); applied.push(k); expectedReadBack[k] = mid; }
             break;
           }
           case "ctc": {
@@ -1434,7 +1497,7 @@ Deno.serve(async (req) => {
             // below so operators can push CTC without envelope gating during
             // onboarding reconciliation.
             const n = Number(raw);
-            if (Number.isFinite(n) && n > 0) { (data as any).__ctc_annual = n; }
+            if (Number.isFinite(n) && n > 0) { (data as any).__ctc_annual = n; expectedReadBack[k] = n; }
             break;
           }
           default: skipped.push(k);
@@ -1487,7 +1550,27 @@ Deno.serve(async (req) => {
           return json(200, { ok: false, error: `Salary push failed: ${salaryResult.error}`, http_status: salaryResult.http_status, applied, skipped, salary: salaryResult });
         }
       }
-      return json(200, { ok: true, http_status: editRes.status, applied, skipped, body: editRes.body, salary: salaryResult });
+      const confirmed: string[] = [];
+      const unconfirmed: string[] = [];
+      const mismatched: Array<{ field: string; expected: string; actual: string }> = [];
+      const verify = await opfinView(rpId, "employee");
+      if (verify.ok) {
+        for (const field of Object.keys(expectedReadBack)) {
+          if (field === "ctc") continue;
+          const rb = readBackForField(verify.body, field);
+          const expected = normalizeForReadBack(field, expectedReadBack[field]);
+          const actual = normalizeForReadBack(field, rb.value);
+          if (!rb.present) unconfirmed.push(field);
+          else if (expected === actual) confirmed.push(field);
+          else mismatched.push({ field, expected, actual });
+        }
+      } else {
+        unconfirmed.push(...Object.keys(expectedReadBack).filter(f => f !== "ctc"));
+      }
+      if (mismatched.length > 0) {
+        return json(200, { ok: false, error: `RazorpayX read-back mismatch after write: ${mismatched.map(m => m.field).join(", ")}`, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, body: editRes.body, salary: salaryResult });
+      }
+      return json(200, { ok: true, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, body: editRes.body, salary: salaryResult });
     }
 
     // ---------- attach_employee_id_by_email ----------

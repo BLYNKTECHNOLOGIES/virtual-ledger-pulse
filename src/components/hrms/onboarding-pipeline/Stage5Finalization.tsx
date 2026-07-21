@@ -315,6 +315,33 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     }
   };
 
+  const getHrmsWriteBackValue = (field: string, record: any = onboardingRecord, source: typeof form = form) => {
+    const docs = (record?.documents as any) || {};
+    switch (field) {
+      case "first_name": return record?.first_name;
+      case "last_name": return record?.last_name;
+      case "email": return record?.email;
+      case "phone": return record?.phone;
+      case "gender": return record?.gender;
+      case "date_of_birth": return record?.date_of_birth;
+      case "date_of_joining": return source.date_of_joining || record?.date_of_joining;
+      case "probation_end_date": return record?.probation_end_date;
+      case "employee_type": return record?.employee_type;
+      case "job_role": return record?.job_role;
+      case "ctc": return record?.ctc;
+      case "pan": return docs?.pan?.value || docs?.pan || "";
+      case "uan": return docs?.uan?.value || docs?.uan || "";
+      case "bank_account_number": return source.bank_account_number;
+      case "bank_ifsc_code": return source.bank_ifsc_code;
+      case "bank_account_holder": return source.bank_account_holder;
+      case "reporting_manager": {
+        const mgr = (managers || []).find((m: any) => m.id === source.reporting_manager_id);
+        return mgr?.badge_id || "";
+      }
+      default: return undefined;
+    }
+  };
+
 
   const setChoice = (field: string, choice: 'hrms' | 'razorpay' | null) => {
     const next: Record<string, 'hrms' | 'razorpay'> = { ...reconcileOverridesRef.current };
@@ -991,12 +1018,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       //                        finalize, so both systems end up identical.
       const rpId = (form.razorpay_employee_id || (razorpayMap as any)?.razorpay_employee_id || "").toString().trim();
       const overrideFields: Record<string, any> = {};
+      let writeBackUnconfirmed = new Set<string>();
       if (reconcileDiffs && rpId) {
         for (const d of reconcileDiffs) {
           if (activeOverrides[d.field] !== 'hrms') continue;
           if (d.status === "match") continue;
-          // Use the ERP-side value from the diff row (already normalized).
-          if (d.erp) overrideFields[d.field] = d.erp;
+          const rawHrmsValue = getHrmsWriteBackValue(d.field);
+          if (rawHrmsValue !== undefined && rawHrmsValue !== null && String(rawHrmsValue).trim() !== "") {
+            overrideFields[d.field] = rawHrmsValue;
+          }
         }
       }
       if (Object.keys(overrideFields).length > 0) {
@@ -1007,6 +1037,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         if (editErr) throw new Error(`RazorpayX write-back failed: ${editErr.message || editErr}`);
         const resp = (editData || {}) as any;
         if (!resp.ok) throw new Error(`RazorpayX write-back rejected: ${resp.error || "unknown"}`);
+        writeBackUnconfirmed = new Set((resp.unconfirmed || []).map((f: unknown) => String(f)));
       }
       // "Use RazorpayX" write-back: apply RP → HRMS now (deferred from click time).
       let effectiveForm = form;
@@ -1102,7 +1133,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         if (mergedDocs) effectiveRecord.documents = mergedDocs;
         const erpInputAfter = buildErpInput(effectiveRecord, effectiveForm);
         const verifyDiffs = reconcileOnboarding(erpInputAfter as any, snap);
-        const unresolved = verifyDiffs.filter(d => d.status !== "match");
+        const unresolved = verifyDiffs.filter(d => {
+          if (d.status === "match") return false;
+          // RazorpayX accepts some people:edit fields but this tenant's
+          // people:view does not echo them back (for example gender / bank
+          // holder on older records). The proxy independently flags those as
+          // unconfirmed read-back gaps, so do not keep the operator in an
+          // impossible finalize loop after the write was accepted.
+          return !(activeOverrides[d.field] === "hrms" && writeBackUnconfirmed.has(d.field));
+        });
         // Persist the fresh snapshot for the audit trail regardless of outcome.
         if (onboardingRecord?.id) {
           await supabase.from("hr_employee_onboarding")
@@ -1111,6 +1150,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 diffs: verifyDiffs,
                 overrides: activeOverrides,
                 snapshot: snap,
+                readback_unconfirmed_fields: Array.from(writeBackUnconfirmed),
                 verified_at: new Date().toISOString(),
                 verification_ok: unresolved.length === 0,
               },

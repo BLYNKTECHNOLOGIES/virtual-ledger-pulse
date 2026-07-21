@@ -956,14 +956,27 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       // "Use RazorpayX" write-back: apply RP → HRMS now (deferred from click time).
       let effectiveForm = form;
       const onboardingPatchAgg: Record<string, any> = {};
+      const docsPatchAgg: Record<string, any> = {};
       if (reconcileDiffs) {
         for (const d of reconcileDiffs) {
           if (reconcileOverrides[d.field] !== 'razorpay') continue;
           if (d.status === "match") continue;
-          const { formPatch, onboardingPatch } = buildRazorpayPatch(d);
+          const { formPatch, onboardingPatch, docsPatch } = buildRazorpayPatch(d);
           if (formPatch) effectiveForm = { ...effectiveForm, ...formPatch };
           if (onboardingPatch) Object.assign(onboardingPatchAgg, onboardingPatch);
+          if (docsPatch) Object.assign(docsPatchAgg, docsPatch);
         }
+      }
+      // Merge document overrides (pan/uan) into onboarding.documents preserving
+      // existing entries.
+      let mergedDocs: Record<string, any> | null = null;
+      if (Object.keys(docsPatchAgg).length > 0) {
+        const existingDocs = (onboardingRecord?.documents as Record<string, any>) || {};
+        mergedDocs = { ...existingDocs };
+        for (const [k, v] of Object.entries(docsPatchAgg)) {
+          mergedDocs[k] = { ...(existingDocs[k] || {}), ...(v as any) };
+        }
+        onboardingPatchAgg.documents = mergedDocs;
       }
       if (Object.keys(onboardingPatchAgg).length > 0 && onboardingRecord?.id) {
         toast.loading(`Pulling ${Object.keys(onboardingPatchAgg).length} RazorpayX field(s) into HRMS…`, { id: toastId });
@@ -980,6 +993,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       }
 
       const payload: any = {
+        // Forward RP→HRMS pulled fields so OnboardingWizard.handleFinalize's
+        // r = { ...record, ...onboardingUpdate } sees the FRESH values rather
+        // than the stale react-query snapshot captured before this write.
+        ...onboardingPatchAgg,
         date_of_joining: effectiveForm.date_of_joining,
         essl_badge_id: effectiveForm.essl_badge_id,
         create_erp_account: effectiveForm.create_erp_account,

@@ -249,10 +249,10 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <span className="text-sm">{f.label}</span>
                     {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
                   </div>
-                  {mode === "manual" && !readOnly && f.key !== "pan" && !f.noValue && (
+                  {!readOnly && f.key !== "pan" && !f.noValue && (mode === "manual" || f.noFile) && (
                     <Input
                       placeholder={`${f.label} number`}
-                      className="max-w-[180px] h-8"
+                      className="max-w-[220px] h-8"
                       value={d?.value || ""}
                       onChange={e => updateDocValue(f.key, e.target.value)}
                     />

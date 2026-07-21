@@ -238,7 +238,10 @@ export default function AdManager() {
     updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate, fromStatus: currentStatus, exchangeAccountId: accountForAdv.get(advNo) });
   };
 
-  const handleBulkComplete = () => { setSelectedAdvNos(new Set()); refetch(); };
+  // Preserve selection after bulk edits so operators can chain actions
+  // (e.g. edit rate → edit limits) on the same set. Selection only clears
+  // via the explicit Clear button, tab switch, or filter reset.
+  const handleBulkComplete = () => { refetch(); };
 
   const handleBulkActivate = () => { setBulkTargetStatus(BINANCE_AD_STATUS.ONLINE); setBulkStatusOpen(true); };
   const handleBulkDeactivate = () => { setBulkTargetStatus(BINANCE_AD_STATUS.OFFLINE); setBulkStatusOpen(true); };

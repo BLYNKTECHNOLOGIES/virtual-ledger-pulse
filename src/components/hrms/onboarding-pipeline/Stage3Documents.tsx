@@ -278,7 +278,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                 {f.key === "pan" && readOnly && panValue && (
                   <p className="text-xs pl-1 font-mono">{panValue}</p>
                 )}
-                {!readOnly && (
+                {!readOnly && !f.noFile && (
                   <div className="flex items-center gap-2 flex-wrap pl-1">
                     {d?.file_url ? (
                       <>

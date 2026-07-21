@@ -84,9 +84,25 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     "razorpay_verified_at",
   ]);
 
-  const normalizeDateBlanks = (payload: Record<string, any>) => {
+  const nullableUuidFields = new Set([
+    "department_id",
+    "position_id",
+    "shift_id",
+    "reporting_manager_id",
+    "erp_role_id",
+    "salary_template_id",
+    "candidate_id",
+    "employee_id",
+  ]);
+
+  const normalizeDatabaseBlanks = (payload: Record<string, any>) => {
     const normalized: Record<string, any> = { ...(payload || {}) };
     dateFields.forEach((field) => {
+      if (field in normalized && isBlankValue(normalized[field])) {
+        normalized[field] = null;
+      }
+    });
+    nullableUuidFields.forEach((field) => {
       if (field in normalized && isBlankValue(normalized[field])) {
         normalized[field] = null;
       }
@@ -122,7 +138,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     ]);
 
     const normalizedUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
-    Object.entries(normalizeDateBlanks(updates || {})).forEach(([key, value]) => {
+    Object.entries(normalizeDatabaseBlanks(updates || {})).forEach(([key, value]) => {
       if (value === undefined) return;
       const existingValue = existing?.[key];
 
@@ -161,7 +177,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   // Create new record if none exists
   const createRecord = async (stageData: any) => {
     const { data: user } = await supabase.auth.getUser();
-    const safeStageData = normalizeDateBlanks(stageData || {});
+    const safeStageData = normalizeDatabaseBlanks(stageData || {});
     const { data, error } = await supabase
       .from("hr_employee_onboarding")
       .insert({ ...safeStageData, status: "draft", current_stage: 1, created_by: user?.user?.id })

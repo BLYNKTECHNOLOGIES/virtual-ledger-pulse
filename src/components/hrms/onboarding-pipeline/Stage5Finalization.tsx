@@ -1382,19 +1382,20 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                       <button
                                         type="button"
                                         disabled={readOnly}
-                                        onClick={() => setChoice(d.field, 'hrms')}
-                                        className={`h-6 px-2 text-[11px] transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                        onClick={() => setChoice(d.field, 'razorpay')}
+                                        className={`h-6 px-2 text-[11px] transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                       >
-                                        Use HRMS
+                                        Use RazorpayX
                                       </button>
                                       <button
                                         type="button"
                                         disabled={readOnly}
-                                        onClick={() => setChoice(d.field, 'razorpay')}
-                                        className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                        onClick={() => setChoice(d.field, 'hrms')}
+                                        className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                       >
-                                        Use RazorpayX
+                                        Use HRMS
                                       </button>
+
                                     </div>
                                   </div>
                                 </div>

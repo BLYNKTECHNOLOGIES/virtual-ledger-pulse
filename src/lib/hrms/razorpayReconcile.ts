@@ -25,7 +25,30 @@ export interface ReconcileDiff {
   status: ReconcileStatus;
   /** Value the "Use RazorpayX value" button should write back to ERP. */
   rpRawValue?: string | number | null;
+  /**
+   * True when RazorpayX's `people:view` sub-type is known NOT to expose this
+   * field in its response payload (verified against the Opfin API — the field
+   * exists in the RazorpayX dashboard but is absent from the view API). The
+   * reconciler treats these as `match` when the RP side is blank so the
+   * operator isn't forced to fabricate a "Use HRMS / Use RazorpayX" choice
+   * against an API limitation.
+   */
+  apiUnavailable?: boolean;
 }
+
+/**
+ * Fields the RazorpayX `people:view` (Opfin) sub-type is known to omit from
+ * its response, even though they are set inside the RazorpayX product.
+ * Verified against real live-tenant snapshots and the Opfin Postman contract:
+ * only people:view exists as a read endpoint, and its payload does not carry
+ * these keys under any spelling.
+ */
+const API_UNAVAILABLE_FIELDS = new Set<string>([
+  "gender",
+  "employee_type",
+  "probation_end_date",
+  "bank_account_holder",
+]);
 
 const isEmpty = (v: unknown) =>
   v === null || v === undefined || (typeof v === "string" && v.trim() === "");
@@ -399,12 +422,17 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     let status: ReconcileStatus;
     const erpEmpty = isEmpty(r.compareErp);
     const rpEmpty = isEmpty(r.compareRp);
+    const apiUnavailable = API_UNAVAILABLE_FIELDS.has(r.field);
     if (erpEmpty && rpEmpty) status = "match"; // both blank = nothing to reconcile
     else if (erpEmpty) status = "missing_erp";
-    else if (rpEmpty) status = "missing_rp";
+    else if (rpEmpty) {
+      // RazorpayX read API is known to omit this field — accept the HRMS
+      // value as authoritative rather than force a fake mismatch.
+      status = apiUnavailable ? "match" : "missing_rp";
+    }
     else status = r.compareErp === r.compareRp ? "match" : "mismatch";
     const { compareErp, compareRp, ...rest } = r;
-    return { ...rest, status };
+    return { ...rest, status, apiUnavailable };
   });
 }
 

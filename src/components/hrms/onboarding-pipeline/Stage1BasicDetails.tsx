@@ -17,6 +17,7 @@ interface Stage1Props {
 }
 
 export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage1Props) {
+  const [isCompleting, setIsCompleting] = useState(false);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -122,9 +123,16 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   };
 
   const handleSave = () => onSave(form);
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!validate()) return;
-    onComplete(form);
+    setIsCompleting(true);
+    try {
+      await onComplete(form);
+    } catch (err: any) {
+      toast.error(err?.message || "Unable to complete Basic Details");
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   return (
@@ -225,7 +233,9 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         {!readOnly && (
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={handleSave}>Save Draft</Button>
-            <Button onClick={handleComplete}>Complete & Next →</Button>
+            <Button onClick={handleComplete} disabled={isCompleting}>
+              {isCompleting ? "Completing..." : "Complete & Next →"}
+            </Button>
           </div>
         )}
       </CardContent>

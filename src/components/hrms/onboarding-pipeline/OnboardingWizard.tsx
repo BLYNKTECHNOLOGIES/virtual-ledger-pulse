@@ -75,6 +75,25 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     return merged;
   };
 
+  const dateFields = new Set([
+    "date_of_birth",
+    "probation_end_date",
+    "date_of_joining",
+    "document_mail_received_at",
+    "document_email_sent_at",
+    "razorpay_verified_at",
+  ]);
+
+  const normalizeDateBlanks = (payload: Record<string, any>) => {
+    const normalized: Record<string, any> = { ...(payload || {}) };
+    dateFields.forEach((field) => {
+      if (field in normalized && isBlankValue(normalized[field])) {
+        normalized[field] = null;
+      }
+    });
+    return normalized;
+  };
+
   const buildSafeOnboardingUpdate = (existing: Record<string, any> | null, updates: Record<string, any>) => {
     const persistentFields = new Set([
       "first_name",
@@ -103,7 +122,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     ]);
 
     const normalizedUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
-    Object.entries(updates || {}).forEach(([key, value]) => {
+    Object.entries(normalizeDateBlanks(updates || {})).forEach(([key, value]) => {
       if (value === undefined) return;
       const existingValue = existing?.[key];
 
@@ -142,14 +161,15 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   // Create new record if none exists
   const createRecord = async (stageData: any) => {
     const { data: user } = await supabase.auth.getUser();
+    const safeStageData = normalizeDateBlanks(stageData || {});
     const { data, error } = await supabase
       .from("hr_employee_onboarding")
-      .insert({ ...stageData, status: "draft", current_stage: 1, created_by: user?.user?.id })
+      .insert({ ...safeStageData, status: "draft", current_stage: 1, created_by: user?.user?.id })
       .select("id")
       .single();
     if (error) throw error;
     setRecordId(data.id);
-    await logAudit(data.id, 1, "created", stageData);
+    await logAudit(data.id, 1, "created", safeStageData);
     return data.id;
   };
 

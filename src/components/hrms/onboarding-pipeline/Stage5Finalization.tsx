@@ -689,16 +689,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // A PIN is "assigned" only when a finalized hr_employees row already carries
   // it as badge_id. matched_employee_id alone isn't enough — the identity link
   // can be pre-seeded before finalization and would otherwise hide the PIN.
-  const { data: usedBadgeIds = [] } = useQuery({
+  const { data: usedBadgeRows = [] } = useQuery({
     queryKey: ["hr_employees_badge_ids_for_stage5"],
     queryFn: async () => {
       const rows = await fetchAllPaginated<any>(() =>
-        supabase.from("hr_employees").select("badge_id").not("badge_id", "is", null)
+        supabase.from("hr_employees").select("id, badge_id").not("badge_id", "is", null)
       );
-      return rows.map((r: any) => String(r.badge_id).trim()).filter(Boolean);
+      return rows
+        .map((r: any) => ({ id: r.id, badge_id: String(r.badge_id).trim() }))
+        .filter((r: any) => r.badge_id);
     },
     refetchInterval: 30_000,
   });
+
 
   // Idempotency lookup — has this PIN already been queued to biometric devices
   // from an onboarding flow? Any successful/queued/ack row here means we
@@ -735,13 +738,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       }
       return { kind: "unknown", msg: "PIN not seen on any active eSSL device yet — punches from this ID will be rejected until the device syncs.", matches };
     }
-    const usedByOther = new Set(usedBadgeIds.filter((b: string) => b !== (onboardingRecord?.essl_badge_id || "")));
+    const ownEmpId = (onboardingRecord as any)?.employee_id || null;
+    const ownBadge = (onboardingRecord?.essl_badge_id || "").toString().trim();
+    const usedByOther = new Set(
+      (usedBadgeRows as any[])
+        .filter((r) => {
+          if (ownEmpId && r.id === ownEmpId) return false; // exclude this onboarding's own hr_employees row
+          if (ownBadge && r.badge_id === ownBadge) return false; // fallback exclusion by badge
+          return true;
+        })
+        .map((r) => r.badge_id)
+    );
     if (usedByOther.has(val)) return { kind: "conflict", msg: `PIN ${val} is already the badge ID of another finalized employee.`, matches };
     const canonical = canonicalDevicePins.find((p: any) => p.pin === val);
     const deviceCount = canonical?.deviceCount || matches.length;
     const deviceName = canonical?.name || matches.find((m: any) => m.name)?.name;
     return { kind: "ok", msg: `Found on ${deviceCount} device${deviceCount === 1 ? "" : "s"}${deviceName ? ` — device name: ${deviceName}` : ""}.`, matches };
-  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeIds, onboardingRecord?.essl_badge_id, existingPushLog, pushFeedback]);
+  }, [form.essl_badge_id, devicePins, canonicalDevicePins, usedBadgeRows, onboardingRecord?.essl_badge_id, (onboardingRecord as any)?.employee_id, existingPushLog, pushFeedback]);
+
 
 
   const pushLogBelongsToThisOnboarding = !!existingPushLog && (
@@ -1382,19 +1396,20 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                       <button
                                         type="button"
                                         disabled={readOnly}
-                                        onClick={() => setChoice(d.field, 'hrms')}
-                                        className={`h-6 px-2 text-[11px] transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                        onClick={() => setChoice(d.field, 'razorpay')}
+                                        className={`h-6 px-2 text-[11px] transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                       >
-                                        Use HRMS
+                                        Use RazorpayX
                                       </button>
                                       <button
                                         type="button"
                                         disabled={readOnly}
-                                        onClick={() => setChoice(d.field, 'razorpay')}
-                                        className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${rpActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                        onClick={() => setChoice(d.field, 'hrms')}
+                                        className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                       >
-                                        Use RazorpayX
+                                        Use HRMS
                                       </button>
+
                                     </div>
                                   </div>
                                 </div>

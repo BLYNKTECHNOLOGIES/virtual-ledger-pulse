@@ -689,16 +689,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // A PIN is "assigned" only when a finalized hr_employees row already carries
   // it as badge_id. matched_employee_id alone isn't enough — the identity link
   // can be pre-seeded before finalization and would otherwise hide the PIN.
-  const { data: usedBadgeIds = [] } = useQuery({
+  const { data: usedBadgeRows = [] } = useQuery({
     queryKey: ["hr_employees_badge_ids_for_stage5"],
     queryFn: async () => {
       const rows = await fetchAllPaginated<any>(() =>
-        supabase.from("hr_employees").select("badge_id").not("badge_id", "is", null)
+        supabase.from("hr_employees").select("id, badge_id").not("badge_id", "is", null)
       );
-      return rows.map((r: any) => String(r.badge_id).trim()).filter(Boolean);
+      return rows
+        .map((r: any) => ({ id: r.id, badge_id: String(r.badge_id).trim() }))
+        .filter((r: any) => r.badge_id);
     },
     refetchInterval: 30_000,
   });
+
 
   // Idempotency lookup — has this PIN already been queued to biometric devices
   // from an onboarding flow? Any successful/queued/ack row here means we

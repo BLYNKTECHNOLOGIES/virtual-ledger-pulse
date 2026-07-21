@@ -1171,12 +1171,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               .eq("id", onboardingRecord.id);
           }
           setReconcileDiffs(verifyDiffs);
+          setPostFinalizeVerified(false);
           const names = unresolved.map(d => d.label).join(", ");
           throw new Error(
             `RazorpayX ↔ HRMS still mismatch after Finalize: ${names}. ` +
             `Status kept at "In Progress" — retry after resolving these fields.`,
           );
         }
+        // Success: refresh the diffs panel with the fresh RazorpayX snapshot
+        // so the UI reflects post-write truth (not the stale pre-finalize view).
+        setReconcileDiffs(verifyDiffs);
+        setRpSnapshot(snap);
+        setPostFinalizeVerified(true);
       }
 
       const successMessage = `${firstName || "Employee"} ${lastName || ""}`.trim()

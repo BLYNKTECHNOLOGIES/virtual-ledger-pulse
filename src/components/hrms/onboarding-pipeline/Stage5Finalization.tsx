@@ -174,6 +174,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         const msg = resp.error || "RazorpayX verification failed";
         setRpVerification({ ok: false, message: msg });
         setReconcileDiffs(null);
+        reconcileOverridesRef.current = {};
         setReconcileOverrides({});
         setRpSnapshot(null);
         toast.error(msg, { id: t });
@@ -189,6 +190,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         const msg = `Email mismatch: RazorpayX employee ${idStr} belongs to ${rpEmail}, not ${erpEmail}. Refusing to link — pick the correct Employee ID.`;
         setRpVerification({ ok: false, message: msg });
         setReconcileDiffs(null);
+        reconcileOverridesRef.current = {};
         setReconcileOverrides({});
         setRpSnapshot(null);
         toast.error(msg, { id: t });
@@ -213,6 +215,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       });
       setRpSnapshot(snap);
       setReconcileDiffs(diffs);
+      reconcileOverridesRef.current = preservedOverrides;
       setReconcileOverrides(preservedOverrides);
       setRpVerification({
         ok: true,
@@ -960,7 +963,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const overrideFields: Record<string, any> = {};
       if (reconcileDiffs && rpId) {
         for (const d of reconcileDiffs) {
-          if (reconcileOverrides[d.field] !== 'hrms') continue;
+          if (activeOverrides[d.field] !== 'hrms') continue;
           if (d.status === "match") continue;
           // Use the ERP-side value from the diff row (already normalized).
           if (d.erp) overrideFields[d.field] = d.erp;
@@ -981,7 +984,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const docsPatchAgg: Record<string, any> = {};
       if (reconcileDiffs) {
         for (const d of reconcileDiffs) {
-          if (reconcileOverrides[d.field] !== 'razorpay') continue;
+          if (activeOverrides[d.field] !== 'razorpay') continue;
           if (d.status === "match") continue;
           const { formPatch, onboardingPatch, docsPatch } = buildRazorpayPatch(d);
           if (formPatch) effectiveForm = { ...effectiveForm, ...formPatch };

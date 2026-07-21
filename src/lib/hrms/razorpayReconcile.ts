@@ -38,6 +38,14 @@ const upper = (v: unknown) => norm(v).toUpperCase();
 
 const pick = (...vals: unknown[]) => vals.map(norm).find(Boolean) || "";
 
+const employmentKind = (v: unknown) => {
+  const s = ci(v).replace(/[\s-]+/g, "_");
+  if (["full_time", "fulltime", "permanent", "regular", "employee"].includes(s)) return "employee";
+  if (["contract", "contractor", "consultant"].includes(s)) return "contractor";
+  if (["intern", "trainee", "probation", "probationer"].includes(s)) return "intern";
+  return s;
+};
+
 const titleToken = (v: unknown) => ci(v).replace(/[.\s_-]+/g, "");
 
 const inferGenderFromTitle = (v: unknown) => {
@@ -156,6 +164,7 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     rp?.["employee-type"],
     rp?.employment_type,
     rp?.["employment-type"],
+    rp?.type,
   ));
   const rpTitle = pick(rp?.title, rp?.salutation, rp?.["name-title"], rp?.name_title);
   const rpJobRole = pick(
@@ -296,8 +305,8 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       erp: norm(erp.employee_type),
       razorpay: rpEmployeeType,
       rpRawValue: rpEmployeeType || null,
-      compareErp: ci(erp.employee_type),
-      compareRp: rpEmployeeType,
+      compareErp: employmentKind(erp.employee_type),
+      compareRp: employmentKind(rpEmployeeType),
     },
     {
       field: "job_role",

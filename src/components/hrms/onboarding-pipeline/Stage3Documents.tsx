@@ -22,8 +22,8 @@ interface Stage3Props {
 }
 
 // `noValue: true` means the doc has NO textual/numeric field — file upload only.
-// ABHA is intentionally upload-only per policy: no number capture, no matching.
-const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean }> = [
+// `noFile: true` means the doc is a number/text input only — no file upload.
+const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean; noFile?: boolean }> = [
   { key: "pan", label: "PAN Card", required: true },
   { key: "aadhaar", label: "Aadhaar Card", required: true },
   { key: "passport_photo", label: "Passport Photo", required: true },
@@ -32,8 +32,7 @@ const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue
   { key: "experience_letter", label: "Previous Experience Letter", required: false },
   { key: "uan", label: "UAN (optional)", required: false },
   { key: "esic", label: "ESIC (optional)", required: false },
-  { key: "pf_account_number", label: "PF Account Number (optional)", required: false },
-  { key: "abha", label: "ABHA (upload only — no number needed)", required: false, noValue: true },
+  { key: "pf_account_number", label: "PF Account Number (optional)", required: false, noFile: true },
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {
@@ -250,10 +249,10 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <span className="text-sm">{f.label}</span>
                     {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
                   </div>
-                  {mode === "manual" && !readOnly && f.key !== "pan" && !f.noValue && (
+                  {!readOnly && f.key !== "pan" && !f.noValue && (mode === "manual" || f.noFile) && (
                     <Input
                       placeholder={`${f.label} number`}
-                      className="max-w-[180px] h-8"
+                      className="max-w-[220px] h-8"
                       value={d?.value || ""}
                       onChange={e => updateDocValue(f.key, e.target.value)}
                     />
@@ -279,7 +278,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                 {f.key === "pan" && readOnly && panValue && (
                   <p className="text-xs pl-1 font-mono">{panValue}</p>
                 )}
-                {!readOnly && (
+                {!readOnly && !f.noFile && (
                   <div className="flex items-center gap-2 flex-wrap pl-1">
                     {d?.file_url ? (
                       <>

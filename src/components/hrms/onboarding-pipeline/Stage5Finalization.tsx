@@ -81,6 +81,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, 'hrms' | 'razorpay'>>({});
   const reconcileOverridesRef = useRef<Record<string, 'hrms' | 'razorpay'>>({});
   const [rpSnapshot, setRpSnapshot] = useState<any>(null);
+  // True once the post-finalize RazorpayX read-back has confirmed every field.
+  // While true, the reconciliation panel renders a "verified" state instead of
+  // stale pre-finalize mismatch rows.
+  const [postFinalizeVerified, setPostFinalizeVerified] = useState(false);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
   const pushingRef = useRef(false);
@@ -606,6 +610,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         setReconcileOverrides({});
         setRpSnapshot(null);
       }
+      setPostFinalizeVerified(!!(rec && rec.verification_ok === true));
       hydratedRecordIdRef.current = onboardingRecord.id;
     }
   }, [onboardingRecord]);
@@ -1166,12 +1171,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               .eq("id", onboardingRecord.id);
           }
           setReconcileDiffs(verifyDiffs);
+          setPostFinalizeVerified(false);
           const names = unresolved.map(d => d.label).join(", ");
           throw new Error(
             `RazorpayX ↔ HRMS still mismatch after Finalize: ${names}. ` +
             `Status kept at "In Progress" — retry after resolving these fields.`,
           );
         }
+        // Success: refresh the diffs panel with the fresh RazorpayX snapshot
+        // so the UI reflects post-write truth (not the stale pre-finalize view).
+        setReconcileDiffs(verifyDiffs);
+        setRpSnapshot(snap);
+        setPostFinalizeVerified(true);
       }
 
       const successMessage = `${firstName || "Employee"} ${lastName || ""}`.trim()
@@ -1371,23 +1382,29 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     </div>
                   )}
                   {reconcileDiffs && reconcileDiffs.length > 0 && (() => {
-                    const mismatchDiffs = reconcileDiffs.filter(d => d.status !== "match");
+                    const mismatchDiffs = postFinalizeVerified
+                      ? []
+                      : reconcileDiffs.filter(d => d.status !== "match");
                     return (
                     <div className="rounded-md border border-border bg-background/60 p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-xs font-medium">
                           Field reconciliation — RazorpayX vs ERP draft
                         </div>
-                        <Badge variant={reconcileReady ? "default" : "destructive"} className="text-[10px]">
-                          {reconcileReady
-                            ? "All fields reconciled"
-                            : `${reconcileUnresolved} unresolved`}
+                        <Badge variant={postFinalizeVerified || reconcileReady ? "default" : "destructive"} className="text-[10px]">
+                          {postFinalizeVerified
+                            ? "Verified against RazorpayX API"
+                            : reconcileReady
+                              ? "All fields reconciled"
+                              : `${reconcileUnresolved} unresolved`}
                         </Badge>
                       </div>
                       {mismatchDiffs.length === 0 ? (
                         <div className="text-[11px] text-success flex items-center gap-1.5">
                           <CheckCircle2 className="h-3 w-3" />
-                          All {reconcileDiffs.length} fields match RazorpayX — nothing to reconcile.
+                          {postFinalizeVerified
+                            ? `Post-finalize read-back from RazorpayX confirmed all ${reconcileDiffs.length} fields match HRMS.`
+                            : `All ${reconcileDiffs.length} fields match RazorpayX — nothing to reconcile.`}
                         </div>
                       ) : (
                         <>

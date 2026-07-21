@@ -81,6 +81,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, 'hrms' | 'razorpay'>>({});
   const reconcileOverridesRef = useRef<Record<string, 'hrms' | 'razorpay'>>({});
   const [rpSnapshot, setRpSnapshot] = useState<any>(null);
+  // True once the post-finalize RazorpayX read-back has confirmed every field.
+  // While true, the reconciliation panel renders a "verified" state instead of
+  // stale pre-finalize mismatch rows.
+  const [postFinalizeVerified, setPostFinalizeVerified] = useState(false);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
   const pushingRef = useRef(false);

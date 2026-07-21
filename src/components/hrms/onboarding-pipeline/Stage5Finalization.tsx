@@ -154,7 +154,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // returned people:view snapshot against the ERP onboarding draft field by
   // field. Finalize stays disabled until every row matches or is overridden.
   const handleVerifyRazorpayId = async () => {
-    const idStr = form.razorpay_employee_id.trim();
+    const idStr = (form.razorpay_employee_id || (razorpayMap as any)?.razorpay_employee_id || "").toString().trim();
     if (!/^\d+$/.test(idStr)) {
       toast.error("RazorpayX Employee ID must be numeric.");
       return;

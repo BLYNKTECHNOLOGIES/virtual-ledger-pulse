@@ -79,6 +79,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // kept in memory for the "Use RazorpayX value" click handlers.
   const [reconcileDiffs, setReconcileDiffs] = useState<ReconcileDiff[] | null>(null);
   const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, 'hrms' | 'razorpay'>>({});
+  const reconcileOverridesRef = useRef<Record<string, 'hrms' | 'razorpay'>>({});
   const [rpSnapshot, setRpSnapshot] = useState<any>(null);
   const [finalizeFeedback, setFinalizeFeedback] = useState<null | { kind: "success" | "error"; message: string }>(null);
   const [pushFeedback, setPushFeedback] = useState<null | { pin: string; deviceCount: number; at: string }>(null);
@@ -90,27 +91,27 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   // Build the ERP-side reconcile input from the current onboarding record + form.
   // Kept as a helper so we can re-run reconcile after every "Use RazorpayX value"
   // click without having to re-fetch the snapshot.
-  const buildErpInput = () => {
-    const mgr = (managers || []).find((m: any) => m.id === form.reporting_manager_id);
+  const buildErpInput = (record: any = onboardingRecord, source: typeof form = form) => {
+    const mgr = (managers || []).find((m: any) => m.id === source.reporting_manager_id);
     const mgrName = mgr ? `${mgr.first_name || ""} ${mgr.last_name || ""}`.trim() : "";
     return {
-      first_name: onboardingRecord?.first_name,
-      last_name: onboardingRecord?.last_name,
-      email: onboardingRecord?.email,
-      phone: onboardingRecord?.phone,
-      gender: onboardingRecord?.gender,
-      date_of_birth: onboardingRecord?.date_of_birth,
-      date_of_joining: form.date_of_joining || onboardingRecord?.date_of_joining,
-      probation_end_date: onboardingRecord?.probation_end_date,
-      employee_type: onboardingRecord?.employee_type,
-      job_role: onboardingRecord?.job_role,
+      first_name: record?.first_name,
+      last_name: record?.last_name,
+      email: record?.email,
+      phone: record?.phone,
+      gender: record?.gender,
+      date_of_birth: record?.date_of_birth,
+      date_of_joining: source.date_of_joining || record?.date_of_joining,
+      probation_end_date: record?.probation_end_date,
+      employee_type: record?.employee_type,
+      job_role: record?.job_role,
       
-      ctc: onboardingRecord?.ctc,
-      documents: onboardingRecord?.documents,
+      ctc: record?.ctc,
+      documents: record?.documents,
       bank: {
-        account_number: form.bank_account_number,
-        ifsc_code: form.bank_ifsc_code,
-        account_holder: form.bank_account_holder,
+        account_number: source.bank_account_number,
+        ifsc_code: source.bank_ifsc_code,
+        account_holder: source.bank_account_holder,
       },
       reporting_manager_badge_id: mgr?.badge_id || null,
       reporting_manager_label: mgrName,
@@ -314,10 +315,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       const next: Record<string, 'hrms' | 'razorpay'> = { ...prev };
       if (choice) next[field] = choice;
       else delete next[field];
+      reconcileOverridesRef.current = next;
       persistReconciliation(reconcileDiffs, next, rpSnapshot);
       return next;
     });
   };
+
+  useEffect(() => {
+    reconcileOverridesRef.current = reconcileOverrides;
+  }, [reconcileOverrides]);
 
 
 
@@ -559,11 +565,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             if (v === 'razorpay') norm[k] = 'razorpay';
             else if (v) norm[k] = 'hrms';
           });
+          reconcileOverridesRef.current = norm;
           setReconcileOverrides(norm);
         }
         setRpSnapshot(restoredSnapshot);
       } else {
         setReconcileDiffs(null);
+        reconcileOverridesRef.current = {};
         setReconcileOverrides({});
         setRpSnapshot(null);
       }
@@ -737,11 +745,20 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const razorpayCreateRequest = onboardingReconciliationMeta?.create_request || null;
 
   const reconcileUnresolved = reconcileDiffs ? unresolvedCount(reconcileDiffs, reconcileOverrides) : 0;
-  const reconcileReady = alreadyInRazorpay
-    ? true
-    : !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, reconcileOverrides));
+  const reconcileReady = !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, reconcileOverrides));
   const reconcileBlockReason = alreadyInRazorpay
-    ? ""
+    ? !rpVerification?.ok
+      ? "Refresh the RazorpayX tally before finalizing."
+      : !reconcileDiffs
+        ? "Refresh RazorpayX tally to compare the fields."
+        : reconcileUnresolved > 0
+          ? (() => {
+              const names = (reconcileDiffs || [])
+                .filter(d => d.status !== "match" && !reconcileOverrides[d.field])
+                .map(d => d.label);
+              return `${reconcileUnresolved} field${reconcileUnresolved === 1 ? "" : "s"} still differ between RazorpayX and ERP: ${names.join(", ")}. Choose "Use HRMS" or "Use RazorpayX" on each row before finalizing.`;
+            })()
+          : ""
     : !rpVerification?.ok
       ? "Verify the RazorpayX Employee ID before finalizing."
       : !reconcileDiffs
@@ -934,6 +951,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     setFinalizing(true);
     const toastId = toast.loading("Creating employee…");
     try {
+      const activeOverrides = { ...reconcileOverridesRef.current };
       // Bi-directional reconcile write-back:
       //   • "Use RazorpayX"  → already wrote RazorpayX value into HRMS on click.
       //   • "Keep HRMS"      → push HRMS value into RazorpayX right now, before
@@ -1007,9 +1025,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         erp_role_id: effectiveForm.erp_role_id,
         reporting_manager_id: effectiveForm.reporting_manager_id,
         razorpay_employee_id: effectiveForm.razorpay_employee_id.trim() || null,
-        razorpay_hrms_overrides: reconcileOverrides,
+        razorpay_hrms_overrides: activeOverrides,
         razorpay_reconciliation: reconcileDiffs
-          ? { diffs: reconcileDiffs, overrides: reconcileOverrides, snapshot: rpSnapshot, finalized_at: new Date().toISOString() }
+          ? { diffs: reconcileDiffs, overrides: activeOverrides, snapshot: rpSnapshot, finalized_at: new Date().toISOString() }
           : null,
       };
       const hasBankInputEff = !!(effectiveForm.bank_account_number.trim() && effectiveForm.bank_ifsc_code.trim());
@@ -1047,23 +1065,18 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           throw new Error(`Post-finalize verification failed: ${msg}`);
         }
         const snap = (verifyData as any).snapshot || {};
-        const erpInputAfter = { ...buildErpInput(), ...(effectiveForm !== form ? {
-          bank: {
-            account_number: effectiveForm.bank_account_number,
-            ifsc_code: effectiveForm.bank_ifsc_code,
-            account_holder: effectiveForm.bank_account_holder,
-          },
-          date_of_joining: effectiveForm.date_of_joining || onboardingRecord?.date_of_joining,
-        } : {}) };
+        const effectiveRecord = { ...onboardingRecord, ...onboardingPatchAgg };
+        if (mergedDocs) effectiveRecord.documents = mergedDocs;
+        const erpInputAfter = buildErpInput(effectiveRecord, effectiveForm);
         const verifyDiffs = reconcileOnboarding(erpInputAfter as any, snap);
-        const unresolved = verifyDiffs.filter(d => d.status !== "match" && reconcileOverrides[d.field] !== 'hrms' && reconcileOverrides[d.field] !== 'razorpay');
+        const unresolved = verifyDiffs.filter(d => d.status !== "match");
         // Persist the fresh snapshot for the audit trail regardless of outcome.
         if (onboardingRecord?.id) {
           await supabase.from("hr_employee_onboarding")
             .update({
               razorpay_reconciliation: {
                 diffs: verifyDiffs,
-                overrides: reconcileOverrides,
+                overrides: activeOverrides,
                 snapshot: snap,
                 verified_at: new Date().toISOString(),
                 verification_ok: unresolved.length === 0,
@@ -1082,8 +1095,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           setReconcileDiffs(verifyDiffs);
           const names = unresolved.map(d => d.label).join(", ");
           throw new Error(
-            `RazorpayX did not accept the following field(s) after Finalize: ${names}. ` +
-            `Status kept at "In Progress" — retry Finalize after resolving.`,
+            `RazorpayX ↔ HRMS still mismatch after Finalize: ${names}. ` +
+            `Status kept at "In Progress" — retry after resolving these fields.`,
           );
         }
       }

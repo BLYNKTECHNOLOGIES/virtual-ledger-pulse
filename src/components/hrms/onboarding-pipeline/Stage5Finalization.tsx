@@ -610,6 +610,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         setReconcileOverrides({});
         setRpSnapshot(null);
       }
+      setPostFinalizeVerified(!!(rec && rec.verification_ok === true));
       hydratedRecordIdRef.current = onboardingRecord.id;
     }
   }, [onboardingRecord]);

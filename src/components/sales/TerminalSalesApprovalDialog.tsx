@@ -457,7 +457,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         displayName,
         contactNumber || undefined,
         clientState || undefined,
-        { binanceNickname: unmaskedNick, verifiedName: sanitizeVerifiedName(od?.verified_name || enrichedName) },
+        {
+          binanceNickname: unmaskedNick,
+          verifiedName: sanitizeVerifiedName(od?.verified_name || enrichedName),
+          cpUserNo: lockedUserNo,
+        },
       );
       if (!clientData?.id) {
         throw new Error('Failed to create buyer client. Please try selecting an existing client or verify the buyer name.');

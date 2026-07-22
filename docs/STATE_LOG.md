@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-22: Buyer approval duplicate-stub loop repaired — terminal buyer creation now reuses pending stubs by Binance userNo/phone, persists userNo during creation, and the Dakoriya duplicate pending client rows were consolidated for approval retry.
 - 2026-07-22: Biometric eSSL linking repaired — HR/admin mapping policy restored, v4 attendance status validators aligned (`incomplete`/`no_data`), PIN→Badge auto-link triggers added, and existing matched PINs replayed parked punches into attendance.
 - 2026-07-21: RazorpayX Stage 5 write-back patched — HRMS-wins now sends raw source values, avoids misusing API routing `employee-type` for employment category, uses documented `bank-ifsc`, and records read-back-unconfirmed Razorpay fields instead of looping Finalize on fields people:view does not echo.
 - 2026-07-21: RazorpayX onboarding Stage 5 hardening — already-linked employees now require/auto-refresh a real reconciliation tally before Finalize; choices persist synchronously through finalize; post-finalize verification fails on actual remaining mismatches, not missing override state.

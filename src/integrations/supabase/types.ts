@@ -20633,6 +20633,7 @@ export type Database = {
       create_buyer_client_with_evidence: {
         Args: {
           p_client_id: string
+          p_cp_userno?: string
           p_name: string
           p_nickname?: string
           p_order_amount?: number

@@ -1151,7 +1151,7 @@ export function ClientOnboardingApprovals() {
               const { error: bankInsertError } = await supabase
                 .from('client_bank_details')
                 .insert({
-                  client_id: targetClientId,
+                  client_id: bankTargetClientId,
                   bank_name: entry.bankName.trim(),
                   last_four_digits: entry.lastFourDigits.trim(),
                   statement_url: statementUrl,
@@ -1174,7 +1174,7 @@ export function ClientOnboardingApprovals() {
           const { data: currentClient } = await supabase
             .from('clients')
             .select('linked_bank_accounts')
-            .eq('id', targetClientId)
+            .eq('id', bankTargetClientId)
             .single();
 
           let existingAccounts: any[] = [];
@@ -1191,7 +1191,7 @@ export function ClientOnboardingApprovals() {
           await supabase
             .from('clients')
             .update({ linked_bank_accounts: mergedAccounts as any })
-            .eq('id', targetClientId);
+            .eq('id', bankTargetClientId);
         }
       }
 
@@ -1202,7 +1202,7 @@ export function ClientOnboardingApprovals() {
         
         if (hasIncomeData) {
           // Determine client ID
-          let incomeClientId = existingClientId;
+          let incomeClientId = targetClientId || existingClientId;
           if (!incomeClientId) {
             const { data: clientRec } = await supabase
               .from('clients')
@@ -1256,7 +1256,7 @@ export function ClientOnboardingApprovals() {
         }
 
         if (docTasks.length > 0) {
-          let docClientId = existingClientId;
+          let docClientId = targetClientId || existingClientId;
           if (!docClientId) {
             const { data: cr } = await supabase
               .from('clients')

@@ -961,8 +961,16 @@ export function ClientOnboardingApprovals() {
       const approval = approvals?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');
 
-      if (mode === 'merge' && existingClientId) {
-        // Merge: update existing client with buyer role
+      // Authoritative buyer identity from Terminal approval. If this exists, the
+      // approval MUST update that exact pending client stub. Do not fall back to
+      // phone/name matching or stale saved draft mode; those paths caused recurring
+      // duplicate-client and "phone already assigned" loops across different buyers.
+      const authoritativeClientId = approval.resolved_client_id || existingClientId || undefined;
+      let targetClientId: string | undefined = authoritativeClientId;
+
+      if (authoritativeClientId) {
+        // Merge/update the exact resolved client. This includes terminal-created
+        // pending buyer stubs and manual link-to-existing approvals.
         const { error: updateClientError } = await supabase
           .from('clients')
           .update({
@@ -977,7 +985,7 @@ export function ClientOnboardingApprovals() {
             state: clientData.client_state || approval.client_state || undefined,
             phone: clientData.client_phone || approval.client_phone || undefined,
           })
-          .eq('id', existingClientId);
+          .eq('id', authoritativeClientId);
 
         if (updateClientError) throw updateClientError;
       } else {
@@ -995,6 +1003,7 @@ export function ClientOnboardingApprovals() {
 
         if (existingByContact) {
           // Update existing client found by phone/email
+          targetClientId = existingByContact.id;
           const { error: updateClientError } = await supabase
             .from('clients')
             .update({
@@ -1018,7 +1027,7 @@ export function ClientOnboardingApprovals() {
             ? approval.client_name // Name will be unique because it's a different person
             : approval.client_name;
           
-          const { error: clientError } = await supabase
+          const { data: createdClient, error: clientError } = await supabase
             .from('clients')
             .insert({
               name: clientName,
@@ -1042,7 +1051,9 @@ export function ClientOnboardingApprovals() {
               aadhar_front_url: approval.aadhar_front_url,
               aadhar_back_url: approval.aadhar_back_url,
               state: clientData.client_state || approval.client_state || null
-            });
+            })
+            .select('id')
+            .single();
 
           if (clientError) {
             // If still hits unique constraint, provide clear message
@@ -1051,6 +1062,8 @@ export function ClientOnboardingApprovals() {
             }
             throw clientError;
           }
+
+          targetClientId = createdClient?.id;
         }
       }
 
@@ -1068,7 +1081,8 @@ export function ClientOnboardingApprovals() {
           risk_assessment: clientData.risk_assessment || null,
           compliance_notes: clientData.compliance_notes || null,
           client_phone: clientData.client_phone || approval.client_phone || null,
-          client_state: clientData.client_state || approval.client_state || null
+          client_state: clientData.client_state || approval.client_state || null,
+          resolved_client_id: targetClientId || approval.resolved_client_id || null
         })
         .eq('id', id);
 
@@ -1077,28 +1091,36 @@ export function ClientOnboardingApprovals() {
         throw updateError;
       }
 
-      // Also approve all other pending records for the same client name
-      const { error: batchError } = await supabase
-        .from('client_onboarding_approvals')
-        .update({
-          approval_status: 'APPROVED',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: reviewerId,
-          compliance_notes: 'Auto-approved with primary record'
-        })
-        .eq('approval_status', 'PENDING')
-        .ilike('client_name', approval.client_name.trim())
-        .neq('id', id);
+      // Also approve true sibling rows only by immutable identity/order linkage.
+      // Never batch by client name: Binance KYC names are not globally unique.
+      const siblingFilters: string[] = [];
+      if (approval.sales_order_id) siblingFilters.push(`sales_order_id.eq.${approval.sales_order_id}`);
+      if (approval.cp_userno) siblingFilters.push(`cp_userno.eq.${approval.cp_userno}`);
+      if (targetClientId) siblingFilters.push(`resolved_client_id.eq.${targetClientId}`);
 
-      if (batchError) {
-        console.error('Failed to batch-approve sibling records:', batchError);
+      if (siblingFilters.length > 0) {
+        const { error: batchError } = await supabase
+          .from('client_onboarding_approvals')
+          .update({
+            approval_status: 'APPROVED',
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: reviewerId,
+            compliance_notes: 'Auto-approved with primary identity-linked record'
+          })
+          .eq('approval_status', 'PENDING')
+          .or(siblingFilters.join(','))
+          .neq('id', id);
+
+        if (batchError) {
+          console.error('Failed to batch-approve identity-linked sibling records:', batchError);
+        }
       }
 
       // Save bank details
       if (entries && entries.length > 0) {
         // Determine the client ID to link bank details to
-        let targetClientId = existingClientId;
-        if (!targetClientId) {
+        let bankTargetClientId = targetClientId;
+        if (!bankTargetClientId) {
           // Look up the client we just created/updated
           const { data: clientRecord } = await supabase
             .from('clients')
@@ -1106,10 +1128,10 @@ export function ClientOnboardingApprovals() {
             .eq('is_deleted', false)
             .ilike('name', approval.client_name.trim())
             .maybeSingle();
-          targetClientId = clientRecord?.id;
+          bankTargetClientId = clientRecord?.id;
         }
 
-        if (targetClientId) {
+        if (bankTargetClientId) {
           // Statement files were already uploaded in the background as soon as the
           // reviewer attached them — just resolve those results (or upload inline
           // as a fallback) and insert the bank detail records.

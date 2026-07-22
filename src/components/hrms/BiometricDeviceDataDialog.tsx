@@ -132,12 +132,18 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     if (!serial || !linkPin || !linkEmployeeId) return;
     setLinking(true);
     const parkedBefore = quarantineQ.data?.get(String(linkPin)) ?? 0;
-    const { error } = await (supabase as any)
+    const { data: updatedRows, error } = await (supabase as any)
       .from("hr_biometric_device_users")
       .update({ matched_employee_id: linkEmployeeId })
       .eq("device_serial", serial)
-      .eq("pin", linkPin);
-    if (error) { setLinking(false); toast.error(error.message); return; }
+      .eq("pin", linkPin)
+      .select("id, matched_employee_id");
+    if (error) { setLinking(false); toast.error(`Could not link PIN ${linkPin}: ${error.message}`); return; }
+    if (!updatedRows?.length) {
+      setLinking(false);
+      toast.error(`PIN ${linkPin} was not linked. Check HR mapping permission and refresh the device roster.`);
+      return;
+    }
     const { data: postRows } = await (supabase as any)
       .from("hr_attendance_quarantine")
       .select("id")

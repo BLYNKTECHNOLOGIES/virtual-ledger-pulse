@@ -244,6 +244,7 @@ export const createBuyerClient = async (
       p_order_date: new Date().toISOString().split('T')[0],
       p_sales_order_id: null,
       p_nickname: cleanNickname,
+      p_cp_userno: cpUserNo,
     });
     if (error) {
       console.error('Error creating buyer client (RPC):', error);

@@ -21466,6 +21466,10 @@ export type Database = {
           scope: string
         }[]
       }
+      hr_autolink_biometric_users_by_badge: {
+        Args: { p_device_serial?: string }
+        Returns: Json
+      }
       hr_compute_fnf_breakdown: {
         Args: {
           p_employee_id: string

@@ -787,6 +787,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               sales_order_id: salesOrder.id,
               client_name: clientRecord.name || displayName,
               client_phone: (clientRecord.phone && !await isPhoneBlocked(clientRecord.phone)) ? clientRecord.phone : ((contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null),
+              resolved_client_id: linkedClientId,
+              cp_userno: lockedUserNo || null,
+              binance_nickname: sanitizeNickname(od.counterparty_nickname_unmasked || od.counterparty_nickname) || null,
               // Pass state only if operator manually entered it in the dialog.
               // If left blank (null), Buyer Approval officer will enter it during review.
               client_state: clientState || null,

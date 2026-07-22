@@ -142,8 +142,8 @@ export const createSellerClient = async (
   evidence?: { binanceNickname?: string | null; verifiedName?: string | null; cpUserNo?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
-    const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
-    const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+    const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence?.binanceNickname?.trim() || null;
+    const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence?.verifiedName?.trim() || null;
     const cpUserNo = String(evidence?.cpUserNo || '').trim() || null;
 
     const markSeller = async (c: { id: string; client_id: string; is_seller?: boolean; seller_approval_status?: string | null }) => {
@@ -212,8 +212,8 @@ export const createBuyerClient = async (
   evidence?: { binanceNickname?: string | null; verifiedName?: string | null; cpUserNo?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
-    const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
-    const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+    const cleanNickname = isMaskedNick(evidence?.binanceNickname) ? null : evidence?.binanceNickname?.trim() || null;
+    const cleanVerifiedName = isMaskedNick(evidence?.verifiedName) ? null : evidence?.verifiedName?.trim() || null;
     const cpUserNo = String(evidence?.cpUserNo || '').trim() || null;
 
     // Client resolution is STRICTLY by Binance userNo — the stable, unique

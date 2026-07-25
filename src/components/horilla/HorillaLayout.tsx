@@ -3,6 +3,8 @@ import { Outlet } from "react-router-dom";
 import { HorillaSidebar } from "./HorillaSidebar";
 import { HorillaHeader } from "./HorillaHeader";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { RazorpayPushFeedbackProvider } from "@/components/hrms/RazorpayPushFeedbackProvider";
+
 
 export function HorillaLayout() {
   const isMobile = useIsMobile();

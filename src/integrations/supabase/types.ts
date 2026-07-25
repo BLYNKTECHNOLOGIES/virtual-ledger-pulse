@@ -4559,6 +4559,39 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_absent_marker_runs: {
+        Row: {
+          id: string
+          marked_count: number
+          notes: string | null
+          ran_at: string
+          skipped_holiday: boolean
+          skipped_leave: number
+          skipped_weekly_off: number
+          window_date: string
+        }
+        Insert: {
+          id?: string
+          marked_count?: number
+          notes?: string | null
+          ran_at?: string
+          skipped_holiday?: boolean
+          skipped_leave?: number
+          skipped_weekly_off?: number
+          window_date: string
+        }
+        Update: {
+          id?: string
+          marked_count?: number
+          notes?: string | null
+          ran_at?: string
+          skipped_holiday?: boolean
+          skipped_leave?: number
+          skipped_weekly_off?: number
+          window_date?: string
+        }
+        Relationships: []
+      }
       hr_attendance_daily: {
         Row: {
           attendance_date: string
@@ -5074,6 +5107,86 @@ export type Database = {
             columns: ["out_punch_id"]
             isOneToOne: false
             referencedRelation: "hr_attendance_punches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_attendance_stale_sessions: {
+        Row: {
+          attendance_date: string
+          created_at: string
+          employee_id: string
+          first_seen_at: string
+          hours_open: number
+          id: string
+          in_time: string
+          last_seen_at: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          session_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          created_at?: string
+          employee_id: string
+          first_seen_at?: string
+          hours_open: number
+          id?: string
+          in_time: string
+          last_seen_at?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          session_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          created_at?: string
+          employee_id?: string
+          first_seen_at?: string
+          hours_open?: number
+          id?: string
+          in_time?: string
+          last_seen_at?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          session_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_stale_sessions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_stale_sessions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_stale_sessions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_stale_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "hr_attendance_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -21422,6 +21535,10 @@ export type Database = {
           scope: string
         }[]
       }
+      hr_attendance_day_detail: {
+        Args: { p_date: string; p_employee_id: string }
+        Returns: Json
+      }
       hr_autolink_biometric_users_by_badge: {
         Args: { p_device_serial?: string }
         Returns: Json
@@ -21521,6 +21638,15 @@ export type Database = {
         Args: { _device_serial: string; _pin: string; _punch_time?: string }
         Returns: string
       }
+      hr_resolve_stale_session: {
+        Args: {
+          p_note?: string
+          p_out_time?: string
+          p_resolution: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       hr_schedule_security_deposit: {
         Args: { p_employee_id: string }
         Returns: {
@@ -21561,6 +21687,14 @@ export type Database = {
         }[]
       }
       hr_v4_window_date_of: { Args: { p_ts: string }; Returns: string }
+      hr_watchdog_open_sessions: {
+        Args: never
+        Returns: {
+          closed: number
+          opened: number
+          refreshed: number
+        }[]
+      }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:
         | {

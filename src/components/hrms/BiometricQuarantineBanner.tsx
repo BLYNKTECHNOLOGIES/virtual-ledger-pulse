@@ -60,8 +60,9 @@ export function BiometricQuarantineBanner() {
         </div>
         <div className="text-xs text-muted-foreground mt-1">
           Real punches are landing in quarantine because the device PIN isn't mapped to an employee.
-          Map these PINs and existing punches will replay automatically.
+          Map these PINs and existing punches will replay automatically. Only PINs still enrolled on an eSSL device are listed — deleted / ex-employee PINs are hidden.
         </div>
+
         <div className="text-xs mt-1 tabular-nums text-muted-foreground">
           PINs:&nbsp;
           {data.byPin.map(([pin, n]) => (

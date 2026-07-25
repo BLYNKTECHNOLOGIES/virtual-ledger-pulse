@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-25: RazorpayX one-time payout gate repair — Step G payroll envelope now auto-verifies with E/F so bonus additions can retry; stale gate-lock errors show as retryable, not Razorpay rejection.
 - 2026-07-25: RazorpayX salary read-back extractor fixed — verifier now consumes the proxy's live `annual_ctc` read-back, so Shubham Singh's ₹9,12,000 CTC can verify instead of showing blank.
 - 2026-07-25: RazorpayX salary push finalization tightened — accepted/read-back-pending no longer counts as done; CTC revisions are complete only after live RazorpayX read-back verifies the expected CTC.
 - 2026-07-25: RazorpayX salary push status split clarified — when people:set-salary accepts the exact HRMS CTC but Opfin cannot echo current CTC until payroll execution, HRMS now records "accepted/read-back pending" instead of false failure/not-synced.

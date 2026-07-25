@@ -3304,7 +3304,8 @@ Deno.serve(async (req) => {
       return json(200, { ok: true });
     }
 
-    // Auto-verify Step E (salary) + Step F (attendance) envelopes using the
+    // Auto-verify Step E (salary), Step F (attendance), and Step G (payroll)
+    // envelopes using the
     // Postman-verified constants. HR-facing simplification: they should never
     // have to type an API name. Gated on credentials being validated first so
     // we don't stamp against an unreachable tenant.
@@ -3315,6 +3316,7 @@ Deno.serve(async (req) => {
       }
       const SALARY_KEY = "people:set-salary";
       const ATTENDANCE_KEY = "attendance:modify";
+      const PAYROLL_KEY = "payroll:run";
       const nowIso = new Date().toISOString();
       const patch: any = {};
       const verified: string[] = [];
@@ -3347,6 +3349,18 @@ Deno.serve(async (req) => {
         verified.push("attendance");
       }
 
+      if (!s.push_payroll_endpoint_verified || s.push_payroll_envelope_key !== PAYROLL_KEY) {
+        patch.push_payroll_endpoint_verified = true;
+        patch.push_payroll_envelope_key = PAYROLL_KEY;
+        patch.push_payroll_envelope_verified_at = nowIso;
+        patch.push_payroll_envelope_verified_by = authed.userId;
+        if (s.push_payroll_envelope_key && s.push_payroll_envelope_key !== PAYROLL_KEY) {
+          patch.push_payroll_pilot_unlocked = false;
+          patch.push_payroll_bulk_unlocked = false;
+        }
+        verified.push("payroll");
+      }
+
       if (Object.keys(patch).length > 0) {
         const { error } = await svc.from("hr_razorpay_settings").update(patch).eq("is_singleton", true);
         if (error) return json(500, { error: error.message });
@@ -3356,6 +3370,7 @@ Deno.serve(async (req) => {
         verified,
         salary_envelope_key: SALARY_KEY,
         attendance_envelope_key: ATTENDANCE_KEY,
+        payroll_envelope_key: PAYROLL_KEY,
       });
     }
 

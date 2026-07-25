@@ -10,7 +10,7 @@ import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -55,9 +55,10 @@ export default function SalaryRevisionsPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_razorpay_settings")
-        .select("push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at, push_payroll_endpoint_verified")
+        .select("last_creds_validated_at, push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at, push_payroll_endpoint_verified")
         .maybeSingle();
       return data as {
+        last_creds_validated_at?: string | null;
         push_salary_endpoint_verified?: boolean;
         push_salary_envelope_key?: string | null;
         push_salary_envelope_verified_at?: string | null;
@@ -120,6 +121,23 @@ export default function SalaryRevisionsPage() {
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
   const payrollGateVerified = !!envelope?.push_payroll_endpoint_verified;
+
+  useEffect(() => {
+    if (!canManage || !envelope?.last_creds_validated_at || payrollGateVerified) return;
+    let cancelled = false;
+    (async () => {
+      const { error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "auto_verify_step_envelopes" },
+      });
+      if (!cancelled && !error) {
+        await qc.invalidateQueries({ queryKey: ["hr_razorpay_settings_envelope"] });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [canManage, envelope?.last_creds_validated_at, payrollGateVerified, qc]);
+
+  const isPayrollGateError = (message: unknown) =>
+    typeof message === "string" && /payroll-write gate|push_payroll_endpoint_verified=false/i.test(message);
 
 
   function getRazorpayCtcPushState(
@@ -285,13 +303,20 @@ export default function SalaryRevisionsPage() {
 
             let syncBadge: React.ReactNode = null;
             if (isOneTime) {
+              const gateOnlyError = isPayrollGateError(r.razorpay_push_error);
               // One-time payouts are staged on the target RazorpayX payroll month.
               // They are only fully "paid" once that month's payroll run is executed
               // there — we show the queued / rejected / not-sent state honestly.
-              if (r.razorpay_push_error) {
+              if (gateOnlyError && payrollGateVerified) {
+                syncBadge = (
+                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Ready to retry
+                  </Badge>
+                );
+              } else if (r.razorpay_push_error) {
                 syncBadge = (
                   <Badge variant="outline" className="text-destructive border-destructive/40 gap-1">
-                    <XCircle className="h-3 w-3" /> RazorpayX rejected
+                    <XCircle className="h-3 w-3" /> {gateOnlyError ? "Payroll gate locked" : "RazorpayX rejected"}
                   </Badge>
                 );
               } else if (r.razorpay_pushed_at) {
@@ -361,8 +386,11 @@ export default function SalaryRevisionsPage() {
                         </p>
                       )}
                       {isOneTime && r.razorpay_push_error && (
-                        <p className="text-[11px] text-destructive mt-0.5 truncate max-w-md" title={r.razorpay_push_error}>
-                          RazorpayX rejected: {r.razorpay_push_error}
+                        <p className={cn(
+                          "text-[11px] mt-0.5 truncate max-w-md",
+                          isPayrollGateError(r.razorpay_push_error) && payrollGateVerified ? "text-amber-700" : "text-destructive"
+                        )} title={r.razorpay_push_error}>
+                          {isPayrollGateError(r.razorpay_push_error) && payrollGateVerified ? "Ready to retry" : "RazorpayX rejected"}: {r.razorpay_push_error}
                         </p>
                       )}
 

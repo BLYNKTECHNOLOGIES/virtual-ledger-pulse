@@ -40,6 +40,9 @@ interface Settings {
   push_attendance_pilot_period?: string | null;
   bulk_attendance_push_unlocked?: boolean;
   last_attendance_push_at?: string | null;
+  push_payroll_endpoint_verified?: boolean;
+  push_payroll_envelope_key?: string | null;
+  push_payroll_envelope_verified_at?: string | null;
   probe_pilot_employee_id?: string | null;
   probe_pilot_contractor_id?: string | null;
 }
@@ -276,7 +279,7 @@ export default function RazorpaySyncPage() {
   const reloadSettings = async () => {
     const { data } = await supabase
       .from("hr_razorpay_settings")
-      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at,probe_pilot_employee_id,probe_pilot_contractor_id")
+      .select("base_url,bulk_sync_unlocked,last_creds_validated_at,last_import_at,push_pilot_verified_at,push_pilot_hr_employee_id,bulk_push_unlocked,last_push_at,push_bank_pilot_verified_at,bulk_bank_push_unlocked,last_bank_push_at,push_salary_endpoint_verified,push_salary_envelope_key,push_salary_envelope_verified_at,push_salary_pilot_verified_at,bulk_salary_push_unlocked,last_salary_push_at,push_attendance_endpoint_verified,push_attendance_envelope_key,push_attendance_envelope_verified_at,push_attendance_pilot_verified_at,push_attendance_pilot_period,bulk_attendance_push_unlocked,last_attendance_push_at,push_payroll_endpoint_verified,push_payroll_envelope_key,push_payroll_envelope_verified_at,probe_pilot_employee_id,probe_pilot_contractor_id")
       .maybeSingle();
     const s = data as Settings | null;
     setSettings(s);
@@ -287,7 +290,8 @@ export default function RazorpaySyncPage() {
 
   useEffect(() => { if (canAccess) { reloadSettings(); reloadGaps(); } }, [canAccess]);
 
-  // Auto-verify Step E (salary) + Step F (attendance) API names once creds are
+  // Auto-verify Step E (salary), Step F (attendance), and Step G (payroll)
+  // API names once creds are
   // validated. HR should never need to type an envelope key — the correct
   // values are Postman-verified constants baked into the proxy.
   useEffect(() => {
@@ -295,7 +299,8 @@ export default function RazorpaySyncPage() {
     if (!settings.last_creds_validated_at) return;
     const needsSalary = !settings.push_salary_endpoint_verified;
     const needsAttendance = !settings.push_attendance_endpoint_verified;
-    if (!needsSalary && !needsAttendance) return;
+    const needsPayroll = !settings.push_payroll_endpoint_verified;
+    if (!needsSalary && !needsAttendance && !needsPayroll) return;
     (async () => {
       try {
         await invoke({ action: "auto_verify_step_envelopes" });
@@ -305,7 +310,7 @@ export default function RazorpaySyncPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canAccess, settings?.last_creds_validated_at, settings?.push_salary_endpoint_verified, settings?.push_attendance_endpoint_verified]);
+  }, [canAccess, settings?.last_creds_validated_at, settings?.push_salary_endpoint_verified, settings?.push_attendance_endpoint_verified, settings?.push_payroll_endpoint_verified]);
 
   const reloadGaps = async () => {
     const { data, error } = await supabase.from("v_razorpay_import_gaps").select("*");

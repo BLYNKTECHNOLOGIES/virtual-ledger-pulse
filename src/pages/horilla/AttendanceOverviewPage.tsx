@@ -223,12 +223,13 @@ export default function AttendanceOverviewPage() {
       <BiometricQuarantineBanner />
 
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 stagger-children">
         {[
           { label: "Total", value: stats.total, icon: Clock, color: "text-info", bg: "bg-info/10" },
           { label: "Present", value: stats.present, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-          { label: "Absent", value: stats.absent, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
           { label: "Late", value: stats.late, icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Absent", value: stats.absent, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Not Punched", value: stats.not_punched, icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
         ].map((s) => (
           <Card key={s.label} className="h-full transition-shadow hover:shadow-md">
             <CardContent className="p-4 flex items-center gap-3">

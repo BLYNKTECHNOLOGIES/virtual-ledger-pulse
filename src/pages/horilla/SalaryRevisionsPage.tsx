@@ -108,7 +108,7 @@ export default function SalaryRevisionsPage() {
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
 
-  function getRazorpayCtcPushState(pushInfo: any, expectedTotal: number): "verified" | "accepted" | "failed" | "none" {
+  function getRazorpayCtcPushState(pushInfo: any, expectedTotal: number): "verified" | "failed" | "none" {
     if (!pushInfo) return "none";
     if (pushInfo.status === "failure") return "failed";
     if (pushInfo.status !== "success") return "none";
@@ -116,10 +116,6 @@ export default function SalaryRevisionsPage() {
     const verify = snapshot.verify || snapshot;
     if (!Array.isArray(verify?.fields)) return "none";
     const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
-    const expected = Number(ctcField?.expected);
-    if (verify?.overall === "accepted" && ctcField?.accepted === true && Number.isFinite(expected) && Math.abs(expected - expectedTotal) <= 1) {
-      return "accepted";
-    }
     if (verify?.overall === "verified") {
       const actual = Number(ctcField?.actual);
       if (ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1) return "verified";
@@ -135,9 +131,7 @@ export default function SalaryRevisionsPage() {
         silent: true,
         expectedTotal,
       });
-      if (res.ok && res.readbackPending) {
-        toast.warning("RazorpayX accepted the CTC; read-back is pending until RazorpayX exposes it after payroll.");
-      } else if (res.ok && typeof res.verifiedTotal === "number" && Math.abs(res.verifiedTotal - expectedTotal) <= 1) {
+      if (res.ok && typeof res.verifiedTotal === "number" && Math.abs(res.verifiedTotal - expectedTotal) <= 1) {
         toast.success(`Verified in RazorpayX: ₹${res.verifiedTotal.toLocaleString("en-IN")}`);
       } else if (res.skipped) {
         toast.warning("Employee is not linked to RazorpayX — link them from Data Health first.");
@@ -223,20 +217,13 @@ export default function SalaryRevisionsPage() {
             const pushInfo = pushByEmployee[r.employee_id];
             const expectedTotal = Number(r.new_total || 0);
             const pushState = pushInfo && pushInfo.created_at >= r.created_at ? getRazorpayCtcPushState(pushInfo, expectedTotal) : "none";
-            const pushSyncedAfterRevision = pushState === "verified" || pushState === "accepted";
-            const pushAcceptedAfterRevision = pushState === "accepted";
+            const pushSyncedAfterRevision = pushState === "verified";
             const pushFailedAfterRevision = pushState === "failed";
             const pushing = pushingIds.has(r.id);
 
             let syncBadge: React.ReactNode = null;
             if (isApplied) {
-              if (pushAcceptedAfterRevision) {
-                syncBadge = (
-                  <Badge variant="outline" className="text-sky-700 border-sky-500/40 gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> Accepted · read-back pending
-                  </Badge>
-                );
-              } else if (pushSyncedAfterRevision) {
+              if (pushSyncedAfterRevision) {
                 syncBadge = (
                   <Badge variant="outline" className="text-emerald-700 border-emerald-500/40 gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Synced to RazorpayX

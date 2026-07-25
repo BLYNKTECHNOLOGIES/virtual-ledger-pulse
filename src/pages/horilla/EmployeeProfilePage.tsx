@@ -1369,3 +1369,24 @@ export default function EmployeeProfilePage() {
     </div>
   );
 }
+
+function AttendanceRowBadge({ status }: { status?: string | null }) {
+  const s = (status || "").toLowerCase();
+  const label =
+    s === "present" ? "Present" :
+    s === "absent" ? "Absent" :
+    s === "late" ? "Late" :
+    s === "half_day" ? "Half Day" :
+    s === "incomplete" ? "Incomplete" :
+    s === "no_data" || s === "" ? "Not Punched" :
+    status || "—";
+  const cls =
+    s === "present" ? "bg-success/10 text-success border-success/20" :
+    s === "absent" ? "bg-destructive/10 text-destructive border-destructive/20" :
+    s === "late" ? "bg-warning/10 text-warning border-warning/20" :
+    s === "half_day" ? "bg-warning/10 text-warning border-warning/20" :
+    s === "incomplete" ? "bg-info/10 text-info border-info/20" :
+    "bg-muted text-muted-foreground border-border";
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${cls}`}>{label}</span>;
+}
+

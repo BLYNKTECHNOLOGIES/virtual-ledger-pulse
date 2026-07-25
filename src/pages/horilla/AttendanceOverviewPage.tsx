@@ -36,34 +36,35 @@ export default function AttendanceOverviewPage() {
     notes: "",
   });
 
+  const { data: employees = [] } = useQuery({
+    queryKey: ["hr_employees_active"],
+    queryFn: async () => {
+      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").eq("is_active", true));
+      return data || [];
+    },
+  });
+
   const { data: attendance = [], isLoading, error: queryError } = useQuery({
-    queryKey: ["hr_attendance_unified", dateFilter, statusFilter],
+    queryKey: ["hr_attendance_unified", dateFilter, statusFilter, employees.length],
+    enabled: employees.length > 0,
     queryFn: async () => {
       const nextDate = format(
         new Date(new Date(`${dateFilter}T00:00:00`).getTime() + 24 * 60 * 60 * 1000),
         "yyyy-MM-dd"
       );
 
-      // v4 engine truth source: hr_attendance_daily (one row per employee per day,
-      // including "no_data" / "incomplete" rows for employees whose punches were
-      // suppressed by the engine — those must still surface on the overview).
-      const dailySelect = "*, hr_employees!hr_attendance_daily_employee_id_fkey(id, badge_id, first_name, last_name, is_active)";
-      // Legacy path: manually marked rows still land in hr_attendance.
-      const legacySelect = "*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name, is_active)";
-
       const [dailyRes, legacyByDateRes, legacyByCheckInRes] = await Promise.all([
         (supabase as any)
           .from("hr_attendance_daily")
-          .select(dailySelect)
-          .eq("attendance_date", dateFilter)
-          .order("first_in", { ascending: true, nullsFirst: false }),
-        (supabase as any)
-          .from("hr_attendance")
-          .select(legacySelect)
+          .select("*")
           .eq("attendance_date", dateFilter),
         (supabase as any)
           .from("hr_attendance")
-          .select(legacySelect)
+          .select("*")
+          .eq("attendance_date", dateFilter),
+        (supabase as any)
+          .from("hr_attendance")
+          .select("*")
           .gte("check_in", `${dateFilter}T00:00:00`)
           .lt("check_in", `${nextDate}T00:00:00`),
       ]);
@@ -72,15 +73,32 @@ export default function AttendanceOverviewPage() {
       if (legacyByDateRes.error) throw legacyByDateRes.error;
       if (legacyByCheckInRes.error) throw legacyByCheckInRes.error;
 
-      // Normalize both shapes into a single row model keyed by employee_id.
+      // Seed with EVERY active employee so no one falls off the overview.
       const byEmployee = new Map<string, any>();
+      for (const emp of employees) {
+        byEmployee.set(emp.id, {
+          id: `no-data-${emp.id}`,
+          employee_id: emp.id,
+          hr_employees: emp,
+          check_in: null,
+          check_out: null,
+          attendance_status: "no_data",
+          late_minutes: null,
+          early_leave_minutes: null,
+          work_type: null,
+          notes: null,
+          _source: "seed",
+        });
+      }
 
       for (const r of ((dailyRes.data as any[]) || [])) {
         if (!r.employee_id) continue;
+        const emp = byEmployee.get(r.employee_id)?.hr_employees;
+        if (!emp) continue;
         byEmployee.set(r.employee_id, {
           id: r.id,
           employee_id: r.employee_id,
-          hr_employees: r.hr_employees,
+          hr_employees: emp,
           check_in: r.first_in,
           check_out: r.last_out,
           attendance_status: r.status || "no_data",
@@ -101,13 +119,13 @@ export default function AttendanceOverviewPage() {
       for (const r of legacyDedup) {
         if (!r.employee_id) continue;
         const existing = byEmployee.get(r.employee_id);
-        // Prefer legacy manual entry only when the daily row has no check-in yet
-        // (manual override), otherwise keep the daily-engine truth.
-        if (!existing || (!existing.check_in && r.check_in)) {
+        const emp = existing?.hr_employees;
+        if (!emp) continue;
+        if (existing._source === "seed" || (!existing.check_in && r.check_in)) {
           byEmployee.set(r.employee_id, {
             id: r.id,
             employee_id: r.employee_id,
-            hr_employees: r.hr_employees,
+            hr_employees: emp,
             check_in: r.check_in,
             check_out: r.check_out,
             attendance_status: r.attendance_status,
@@ -129,20 +147,16 @@ export default function AttendanceOverviewPage() {
       rows.sort((a: any, b: any) => {
         const ai = a.check_in ? new Date(a.check_in).getTime() : Infinity;
         const bi = b.check_in ? new Date(b.check_in).getTime() : Infinity;
-        return ai - bi;
+        if (ai !== bi) return ai - bi;
+        const an = `${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""}`.toLowerCase();
+        const bn = `${b.hr_employees?.first_name || ""} ${b.hr_employees?.last_name || ""}`.toLowerCase();
+        return an.localeCompare(bn);
       });
 
       return rows;
     },
   });
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ["hr_employees_active"],
-    queryFn: async () => {
-      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true));
-      return data || [];
-    },
-  });
 
   const addMutation = useMutation({
     mutationFn: async () => {

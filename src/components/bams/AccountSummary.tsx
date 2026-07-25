@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -108,6 +110,7 @@ export function AccountSummary() {
   const [transactionPage, setTransactionPage] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("allTime");
+  const [showReversed, setShowReversed] = useState(false);
   const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
   const [subLedgerAccount, setSubLedgerAccount] = useState<{ id: string; name: string } | null>(null);
@@ -703,6 +706,16 @@ export function AccountSummary() {
                       <SelectItem value="DEBIT">Debit</SelectItem>
                     </SelectContent>
                   </Select>
+                  <div className="flex items-center gap-2 pl-2 border-l">
+                    <Switch
+                      id="show-reversed-toggle"
+                      checked={showReversed}
+                      onCheckedChange={setShowReversed}
+                    />
+                    <Label htmlFor="show-reversed-toggle" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                      Show reversed entries
+                    </Label>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -729,16 +742,45 @@ export function AccountSummary() {
                         </tr>
                       </thead>
                       <tbody>
-                        {transactionsData?.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                              No transactions found for the selected filter.
-                            </td>
-                          </tr>
-                        ) : (
-                          transactionsData?.map((transaction) => {
-                            const isReversalNoise = transaction.is_reversed || transaction.reverses_transaction_id;
+                        {(() => {
+                          const rows = transactionsData || [];
+                          // Refs from reversal-noise rows so active rows can show an "Edited" chip
+                          // even when the noise is hidden by default.
+                          const editedRefs = new Set<string>(
+                            rows
+                              .filter((t: any) => (t.is_reversed || t.reverses_transaction_id) && t.reference_number)
+                              .map((t: any) => String(t.reference_number))
+                          );
+                          const visible = showReversed
+                            ? rows
+                            : rows.filter((t: any) => !(t.is_reversed || t.reverses_transaction_id));
+                          const hiddenCount = rows.length - visible.length;
+
+                          if (visible.length === 0) {
                             return (
+                              <tr>
+                                <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                                  {rows.length === 0
+                                    ? 'No transactions found for the selected filter.'
+                                    : `All ${hiddenCount} entries on this page are reversal-related. Toggle "Show reversed entries" to view them.`}
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return (
+                            <>
+                              {!showReversed && hiddenCount > 0 && (
+                                <tr className="bg-muted/20">
+                                  <td colSpan={8} className="px-3 py-2 text-xs text-muted-foreground italic">
+                                    {hiddenCount} reversal-related {hiddenCount === 1 ? 'entry is' : 'entries are'} hidden. Toggle "Show reversed entries" to view them.
+                                  </td>
+                                </tr>
+                              )}
+                              {visible.map((transaction: any) => {
+                                const isReversalNoise = transaction.is_reversed || transaction.reverses_transaction_id;
+                                const isEdited = !isReversalNoise && transaction.reference_number && editedRefs.has(String(transaction.reference_number));
+                                return (
                             <tr
                               key={transaction.id}
                               className={`border-b hover:bg-muted/30 transition-colors ${isReversalNoise ? 'opacity-60' : ''}`}
@@ -765,6 +807,15 @@ export function AccountSummary() {
                                   {transaction.is_reversed ? ' • REVERSED' : ''}
                                   {transaction.reverses_transaction_id ? ' • REVERSAL' : ''}
                                 </Badge>
+                                {isEdited && (
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-1.5 text-[10px] font-medium border-warning/40 text-warning bg-warning/10"
+                                    title="This entry has been edited — earlier revisions were reversed and are hidden by default"
+                                  >
+                                    Edited
+                                  </Badge>
+                                )}
                               </td>
                               <td className="p-3 text-right font-mono font-semibold">
                                 <span className={
@@ -791,9 +842,11 @@ export function AccountSummary() {
                                 {transaction.reference_number || '-'}
                               </td>
                             </tr>
-                            );
-                          })
-                        )}
+                                );
+                              })}
+                            </>
+                          );
+                        })()}
                       </tbody>
                     </table>
                   </div>

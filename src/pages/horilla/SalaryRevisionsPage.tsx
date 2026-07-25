@@ -61,6 +61,8 @@ export default function SalaryRevisionsPage() {
   });
 
   const filtered = revisions.filter((r: any) => {
+    // Exclude initial onboarding entries (no prior salary → not a revision)
+    if (Number(r.previous_total || 0) <= 0) return false;
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());

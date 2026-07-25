@@ -147,7 +147,36 @@ export default function AttendancePeriodLockPage() {
         }
       />
 
-      <Card>
+      {/* Mobile */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <TableSkeleton rows={3} columns={2} />
+        ) : locks.length === 0 ? (
+          <Card><CardContent className="p-0"><EmptyState icon={Lock} title="No locked periods yet" description="Lock a period before running payroll for it." /></CardContent></Card>
+        ) : locks.map((l: any) => (
+          <Card key={l.id}>
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5 text-success shrink-0" />
+                <span className="font-medium tabular-nums text-sm">{l.period_start} → {l.period_end}</span>
+              </div>
+              <div className="text-[11px] text-muted-foreground">Locked: {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}</div>
+              {l.notes && <div className="text-xs text-muted-foreground">{l.notes}</div>}
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setVerifyLock(l); setVerifyEmp(''); setVerifyResult(null); }}>
+                  <ShieldCheck className="h-4 w-4 mr-1" /> Verify
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => setUnlockId(l.id)}>
+                  <Unlock className="h-4 w-4 mr-1" /> Unlock
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           {isLoading ? (
             <TableSkeleton rows={4} />

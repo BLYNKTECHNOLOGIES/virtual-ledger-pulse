@@ -137,7 +137,38 @@ export default function AssetAssignmentsPage() {
         </Select>
       </div>
 
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <TableSkeleton rows={4} columns={2} />
+        ) : filtered.length === 0 ? (
+          <Card><CardContent className="p-0"><EmptyState icon={Laptop} title="No assignments found" description="Assign an asset to an employee to get started." action={<Button onClick={() => setShowAssign(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-10"><Plus className="h-4 w-4 mr-2" />Assign Asset</Button>} /></CardContent></Card>
+        ) : filtered.map((a: any) => (
+          <Card key={a.id}>
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{a.hr_assets?.name || "—"}</div>
+                  <div className="text-xs text-muted-foreground capitalize truncate">{a.hr_assets?.asset_type || "—"} · {a.hr_employees?.employee_name || "—"}</div>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border shrink-0 ${a.status === "active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-foreground border-border"}`}>{a.status}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+                <span>Assigned: {a.assigned_date}</span>
+                <span>Returned: {a.return_date || "—"}</span>
+              </div>
+              {a.status === "active" && (
+                <Button size="sm" variant="outline" className="w-full h-10" onClick={() => setShowReturn(a.id)}>
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">

@@ -1247,14 +1247,14 @@ export default function EmployeeProfilePage() {
                   <div key={att.id} className="hrms-mobile-card space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-foreground">{att.attendance_date}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{att.work_type || "None"}</p>
+                        <p className="font-semibold text-foreground">{fmtDate(att.attendance_date)}</p>
+                        <p className="text-xs text-muted-foreground">{prettyCase(att.work_type)}</p>
                       </div>
-                      <InlineStatusBadge value={att.attendance_status} />
+                      <AttendanceRowBadge status={att.attendance_status} />
                     </div>
                     <div className="hrms-mobile-kv">
-                      <span>Check In</span><span>{att.check_in || "—"}</span>
-                      <span>Check Out</span><span>{att.check_out || "—"}</span>
+                      <span>Check In</span><span>{fmtTime(att.check_in)}</span>
+                      <span>Check Out</span><span>{fmtTime(att.check_out)}</span>
                       <span>Late</span><span>{att.late_minutes ?? "—"}</span>
                       <span>OT</span><span>{att.overtime_hours ?? "—"}</span>
                     </div>
@@ -1277,19 +1277,11 @@ export default function EmployeeProfilePage() {
                   <tbody>
                     {(attendance || []).map(att => (
                       <tr key={att.id} className="border-b border-border/50">
-                        <td className="py-2.5 px-3 text-foreground">{att.attendance_date}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            att.attendance_status === "Present" ? "bg-success/10 text-success" :
-                            att.attendance_status === "Absent" ? "bg-destructive/10 text-destructive" :
-                            att.attendance_status === "Half Day" ? "bg-warning/10 text-warning" : "bg-muted text-foreground"
-                          }`}>
-                            {att.attendance_status || "None"}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{att.check_in || "—"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{att.check_out || "—"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{att.work_type || "None"}</td>
+                        <td className="py-2.5 px-3 text-foreground">{fmtDate(att.attendance_date)}</td>
+                        <td className="py-2.5 px-3"><AttendanceRowBadge status={att.attendance_status} /></td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{fmtTime(att.check_in)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{fmtTime(att.check_out)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(att.work_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{att.late_minutes ?? "—"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{att.overtime_hours ?? "—"}</td>
                       </tr>

@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-25: RazorpayX salary revision green-badge logic hardened — CTC sync now requires stored post-push read-back verification with matching Annual CTC; old HTTP-only success logs no longer count as synced.
 - 2026-07-22: Buyer approval root-cause hardening — approvals now update the exact `resolved_client_id` terminal stub, name-based sibling auto-approval removed, pending approval uniqueness guards added for sales_order/userNo/resolved client, and phone uniqueness now normalizes digits.
 - 2026-07-22: Buyer approval duplicate-stub loop repaired — terminal buyer creation now reuses pending stubs by Binance userNo/phone, persists userNo during creation, and the Dakoriya duplicate pending client rows were consolidated for approval retry.
 - 2026-07-22: Biometric eSSL linking repaired — HR/admin mapping policy restored, v4 attendance status validators aligned (`incomplete`/`no_data`), PIN→Badge auto-link triggers added, and existing matched PINs replayed parked punches into attendance.

@@ -164,7 +164,7 @@ async function verifyAndFinalize(args: {
         razorpay_employee_id: args.razorpayEmployeeId,
         kind: args.kind,
         action: `verify_${args.kind}`,
-        status: result.overall === "verified" ? "success" : result.overall === "partial" ? "success" : "failure",
+        status: result.overall === "verified" ? "success" : "failure",
         response_snapshot: { overall: result.overall, fields: result.fields, error: result.error ?? null },
         error_message: result.overall === "verified" ? null : (result.error || `Verification: ${result.overall}`),
         triggered_from: args.triggeredFrom,

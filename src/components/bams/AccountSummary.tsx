@@ -742,16 +742,45 @@ export function AccountSummary() {
                         </tr>
                       </thead>
                       <tbody>
-                        {transactionsData?.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                              No transactions found for the selected filter.
-                            </td>
-                          </tr>
-                        ) : (
-                          transactionsData?.map((transaction) => {
-                            const isReversalNoise = transaction.is_reversed || transaction.reverses_transaction_id;
+                        {(() => {
+                          const rows = transactionsData || [];
+                          // Refs from reversal-noise rows so active rows can show an "Edited" chip
+                          // even when the noise is hidden by default.
+                          const editedRefs = new Set<string>(
+                            rows
+                              .filter((t: any) => (t.is_reversed || t.reverses_transaction_id) && t.reference_number)
+                              .map((t: any) => String(t.reference_number))
+                          );
+                          const visible = showReversed
+                            ? rows
+                            : rows.filter((t: any) => !(t.is_reversed || t.reverses_transaction_id));
+                          const hiddenCount = rows.length - visible.length;
+
+                          if (visible.length === 0) {
                             return (
+                              <tr>
+                                <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                                  {rows.length === 0
+                                    ? 'No transactions found for the selected filter.'
+                                    : `All ${hiddenCount} entries on this page are reversal-related. Toggle "Show reversed entries" to view them.`}
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return (
+                            <>
+                              {!showReversed && hiddenCount > 0 && (
+                                <tr className="bg-muted/20">
+                                  <td colSpan={8} className="px-3 py-2 text-xs text-muted-foreground italic">
+                                    {hiddenCount} reversal-related {hiddenCount === 1 ? 'entry is' : 'entries are'} hidden. Toggle "Show reversed entries" to view them.
+                                  </td>
+                                </tr>
+                              )}
+                              {visible.map((transaction: any) => {
+                                const isReversalNoise = transaction.is_reversed || transaction.reverses_transaction_id;
+                                const isEdited = !isReversalNoise && transaction.reference_number && editedRefs.has(String(transaction.reference_number));
+                                return (
                             <tr
                               key={transaction.id}
                               className={`border-b hover:bg-muted/30 transition-colors ${isReversalNoise ? 'opacity-60' : ''}`}

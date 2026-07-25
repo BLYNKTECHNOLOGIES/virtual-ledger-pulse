@@ -104,7 +104,25 @@ export default function AssetDashboardPage() {
       <Card>
         <CardHeader><CardTitle className="text-sm font-semibold">Recent Assignments</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
+          {/* Mobile */}
+          <div className="md:hidden divide-y">
+            {recentAssignments.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">No assignments yet</div>
+            ) : recentAssignments.map((a: any) => (
+              <div key={a.id} className="px-4 py-3 space-y-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{a.hr_assets?.name || "—"}</div>
+                    <div className="text-xs text-muted-foreground truncate">{a.hr_employees?.employee_name || "—"}</div>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border shrink-0 ${a.status === "active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-foreground border-border"}`}>{a.status}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground tabular-nums">{a.assigned_date}</div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop */}
+          <table className="hidden md:table w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Asset", "Employee", "Date", "Status"].map((h) => (

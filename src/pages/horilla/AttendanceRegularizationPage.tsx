@@ -102,7 +102,50 @@ export default function AttendanceRegularizationPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Mobile */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <TableSkeleton rows={4} columns={2} />
+        ) : filtered.length === 0 ? (
+          <Card><CardContent className="p-0"><EmptyState icon={Hourglass} title="No requests" description="Nothing matches the current filter." /></CardContent></Card>
+        ) : filtered.map((r: any) => {
+          const emp = r.hr_employees;
+          return (
+            <Card key={r.id}>
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{emp?.first_name} {emp?.last_name}</div>
+                    <div className="text-xs text-muted-foreground">{emp?.badge_id} · {r.attendance_date}</div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium capitalize shrink-0 ${
+                    r.status === 'approved' ? 'bg-success/10 text-success' :
+                    r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                    r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
+                    'bg-warning/10 text-warning'
+                  }`}>{r.status}</span>
+                </div>
+                <div className="text-xs font-mono tabular-nums text-muted-foreground">In: {fmtTime(r.requested_check_in)} · Out: {fmtTime(r.requested_check_out)}</div>
+                <div className="text-xs"><span className="text-muted-foreground">Reason:</span> {r.reason}</div>
+                {r.approver_notes && <div className="text-xs italic text-muted-foreground">"{r.approver_notes}"</div>}
+                {r.status === 'pending' && (
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); }}>
+                      <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); }}>
+                      <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Desktop */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           {isLoading ? (
             <TableSkeleton rows={5} />

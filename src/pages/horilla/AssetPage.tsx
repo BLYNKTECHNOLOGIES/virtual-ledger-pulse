@@ -87,7 +87,40 @@ export default function AssetPage() {
           </SelectContent>
         </Select>
       </div>
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <TableSkeleton rows={4} columns={2} />
+        ) : filtered.length === 0 ? (
+          <Card><CardContent className="p-0"><EmptyState icon={Laptop} title="No assets found" description="Add your first asset to get started." action={<Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-10"><Plus className="h-4 w-4 mr-2" />Add Asset</Button>} /></CardContent></Card>
+        ) : filtered.map((a: any) => (
+          <Card key={a.id} className="active:bg-muted/50 transition-colors">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Laptop className="h-4 w-4 text-[#E8604C] shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{a.name}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{a.asset_type} · {a.condition}</div>
+                  </div>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${statusColor(a.status)}`}>{a.status}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted-foreground tabular-nums truncate">SN: {a.serial_number || "—"}</span>
+                <span className="tabular-nums font-medium">₹{(a.purchase_cost || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setEditId(a.id); setForm({ name: a.name, asset_type: a.asset_type, serial_number: a.serial_number || "", status: a.status, purchase_cost: a.purchase_cost || 0, condition: a.condition || "good", notes: a.notes || "" }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
+                <Button size="sm" variant="outline" className="h-10 text-destructive" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">

@@ -115,46 +115,79 @@ export default function AttendancePunchesPage() {
       {isLoading ? (
         <TableSkeleton rows={8} columns={6} />
       ) : (
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  {["Time", "Badge", "Employee", "Type", "Device", "Verified"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={6}><EmptyState icon={Fingerprint} title={`No punches for ${dateFilter}`} description="No biometric punch data found for the selected date." /></td></tr>
-                ) : filtered.map((p: any) => {
-                  const pos = punchPositions.get(p.id);
-                  return (
-                    <tr key={p.id} className="border-b hover:bg-muted/50">
-                      <td className="px-4 py-3 font-mono tabular-nums text-sm">{formatInTimeZone(new Date(p.punch_time), BUSINESS_TIMEZONE, "HH:mm:ss")}</td>
-                      <td className="px-4 py-3 font-medium">{p.badge_id}</td>
-                      <td className="px-4 py-3">
-                        {p.hr_employees ? `${p.hr_employees.first_name} ${p.hr_employees.last_name}` : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                          pos === "check_in" ? "bg-success/10 text-success border-success/20" :
-                          pos === "check_out" ? "bg-muted text-muted-foreground border-border" :
-                          "bg-info/10 text-info border-info/20"
-                        }`}>
-                          {pos === "check_in" ? "Check-In" : pos === "check_out" ? "Check-Out" : "Intermediate"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{p.device_name || p.device_serial || "—"}</td>
-                      <td className="px-4 py-3">{p.verified ? "✓" : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <>
+          {/* Mobile */}
+          <div className="md:hidden space-y-2">
+            {filtered.length === 0 ? (
+              <Card><CardContent className="p-0"><EmptyState icon={Fingerprint} title={`No punches for ${dateFilter}`} description="No biometric punch data found for the selected date." /></CardContent></Card>
+            ) : filtered.map((p: any) => {
+              const pos = punchPositions.get(p.id);
+              return (
+                <Card key={p.id}>
+                  <CardContent className="p-3 space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{p.hr_employees ? `${p.hr_employees.first_name} ${p.hr_employees.last_name}` : "—"}</div>
+                        <div className="text-xs text-muted-foreground truncate">Badge {p.badge_id} · {p.device_name || p.device_serial || "—"}</div>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 ${
+                        pos === "check_in" ? "bg-success/10 text-success border-success/20" :
+                        pos === "check_out" ? "bg-muted text-muted-foreground border-border" :
+                        "bg-info/10 text-info border-info/20"
+                      }`}>{pos === "check_in" ? "Check-In" : pos === "check_out" ? "Check-Out" : "Intermediate"}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono tabular-nums text-sm">{formatInTimeZone(new Date(p.punch_time), BUSINESS_TIMEZONE, "HH:mm:ss")}</span>
+                      <span className="text-xs text-muted-foreground">{p.verified ? "✓ verified" : "—"}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Desktop */}
+          <Card className="hidden md:block">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    {["Time", "Badge", "Employee", "Type", "Device", "Verified"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={6}><EmptyState icon={Fingerprint} title={`No punches for ${dateFilter}`} description="No biometric punch data found for the selected date." /></td></tr>
+                  ) : filtered.map((p: any) => {
+                    const pos = punchPositions.get(p.id);
+                    return (
+                      <tr key={p.id} className="border-b hover:bg-muted/50">
+                        <td className="px-4 py-3 font-mono tabular-nums text-sm">{formatInTimeZone(new Date(p.punch_time), BUSINESS_TIMEZONE, "HH:mm:ss")}</td>
+                        <td className="px-4 py-3 font-medium">{p.badge_id}</td>
+                        <td className="px-4 py-3">
+                          {p.hr_employees ? `${p.hr_employees.first_name} ${p.hr_employees.last_name}` : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                            pos === "check_in" ? "bg-success/10 text-success border-success/20" :
+                            pos === "check_out" ? "bg-muted text-muted-foreground border-border" :
+                            "bg-info/10 text-info border-info/20"
+                          }`}>
+                            {pos === "check_in" ? "Check-In" : pos === "check_out" ? "Check-Out" : "Intermediate"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{p.device_name || p.device_serial || "—"}</td>
+                        <td className="px-4 py-3">{p.verified ? "✓" : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

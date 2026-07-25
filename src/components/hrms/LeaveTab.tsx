@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useMutation, QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, X, ArrowUpDown } from "lucide-react";
+import { Check, X, ArrowUpDown, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EditLeaveBalancesDialog } from "./EditLeaveBalancesDialog";
 
 interface LeaveTabProps {
   employeeId: string;
@@ -22,6 +24,7 @@ export function LeaveTab({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [editOpen, setEditOpen] = useState(false);
 
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
 
@@ -133,6 +136,17 @@ export function LeaveTab({
 
   return (
     <div className="space-y-6">
+      {/* ─── Header with Edit Action ─── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Leave Balances</h3>
+          <p className="text-xs text-muted-foreground">Cumulative across all quarters</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Balances
+        </Button>
+      </div>
+
       {/* ─── Cumulative Leave Balance Cards ─── */}
       <div className="flex flex-wrap">
         {uniqueLeaveTypeIds.map((ltId: string) => {
@@ -310,6 +324,15 @@ export function LeaveTab({
           </div>
         </div>
       )}
+
+      <EditLeaveBalancesDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        employeeId={employeeId}
+        leaveAllocations={leaveAllocations}
+        leaveTypes={leaveTypes}
+        queryClient={queryClient}
+      />
     </div>
   );
 }

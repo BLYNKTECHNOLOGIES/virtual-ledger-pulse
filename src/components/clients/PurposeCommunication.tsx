@@ -12,6 +12,8 @@ import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PermissionGate } from "@/components/PermissionGate";
 import { CommunicationLogDialog } from "@/components/clients/CommunicationLogDialog";
+import { ClientActivityChat } from "@/components/clients/ClientActivityChat";
+import { Separator } from "@/components/ui/separator";
 
 interface PurposeCommunicationProps {
   clientId?: string;

@@ -20383,6 +20383,10 @@ export type Database = {
       }
     }
     Functions: {
+      _rescale_employee_salary_structure: {
+        Args: { p_employee_id: string; p_new_total: number }
+        Returns: undefined
+      }
       add_terminal_appeal_note: {
         Args: { p_case_id: string; p_note: string }
         Returns: undefined

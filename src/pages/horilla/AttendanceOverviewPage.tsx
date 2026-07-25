@@ -73,23 +73,10 @@ export default function AttendanceOverviewPage() {
       if (legacyByDateRes.error) throw legacyByDateRes.error;
       if (legacyByCheckInRes.error) throw legacyByCheckInRes.error;
 
-      // Seed with EVERY active employee so no one falls off the overview.
+      // Only show employees who actually have a daily/legacy row for the day.
+      // "no_data" seed rows for the full roster were removed per product decision.
+      const empById = new Map<string, any>(employees.map((e: any) => [e.id, e]));
       const byEmployee = new Map<string, any>();
-      for (const emp of employees) {
-        byEmployee.set(emp.id, {
-          id: `no-data-${emp.id}`,
-          employee_id: emp.id,
-          hr_employees: emp,
-          check_in: null,
-          check_out: null,
-          attendance_status: "no_data",
-          late_minutes: null,
-          early_leave_minutes: null,
-          work_type: null,
-          notes: null,
-          _source: "seed",
-        });
-      }
 
       for (const r of ((dailyRes.data as any[]) || [])) {
         if (!r.employee_id) continue;

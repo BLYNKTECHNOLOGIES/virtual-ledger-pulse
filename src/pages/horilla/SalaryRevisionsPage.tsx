@@ -128,6 +128,50 @@ export default function SalaryRevisionsPage() {
     return name.includes(search.toLowerCase());
   });
 
+  const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
+  const failedCount = failedPushEmployees.length;
+
+  async function runBulkPush(mode: "retry" | "backfill") {
+    // Build the target set of hr_employee_ids to push.
+    let targetIds: string[] = [];
+    if (mode === "retry") {
+      targetIds = failedPushEmployees.map(f => f.hr_employee_id);
+    } else {
+      // Backfill: every distinct employee with at least one APPLIED revision (i.e. new CTC on record).
+      const appliedIds = new Set<string>();
+      for (const r of revisions as any[]) {
+        if (r.status === "APPLIED" && r.employee_id) appliedIds.add(r.employee_id);
+      }
+      targetIds = Array.from(appliedIds);
+    }
+    if (targetIds.length === 0) {
+      toast.info("Nothing to push.");
+      setBulkAction(null);
+      return;
+    }
+    setBulkRunning(true);
+    setBulkProgress({ done: 0, total: targetIds.length, ok: 0, fail: 0 });
+    let ok = 0, fail = 0;
+    // Sequential with small concurrency to be nice to the proxy + rate limits.
+    const CONCURRENCY = 3;
+    for (let i = 0; i < targetIds.length; i += CONCURRENCY) {
+      const batch = targetIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(id => pushSalaryToRazorpay(id, { triggeredFrom: `salary_revisions_${mode}` }).catch(e => ({ ok: false, error: String(e) })) as any),
+      );
+      for (const r of results) {
+        if (r?.ok) ok++; else fail++;
+      }
+      setBulkProgress({ done: Math.min(i + CONCURRENCY, targetIds.length), total: targetIds.length, ok, fail });
+    }
+    setBulkRunning(false);
+    setBulkAction(null);
+    await refetchFailed();
+    if (fail === 0) toast.success(`Pushed ${ok} salary record${ok === 1 ? "" : "s"} to RazorpayX`);
+    else toast.warning(`Pushed ${ok} · Failed ${fail}. Open Data Health for retry details.`);
+  }
+
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader

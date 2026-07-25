@@ -164,8 +164,8 @@ export default function SalaryRevisionsPage() {
               Revisions are saved locally but <b>cannot be mirrored to RazorpayX</b> until the salary API envelope is
               verified. Every payroll run after a revision will use the old CTC until this is fixed.
             </p>
-            <Button asChild size="sm" variant="secondary">
-              <Link to="/hrms/razorpay-sync">Open Payroll Sync · Step E →</Link>
+              <Button asChild size="sm" variant="secondary">
+                <Link to="/hrms/payroll/razorpay-sync">Open Payroll Sync · Step E →</Link>
             </Button>
           </AlertDescription>
         </Alert>

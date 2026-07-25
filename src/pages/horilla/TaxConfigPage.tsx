@@ -209,7 +209,7 @@ export default function TaxConfigPage() {
                     <p className="text-xs text-muted-foreground">Based on: <span className="font-medium capitalize">{fs.based_on.replace(/_/g, " ")}</span></p>
                   </CardHeader>
                   <CardContent className="p-0 overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm min-w-[520px]">
                       <thead className="bg-muted/50 border-b">
                         <tr>
                           {["Slab", "Min Income", "Max Income", "Tax Rate", "Description", ""].map(h => (

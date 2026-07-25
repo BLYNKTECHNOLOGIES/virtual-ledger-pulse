@@ -156,7 +156,7 @@ export default function PenaltyAutoCalcPage() {
               <EmptyState icon={CheckCircle} title="No penalties to apply" description="All employees are within the attendance limits." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[520px]">
                   <thead className="bg-muted/50 border-b">
                     <tr>
                       <th className="text-left px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</th>

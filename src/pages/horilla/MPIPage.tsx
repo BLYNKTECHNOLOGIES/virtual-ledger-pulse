@@ -227,7 +227,7 @@ function ScorecardsTab({ results, templates }: any) {
   const tplName = (id: string) => templates.find((t: any) => t.id === id)?.name ?? "—";
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[520px]">
         <thead className="bg-muted/50">
           <tr>
             <th className={TH}>Employee</th>
@@ -278,7 +278,7 @@ function WarningsTab({ results }: any) {
   if (!flagged.length) return <Card><CardContent className="p-6"><MpiEmptyState label="No employees at risk this period" /></CardContent></Card>;
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[520px]">
         <thead className="bg-muted/50"><tr><th className={TH}>Employee</th><th className={TH}>Score</th><th className={TH}>Grade</th><th className={TH}>Reason</th></tr></thead>
         <tbody>{flagged.map((r: any) => (
           <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
@@ -313,7 +313,7 @@ function ViolationsTab({ violations }: any) {
   if (!violations.length) return <Card><CardContent className="p-6"><MpiEmptyState label="No critical violations logged" /></CardContent></Card>;
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[520px]">
         <thead className="bg-muted/50"><tr><th className={TH}>Date</th><th className={TH}>Employee</th><th className={TH}>Type</th><th className={TH}>Severity</th><th className={TH}>Description</th></tr></thead>
         <tbody>{violations.map((v: any) => (
           <tr key={v.id} className="border-t hover:bg-muted/30 transition-colors">

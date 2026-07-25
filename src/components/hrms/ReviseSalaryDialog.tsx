@@ -209,20 +209,80 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       if (error) throw error;
       return { kind: "statutory", data };
     },
-    onSuccess: (res: any) => {
+    onSuccess: async (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
       qc.invalidateQueries({ queryKey: ["hr_employees"] });
       qc.invalidateQueries({ queryKey: ["employee-compensation-history"] });
       qc.invalidateQueries({ queryKey: ["hr_employees_for_revision"] });
       qc.invalidateQueries({ queryKey: ["data_health_unknown_enrollment"] });
+      qc.invalidateQueries({ queryKey: ["hr_salary_push_latest"] });
+
       if (res?.kind === "recurring") {
         toast.success(
           res.data?.status === "SCHEDULED"
             ? `Revision scheduled for ${res.data.effective_from}`
-            : "Salary revision applied",
+            : "Salary revision applied in HRMS",
         );
-        if (employeeId) {
-          import("@/lib/razorpayPushback").then(m => m.pushSalaryToRazorpay(employeeId));
+        // Await the RazorpayX push — revision is NOT considered finalized until RazorpayX
+        // accepts the new CTC. On failure we keep the dialog open so the operator can retry
+        // or open Data Health, and the row will render with a "Not synced" badge.
+        if (employeeId && res.data?.status !== "SCHEDULED") {
+          const toastId = toast.loading("Pushing new CTC to RazorpayX…");
+          try {
+            const mod = await import("@/lib/razorpayPushback");
+            const push = await mod.pushSalaryToRazorpay(employeeId, { triggeredFrom: "revise_salary_dialog", silent: true });
+            qc.invalidateQueries({ queryKey: ["hr_salary_push_latest"] });
+            if (push.ok) {
+              // Verify Razorpay wrote it back — read_person_by_id returns annual_ctc when
+              // the payroll salary endpoint exposes it. If it exposes it and it matches (±₹1),
+              // we're fully verified; otherwise we still consider the push accepted (Razorpay
+              // returned 200) but flag that HRMS could not read the CTC back yet.
+              try {
+                const rpMap = await (supabase as any)
+                  .from("hr_razorpay_employee_map")
+                  .select("razorpay_employee_id")
+                  .eq("hr_employee_id", employeeId)
+                  .maybeSingle();
+                const rpId = rpMap.data?.razorpay_employee_id;
+                if (rpId) {
+                  const { data: verifyResp } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+                    body: { action: "read_person_by_id", razorpay_employee_id: rpId },
+                  });
+                  const remoteCtc = Number((verifyResp as any)?.snapshot?.annual_ctc || 0);
+                  if (remoteCtc > 0) {
+                    if (Math.abs(remoteCtc - nT) <= 1) {
+                      toast.success(`Verified in RazorpayX: annual CTC = ₹${remoteCtc.toLocaleString("en-IN")}`, { id: toastId });
+                    } else {
+                      toast.warning(
+                        `Razorpay accepted the push but reports CTC ₹${remoteCtc.toLocaleString("en-IN")} (expected ₹${nT.toLocaleString("en-IN")}). Verify in RazorpayX.`,
+                        { id: toastId },
+                      );
+                    }
+                  } else {
+                    toast.success("RazorpayX accepted the new CTC (readback will be available after next payroll run).", { id: toastId });
+                  }
+                } else {
+                  toast.success("RazorpayX accepted the new CTC.", { id: toastId });
+                }
+              } catch (verifyErr: any) {
+                toast.success("RazorpayX accepted the new CTC (verify readback failed).", { id: toastId });
+              }
+              onOpenChange(false);
+            } else if (push.skipped) {
+              toast.warning("Applied in HRMS. Employee is not linked to RazorpayX — link them from Data Health and push from the row.", { id: toastId });
+              onOpenChange(false);
+            } else {
+              toast.error(
+                `RazorpayX rejected the push — HRMS revision is saved but NOT finalized. Retry from the row or open Data Health.`,
+                { id: toastId, description: (push.error || "").slice(0, 200) },
+              );
+              // Keep the dialog open so the operator sees exactly what failed.
+            }
+          } catch (e: any) {
+            toast.error(`RazorpayX push failed: ${e?.message || e}`, { id: toastId });
+          }
+        } else {
+          onOpenChange(false);
         }
       } else if (res?.kind === "statutory") {
         const status = res.data?.status;
@@ -236,13 +296,15 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             import("@/lib/razorpayPushback").then(m => m.pushStatutoryToRazorpay(employeeId, { triggeredFrom: "revise_salary_dialog" }));
           }
         }
+        onOpenChange(false);
       } else {
         toast.success("One-time compensation recorded");
+        onOpenChange(false);
       }
-      onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const typeOptions = mode === "recurring" ? RECURRING_TYPES : ONE_TIME_TYPES;
 

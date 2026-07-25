@@ -63,19 +63,19 @@ export default function SalaryRevisionsPage() {
   });
 
   // Latest salary push per employee — used to badge each row as Synced / Failed / Not synced.
-  const { data: pushByEmployee = {} as Record<string, { status: string; created_at: string; error_message: string | null }> } = useQuery({
+  const { data: pushByEmployee = {} as Record<string, { status: string; created_at: string; error_message: string | null; response_snapshot: any }> } = useQuery({
     queryKey: ["hr_salary_push_latest"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_razorpay_pushback_log")
-        .select("hr_employee_id, status, created_at, error_message")
+        .select("hr_employee_id, status, created_at, error_message, response_snapshot")
         .eq("kind", "salary")
         .order("created_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      const map: Record<string, { status: string; created_at: string; error_message: string | null }> = {};
+      const map: Record<string, { status: string; created_at: string; error_message: string | null; response_snapshot: any }> = {};
       for (const r of (data || [])) {
-        if (!map[r.hr_employee_id]) map[r.hr_employee_id] = { status: r.status, created_at: r.created_at, error_message: r.error_message };
+        if (!map[r.hr_employee_id]) map[r.hr_employee_id] = { status: r.status, created_at: r.created_at, error_message: r.error_message, response_snapshot: r.response_snapshot };
       }
       return map;
     },
@@ -107,6 +107,16 @@ export default function SalaryRevisionsPage() {
   }), [revisions, statusFilter, search]);
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
+
+  function hasVerifiedRazorpayCtc(pushInfo: any, expectedTotal: number) {
+    if (!pushInfo || pushInfo.status !== "success") return false;
+    const snapshot = pushInfo.response_snapshot || {};
+    const verify = snapshot.verify || snapshot;
+    if (verify?.overall !== "verified" || !Array.isArray(verify?.fields)) return false;
+    const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
+    const actual = Number(ctcField?.actual);
+    return ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1;
+  }
 
   async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
     setPushingIds(prev => new Set(prev).add(revisionId));
@@ -200,7 +210,8 @@ export default function SalaryRevisionsPage() {
             const isCancelled = r.status === "CANCELLED";
             const isApplied = r.status === "APPLIED";
             const pushInfo = pushByEmployee[r.employee_id];
-            const pushSyncedAfterRevision = pushInfo && pushInfo.status === "success" && pushInfo.created_at >= r.created_at;
+            const expectedTotal = Number(r.new_total || 0);
+            const pushSyncedAfterRevision = pushInfo && pushInfo.created_at >= r.created_at && hasVerifiedRazorpayCtc(pushInfo, expectedTotal);
             const pushFailedAfterRevision = pushInfo && pushInfo.status === "failure" && pushInfo.created_at >= r.created_at;
             const pushing = pushingIds.has(r.id);
 

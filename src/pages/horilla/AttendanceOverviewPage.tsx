@@ -37,49 +37,102 @@ export default function AttendanceOverviewPage() {
   });
 
   const { data: attendance = [], isLoading, error: queryError } = useQuery({
-    queryKey: ["hr_attendance", dateFilter, statusFilter],
+    queryKey: ["hr_attendance_unified", dateFilter, statusFilter],
     queryFn: async () => {
-      const selectClause = "*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)";
       const nextDate = format(
         new Date(new Date(`${dateFilter}T00:00:00`).getTime() + 24 * 60 * 60 * 1000),
         "yyyy-MM-dd"
       );
 
-      const [byAttendanceDateRes, byCheckInDateRes] = await Promise.all([
+      // v4 engine truth source: hr_attendance_daily (one row per employee per day,
+      // including "no_data" / "incomplete" rows for employees whose punches were
+      // suppressed by the engine — those must still surface on the overview).
+      const dailySelect = "*, hr_employees!hr_attendance_daily_employee_id_fkey(id, badge_id, first_name, last_name, is_active)";
+      // Legacy path: manually marked rows still land in hr_attendance.
+      const legacySelect = "*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name, is_active)";
+
+      const [dailyRes, legacyByDateRes, legacyByCheckInRes] = await Promise.all([
         (supabase as any)
-          .from("hr_attendance")
-          .select(selectClause)
+          .from("hr_attendance_daily")
+          .select(dailySelect)
           .eq("attendance_date", dateFilter)
-          .order("created_at", { ascending: false }),
+          .order("first_in", { ascending: true, nullsFirst: false }),
         (supabase as any)
           .from("hr_attendance")
-          .select(selectClause)
+          .select(legacySelect)
+          .eq("attendance_date", dateFilter),
+        (supabase as any)
+          .from("hr_attendance")
+          .select(legacySelect)
           .gte("check_in", `${dateFilter}T00:00:00`)
-          .lt("check_in", `${nextDate}T00:00:00`)
-          .order("created_at", { ascending: false }),
+          .lt("check_in", `${nextDate}T00:00:00`),
       ]);
 
-      if (byAttendanceDateRes.error) throw byAttendanceDateRes.error;
-      if (byCheckInDateRes.error) throw byCheckInDateRes.error;
+      if (dailyRes.error) throw dailyRes.error;
+      if (legacyByDateRes.error) throw legacyByDateRes.error;
+      if (legacyByCheckInRes.error) throw legacyByCheckInRes.error;
 
-      const merged = [
-        ...((byAttendanceDateRes.data as any[]) || []),
-        ...((byCheckInDateRes.data as any[]) || []),
-      ];
+      // Normalize both shapes into a single row model keyed by employee_id.
+      const byEmployee = new Map<string, any>();
 
-      let deduped = Array.from(new Map(merged.map((row: any) => [row.id, row])).values());
-
-      if (statusFilter !== "all") {
-        deduped = deduped.filter((row: any) => row.attendance_status === statusFilter);
+      for (const r of ((dailyRes.data as any[]) || [])) {
+        if (!r.employee_id) continue;
+        byEmployee.set(r.employee_id, {
+          id: r.id,
+          employee_id: r.employee_id,
+          hr_employees: r.hr_employees,
+          check_in: r.first_in,
+          check_out: r.last_out,
+          attendance_status: r.status || "no_data",
+          late_minutes: r.late_by_minutes,
+          early_leave_minutes: r.early_by_minutes,
+          work_type: null,
+          notes: null,
+          _source: "daily",
+        });
       }
 
-      deduped.sort(
-        (a: any, b: any) =>
-          new Date(b.check_in || b.created_at || 0).getTime() -
-          new Date(a.check_in || a.created_at || 0).getTime()
-      );
+      const legacyMerged = [
+        ...((legacyByDateRes.data as any[]) || []),
+        ...((legacyByCheckInRes.data as any[]) || []),
+      ];
+      const legacyDedup = Array.from(new Map(legacyMerged.map((r: any) => [r.id, r])).values());
 
-      return deduped;
+      for (const r of legacyDedup) {
+        if (!r.employee_id) continue;
+        const existing = byEmployee.get(r.employee_id);
+        // Prefer legacy manual entry only when the daily row has no check-in yet
+        // (manual override), otherwise keep the daily-engine truth.
+        if (!existing || (!existing.check_in && r.check_in)) {
+          byEmployee.set(r.employee_id, {
+            id: r.id,
+            employee_id: r.employee_id,
+            hr_employees: r.hr_employees,
+            check_in: r.check_in,
+            check_out: r.check_out,
+            attendance_status: r.attendance_status,
+            late_minutes: r.late_minutes,
+            early_leave_minutes: r.early_leave_minutes,
+            work_type: r.work_type,
+            notes: r.notes,
+            _source: "legacy",
+          });
+        }
+      }
+
+      let rows = Array.from(byEmployee.values()).filter((r) => r.hr_employees);
+
+      if (statusFilter !== "all") {
+        rows = rows.filter((row: any) => row.attendance_status === statusFilter);
+      }
+
+      rows.sort((a: any, b: any) => {
+        const ai = a.check_in ? new Date(a.check_in).getTime() : Infinity;
+        const bi = b.check_in ? new Date(b.check_in).getTime() : Infinity;
+        return ai - bi;
+      });
+
+      return rows;
     },
   });
 
@@ -105,7 +158,7 @@ export default function AttendanceOverviewPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hr_attendance"] });
+    queryClient.invalidateQueries({ queryKey: ["hr_attendance_unified"] });
       setShowAdd(false);
       toast.success("Attendance recorded");
     },

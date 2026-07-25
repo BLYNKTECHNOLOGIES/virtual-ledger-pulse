@@ -136,6 +136,97 @@ async function upsertDrift(hr_employee_id: string, field: string, note: string) 
   }
 }
 
+// ---------- verification finalizer ----------
+// Called after every RazorpayX write. Re-reads the person from RazorpayX,
+// diffs field-by-field, dispatches the field-diff dialog on partial/failed,
+// and toasts honestly about what actually landed vs what didn't.
+async function verifyAndFinalize(args: {
+  kind: PushVerifyKind;
+  hrEmployeeId: string;
+  razorpayEmployeeId: string | null;
+  triggeredFrom?: string;
+  silent?: boolean;
+  expectedOverrides?: Record<string, any>;
+  successToast?: string;
+  retry?: () => Promise<any>;
+}): Promise<PushVerifyResult> {
+  const expected = await buildExpected(args.kind, args.hrEmployeeId, args.expectedOverrides).catch(() => ({}));
+  const result = await verifyPush(args.kind, args.hrEmployeeId, expected, {
+    razorpayEmployeeId: args.razorpayEmployeeId,
+  });
+
+  // Persist the diff into the last pushback log row (best-effort).
+  try {
+    await (supabase as any)
+      .from("hr_razorpay_pushback_log")
+      .insert({
+        hr_employee_id: args.hrEmployeeId,
+        razorpay_employee_id: args.razorpayEmployeeId,
+        kind: args.kind,
+        action: `verify_${args.kind}`,
+        status: result.overall === "verified" ? "success" : result.overall === "partial" ? "success" : "failure",
+        response_snapshot: { overall: result.overall, fields: result.fields, error: result.error ?? null },
+        error_message: result.overall === "verified" ? null : (result.error || `Verification: ${result.overall}`),
+        triggered_from: args.triggeredFrom,
+      });
+  } catch { /* best-effort */ }
+
+  if (result.overall !== "verified") {
+    const mismatched = result.fields.filter((f) => f.match !== true).map((f) => f.label).join(", ");
+    await upsertDrift(
+      args.hrEmployeeId,
+      DRIFT_FIELD_BY_KIND[args.kind as PushKind] || `${args.kind}_bundle`,
+      `Verification ${result.overall}: ${mismatched || "field-level details in dialog"}`,
+    );
+  }
+
+  // Fetch employee name for the dialog header (best-effort).
+  let employeeName: string | null = null;
+  try {
+    const { data } = await (supabase as any)
+      .from("hr_employees")
+      .select("first_name,last_name")
+      .eq("id", args.hrEmployeeId)
+      .maybeSingle();
+    if (data) employeeName = [data.first_name, data.last_name].filter(Boolean).join(" ").trim() || null;
+  } catch { /* best-effort */ }
+
+  if (!args.silent) {
+    if (result.overall === "verified") {
+      toast.success(args.successToast || `Razorpay ${LABEL_BY_KIND[args.kind as PushKind] || args.kind} verified`);
+    } else if (result.overall === "partial") {
+      toast.warning(`RazorpayX ${args.kind} update partially verified — see details`, {
+        description: "Some fields could not be read back from RazorpayX. Opened the diff dialog.",
+      });
+    } else if (result.overall === "failed") {
+      toast.error(`RazorpayX ${args.kind} update NOT verified`, {
+        description: result.error || "RazorpayX is still showing old values for one or more fields.",
+      });
+    } else if (result.overall === "skipped") {
+      // Skipped means employee isn't linked — pushback layer already handled that.
+    }
+  }
+
+  if (result.overall !== "verified" && result.overall !== "skipped") {
+    emitPushResult({
+      ...result,
+      employeeName,
+      triggeredFrom: args.triggeredFrom,
+      retry: args.retry
+        ? async () => {
+            await args.retry!();
+            return verifyPush(args.kind, args.hrEmployeeId, expected, {
+              razorpayEmployeeId: args.razorpayEmployeeId,
+            });
+          }
+        : undefined,
+    });
+  }
+
+  return result;
+}
+
+
 export async function pushToRazorpay(
   kind: Exclude<PushKind, "dismissal" | "create">,
   hrEmployeeId: string,

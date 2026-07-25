@@ -98,9 +98,12 @@ export default function SalaryRevisionsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc"]);
   const filtered = useMemo(() => revisions.filter((r: any) => {
-    // Exclude initial onboarding entries (no prior salary → not a revision)
-    if (Number(r.previous_total || 0) <= 0) return false;
+    const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+    // Exclude initial onboarding entries (no prior salary → not a revision),
+    // but always keep one-time payouts (bonus/incentive/etc.) which have no previous_total.
+    if (!isOneTime && Number(r.previous_total || 0) <= 0) return false;
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());
@@ -276,15 +279,26 @@ export default function SalaryRevisionsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground line-through tabular-nums">₹{Number(r.previous_total || 0).toLocaleString("en-IN")}</span>
-                        <span className="text-foreground font-semibold tabular-nums">→ ₹{Number(r.new_total || 0).toLocaleString("en-IN")}</span>
-                      </div>
+                      {ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0 ? (
+                        <div className="text-sm">
+                          <span className="text-success font-semibold tabular-nums">+₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</span>
+                          {r.payout_month && (
+                            <span className="text-xs text-muted-foreground ml-1.5">
+                              · {format(new Date(r.payout_month), "MMM yyyy")}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground line-through tabular-nums">₹{Number(r.previous_total || 0).toLocaleString("en-IN")}</span>
+                          <span className="text-foreground font-semibold tabular-nums">→ ₹{Number(r.new_total || 0).toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1.5 justify-end mt-1 flex-wrap">
                         <Badge variant={isScheduled ? "outline" : isCancelled ? "secondary" : isIncrease ? "default" : "destructive"} className="text-xs">
-                          {isScheduled ? "SCHEDULED" : isCancelled ? "CANCELLED" : `${diff >= 0 ? "+" : ""}₹${diff.toLocaleString("en-IN")}`}
+                          {isScheduled ? "SCHEDULED" : isCancelled ? "CANCELLED" : (ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) ? `+₹${Number(r.one_time_amount || 0).toLocaleString("en-IN")}` : `${diff >= 0 ? "+" : ""}₹${diff.toLocaleString("en-IN")}`}
                         </Badge>
-                        <Badge variant="secondary" className="text-xs capitalize">{r.revision_type}</Badge>
+                        <Badge variant="secondary" className="text-xs capitalize">{String(r.revision_type).replace(/_/g, " ")}</Badge>
                         {syncBadge}
                       </div>
                     </div>

@@ -3,7 +3,9 @@
  *
  * Every write to RazorpayX (identity / bank / employment / salary / statutory /
  * dismissal) must be treated as *not finalized* until we re-read the same
- * fields from RazorpayX and confirm they match what HRMS just wrote.
+ * fields from RazorpayX and confirm they match what HRMS just wrote. The one
+ * salary exception is an explicit write-accepted/read-back-pending state when
+ * RazorpayX accepts the exact CTC but does not expose current CTC via API yet.
  *
  * This module owns:
  *   - `buildExpected(kind, hrEmployeeId)`  — snapshot HRMS values that

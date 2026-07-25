@@ -26,6 +26,26 @@ export function LeaveTab({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [editOpen, setEditOpen] = useState(false);
 
+  // Sunday-credit duplicate warnings for this employee (last 90 days)
+  const { data: sundayWarnings } = useQuery({
+    queryKey: ["hr_sunday_credit_audit", employeeId, "duplicates"],
+    queryFn: async () => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 90);
+      const { data, error } = await supabase
+        .from("hr_sunday_credit_audit")
+        .select("attendance_date, outcome, reason, created_at")
+        .eq("employee_id", employeeId)
+        .in("outcome", ["duplicate_blocked", "revoke_skipped_consumed"])
+        .gte("created_at", cutoff.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!employeeId,
+  });
+
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
 
   // Compute cumulative balance per leave type (all allocations carry forward)

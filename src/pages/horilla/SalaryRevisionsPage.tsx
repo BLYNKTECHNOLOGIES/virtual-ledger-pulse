@@ -127,6 +127,10 @@ export default function SalaryRevisionsPage() {
   }
 
   async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
+    if (!Number.isFinite(expectedTotal) || expectedTotal <= 0) {
+      toast.error("This entry has no CTC change — nothing to push to RazorpayX.");
+      return;
+    }
     setPushingIds(prev => new Set(prev).add(revisionId));
     try {
       const res = await pushSalaryToRazorpay(employeeId, {

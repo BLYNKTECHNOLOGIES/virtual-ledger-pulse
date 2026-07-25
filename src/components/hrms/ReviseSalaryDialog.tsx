@@ -82,6 +82,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       setPfEnabled(null);
       setEsiEnabled(null);
       setPtEnabled(null);
+      setApplyNow(false);
     }
   }, [open, presetEmployeeId]);
 

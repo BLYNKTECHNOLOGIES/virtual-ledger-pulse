@@ -306,6 +306,9 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
           </PermissionGate>
           <CommunicationLogDialog clientId={activeClientId!} />
         </div>
+
+        <Separator className="my-2" />
+        <ClientActivityChat clientId={activeClientId!} clientName={client.name} />
       </CardContent>
     </Card>
   );

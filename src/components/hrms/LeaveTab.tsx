@@ -24,6 +24,7 @@ export function LeaveTab({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [editOpen, setEditOpen] = useState(false);
 
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
 

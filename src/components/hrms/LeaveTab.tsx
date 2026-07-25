@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useMutation, QueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, X, ArrowUpDown, Pencil } from "lucide-react";
+import { Check, X, ArrowUpDown, Pencil, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditLeaveBalancesDialog } from "./EditLeaveBalancesDialog";
 

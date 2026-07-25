@@ -55,15 +55,23 @@ export default function SalaryRevisionsPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_razorpay_settings")
-        .select("push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at")
+        .select("push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at, push_payroll_endpoint_verified")
         .maybeSingle();
-      return data as { push_salary_endpoint_verified?: boolean; push_salary_envelope_key?: string | null; push_salary_envelope_verified_at?: string | null } | null;
+      return data as {
+        push_salary_endpoint_verified?: boolean;
+        push_salary_envelope_key?: string | null;
+        push_salary_envelope_verified_at?: string | null;
+        push_payroll_endpoint_verified?: boolean;
+      } | null;
     },
     staleTime: 30_000,
   });
 
-  // Latest salary push per employee — used to badge each row as Synced / Failed / Not synced.
-  const { data: pushByEmployee = {} as Record<string, { status: string; created_at: string; error_message: string | null; response_snapshot: any }> } = useQuery({
+  // ALL recent salary push logs per employee (not just the newest).
+  // We correlate a specific revision's CTC to its own push log below, so a
+  // later unrelated failure (e.g. an "Expected CTC 0" stray click) does NOT
+  // downgrade the badge of an earlier successful revision.
+  const { data: pushLogsByEmployee = {} as Record<string, Array<{ status: string; created_at: string; error_message: string | null; response_snapshot: any }>> } = useQuery({
     queryKey: ["hr_salary_push_latest"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -73,14 +81,15 @@ export default function SalaryRevisionsPage() {
         .order("created_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      const map: Record<string, { status: string; created_at: string; error_message: string | null; response_snapshot: any }> = {};
+      const map: Record<string, Array<any>> = {};
       for (const r of (data || [])) {
-        if (!map[r.hr_employee_id]) map[r.hr_employee_id] = { status: r.status, created_at: r.created_at, error_message: r.error_message, response_snapshot: r.response_snapshot };
+        (map[r.hr_employee_id] ||= []).push(r);
       }
       return map;
     },
     staleTime: 15_000,
   });
+
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -110,21 +119,45 @@ export default function SalaryRevisionsPage() {
   }), [revisions, statusFilter, search]);
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
+  const payrollGateVerified = !!envelope?.push_payroll_endpoint_verified;
 
-  function getRazorpayCtcPushState(pushInfo: any, expectedTotal: number): "verified" | "failed" | "none" {
-    if (!pushInfo) return "none";
-    if (pushInfo.status === "failure") return "failed";
-    if (pushInfo.status !== "success") return "none";
-    const snapshot = pushInfo.response_snapshot || {};
-    const verify = snapshot.verify || snapshot;
-    if (!Array.isArray(verify?.fields)) return "none";
-    const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
-    if (verify?.overall === "verified") {
+
+  function getRazorpayCtcPushState(
+    logs: Array<{ status: string; created_at: string; error_message: string | null; response_snapshot: any }> | undefined,
+    expectedTotal: number,
+    revisionCreatedAt: string,
+  ): { state: "verified" | "failed" | "none"; log?: any } {
+    if (!logs || logs.length === 0 || !Number.isFinite(expectedTotal) || expectedTotal <= 0) return { state: "none" };
+    // 1) Verified success whose read-back matches THIS revision's CTC (any time).
+    for (const l of logs) {
+      if (l.status !== "success") continue;
+      const snapshot = l.response_snapshot || {};
+      const verify = snapshot.verify || snapshot;
+      if (!Array.isArray(verify?.fields)) continue;
+      if (verify?.overall !== "verified") continue;
+      const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
       const actual = Number(ctcField?.actual);
-      if (ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1) return "verified";
+      if (ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1) {
+        return { state: "verified", log: l };
+      }
     }
-    return "none";
+    // 2) Failure that specifically targeted THIS CTC (expected matches new_total) AFTER the revision.
+    for (const l of logs) {
+      if (l.status !== "failure") continue;
+      if (l.created_at < revisionCreatedAt) continue;
+      const snapshot = l.response_snapshot || {};
+      const verify = snapshot.verify || snapshot;
+      const fields = Array.isArray(verify?.fields) ? verify.fields : [];
+      const ctcField = fields.find((f: any) => f?.key === "annual_ctc");
+      const expected = Number(ctcField?.expected);
+      if (Number.isFinite(expected) && Math.abs(expected - expectedTotal) <= 1) {
+        return { state: "failed", log: l };
+      }
+    }
+    // Otherwise: this revision has never been pushed (or only unrelated pushes exist).
+    return { state: "none" };
   }
+
 
   async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
     if (!Number.isFinite(expectedTotal) || expectedTotal <= 0) {
@@ -241,12 +274,14 @@ export default function SalaryRevisionsPage() {
             const isScheduled = r.status === "SCHEDULED";
             const isCancelled = r.status === "CANCELLED";
             const isApplied = r.status === "APPLIED";
-            const pushInfo = pushByEmployee[r.employee_id];
+            const logs = pushLogsByEmployee[r.employee_id];
             const expectedTotal = Number(r.new_total || 0);
-            const pushState = pushInfo && pushInfo.created_at >= r.created_at ? getRazorpayCtcPushState(pushInfo, expectedTotal) : "none";
-            const pushSyncedAfterRevision = pushState === "verified";
-            const pushFailedAfterRevision = pushState === "failed";
+            const pushResult = getRazorpayCtcPushState(logs, expectedTotal, r.created_at);
+            const pushInfo = pushResult.log;
+            const pushSyncedAfterRevision = pushResult.state === "verified";
+            const pushFailedAfterRevision = pushResult.state === "failed";
             const pushing = pushingIds.has(r.id);
+
 
             let syncBadge: React.ReactNode = null;
             if (isOneTime) {
@@ -375,13 +410,18 @@ export default function SalaryRevisionsPage() {
                         size="sm"
                         variant={r.razorpay_push_error ? "default" : "outline"}
                         onClick={() => pushOneTime(r.id)}
-                        disabled={pushing}
-                        title="Stage this payout on the target RazorpayX payroll month"
+                        disabled={pushing || !payrollGateVerified}
+                        title={
+                          !payrollGateVerified
+                            ? "RazorpayX payroll-write gate is locked. Verify the Payroll-run envelope in HRMS → Payroll → RazorpayX Sync."
+                            : "Stage this payout on the target RazorpayX payroll month"
+                        }
                       >
                         {pushing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}
                         {r.razorpay_push_error ? "Retry push" : "Push to RazorpayX"}
                       </Button>
                     )}
+
 
                     {isScheduled && canManage && (
                       <Button size="sm" variant="ghost" onClick={() => setCancelId(r.id)} title="Cancel scheduled revision">

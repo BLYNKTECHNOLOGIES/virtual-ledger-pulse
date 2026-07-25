@@ -261,6 +261,19 @@ export async function pushToRazorpay(
   }
 
   try {
+    if (kind === "salary" && typeof opts?.expectedTotal === "number") {
+      const { error: reconcileError } = await (supabase as any).rpc(
+        "reconcile_employee_salary_structure_to_total",
+        {
+          p_employee_id: hrEmployeeId,
+          p_expected_total: opts.expectedTotal,
+        },
+      );
+      if (reconcileError) {
+        throw new Error(readableError(reconcileError, "Could not reconcile HRMS salary structure before RazorpayX push"));
+      }
+    }
+
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
       body: { action: ACTION_BY_KIND[kind], razorpay_employee_id: razorpayId },
     });

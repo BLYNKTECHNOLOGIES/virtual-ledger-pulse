@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-25: RazorpayX salary CTC mismatch repaired at source — HRMS active salary structures now auto-reconcile to employee total_salary before every salary push; Shubham Singh structure corrected from ₹9,01,800 to ₹9,12,000.
 - 2026-07-25: RazorpayX salary retry repaired — proxy now sends flat people:set-salary payload with data-level custom-salary-structure/annual-ctc; retry failures open/readable verification dialog instead of silent `[object Object]` toasts.
 - 2026-07-25: RazorpayX salary revision green-badge logic hardened — CTC sync now requires live people:view salary read-back with matching Annual CTC; stale payroll-view / HTTP-only success logs no longer count as synced.
 - 2026-07-22: Buyer approval root-cause hardening — approvals now update the exact `resolved_client_id` terminal stub, name-based sibling auto-approval removed, pending approval uniqueness guards added for sales_order/userNo/resolved client, and phone uniqueness now normalizes digits.

@@ -222,6 +222,7 @@ export default function AttendanceOverviewPage() {
         }
       />
       <BiometricQuarantineBanner />
+      <StaleSessionAlert />
 
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 stagger-children">

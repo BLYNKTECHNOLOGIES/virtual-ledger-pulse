@@ -236,7 +236,23 @@ export async function buildExpected(
 // -------------------- snapshot extractor (RazorpayX → normalized) --------------------
 function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
   const bank = snap?.bank || snap?.["bank-details"] || snap?.bank_details || {};
+  const salaryBlock =
+    snap?.__salary ||
+    snap?.salary ||
+    snap?.["salary-structure"] ||
+    snap?.salary_structure ||
+    null;
   const nameParts = s(snap?.name || snap?.full_name).split(/\s+/).filter(Boolean);
+
+  // Prefer the LIVE people:view salary block (`ctc-annual`) over the payroll
+  // view (`__salary.annual_ctc`) — the live block reflects the salary
+  // structure RazorpayX will use for the NEXT payroll run, which is exactly
+  // what we just tried to write. `__salary.annual_ctc` only reflects the last
+  // EXECUTED run and is stale for a revision that hasn't hit payroll yet.
+  const liveCtc =
+    pick(salaryBlock, "ctc-annual", "ctc_annual", "annual_ctc", "annualCtc") ??
+    pick(snap, "ctc-annual", "ctc_annual");
+  const executedCtc = snap?.__salary?.annual_ctc ?? null;
 
   const raw: Record<string, any> = {
     first_name: pick(snap, "first_name", "firstName", "first-name") || nameParts[0] || null,
@@ -263,7 +279,7 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
     pf_enabled: pick(snap, "pf-enabled", "pf_enabled", "is_pf_enabled"),
     esi_enabled: pick(snap, "esi-enabled", "esi_enabled", "is_esi_enabled"),
     pt_enabled: pick(snap, "pt-enabled", "pt_enabled", "is_pt_enabled"),
-    annual_ctc: snap?.__salary?.annual_ctc ?? snap?.annual_ctc ?? null,
+    annual_ctc: liveCtc ?? executedCtc ?? null,
     dismissed: snap?.__dismissed === true || String(snap?.status || "").toLowerCase() === "dismissed",
     date_of_dismissal: pick(snap, "date-of-dismissal", "date_of_dismissal", "dismissed_at"),
   };
@@ -272,6 +288,7 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
   for (const k of KIND_FIELDS[kind]) out[k] = raw[k];
   return out;
 }
+
 
 // -------------------- diff --------------------
 function diffFields(

@@ -90,6 +90,9 @@ export default function SalaryRevisionsPage() {
     },
     staleTime: 15_000,
   });
+
+  const { data: revisions = [], isLoading } = useQuery({
+    queryKey: ["hr_salary_revisions"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_salary_revisions")

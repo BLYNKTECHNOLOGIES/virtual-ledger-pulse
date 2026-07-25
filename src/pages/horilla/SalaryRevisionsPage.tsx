@@ -120,20 +120,42 @@ export default function SalaryRevisionsPage() {
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
 
-  function getRazorpayCtcPushState(pushInfo: any, expectedTotal: number): "verified" | "failed" | "none" {
-    if (!pushInfo) return "none";
-    if (pushInfo.status === "failure") return "failed";
-    if (pushInfo.status !== "success") return "none";
-    const snapshot = pushInfo.response_snapshot || {};
-    const verify = snapshot.verify || snapshot;
-    if (!Array.isArray(verify?.fields)) return "none";
-    const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
-    if (verify?.overall === "verified") {
+  function getRazorpayCtcPushState(
+    logs: Array<{ status: string; created_at: string; error_message: string | null; response_snapshot: any }> | undefined,
+    expectedTotal: number,
+    revisionCreatedAt: string,
+  ): { state: "verified" | "failed" | "none"; log?: any } {
+    if (!logs || logs.length === 0 || !Number.isFinite(expectedTotal) || expectedTotal <= 0) return { state: "none" };
+    // 1) Verified success whose read-back matches THIS revision's CTC (any time).
+    for (const l of logs) {
+      if (l.status !== "success") continue;
+      const snapshot = l.response_snapshot || {};
+      const verify = snapshot.verify || snapshot;
+      if (!Array.isArray(verify?.fields)) continue;
+      if (verify?.overall !== "verified") continue;
+      const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
       const actual = Number(ctcField?.actual);
-      if (ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1) return "verified";
+      if (ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1) {
+        return { state: "verified", log: l };
+      }
     }
-    return "none";
+    // 2) Failure that specifically targeted THIS CTC (expected matches new_total) AFTER the revision.
+    for (const l of logs) {
+      if (l.status !== "failure") continue;
+      if (l.created_at < revisionCreatedAt) continue;
+      const snapshot = l.response_snapshot || {};
+      const verify = snapshot.verify || snapshot;
+      const fields = Array.isArray(verify?.fields) ? verify.fields : [];
+      const ctcField = fields.find((f: any) => f?.key === "annual_ctc");
+      const expected = Number(ctcField?.expected);
+      if (Number.isFinite(expected) && Math.abs(expected - expectedTotal) <= 1) {
+        return { state: "failed", log: l };
+      }
+    }
+    // Otherwise: this revision has never been pushed (or only unrelated pushes exist).
+    return { state: "none" };
   }
+
 
   async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
     if (!Number.isFinite(expectedTotal) || expectedTotal <= 0) {

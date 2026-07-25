@@ -706,6 +706,16 @@ export function AccountSummary() {
                       <SelectItem value="DEBIT">Debit</SelectItem>
                     </SelectContent>
                   </Select>
+                  <div className="flex items-center gap-2 pl-2 border-l">
+                    <Switch
+                      id="show-reversed-toggle"
+                      checked={showReversed}
+                      onCheckedChange={setShowReversed}
+                    />
+                    <Label htmlFor="show-reversed-toggle" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                      Show reversed entries
+                    </Label>
+                  </div>
                 </div>
               </div>
             </CardHeader>

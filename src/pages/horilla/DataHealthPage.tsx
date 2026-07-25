@@ -351,12 +351,6 @@ export default function DataHealthPage() {
                 ))}
               </ul>
             </div>
-            <Link
-              to="/hrms/payroll/compliance-settings"
-              className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-warning/10 whitespace-nowrap"
-            >
-              Review Compliance
-            </Link>
           </div>
         </div>
       )}

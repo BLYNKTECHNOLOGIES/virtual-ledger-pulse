@@ -102,7 +102,7 @@ const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumen
 const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
 const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPage'));
 const RazorpaySyncPage = lazy(() => import('./pages/hr/RazorpaySyncPage'));
-const ComplianceSettingsPage = lazy(() => import('./pages/horilla/ComplianceSettingsPage'));
+
 const LeaveAttendanceSettingsPage = lazy(() => import('./pages/horilla/LeaveAttendanceSettingsPage'));
 const SalaryStructureMirrorPage = lazy(() => import('./pages/horilla/SalaryStructureMirrorPage'));
 const OfferLetterPolicyPage = lazy(() => import('./pages/horilla/OfferLetterPolicyPage'));
@@ -763,7 +763,7 @@ const router = createBrowserRouter([
         { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },
         { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
         { path: "payroll/razorpay-sync", element: <RazorpaySyncPage /> },
-        { path: "payroll/compliance-settings", element: <ComplianceSettingsPage /> },
+        
         { path: "payroll/leave-attendance-settings", element: <LeaveAttendanceSettingsPage /> },
         { path: "payroll/salary-structure-mirror", element: <SalaryStructureMirrorPage /> },
         { path: "payroll/offer-letter-policy", element: <OfferLetterPolicyPage /> },

@@ -106,54 +106,93 @@ export default function HolidaysPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  {["Holiday", "Date", "Day", "Recurring", "Status", "Actions"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {holidays.map((h: any) => (
-                  <tr key={h.id} className={`border-b hover:bg-muted/50 ${!h.is_active ? "opacity-50" : ""}`}>
-                    <td className="px-4 py-3 font-medium">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="h-4 w-4 text-[#E8604C]" />
-                        {h.name}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{format(new Date(h.date), "MMM dd, yyyy")}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{format(new Date(h.date), "EEEE")}</td>
-                    <td className="px-4 py-3">
-                      {h.recurring ? (
-                        <span className="text-[10px] font-medium border bg-info/10 text-info border-info/20 px-2 py-0.5 rounded-full">Yearly</span>
-                      ) : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${h.is_active ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}`}>
-                        {h.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </td>
+        <>
+          {/* Desktop table */}
+          <Card className="hidden md:block">
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    {["Holiday", "Date", "Day", "Recurring", "Status", "Actions"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                </thead>
+                <tbody>
+                  {holidays.map((h: any) => (
+                    <tr key={h.id} className={`border-b hover:bg-muted/50 ${!h.is_active ? "opacity-50" : ""}`}>
+                      <td className="px-4 py-3 font-medium">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4 text-[#E8604C]" />
+                          {h.name}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{format(new Date(h.date), "MMM dd, yyyy")}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{format(new Date(h.date), "EEEE")}</td>
+                      <td className="px-4 py-3">
+                        {h.recurring ? (
+                          <span className="text-[10px] font-medium border bg-info/10 text-info border-info/20 px-2 py-0.5 rounded-full">Yearly</span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${h.is_active ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}`}>
+                          {h.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-2">
+            {holidays.map((h: any) => (
+              <Card key={h.id} className={!h.is_active ? "opacity-60" : ""}>
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                      <CalendarDays className="h-4 w-4 text-[#E8604C] mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{h.name}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums mt-0.5">
+                          {format(new Date(h.date), "MMM dd, yyyy")} · {format(new Date(h.date), "EEE")}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          {h.recurring && <span className="text-[10px] font-medium border bg-info/10 text-info border-info/20 px-2 py-0.5 rounded-full">Yearly</span>}
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${h.is_active ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}`}>
+                            {h.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
+
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>

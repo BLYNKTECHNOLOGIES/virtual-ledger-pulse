@@ -88,7 +88,8 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
         }
       />
 
-      <Card>
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
@@ -127,6 +128,43 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
           </table>
         </CardContent>
       </Card>
+
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <Card><CardContent className="p-0"><TableSkeleton rows={4} columns={2} /></CardContent></Card>
+        ) : components.length === 0 ? (
+          <Card><CardContent><EmptyState icon={Plus} title={`No ${label.toLowerCase()} configured`} description="Add your first component using the button above." /></CardContent></Card>
+        ) : (
+          components.map((c: any) => (
+            <Card key={c.id} className={!c.is_active ? "opacity-60" : ""}>
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{c.name}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">{c.code}</span>
+                      {c.is_taxable
+                        ? <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full">Taxable</span>
+                        : <span className="text-[10px] text-muted-foreground">Non-taxable</span>}
+                    </div>
+                  </div>
+                  <Switch checked={c.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: c.id, is_active: v })} />
+                </div>
+                <div className="flex gap-2 pt-1 border-t">
+                  <Button size="sm" variant="ghost" className="h-8 flex-1" onClick={() => openEdit(c)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 flex-1 text-destructive" onClick={() => deleteMutation.mutate(c.id)}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>

@@ -153,6 +153,25 @@ export default function SalaryRevisionsPage() {
     }
   }
 
+  async function pushOneTime(revisionId: string) {
+    setPushingIds(prev => new Set(prev).add(revisionId));
+    try {
+      const mod = await import("@/lib/oneTimePayoutPush");
+      const res = await mod.pushOneTimePayoutToRazorpay(revisionId);
+      if (res.ok) {
+        toast.success("Payout queued on RazorpayX for that payroll month.");
+      } else if (res.skipped) {
+        toast.warning(res.error || "Employee not linked to RazorpayX");
+      } else {
+        toast.error("RazorpayX rejected the payout.", { description: (res.error || "Unknown error").slice(0, 220) });
+      }
+      await qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
+    } finally {
+      setPushingIds(prev => { const n = new Set(prev); n.delete(revisionId); return n; });
+    }
+  }
+
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader

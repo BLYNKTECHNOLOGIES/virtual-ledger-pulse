@@ -1,86 +1,92 @@
-# Client Activity Chat — inside Purpose & Communication
+# Universal RazorpayX push verification
 
-Add a Binance-style, scrollable, chronological chat feed at the bottom of the existing **Purpose & Communication** card on the Client Details page. Everything that ever happens to this client shows up as a dated bubble with the actor's name, including document previews. A composer at the bottom lets authorized users post notes and upload files without leaving the card.
+## Goal
+Every RazorpayX write (identity, bank, employment, salary, statutory, dismissal, and future kinds) must be treated as **not finalized** until HRMS re-reads the same fields from RazorpayX and confirms every changed field matches. When any field doesn't match, an "Update result" dialog opens showing exactly what was updated, what wasn't, and why — with a per-field retry.
 
-## Where it goes
+Today only salary has strict verification, and even that is based on the proxy's own response (`erp_total`), not a re-fetch. Identity/bank/employment/statutory/dismissal pushes all currently toast "success" whenever RazorpayX returns 200, even though RazorpayX silently no-ops several fields (bank IFSC updates, phone updates, probation date, and dismissal are all famous for this).
 
-- File: `src/components/clients/PurposeCommunication.tsx`
-- Nothing existing is removed. Purpose of Buying, Compliance Notes, Contacts, Operator Notes, Follow-up, and the current action buttons stay exactly as they are.
-- A new section **Activity Timeline** is appended inside the same `<CardContent>` under a divider, containing the chat feed + composer.
+## Deliverables
 
-## What shows up in the feed
+### 1. Proxy: single verification endpoint (`verify_push`)
+New action `verify_push` in `supabase/functions/razorpay-payroll-proxy/index.ts` that takes `{ kind, razorpay_employee_id, expected }` and returns `{ fields: [{ key, expected, actual, match, reason? }], overall: "verified" | "partial" | "failed" }`.
 
-Merged, sorted strictly by timestamp (oldest → newest, auto-scroll to bottom on open, "jump to latest" chip):
+Per-kind field maps (extracted from existing snapshot normalization in `read_person_by_id` and `edit_person_by_id`):
 
-1. **System actions** — every `system_action_logs` row with `entity_id = client.id` (client created/updated, KYC approved/rejected, buyer/seller approval, limit changes, etc.). Uses the same `ACTION_LABELS` map already in `useActivityTimeline.ts`.
-2. **Operator notes** — `client_operator_notes` rows (existing thread powering `OperatorNotesThread.tsx`).
-3. **Communication logs** — `client_communication_logs` rows (calls/emails/meetings from `CommunicationLogDialog.tsx`). Type + subject rendered as a labelled bubble.
-4. **KYC & compliance documents** — `client_kyc_documents` rows as file-preview bubbles: thumbnail for images, PDF/file icon + filename for others, plus doc type, uploader, upload date, and "Open" / "Download" actions using signed URLs from the existing KYC storage bucket.
-5. **Orders** — `sales_orders` and `purchase_orders` where `client_id = client.id` (and `supplier_id` for purchases when the client is also a supplier). Compact bubble: order number, product, qty × price, status badge. Click opens the existing rich detail via `openTransaction({ type: 'sales_order' | 'purchase_order', id })`.
-6. **Bank transactions** — `bank_transactions` where `client_id = client.id`. Compact bubble: type + amount + reference. Click opens `openTransaction({ type: 'bank_transaction', id })`.
+- `identity` → `first_name, last_name, email, phone, gender, date_of_birth, pan_number, aadhaar_last4`
+- `bank` → `bank_account_number, ifsc, account_holder_name`
+- `employment` → `date_of_joining, probation_end_date, department, designation, employee_type, work_location`
+- `salary` → `annual_ctc` (from `__salary.annual_ctc` when payroll has executed) + optional component sum
+- `statutory` → `pf_enabled, esi_enabled, pt_enabled` (parsed from people:view enrollment block)
+- `dismissal` → `employment_status ∈ {dismissed}, date_of_dismissal`
 
-Reversal/reversal-noise bank rows are hidden by default (matches the ledger convention already applied in `AccountSummary.tsx`); a small toggle above the feed reveals them.
+Normalization: dates → `YYYY-MM-DD`, phone → last-10, IFSC → upper, booleans → strict `true/false`, numbers → ±₹1 tolerance. Never string-compare raw payloads.
 
-## Visual style (Binance-style)
+For salary specifically, `annual_ctc` is only exposed by `payroll:view-payroll` after an executed run. When unavailable, the field is reported as `match: null` with `reason: "not exposed until first payroll run"`, and we fall back to the proxy's echoed `erp_total` (same behavior we have now). The dialog surfaces this honestly rather than falsely claiming verification.
 
-- Full-width chat pane, ~520px tall, `overflow-y-auto`, sticky day separators (e.g. "Today", "Yesterday", "25 Jul 2026").
-- Two lanes:
-  - **System / auto events** — neutral surface bubble, left-aligned, small icon on the left indicating source (system, doc, order, bank, comm).
-  - **Human notes / uploads by staff** — primary-tinted bubble, right-aligned, avatar initial of the actor.
-- Every bubble shows: actor name, exact time (`HH:mm`), and a source chip ("System", "Note", "KYC", "Sales", "Purchase", "Bank", "Call/Email/Meet").
-- Document bubble: 96×96 image thumbnail with lightbox on click, or file-type icon + filename for non-images; secondary line shows doc type + uploader + date; buttons for Preview and Download.
-- Order/bank bubbles are clickable rows that reuse the existing Universal Transaction Detail dialog — no new detail UI needed.
-- Empty state: single centered "No activity yet" line with the composer still available.
+### 2. Client: `pushWithVerification` (single entry point)
+Replace the current `pushToRazorpay` internals so every kind runs the same shape:
 
-## Composer (permission-gated by `MANAGE_CLIENTS`)
+```text
+push → wait 800ms (Razorpay eventual-consistency) → verify_push → return { ok, diff, overall }
+```
 
-Anchored at the bottom of the chat pane:
+Return type:
+```ts
+{
+  ok: boolean;              // true only when overall === "verified"
+  overall: "verified" | "partial" | "failed" | "skipped";
+  diff: FieldDiff[];        // always populated, even on success
+  error?: string;
+  razorpayEmployeeId?: string;
+}
+```
 
-- Textarea (auto-grow, Enter to send, Shift+Enter for newline).
-- Paperclip button opens file picker (images, PDFs, docs).
-- Send button. Behavior:
-  - Text-only → insert into `client_operator_notes` (author = current user).
-  - Attachment(s) → upload to the existing KYC storage bucket under the client's permanent path, then insert one `client_kyc_documents` row per file with `document_type = 'communication_attachment'`, uploader = current user, plus the accompanying text (if any) as a linked `client_operator_notes` row referencing the filename.
-- Uploads follow the existing KYC durability rule (permanent `kyc/` path, no auto-cleanup).
-- Toast on success/failure; feed refetches automatically via `queryClient.invalidateQueries`.
+`pushIdentity/Bank/Salary/Employment/Statutory/Dismissal` become thin wrappers that pass the correct `kind` + `expected` snapshot built from the ERP row that was just written.
 
-Users without `MANAGE_CLIENTS` see the feed but no composer.
+The log row in `hr_razorpay_pushback_log` records the diff JSON in `response_snapshot` (already the column we use). `hr_drift_alerts` is only opened when `overall !== "verified"` and lists the mismatched field names in `resolution_note`.
 
-## Data plumbing
+### 3. UI: `RazorpayPushResultDialog`
+New shared component `src/components/hrms/RazorpayPushResultDialog.tsx`. Opens automatically from a top-level provider whenever a push resolves to `partial` or `failed`. Shows:
 
-New hook `src/hooks/useClientActivityFeed.ts`:
+- Employee name + RazorpayX employee-id
+- Push kind and timestamp
+- Two lists rendered from `diff`:
+  - "Confirmed by RazorpayX" — green rows with expected value
+  - "Not applied by RazorpayX" — amber/red rows with expected vs actual and reason (`"RazorpayX still shows old value"`, `"field not readable until first payroll run"`, `"RazorpayX rejected: <error>"`)
+- Buttons: **Retry push**, **Open in RazorpayX** (deeplink), **Dismiss** (records "acknowledged" in drift alert)
+- On `verified`, we just toast — no dialog interruption for the happy path.
 
-- Runs 6 parallel queries scoped to `clientId` (system actions, operator notes, communication logs, KYC documents, sales orders, purchase orders, bank transactions — using `fetchAllPaginated` where row counts can exceed 1000).
-- Resolves actor names via a single `users` lookup (id → full name / username), mirroring the pattern already in `useActivityTimeline.ts`.
-- Normalizes every row into a common `ClientFeedItem` shape:
-  ```ts
-  { id, kind: 'system'|'note'|'comm'|'doc'|'sales'|'purchase'|'bank',
-    at: string, actorId, actorName, title, body?, badge?,
-    attachment?: { url, mime, filename }, deepLink?: { type, id } }
-  ```
-- Sorts by `at` ascending in memory, returns the flat list.
-- Realtime: subscribe to Postgres changes on `client_operator_notes`, `client_kyc_documents`, and `system_action_logs` filtered by this client, using the `useEffect` + `removeChannel` cleanup pattern per project rules, so new events appear live without refresh.
+A provider `RazorpayPushFeedbackProvider` mounted in `HorillaLayout.tsx` owns the dialog state; any push call inside the HRMS tree can raise a result via a small `useRazorpayPushFeedback()` hook. This keeps every caller a two-liner: `const push = useRazorpayPushFeedback(); await push.salary(employeeId, expected);`
 
-New component `src/components/clients/ClientActivityChat.tsx`:
+### 4. Wire callers
+- `ReviseSalaryDialog.tsx` — replace current bespoke flow with the hook.
+- `SalaryRevisionsPage.tsx` per-row retry — replace with hook.
+- `Stage5Finalization.tsx` reconciliation pushes — replace three separate identity/bank/employment invokes.
+- `EmployeeProfilePage.tsx` bank + identity edit forms.
+- `SeparationDialog` (dismissal path) and `EnrollmentToggleRow` (statutory) — same.
 
-- Renders the header row ("Activity Timeline" + reversal-toggle + refresh), the scrollable feed, and the composer.
-- Handles day-separators, auto-scroll-to-bottom on mount and on new incoming items when already at the bottom, "Jump to latest" pill when the user has scrolled up.
-- Image preview uses an existing `Dialog` for lightbox; non-image previews open in a new tab via signed URL.
+Direct `supabase.functions.invoke("razorpay-payroll-proxy", …)` calls that write and don't verify are grepped and either routed through the hook or explicitly flagged as read-only.
 
-`PurposeCommunication.tsx` change is minimal: import `ClientActivityChat` and append `<ClientActivityChat clientId={activeClientId!} />` inside `CardContent` after the current action buttons, with a `Separator` above it.
+## Non-goals for this pass
+- Bulk operations (Salary Register import, bulk statutory) keep their existing dry-run + bulk-summary UI; they'll get a per-row diff column but no modal-per-row.
+- No new "confidence score" or automatic auto-retry. Retry is always user-triggered.
+- No schema changes — `hr_razorpay_pushback_log.response_snapshot` and `hr_drift_alerts.resolution_note` already carry what we need.
 
-## Out of scope
+## Technical notes
 
-- No schema changes. All tables and buckets already exist.
-- No changes to the existing Notes / Communication Log dialogs — they continue to work; the chat is an additional surface.
-- No email/SMS sending from the composer.
-- No edit/delete of already-posted feed items in this pass (matches current operator-notes behavior).
+- Read-back delay: RazorpayX's people:view is eventually consistent for a few hundred ms after a write. We wait 800ms once, then verify. If `overall !== "verified"` on the first probe, we re-verify once at +2s before opening the failure dialog to avoid false negatives.
+- Salary CTC: proxy already probes executed-run months in `read_person_by_id`. For a brand-new hire with no run yet, salary verification reports `annual_ctc: { match: null, reason: "not exposed until first payroll run" }` and uses the proxy's echoed `erp_total` as an interim "structure written" signal. The dialog is explicit about this instead of pretending it's verified.
+- Statutory: proxy already normalizes enrollment; extend `read_person_by_id` to attach `__statutory: { pf_enabled, esi_enabled, pt_enabled }` parsed from the same people:view body.
+- Dismissal: `isDismissedRazorpayPerson()` already exists; expose the parsed date in `__dismissal: { dismissed, date_of_dismissal }`.
+- Fields RazorpayX genuinely does not expose (e.g. some tenants hide PAN in view) are reported as `match: null, reason: "not exposed"` — never as a false success.
 
-## Verification
+## File touch list
 
-- Load a client with existing orders, bank rows, KYC docs, notes: confirm every item appears once, sorted correctly, with actor + timestamp.
-- Post a note → appears instantly at the bottom, attributed to current user.
-- Upload an image → thumbnail bubble with working lightbox; upload a PDF → file bubble with working "Open" link.
-- Click an order/bank bubble → existing transaction detail dialog opens with full data.
-- Sign in as a user without `MANAGE_CLIENTS` → feed visible, composer hidden.
-- Confirm no console errors, no Realtime leaks (cleanup fires on unmount).
+- `supabase/functions/razorpay-payroll-proxy/index.ts` — add `verify_push` action; extend `read_person_by_id` snapshot with `__statutory`, `__dismissal`.
+- `src/lib/razorpayPushback.ts` — refactor to `pushWithVerification`; keep the old exported names as wrappers.
+- `src/components/hrms/RazorpayPushResultDialog.tsx` — new.
+- `src/components/hrms/RazorpayPushFeedbackProvider.tsx` — new provider + hook.
+- `src/pages/horilla/HorillaLayout.tsx` — mount provider.
+- `src/components/hrms/ReviseSalaryDialog.tsx`, `src/pages/horilla/SalaryRevisionsPage.tsx`, `src/pages/horilla/onboarding/Stage5Finalization.tsx`, `src/pages/horilla/EmployeeProfilePage.tsx`, `src/components/hrms/SeparationDialog.tsx`, `src/pages/horilla/settings/StatutoryEnrollmentPage.tsx` (or wherever the statutory toggle lives) — swap to hook.
+
+No database migration is required.

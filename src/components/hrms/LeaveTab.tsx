@@ -136,6 +136,17 @@ export function LeaveTab({
 
   return (
     <div className="space-y-6">
+      {/* ─── Header with Edit Action ─── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Leave Balances</h3>
+          <p className="text-xs text-muted-foreground">Cumulative across all quarters</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Balances
+        </Button>
+      </div>
+
       {/* ─── Cumulative Leave Balance Cards ─── */}
       <div className="flex flex-wrap">
         {uniqueLeaveTypeIds.map((ltId: string) => {

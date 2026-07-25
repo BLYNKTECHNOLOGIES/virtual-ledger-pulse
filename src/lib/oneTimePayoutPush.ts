@@ -68,19 +68,17 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
     (rev.revision_type ? String(rev.revision_type).replace(/_/g, " ") : "Bonus");
   const additionType = ADDITION_TYPE_MAP[rev.revision_type] || "bonus";
 
-  const payload = {
-    data: {
-      "employee-id": razorpayId,
-      "payroll-month": periodMonth,
-      additions: [
-        {
-          label: label.slice(0, 80),
-          amount: Math.round(amount * 100),
-          taxable: true,
-          type: additionType,
-        },
-      ],
-    },
+  const data = {
+    "employee-id": razorpayId,
+    "payroll-month": periodMonth,
+    additions: [
+      {
+        label: label.slice(0, 80),
+        amount: Math.round(amount * 100),
+        taxable: true,
+        type: additionType,
+      },
+    ],
   };
 
   // 4) Call proxy
@@ -88,7 +86,7 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
   let errorMessage: string | null = null;
   try {
     const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
-      body: { action: "payroll_add_additions", payload },
+      body: { action: "payroll_add_additions", data },
     });
     if (error) {
       // FunctionsHttpError swallows the JSON body under a generic message.

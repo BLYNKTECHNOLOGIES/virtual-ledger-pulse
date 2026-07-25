@@ -6819,11 +6819,19 @@ Deno.serve(async (req) => {
       if (spec.gate === "salary" && !s?.push_salary_endpoint_verified) {
         return json(403, { error: "People/salary gate locked (push_salary_endpoint_verified=false)." });
       }
-      if (spec.requireAck && String(payload?.ack || "") !== "CONFIRM_DISMISS") {
+      const directPayload = payload?.payload && typeof payload.payload === "object" ? payload.payload : payload;
+      if (spec.requireAck && String(directPayload?.ack || "") !== "CONFIRM_DISMISS") {
         return json(403, { error: "Missing ack. Send { ack: 'CONFIRM_DISMISS' } to authorise this destructive action." });
       }
-      const data = (payload && typeof payload === "object" && payload.data && typeof payload.data === "object")
-        ? payload.data : {};
+      const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
+        ? directPayload.data : {};
+      if (action === "payroll_add_additions") {
+        const missing: string[] = [];
+        if (!data["employee-id"]) missing.push("employee-id");
+        if (!data["payroll-month"]) missing.push("payroll-month");
+        if (!Array.isArray(data.additions) || data.additions.length === 0) missing.push("additions");
+        if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll addition field(s): ${missing.join(", ")}` });
+      }
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;

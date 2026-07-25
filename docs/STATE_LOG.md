@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-25: RazorpayX one-time payout payload repair — bonus additions now send direct `data` to payroll:add-additions and proxy validates required fields before Opfin call.
 - 2026-07-25: RazorpayX one-time payout gate repair — Step G payroll envelope now auto-verifies with E/F so bonus additions can retry; stale gate-lock errors show as retryable, not Razorpay rejection.
 - 2026-07-25: RazorpayX salary read-back extractor fixed — verifier now consumes the proxy's live `annual_ctc` read-back, so Shubham Singh's ₹9,12,000 CTC can verify instead of showing blank.
 - 2026-07-25: RazorpayX salary push finalization tightened — accepted/read-back-pending no longer counts as done; CTC revisions are complete only after live RazorpayX read-back verifies the expected CTC.

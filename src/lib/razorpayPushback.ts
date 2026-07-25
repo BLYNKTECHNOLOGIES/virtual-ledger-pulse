@@ -426,8 +426,21 @@ export async function dismissInRazorpay(
       triggered_from: opts.triggeredFrom,
     });
 
-    toast.success(`Razorpay dismissal scheduled for ${ddmmyyyy} — FNF payroll enabled`);
-    return { ok: true, razorpay_employee_id: String(razorpayId) };
+    const verifyResult = await verifyAndFinalize({
+      kind: "dismissal",
+      hrEmployeeId,
+      razorpayEmployeeId: String(razorpayId),
+      triggeredFrom: opts.triggeredFrom,
+      expectedOverrides: { dismissed: true, date_of_dismissal: opts.dateOfDismissal },
+      successToast: `Razorpay dismissal scheduled for ${ddmmyyyy} — FNF payroll enabled`,
+      retry: () => dismissInRazorpay(hrEmployeeId, opts),
+    });
+    return {
+      ok: verifyResult.overall === "verified",
+      razorpay_employee_id: String(razorpayId),
+      error: verifyResult.overall === "verified" ? undefined : (verifyResult.error || "Dismissal not yet reflected in RazorpayX."),
+    };
+
   } catch (e: any) {
     const msg = e?.message || String(e);
     await logPushback({

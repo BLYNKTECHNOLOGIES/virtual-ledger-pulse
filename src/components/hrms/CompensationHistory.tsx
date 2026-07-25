@@ -89,7 +89,64 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
         </div>
       </div>
 
-      <div className="border border-border rounded-lg overflow-hidden">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {rows.map((r) => {
+          const meta = TYPE_META[r.revision_type] || { label: r.revision_type, icon: Sparkles, tone: "text-muted-foreground" };
+          const Icon = meta.icon;
+          const oneTime = ONE_TIME_KINDS.has(r.revision_type);
+          const prev = Number(r.previous_total || 0);
+          const next = Number(r.new_total || 0);
+          const delta = next - prev;
+          const pct = prev > 0 ? (delta / prev) * 100 : 0;
+          return (
+            <div key={r.id} className="border border-border rounded-lg p-3 space-y-2 bg-card">
+              <div className="flex items-start justify-between gap-2">
+                <div className={`inline-flex items-center gap-1.5 text-xs font-medium ${meta.tone}`}>
+                  <Icon className="h-3.5 w-3.5" />
+                  {meta.label}
+                </div>
+                <Badge
+                  variant={r.status === "APPLIED" ? "default" : r.status === "SCHEDULED" ? "secondary" : "outline"}
+                  className="text-[10px]"
+                >
+                  {r.status}
+                </Badge>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Effective {format(new Date(r.effective_from), "dd MMM yyyy")}
+                {oneTime && r.payout_month && (
+                  <> · Payout {format(new Date(r.payout_month), "MMM yyyy")}</>
+                )}
+              </div>
+              <div className="text-sm">
+                {oneTime ? (
+                  <span className="font-semibold text-success">+₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</span>
+                ) : (
+                  <div>
+                    <div className="text-foreground">
+                      ₹{prev.toLocaleString("en-IN")} → <span className="font-semibold">₹{next.toLocaleString("en-IN")}</span>
+                    </div>
+                    {prev > 0 && (
+                      <div className={`text-[10px] ${delta >= 0 ? "text-success" : "text-destructive"}`}>
+                        {delta >= 0 ? "+" : ""}₹{delta.toLocaleString("en-IN")} ({pct.toFixed(1)}%)
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {(r.revision_reason || r.notes) && (
+                <p className="text-[11px] text-muted-foreground line-clamp-2">{r.revision_reason || r.notes}</p>
+              )}
+              {r.approved_by && (
+                <p className="text-[10px] text-muted-foreground">Approved by {r.approved_by}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden md:block border border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/50 border-b border-border">
@@ -168,3 +225,4 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
     </div>
   );
 }
+

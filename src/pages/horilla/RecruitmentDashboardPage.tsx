@@ -328,6 +328,94 @@ export default function RecruitmentDashboardPage() {
             />
           </div>
         ) : (
+          <>
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-border">
+              {recruitments.map(rec => {
+                const recCandidates = getCandidatesForRecruitment(rec.id);
+                const hired = recCandidates.filter(c => c.hired).length;
+                const managers = getRecManagers(rec.id);
+                return (
+                  <div key={rec.id} className="p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        onClick={() => navigate(`/hrms/recruitment/pipeline?id=${rec.id}`)}
+                        className="font-medium text-foreground hover:text-[#E8604C] text-left flex-1 min-w-0"
+                      >
+                        <p className="truncate">{rec.title}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{getDeptName(rec.department_id) || "—"}</p>
+                      </button>
+                      {rec.closed ? (
+                        <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: true })}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
+                          Closed
+                        </button>
+                      ) : rec.is_published ? (
+                        <button onClick={() => togglePublishMutation.mutate({ id: rec.id, isPublished: true })}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-success/10 text-success flex items-center gap-1 shrink-0">
+                          <Globe className="h-3 w-3" /> Published
+                        </button>
+                      ) : (
+                        <button onClick={() => togglePublishMutation.mutate({ id: rec.id, isPublished: false })}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning flex items-center gap-1 shrink-0">
+                          <Lock className="h-3 w-3" /> Draft
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                      <span className="px-2 py-0.5 rounded-full bg-info/10 text-info border border-info/20 font-medium">
+                        {JOB_TYPES[rec.job_type] || rec.job_type || "—"}
+                      </span>
+                      {rec.location && <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" />{rec.location}</span>}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div><p className="text-[10px] uppercase text-muted-foreground">Vacancy</p><p className="font-medium">{rec.vacancy || "—"}</p></div>
+                      <div><p className="text-[10px] uppercase text-muted-foreground">Applied</p><p className="font-medium">{recCandidates.length}</p></div>
+                      <div><p className="text-[10px] uppercase text-muted-foreground">Hired</p><p className="font-medium text-success">{hired}</p></div>
+                    </div>
+                    <div className="flex items-center justify-between gap-1 pt-1 border-t border-border/40">
+                      <div className="flex items-center gap-1">
+                        {managers.length > 0 ? (
+                          <div className="flex -space-x-1">
+                            {managers.slice(0, 3).map((m: any) => (
+                              <div key={m.id} className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold ring-1 ring-background">
+                                {m.hr_employees?.first_name?.[0]}{m.hr_employees?.last_name?.[0]}
+                              </div>
+                            ))}
+                            {managers.length > 3 && <span className="text-[10px] text-muted-foreground ml-1">+{managers.length - 3}</span>}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">No managers</span>
+                        )}
+                        <button onClick={() => setManagerDialogRecId(rec.id)} className="min-h-11 min-w-11 flex items-center justify-center rounded hover:bg-info/10 text-info">
+                          <UserPlus className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => navigate(`/hrms/recruitment/pipeline?id=${rec.id}`)} className="min-h-11 min-w-11 flex items-center justify-center rounded hover:bg-muted text-info">
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => openEdit(rec)} className="min-h-11 min-w-11 flex items-center justify-center rounded hover:bg-muted text-foreground">
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        {!rec.closed ? (
+                          <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: false })} className="min-h-11 min-w-11 flex items-center justify-center rounded hover:bg-muted text-destructive">
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <button onClick={() => setDeleteTarget({ id: rec.id, name: rec.title })} className="min-h-11 min-w-11 flex items-center justify-center rounded hover:bg-destructive/10 text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
@@ -448,6 +536,9 @@ export default function RecruitmentDashboardPage() {
               })}
             </tbody>
           </table>
+            </div>
+          </>
+
         )}
       </div>
 

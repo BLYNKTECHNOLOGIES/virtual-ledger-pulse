@@ -546,9 +546,17 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <p>RazorpayX requires operator envelope verification on the People edit endpoint before the change is finalised.</p>
               </div>
 
-              {isFutureDated && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Effective date is in the future — statutory toggles will be saved as <strong>Scheduled</strong> and pushed to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>.
+              {rawFutureDated && (
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-2">
+                  {isFutureDated ? (
+                    <p>Effective date is in the future — statutory toggles will be saved as <strong>Scheduled</strong> and pushed to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>.</p>
+                  ) : (
+                    <p><strong>Apply now</strong> is on — statutory toggles will be applied and pushed to RazorpayX immediately using today's date.</p>
+                  )}
+                  <label className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
+                    <Switch checked={applyNow} onCheckedChange={setApplyNow} />
+                    <span className="text-foreground">Apply now instead of scheduling</span>
+                  </label>
                 </div>
               )}
             </>

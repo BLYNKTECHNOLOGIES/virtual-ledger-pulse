@@ -169,7 +169,7 @@ const navGroups: NavGroup[] = [
         path: "/hrms/pms",
         children: [
           { label: "Dashboard", path: "/hrms/pms" },
-          { label: "Objectives", path: "/hrms/pms/objectives" },
+          
           { label: "360° Feedback", path: "/hrms/pms/feedback" },
           { label: "MPI", path: "/hrms/pms/mpi" },
         ],

@@ -11459,6 +11459,10 @@ export type Database = {
           payout_month: string | null
           previous_basic: number | null
           previous_total: number | null
+          razorpay_push_error: string | null
+          razorpay_push_response: Json | null
+          razorpay_pushed_at: string | null
+          razorpay_verified_at: string | null
           revision_reason: string | null
           revision_type: string
           status: string
@@ -11482,6 +11486,10 @@ export type Database = {
           payout_month?: string | null
           previous_basic?: number | null
           previous_total?: number | null
+          razorpay_push_error?: string | null
+          razorpay_push_response?: Json | null
+          razorpay_pushed_at?: string | null
+          razorpay_verified_at?: string | null
           revision_reason?: string | null
           revision_type?: string
           status?: string
@@ -11505,6 +11513,10 @@ export type Database = {
           payout_month?: string | null
           previous_basic?: number | null
           previous_total?: number | null
+          razorpay_push_error?: string | null
+          razorpay_push_response?: Json | null
+          razorpay_pushed_at?: string | null
+          razorpay_verified_at?: string | null
           revision_reason?: string | null
           revision_type?: string
           status?: string

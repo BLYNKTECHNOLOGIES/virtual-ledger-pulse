@@ -288,15 +288,12 @@ export async function pushToRazorpay(
       }
     }
 
-    await logPushback({
-      hr_employee_id: hrEmployeeId,
-      razorpay_employee_id: razorpayId,
-      kind,
-      action: ACTION_BY_KIND[kind],
-      status: "success",
-      response_snapshot: data ?? null,
-      triggered_from: opts?.triggeredFrom,
-    });
+    // NOTE: we deliberately do NOT log status="success" here. RazorpayX often
+    // returns HTTP 200 while silently no-op'ing the write (locked payroll
+    // cycle, stale envelope, wrong sub-type, etc.). The pushback log status
+    // must reflect the RE-READ verification result — not the push HTTP code —
+    // otherwise the row badges in the Salary Revision History will read
+    // "Synced to RazorpayX" even when RazorpayX kept the old value.
 
     // Re-read RazorpayX and diff field-by-field. This is the source of truth
     // for whether the update actually landed — RazorpayX silently no-ops some
@@ -321,8 +318,19 @@ export async function pushToRazorpay(
       retry: () => pushToRazorpay(kind, hrEmployeeId, { ...opts, silent: true }),
     });
 
-    // Clear open drift only when verification actually confirmed the change.
-    if (verifyResult.overall === "verified") {
+    // Log the pushback with the ACTUAL verification result. This is what
+    // downstream UI (Salary Revision History badges, Data Health) reads.
+    const verifyOverall = verifyResult.overall;
+    if (verifyOverall === "verified") {
+      await logPushback({
+        hr_employee_id: hrEmployeeId,
+        razorpay_employee_id: razorpayId,
+        kind,
+        action: ACTION_BY_KIND[kind],
+        status: "success",
+        response_snapshot: { push: data ?? null, verify: verifyResult },
+        triggered_from: opts?.triggeredFrom,
+      });
       try {
         await (supabase as any)
           .from("hr_drift_alerts")
@@ -331,16 +339,41 @@ export async function pushToRazorpay(
           .eq("field", DRIFT_FIELD_BY_KIND[kind])
           .is("resolved_at", null);
       } catch { /* ignore */ }
+    } else {
+      const mismatched = verifyResult.fields.filter((f) => f.match === false);
+      const unknown = verifyResult.fields.filter((f) => f.match === null);
+      const errSummary =
+        mismatched.length
+          ? `RazorpayX did not accept: ${mismatched.map((f) => `${f.label} (sent ${f.expected}, RazorpayX shows ${f.actual})`).join("; ")}`
+          : unknown.length
+            ? `RazorpayX could not confirm: ${unknown.map((f) => f.label).join(", ")}`
+            : (verifyResult.error || "RazorpayX did not confirm the write.");
+      await logPushback({
+        hr_employee_id: hrEmployeeId,
+        razorpay_employee_id: razorpayId,
+        kind,
+        action: ACTION_BY_KIND[kind],
+        status: "failure",
+        response_snapshot: { push: data ?? null, verify: verifyResult },
+        error_message: errSummary,
+        triggered_from: opts?.triggeredFrom,
+      });
+      await upsertDrift(
+        hrEmployeeId,
+        DRIFT_FIELD_BY_KIND[kind],
+        `Push not verified: ${errSummary.slice(0, 200)}`,
+      );
     }
 
     return {
-      ok: verifyResult.overall === "verified",
+      ok: verifyOverall === "verified",
       verifiedTotal,
       expectedTotal: opts?.expectedTotal,
-      error: verifyResult.overall !== "verified"
+      error: verifyOverall !== "verified"
         ? (verifyResult.error || `RazorpayX ${LABEL_BY_KIND[kind]} update was not verified — see the field diff dialog.`)
         : undefined,
     };
+
 
   } catch (e: any) {
     const msg = e?.message || String(e);

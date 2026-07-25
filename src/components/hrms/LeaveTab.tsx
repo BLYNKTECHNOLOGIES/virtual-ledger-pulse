@@ -324,6 +324,15 @@ export function LeaveTab({
           </div>
         </div>
       )}
+
+      <EditLeaveBalancesDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        employeeId={employeeId}
+        leaveAllocations={leaveAllocations}
+        leaveTypes={leaveTypes}
+        queryClient={queryClient}
+      />
     </div>
   );
 }

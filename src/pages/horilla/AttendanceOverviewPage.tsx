@@ -199,7 +199,8 @@ export default function AttendanceOverviewPage() {
   const stats = {
     present: attendance.filter((a: any) => a.attendance_status === "present").length,
     absent: attendance.filter((a: any) => a.attendance_status === "absent").length,
-    late: attendance.filter((a: any) => a.attendance_status === "late").length,
+    late: attendance.filter((a: any) => a.attendance_status === "late" || (a.late_minutes ?? 0) > 0).length,
+    not_punched: attendance.filter((a: any) => a.attendance_status === "no_data" || a.attendance_status === "incomplete").length,
     total: attendance.length,
   };
 

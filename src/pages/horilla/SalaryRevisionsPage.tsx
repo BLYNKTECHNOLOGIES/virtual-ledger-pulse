@@ -108,13 +108,23 @@ export default function SalaryRevisionsPage() {
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
 
-  async function pushOne(employeeId: string, revisionId: string) {
+  async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
     setPushingIds(prev => new Set(prev).add(revisionId));
     try {
-      const res = await pushSalaryToRazorpay(employeeId, { triggeredFrom: "salary_revisions_row" });
-      if (res.ok) toast.success("Salary mirrored to RazorpayX");
-      else if (res.skipped) toast.warning("Employee is not linked to RazorpayX — link them from Data Health first.");
-      // pushSalaryToRazorpay already toasts the failure detail.
+      const res = await pushSalaryToRazorpay(employeeId, {
+        triggeredFrom: "salary_revisions_row",
+        silent: true,
+        expectedTotal,
+      });
+      if (res.ok && typeof res.verifiedTotal === "number" && Math.abs(res.verifiedTotal - expectedTotal) <= 1) {
+        toast.success(`Verified in RazorpayX: ₹${res.verifiedTotal.toLocaleString("en-IN")}`);
+      } else if (res.skipped) {
+        toast.warning("Employee is not linked to RazorpayX — link them from Data Health first.");
+      } else {
+        toast.error("RazorpayX push NOT verified — revision not finalized.", {
+          description: (res.error || "CTC mismatch or push rejected").slice(0, 220),
+        });
+      }
       await qc.invalidateQueries({ queryKey: ["hr_salary_push_latest"] });
     } finally {
       setPushingIds(prev => { const n = new Set(prev); n.delete(revisionId); return n; });
@@ -265,7 +275,7 @@ export default function SalaryRevisionsPage() {
                       <Button
                         size="sm"
                         variant={pushFailedAfterRevision ? "default" : "outline"}
-                        onClick={() => pushOne(r.employee_id, r.id)}
+                        onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}
                         disabled={pushing || !envelopeVerified}
                         title={!envelopeVerified ? "Verify the salary envelope first" : "Push this CTC to RazorpayX"}
                       >

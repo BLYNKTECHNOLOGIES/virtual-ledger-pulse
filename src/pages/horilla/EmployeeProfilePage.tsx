@@ -631,6 +631,16 @@ export default function EmployeeProfilePage() {
 
   const inputCls = "w-full border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#00bcd4] bg-background text-foreground";
 
+  const prettyCase = (s?: string | null) => !s ? "None" : s.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const fmtDate = (d?: string | null) => !d ? "None" : (() => { const t = new Date(d); return isNaN(t.getTime()) ? d : t.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); })();
+  const fmtTime = (d?: string | null) => {
+    if (!d) return "—";
+    // Time-only strings from legacy table
+    if (/^\d{2}:\d{2}/.test(d) && !d.includes("T")) return d.slice(0, 5);
+    const t = new Date(d);
+    return isNaN(t.getTime()) ? d : t.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  };
+
   const InfoRow = ({ label, value, editKey, inputType, selectOptions }: { label: string; value: string | null; editKey?: string; inputType?: string; selectOptions?: { value: string; label: string }[] }) => (
     <div className="py-2">
       <p className="text-xs text-muted-foreground">{label}</p>

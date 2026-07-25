@@ -253,37 +253,110 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     return data;
   };
 
+  // Queue a DELETE on a specific device serial (without a success toast — caller aggregates).
+  const queueDeleteOnSerial = async (targetSerial: string, pin: string): Promise<string | null> => {
+    const { data, error } = await (supabase as any)
+      .from("hr_biometric_device_commands")
+      .insert({
+        device_serial: targetSerial,
+        command_text: `C:${Date.now()}:DATA DELETE USERINFO PIN=${escape(pin)}`,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error(`[bio-delete] failed to queue on ${targetSerial}:`, error);
+      return null;
+    }
+    return data?.id ?? null;
+  };
+
   const deleteUser = async (pin: string) => {
     if (!serial) return;
-    const commandId = await queueCmd(
-      `C:${Date.now()}:DATA DELETE USERINFO PIN=${escape(pin)}`,
-      `Delete user ${pin} queued — waiting for device confirmation…`,
-    );
-    if (!commandId) return;
 
-    const toastId = toast.loading(`Waiting for device to confirm delete of PIN ${pin}…`);
-    const outcome = await awaitCommandAck(commandId);
+    // Fan out: current device + every OTHER registered biometric device — mirror
+    // the roster so a deletion on one physical unit propagates everywhere.
+    const { data: allDevices } = await (supabase as any)
+      .from("hr_biometric_devices")
+      .select("device_serial, name")
+      .not("device_serial", "is", null);
+    const siblings: Array<{ device_serial: string; name?: string }> = (allDevices || []).filter(
+      (d: any) => d.device_serial && d.device_serial !== serial,
+    );
+
+    const toastId = toast.loading(
+      siblings.length > 0
+        ? `Deleting PIN ${pin} on this device and ${siblings.length} paired device${siblings.length === 1 ? "" : "s"}…`
+        : `Waiting for device to confirm delete of PIN ${pin}…`,
+    );
+
+    type Target = { serial: string; label: string; commandId: string | null };
+    const targets: Target[] = [];
+
+    const primaryCmdId = await queueDeleteOnSerial(serial, pin);
+    targets.push({ serial, label: "this device", commandId: primaryCmdId });
+    for (const s of siblings) {
+      const cid = await queueDeleteOnSerial(s.device_serial, pin);
+      targets.push({ serial: s.device_serial, label: s.name || s.device_serial, commandId: cid });
+    }
+
+    if (!primaryCmdId) {
+      toast.error(`Failed to queue delete on this device.`, { id: toastId });
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["bio-cmds", serial] });
+
+    // Wait for each device to ACK in parallel, then clean up its roster row.
+    const results = await Promise.all(
+      targets.map(async (t) => {
+        if (!t.commandId) return { ...t, outcome: "queue_failed" as const };
+        const outcome = await awaitCommandAck(t.commandId);
+        if (outcome === "ack") {
+          try {
+            await (supabase as any).rpc("cleanup_biometric_device_pin_after_ack", {
+              _device_serial: t.serial,
+              _pin: pin,
+              _command_id: t.commandId,
+            });
+          } catch (e) {
+            console.error(`[bio-delete] cleanup failed on ${t.serial}:`, e);
+            return { ...t, outcome: "cleanup_failed" as const };
+          }
+        }
+        return { ...t, outcome };
+      }),
+    );
+
     await cmdsQ.refetch();
 
-    if (outcome === "ack") {
-      try {
-        const cleaned = await cleanupConfirmedDelete(pin, commandId);
-        toast.success(
-          `PIN ${pin} deleted from eSSL and removed from ERP roster (${cleaned?.users_deleted ?? 0} user row, ${cleaned?.templates_deleted ?? 0} templates).`,
-          { id: toastId },
-        );
-      } catch (e: any) {
-        await refetchDeviceData();
-        toast.error(`eSSL acknowledged delete, but ERP cleanup failed: ${e?.message || "Unknown error"}`, { id: toastId });
-      }
-    } else if (outcome === "error") {
-      toast.error(`Device rejected delete of PIN ${pin}. Check operator log for the reason.`, { id: toastId });
-    } else if (outcome === "sent") {
-      await refetchDeviceData();
-      toast.warning(`Delete for PIN ${pin} was delivered to eSSL but not acknowledged yet. The ERP roster will clear only after ACK is received.`, { id: toastId });
+    // Optimistically prune the current device's cached views.
+    const primary = results.find((r) => r.serial === serial);
+    if (primary?.outcome === "ack") {
+      qc.setQueryData(["bio-users", serial], (old: any[] = []) => old.filter((u: any) => String(u.pin) !== String(pin)));
+      qc.setQueryData(["bio-tpl", serial], (old: any[] = []) => old.filter((t: any) => String(t.pin) !== String(pin)));
+      qc.setQueryData(["bio-photos", serial], (old: any[] = []) => old.filter((p: any) => String(p.pin) !== String(pin)));
+    }
+    await refetchDeviceData();
+
+    const acked = results.filter((r) => r.outcome === "ack");
+    const failed = results.filter((r) => r.outcome !== "ack");
+
+    if (failed.length === 0) {
+      toast.success(
+        `PIN ${pin} deleted from ${acked.length} device${acked.length === 1 ? "" : "s"} and cleared from ERP roster.`,
+        { id: toastId },
+      );
+    } else if (acked.length === 0) {
+      toast.error(
+        `Delete for PIN ${pin} not acknowledged by any device. Check heartbeat and operator log.`,
+        { id: toastId },
+      );
     } else {
-      await refetchDeviceData();
-      toast.error(`Device did not pick up the delete command for PIN ${pin}. Confirm the device is online (heartbeat) and try again.`, { id: toastId });
+      const failedLabels = failed.map((f) => `${f.label} (${f.outcome})`).join(", ");
+      toast.warning(
+        `PIN ${pin} deleted on ${acked.length}/${results.length} devices. Still pending: ${failedLabels}. ERP will finish cleanup once each device ACKs.`,
+        { id: toastId },
+      );
     }
   };
   const clearAll = (target: "DATA" | "LOG" | "PHOTO") =>

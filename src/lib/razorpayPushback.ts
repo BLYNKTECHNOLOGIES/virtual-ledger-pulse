@@ -130,8 +130,8 @@ async function upsertDrift(hr_employee_id: string, field: string, note: string) 
 export async function pushToRazorpay(
   kind: Exclude<PushKind, "dismissal" | "create">,
   hrEmployeeId: string,
-  opts?: { triggeredFrom?: string; silent?: boolean },
-): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+  opts?: { triggeredFrom?: string; silent?: boolean; expectedTotal?: number },
+): Promise<{ ok: boolean; skipped?: boolean; error?: string; verifiedTotal?: number; expectedTotal?: number }> {
   const razorpayId = await resolveRazorpayEmployeeId(hrEmployeeId);
   if (!razorpayId) {
     await logPushback({
@@ -155,6 +155,39 @@ export async function pushToRazorpay(
       throw new Error((data as any).error || "Razorpay rejected the push");
     }
 
+    // Strict verification for salary pushes: the proxy returns rows[0] with the
+    // ACTUAL erp_total it sent to RazorpayX (built from hr_employee_salary_structures).
+    // If the caller told us what the new CTC should be, refuse to mark this successful
+    // unless the pushed total matches to the rupee. This catches the case where the
+    // salary structure wasn't rescaled and Razorpay silently kept the OLD CTC.
+    let verifiedTotal: number | undefined;
+    if (kind === "salary") {
+      const row = Array.isArray((data as any)?.rows) ? (data as any).rows[0] : null;
+      const rowStatus = String(row?.status || "").toLowerCase();
+      verifiedTotal = Number.isFinite(Number(row?.erp_total)) ? Number(row?.erp_total) : undefined;
+
+      if (rowStatus === "no_erp_structure" || rowStatus === "skipped_no_baseline") {
+        throw new Error(row?.error || `RazorpayX push skipped (${rowStatus}) — build salary structure and retry.`);
+      }
+      if (rowStatus === "failed") {
+        throw new Error(row?.error || "RazorpayX rejected the salary push");
+      }
+      if (rowStatus === "unchanged" && typeof opts?.expectedTotal === "number") {
+        throw new Error(
+          `RazorpayX reports the salary structure is unchanged (₹${(verifiedTotal ?? 0).toLocaleString("en-IN")}). ` +
+          `Expected ₹${opts.expectedTotal.toLocaleString("en-IN")}. The salary structure was not rescaled — nothing was written to RazorpayX.`
+        );
+      }
+      if (typeof opts?.expectedTotal === "number" && typeof verifiedTotal === "number") {
+        if (Math.abs(verifiedTotal - opts.expectedTotal) > 1) {
+          throw new Error(
+            `RazorpayX received ₹${verifiedTotal.toLocaleString("en-IN")} but expected ₹${opts.expectedTotal.toLocaleString("en-IN")}. ` +
+            `The salary structure did not match the revised CTC — RazorpayX was NOT updated with the new amount.`
+          );
+        }
+      }
+    }
+
     await logPushback({
       hr_employee_id: hrEmployeeId,
       razorpay_employee_id: razorpayId,
@@ -175,8 +208,14 @@ export async function pushToRazorpay(
         .is("resolved_at", null);
     } catch { /* ignore */ }
 
-    if (!opts?.silent) toast.success(`Razorpay ${LABEL_BY_KIND[kind]} updated`);
-    return { ok: true };
+    if (!opts?.silent) {
+      if (kind === "salary" && typeof verifiedTotal === "number") {
+        toast.success(`Razorpay CTC verified: ₹${verifiedTotal.toLocaleString("en-IN")}`);
+      } else {
+        toast.success(`Razorpay ${LABEL_BY_KIND[kind]} updated`);
+      }
+    }
+    return { ok: true, verifiedTotal, expectedTotal: opts?.expectedTotal };
   } catch (e: any) {
     const msg = e?.message || String(e);
     await logPushback({
@@ -190,9 +229,9 @@ export async function pushToRazorpay(
     });
     await upsertDrift(hrEmployeeId, DRIFT_FIELD_BY_KIND[kind], `Push failed: ${msg.slice(0, 200)}`);
     if (!opts?.silent) {
-      toast.warning(
-        `ERP saved, but Razorpay ${LABEL_BY_KIND[kind]} push failed. Open Data Health to retry.`,
-        { description: msg.length > 160 ? msg.slice(0, 160) + "…" : msg },
+      toast.error(
+        `RazorpayX ${LABEL_BY_KIND[kind]} push NOT verified — revision is not finalized.`,
+        { description: msg.length > 220 ? msg.slice(0, 220) + "…" : msg },
       );
     }
     return { ok: false, error: msg };

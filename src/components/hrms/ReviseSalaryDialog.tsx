@@ -159,7 +159,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           p_new_total: nT,
           p_revision_type: revisionType,
           p_reason: reason || null,
-          p_effective_from: format(effectiveFrom, "yyyy-MM-dd"),
+          p_effective_from: format(effectiveDateForRpc, "yyyy-MM-dd"),
           p_approved_by: approvedBy,
         });
         if (error) throw error;

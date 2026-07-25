@@ -159,13 +159,16 @@ async function verifyAndFinalize(args: {
   triggeredFrom?: string;
   silent?: boolean;
   expectedOverrides?: Record<string, any>;
+  acceptedUnknownFields?: string[];
   successToast?: string;
   retry?: () => Promise<any>;
 }): Promise<PushVerifyResult> {
   const expected = await buildExpected(args.kind, args.hrEmployeeId, args.expectedOverrides).catch(() => ({}));
   const result = await verifyPush(args.kind, args.hrEmployeeId, expected, {
     razorpayEmployeeId: args.razorpayEmployeeId,
+    acceptedUnknownFields: args.acceptedUnknownFields,
   });
+  const isAcceptedOutcome = result.overall === "verified" || result.overall === "accepted";
 
   // Persist the diff into the last pushback log row (best-effort).
   try {
@@ -176,14 +179,14 @@ async function verifyAndFinalize(args: {
         razorpay_employee_id: args.razorpayEmployeeId,
         kind: args.kind,
         action: `verify_${args.kind}`,
-        status: result.overall === "verified" ? "success" : "failure",
+        status: isAcceptedOutcome ? "success" : "failure",
         response_snapshot: { overall: result.overall, fields: result.fields, error: result.error ?? null },
-        error_message: result.overall === "verified" ? null : (result.error || `Verification: ${result.overall}`),
+        error_message: isAcceptedOutcome ? null : (result.error || `Verification: ${result.overall}`),
         triggered_from: args.triggeredFrom,
       });
   } catch { /* best-effort */ }
 
-  if (result.overall !== "verified") {
+  if (!isAcceptedOutcome) {
     const mismatched = result.fields.filter((f) => f.match !== true).map((f) => f.label).join(", ");
     await upsertDrift(
       args.hrEmployeeId,
@@ -206,6 +209,10 @@ async function verifyAndFinalize(args: {
   if (!args.silent) {
     if (result.overall === "verified") {
       toast.success(args.successToast || `Razorpay ${LABEL_BY_KIND[args.kind as PushKind] || args.kind} verified`);
+    } else if (result.overall === "accepted") {
+      toast.warning(`RazorpayX ${args.kind} push accepted — read-back pending`, {
+        description: "RazorpayX accepted the write, but its API cannot echo the current value yet.",
+      });
     } else if (result.overall === "partial") {
       toast.warning(`RazorpayX ${args.kind} update partially verified — see details`, {
         description: "Some fields could not be read back from RazorpayX. Opened the diff dialog.",
@@ -231,6 +238,7 @@ async function verifyAndFinalize(args: {
             await retry();
             return verifyPush(args.kind, args.hrEmployeeId, expected, {
               razorpayEmployeeId: args.razorpayEmployeeId,
+              acceptedUnknownFields: args.acceptedUnknownFields,
             });
           }
         : undefined,
@@ -245,7 +253,7 @@ export async function pushToRazorpay(
   kind: Exclude<PushKind, "dismissal" | "create">,
   hrEmployeeId: string,
   opts?: { triggeredFrom?: string; silent?: boolean; expectedTotal?: number },
-): Promise<{ ok: boolean; skipped?: boolean; error?: string; verifiedTotal?: number; expectedTotal?: number }> {
+): Promise<{ ok: boolean; skipped?: boolean; error?: string; verifiedTotal?: number; expectedTotal?: number; readbackPending?: boolean }> {
   const razorpayId = await resolveRazorpayEmployeeId(hrEmployeeId);
   if (!razorpayId) {
     await logPushback({
@@ -288,6 +296,7 @@ export async function pushToRazorpay(
     // unless the pushed total matches to the rupee. This catches the case where the
     // salary structure wasn't rescaled and Razorpay silently kept the OLD CTC.
     let verifiedTotal: number | undefined;
+    let salaryWriteAcceptedForExpectedTotal = false;
     if (kind === "salary") {
       const row = Array.isArray((data as any)?.rows) ? (data as any).rows[0] : null;
       const rowStatus = String(row?.status || "").toLowerCase();
@@ -313,6 +322,11 @@ export async function pushToRazorpay(
           );
         }
       }
+      salaryWriteAcceptedForExpectedTotal =
+        rowStatus === "pushed" &&
+        typeof opts?.expectedTotal === "number" &&
+        typeof verifiedTotal === "number" &&
+        Math.abs(verifiedTotal - opts.expectedTotal) <= 1;
     }
 
     // NOTE: we deliberately do NOT log status="success" here. RazorpayX often
@@ -338,6 +352,7 @@ export async function pushToRazorpay(
       triggeredFrom: opts?.triggeredFrom,
       silent: opts?.silent,
       expectedOverrides,
+      acceptedUnknownFields: salaryWriteAcceptedForExpectedTotal ? ["annual_ctc"] : undefined,
       successToast:
         kind === "salary" && typeof verifiedTotal === "number"
           ? `RazorpayX CTC verified: ₹${verifiedTotal.toLocaleString("en-IN")}`
@@ -348,7 +363,8 @@ export async function pushToRazorpay(
     // Log the pushback with the ACTUAL verification result. This is what
     // downstream UI (Salary Revision History badges, Data Health) reads.
     const verifyOverall = verifyResult.overall;
-    if (verifyOverall === "verified") {
+    const isAcceptedOutcome = verifyOverall === "verified" || verifyOverall === "accepted";
+    if (isAcceptedOutcome) {
       await logPushback({
         hr_employee_id: hrEmployeeId,
         razorpay_employee_id: razorpayId,
@@ -361,7 +377,12 @@ export async function pushToRazorpay(
       try {
         await (supabase as any)
           .from("hr_drift_alerts")
-          .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by verified push" })
+          .update({
+            resolved_at: new Date().toISOString(),
+            resolution_note: verifyOverall === "accepted"
+              ? "Auto-resolved by RazorpayX write acceptance; API read-back pending"
+              : "Auto-resolved by verified push",
+          })
           .eq("hr_employee_id", hrEmployeeId)
           .eq("field", DRIFT_FIELD_BY_KIND[kind])
           .is("resolved_at", null);
@@ -393,10 +414,11 @@ export async function pushToRazorpay(
     }
 
     return {
-      ok: verifyOverall === "verified",
+      ok: isAcceptedOutcome,
       verifiedTotal,
       expectedTotal: opts?.expectedTotal,
-      error: verifyOverall !== "verified"
+      readbackPending: verifyOverall === "accepted",
+      error: !isAcceptedOutcome
         ? (verifyResult.error || `RazorpayX ${LABEL_BY_KIND[kind]} update was not verified — see the field diff dialog.`)
         : undefined,
     };

@@ -124,9 +124,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const totalDeltaPct = currentTotal > 0 ? (totalDelta / currentTotal) * 100 : 0;
 
   const reasonRequired = revisionType === "promotion" || revisionType === "demotion";
-  // Scheduling is retired — the promoter job/edge function was removed as part
-  // of the RazorpayX-primary doctrine. Reject any future-dated effective date
-  // in the UI so operators never save something that will silently never apply.
+  // Future-dated revisions are supported: they are saved as SCHEDULED and
+  // promoted (employee CTC updated + pushed to RazorpayX) by the daily
+  // hr-promote-scheduled-salary-revisions cron on the effective date.
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const isFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
 

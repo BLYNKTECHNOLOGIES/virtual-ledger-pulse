@@ -98,9 +98,12 @@ export default function SalaryRevisionsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc"]);
   const filtered = useMemo(() => revisions.filter((r: any) => {
-    // Exclude initial onboarding entries (no prior salary → not a revision)
-    if (Number(r.previous_total || 0) <= 0) return false;
+    const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+    // Exclude initial onboarding entries (no prior salary → not a revision),
+    // but always keep one-time payouts (bonus/incentive/etc.) which have no previous_total.
+    if (!isOneTime && Number(r.previous_total || 0) <= 0) return false;
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());

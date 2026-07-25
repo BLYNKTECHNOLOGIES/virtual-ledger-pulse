@@ -33,9 +33,63 @@ export default function SalaryRevisionsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("APPLIED");
   const [showDialog, setShowDialog] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [bulkAction, setBulkAction] = useState<null | "retry" | "backfill">(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; ok: number; fail: number } | null>(null);
 
-  const { data: revisions = [], isLoading } = useQuery({
-    queryKey: ["hr_salary_revisions"],
+  // Envelope verification status — governs whether pushes to Razorpay will succeed.
+  const { data: envelope } = useQuery({
+    queryKey: ["hr_razorpay_settings_envelope"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_razorpay_settings")
+        .select("push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at")
+        .maybeSingle();
+      return data as { push_salary_endpoint_verified?: boolean; push_salary_envelope_key?: string | null; push_salary_envelope_verified_at?: string | null } | null;
+    },
+    staleTime: 30_000,
+  });
+
+  // Distinct employees with a currently-unresolved salary push failure.
+  const { data: failedPushEmployees = [], refetch: refetchFailed } = useQuery({
+    queryKey: ["hr_salary_push_failures"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id, created_at, error_message")
+        .eq("kind", "salary")
+        .eq("status", "failure")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      // Dedup — keep only the latest failure per employee, and drop ones where a later success exists.
+      const seen = new Set<string>();
+      const latest: { hr_employee_id: string; created_at: string; error_message: string | null }[] = [];
+      for (const r of (data || [])) {
+        if (seen.has(r.hr_employee_id)) continue;
+        seen.add(r.hr_employee_id);
+        latest.push(r);
+      }
+      if (latest.length === 0) return [];
+      const ids = latest.map(l => l.hr_employee_id);
+      const { data: succ } = await (supabase as any)
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id, created_at")
+        .eq("kind", "salary")
+        .eq("status", "success")
+        .in("hr_employee_id", ids);
+      const lastSuccess = new Map<string, string>();
+      for (const s of (succ || [])) {
+        const prev = lastSuccess.get(s.hr_employee_id);
+        if (!prev || s.created_at > prev) lastSuccess.set(s.hr_employee_id, s.created_at);
+      }
+      return latest.filter(l => {
+        const s = lastSuccess.get(l.hr_employee_id);
+        return !s || s < l.created_at;
+      });
+    },
+    staleTime: 15_000,
+  });
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_salary_revisions")

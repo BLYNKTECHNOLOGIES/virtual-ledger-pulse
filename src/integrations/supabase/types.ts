@@ -8830,106 +8830,6 @@ export type Database = {
           },
         ]
       }
-      hr_objectives: {
-        Row: {
-          assigned_by: string | null
-          completed_at: string | null
-          created_at: string
-          description: string | null
-          due_date: string | null
-          employee_id: string | null
-          id: string
-          key_results: Json | null
-          objective_type: string
-          priority: string
-          progress: number
-          review_cycle: string | null
-          start_date: string | null
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_by?: string | null
-          completed_at?: string | null
-          created_at?: string
-          description?: string | null
-          due_date?: string | null
-          employee_id?: string | null
-          id?: string
-          key_results?: Json | null
-          objective_type?: string
-          priority?: string
-          progress?: number
-          review_cycle?: string | null
-          start_date?: string | null
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_by?: string | null
-          completed_at?: string | null
-          created_at?: string
-          description?: string | null
-          due_date?: string | null
-          employee_id?: string | null
-          id?: string
-          key_results?: Json | null
-          objective_type?: string
-          priority?: string
-          progress?: number
-          review_cycle?: string | null
-          start_date?: string | null
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "hr_objectives_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "hr_employee_completeness"
-            referencedColumns: ["employee_id"]
-          },
-          {
-            foreignKeyName: "hr_objectives_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "hr_employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hr_objectives_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "hr_razorpay_payroll_freshness"
-            referencedColumns: ["hr_employee_id"]
-          },
-          {
-            foreignKeyName: "hr_objectives_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "hr_employee_completeness"
-            referencedColumns: ["employee_id"]
-          },
-          {
-            foreignKeyName: "hr_objectives_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "hr_employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hr_objectives_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "hr_razorpay_payroll_freshness"
-            referencedColumns: ["hr_employee_id"]
-          },
-        ]
-      }
       hr_offer_letter_policy: {
         Row: {
           abandonment_days: number
@@ -21063,7 +20963,10 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: undefined
       }
-      delete_user_with_cleanup: { Args: { p_user_id: string }; Returns: Json }
+      delete_user_with_cleanup: {
+        Args: { target_user_id: string }
+        Returns: Json
+      }
       delete_webauthn_credential: {
         Args: { p_credential_id: string }
         Returns: undefined

@@ -119,7 +119,7 @@ const DocumentsPage = lazy(() => import('./pages/horilla/DocumentsPage'));
 const AnnouncementsPage = lazy(() => import('./pages/horilla/AnnouncementsPage'));
 const ReportsPage = lazy(() => import('./pages/horilla/ReportsPage'));
 const PMSDashboardPage = lazy(() => import('./pages/horilla/PMSDashboardPage'));
-const ObjectivesPage = lazy(() => import('./pages/horilla/ObjectivesPage'));
+
 const Feedback360Page = lazy(() => import('./pages/horilla/Feedback360Page'));
 const MPIPage = lazy(() => import('./pages/horilla/MPIPage'));
 const EmployeeOnboardingPipelinePage = lazy(() => import('./pages/horilla/EmployeeOnboardingPipelinePage'));
@@ -751,7 +751,7 @@ const router = createBrowserRouter([
         { path: "asset/list", element: <AssetPage /> },
         { path: "asset/assignments", element: <AssetAssignmentsPage /> },
         { path: "pms", element: <PMSDashboardPage /> },
-        { path: "pms/objectives", element: <ObjectivesPage /> },
+        
         { path: "pms/feedback", element: <Feedback360Page /> },
         { path: "pms/mpi", element: <MPIPage /> },
         // offboarding route removed — merged into HRMS Separation tab

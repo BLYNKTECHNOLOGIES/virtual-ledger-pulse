@@ -79,12 +79,13 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Mirror doctrine: values stored here are ALWAYS rupee amounts pulled from
+  // RazorpayX (the API never gives us a percentage). Some historical rows have
+  // is_percentage=true mistakenly set — treat any amount > 100 as rupees.
+  const isRupees = (s: any) => !s.is_percentage || Number(s.amount) > 100;
   const totalFixed = structures
-    .filter((s: any) => !s.is_percentage)
-    .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
-
-  const earnings = structures.filter((s: any) => s.hr_salary_components?.component_type === "allowance" || s.hr_salary_components?.component_type === "earning");
-  const deductions = structures.filter((s: any) => s.hr_salary_components?.component_type === "deduction");
+    .filter(isRupees)
+    .reduce((sum: number, s: any) => sum + (Number(s.amount) || 0), 0);
 
   return (
     <div className="space-y-4">

@@ -69,36 +69,62 @@ export default function OvertimePage() {
       {isLoading ? (
         <TableSkeleton rows={6} columns={7} />
       ) : (
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  {["Employee", "ID", "Department", "Date", "OT Hours", "Check In", "Check Out"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={7}><EmptyState icon={Clock} title="No overtime records" description="No overtime found for the selected month." /></td></tr>
-                ) : (
-                  filtered.map((r: any) => (
-                    <tr key={r.id} className="border-b hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
-                      <td className="px-4 py-3 text-muted-foreground">—</td>
-                      <td className="px-4 py-3 tabular-nums">{r.attendance_date}</td>
-                      <td className="px-4 py-3 tabular-nums"><span className="font-semibold text-warning">{r.overtime_hours}h</span></td>
-                      <td className="px-4 py-3 tabular-nums">{r.check_in || "—"}</td>
-                      <td className="px-4 py-3 tabular-nums">{r.check_out || "—"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <>
+          {/* Mobile */}
+          <div className="md:hidden space-y-2">
+            {filtered.length === 0 ? (
+              <Card><CardContent className="p-0"><EmptyState icon={Clock} title="No overtime records" description="No overtime found for the selected month." /></CardContent></Card>
+            ) : filtered.map((r: any) => (
+              <Card key={r.id}>
+                <CardContent className="p-3 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</div>
+                      <div className="text-xs text-muted-foreground">{r.hr_employees?.badge_id} · {r.attendance_date}</div>
+                    </div>
+                    <span className="font-semibold text-warning tabular-nums shrink-0">{r.overtime_hours}h</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-muted-foreground tabular-nums pt-1 border-t">
+                    <span>In: {r.check_in || "—"}</span>
+                    <span>Out: {r.check_out || "—"}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop */}
+          <Card className="hidden md:block">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    {["Employee", "ID", "Department", "Date", "OT Hours", "Check In", "Check Out"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={7}><EmptyState icon={Clock} title="No overtime records" description="No overtime found for the selected month." /></td></tr>
+                  ) : (
+                    filtered.map((r: any) => (
+                      <tr key={r.id} className="border-b hover:bg-muted/50">
+                        <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
+                        <td className="px-4 py-3 text-muted-foreground">—</td>
+                        <td className="px-4 py-3 tabular-nums">{r.attendance_date}</td>
+                        <td className="px-4 py-3 tabular-nums"><span className="font-semibold text-warning">{r.overtime_hours}h</span></td>
+                        <td className="px-4 py-3 tabular-nums">{r.check_in || "—"}</td>
+                        <td className="px-4 py-3 tabular-nums">{r.check_out || "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

@@ -167,36 +167,65 @@ export default function MonthlyHoursSummaryPage() {
                 description="No monthly hours summary found for the selected period."
               />
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Present</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Absent</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Worked (h)</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Overtime (h)</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Late</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Early Out</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Late Min</th>
-                    <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Early Min</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                {/* Mobile */}
+                <div className="md:hidden divide-y">
                   {enriched.map((s: any, i: number) => (
-                    <tr key={i} className="border-b hover:bg-muted/30">
-                      <td className="p-3 font-medium">{s.employee_name}<div className="text-xs text-muted-foreground">{s.badge_id}</div></td>
-                      <td className="text-center p-3 tabular-nums">{s.present_days ?? 0}</td>
-                      <td className="text-center p-3 text-destructive tabular-nums">{s.absent_days ?? 0}</td>
-                      <td className="text-center p-3 tabular-nums">{(s.total_worked_hours ?? 0).toFixed(1)}</td>
-                      <td className="text-center p-3 text-success tabular-nums">{(s.total_overtime_hours ?? 0).toFixed(1)}</td>
-                      <td className="text-center p-3 text-warning tabular-nums">{s.late_count ?? 0}</td>
-                      <td className="text-center p-3 text-warning tabular-nums">{s.early_out_count ?? 0}</td>
-                      <td className="text-center p-3 tabular-nums">{s.total_late_minutes ?? 0}</td>
-                      <td className="text-center p-3 tabular-nums">{s.total_early_minutes ?? 0}</td>
-                    </tr>
+                    <div key={i} className="p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{s.employee_name}</div>
+                          <div className="text-xs text-muted-foreground">{s.badge_id}</div>
+                        </div>
+                        <span className="text-success font-medium tabular-nums text-sm shrink-0">{(s.total_worked_hours ?? 0).toFixed(1)}h</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-center text-[11px]">
+                        <div><div className="tabular-nums">{s.present_days ?? 0}</div><div className="text-[10px] text-muted-foreground">Present</div></div>
+                        <div><div className="text-destructive tabular-nums">{s.absent_days ?? 0}</div><div className="text-[10px] text-muted-foreground">Absent</div></div>
+                        <div><div className="text-warning tabular-nums">{s.late_count ?? 0}</div><div className="text-[10px] text-muted-foreground">Late</div></div>
+                        <div><div className="text-warning tabular-nums">{s.early_out_count ?? 0}</div><div className="text-[10px] text-muted-foreground">Early</div></div>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-muted-foreground tabular-nums border-t pt-1">
+                        <span>OT: {(s.total_overtime_hours ?? 0).toFixed(1)}h</span>
+                        <span>Late: {s.total_late_minutes ?? 0}m</span>
+                        <span>Early: {s.total_early_minutes ?? 0}m</span>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+
+                {/* Desktop */}
+                <table className="hidden md:table w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Present</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Absent</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Worked (h)</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Overtime (h)</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Late</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Early Out</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Late Min</th>
+                      <th className="text-center p-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Early Min</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {enriched.map((s: any, i: number) => (
+                      <tr key={i} className="border-b hover:bg-muted/30">
+                        <td className="p-3 font-medium">{s.employee_name}<div className="text-xs text-muted-foreground">{s.badge_id}</div></td>
+                        <td className="text-center p-3 tabular-nums">{s.present_days ?? 0}</td>
+                        <td className="text-center p-3 text-destructive tabular-nums">{s.absent_days ?? 0}</td>
+                        <td className="text-center p-3 tabular-nums">{(s.total_worked_hours ?? 0).toFixed(1)}</td>
+                        <td className="text-center p-3 text-success tabular-nums">{(s.total_overtime_hours ?? 0).toFixed(1)}</td>
+                        <td className="text-center p-3 text-warning tabular-nums">{s.late_count ?? 0}</td>
+                        <td className="text-center p-3 text-warning tabular-nums">{s.early_out_count ?? 0}</td>
+                        <td className="text-center p-3 tabular-nums">{s.total_late_minutes ?? 0}</td>
+                        <td className="text-center p-3 tabular-nums">{s.total_early_minutes ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             )}
           </div>
         </CardContent>

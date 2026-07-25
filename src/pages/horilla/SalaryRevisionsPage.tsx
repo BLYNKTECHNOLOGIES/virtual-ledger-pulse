@@ -272,12 +272,14 @@ export default function SalaryRevisionsPage() {
             const isScheduled = r.status === "SCHEDULED";
             const isCancelled = r.status === "CANCELLED";
             const isApplied = r.status === "APPLIED";
-            const pushInfo = pushByEmployee[r.employee_id];
+            const logs = pushLogsByEmployee[r.employee_id];
             const expectedTotal = Number(r.new_total || 0);
-            const pushState = pushInfo && pushInfo.created_at >= r.created_at ? getRazorpayCtcPushState(pushInfo, expectedTotal) : "none";
-            const pushSyncedAfterRevision = pushState === "verified";
-            const pushFailedAfterRevision = pushState === "failed";
+            const pushResult = getRazorpayCtcPushState(logs, expectedTotal, r.created_at);
+            const pushInfo = pushResult.log;
+            const pushSyncedAfterRevision = pushResult.state === "verified";
+            const pushFailedAfterRevision = pushResult.state === "failed";
             const pushing = pushingIds.has(r.id);
+
 
             let syncBadge: React.ReactNode = null;
             if (isOneTime) {

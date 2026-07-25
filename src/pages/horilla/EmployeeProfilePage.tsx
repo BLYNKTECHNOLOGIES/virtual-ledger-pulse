@@ -926,8 +926,8 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3 text-muted-foreground">{position?.title || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{dept?.name || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{shift?.name || "None"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.work_type || "None"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.employee_type || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.work_type)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.employee_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.job_role || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">
                           {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}

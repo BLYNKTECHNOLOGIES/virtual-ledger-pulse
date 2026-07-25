@@ -84,59 +84,104 @@ export default function OrganizationPage() {
           {isLoading ? (
             <div className="p-4"><TableSkeleton rows={4} columns={6} /></div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Department</th>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Code</th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Hierarchy Level</th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employees</th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Positions</th>
-                  <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {departments.map((d: any) => (
-                  <tr key={d.id} className="border-b hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 font-medium flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-primary" />{d.name}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium font-mono">{d.code}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center tabular-nums text-muted-foreground">{d.hierarchy_level ?? "—"}</td>
-                    <td className="px-4 py-3 text-center tabular-nums">{deptEmpCounts[d.id] || 0}</td>
-                    <td className="px-4 py-3 text-center tabular-nums">{deptPosCounts[d.id] || 0}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDept(d); setDialogOpen(true); }}>
-                          <Pencil className="h-3.5 w-3.5" />
+            <>
+              {/* Mobile card list */}
+              <div className="md:hidden divide-y divide-border">
+                {departments.length === 0 ? (
+                  <div className="p-4">
+                    <EmptyState
+                      icon={Building2}
+                      title="No departments yet"
+                      description="Add your first department to start building your organization."
+                      action={
+                        <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-11 gap-1.5 w-full">
+                          <Plus className="h-4 w-4" /> Add Department
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(d.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                      }
+                    />
+                  </div>
+                ) : departments.map((d: any) => (
+                  <div key={d.id} className="p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Building2 className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-medium truncate">{d.name}</span>
                       </div>
-                    </td>
-                  </tr>
+                      <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium font-mono shrink-0">{d.code}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div><div className="text-muted-foreground">Level</div><div className="tabular-nums">{d.hierarchy_level ?? "—"}</div></div>
+                      <div><div className="text-muted-foreground">Employees</div><div className="tabular-nums">{deptEmpCounts[d.id] || 0}</div></div>
+                      <div><div className="text-muted-foreground">Positions</div><div className="tabular-nums">{deptPosCounts[d.id] || 0}</div></div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setEditDept(d); setDialogOpen(true); }}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1 h-10 text-destructive" onClick={() => setDeleteId(d.id)}>
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                      </Button>
+                    </div>
+                  </div>
                 ))}
-                {departments.length === 0 && (
-                  <tr>
-                    <td colSpan={6}>
-                      <EmptyState
-                        icon={Building2}
-                        title="No departments yet"
-                        description="Add your first department to start building your organization."
-                        action={
-                          <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-9 gap-1.5">
-                            <Plus className="h-4 w-4" /> Add Department
-                          </Button>
-                        }
-                      />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Department</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Code</th>
+                      <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Hierarchy Level</th>
+                      <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employees</th>
+                      <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Positions</th>
+                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {departments.map((d: any) => (
+                      <tr key={d.id} className="border-b hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3 font-medium flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-primary" />{d.name}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium font-mono">{d.code}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center tabular-nums text-muted-foreground">{d.hierarchy_level ?? "—"}</td>
+                        <td className="px-4 py-3 text-center tabular-nums">{deptEmpCounts[d.id] || 0}</td>
+                        <td className="px-4 py-3 text-center tabular-nums">{deptPosCounts[d.id] || 0}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-end">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDept(d); setDialogOpen(true); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(d.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {departments.length === 0 && (
+                      <tr>
+                        <td colSpan={6}>
+                          <EmptyState
+                            icon={Building2}
+                            title="No departments yet"
+                            description="Add your first department to start building your organization."
+                            action={
+                              <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-9 gap-1.5">
+                                <Plus className="h-4 w-4" /> Add Department
+                              </Button>
+                            }
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

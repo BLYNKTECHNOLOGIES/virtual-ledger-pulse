@@ -227,7 +227,7 @@ function ScorecardsTab({ results, templates }: any) {
   const tplName = (id: string) => templates.find((t: any) => t.id === id)?.name ?? "—";
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[520px]">
         <thead className="bg-muted/50">
           <tr>
             <th className={TH}>Employee</th>
@@ -262,10 +262,12 @@ function IncentivesTab({ results }: any) {
       <CardHeader><CardTitle className="text-sm font-semibold">Incentive Preview (Phase 1 — read-only)</CardTitle></CardHeader>
       <CardContent className="space-y-2">
         <p className="text-xs text-muted-foreground">No payroll writes occur in Phase 1. Use this for visibility only.</p>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+        <table className="w-full text-sm min-w-[320px]">
           <thead className="bg-muted/50"><tr><th className={TH}>Grade</th><th className={TH}>Bonus</th><th className={TH}>Employees</th></tr></thead>
           <tbody>{rows.map(r => <tr key={r.g} className="border-t hover:bg-muted/30 transition-colors"><td className={TD}><GradeBadge grade={r.g} /></td><td className={TD}>{r.bonus}</td><td className={`${TD} tabular-nums`}>{r.count}</td></tr>)}</tbody>
         </table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -276,7 +278,7 @@ function WarningsTab({ results }: any) {
   if (!flagged.length) return <Card><CardContent className="p-6"><MpiEmptyState label="No employees at risk this period" /></CardContent></Card>;
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[520px]">
         <thead className="bg-muted/50"><tr><th className={TH}>Employee</th><th className={TH}>Score</th><th className={TH}>Grade</th><th className={TH}>Reason</th></tr></thead>
         <tbody>{flagged.map((r: any) => (
           <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
@@ -311,7 +313,7 @@ function ViolationsTab({ violations }: any) {
   if (!violations.length) return <Card><CardContent className="p-6"><MpiEmptyState label="No critical violations logged" /></CardContent></Card>;
   return (
     <Card><CardContent className="p-0 overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[520px]">
         <thead className="bg-muted/50"><tr><th className={TH}>Date</th><th className={TH}>Employee</th><th className={TH}>Type</th><th className={TH}>Severity</th><th className={TH}>Description</th></tr></thead>
         <tbody>{violations.map((v: any) => (
           <tr key={v.id} className="border-t hover:bg-muted/30 transition-colors">
@@ -330,8 +332,8 @@ function ViolationsTab({ violations }: any) {
 function LeaderboardTab({ top }: any) {
   if (!top.length) return <Card><CardContent className="p-6"><MpiEmptyState label="Leaderboard appears once scoring is run" /></CardContent></Card>;
   return (
-    <Card><CardContent className="p-0">
-      <table className="w-full text-sm">
+    <Card><CardContent className="p-0 overflow-x-auto">
+      <table className="w-full text-sm min-w-[420px]">
         <thead className="bg-muted/50"><tr><th className={TH}>Rank</th><th className={TH}>Employee</th><th className={TH}>Score</th><th className={TH}>Grade</th></tr></thead>
         <tbody>{top.map((r: any, i: number) => (
           <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
@@ -362,7 +364,8 @@ function TemplatesTab({ templates, kpis }: any) {
       <CardContent>
         <div className="text-xs text-muted-foreground mb-3">Total weight: <span className={total === 100 ? "text-success" : "text-destructive"}>{total}%</span> (templates are weight-locked; only Super Admin can edit)</div>
         {tplKpis.length === 0 ? <MpiEmptyState label="Select a template" /> : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-6 sm:mx-0 px-6 sm:px-0">
+          <table className="w-full text-sm min-w-[520px]">
             <thead className="bg-muted/50"><tr><th className={TH}>Category</th><th className={TH}>KPI</th><th className={TH}>Weight</th><th className={TH}>Source</th></tr></thead>
             <tbody>{tplKpis.map((k: any) => (
               <tr key={k.id} className="border-t hover:bg-muted/30 transition-colors">
@@ -373,6 +376,7 @@ function TemplatesTab({ templates, kpis }: any) {
               </tr>
             ))}</tbody>
           </table>
+          </div>
         )}
       </CardContent>
     </Card>

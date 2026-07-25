@@ -244,7 +244,7 @@ export function ShiftScheduleAssigner() {
           <p className="text-sm text-muted-foreground text-center py-4">No shift rotations assigned</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[520px]">
               <thead className="bg-muted/50 border-b">
                 <tr>
                   <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Employee</th>

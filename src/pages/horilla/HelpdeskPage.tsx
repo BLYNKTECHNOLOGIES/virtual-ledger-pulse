@@ -81,13 +81,13 @@ export default function HelpdeskPage() {
           </Card>
         ))}
       </div>
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search tickets..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder="Search tickets..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10 sm:h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36 h-10 sm:h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="open">Open</SelectItem>
@@ -99,6 +99,36 @@ export default function HelpdeskPage() {
       </div>
       <Card>
         <CardContent className="p-0">
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-border">
+            {isLoading ? (
+              <div className="p-4"><TableSkeleton rows={5} columns={2} /></div>
+            ) : filtered.length === 0 ? (
+              <div className="p-4"><EmptyState icon={MessageSquare} title="No tickets found" description="Create a new support ticket to get help." action={<Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-11 w-full"><Plus className="h-4 w-4 mr-2" />New Ticket</Button>} /></div>
+            ) : filtered.map((t: any) => (
+              <div key={t.id} className="p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-medium text-sm min-w-0 flex-1">{t.title}</div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(t.status)}`}>{t.status}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="capitalize">{t.category}</span>
+                  <span>•</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityColor(t.priority)}`}>{t.priority}</span>
+                  <span>•</span>
+                  <span className="tabular-nums">{new Date(t.created_at).toLocaleDateString()}</span>
+                </div>
+                {(t.status === "open" || t.status === "in_progress") && (
+                  <div className="flex gap-2 pt-1">
+                    {t.status === "open" && <Button size="sm" variant="outline" className="flex-1 h-10 text-warning" onClick={() => statusMutation.mutate({ id: t.id, status: "in_progress" })}><Clock className="h-4 w-4 mr-1" />Start</Button>}
+                    <Button size="sm" variant="outline" className="flex-1 h-10 text-success" onClick={() => statusMutation.mutate({ id: t.id, status: "resolved" })}><CheckCircle className="h-4 w-4 mr-1" />Resolve</Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
@@ -131,6 +161,7 @@ export default function HelpdeskPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

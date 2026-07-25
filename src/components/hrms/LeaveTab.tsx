@@ -262,8 +262,8 @@ export function LeaveTab({
             </div>
           </div>
 
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="border border-border rounded-lg overflow-x-auto">
+            <table className="w-full text-sm min-w-[560px]">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   <th className="py-3 px-4 w-10">

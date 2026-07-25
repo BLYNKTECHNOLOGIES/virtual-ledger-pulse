@@ -63,6 +63,10 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const [esiEnabled, setEsiEnabled] = useState<boolean | null>(null);
   const [ptEnabled, setPtEnabled] = useState<boolean | null>(null);
 
+  // When effective date is in the future, operator can override and apply the
+  // change right now instead of scheduling it for the future date.
+  const [applyNow, setApplyNow] = useState<boolean>(false);
+
   useEffect(() => {
     if (open) {
       setMode("recurring");
@@ -78,6 +82,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       setPfEnabled(null);
       setEsiEnabled(null);
       setPtEnabled(null);
+      setApplyNow(false);
     }
   }, [open, presetEmployeeId]);
 
@@ -128,7 +133,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   // promoted (employee CTC updated + pushed to RazorpayX) by the daily
   // hr-promote-scheduled-salary-revisions cron on the effective date.
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-  const isFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
+  const rawFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
+  const isFutureDated = rawFutureDated && !applyNow;
+  const effectiveDateForRpc = applyNow && rawFutureDated ? new Date() : effectiveFrom;
 
 
   const mutation = useMutation({
@@ -152,7 +159,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           p_new_total: nT,
           p_revision_type: revisionType,
           p_reason: reason || null,
-          p_effective_from: format(effectiveFrom, "yyyy-MM-dd"),
+          p_effective_from: format(effectiveDateForRpc, "yyyy-MM-dd"),
           p_approved_by: approvedBy,
         });
         if (error) throw error;
@@ -202,7 +209,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         p_pf_enabled: finalPf,
         p_esi_enabled: finalEsi,
         p_pt_enabled: finalPt,
-        p_effective_from: format(effectiveFrom, "yyyy-MM-dd"),
+        p_effective_from: format(effectiveDateForRpc, "yyyy-MM-dd"),
         p_reason: reason,
         p_approved_by: approvedBy,
       });
@@ -408,9 +415,17 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder={reasonRequired ? "Required for promotion/demotion" : "Optional"} rows={2} />
               </div>
 
-              {isFutureDated && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Effective date is in the future — this revision will be saved as <strong>Scheduled</strong>. HRMS will automatically update the employee's CTC and push it to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>. Nothing is sent to Razorpay before that date.
+              {rawFutureDated && (
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-2">
+                  {isFutureDated ? (
+                    <p>Effective date is in the future — this revision will be saved as <strong>Scheduled</strong>. HRMS will automatically update the employee's CTC and push it to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>. Nothing is sent to Razorpay before that date.</p>
+                  ) : (
+                    <p><strong>Apply now</strong> is on — this revision will be applied and pushed to RazorpayX immediately using today's date, ignoring the future effective date above.</p>
+                  )}
+                  <label className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
+                    <Switch checked={applyNow} onCheckedChange={setApplyNow} />
+                    <span className="text-foreground">Apply now instead of scheduling</span>
+                  </label>
                 </div>
               )}
             </>
@@ -531,9 +546,17 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <p>RazorpayX requires operator envelope verification on the People edit endpoint before the change is finalised.</p>
               </div>
 
-              {isFutureDated && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Effective date is in the future — statutory toggles will be saved as <strong>Scheduled</strong> and pushed to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>.
+              {rawFutureDated && (
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-2">
+                  {isFutureDated ? (
+                    <p>Effective date is in the future — statutory toggles will be saved as <strong>Scheduled</strong> and pushed to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>.</p>
+                  ) : (
+                    <p><strong>Apply now</strong> is on — statutory toggles will be applied and pushed to RazorpayX immediately using today's date.</p>
+                  )}
+                  <label className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
+                    <Switch checked={applyNow} onCheckedChange={setApplyNow} />
+                    <span className="text-foreground">Apply now instead of scheduling</span>
+                  </label>
                 </div>
               )}
             </>

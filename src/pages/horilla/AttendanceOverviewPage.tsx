@@ -73,8 +73,10 @@ export default function AttendanceOverviewPage() {
       if (legacyByDateRes.error) throw legacyByDateRes.error;
       if (legacyByCheckInRes.error) throw legacyByCheckInRes.error;
 
-      // Only show employees who actually have a daily/legacy row for the day.
-      // "no_data" seed rows for the full roster were removed per product decision.
+      // Show the FULL active roster: employees with a daily/legacy row get their
+      // status; the rest are seeded as `no_data` ("Not punched") so the overview
+      // is deterministic (no asymmetry where some non-punchers appear and others
+      // don't just because the engine happened to touch them).
       const empById = new Map<string, any>(employees.map((e: any) => [e.id, e]));
       const byEmployee = new Map<string, any>();
 
@@ -125,6 +127,24 @@ export default function AttendanceOverviewPage() {
         }
       }
 
+      // Seed placeholders for every active employee missing a row so the
+      // overview mirrors the full active headcount.
+      for (const emp of employees as any[]) {
+        if (byEmployee.has(emp.id)) continue;
+        byEmployee.set(emp.id, {
+          id: `placeholder-${emp.id}`,
+          employee_id: emp.id,
+          hr_employees: emp,
+          check_in: null,
+          check_out: null,
+          attendance_status: "no_data",
+          late_minutes: null,
+          early_leave_minutes: null,
+          work_type: null,
+          notes: null,
+          _source: "placeholder",
+        });
+      }
 
       let rows = Array.from(byEmployee.values()).filter((r) => r.hr_employees);
 

@@ -182,7 +182,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
       // statutory toggle
       if (!reason.trim()) throw new Error("Reason is mandatory for a statutory enrollment change (e.g. 'Training period exemption')");
-      if (isFutureDated) throw new Error("Future-dated statutory changes are not supported — the scheduler has been retired. Set effective date to today.");
+      // Future-dated statutory changes: apply_statutory_revision stores a SCHEDULED row (handled by that RPC).
       // Require an explicit choice for any flag whose current value is unknown —
       // otherwise the switch's default "Exempt" appearance would silently push
       // Enrolled=true to Razorpay.

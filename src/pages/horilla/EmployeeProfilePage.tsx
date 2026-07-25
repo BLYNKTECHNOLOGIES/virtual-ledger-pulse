@@ -900,8 +900,8 @@ export default function EmployeeProfilePage() {
                     { label: "Job Position", value: position?.title || "None" },
                     { label: "Department", value: dept?.name || "None" },
                     { label: "Shift", value: shift?.name || "None" },
-                    { label: "Work Type", value: workInfo?.work_type || "None" },
-                    { label: "Employee Type", value: workInfo?.employee_type || "None" },
+                    { label: "Work Type", value: prettyCase(workInfo?.work_type) },
+                    { label: "Employee Type", value: prettyCase(workInfo?.employee_type) },
                     { label: "Job Role", value: workInfo?.job_role || "None" },
                     { label: "Reporting Manager", value: reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None" },
                   ]} />

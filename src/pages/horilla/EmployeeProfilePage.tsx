@@ -388,15 +388,51 @@ export default function EmployeeProfilePage() {
     enabled: !!id,
   });
 
-  // ─── Attendance ───
+  // ─── Attendance (v4 daily is source of truth; legacy table only used as
+  // a compatibility fallback for very old rows). ───
   const { data: attendance } = useQuery({
-    queryKey: ["hr_attendance", id],
+    queryKey: ["hr_attendance_daily_profile", id],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_attendance").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(30);
-      return data || [];
+      const [dailyRes, legacyRes] = await Promise.all([
+        (supabase as any).from("hr_attendance_daily").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(60),
+        (supabase as any).from("hr_attendance").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(60),
+      ]);
+      const byDate = new Map<string, any>();
+      for (const r of ((dailyRes.data as any[]) || [])) {
+        byDate.set(r.attendance_date, {
+          id: r.id,
+          attendance_date: r.attendance_date,
+          attendance_status: r.status || "no_data",
+          check_in: r.first_in,
+          check_out: r.last_out,
+          late_minutes: r.late_by_minutes,
+          early_leave_minutes: r.early_by_minutes,
+          work_type: null,
+          overtime_hours: null,
+        });
+      }
+      for (const r of ((legacyRes.data as any[]) || [])) {
+        if (byDate.has(r.attendance_date)) continue;
+        byDate.set(r.attendance_date, {
+          id: r.id,
+          attendance_date: r.attendance_date,
+          attendance_status: r.attendance_status,
+          check_in: r.check_in,
+          check_out: r.check_out,
+          late_minutes: r.late_minutes,
+          early_leave_minutes: r.early_leave_minutes,
+          work_type: r.work_type,
+          overtime_hours: r.overtime_hours,
+        });
+      }
+      return Array.from(byDate.values())
+        .sort((a, b) => (a.attendance_date < b.attendance_date ? 1 : -1))
+        .slice(0, 30);
     },
     enabled: !!id,
   });
+
+
 
   // ─── Payslips ───
   const { data: payslips } = useQuery({

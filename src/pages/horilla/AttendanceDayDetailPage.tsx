@@ -45,7 +45,7 @@ export default function AttendanceDayDetailPage() {
     <div className="space-y-4">
       <PageHeader
         title={`Attendance — ${date}`}
-        subtitle={
+        description={
           employee
             ? `${employee.first_name} ${employee.last_name} (${employee.badge_id}) — window 05:00 → 05:00 IST`
             : "Loading…"

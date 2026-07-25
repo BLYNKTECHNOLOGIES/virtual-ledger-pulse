@@ -12,7 +12,7 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
-import { AlertTriangle, Clock, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle2, XCircle, RefreshCw, Inbox } from "lucide-react";
 
 type StaleRow = {
   id: string;
@@ -119,7 +119,7 @@ export default function AttendanceStaleSessionsPage() {
     <div className="space-y-4">
       <PageHeader
         title="Stale Attendance Sessions"
-        subtitle="Sessions open >12h — resolve to keep payroll fair."
+        description="Sessions open >12h — resolve to keep payroll fair."
         actions={
           <div className="flex gap-2">
             <Button
@@ -151,6 +151,7 @@ export default function AttendanceStaleSessionsPage() {
         <div className="text-sm text-muted-foreground p-6">Loading…</div>
       ) : rows.length === 0 ? (
         <EmptyState
+          icon={Inbox}
           title="No stale sessions"
           description="All attendance sessions have closed within 12 hours."
         />

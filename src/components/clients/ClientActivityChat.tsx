@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { openTransaction } from "@/components/transaction-detail";
-import { smartUpload } from "@/lib/smart-upload";
+import { smartUpload } from "@/lib/resumable-upload";
 import { useClientActivityFeed, type ClientFeedItem } from "@/hooks/useClientActivityFeed";
 import { cn } from "@/lib/utils";
 

@@ -262,10 +262,12 @@ function IncentivesTab({ results }: any) {
       <CardHeader><CardTitle className="text-sm font-semibold">Incentive Preview (Phase 1 — read-only)</CardTitle></CardHeader>
       <CardContent className="space-y-2">
         <p className="text-xs text-muted-foreground">No payroll writes occur in Phase 1. Use this for visibility only.</p>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+        <table className="w-full text-sm min-w-[320px]">
           <thead className="bg-muted/50"><tr><th className={TH}>Grade</th><th className={TH}>Bonus</th><th className={TH}>Employees</th></tr></thead>
           <tbody>{rows.map(r => <tr key={r.g} className="border-t hover:bg-muted/30 transition-colors"><td className={TD}><GradeBadge grade={r.g} /></td><td className={TD}>{r.bonus}</td><td className={`${TD} tabular-nums`}>{r.count}</td></tr>)}</tbody>
         </table>
+        </div>
       </CardContent>
     </Card>
   );

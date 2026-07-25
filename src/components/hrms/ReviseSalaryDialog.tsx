@@ -124,9 +124,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const totalDeltaPct = currentTotal > 0 ? (totalDelta / currentTotal) * 100 : 0;
 
   const reasonRequired = revisionType === "promotion" || revisionType === "demotion";
-  // Scheduling is retired — the promoter job/edge function was removed as part
-  // of the RazorpayX-primary doctrine. Reject any future-dated effective date
-  // in the UI so operators never save something that will silently never apply.
+  // Future-dated revisions are supported: they are saved as SCHEDULED and
+  // promoted (employee CTC updated + pushed to RazorpayX) by the daily
+  // hr-promote-scheduled-salary-revisions cron on the effective date.
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const isFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
 
@@ -144,7 +144,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       if (mode === "recurring") {
         if (!newTotal) throw new Error("Enter the new total salary");
         if (reasonRequired && !reason.trim()) throw new Error("Reason is mandatory for Promotion / Demotion");
-        if (isFutureDated) throw new Error("Future-dated revisions are not supported — the scheduler has been retired. Set effective date to today and push to RazorpayX.");
+        // Future-dated → the RPC stores as SCHEDULED and the daily cron promotes + pushes to RazorpayX on the effective date.
 
         const { data, error } = await (supabase as any).rpc("apply_salary_revision", {
           p_employee_id: employeeId,
@@ -182,7 +182,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
       // statutory toggle
       if (!reason.trim()) throw new Error("Reason is mandatory for a statutory enrollment change (e.g. 'Training period exemption')");
-      if (isFutureDated) throw new Error("Future-dated statutory changes are not supported — the scheduler has been retired. Set effective date to today.");
+      // Future-dated statutory changes: apply_statutory_revision stores a SCHEDULED row (handled by that RPC).
       // Require an explicit choice for any flag whose current value is unknown —
       // otherwise the switch's default "Exempt" appearance would silently push
       // Enrolled=true to Razorpay.
@@ -432,8 +432,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </div>
 
               {isFutureDated && (
-                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
-                  Future-dated revisions are not supported — the scheduler has been retired. Set the effective date to today, then push to RazorpayX.
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
+                  Effective date is in the future — this revision will be saved as <strong>Scheduled</strong>. HRMS will automatically update the employee's CTC and push it to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>. Nothing is sent to Razorpay before that date.
                 </div>
               )}
             </>
@@ -555,8 +555,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </div>
 
               {isFutureDated && (
-                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
-                  Future-dated statutory changes are not supported — the scheduler has been retired. Set the effective date to today.
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
+                  Effective date is in the future — statutory toggles will be saved as <strong>Scheduled</strong> and pushed to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>.
                 </div>
               )}
             </>
@@ -571,15 +571,14 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             disabled={
               mutation.isPending ||
               !employeeId ||
-              isFutureDated ||
               (mode === "recurring" ? !newTotal : mode === "one_time" ? !oneTimeAmount : !reason.trim())
             }
           >
             {mode === "recurring"
-              ? "Apply revision"
+              ? (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply revision")
               : mode === "one_time"
                 ? "Record payout"
-                : "Apply & push to Razorpay"}
+                : (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply & push to Razorpay")}
           </Button>
 
         </DialogFooter>

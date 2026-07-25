@@ -12143,6 +12143,42 @@ export type Database = {
           },
         ]
       }
+      hr_sunday_credit_audit: {
+        Row: {
+          attendance_date: string
+          attendance_status: string | null
+          compoff_credit_id: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          outcome: string
+          reason: string | null
+          trigger_op: string | null
+        }
+        Insert: {
+          attendance_date: string
+          attendance_status?: string | null
+          compoff_credit_id?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          outcome: string
+          reason?: string | null
+          trigger_op?: string | null
+        }
+        Update: {
+          attendance_date?: string
+          attendance_status?: string | null
+          compoff_credit_id?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          outcome?: string
+          reason?: string | null
+          trigger_op?: string | null
+        }
+        Relationships: []
+      }
       hr_survey_questions: {
         Row: {
           created_at: string

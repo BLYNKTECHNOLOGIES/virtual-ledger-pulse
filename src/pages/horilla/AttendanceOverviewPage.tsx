@@ -158,7 +158,7 @@ export default function AttendanceOverviewPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hr_attendance"] });
+    queryClient.invalidateQueries({ queryKey: ["hr_attendance_unified"] });
       setShowAdd(false);
       toast.success("Attendance recorded");
     },

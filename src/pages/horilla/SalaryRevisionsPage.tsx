@@ -153,6 +153,25 @@ export default function SalaryRevisionsPage() {
     }
   }
 
+  async function pushOneTime(revisionId: string) {
+    setPushingIds(prev => new Set(prev).add(revisionId));
+    try {
+      const mod = await import("@/lib/oneTimePayoutPush");
+      const res = await mod.pushOneTimePayoutToRazorpay(revisionId);
+      if (res.ok) {
+        toast.success("Payout queued on RazorpayX for that payroll month.");
+      } else if (res.skipped) {
+        toast.warning(res.error || "Employee not linked to RazorpayX");
+      } else {
+        toast.error("RazorpayX rejected the payout.", { description: (res.error || "Unknown error").slice(0, 220) });
+      }
+      await qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
+    } finally {
+      setPushingIds(prev => { const n = new Set(prev); n.delete(revisionId); return n; });
+    }
+  }
+
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
@@ -231,14 +250,29 @@ export default function SalaryRevisionsPage() {
 
             let syncBadge: React.ReactNode = null;
             if (isOneTime) {
-              // One-time payouts don't change CTC, so there is nothing to push to
-              // RazorpayX from here — they must be recorded as an ad-hoc payout in
-              // the RazorpayX payroll run itself. Show an informational chip only.
-              syncBadge = (
-                <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 gap-1">
-                  Ad-hoc — add in RazorpayX payroll
-                </Badge>
-              );
+              // One-time payouts are staged on the target RazorpayX payroll month.
+              // They are only fully "paid" once that month's payroll run is executed
+              // there — we show the queued / rejected / not-sent state honestly.
+              if (r.razorpay_push_error) {
+                syncBadge = (
+                  <Badge variant="outline" className="text-destructive border-destructive/40 gap-1">
+                    <XCircle className="h-3 w-3" /> RazorpayX rejected
+                  </Badge>
+                );
+              } else if (r.razorpay_pushed_at) {
+                syncBadge = (
+                  <Badge variant="outline" className="text-sky-700 border-sky-500/40 gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Queued in RazorpayX{r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
+                  </Badge>
+                );
+              } else {
+                syncBadge = (
+                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Not sent to RazorpayX
+                  </Badge>
+                );
+              }
             } else if (isApplied) {
               if (pushSyncedAfterRevision) {
                 syncBadge = (
@@ -260,6 +294,7 @@ export default function SalaryRevisionsPage() {
                 );
               }
             }
+
 
 
             return (
@@ -290,6 +325,12 @@ export default function SalaryRevisionsPage() {
                           Last RazorpayX error: {pushInfo.error_message}
                         </p>
                       )}
+                      {isOneTime && r.razorpay_push_error && (
+                        <p className="text-[11px] text-destructive mt-0.5 truncate max-w-md" title={r.razorpay_push_error}>
+                          RazorpayX rejected: {r.razorpay_push_error}
+                        </p>
+                      )}
+
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -329,6 +370,19 @@ export default function SalaryRevisionsPage() {
                         {pushFailedAfterRevision ? "Retry push" : "Push to RazorpayX"}
                       </Button>
                     )}
+                    {isApplied && isOneTime && canManage && (!r.razorpay_pushed_at || r.razorpay_push_error) && (
+                      <Button
+                        size="sm"
+                        variant={r.razorpay_push_error ? "default" : "outline"}
+                        onClick={() => pushOneTime(r.id)}
+                        disabled={pushing}
+                        title="Stage this payout on the target RazorpayX payroll month"
+                      >
+                        {pushing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}
+                        {r.razorpay_push_error ? "Retry push" : "Push to RazorpayX"}
+                      </Button>
+                    )}
+
                     {isScheduled && canManage && (
                       <Button size="sm" variant="ghost" onClick={() => setCancelId(r.id)} title="Cancel scheduled revision">
                         <X className={cn("h-4 w-4 text-destructive")} />

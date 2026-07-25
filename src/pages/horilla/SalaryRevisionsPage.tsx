@@ -186,6 +186,72 @@ export default function SalaryRevisionsPage() {
         }
       />
 
+      {canManage && (
+        <>
+          {!envelopeVerified ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>RazorpayX salary push is disabled</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p className="text-sm">
+                  Revisions applied here are saved in HRMS but <b>are not being mirrored to RazorpayX</b> because the
+                  salary API endpoint hasn't been verified yet. Every payroll run after a revision will use the old CTC
+                  until this is fixed.
+                </p>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/hrms/razorpay-sync">Open Payroll Sync · Step E →</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : failedCount > 0 ? (
+            <Alert className="border-amber-500/50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="flex items-center justify-between gap-2">
+                <span>{failedCount} salary push{failedCount === 1 ? "" : "es"} to RazorpayX failed</span>
+                <Badge variant="outline" className="text-amber-700 border-amber-500/50">action needed</Badge>
+              </AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  These employees' new CTCs are saved in HRMS but weren't accepted by RazorpayX. Retry now, or open
+                  Data Health for details.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setBulkAction("retry")} disabled={bulkRunning}>
+                    {bulkRunning ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                    Retry {failedCount} failed push{failedCount === 1 ? "" : "es"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setBulkAction("backfill")} disabled={bulkRunning}>
+                    <Send className="h-4 w-4 mr-1.5" />
+                    Backfill all applied revisions
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="border-emerald-500/40">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <AlertTitle>RazorpayX salary push is live</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Envelope <code className="px-1 rounded bg-muted">{envelope?.push_salary_envelope_key}</code> verified
+                  {envelope?.push_salary_envelope_verified_at ? ` on ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}.
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => setBulkAction("backfill")} disabled={bulkRunning}>
+                  <Send className="h-4 w-4 mr-1.5" />
+                  Backfill all applied revisions
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          {bulkProgress && (
+            <div className="text-xs text-muted-foreground">
+              Pushing {bulkProgress.done}/{bulkProgress.total} · ✅ {bulkProgress.ok} · ⚠️ {bulkProgress.fail}
+            </div>
+          )}
+        </>
+      )}
+
+
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
           <TabsList>

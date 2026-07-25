@@ -64,7 +64,46 @@ export default function RejectedCandidatesPage() {
           <EmptyState icon={UserX} title="No rejected candidates found" description="Rejected candidates will appear here" />
         </div>
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {filtered.map((r: any) => (
+              <div key={r.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-destructive" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{r.hr_candidates?.name || "Unknown"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{r.hr_candidates?.email}</p>
+                  </div>
+                </div>
+                {r.hr_candidates?.hr_recruitments?.title && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border inline-block">
+                    {r.hr_candidates.hr_recruitments.title}
+                  </span>
+                )}
+                <div className="flex items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(r.rejected_at).toLocaleDateString("en-IN")}
+                  {r.rejected_by && <span>· {r.rejected_by}</span>}
+                </div>
+                {r.rejection_stage && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 inline-block">
+                    {r.rejection_stage}
+                  </span>
+                )}
+                {r.reject_reason && <p className="text-xs text-muted-foreground">{r.reject_reason}</p>}
+                <Button size="sm" variant="ghost" className="min-h-11 w-full text-xs text-[#E8604C] hover:text-[#E8604C] hover:bg-[#E8604C]/10"
+                  onClick={() => navigate(`/hrms/recruitment/candidates/${r.candidate_id}`)}>
+                  View Profile →
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
@@ -125,7 +164,9 @@ export default function RejectedCandidatesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
+
       )}
     </div>
   );

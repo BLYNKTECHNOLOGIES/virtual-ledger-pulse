@@ -127,6 +127,10 @@ export default function SalaryRevisionsPage() {
   }
 
   async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
+    if (!Number.isFinite(expectedTotal) || expectedTotal <= 0) {
+      toast.error("This entry has no CTC change — nothing to push to RazorpayX.");
+      return;
+    }
     setPushingIds(prev => new Set(prev).add(revisionId));
     try {
       const res = await pushSalaryToRazorpay(employeeId, {
@@ -212,6 +216,7 @@ export default function SalaryRevisionsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((r: any) => {
+            const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
             const isIncrease = Number(r.new_total || 0) > Number(r.previous_total || 0);
             const diff = Number(r.new_total || 0) - Number(r.previous_total || 0);
             const isScheduled = r.status === "SCHEDULED";
@@ -225,7 +230,16 @@ export default function SalaryRevisionsPage() {
             const pushing = pushingIds.has(r.id);
 
             let syncBadge: React.ReactNode = null;
-            if (isApplied) {
+            if (isOneTime) {
+              // One-time payouts don't change CTC, so there is nothing to push to
+              // RazorpayX from here — they must be recorded as an ad-hoc payout in
+              // the RazorpayX payroll run itself. Show an informational chip only.
+              syncBadge = (
+                <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 gap-1">
+                  Ad-hoc — add in RazorpayX payroll
+                </Badge>
+              );
+            } else if (isApplied) {
               if (pushSyncedAfterRevision) {
                 syncBadge = (
                   <Badge variant="outline" className="text-emerald-700 border-emerald-500/40 gap-1">
@@ -246,6 +260,7 @@ export default function SalaryRevisionsPage() {
                 );
               }
             }
+
 
             return (
               <Card key={r.id} className={isCancelled ? "opacity-60" : ""}>
@@ -302,7 +317,7 @@ export default function SalaryRevisionsPage() {
                         {syncBadge}
                       </div>
                     </div>
-                    {isApplied && canManage && !pushSyncedAfterRevision && (
+                    {isApplied && !isOneTime && canManage && !pushSyncedAfterRevision && (
                       <Button
                         size="sm"
                         variant={pushFailedAfterRevision ? "default" : "outline"}

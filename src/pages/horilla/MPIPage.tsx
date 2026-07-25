@@ -364,7 +364,8 @@ function TemplatesTab({ templates, kpis }: any) {
       <CardContent>
         <div className="text-xs text-muted-foreground mb-3">Total weight: <span className={total === 100 ? "text-success" : "text-destructive"}>{total}%</span> (templates are weight-locked; only Super Admin can edit)</div>
         {tplKpis.length === 0 ? <MpiEmptyState label="Select a template" /> : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-6 sm:mx-0 px-6 sm:px-0">
+          <table className="w-full text-sm min-w-[520px]">
             <thead className="bg-muted/50"><tr><th className={TH}>Category</th><th className={TH}>KPI</th><th className={TH}>Weight</th><th className={TH}>Source</th></tr></thead>
             <tbody>{tplKpis.map((k: any) => (
               <tr key={k.id} className="border-t hover:bg-muted/30 transition-colors">
@@ -375,6 +376,7 @@ function TemplatesTab({ templates, kpis }: any) {
               </tr>
             ))}</tbody>
           </table>
+          </div>
         )}
       </CardContent>
     </Card>

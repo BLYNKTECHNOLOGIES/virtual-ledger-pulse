@@ -332,8 +332,8 @@ function ViolationsTab({ violations }: any) {
 function LeaderboardTab({ top }: any) {
   if (!top.length) return <Card><CardContent className="p-6"><MpiEmptyState label="Leaderboard appears once scoring is run" /></CardContent></Card>;
   return (
-    <Card><CardContent className="p-0">
-      <table className="w-full text-sm">
+    <Card><CardContent className="p-0 overflow-x-auto">
+      <table className="w-full text-sm min-w-[420px]">
         <thead className="bg-muted/50"><tr><th className={TH}>Rank</th><th className={TH}>Employee</th><th className={TH}>Score</th><th className={TH}>Grade</th></tr></thead>
         <tbody>{top.map((r: any, i: number) => (
           <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">

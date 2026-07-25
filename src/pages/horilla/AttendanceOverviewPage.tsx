@@ -368,12 +368,22 @@ export default function AttendanceOverviewPage() {
 }
 
 function AttendanceStatusBadge({ status }: { status: string }) {
+  const label =
+    status === "present" ? "Present" :
+    status === "absent" ? "Absent" :
+    status === "late" ? "Late" :
+    status === "half_day" ? "Half Day" :
+    status === "incomplete" ? "Incomplete" :
+    status === "no_data" ? "Not Punched" :
+    status || "—";
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
       status === "present" ? "bg-success/10 text-success border-success/20" :
       status === "absent" ? "bg-destructive/10 text-destructive border-destructive/20" :
       status === "late" ? "bg-warning/10 text-warning border-warning/20" :
-      "bg-muted text-foreground border-border"
-    }`}>{status}</span>
+      status === "half_day" ? "bg-warning/10 text-warning border-warning/20" :
+      status === "incomplete" ? "bg-info/10 text-info border-info/20" :
+      "bg-muted text-muted-foreground border-border"
+    }`}>{label}</span>
   );
 }

@@ -63,6 +63,10 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const [esiEnabled, setEsiEnabled] = useState<boolean | null>(null);
   const [ptEnabled, setPtEnabled] = useState<boolean | null>(null);
 
+  // When effective date is in the future, operator can override and apply the
+  // change right now instead of scheduling it for the future date.
+  const [applyNow, setApplyNow] = useState<boolean>(false);
+
   useEffect(() => {
     if (open) {
       setMode("recurring");

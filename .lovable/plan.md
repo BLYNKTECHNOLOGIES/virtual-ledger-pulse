@@ -1,65 +1,86 @@
-## Goal
-After the operator enters the RazorpayX Employee ID in Stage 5 and clicks **Verify with RazorpayX**, pull the RazorpayX profile and compare it field-by-field with the ERP onboarding record. Show any mismatches inline, block **Finalize** until every field matches (or the operator explicitly overrides each row), and only then allow the unified-ID finalization to proceed.
+# Client Activity Chat — inside Purpose & Communication
 
-## Fields to compare
-Pulled from RazorpayX `people:read` snapshot vs. `hr_employee_onboarding` row:
+Add a Binance-style, scrollable, chronological chat feed at the bottom of the existing **Purpose & Communication** card on the Client Details page. Everything that ever happens to this client shows up as a dated bubble with the actor's name, including document previews. A composer at the bottom lets authorized users post notes and upload files without leaving the card.
 
-| Onboarding field | RazorpayX field |
-| --- | --- |
-| `first_name` | `first_name` |
-| `last_name` | `last_name` |
-| `email` | `email` / `personal_email` |
-| `phone` | `contact_number` |
-| `gender` | `gender` |
-| `date_of_birth` | `dob` |
-| `date_of_joining` | `hire_date` (dd/mm/yyyy → ISO) |
-| `ctc` (annual) | `annual_ctc` |
-| `documents.pan.value` | `pan` |
-| `documents.uan.value` | `uan_number` |
-| `bank_details.account_number` | `bank_account.account_number` |
-| `bank_details.ifsc_code` | `bank_account.ifsc` |
-| `bank_details.account_holder_name` | `bank_account.name` |
+## Where it goes
 
-Comparison rules: trim + case-insensitive for names/emails, digit-only for phone/PAN, ISO-date normalize for dates, numeric-equal for CTC (allow paise rounding). Empty on either side → flagged as "missing on <side>" (still blocks unless overridden).
+- File: `src/components/clients/PurposeCommunication.tsx`
+- Nothing existing is removed. Purpose of Buying, Compliance Notes, Contacts, Operator Notes, Follow-up, and the current action buttons stay exactly as they are.
+- A new section **Activity Timeline** is appended inside the same `<CardContent>` under a divider, containing the chat feed + composer.
 
-## Changes
+## What shows up in the feed
 
-### 1. `supabase/functions/razorpay-payroll-proxy/index.ts`
-Add (or extend the existing `recover_person_by_id`) so its response always includes the normalized RazorpayX snapshot fields listed above under a stable `snapshot` key. No new endpoint if `recover_person_by_id` already returns the raw people record — just guarantee the fields.
+Merged, sorted strictly by timestamp (oldest → newest, auto-scroll to bottom on open, "jump to latest" chip):
 
-### 2. `src/lib/hrms/razorpayReconcile.ts` (new)
-Pure helper:
-```ts
-type Diff = { field: string; label: string; erp: string; razorpay: string; status: "match" | "mismatch" | "missing_erp" | "missing_rp" };
-export function reconcileOnboarding(erp, rpSnapshot, bank): Diff[];
-```
-Handles the normalization rules above. No I/O.
+1. **System actions** — every `system_action_logs` row with `entity_id = client.id` (client created/updated, KYC approved/rejected, buyer/seller approval, limit changes, etc.). Uses the same `ACTION_LABELS` map already in `useActivityTimeline.ts`.
+2. **Operator notes** — `client_operator_notes` rows (existing thread powering `OperatorNotesThread.tsx`).
+3. **Communication logs** — `client_communication_logs` rows (calls/emails/meetings from `CommunicationLogDialog.tsx`). Type + subject rendered as a labelled bubble.
+4. **KYC & compliance documents** — `client_kyc_documents` rows as file-preview bubbles: thumbnail for images, PDF/file icon + filename for others, plus doc type, uploader, upload date, and "Open" / "Download" actions using signed URLs from the existing KYC storage bucket.
+5. **Orders** — `sales_orders` and `purchase_orders` where `client_id = client.id` (and `supplier_id` for purchases when the client is also a supplier). Compact bubble: order number, product, qty × price, status badge. Click opens the existing rich detail via `openTransaction({ type: 'sales_order' | 'purchase_order', id })`.
+6. **Bank transactions** — `bank_transactions` where `client_id = client.id`. Compact bubble: type + amount + reference. Click opens `openTransaction({ type: 'bank_transaction', id })`.
 
-### 3. `src/components/hrms/onboarding-pipeline/Stage5Finalization.tsx`
-- On successful `handleVerifyRazorpayId`, run `reconcileOnboarding` and store `diffs` + a `overrides: Record<field, boolean>` map in state.
-- Render a **Data Reconciliation** panel below the verification banner listing every field:
-  - Green check for `match`.
-  - Amber row for `mismatch` / `missing_*` showing both values side-by-side, with:
-    - **Use RazorpayX value** button → writes RazorpayX value back to the onboarding record (via existing `updateForm` / doc-update helpers) and re-runs reconcile.
-    - **Keep ERP value & override** checkbox → marks that row as acknowledged without changing data (audit-logged).
-- Compute `reconciled = diffs.every(d => d.status === "match" || overrides[d.field])`.
-- Disable the **Finalize & Create Employee** button unless `rpVerification?.ok && reconciled`. Tooltip explains why.
-- Persist `razorpay_reconciliation` (diffs + overrides + verified_at) into `hr_employee_onboarding.additional_info` so a reload keeps state.
+Reversal/reversal-noise bank rows are hidden by default (matches the ledger convention already applied in `AccountSummary.tsx`); a small toggle above the feed reveals them.
 
-### 4. `src/components/hrms/onboarding-pipeline/OnboardingWizard.tsx`
-- In `handleFinalize`, refuse to proceed unless `stage5Data.razorpay_reconciled === true` (mirror check server-side is not needed — this is a UI/audit guard).
-- Log a `razorpay_reconciliation_completed` audit row with the diff/override snapshot.
+## Visual style (Binance-style)
 
-### 5. `hr_employee_onboarding` (migration)
-Add nullable JSONB `razorpay_reconciliation` column (diffs + overrides + last_checked_at). Keeps audit intact and survives page reloads.
+- Full-width chat pane, ~520px tall, `overflow-y-auto`, sticky day separators (e.g. "Today", "Yesterday", "25 Jul 2026").
+- Two lanes:
+  - **System / auto events** — neutral surface bubble, left-aligned, small icon on the left indicating source (system, doc, order, bank, comm).
+  - **Human notes / uploads by staff** — primary-tinted bubble, right-aligned, avatar initial of the actor.
+- Every bubble shows: actor name, exact time (`HH:mm`), and a source chip ("System", "Note", "KYC", "Sales", "Purchase", "Bank", "Call/Email/Meet").
+- Document bubble: 96×96 image thumbnail with lightbox on click, or file-type icon + filename for non-images; secondary line shows doc type + uploader + date; buttons for Preview and Download.
+- Order/bank bubbles are clickable rows that reuse the existing Universal Transaction Detail dialog — no new detail UI needed.
+- Empty state: single centered "No activity yet" line with the composer still available.
+
+## Composer (permission-gated by `MANAGE_CLIENTS`)
+
+Anchored at the bottom of the chat pane:
+
+- Textarea (auto-grow, Enter to send, Shift+Enter for newline).
+- Paperclip button opens file picker (images, PDFs, docs).
+- Send button. Behavior:
+  - Text-only → insert into `client_operator_notes` (author = current user).
+  - Attachment(s) → upload to the existing KYC storage bucket under the client's permanent path, then insert one `client_kyc_documents` row per file with `document_type = 'communication_attachment'`, uploader = current user, plus the accompanying text (if any) as a linked `client_operator_notes` row referencing the filename.
+- Uploads follow the existing KYC durability rule (permanent `kyc/` path, no auto-cleanup).
+- Toast on success/failure; feed refetches automatically via `queryClient.invalidateQueries`.
+
+Users without `MANAGE_CLIENTS` see the feed but no composer.
+
+## Data plumbing
+
+New hook `src/hooks/useClientActivityFeed.ts`:
+
+- Runs 6 parallel queries scoped to `clientId` (system actions, operator notes, communication logs, KYC documents, sales orders, purchase orders, bank transactions — using `fetchAllPaginated` where row counts can exceed 1000).
+- Resolves actor names via a single `users` lookup (id → full name / username), mirroring the pattern already in `useActivityTimeline.ts`.
+- Normalizes every row into a common `ClientFeedItem` shape:
+  ```ts
+  { id, kind: 'system'|'note'|'comm'|'doc'|'sales'|'purchase'|'bank',
+    at: string, actorId, actorName, title, body?, badge?,
+    attachment?: { url, mime, filename }, deepLink?: { type, id } }
+  ```
+- Sorts by `at` ascending in memory, returns the flat list.
+- Realtime: subscribe to Postgres changes on `client_operator_notes`, `client_kyc_documents`, and `system_action_logs` filtered by this client, using the `useEffect` + `removeChannel` cleanup pattern per project rules, so new events appear live without refresh.
+
+New component `src/components/clients/ClientActivityChat.tsx`:
+
+- Renders the header row ("Activity Timeline" + reversal-toggle + refresh), the scrollable feed, and the composer.
+- Handles day-separators, auto-scroll-to-bottom on mount and on new incoming items when already at the bottom, "Jump to latest" pill when the user has scrolled up.
+- Image preview uses an existing `Dialog` for lightbox; non-image previews open in a new tab via signed URL.
+
+`PurposeCommunication.tsx` change is minimal: import `ClientActivityChat` and append `<ClientActivityChat clientId={activeClientId!} />` inside `CardContent` after the current action buttons, with a `Separator` above it.
 
 ## Out of scope
-- No changes to how RazorpayX itself is edited from Stage 5 (operator still fixes RazorpayX-side data in the RazorpayX dashboard; the "Use RazorpayX value" button only rewrites the ERP draft).
-- No changes to eSSL push flow; it still runs after Finalize using the unified ID.
-- No new permission gates; whoever can finalize can reconcile.
 
-## Acceptance
-- Verifying an ID whose RazorpayX profile matches the ERP draft → all rows green, Finalize enabled.
-- Any mismatch → Finalize disabled with a tooltip; each row can be resolved by pulling the RazorpayX value into ERP or by explicit override.
-- Reloading Stage 5 mid-reconciliation restores the diff panel and override checks.
-- Audit log shows `razorpay_person_verified` + `razorpay_reconciliation_completed` with the final snapshot.
+- No schema changes. All tables and buckets already exist.
+- No changes to the existing Notes / Communication Log dialogs — they continue to work; the chat is an additional surface.
+- No email/SMS sending from the composer.
+- No edit/delete of already-posted feed items in this pass (matches current operator-notes behavior).
+
+## Verification
+
+- Load a client with existing orders, bank rows, KYC docs, notes: confirm every item appears once, sorted correctly, with actor + timestamp.
+- Post a note → appears instantly at the bottom, attributed to current user.
+- Upload an image → thumbnail bubble with working lightbox; upload a PDF → file bubble with working "Open" link.
+- Click an order/bank bubble → existing transaction detail dialog opens with full data.
+- Sign in as a user without `MANAGE_CLIENTS` → feed visible, composer hidden.
+- Confirm no console errors, no Realtime leaks (cleanup fires on unmount).

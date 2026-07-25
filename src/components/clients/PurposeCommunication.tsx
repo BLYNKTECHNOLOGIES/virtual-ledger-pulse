@@ -12,6 +12,8 @@ import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PermissionGate } from "@/components/PermissionGate";
 import { CommunicationLogDialog } from "@/components/clients/CommunicationLogDialog";
+import { ClientActivityChat } from "@/components/clients/ClientActivityChat";
+import { Separator } from "@/components/ui/separator";
 
 interface PurposeCommunicationProps {
   clientId?: string;
@@ -304,6 +306,9 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
           </PermissionGate>
           <CommunicationLogDialog clientId={activeClientId!} />
         </div>
+
+        <Separator className="my-2" />
+        <ClientActivityChat clientId={activeClientId!} clientName={client.name} />
       </CardContent>
     </Card>
   );

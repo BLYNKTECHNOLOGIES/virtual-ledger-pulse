@@ -55,15 +55,23 @@ export default function SalaryRevisionsPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_razorpay_settings")
-        .select("push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at")
+        .select("push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at, push_payroll_endpoint_verified")
         .maybeSingle();
-      return data as { push_salary_endpoint_verified?: boolean; push_salary_envelope_key?: string | null; push_salary_envelope_verified_at?: string | null } | null;
+      return data as {
+        push_salary_endpoint_verified?: boolean;
+        push_salary_envelope_key?: string | null;
+        push_salary_envelope_verified_at?: string | null;
+        push_payroll_endpoint_verified?: boolean;
+      } | null;
     },
     staleTime: 30_000,
   });
 
-  // Latest salary push per employee — used to badge each row as Synced / Failed / Not synced.
-  const { data: pushByEmployee = {} as Record<string, { status: string; created_at: string; error_message: string | null; response_snapshot: any }> } = useQuery({
+  // ALL recent salary push logs per employee (not just the newest).
+  // We correlate a specific revision's CTC to its own push log below, so a
+  // later unrelated failure (e.g. an "Expected CTC 0" stray click) does NOT
+  // downgrade the badge of an earlier successful revision.
+  const { data: pushLogsByEmployee = {} as Record<string, Array<{ status: string; created_at: string; error_message: string | null; response_snapshot: any }>> } = useQuery({
     queryKey: ["hr_salary_push_latest"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -73,14 +81,15 @@ export default function SalaryRevisionsPage() {
         .order("created_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      const map: Record<string, { status: string; created_at: string; error_message: string | null; response_snapshot: any }> = {};
+      const map: Record<string, Array<any>> = {};
       for (const r of (data || [])) {
-        if (!map[r.hr_employee_id]) map[r.hr_employee_id] = { status: r.status, created_at: r.created_at, error_message: r.error_message, response_snapshot: r.response_snapshot };
+        (map[r.hr_employee_id] ||= []).push(r);
       }
       return map;
     },
     staleTime: 15_000,
   });
+
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {

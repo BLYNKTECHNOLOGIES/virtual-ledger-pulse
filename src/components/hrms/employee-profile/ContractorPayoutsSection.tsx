@@ -48,34 +48,57 @@ export function ContractorPayoutsSection({ hrEmployeeId, employeeType }: Props) 
           No payouts recorded. Create/refresh from the RazorpayX Sync page → Contractor payouts.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left py-1.5 px-2 font-medium">Execute on</th>
-                <th className="text-left py-1.5 px-2 font-medium">Purpose</th>
-                <th className="text-right py-1.5 px-2 font-medium">Amount</th>
-                <th className="text-right py-1.5 px-2 font-medium">Tax</th>
-                <th className="text-center py-1.5 px-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r: any) => (
-                <tr key={r.id} className="border-b border-border/40">
-                  <td className="py-1.5 px-2 text-foreground">{r.execute_on || "—"}</td>
-                  <td className="py-1.5 px-2 text-muted-foreground">{r.purpose || "—"}</td>
-                  <td className="py-1.5 px-2 text-right font-medium">{INR(r.amount)}</td>
-                  <td className="py-1.5 px-2 text-right text-muted-foreground">{INR(r.tax)}</td>
-                  <td className="py-1.5 px-2 text-center">
-                    <Badge variant={r.paid ? "default" : "outline"} className={r.paid ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[10px]" : "text-[10px]"}>
-                      {r.status || (r.paid ? "paid" : "pending")}
-                    </Badge>
-                  </td>
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {rows.map((r: any) => (
+              <div key={r.id} className="border border-border rounded-lg p-3 space-y-1.5 bg-card">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs text-muted-foreground truncate">{r.purpose || "—"}</p>
+                  <Badge variant={r.paid ? "default" : "outline"} className={r.paid ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[10px]" : "text-[10px]"}>
+                    {r.status || (r.paid ? "paid" : "pending")}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div><p className="text-[10px] uppercase text-muted-foreground">Execute</p><p>{r.execute_on || "—"}</p></div>
+                  <div><p className="text-[10px] uppercase text-muted-foreground">Amount</p><p className="font-medium">{INR(r.amount)}</p></div>
+                  <div><p className="text-[10px] uppercase text-muted-foreground">Tax</p><p>{INR(r.tax)}</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground">
+                  <th className="text-left py-1.5 px-2 font-medium">Execute on</th>
+                  <th className="text-left py-1.5 px-2 font-medium">Purpose</th>
+                  <th className="text-right py-1.5 px-2 font-medium">Amount</th>
+                  <th className="text-right py-1.5 px-2 font-medium">Tax</th>
+                  <th className="text-center py-1.5 px-2 font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((r: any) => (
+                  <tr key={r.id} className="border-b border-border/40">
+                    <td className="py-1.5 px-2 text-foreground">{r.execute_on || "—"}</td>
+                    <td className="py-1.5 px-2 text-muted-foreground">{r.purpose || "—"}</td>
+                    <td className="py-1.5 px-2 text-right font-medium">{INR(r.amount)}</td>
+                    <td className="py-1.5 px-2 text-right text-muted-foreground">{INR(r.tax)}</td>
+                    <td className="py-1.5 px-2 text-center">
+                      <Badge variant={r.paid ? "default" : "outline"} className={r.paid ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[10px]" : "text-[10px]"}>
+                        {r.status || (r.paid ? "paid" : "pending")}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+
       )}
     </div>
   );

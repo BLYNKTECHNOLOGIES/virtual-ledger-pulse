@@ -538,29 +538,38 @@ export async function pushStatutoryToRazorpay(
       triggered_from: opts?.triggeredFrom,
     });
 
-    try {
-      await (supabase as any)
-        .from("hr_drift_alerts")
-        .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by push" })
-        .eq("hr_employee_id", hrEmployeeId)
-        .eq("field", "statutory_enrollment")
-        .is("resolved_at", null);
-    } catch { /* ignore */ }
-
-    if (!opts?.silent) toast.success("Razorpay statutory enrollment updated");
-    return { ok: true };
-  } catch (e: any) {
-    const msg = e?.message || String(e);
     await logPushback({
       hr_employee_id: hrEmployeeId,
       razorpay_employee_id: razorpayId,
       kind: "statutory",
       action: "push_statutory_apply_one",
-      status: "failure",
-      error_message: msg,
+      status: "success",
+      response_snapshot: d ?? null,
       triggered_from: opts?.triggeredFrom,
     });
-    await upsertDrift(hrEmployeeId, "statutory_enrollment", `Push failed: ${msg.slice(0, 200)}`);
+
+    const verifyResult = await verifyAndFinalize({
+      kind: "statutory",
+      hrEmployeeId,
+      razorpayEmployeeId: String(razorpayId),
+      triggeredFrom: opts?.triggeredFrom,
+      silent: opts?.silent,
+      successToast: "RazorpayX statutory enrollment verified",
+      retry: () => pushStatutoryToRazorpay(hrEmployeeId, { ...(opts || {}), silent: true }),
+    });
+
+    if (verifyResult.overall === "verified") {
+      try {
+        await (supabase as any)
+          .from("hr_drift_alerts")
+          .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by verified push" })
+          .eq("hr_employee_id", hrEmployeeId)
+          .eq("field", "statutory_enrollment")
+          .is("resolved_at", null);
+      } catch { /* ignore */ }
+    }
+    return { ok: verifyResult.overall === "verified", error: verifyResult.overall === "verified" ? undefined : verifyResult.error };
+
     if (!opts?.silent) {
       toast.warning("ERP saved, but Razorpay statutory push failed. Retry from Data Health.", {
         description: msg.length > 160 ? msg.slice(0, 160) + "…" : msg,

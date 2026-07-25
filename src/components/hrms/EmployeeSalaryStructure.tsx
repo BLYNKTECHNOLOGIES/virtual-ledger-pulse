@@ -140,7 +140,7 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm tabular-nums">
-                    {s.is_percentage ? `${s.amount}%` : `₹${Number(s.amount).toLocaleString("en-IN")}`}
+                    {isRupees(s) ? `₹${Number(s.amount).toLocaleString("en-IN")}` : `${s.amount}%`}
                   </TableCell>
                 </TableRow>
               ))}

@@ -408,13 +408,18 @@ export default function SalaryRevisionsPage() {
                         size="sm"
                         variant={r.razorpay_push_error ? "default" : "outline"}
                         onClick={() => pushOneTime(r.id)}
-                        disabled={pushing}
-                        title="Stage this payout on the target RazorpayX payroll month"
+                        disabled={pushing || !payrollGateVerified}
+                        title={
+                          !payrollGateVerified
+                            ? "RazorpayX payroll-write gate is locked. Verify the Payroll-run envelope in HRMS → Payroll → RazorpayX Sync."
+                            : "Stage this payout on the target RazorpayX payroll month"
+                        }
                       >
                         {pushing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}
                         {r.razorpay_push_error ? "Retry push" : "Push to RazorpayX"}
                       </Button>
                     )}
+
 
                     {isScheduled && canManage && (
                       <Button size="sm" variant="ghost" onClick={() => setCancelId(r.id)} title="Cancel scheduled revision">

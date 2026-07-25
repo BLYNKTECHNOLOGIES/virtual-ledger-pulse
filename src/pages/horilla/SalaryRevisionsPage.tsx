@@ -347,6 +347,33 @@ export default function SalaryRevisionsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!bulkAction} onOpenChange={(o) => !o && !bulkRunning && setBulkAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === "retry" ? `Retry ${failedCount} failed salary push${failedCount === 1 ? "" : "es"}?` : "Backfill all applied revisions to RazorpayX?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === "retry"
+                ? "We'll re-send the latest CTC from HRMS to RazorpayX for every employee whose last push failed. Employees not linked to RazorpayX are silently skipped."
+                : "We'll re-send the current HRMS CTC to RazorpayX for every employee that has at least one applied revision. Safe to run — RazorpayX overwrites with the same value if unchanged."}
+              {!envelopeVerified && (
+                <span className="block mt-2 text-destructive text-sm">
+                  ⚠️ The salary envelope isn't verified yet — every push will fail. Verify it on the Payroll Sync page first.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkRunning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkAction && runBulkPush(bulkAction)} disabled={bulkRunning || !envelopeVerified}>
+              {bulkRunning && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              {bulkAction === "retry" ? "Retry now" : "Backfill now"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

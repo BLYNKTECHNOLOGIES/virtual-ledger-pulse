@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useMutation, QueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, X, ArrowUpDown, Pencil } from "lucide-react";
+import { Check, X, ArrowUpDown, Pencil, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditLeaveBalancesDialog } from "./EditLeaveBalancesDialog";
 
@@ -25,6 +25,26 @@ export function LeaveTab({
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [editOpen, setEditOpen] = useState(false);
+
+  // Sunday-credit duplicate warnings for this employee (last 90 days)
+  const { data: sundayWarnings } = useQuery({
+    queryKey: ["hr_sunday_credit_audit", employeeId, "duplicates"],
+    queryFn: async () => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 90);
+      const { data, error } = await supabase
+        .from("hr_sunday_credit_audit")
+        .select("attendance_date, outcome, reason, created_at")
+        .eq("employee_id", employeeId)
+        .in("outcome", ["duplicate_blocked", "revoke_skipped_consumed"])
+        .gte("created_at", cutoff.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!employeeId,
+  });
 
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
 
@@ -146,6 +166,37 @@ export function LeaveTab({
           <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Balances
         </Button>
       </div>
+
+      {/* ─── Sunday Credit Warnings ─── */}
+      {sundayWarnings && sundayWarnings.length > 0 && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                Sunday credit safeguards triggered ({sundayWarnings.length})
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                The following attendance re-syncs would have double-credited or couldn't be reversed — they were blocked automatically:
+              </p>
+              <ul className="mt-2 space-y-0.5 text-xs text-foreground max-h-24 overflow-y-auto">
+                {sundayWarnings.slice(0, 5).map((w: any, idx: number) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className="font-mono text-muted-foreground">{w.attendance_date}</span>
+                    <span className={w.outcome === "duplicate_blocked" ? "text-amber-600 dark:text-amber-400" : "text-orange-600 dark:text-orange-400"}>
+                      {w.outcome === "duplicate_blocked" ? "Duplicate blocked" : "Revoke skipped (already consumed)"}
+                    </span>
+                  </li>
+                ))}
+                {sundayWarnings.length > 5 && (
+                  <li className="text-muted-foreground italic">+ {sundayWarnings.length - 5} more…</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* ─── Cumulative Leave Balance Cards ─── */}
       <div className="flex flex-wrap">

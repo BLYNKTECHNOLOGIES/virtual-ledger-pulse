@@ -167,6 +167,37 @@ export function LeaveTab({
         </Button>
       </div>
 
+      {/* ─── Sunday Credit Warnings ─── */}
+      {sundayWarnings && sundayWarnings.length > 0 && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                Sunday credit safeguards triggered ({sundayWarnings.length})
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                The following attendance re-syncs would have double-credited or couldn't be reversed — they were blocked automatically:
+              </p>
+              <ul className="mt-2 space-y-0.5 text-xs text-foreground max-h-24 overflow-y-auto">
+                {sundayWarnings.slice(0, 5).map((w: any, idx: number) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className="font-mono text-muted-foreground">{w.attendance_date}</span>
+                    <span className={w.outcome === "duplicate_blocked" ? "text-amber-600 dark:text-amber-400" : "text-orange-600 dark:text-orange-400"}>
+                      {w.outcome === "duplicate_blocked" ? "Duplicate blocked" : "Revoke skipped (already consumed)"}
+                    </span>
+                  </li>
+                ))}
+                {sundayWarnings.length > 5 && (
+                  <li className="text-muted-foreground italic">+ {sundayWarnings.length - 5} more…</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* ─── Cumulative Leave Balance Cards ─── */}
       <div className="flex flex-wrap">
         {uniqueLeaveTypeIds.map((ltId: string) => {

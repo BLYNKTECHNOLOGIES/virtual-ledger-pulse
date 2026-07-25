@@ -1077,9 +1077,26 @@ export default function EmployeeProfilePage() {
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Basic Salary</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString('en-IN')}` : "None"}</p>
+                      <p className="text-xs text-muted-foreground">Basic Salary (monthly)</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {(() => {
+                          // Prefer work_info.basic_salary, then hr_employees.basic_salary,
+                          // then derive from annual total_salary / 12. Prevents "None"
+                          // when the CTC is set but the legacy basic_salary column is 0.
+                          const monthly =
+                            Number(workInfo?.basic_salary) > 0
+                              ? Number(workInfo.basic_salary)
+                              : Number((emp as any)?.basic_salary) > 0
+                                ? Number((emp as any).basic_salary) / 12
+                                : Number((emp as any)?.total_salary) > 0
+                                  ? Number((emp as any).total_salary) / 12
+                                  : 0;
+                          return (
+                            <p className="text-sm text-foreground">
+                              {monthly > 0 ? `₹${Math.round(monthly).toLocaleString("en-IN")}` : "None"}
+                            </p>
+                          );
+                        })()}
                         <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setShowReviseSalary(true)}>Revise</Button>
                       </div>
                     </div>

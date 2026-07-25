@@ -216,7 +216,69 @@ export default function PayrollDashboardPage() {
 
       <Card>
         <CardHeader><CardTitle className="text-sm">Payroll Runs</CardTitle></CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
+        <CardContent className="p-0">
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y">
+            {isLoading ? (
+              <div className="p-4"><TableSkeleton rows={5} columns={2} /></div>
+            ) : runs.length === 0 ? (
+              <EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" />
+            ) : (
+              runs.map((r: any) => (
+                <div key={r.id} className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{r.title}</p>
+                      <p className="text-[11px] text-muted-foreground">{r.pay_period_start} — {r.pay_period_end}</p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
+                      {r.is_locked && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full">
+                          <Lock className="h-3 w-3" /> Locked
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor(r.status)}`}>{r.status}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div><p className="text-[10px] uppercase text-muted-foreground">Emp</p><p className="tabular-nums">{r.employee_count || 0}</p></div>
+                    <div><p className="text-[10px] uppercase text-muted-foreground">Gross</p><p className="text-success tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</p></div>
+                    <div><p className="text-[10px] uppercase text-muted-foreground">Net</p><p className="font-semibold tabular-nums">₹{(r.total_net || 0).toLocaleString('en-IN')}</p></div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {r.status === "draft" && (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
+                        <Lock className="h-3 w-3" /> Compute on RazorpayX
+                      </span>
+                    )}
+                    {r.status === "processing" && !r.is_locked && (
+                      <Button size="sm" variant="outline" className="min-h-11 flex-1 text-xs" onClick={() => setReviewDialog(r)}>
+                        <CheckCircle className="h-3 w-3 mr-1" /> Review & Approve
+                      </Button>
+                    )}
+                    {r.status === "reviewed" && !r.is_locked && (
+                      <Button size="sm" variant="outline" className="min-h-11 flex-1 text-xs text-warning" onClick={() => setLockConfirm(r)}>
+                        <Lock className="h-3 w-3 mr-1" /> Lock & Complete
+                      </Button>
+                    )}
+                    {r.status === "completed" && r.is_locked && (
+                      <Button size="sm" className="min-h-11 flex-1 text-xs bg-success hover:bg-success/90 text-success-foreground" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
+                        <CheckCircle className="h-3 w-3 mr-1" /> Mark as Paid
+                      </Button>
+                    )}
+                    {r.status === "paid" && (
+                      <span className="text-xs text-success font-medium flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" /> Disbursed
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
@@ -299,8 +361,10 @@ export default function PayrollDashboardPage() {
               )}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
+
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>

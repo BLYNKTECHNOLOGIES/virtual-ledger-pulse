@@ -186,7 +186,61 @@ export function ContractorPayoutsHub() {
           </p>
         </div>
       ) : (
-        <div className="border border-border rounded-lg overflow-x-auto">
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {rows.map((r: any) => (
+              <div key={r.id} className="border border-border rounded-lg p-3 space-y-2 bg-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{r.employee_email || "—"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{r.purpose || "—"}</p>
+                  </div>
+                  <Badge variant={r.paid ? "default" : "outline"} className={r.paid ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[10px]" : "text-[10px]"}>
+                    {r.status || (r.paid ? "paid" : "pending")}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><p className="text-[10px] uppercase text-muted-foreground">Amount</p><p className="font-medium">{INR(r.amount)}</p></div>
+                  <div><p className="text-[10px] uppercase text-muted-foreground">Tax</p><p>{INR(r.tax)}</p></div>
+                  <div><p className="text-[10px] uppercase text-muted-foreground">Execute on</p><p>{r.execute_on || "—"}</p></div>
+                  <div><p className="text-[10px] uppercase text-muted-foreground">Queued</p><p>{r.queued_on ? new Date(r.queued_on).toLocaleDateString("en-IN") : "—"}</p></div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="outline" className="min-h-11 flex-1" onClick={() => refreshOne(r)} disabled={refreshing === r.id}>
+                    {refreshing === r.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                    Refresh
+                  </Button>
+                  {!r.paid && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="min-h-11 text-destructive">
+                          <Trash2 className="w-3 h-3 mr-1" /> Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this payout?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Removes payout #{r.razorpay_payment_id} for {r.employee_email} from RazorpayX. Only unpaid payouts can be deleted.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteOne(r)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block border border-border rounded-lg overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border text-xs text-muted-foreground uppercase">
@@ -253,7 +307,9 @@ export function ContractorPayoutsHub() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
+
       )}
     </div>
   );

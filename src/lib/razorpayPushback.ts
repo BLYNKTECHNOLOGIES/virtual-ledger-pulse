@@ -569,7 +569,18 @@ export async function pushStatutoryToRazorpay(
       } catch { /* ignore */ }
     }
     return { ok: verifyResult.overall === "verified", error: verifyResult.overall === "verified" ? undefined : verifyResult.error };
-
+  } catch (e: any) {
+    const msg = e?.message || String(e);
+    await logPushback({
+      hr_employee_id: hrEmployeeId,
+      razorpay_employee_id: razorpayId,
+      kind: "statutory",
+      action: "push_statutory_apply_one",
+      status: "failure",
+      error_message: msg,
+      triggered_from: opts?.triggeredFrom,
+    });
+    await upsertDrift(hrEmployeeId, "statutory_enrollment", `Push failed: ${msg.slice(0, 200)}`);
     if (!opts?.silent) {
       toast.warning("ERP saved, but Razorpay statutory push failed. Retry from Data Health.", {
         description: msg.length > 160 ? msg.slice(0, 160) + "…" : msg,
@@ -578,3 +589,4 @@ export async function pushStatutoryToRazorpay(
     return { ok: false, error: msg };
   }
 }
+

@@ -247,13 +247,15 @@ export default function AttendanceOverviewPage() {
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 sm:w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9 sm:w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="present">Present</SelectItem>
             <SelectItem value="absent">Absent</SelectItem>
             <SelectItem value="late">Late</SelectItem>
             <SelectItem value="half_day">Half Day</SelectItem>
+            <SelectItem value="incomplete">Incomplete</SelectItem>
+            <SelectItem value="no_data">Not Punched</SelectItem>
           </SelectContent>
         </Select>
       </div>

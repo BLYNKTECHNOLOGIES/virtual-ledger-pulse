@@ -170,7 +170,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         const amt = parseFloat(oneTimeAmount);
         if (!amt || amt <= 0) throw new Error("Enter a valid amount");
 
-        const { error } = await (supabase as any)
+        const { data: inserted, error } = await (supabase as any)
           .from("hr_salary_revisions")
           .insert({
             employee_id: employeeId,
@@ -182,10 +182,13 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             notes: notes || null,
             approved_by: approvedBy,
             status: "APPLIED",
-          });
+          })
+          .select("id")
+          .single();
         if (error) throw error;
-        return { kind: "one_time" };
+        return { kind: "one_time", revisionId: inserted?.id as string | undefined };
       }
+
 
       // statutory toggle
       if (!reason.trim()) throw new Error("Reason is mandatory for a statutory enrollment change (e.g. 'Training period exemption')");

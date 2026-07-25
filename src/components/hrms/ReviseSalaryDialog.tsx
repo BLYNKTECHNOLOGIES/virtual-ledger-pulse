@@ -209,7 +209,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         p_pf_enabled: finalPf,
         p_esi_enabled: finalEsi,
         p_pt_enabled: finalPt,
-        p_effective_from: format(effectiveFrom, "yyyy-MM-dd"),
+        p_effective_from: format(effectiveDateForRpc, "yyyy-MM-dd"),
         p_reason: reason,
         p_approved_by: approvedBy,
       });

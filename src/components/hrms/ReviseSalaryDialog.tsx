@@ -285,9 +285,43 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         }
         onOpenChange(false);
       } else {
-        toast.success("One-time compensation recorded");
-        onOpenChange(false);
+        // one_time — stage the addition on the correct RazorpayX payroll month
+        // and stamp the outcome back on the revision row so the history page
+        // can show accurate "queued / rejected / paid" feedback.
+        const revisionId = res?.revisionId as string | undefined;
+        if (!revisionId) {
+          toast.success("One-time compensation recorded");
+          onOpenChange(false);
+          return;
+        }
+        const toastId = toast.loading("Staging payout on RazorpayX payroll month…");
+        try {
+          const mod = await import("@/lib/oneTimePayoutPush");
+          const push = await mod.pushOneTimePayoutToRazorpay(revisionId);
+          qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
+          if (push.ok) {
+            toast.success(
+              "Payout queued on RazorpayX for that payroll month. It will be paid when that month's payroll run is executed.",
+              { id: toastId },
+            );
+            onOpenChange(false);
+          } else if (push.skipped) {
+            toast.warning(
+              "HRMS payout is saved, but NOT queued on RazorpayX — employee is not linked. Link them from Data Health and retry from the history page.",
+              { id: toastId },
+            );
+            onOpenChange(false);
+          } else {
+            toast.error("RazorpayX rejected the payout — retry from the history page.", {
+              id: toastId,
+              description: (push.error || "Unknown error").slice(0, 220),
+            });
+          }
+        } catch (e: any) {
+          toast.error(`RazorpayX push failed: ${e?.message || e}`, { id: toastId });
+        }
       }
+
     },
     onError: (e: any) => toast.error(e.message),
   });

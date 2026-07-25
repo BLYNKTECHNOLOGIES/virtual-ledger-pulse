@@ -115,6 +115,7 @@ export function AccountSummary() {
   const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
   const [subLedgerAccount, setSubLedgerAccount] = useState<{ id: string; name: string } | null>(null);
+  const [historyRef, setHistoryRef] = useState<string | null>(null);
 
   // Fetch account summary data directly from bank_accounts table (not computed view)
   const { data: accountsData, isLoading: accountsLoading } = useQuery({

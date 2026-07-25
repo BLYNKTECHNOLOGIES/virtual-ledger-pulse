@@ -275,7 +275,7 @@ export default function SalaryRevisionsPage() {
                       <Button
                         size="sm"
                         variant={pushFailedAfterRevision ? "default" : "outline"}
-                        onClick={() => pushOne(r.employee_id, r.id)}
+                        onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}
                         disabled={pushing || !envelopeVerified}
                         title={!envelopeVerified ? "Verify the salary envelope first" : "Push this CTC to RazorpayX"}
                       >

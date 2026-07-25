@@ -102,6 +102,12 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
     errorMessage = e?.message || String(e);
   }
 
+  // Friendlier message for the commissioning gate
+  if (errorMessage && /push_payroll_endpoint_verified=false|Payroll-write gate/i.test(errorMessage)) {
+    errorMessage =
+      "RazorpayX payroll-write gate is locked. Verify the Payroll-run envelope in HRMS → Payroll → RazorpayX Sync, then retry this push.";
+  }
+
   // 5) Stamp result back on the revision
   const patch: any = errorMessage
     ? { razorpay_push_error: errorMessage, razorpay_push_response: response ?? null }

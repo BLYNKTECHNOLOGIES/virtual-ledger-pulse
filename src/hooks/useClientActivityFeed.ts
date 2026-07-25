@@ -86,7 +86,7 @@ export function useClientActivityFeed({ clientId, clientName, includeReversed }:
           .limit(500),
         supabase
           .from("sales_orders")
-          .select("id, order_number, product_name:client_name, quantity, price_per_unit, total_amount, status, order_date, created_at, created_by")
+          .select("id, order_number, quantity, price_per_unit, total_amount, status, order_date, created_at, created_by")
           .eq("client_id", clientId)
           .order("created_at", { ascending: true })
           .limit(500),

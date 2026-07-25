@@ -11,8 +11,17 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  buildExpected,
+  emitPushResult,
+  verifyPush,
+  type FieldDiff,
+  type PushVerifyKind,
+  type PushVerifyResult,
+} from "@/lib/razorpayVerify";
 
 type PushKind = "identity" | "bank" | "salary" | "employment" | "dismissal" | "create" | "statutory";
+
 
 const ACTION_BY_KIND: Record<Exclude<PushKind, "dismissal" | "create" | "statutory">, string> = {
   identity: "push_person_apply_one",
@@ -127,6 +136,97 @@ async function upsertDrift(hr_employee_id: string, field: string, note: string) 
   }
 }
 
+// ---------- verification finalizer ----------
+// Called after every RazorpayX write. Re-reads the person from RazorpayX,
+// diffs field-by-field, dispatches the field-diff dialog on partial/failed,
+// and toasts honestly about what actually landed vs what didn't.
+async function verifyAndFinalize(args: {
+  kind: PushVerifyKind;
+  hrEmployeeId: string;
+  razorpayEmployeeId: string | null;
+  triggeredFrom?: string;
+  silent?: boolean;
+  expectedOverrides?: Record<string, any>;
+  successToast?: string;
+  retry?: () => Promise<any>;
+}): Promise<PushVerifyResult> {
+  const expected = await buildExpected(args.kind, args.hrEmployeeId, args.expectedOverrides).catch(() => ({}));
+  const result = await verifyPush(args.kind, args.hrEmployeeId, expected, {
+    razorpayEmployeeId: args.razorpayEmployeeId,
+  });
+
+  // Persist the diff into the last pushback log row (best-effort).
+  try {
+    await (supabase as any)
+      .from("hr_razorpay_pushback_log")
+      .insert({
+        hr_employee_id: args.hrEmployeeId,
+        razorpay_employee_id: args.razorpayEmployeeId,
+        kind: args.kind,
+        action: `verify_${args.kind}`,
+        status: result.overall === "verified" ? "success" : result.overall === "partial" ? "success" : "failure",
+        response_snapshot: { overall: result.overall, fields: result.fields, error: result.error ?? null },
+        error_message: result.overall === "verified" ? null : (result.error || `Verification: ${result.overall}`),
+        triggered_from: args.triggeredFrom,
+      });
+  } catch { /* best-effort */ }
+
+  if (result.overall !== "verified") {
+    const mismatched = result.fields.filter((f) => f.match !== true).map((f) => f.label).join(", ");
+    await upsertDrift(
+      args.hrEmployeeId,
+      DRIFT_FIELD_BY_KIND[args.kind as PushKind] || `${args.kind}_bundle`,
+      `Verification ${result.overall}: ${mismatched || "field-level details in dialog"}`,
+    );
+  }
+
+  // Fetch employee name for the dialog header (best-effort).
+  let employeeName: string | null = null;
+  try {
+    const { data } = await (supabase as any)
+      .from("hr_employees")
+      .select("first_name,last_name")
+      .eq("id", args.hrEmployeeId)
+      .maybeSingle();
+    if (data) employeeName = [data.first_name, data.last_name].filter(Boolean).join(" ").trim() || null;
+  } catch { /* best-effort */ }
+
+  if (!args.silent) {
+    if (result.overall === "verified") {
+      toast.success(args.successToast || `Razorpay ${LABEL_BY_KIND[args.kind as PushKind] || args.kind} verified`);
+    } else if (result.overall === "partial") {
+      toast.warning(`RazorpayX ${args.kind} update partially verified — see details`, {
+        description: "Some fields could not be read back from RazorpayX. Opened the diff dialog.",
+      });
+    } else if (result.overall === "failed") {
+      toast.error(`RazorpayX ${args.kind} update NOT verified`, {
+        description: result.error || "RazorpayX is still showing old values for one or more fields.",
+      });
+    } else if (result.overall === "skipped") {
+      // Skipped means employee isn't linked — pushback layer already handled that.
+    }
+  }
+
+  if (result.overall !== "verified" && result.overall !== "skipped") {
+    emitPushResult({
+      ...result,
+      employeeName,
+      triggeredFrom: args.triggeredFrom,
+      retry: args.retry
+        ? async () => {
+            await args.retry!();
+            return verifyPush(args.kind, args.hrEmployeeId, expected, {
+              razorpayEmployeeId: args.razorpayEmployeeId,
+            });
+          }
+        : undefined,
+    });
+  }
+
+  return result;
+}
+
+
 export async function pushToRazorpay(
   kind: Exclude<PushKind, "dismissal" | "create">,
   hrEmployeeId: string,
@@ -198,24 +298,50 @@ export async function pushToRazorpay(
       triggered_from: opts?.triggeredFrom,
     });
 
-    // Clear any open drift for this bundle now that push succeeded.
-    try {
-      await (supabase as any)
-        .from("hr_drift_alerts")
-        .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by push" })
-        .eq("hr_employee_id", hrEmployeeId)
-        .eq("field", DRIFT_FIELD_BY_KIND[kind])
-        .is("resolved_at", null);
-    } catch { /* ignore */ }
+    // Re-read RazorpayX and diff field-by-field. This is the source of truth
+    // for whether the update actually landed — RazorpayX silently no-ops some
+    // fields (bank IFSC updates, phone updates, etc.) so a 200 from the API
+    // is NOT proof the change is live.
+    const verifyKind = (kind === "employment" ? "employment" : kind) as PushVerifyKind;
+    const expectedOverrides =
+      kind === "salary" && typeof opts?.expectedTotal === "number"
+        ? { annual_ctc: opts.expectedTotal }
+        : undefined;
+    const verifyResult = await verifyAndFinalize({
+      kind: verifyKind,
+      hrEmployeeId,
+      razorpayEmployeeId: String(razorpayId),
+      triggeredFrom: opts?.triggeredFrom,
+      silent: opts?.silent,
+      expectedOverrides,
+      successToast:
+        kind === "salary" && typeof verifiedTotal === "number"
+          ? `RazorpayX CTC verified: ₹${verifiedTotal.toLocaleString("en-IN")}`
+          : `RazorpayX ${LABEL_BY_KIND[kind]} verified`,
+      retry: () => pushToRazorpay(kind, hrEmployeeId, { ...opts, silent: true }),
+    });
 
-    if (!opts?.silent) {
-      if (kind === "salary" && typeof verifiedTotal === "number") {
-        toast.success(`Razorpay CTC verified: ₹${verifiedTotal.toLocaleString("en-IN")}`);
-      } else {
-        toast.success(`Razorpay ${LABEL_BY_KIND[kind]} updated`);
-      }
+    // Clear open drift only when verification actually confirmed the change.
+    if (verifyResult.overall === "verified") {
+      try {
+        await (supabase as any)
+          .from("hr_drift_alerts")
+          .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by verified push" })
+          .eq("hr_employee_id", hrEmployeeId)
+          .eq("field", DRIFT_FIELD_BY_KIND[kind])
+          .is("resolved_at", null);
+      } catch { /* ignore */ }
     }
-    return { ok: true, verifiedTotal, expectedTotal: opts?.expectedTotal };
+
+    return {
+      ok: verifyResult.overall === "verified",
+      verifiedTotal,
+      expectedTotal: opts?.expectedTotal,
+      error: verifyResult.overall !== "verified"
+        ? (verifyResult.error || `RazorpayX ${LABEL_BY_KIND[kind]} update was not verified — see the field diff dialog.`)
+        : undefined,
+    };
+
   } catch (e: any) {
     const msg = e?.message || String(e);
     await logPushback({
@@ -300,8 +426,21 @@ export async function dismissInRazorpay(
       triggered_from: opts.triggeredFrom,
     });
 
-    toast.success(`Razorpay dismissal scheduled for ${ddmmyyyy} — FNF payroll enabled`);
-    return { ok: true, razorpay_employee_id: String(razorpayId) };
+    const verifyResult = await verifyAndFinalize({
+      kind: "dismissal",
+      hrEmployeeId,
+      razorpayEmployeeId: String(razorpayId),
+      triggeredFrom: opts.triggeredFrom,
+      expectedOverrides: { dismissed: true, date_of_dismissal: opts.dateOfDismissal },
+      successToast: `Razorpay dismissal scheduled for ${ddmmyyyy} — FNF payroll enabled`,
+      retry: () => dismissInRazorpay(hrEmployeeId, opts),
+    });
+    return {
+      ok: verifyResult.overall === "verified",
+      razorpay_employee_id: String(razorpayId),
+      error: verifyResult.overall === "verified" ? undefined : (verifyResult.error || "Dismissal not yet reflected in RazorpayX."),
+    };
+
   } catch (e: any) {
     const msg = e?.message || String(e);
     await logPushback({
@@ -399,17 +538,37 @@ export async function pushStatutoryToRazorpay(
       triggered_from: opts?.triggeredFrom,
     });
 
-    try {
-      await (supabase as any)
-        .from("hr_drift_alerts")
-        .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by push" })
-        .eq("hr_employee_id", hrEmployeeId)
-        .eq("field", "statutory_enrollment")
-        .is("resolved_at", null);
-    } catch { /* ignore */ }
+    await logPushback({
+      hr_employee_id: hrEmployeeId,
+      razorpay_employee_id: razorpayId,
+      kind: "statutory",
+      action: "push_statutory_apply_one",
+      status: "success",
+      response_snapshot: d ?? null,
+      triggered_from: opts?.triggeredFrom,
+    });
 
-    if (!opts?.silent) toast.success("Razorpay statutory enrollment updated");
-    return { ok: true };
+    const verifyResult = await verifyAndFinalize({
+      kind: "statutory",
+      hrEmployeeId,
+      razorpayEmployeeId: String(razorpayId),
+      triggeredFrom: opts?.triggeredFrom,
+      silent: opts?.silent,
+      successToast: "RazorpayX statutory enrollment verified",
+      retry: () => pushStatutoryToRazorpay(hrEmployeeId, { ...(opts || {}), silent: true }),
+    });
+
+    if (verifyResult.overall === "verified") {
+      try {
+        await (supabase as any)
+          .from("hr_drift_alerts")
+          .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by verified push" })
+          .eq("hr_employee_id", hrEmployeeId)
+          .eq("field", "statutory_enrollment")
+          .is("resolved_at", null);
+      } catch { /* ignore */ }
+    }
+    return { ok: verifyResult.overall === "verified", error: verifyResult.overall === "verified" ? undefined : verifyResult.error };
   } catch (e: any) {
     const msg = e?.message || String(e);
     await logPushback({
@@ -430,3 +589,4 @@ export async function pushStatutoryToRazorpay(
     return { ok: false, error: msg };
   }
 }
+

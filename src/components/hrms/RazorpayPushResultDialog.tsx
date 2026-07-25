@@ -25,21 +25,18 @@ function fmt(v: any): string {
 
 function DiffRow({ f }: { f: FieldDiff }) {
   const ok = f.match === true;
-  const accepted = f.accepted === true && f.match === null;
   const bad = f.match === false;
-  const unknown = f.match === null && !accepted;
+  const unknown = f.match === null;
   return (
     <div className={cn(
       "flex flex-col gap-1 rounded-md border p-3 text-sm",
       ok && "border-emerald-500/30 bg-emerald-500/5",
-      accepted && "border-amber-500/40 bg-amber-500/5",
       bad && "border-rose-500/40 bg-rose-500/5",
       unknown && "border-amber-500/30 bg-amber-500/5",
     )}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 font-medium">
           {ok && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-          {accepted && <AlertTriangle className="h-4 w-4 text-amber-500" />}
           {bad && <XCircle className="h-4 w-4 text-rose-500" />}
           {unknown && <HelpCircle className="h-4 w-4 text-amber-500" />}
           <span>{f.label}</span>
@@ -49,12 +46,11 @@ function DiffRow({ f }: { f: FieldDiff }) {
           className={cn(
             "text-[10px] uppercase tracking-wide",
             ok && "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
-            accepted && "border-amber-500/40 text-amber-600 dark:text-amber-400",
             bad && "border-rose-500/40 text-rose-600 dark:text-rose-400",
             unknown && "border-amber-500/40 text-amber-600 dark:text-amber-400",
           )}
         >
-          {ok ? "Confirmed" : accepted ? "Push accepted" : bad ? "Not applied" : "Not verifiable"}
+          {ok ? "Confirmed" : bad ? "Not applied" : "Not verified"}
         </Badge>
       </div>
       <div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
@@ -85,20 +81,18 @@ export function RazorpayPushResultDialog({
 }) {
   const [retrying, setRetrying] = useState(false);
 
-  const { confirmed, accepted, unapplied, unknown } = useMemo(() => {
+  const { confirmed, unapplied, unknown } = useMemo(() => {
     const fields = detail?.fields || [];
     return {
       confirmed: fields.filter((f) => f.match === true),
-      accepted: fields.filter((f) => f.accepted === true && f.match === null),
       unapplied: fields.filter((f) => f.match === false),
-      unknown: fields.filter((f) => f.match === null && f.accepted !== true),
+      unknown: fields.filter((f) => f.match === null),
     };
   }, [detail]);
 
   if (!detail) return null;
   const isFailed = detail.overall === "failed";
   const isPartial = detail.overall === "partial";
-  const isAccepted = detail.overall === "accepted";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,7 +101,7 @@ export function RazorpayPushResultDialog({
           <div className="flex items-center gap-2">
             {isFailed ? (
               <XCircle className="h-5 w-5 text-rose-500" />
-            ) : isPartial || isAccepted ? (
+            ) : isPartial ? (
               <AlertTriangle className="h-5 w-5 text-amber-500" />
             ) : (
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -115,10 +109,8 @@ export function RazorpayPushResultDialog({
             <DialogTitle>
               {isFailed
                 ? "RazorpayX did NOT apply the update"
-                : isAccepted
-                ? "RazorpayX accepted the update; read-back is pending"
                 : isPartial
-                ? "RazorpayX update partially verified"
+                ? "RazorpayX update not fully verified"
                 : "RazorpayX update verified"}
             </DialogTitle>
           </div>
@@ -148,17 +140,9 @@ export function RazorpayPushResultDialog({
             {unknown.length > 0 && (
               <section className="space-y-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-amber-500">
-                  Could not verify ({unknown.length})
+                  Not verified by RazorpayX read-back ({unknown.length})
                 </div>
                 {unknown.map((f) => <DiffRow key={f.key} f={f} />)}
-              </section>
-            )}
-            {accepted.length > 0 && (
-              <section className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-amber-500">
-                  Accepted by RazorpayX, read-back pending ({accepted.length})
-                </div>
-                {accepted.map((f) => <DiffRow key={f.key} f={f} />)}
               </section>
             )}
             {confirmed.length > 0 && (
@@ -174,7 +158,7 @@ export function RazorpayPushResultDialog({
 
         <DialogFooter className="gap-2 sm:justify-between">
           <div className="text-xs text-muted-foreground">
-            HRMS record was saved locally. "Push accepted" means RazorpayX accepted the write, but its API cannot echo that field yet.
+            HRMS record was saved locally. This update is only complete after RazorpayX read-back confirms every field.
           </div>
           <div className="flex gap-2">
             {(onRetry || detail.retry) && (

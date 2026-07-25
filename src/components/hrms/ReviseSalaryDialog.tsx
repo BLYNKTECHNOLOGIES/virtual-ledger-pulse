@@ -224,7 +224,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             : "Salary revision applied in HRMS",
         );
         // Await the RazorpayX push — revision is NOT considered finalized until RazorpayX
-        // accepts the new CTC. On failure we keep the dialog open so the operator can retry
+        // read-back confirms the new CTC. On failure we keep the dialog open so the operator can retry
         // or open Data Health, and the row will render with a "Not synced" badge.
         if (employeeId && res.data?.status !== "SCHEDULED") {
           const toastId = toast.loading("Pushing new CTC to RazorpayX and verifying…");
@@ -236,13 +236,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               expectedTotal: nT,
             });
             qc.invalidateQueries({ queryKey: ["hr_salary_push_latest"] });
-            if (push.ok && push.readbackPending) {
-              toast.warning(
-                "RazorpayX accepted the new CTC. Current CTC read-back is pending until RazorpayX exposes it after payroll.",
-                { id: toastId },
-              );
-              onOpenChange(false);
-            } else if (push.ok && typeof push.verifiedTotal === "number" && Math.abs(push.verifiedTotal - nT) <= 1) {
+            if (push.ok && typeof push.verifiedTotal === "number" && Math.abs(push.verifiedTotal - nT) <= 1) {
               toast.success(
                 `Verified in RazorpayX: annual CTC = ₹${push.verifiedTotal.toLocaleString("en-IN")}`,
                 { id: toastId },
@@ -250,10 +244,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               onOpenChange(false);
             } else if (push.skipped) {
               toast.warning(
-                "Applied in HRMS. Employee is not linked to RazorpayX — link them from Data Health and push from the row.",
+                "HRMS revision is saved but NOT finalized. Employee is not linked to RazorpayX — link them from Data Health and push again.",
                 { id: toastId },
               );
-              onOpenChange(false);
             } else {
               // Either the push failed OR the verified total didn't match.
               // Do NOT close the dialog — operator needs to retry.

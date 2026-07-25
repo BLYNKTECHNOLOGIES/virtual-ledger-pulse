@@ -962,6 +962,12 @@ export function AccountSummary() {
           accountName={subLedgerAccount.name}
         />
       )}
+
+      <TransactionEditHistoryDialog
+        open={!!historyRef}
+        onOpenChange={(o) => !o && setHistoryRef(null)}
+        referenceNumber={historyRef}
+      />
     </div>
   );
 }

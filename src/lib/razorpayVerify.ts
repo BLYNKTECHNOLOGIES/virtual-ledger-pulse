@@ -250,7 +250,7 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
   // salary block, keep this unverified instead of falling back to stale payroll.
   const liveCtc =
     pick(liveSalaryBlock, "ctc-annual", "annual-ctc", "ctc_annual", "annual_ctc", "annualCtc") ??
-    pick(snap, "ctc-annual", "annual-ctc", "ctc_annual");
+    pick(snap, "ctc-annual", "annual-ctc", "ctc_annual", "annual_ctc");
 
   const raw: Record<string, any> = {
     first_name: pick(snap, "first_name", "firstName", "first-name") || nameParts[0] || null,

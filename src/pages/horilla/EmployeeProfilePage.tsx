@@ -1044,19 +1044,19 @@ export default function EmployeeProfilePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Work Type</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.work_type || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{prettyCase(workInfo?.work_type)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Employee Type</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.employee_type || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{prettyCase(workInfo?.employee_type)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Joining Date</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.joining_date || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{fmtDate(workInfo?.joining_date)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Contract End</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.contract_end_date || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{fmtDate(workInfo?.contract_end_date)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Reporting Manager</p>

@@ -250,14 +250,29 @@ export default function SalaryRevisionsPage() {
 
             let syncBadge: React.ReactNode = null;
             if (isOneTime) {
-              // One-time payouts don't change CTC, so there is nothing to push to
-              // RazorpayX from here — they must be recorded as an ad-hoc payout in
-              // the RazorpayX payroll run itself. Show an informational chip only.
-              syncBadge = (
-                <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 gap-1">
-                  Ad-hoc — add in RazorpayX payroll
-                </Badge>
-              );
+              // One-time payouts are staged on the target RazorpayX payroll month.
+              // They are only fully "paid" once that month's payroll run is executed
+              // there — we show the queued / rejected / not-sent state honestly.
+              if (r.razorpay_push_error) {
+                syncBadge = (
+                  <Badge variant="outline" className="text-destructive border-destructive/40 gap-1">
+                    <XCircle className="h-3 w-3" /> RazorpayX rejected
+                  </Badge>
+                );
+              } else if (r.razorpay_pushed_at) {
+                syncBadge = (
+                  <Badge variant="outline" className="text-sky-700 border-sky-500/40 gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Queued in RazorpayX{r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
+                  </Badge>
+                );
+              } else {
+                syncBadge = (
+                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Not sent to RazorpayX
+                  </Badge>
+                );
+              }
             } else if (isApplied) {
               if (pushSyncedAfterRevision) {
                 syncBadge = (
@@ -279,6 +294,7 @@ export default function SalaryRevisionsPage() {
                 );
               }
             }
+
 
 
             return (

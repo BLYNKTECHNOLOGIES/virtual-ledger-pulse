@@ -3031,6 +3031,10 @@ Deno.serve(async (req) => {
         if (!subType || subType === "update") subType = "set-salary";
         const salaryPayload = {
           "ctc-annual": erp.total,
+          "annual-ctc": erp.total,
+          "custom-salary-structure": erp.components.map((c) => ({
+            code: c.code, name: c.name, type: c.type, amount: c.amount,
+          })),
           components: erp.components.map((c) => ({
             code: c.code, name: c.name, type: c.type, amount: c.amount,
           })),

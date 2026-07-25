@@ -236,23 +236,21 @@ export async function buildExpected(
 // -------------------- snapshot extractor (RazorpayX → normalized) --------------------
 function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
   const bank = snap?.bank || snap?.["bank-details"] || snap?.bank_details || {};
-  const salaryBlock =
-    snap?.__salary ||
+  const liveSalaryBlock =
     snap?.salary ||
     snap?.["salary-structure"] ||
     snap?.salary_structure ||
     null;
   const nameParts = s(snap?.name || snap?.full_name).split(/\s+/).filter(Boolean);
 
-  // Prefer the LIVE people:view salary block (`ctc-annual`) over the payroll
-  // view (`__salary.annual_ctc`) — the live block reflects the salary
-  // structure RazorpayX will use for the NEXT payroll run, which is exactly
-  // what we just tried to write. `__salary.annual_ctc` only reflects the last
-  // EXECUTED run and is stale for a revision that hasn't hit payroll yet.
+  // Salary verification must use the LIVE people:view salary block only.
+  // `__salary.annual_ctc` comes from payroll:view-payroll and reflects the
+  // last executed payroll month, so using it here can produce a false green
+  // badge after a CTC revision. If people:view does not expose the current
+  // salary block, keep this unverified instead of falling back to stale payroll.
   const liveCtc =
-    pick(salaryBlock, "ctc-annual", "ctc_annual", "annual_ctc", "annualCtc") ??
-    pick(snap, "ctc-annual", "ctc_annual");
-  const executedCtc = snap?.__salary?.annual_ctc ?? null;
+    pick(liveSalaryBlock, "ctc-annual", "annual-ctc", "ctc_annual", "annual_ctc", "annualCtc") ??
+    pick(snap, "ctc-annual", "annual-ctc", "ctc_annual");
 
   const raw: Record<string, any> = {
     first_name: pick(snap, "first_name", "firstName", "first-name") || nameParts[0] || null,
@@ -279,7 +277,7 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
     pf_enabled: pick(snap, "pf-enabled", "pf_enabled", "is_pf_enabled"),
     esi_enabled: pick(snap, "esi-enabled", "esi_enabled", "is_esi_enabled"),
     pt_enabled: pick(snap, "pt-enabled", "pt_enabled", "is_pt_enabled"),
-    annual_ctc: liveCtc ?? executedCtc ?? null,
+    annual_ctc: liveCtc ?? null,
     dismissed: snap?.__dismissed === true || String(snap?.status || "").toLowerCase() === "dismissed",
     date_of_dismissal: pick(snap, "date-of-dismissal", "date_of_dismissal", "dismissed_at"),
   };

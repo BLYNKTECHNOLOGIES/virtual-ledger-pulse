@@ -298,24 +298,50 @@ export async function pushToRazorpay(
       triggered_from: opts?.triggeredFrom,
     });
 
-    // Clear any open drift for this bundle now that push succeeded.
-    try {
-      await (supabase as any)
-        .from("hr_drift_alerts")
-        .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by push" })
-        .eq("hr_employee_id", hrEmployeeId)
-        .eq("field", DRIFT_FIELD_BY_KIND[kind])
-        .is("resolved_at", null);
-    } catch { /* ignore */ }
+    // Re-read RazorpayX and diff field-by-field. This is the source of truth
+    // for whether the update actually landed — RazorpayX silently no-ops some
+    // fields (bank IFSC updates, phone updates, etc.) so a 200 from the API
+    // is NOT proof the change is live.
+    const verifyKind = (kind === "employment" ? "employment" : kind) as PushVerifyKind;
+    const expectedOverrides =
+      kind === "salary" && typeof opts?.expectedTotal === "number"
+        ? { annual_ctc: opts.expectedTotal }
+        : undefined;
+    const verifyResult = await verifyAndFinalize({
+      kind: verifyKind,
+      hrEmployeeId,
+      razorpayEmployeeId: String(razorpayId),
+      triggeredFrom: opts?.triggeredFrom,
+      silent: opts?.silent,
+      expectedOverrides,
+      successToast:
+        kind === "salary" && typeof verifiedTotal === "number"
+          ? `RazorpayX CTC verified: ₹${verifiedTotal.toLocaleString("en-IN")}`
+          : `RazorpayX ${LABEL_BY_KIND[kind]} verified`,
+      retry: () => pushToRazorpay(kind, hrEmployeeId, { ...opts, silent: true }),
+    });
 
-    if (!opts?.silent) {
-      if (kind === "salary" && typeof verifiedTotal === "number") {
-        toast.success(`Razorpay CTC verified: ₹${verifiedTotal.toLocaleString("en-IN")}`);
-      } else {
-        toast.success(`Razorpay ${LABEL_BY_KIND[kind]} updated`);
-      }
+    // Clear open drift only when verification actually confirmed the change.
+    if (verifyResult.overall === "verified") {
+      try {
+        await (supabase as any)
+          .from("hr_drift_alerts")
+          .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved by verified push" })
+          .eq("hr_employee_id", hrEmployeeId)
+          .eq("field", DRIFT_FIELD_BY_KIND[kind])
+          .is("resolved_at", null);
+      } catch { /* ignore */ }
     }
-    return { ok: true, verifiedTotal, expectedTotal: opts?.expectedTotal };
+
+    return {
+      ok: verifyResult.overall === "verified",
+      verifiedTotal,
+      expectedTotal: opts?.expectedTotal,
+      error: verifyResult.overall !== "verified"
+        ? (verifyResult.error || `RazorpayX ${LABEL_BY_KIND[kind]} update was not verified — see the field diff dialog.`)
+        : undefined,
+    };
+
   } catch (e: any) {
     const msg = e?.message || String(e);
     await logPushback({

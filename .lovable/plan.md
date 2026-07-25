@@ -1,92 +1,127 @@
-# Universal RazorpayX push verification
 
-## Goal
-Every RazorpayX write (identity, bank, employment, salary, statutory, dismissal, and future kinds) must be treated as **not finalized** until HRMS re-reads the same fields from RazorpayX and confirms every changed field matches. When any field doesn't match, an "Update result" dialog opens showing exactly what was updated, what wasn't, and why — with a per-field retry.
+# Claim-by-claim verification, then implementation plan
 
-Today only salary has strict verification, and even that is based on the proxy's own response (`erp_total`), not a re-fetch. Identity/bank/employment/statutory/dismissal pushes all currently toast "success" whenever RazorpayX returns 200, even though RazorpayX silently no-ops several fields (bank IFSC updates, phone updates, probation date, and dismissal are all famous for this).
+I read the exact code, cron table, and SQL functions referenced by each claim before writing this. Verdicts first, then the plan.
 
-## Deliverables
+## Verification
 
-### 1. Proxy: single verification endpoint (`verify_push`)
-New action `verify_push` in `supabase/functions/razorpay-payroll-proxy/index.ts` that takes `{ kind, razorpay_employee_id, expected }` and returns `{ fields: [{ key, expected, actual, match, reason? }], overall: "verified" | "partial" | "failed" }`.
+### A1 · Silent no-op on non-salary RazorpayX pushes — TRUE
+- `rg "verify_push"` in `supabase/functions/razorpay-payroll-proxy/index.ts` returns nothing. The action does not exist.
+- `.lovable/plan.md` contains the full, well-formed fix (proxy `verify_push` action, `pushWithVerification` client, `RazorpayPushResultDialog`, provider mount, caller swap). It's the plan we should just execute.
 
-Per-kind field maps (extracted from existing snapshot normalization in `read_person_by_id` and `edit_person_by_id`):
+### A2 · Attendance stale-session watchdog does not exist — TRUE
+- `pg_proc` search: `hr_resolve_stale_session` / `hr_watchdog_sessions` / any equivalent → not present.
+- `cron.job`: only `auto-absent-marking-daily` and `archive-old-attendance-data`. No watchdog job.
+- No route, no page, no edge function for "open session ≥ 12h" resolution.
+- Live data: **5 open sessions right now, all older than 12h** (out of 290 total). The condition is live in production, not theoretical.
+- The July-19 migration confirms the orphan_out guard exists but only prevents the 20h monster session; it never resolves the earlier open IN.
 
-- `identity` → `first_name, last_name, email, phone, gender, date_of_birth, pan_number, aadhaar_last4`
-- `bank` → `bank_account_number, ifsc, account_holder_name`
-- `employment` → `date_of_joining, probation_end_date, department, designation, employee_type, work_location`
-- `salary` → `annual_ctc` (from `__salary.annual_ctc` when payroll has executed) + optional component sum
-- `statutory` → `pf_enabled, esi_enabled, pt_enabled` (parsed from people:view enrollment block)
-- `dismissal` → `employment_status ∈ {dismissed}, date_of_dismissal`
+### A3 · Auto-absent function is calendar-day, not window-aware — TRUE (as claim), but narrower than stated
+- `supabase/functions/auto-absent-marking/index.ts` uses `istYesterday()` (calendar date) and writes to legacy `hr_attendance` — **not** the v4 `hr_attendance_daily.no_data` output.
+- It does honor weekly-off patterns, holidays, and approved leaves.
+- Cron: `0 2 * * *` UTC = 07:30 IST daily. Timing is correct relative to the 05:00→05:00 window close.
+- Consequence is real: an employee whose day rolls into the 05:00 window will be judged on calendar date, and `hr_attendance_daily.no_data` rows produced by the v4 engine are ignored.
 
-Normalization: dates → `YYYY-MM-DD`, phone → last-10, IFSC → upper, booleans → strict `true/false`, numbers → ±₹1 tolerance. Never string-compare raw payloads.
+### A4 · LOP has no single source of truth — MOSTLY FALSE, one real fairness bug
+- `hr_compute_lop_days` **is** the single source. `compute-shadow-payroll` calls it (line 267) and comments say "single source of truth". No parallel LOP formula exists in `razorpayPushback.ts` or in the proxy — grep returns zero independent LOP math on the push path.
+- Formula: `LOP = WD − (present + paid_leave + incomplete_held)`, capped to `[0, WD]`. Unpaid leave is **not** subtracted — so it falls into the shortfall automatically and becomes LOP. Claim "unpaid leave escapes LOP entirely" is factually wrong. The SQL also surfaces `unpaid_leave_days` for reporting.
+- The real bug inside A4 is narrower: `incomplete_held = 0 LOP` is fair only if operators have a resolution surface. Without A2, `incomplete` days silently reduce LOP with no path to convert them into either "present" or "absent". Fix belongs inside A2's plan, not a separate LOP overhaul.
 
-For salary specifically, `annual_ctc` is only exposed by `payroll:view-payroll` after an executed run. When unavailable, the field is reported as `match: null` with `reason: "not exposed until first payroll run"`, and we fall back to the proxy's echoed `erp_total` (same behavior we have now). The dialog surfaces this honestly rather than falsely claiming verification.
+### A5 · No per-day drill-down (Phase 7) — TRUE
+- Routes present: `attendance/punches`, `attendance/summary`, `attendance/calendar`, `attendance/regularization`, `attendance/period-lock`, `attendance/policy`. No per-day view.
+- v4 engine stores per-punch suppression reasons (`orphan_out`, etc.) but nothing renders them.
 
-### 2. Client: `pushWithVerification` (single entry point)
-Replace the current `pushToRazorpay` internals so every kind runs the same shape:
+---
 
-```text
-push → wait 800ms (Razorpay eventual-consistency) → verify_push → return { ok, diff, overall }
-```
+## Implementation plan (sequenced)
 
-Return type:
-```ts
-{
-  ok: boolean;              // true only when overall === "verified"
-  overall: "verified" | "partial" | "failed" | "skipped";
-  diff: FieldDiff[];        // always populated, even on success
-  error?: string;
-  razorpayEmployeeId?: string;
-}
-```
+The three real defects are A1, A2, A5. A3 gets a small hardening in the same window as A2. A4 collapses into A2.
 
-`pushIdentity/Bank/Salary/Employment/Statutory/Dismissal` become thin wrappers that pass the correct `kind` + `expected` snapshot built from the ERP row that was just written.
+### Slice 1 — A1: Universal RazorpayX push verification (execute the existing plan file)
 
-The log row in `hr_razorpay_pushback_log` records the diff JSON in `response_snapshot` (already the column we use). `hr_drift_alerts` is only opened when `overall !== "verified"` and lists the mismatched field names in `resolution_note`.
+Execute `.lovable/plan.md` verbatim. Concrete deliverables:
 
-### 3. UI: `RazorpayPushResultDialog`
-New shared component `src/components/hrms/RazorpayPushResultDialog.tsx`. Opens automatically from a top-level provider whenever a push resolves to `partial` or `failed`. Shows:
+**Proxy (`supabase/functions/razorpay-payroll-proxy/index.ts`)**
+- New action `verify_push({ kind, razorpay_employee_id, expected })` → `{ fields: [{ key, expected, actual, match, reason? }], overall: 'verified' | 'partial' | 'failed' }`.
+- Field maps per kind: identity, bank, employment, salary, statutory, dismissal (exact keys in plan.md).
+- Normalization: dates → `YYYY-MM-DD`; phone → last-10; IFSC → upper; booleans → strict; numbers → ±₹1 tolerance.
+- Extend `read_person_by_id` snapshot with `__statutory` (PF/ESI/PT enrollment) and `__dismissal` (`dismissed`, `date_of_dismissal`).
+- Fields RazorpayX doesn't expose (e.g. `annual_ctc` before first payroll run) return `match: null` with an explicit `reason` — never a false success.
 
-- Employee name + RazorpayX employee-id
-- Push kind and timestamp
-- Two lists rendered from `diff`:
-  - "Confirmed by RazorpayX" — green rows with expected value
-  - "Not applied by RazorpayX" — amber/red rows with expected vs actual and reason (`"RazorpayX still shows old value"`, `"field not readable until first payroll run"`, `"RazorpayX rejected: <error>"`)
-- Buttons: **Retry push**, **Open in RazorpayX** (deeplink), **Dismiss** (records "acknowledged" in drift alert)
-- On `verified`, we just toast — no dialog interruption for the happy path.
+**Client (`src/lib/razorpayPushback.ts`)**
+- Refactor to `pushWithVerification(kind, employeeId, expected)`: push → wait 800ms → verify_push → re-verify once at +2s if not verified → return `{ ok, overall, diff, error?, razorpayEmployeeId? }`.
+- `pushIdentity/Bank/Salary/Employment/Statutory/Dismissal` become thin wrappers.
+- Record the diff in `hr_razorpay_pushback_log.response_snapshot`. Open `hr_drift_alerts` only when `overall !== 'verified'`.
 
-A provider `RazorpayPushFeedbackProvider` mounted in `HorillaLayout.tsx` owns the dialog state; any push call inside the HRMS tree can raise a result via a small `useRazorpayPushFeedback()` hook. This keeps every caller a two-liner: `const push = useRazorpayPushFeedback(); await push.salary(employeeId, expected);`
+**UI**
+- `src/components/hrms/RazorpayPushResultDialog.tsx` — two-column diff (confirmed vs not applied) with per-field reason, **Retry push**, **Open in RazorpayX**, **Dismiss** (records ack in drift alert). Happy-path (`verified`) still just toasts — no interruption.
+- `src/components/hrms/RazorpayPushFeedbackProvider.tsx` — provider + `useRazorpayPushFeedback()` hook, mounted in `HorillaLayout.tsx`.
 
-### 4. Wire callers
-- `ReviseSalaryDialog.tsx` — replace current bespoke flow with the hook.
-- `SalaryRevisionsPage.tsx` per-row retry — replace with hook.
-- `Stage5Finalization.tsx` reconciliation pushes — replace three separate identity/bank/employment invokes.
-- `EmployeeProfilePage.tsx` bank + identity edit forms.
-- `SeparationDialog` (dismissal path) and `EnrollmentToggleRow` (statutory) — same.
+**Callers swapped to the hook**
+- `ReviseSalaryDialog.tsx`, `SalaryRevisionsPage.tsx` per-row retry, `Stage5Finalization.tsx`, `EmployeeProfilePage.tsx` (bank + identity), `SeparationDialog.tsx`, statutory toggle in `EmployeeProfilePage`.
 
-Direct `supabase.functions.invoke("razorpay-payroll-proxy", …)` calls that write and don't verify are grepped and either routed through the hook or explicitly flagged as read-only.
+No schema change. No new secrets.
 
-## Non-goals for this pass
-- Bulk operations (Salary Register import, bulk statutory) keep their existing dry-run + bulk-summary UI; they'll get a per-row diff column but no modal-per-row.
-- No new "confidence score" or automatic auto-retry. Retry is always user-triggered.
-- No schema changes — `hr_razorpay_pushback_log.response_snapshot` and `hr_drift_alerts.resolution_note` already carry what we need.
+### Slice 2 — A2 + A4 fairness: Stale-session watchdog with resolution door
 
-## Technical notes
+**Schema (single migration)**
+- New table `public.hr_attendance_stale_sessions` (one row per open session ≥ 12h): `session_id`, `employee_id`, `in_time`, `hours_open`, `status ∈ {open, resolved_set_out_time, resolved_confirm_long_shift, resolved_voided}`, `resolved_by`, `resolved_at`, `resolution_note`, timestamps. Standard GRANT block (`authenticated`, `service_role`) and RLS scoped to HR roles + owning employee (read-only for employee).
+- Function `hr_watchdog_open_sessions()` — scans `hr_attendance_sessions where out_time is null and in_time < now() - interval '12 hours'`, upserts rows by `session_id`, closes rows whose session got resolved.
+- Function `hr_resolve_stale_session(session_id, resolution, out_time?, note?)` — three arms:
+  - `set_out_time` → writes the OUT punch (via existing `hr_attendance_punches` insert path so the v4 rebuild trigger recomputes the day) and records ack.
+  - `confirm_long_shift` → forces an OUT punch equal to a policy-capped duration (e.g. shift end + max_overtime) with reason `long_shift_confirmed`.
+  - `void_session` → deletes the open IN via the standard suppression path (writes reason `voided_by_hr`); the day rebuilds as `no_data`.
 
-- Read-back delay: RazorpayX's people:view is eventually consistent for a few hundred ms after a write. We wait 800ms once, then verify. If `overall !== "verified"` on the first probe, we re-verify once at +2s before opening the failure dialog to avoid false negatives.
-- Salary CTC: proxy already probes executed-run months in `read_person_by_id`. For a brand-new hire with no run yet, salary verification reports `annual_ctc: { match: null, reason: "not exposed until first payroll run" }` and uses the proxy's echoed `erp_total` as an interim "structure written" signal. The dialog is explicit about this instead of pretending it's verified.
-- Statutory: proxy already normalizes enrollment; extend `read_person_by_id` to attach `__statutory: { pf_enabled, esi_enabled, pt_enabled }` parsed from the same people:view body.
-- Dismissal: `isDismissedRazorpayPerson()` already exists; expose the parsed date in `__dismissal: { dismissed, date_of_dismissal }`.
-- Fields RazorpayX genuinely does not expose (e.g. some tenants hide PAN in view) are reported as `match: null, reason: "not exposed"` — never as a false success.
+**Cron**
+- New job `hr-attendance-watchdog-hourly` (`5 * * * *`) calling an edge function `hr-attendance-watchdog` that just invokes `hr_watchdog_open_sessions()` and logs counts.
 
-## File touch list
+**UI**
+- New card **"Open sessions needing resolution"** on `AttendanceOverviewPage.tsx` (HR only) — count of `hr_attendance_stale_sessions` where `status = 'open'`.
+- New page `src/pages/horilla/AttendanceStaleSessionsPage.tsx` (route `attendance/stale-sessions`) — one row per open session: employee, IN time, hours open, three action buttons wired to `hr_resolve_stale_session`. Confirm dialogs use `AlertDialog`.
+- Add a small "Long-open" flag to the affected row in `AttendancePunchesPage.tsx` and `AttendanceCalendarPage.tsx` so the same day is discoverable from either surface.
 
-- `supabase/functions/razorpay-payroll-proxy/index.ts` — add `verify_push` action; extend `read_person_by_id` snapshot with `__statutory`, `__dismissal`.
-- `src/lib/razorpayPushback.ts` — refactor to `pushWithVerification`; keep the old exported names as wrappers.
-- `src/components/hrms/RazorpayPushResultDialog.tsx` — new.
-- `src/components/hrms/RazorpayPushFeedbackProvider.tsx` — new provider + hook.
-- `src/pages/horilla/HorillaLayout.tsx` — mount provider.
-- `src/components/hrms/ReviseSalaryDialog.tsx`, `src/pages/horilla/SalaryRevisionsPage.tsx`, `src/pages/horilla/onboarding/Stage5Finalization.tsx`, `src/pages/horilla/EmployeeProfilePage.tsx`, `src/components/hrms/SeparationDialog.tsx`, `src/pages/horilla/settings/StatutoryEnrollmentPage.tsx` (or wherever the statutory toggle lives) — swap to hook.
+**LOP fairness (A4 collapse)**
+- No formula change. Once the watchdog exists, `incomplete_held = 0 LOP` becomes provably fair because every `incomplete` day either (a) gets resolved to present via `set_out_time` / `confirm_long_shift`, or (b) gets voided → `no_data` → picked up by A3's absent-marker.
 
-No database migration is required.
+### Slice 3 — A3 hardening (small, ships with Slice 2)
+
+Rewrite `supabase/functions/auto-absent-marking/index.ts` to be **v4-window aware**:
+- Iterate window date = `istYesterday` (unchanged — the 05:00→05:00 window closes at 05:00 IST, so 07:30 IST cron is safe).
+- Source of truth flips from "no row in `hr_attendance`" to "row in `hr_attendance_daily` with `status = 'no_data'`" for the same window date.
+- Write the absence into `hr_attendance_daily` (via existing v4 write path) instead of legacy `hr_attendance`.
+- Skip lists (holiday, weekly-off, approved leave) unchanged.
+- Add a "did-run" audit row to a lightweight log table so we can prove the marker executed on any given day.
+
+### Slice 4 — A5: "Show the working" day drill-down (Phase 7)
+
+**Route + page**
+- New route `attendance/day/:employeeId/:date` → `src/pages/horilla/AttendanceDayDetailPage.tsx`.
+- Deep-linked from every row in `AttendancePunchesPage`, `AttendanceSummaryPage`, `AttendanceCalendarPage`, `AttendanceStaleSessionsPage`.
+
+**Data**
+- New read-only RPC `hr_attendance_day_detail(employee_id, date)` returning:
+  - all raw punches for the window (device, IN/OUT, direction inference, `suppressed_reason` if any),
+  - derived sessions with arithmetic (`in_time`, `out_time`, `duration_minutes`, `overlap_trimmed`, `capped_at_shift_end`),
+  - totals (worked hours, overtime, late, early-leave),
+  - flags (`orphan_out`, `long_open`, `outside_shift_window`, `regularization_status`).
+
+**UI**
+- Three vertical sections:
+  1. **Punches** — timeline with each row's suppression tag and one-line reason.
+  2. **Sessions built** — table of IN/OUT/duration with a subtotal.
+  3. **Result** — `status`, `total_hours`, `lop_contribution`, and any linked regularization + stale-session actions.
+- Mobile-first (matches recent HRMS mobile pass): stacked cards below `md:`, table above.
+- No mutations here except a "Request regularization" button that opens the existing dialog with the day pre-filled.
+
+## Sequencing
+
+1. **Slice 1** — highest active harm (silent bank IFSC / dismissal no-ops on payday). Ship first; independent of the others.
+2. **Slice 2 + Slice 3 together** — one migration + one edge function + one page. A3's rewrite must land with A2 because both write to `hr_attendance_daily`.
+3. **Slice 4** — pure additive. Ship last; benefits from the stale-session data Slice 2 introduces.
+
+No slice needs a secret. Slices 1 and 4 have no schema changes. Slice 2 needs one migration (table + two SQL functions) and one cron entry (via the `insert` tool because the URL/anon-key are project-specific per instructions).
+
+## Corrections to the original claims (worth calling out)
+
+- **A3** is real but narrower: the cron *time* is correct; only the internals are calendar-day and write to the wrong table.
+- **A4**'s "two-formula" and "unpaid leave escapes LOP" statements are not supported by the code — `hr_compute_lop_days` is the sole source and unpaid leave folds into the shortfall. The only genuine fairness gap inside A4 is `incomplete_held = 0 LOP` needing a resolution door, which is exactly what Slice 2 delivers.

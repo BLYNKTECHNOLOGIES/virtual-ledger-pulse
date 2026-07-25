@@ -5,15 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Search, Plus, X, Clock } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, RefreshCw, Send, Loader2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import { ReviseSalaryDialog } from "@/components/hrms/ReviseSalaryDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { pushSalaryToRazorpay } from "@/lib/razorpayPushback";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,

@@ -232,8 +232,8 @@ export default function SalaryRevisionsPage() {
             if (isApplied) {
               if (pushAcceptedAfterRevision) {
                 syncBadge = (
-                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
-                    <AlertTriangle className="h-3 w-3" /> RazorpayX accepted
+                  <Badge variant="outline" className="text-sky-700 border-sky-500/40 gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Accepted · read-back pending
                   </Badge>
                 );
               } else if (pushSyncedAfterRevision) {

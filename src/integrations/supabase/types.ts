@@ -21837,6 +21837,10 @@ export type Database = {
         Returns: boolean
       }
       process_scheduled_account_deletions: { Args: never; Returns: Json }
+      promote_scheduled_salary_revision: {
+        Args: { p_row_id: string }
+        Returns: Json
+      }
       re_escalate_terminal_order: {
         Args: {
           p_current_handler_id: string

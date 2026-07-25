@@ -1072,25 +1072,25 @@ export default function EmployeeProfilePage() {
                 <div className="border border-border rounded-lg p-4">
                   <h4 className="text-sm font-semibold text-foreground mb-3">Work Details</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div><p className="text-xs text-muted-foreground">Location</p><p className="text-sm text-foreground">{workInfo?.location || "None"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Basic Salary (monthly)</p>
+                      <p className="text-xs text-muted-foreground">Monthly Salary (CTC / 12)</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         {(() => {
-                          // Prefer work_info.basic_salary, then hr_employees.basic_salary,
-                          // then derive from annual total_salary / 12. Prevents "None"
-                          // when the CTC is set but the legacy basic_salary column is 0.
-                          const monthly =
-                            Number(workInfo?.basic_salary) > 0
-                              ? Number(workInfo.basic_salary)
+                          // Monthly = Annual CTC / 12. Prefer hr_employees.total_salary
+                          // (annual CTC — RazorpayX source of truth); fall back to
+                          // legacy basic_salary column stored as annual, then to
+                          // work_info.basic_salary stored as monthly.
+                          const annual =
+                            Number((emp as any)?.total_salary) > 0
+                              ? Number((emp as any).total_salary)
                               : Number((emp as any)?.basic_salary) > 0
-                                ? Number((emp as any).basic_salary) / 12
-                                : Number((emp as any)?.total_salary) > 0
-                                  ? Number((emp as any).total_salary) / 12
+                                ? Number((emp as any).basic_salary)
+                                : Number(workInfo?.basic_salary) > 0
+                                  ? Number(workInfo.basic_salary) * 12
                                   : 0;
+                          const monthly = annual / 12;
                           return (
                             <p className="text-sm text-foreground">
                               {monthly > 0 ? `₹${Math.round(monthly).toLocaleString("en-IN")}` : "None"}
@@ -1100,8 +1100,6 @@ export default function EmployeeProfilePage() {
                         <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setShowReviseSalary(true)}>Revise</Button>
                       </div>
                     </div>
-                    <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Level Band</p><p className="text-sm text-foreground">{(workInfo as any)?.level_band || "None"}</p></div>
                   </div>
                 </div>
               </>

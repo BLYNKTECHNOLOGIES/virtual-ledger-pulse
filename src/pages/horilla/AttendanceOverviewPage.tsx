@@ -153,6 +153,7 @@ export default function AttendanceOverviewPage() {
       }
 
       rows.sort((a: any, b: any) => {
+        // punched employees first (chronological), then unpunched by name
         const ai = a.check_in ? new Date(a.check_in).getTime() : Infinity;
         const bi = b.check_in ? new Date(b.check_in).getTime() : Infinity;
         if (ai !== bi) return ai - bi;

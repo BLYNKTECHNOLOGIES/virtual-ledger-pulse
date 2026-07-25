@@ -50,6 +50,18 @@ const DRIFT_FIELD_BY_KIND: Record<PushKind, string> = {
   statutory: "statutory_enrollment",
 };
 
+function readableError(value: any, fallback = "RazorpayX rejected the push"): string {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value?.message === "string" && value.message.trim()) return value.message;
+  if (typeof value?.error === "string" && value.error.trim()) return value.error;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 
 async function resolveRazorpayEmployeeId(hrEmployeeId: string): Promise<string | null> {
   const { data, error } = await (supabase as any)
@@ -214,7 +226,9 @@ async function verifyAndFinalize(args: {
       triggeredFrom: args.triggeredFrom,
       retry: args.retry
         ? async () => {
-            await args.retry!();
+            const retry = args.retry;
+            if (!retry) return result;
+            await retry();
             return verifyPush(args.kind, args.hrEmployeeId, expected, {
               razorpayEmployeeId: args.razorpayEmployeeId,
             });
@@ -252,7 +266,7 @@ export async function pushToRazorpay(
     });
     if (error) throw error;
     if (data && (data as any).ok === false) {
-      throw new Error((data as any).error || "Razorpay rejected the push");
+      throw new Error(readableError((data as any).error));
     }
 
     // Strict verification for salary pushes: the proxy returns rows[0] with the
@@ -267,10 +281,10 @@ export async function pushToRazorpay(
       verifiedTotal = Number.isFinite(Number(row?.erp_total)) ? Number(row?.erp_total) : undefined;
 
       if (rowStatus === "no_erp_structure" || rowStatus === "skipped_no_baseline") {
-        throw new Error(row?.error || `RazorpayX push skipped (${rowStatus}) — build salary structure and retry.`);
+        throw new Error(readableError(row?.error, `RazorpayX push skipped (${rowStatus}) — build salary structure and retry.`));
       }
       if (rowStatus === "failed") {
-        throw new Error(row?.error || "RazorpayX rejected the salary push");
+        throw new Error(readableError(row?.error, "RazorpayX rejected the salary push"));
       }
       if (rowStatus === "unchanged" && typeof opts?.expectedTotal === "number") {
         throw new Error(
@@ -387,6 +401,30 @@ export async function pushToRazorpay(
       triggered_from: opts?.triggeredFrom,
     });
     await upsertDrift(hrEmployeeId, DRIFT_FIELD_BY_KIND[kind], `Push failed: ${msg.slice(0, 200)}`);
+    emitPushResult({
+      ok: false,
+      overall: "failed",
+      kind: kind as PushVerifyKind,
+      hrEmployeeId,
+      razorpayEmployeeId: razorpayId ? String(razorpayId) : null,
+      error: msg,
+      fields: kind === "salary" && typeof opts?.expectedTotal === "number"
+        ? [{
+            key: "annual_ctc",
+            label: "Annual CTC",
+            expected: opts.expectedTotal,
+            actual: null,
+            match: false,
+            reason: msg,
+          }]
+        : [],
+      triggeredFrom: opts?.triggeredFrom,
+      retry: async () => {
+        await pushToRazorpay(kind, hrEmployeeId, { ...opts, silent: true });
+        const expected = await buildExpected(kind as PushVerifyKind, hrEmployeeId, kind === "salary" && typeof opts?.expectedTotal === "number" ? { annual_ctc: opts.expectedTotal } : undefined).catch(() => ({}));
+        return verifyPush(kind as PushVerifyKind, hrEmployeeId, expected, { razorpayEmployeeId: razorpayId ? String(razorpayId) : null });
+      },
+    });
     if (!opts?.silent) {
       toast.error(
         `RazorpayX ${LABEL_BY_KIND[kind]} push NOT verified — revision is not finalized.`,

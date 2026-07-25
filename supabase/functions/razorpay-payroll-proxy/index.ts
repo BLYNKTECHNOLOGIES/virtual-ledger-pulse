@@ -3029,16 +3029,12 @@ Deno.serve(async (req) => {
         let [type, subType] = envelopeKey.split(":");
         if (!type || type === "salary") type = "people";
         if (!subType || subType === "update") subType = "set-salary";
-        const salaryPayload = {
-          "ctc-annual": erp.total,
-          "annual-ctc": erp.total,
-          "custom-salary-structure": erp.components.map((c) => ({
-            code: c.code, name: c.name, type: c.type, amount: c.amount,
-          })),
-          components: erp.components.map((c) => ({
-            code: c.code, name: c.name, type: c.type, amount: c.amount,
-          })),
-        };
+        const salaryComponents = erp.components.map((c) => ({
+          code: c.code,
+          name: c.name,
+          type: c.type,
+          amount: c.amount,
+        }));
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
@@ -3049,7 +3045,13 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               auth: authBlock(),
               request: { type, "sub-type": subType },
-              data: { "employee-id": eid, "employee-type": "employee", salary: salaryPayload },
+              data: {
+                "employee-id": eid,
+                "employee-type": "employee",
+                "custom-salary-structure": salaryComponents,
+                "annual-ctc": erp.total,
+                "ctc-annual": erp.total,
+              },
             }),
             signal: ctrl.signal,
           });
@@ -3166,11 +3168,6 @@ Deno.serve(async (req) => {
       if (!type || type === "salary") type = "people";
       if (!subType || subType === "update") subType = "set-salary";
 
-      const salaryPayload = {
-        "ctc-annual": annualCtc,
-        "custom-salary-structure": breakdown,
-      };
-
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 20000);
       let httpStatus = 0; let ok = false; let errText: string | null = null; let responseBody: any = null;
@@ -3178,11 +3175,17 @@ Deno.serve(async (req) => {
         const res = await fetch(`${BASE}/${type}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            auth: authBlock(),
-            request: { type, "sub-type": subType },
-            data: { "employee-id": rpId, "employee-type": "employee", salary: salaryPayload },
-          }),
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type, "sub-type": subType },
+              data: {
+                "employee-id": rpId,
+                "employee-type": "employee",
+                "custom-salary-structure": breakdown,
+                "annual-ctc": annualCtc,
+                "ctc-annual": annualCtc,
+              },
+            }),
           signal: ctrl.signal,
         });
         httpStatus = res.status;

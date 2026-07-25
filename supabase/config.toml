@@ -21,6 +21,8 @@ project_id = "vagiqbespusdxsbqpvbo"
 [functions]
   [functions.auth-email-hook]
     verify_jwt = false
+  [functions.hr-promote-scheduled-salary-revisions]
+    verify_jwt = false
   [functions.auto-pay-engine]
     verify_jwt = false
   [functions.auto-price-engine]

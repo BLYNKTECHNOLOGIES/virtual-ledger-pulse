@@ -188,7 +188,68 @@ export default function CandidatesListPage() {
           <EmptyState icon={Building2} title="No candidates found" description="Candidates will appear here once added to a recruitment pipeline" />
         </div>
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {filtered.map(c => (
+              <div key={c.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-full ${getColor(c.id)} flex items-center justify-center text-primary-foreground font-medium text-sm shrink-0`}>
+                    {initials(c.name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{c.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{c.email || c.mobile || ""}</p>
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{getRecTitle(c.recruitment_id)}</p>
+                  </div>
+                  {c.hired ? (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-success/10 text-success shrink-0">Hired</span>
+                  ) : c.canceled ? (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive shrink-0">Canceled</span>
+                  ) : (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning shrink-0">In Progress</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-info/10 text-info border border-info/20">{getStageName(c.stage_id)}</span>
+                    {c.source && <span className="text-[10px] text-muted-foreground">· {c.source}</span>}
+                    {c.rating ? (
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`h-3 w-3 ${i < c.rating! ? "text-warning fill-warning" : "text-muted-foreground"}`} />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 pt-1 border-t border-border/40">
+                  <button onClick={() => navigate(`/hrms/recruitment/candidates/${c.id}`)} className="flex-1 min-h-11 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-info text-xs gap-1">
+                    <Eye className="h-3.5 w-3.5" /> View
+                  </button>
+                  <button onClick={() => { setEditCandidate(c); setEditForm({ name: c.name, email: c.email || "", mobile: c.mobile || "", source: c.source || "" }); }} className="flex-1 min-h-11 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground text-xs gap-1">
+                    <Edit className="h-3.5 w-3.5" /> Edit
+                  </button>
+                  {!c.hired && !c.canceled && (
+                    <button onClick={() => hireMutation.mutate(c.id)} className="flex-1 min-h-11 flex items-center justify-center rounded-lg hover:bg-success/10 text-success text-xs gap-1">
+                      <UserCheck className="h-3.5 w-3.5" /> Hire
+                    </button>
+                  )}
+                  {!c.canceled && !c.hired && (
+                    <button onClick={() => cancelMutation.mutate(c.id)} className="flex-1 min-h-11 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-destructive text-xs gap-1">
+                      <UserX className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button onClick={() => setDeleteTarget({ id: c.id, name: c.name })} className="min-h-11 min-w-11 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
@@ -265,7 +326,9 @@ export default function CandidatesListPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
+
       )}
 
       {/* View Candidate Dialog */}

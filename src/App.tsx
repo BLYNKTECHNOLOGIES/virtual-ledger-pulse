@@ -751,7 +751,7 @@ const router = createBrowserRouter([
         { path: "asset/list", element: <AssetPage /> },
         { path: "asset/assignments", element: <AssetAssignmentsPage /> },
         { path: "pms", element: <PMSDashboardPage /> },
-        { path: "pms/objectives", element: <ObjectivesPage /> },
+        
         { path: "pms/feedback", element: <Feedback360Page /> },
         { path: "pms/mpi", element: <MPIPage /> },
         // offboarding route removed — merged into HRMS Separation tab

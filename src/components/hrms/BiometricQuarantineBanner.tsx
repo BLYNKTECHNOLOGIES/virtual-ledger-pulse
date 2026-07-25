@@ -12,22 +12,42 @@ export function BiometricQuarantineBanner() {
   const { data } = useQuery({
     queryKey: ["hr_attendance_quarantine_unresolved"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_attendance_quarantine")
-        .select("pin, punch_time")
-        .is("replayed_at", null);
-      if (error) throw error;
+      const [quarantineRes, devUsersRes] = await Promise.all([
+        (supabase as any)
+          .from("hr_attendance_quarantine")
+          .select("pin, punch_time")
+          .is("replayed_at", null),
+        (supabase as any)
+          .from("hr_biometric_device_users")
+          .select("pin"),
+      ]);
+      if (quarantineRes.error) throw quarantineRes.error;
+      if (devUsersRes.error) throw devUsersRes.error;
+
+      // Only surface PINs that still exist on at least one eSSL device.
+      // PINs that were deleted from the device (ex-employees, test entries)
+      // are noise — the punches were captured historically but the identity
+      // is gone, so no mapping is possible or useful.
+      const activePins = new Set<string>(
+        ((devUsersRes.data || []) as any[]).map((r) => String(r.pin)).filter((p) => p && p !== "0")
+      );
+
       const pins = new Map<string, number>();
-      for (const row of (data || []) as any[]) {
-        pins.set(String(row.pin), (pins.get(String(row.pin)) || 0) + 1);
+      let total = 0;
+      for (const row of (quarantineRes.data || []) as any[]) {
+        const pin = String(row.pin);
+        if (!activePins.has(pin)) continue;
+        pins.set(pin, (pins.get(pin) || 0) + 1);
+        total += 1;
       }
       return {
-        total: (data || []).length,
+        total,
         byPin: Array.from(pins.entries()).sort((a, b) => b[1] - a[1]),
       };
     },
     refetchInterval: 60_000,
   });
+
 
   if (!data || data.total === 0) return null;
 
@@ -40,8 +60,9 @@ export function BiometricQuarantineBanner() {
         </div>
         <div className="text-xs text-muted-foreground mt-1">
           Real punches are landing in quarantine because the device PIN isn't mapped to an employee.
-          Map these PINs and existing punches will replay automatically.
+          Map these PINs and existing punches will replay automatically. Only PINs still enrolled on an eSSL device are listed — deleted / ex-employee PINs are hidden.
         </div>
+
         <div className="text-xs mt-1 tabular-nums text-muted-foreground">
           PINs:&nbsp;
           {data.byPin.map(([pin, n]) => (

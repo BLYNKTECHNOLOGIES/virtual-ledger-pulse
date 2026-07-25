@@ -91,7 +91,16 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
       body: { action: "payroll_add_additions", payload },
     });
     if (error) {
-      errorMessage = error.message || String(error);
+      // FunctionsHttpError swallows the JSON body under a generic message.
+      // Unpack it so we log the real reason (e.g. "Payroll-write gate locked").
+      let bodyText: string | null = null;
+      try {
+        if (typeof error.context?.text === "function") bodyText = await error.context.text();
+      } catch { /* ignore */ }
+      let parsed: any = null;
+      if (bodyText) { try { parsed = JSON.parse(bodyText); } catch { /* keep raw */ } }
+      response = parsed || (bodyText ? { raw: bodyText } : null);
+      errorMessage = parsed?.error || bodyText || error.message || String(error);
     } else if (!res?.ok) {
       errorMessage = res?.error || res?.body?.error?.message || `HTTP ${res?.http_status || "?"}`;
       response = res;
@@ -107,6 +116,7 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
     errorMessage =
       "RazorpayX payroll-write gate is locked. Verify the Payroll-run envelope in HRMS → Payroll → RazorpayX Sync, then retry this push.";
   }
+
 
   // 5) Stamp result back on the revision
   const patch: any = errorMessage

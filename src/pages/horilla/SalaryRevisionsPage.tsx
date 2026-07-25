@@ -5,15 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Search, Plus, X, Clock } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, RefreshCw, Send, Loader2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import { ReviseSalaryDialog } from "@/components/hrms/ReviseSalaryDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { pushSalaryToRazorpay } from "@/lib/razorpayPushback";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -30,6 +33,63 @@ export default function SalaryRevisionsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("APPLIED");
   const [showDialog, setShowDialog] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [bulkAction, setBulkAction] = useState<null | "retry" | "backfill">(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; ok: number; fail: number } | null>(null);
+
+  // Envelope verification status — governs whether pushes to Razorpay will succeed.
+  const { data: envelope } = useQuery({
+    queryKey: ["hr_razorpay_settings_envelope"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_razorpay_settings")
+        .select("push_salary_endpoint_verified, push_salary_envelope_key, push_salary_envelope_verified_at")
+        .maybeSingle();
+      return data as { push_salary_endpoint_verified?: boolean; push_salary_envelope_key?: string | null; push_salary_envelope_verified_at?: string | null } | null;
+    },
+    staleTime: 30_000,
+  });
+
+  // Distinct employees with a currently-unresolved salary push failure.
+  const { data: failedPushEmployees = [], refetch: refetchFailed } = useQuery({
+    queryKey: ["hr_salary_push_failures"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id, created_at, error_message")
+        .eq("kind", "salary")
+        .eq("status", "failure")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      // Dedup — keep only the latest failure per employee, and drop ones where a later success exists.
+      const seen = new Set<string>();
+      const latest: { hr_employee_id: string; created_at: string; error_message: string | null }[] = [];
+      for (const r of (data || [])) {
+        if (seen.has(r.hr_employee_id)) continue;
+        seen.add(r.hr_employee_id);
+        latest.push(r);
+      }
+      if (latest.length === 0) return [];
+      const ids = latest.map(l => l.hr_employee_id);
+      const { data: succ } = await (supabase as any)
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id, created_at")
+        .eq("kind", "salary")
+        .eq("status", "success")
+        .in("hr_employee_id", ids);
+      const lastSuccess = new Map<string, string>();
+      for (const s of (succ || [])) {
+        const prev = lastSuccess.get(s.hr_employee_id);
+        if (!prev || s.created_at > prev) lastSuccess.set(s.hr_employee_id, s.created_at);
+      }
+      return latest.filter(l => {
+        const s = lastSuccess.get(l.hr_employee_id);
+        return !s || s < l.created_at;
+      });
+    },
+    staleTime: 15_000,
+  });
 
   const { data: revisions = [], isLoading } = useQuery({
     queryKey: ["hr_salary_revisions"],
@@ -68,6 +128,50 @@ export default function SalaryRevisionsPage() {
     return name.includes(search.toLowerCase());
   });
 
+  const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
+  const failedCount = failedPushEmployees.length;
+
+  async function runBulkPush(mode: "retry" | "backfill") {
+    // Build the target set of hr_employee_ids to push.
+    let targetIds: string[] = [];
+    if (mode === "retry") {
+      targetIds = failedPushEmployees.map(f => f.hr_employee_id);
+    } else {
+      // Backfill: every distinct employee with at least one APPLIED revision (i.e. new CTC on record).
+      const appliedIds = new Set<string>();
+      for (const r of revisions as any[]) {
+        if (r.status === "APPLIED" && r.employee_id) appliedIds.add(r.employee_id);
+      }
+      targetIds = Array.from(appliedIds);
+    }
+    if (targetIds.length === 0) {
+      toast.info("Nothing to push.");
+      setBulkAction(null);
+      return;
+    }
+    setBulkRunning(true);
+    setBulkProgress({ done: 0, total: targetIds.length, ok: 0, fail: 0 });
+    let ok = 0, fail = 0;
+    // Sequential with small concurrency to be nice to the proxy + rate limits.
+    const CONCURRENCY = 3;
+    for (let i = 0; i < targetIds.length; i += CONCURRENCY) {
+      const batch = targetIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(id => pushSalaryToRazorpay(id, { triggeredFrom: `salary_revisions_${mode}` }).catch(e => ({ ok: false, error: String(e) })) as any),
+      );
+      for (const r of results) {
+        if (r?.ok) ok++; else fail++;
+      }
+      setBulkProgress({ done: Math.min(i + CONCURRENCY, targetIds.length), total: targetIds.length, ok, fail });
+    }
+    setBulkRunning(false);
+    setBulkAction(null);
+    await refetchFailed();
+    if (fail === 0) toast.success(`Pushed ${ok} salary record${ok === 1 ? "" : "s"} to RazorpayX`);
+    else toast.warning(`Pushed ${ok} · Failed ${fail}. Open Data Health for retry details.`);
+  }
+
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
@@ -81,6 +185,72 @@ export default function SalaryRevisionsPage() {
           ) : null
         }
       />
+
+      {canManage && (
+        <>
+          {!envelopeVerified ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>RazorpayX salary push is disabled</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p className="text-sm">
+                  Revisions applied here are saved in HRMS but <b>are not being mirrored to RazorpayX</b> because the
+                  salary API endpoint hasn't been verified yet. Every payroll run after a revision will use the old CTC
+                  until this is fixed.
+                </p>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/hrms/razorpay-sync">Open Payroll Sync · Step E →</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : failedCount > 0 ? (
+            <Alert className="border-amber-500/50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="flex items-center justify-between gap-2">
+                <span>{failedCount} salary push{failedCount === 1 ? "" : "es"} to RazorpayX failed</span>
+                <Badge variant="outline" className="text-amber-700 border-amber-500/50">action needed</Badge>
+              </AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  These employees' new CTCs are saved in HRMS but weren't accepted by RazorpayX. Retry now, or open
+                  Data Health for details.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setBulkAction("retry")} disabled={bulkRunning}>
+                    {bulkRunning ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                    Retry {failedCount} failed push{failedCount === 1 ? "" : "es"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setBulkAction("backfill")} disabled={bulkRunning}>
+                    <Send className="h-4 w-4 mr-1.5" />
+                    Backfill all applied revisions
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="border-emerald-500/40">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <AlertTitle>RazorpayX salary push is live</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Envelope <code className="px-1 rounded bg-muted">{envelope?.push_salary_envelope_key}</code> verified
+                  {envelope?.push_salary_envelope_verified_at ? ` on ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}.
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => setBulkAction("backfill")} disabled={bulkRunning}>
+                  <Send className="h-4 w-4 mr-1.5" />
+                  Backfill all applied revisions
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          {bulkProgress && (
+            <div className="text-xs text-muted-foreground">
+              Pushing {bulkProgress.done}/{bulkProgress.total} · ✅ {bulkProgress.ok} · ⚠️ {bulkProgress.fail}
+            </div>
+          )}
+        </>
+      )}
+
 
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
@@ -173,6 +343,33 @@ export default function SalaryRevisionsPage() {
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction onClick={() => cancelId && cancelMutation.mutate(cancelId)}>
               Cancel revision
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!bulkAction} onOpenChange={(o) => !o && !bulkRunning && setBulkAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === "retry" ? `Retry ${failedCount} failed salary push${failedCount === 1 ? "" : "es"}?` : "Backfill all applied revisions to RazorpayX?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === "retry"
+                ? "We'll re-send the latest CTC from HRMS to RazorpayX for every employee whose last push failed. Employees not linked to RazorpayX are silently skipped."
+                : "We'll re-send the current HRMS CTC to RazorpayX for every employee that has at least one applied revision. Safe to run — RazorpayX overwrites with the same value if unchanged."}
+              {!envelopeVerified && (
+                <span className="block mt-2 text-destructive text-sm">
+                  ⚠️ The salary envelope isn't verified yet — every push will fail. Verify it on the Payroll Sync page first.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkRunning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkAction && runBulkPush(bulkAction)} disabled={bulkRunning || !envelopeVerified}>
+              {bulkRunning && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              {bulkAction === "retry" ? "Retry now" : "Backfill now"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

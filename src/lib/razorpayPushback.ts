@@ -242,7 +242,7 @@ export const pushIdentityToRazorpay = (id: string, opts?: { triggeredFrom?: stri
   pushToRazorpay("identity", id, opts);
 export const pushBankToRazorpay = (id: string, opts?: { triggeredFrom?: string; silent?: boolean }) =>
   pushToRazorpay("bank", id, opts);
-export const pushSalaryToRazorpay = (id: string, opts?: { triggeredFrom?: string; silent?: boolean }) =>
+export const pushSalaryToRazorpay = (id: string, opts?: { triggeredFrom?: string; silent?: boolean; expectedTotal?: number }) =>
   pushToRazorpay("salary", id, opts);
 export const pushEmploymentToRazorpay = (id: string, opts?: { triggeredFrom?: string; silent?: boolean }) =>
   pushToRazorpay("employment", id, opts);

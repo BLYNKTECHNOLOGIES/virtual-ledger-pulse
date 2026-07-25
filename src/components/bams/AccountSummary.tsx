@@ -807,6 +807,15 @@ export function AccountSummary() {
                                   {transaction.is_reversed ? ' • REVERSED' : ''}
                                   {transaction.reverses_transaction_id ? ' • REVERSAL' : ''}
                                 </Badge>
+                                {isEdited && (
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-1.5 text-[10px] font-medium border-warning/40 text-warning bg-warning/10"
+                                    title="This entry has been edited — earlier revisions were reversed and are hidden by default"
+                                  >
+                                    Edited
+                                  </Badge>
+                                )}
                               </td>
                               <td className="p-3 text-right font-mono font-semibold">
                                 <span className={

@@ -833,9 +833,11 @@ export function AccountSummary() {
                                 {transaction.reference_number || '-'}
                               </td>
                             </tr>
-                            );
-                          })
-                        )}
+                                );
+                              })}
+                            </>
+                          );
+                        })()}
                       </tbody>
                     </table>
                   </div>

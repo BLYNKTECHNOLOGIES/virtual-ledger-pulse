@@ -2910,6 +2910,16 @@ Deno.serve(async (req) => {
       if (!maps?.length) return json(400, { error: "No mapped rows for the requested ids." });
 
       const hrIds = maps.map((m: any) => m.hr_employee_id).filter(Boolean);
+      const reconcileResults = await Promise.all(hrIds.map((hrId: string) =>
+        svc.rpc("reconcile_employee_salary_structure_to_total", { p_employee_id: hrId })
+      ));
+      const reconcileFailure = reconcileResults.find((r: any) => r.error);
+      if (reconcileFailure) {
+        return json(400, {
+          error: `Could not reconcile HRMS salary structure before RazorpayX push: ${reconcileFailure.error.message}`,
+        });
+      }
+
       const [structs, comps] = await Promise.all([
         svc.from("hr_employee_salary_structures")
           .select("employee_id,component_id,amount,is_active")

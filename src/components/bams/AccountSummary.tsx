@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CreditSubLedgerDialog } from "@/components/bams/subledger/CreditSubLedgerDialog";
+import { TransactionEditHistoryDialog } from "@/components/bams/TransactionEditHistoryDialog";
 import { useValueFlash } from "@/hooks/useValueFlash";
 
 interface AccountSummaryData {

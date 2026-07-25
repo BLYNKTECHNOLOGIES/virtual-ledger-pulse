@@ -44,6 +44,8 @@ export function HorillaLayout() {
           <Outlet />
         </main>
       </div>
+      <RazorpayPushFeedbackProvider />
     </div>
   );
 }
+

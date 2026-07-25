@@ -325,6 +325,12 @@ export default function SalaryRevisionsPage() {
                           Last RazorpayX error: {pushInfo.error_message}
                         </p>
                       )}
+                      {isOneTime && r.razorpay_push_error && (
+                        <p className="text-[11px] text-destructive mt-0.5 truncate max-w-md" title={r.razorpay_push_error}>
+                          RazorpayX rejected: {r.razorpay_push_error}
+                        </p>
+                      )}
+
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

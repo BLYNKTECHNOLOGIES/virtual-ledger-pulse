@@ -313,7 +313,7 @@ export default function SalaryRevisionsPage() {
                         {syncBadge}
                       </div>
                     </div>
-                    {isApplied && canManage && !pushSyncedAfterRevision && (
+                    {isApplied && !isOneTime && canManage && !pushSyncedAfterRevision && (
                       <Button
                         size="sm"
                         variant={pushFailedAfterRevision ? "default" : "outline"}

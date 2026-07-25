@@ -195,6 +195,10 @@ export default function EmployeeProfilePage() {
       return data;
     },
     enabled: !!id,
+    // Always refetch when profile is opened so PAN/statutory edits made
+    // elsewhere (onboarding, admin, Razorpay pull) show up immediately.
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const { data: workInfo } = useQuery({

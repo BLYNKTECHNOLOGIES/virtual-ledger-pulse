@@ -3045,14 +3045,24 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               auth: authBlock(),
               request: { type, "sub-type": subType },
+              // RazorpayX contract: `custom-salary-structure` MUST be a boolean.
+              //   false → RazorpayX derives the breakdown from annual-ctc using
+              //           the account default structure (what we want for a
+              //           straight CTC revision).
+              //   true  → caller must also supply a `salary-structure` object
+              //           with per-component amounts. HRMS does not own the
+              //           per-component split (RazorpayX is source of truth),
+              //           so we deliberately push false and let RazorpayX
+              //           re-derive components from the new CTC.
               data: {
                 "employee-id": eid,
                 "employee-type": "employee",
-                "custom-salary-structure": salaryComponents,
+                "custom-salary-structure": false,
                 "annual-ctc": erp.total,
                 "ctc-annual": erp.total,
               },
             }),
+
             signal: ctrl.signal,
           });
           httpStatus = res.status;

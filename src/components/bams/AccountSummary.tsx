@@ -812,10 +812,14 @@ export function AccountSummary() {
                                 {isEdited && (
                                   <Badge
                                     variant="outline"
-                                    className="ml-1.5 text-[10px] font-medium border-warning/40 text-warning bg-warning/10"
-                                    title="This entry has been edited — earlier revisions were reversed and are hidden by default"
+                                    className="ml-1.5 text-[10px] font-medium border-warning/40 text-warning bg-warning/10 cursor-pointer hover:bg-warning/20"
+                                    title="Click to view full edit history"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setHistoryRef(String(transaction.reference_number));
+                                    }}
                                   >
-                                    Edited
+                                    Edited · View history
                                   </Badge>
                                 )}
                               </td>

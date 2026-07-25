@@ -119,7 +119,7 @@ const DocumentsPage = lazy(() => import('./pages/horilla/DocumentsPage'));
 const AnnouncementsPage = lazy(() => import('./pages/horilla/AnnouncementsPage'));
 const ReportsPage = lazy(() => import('./pages/horilla/ReportsPage'));
 const PMSDashboardPage = lazy(() => import('./pages/horilla/PMSDashboardPage'));
-const ObjectivesPage = lazy(() => import('./pages/horilla/ObjectivesPage'));
+
 const Feedback360Page = lazy(() => import('./pages/horilla/Feedback360Page'));
 const MPIPage = lazy(() => import('./pages/horilla/MPIPage'));
 const EmployeeOnboardingPipelinePage = lazy(() => import('./pages/horilla/EmployeeOnboardingPipelinePage'));

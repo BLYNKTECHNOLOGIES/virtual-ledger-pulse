@@ -415,9 +415,17 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder={reasonRequired ? "Required for promotion/demotion" : "Optional"} rows={2} />
               </div>
 
-              {isFutureDated && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2">
-                  Effective date is in the future — this revision will be saved as <strong>Scheduled</strong>. HRMS will automatically update the employee's CTC and push it to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>. Nothing is sent to Razorpay before that date.
+              {rawFutureDated && (
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-2">
+                  {isFutureDated ? (
+                    <p>Effective date is in the future — this revision will be saved as <strong>Scheduled</strong>. HRMS will automatically update the employee's CTC and push it to RazorpayX on <strong>{format(effectiveFrom, "PPP")}</strong>. Nothing is sent to Razorpay before that date.</p>
+                  ) : (
+                    <p><strong>Apply now</strong> is on — this revision will be applied and pushed to RazorpayX immediately using today's date, ignoring the future effective date above.</p>
+                  )}
+                  <label className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
+                    <Switch checked={applyNow} onCheckedChange={setApplyNow} />
+                    <span className="text-foreground">Apply now instead of scheduling</span>
+                  </label>
                 </div>
               )}
             </>

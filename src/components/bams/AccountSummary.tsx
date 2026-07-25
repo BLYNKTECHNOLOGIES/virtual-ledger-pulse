@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CreditSubLedgerDialog } from "@/components/bams/subledger/CreditSubLedgerDialog";
+import { TransactionEditHistoryDialog } from "@/components/bams/TransactionEditHistoryDialog";
 import { useValueFlash } from "@/hooks/useValueFlash";
 
 interface AccountSummaryData {
@@ -114,6 +115,7 @@ export function AccountSummary() {
   const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
   const [subLedgerAccount, setSubLedgerAccount] = useState<{ id: string; name: string } | null>(null);
+  const [historyRef, setHistoryRef] = useState<string | null>(null);
 
   // Fetch account summary data directly from bank_accounts table (not computed view)
   const { data: accountsData, isLoading: accountsLoading } = useQuery({
@@ -810,10 +812,14 @@ export function AccountSummary() {
                                 {isEdited && (
                                   <Badge
                                     variant="outline"
-                                    className="ml-1.5 text-[10px] font-medium border-warning/40 text-warning bg-warning/10"
-                                    title="This entry has been edited — earlier revisions were reversed and are hidden by default"
+                                    className="ml-1.5 text-[10px] font-medium border-warning/40 text-warning bg-warning/10 cursor-pointer hover:bg-warning/20"
+                                    title="Click to view full edit history"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setHistoryRef(String(transaction.reference_number));
+                                    }}
                                   >
-                                    Edited
+                                    Edited · View history
                                   </Badge>
                                 )}
                               </td>
@@ -956,6 +962,12 @@ export function AccountSummary() {
           accountName={subLedgerAccount.name}
         />
       )}
+
+      <TransactionEditHistoryDialog
+        open={!!historyRef}
+        onOpenChange={(o) => !o && setHistoryRef(null)}
+        referenceNumber={historyRef}
+      />
     </div>
   );
 }

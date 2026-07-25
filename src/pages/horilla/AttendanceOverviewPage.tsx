@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { Plus, Search, Clock, CheckCircle, XCircle, AlertTriangle, Upload } from "lucide-react";
 import BiometricReportUploader from "@/components/hrms/BiometricReportUploader";
 import { BiometricQuarantineBanner } from "@/components/hrms/BiometricQuarantineBanner";
+import { StaleSessionAlert } from "@/components/hrms/StaleSessionAlert";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -221,6 +222,7 @@ export default function AttendanceOverviewPage() {
         }
       />
       <BiometricQuarantineBanner />
+      <StaleSessionAlert />
 
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 stagger-children">

@@ -36,13 +36,15 @@ export type FieldDiff = {
    * null  = RazorpayX doesn't expose this field, cannot verify
    */
   match: boolean | null;
+  /** true when the write endpoint accepted the value but RazorpayX cannot echo it yet */
+  accepted?: boolean;
   reason?: string;
 };
 
-export type VerifyOverall = "verified" | "partial" | "failed" | "skipped";
+export type VerifyOverall = "verified" | "accepted" | "partial" | "failed" | "skipped";
 
 export type PushVerifyResult = {
-  ok: boolean;                    // true only when overall === "verified"
+  ok: boolean;                    // true when overall is verified or accepted-by-write
   overall: VerifyOverall;
   fields: FieldDiff[];
   razorpayEmployeeId: string | null;
@@ -294,6 +296,7 @@ function diffFields(
   expected: Record<string, any>,
   actual: Record<string, any>,
   probeError?: string,
+  acceptedUnknownFields: Set<string> = new Set(),
 ): FieldDiff[] {
   const rows: FieldDiff[] = [];
   for (const k of KIND_FIELDS[kind]) {
@@ -305,9 +308,17 @@ function diffFields(
     // Exposure gating — some fields are not readable from RazorpayX until a
     // payroll run has executed, or when the tenant hides them.
     if (k === "annual_ctc" && (act === null || act === undefined)) {
+      const accepted = acceptedUnknownFields.has(k);
       rows.push({
-        key: k, label: LABELS[k] || k, expected: exp, actual: null, match: null,
-        reason: "RazorpayX does not expose CTC until the first payroll run is executed.",
+        key: k,
+        label: LABELS[k] || k,
+        expected: exp,
+        actual: null,
+        match: null,
+        accepted,
+        reason: accepted
+          ? "RazorpayX accepted the salary write, but its API will not echo current CTC until a payroll run exposes it."
+          : "RazorpayX does not expose CTC until the first payroll run is executed.",
       });
       continue;
     }
@@ -338,7 +349,10 @@ function overallOf(fields: FieldDiff[]): VerifyOverall {
   const hasFail = fields.some((f) => f.match === false);
   if (hasFail) return "failed";
   const hasUnknown = fields.some((f) => f.match === null);
-  if (hasUnknown) return "partial";
+  if (hasUnknown) {
+    const allUnknownAccepted = fields.every((f) => f.match === true || f.accepted === true);
+    return allUnknownAccepted ? "accepted" : "partial";
+  }
   return "verified";
 }
 
@@ -372,7 +386,12 @@ export async function verifyPush(
   kind: PushVerifyKind,
   hrEmployeeId: string,
   expected: Record<string, any>,
-  opts?: { razorpayEmployeeId?: string | null; initialDelayMs?: number; retryDelayMs?: number },
+  opts?: {
+    razorpayEmployeeId?: string | null;
+    initialDelayMs?: number;
+    retryDelayMs?: number;
+    acceptedUnknownFields?: string[];
+  },
 ): Promise<PushVerifyResult> {
   let razorpayId = opts?.razorpayEmployeeId ?? null;
   if (!razorpayId) {
@@ -393,19 +412,20 @@ export async function verifyPush(
   await new Promise((r) => setTimeout(r, opts?.initialDelayMs ?? 800));
 
   let read = await readActual(String(razorpayId), kind);
-  let fields = diffFields(kind, expected, extractActual(kind, read.snap || {}), read.error);
+  const acceptedUnknownFields = new Set(opts?.acceptedUnknownFields || []);
+  let fields = diffFields(kind, expected, extractActual(kind, read.snap || {}), read.error, acceptedUnknownFields);
   let overall = overallOf(fields);
 
   // Give RazorpayX one more chance to become consistent before flagging a mismatch.
   if (overall === "failed" || overall === "partial") {
     await new Promise((r) => setTimeout(r, opts?.retryDelayMs ?? 2000));
     read = await readActual(String(razorpayId), kind);
-    fields = diffFields(kind, expected, extractActual(kind, read.snap || {}), read.error);
+    fields = diffFields(kind, expected, extractActual(kind, read.snap || {}), read.error, acceptedUnknownFields);
     overall = overallOf(fields);
   }
 
   return {
-    ok: overall === "verified",
+    ok: overall === "verified" || overall === "accepted",
     overall,
     fields,
     razorpayEmployeeId: String(razorpayId),

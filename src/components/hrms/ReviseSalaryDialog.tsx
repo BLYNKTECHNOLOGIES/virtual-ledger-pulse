@@ -236,7 +236,13 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               expectedTotal: nT,
             });
             qc.invalidateQueries({ queryKey: ["hr_salary_push_latest"] });
-            if (push.ok && typeof push.verifiedTotal === "number" && Math.abs(push.verifiedTotal - nT) <= 1) {
+            if (push.ok && push.readbackPending) {
+              toast.warning(
+                "RazorpayX accepted the new CTC. Current CTC read-back is pending until RazorpayX exposes it after payroll.",
+                { id: toastId },
+              );
+              onOpenChange(false);
+            } else if (push.ok && typeof push.verifiedTotal === "number" && Math.abs(push.verifiedTotal - nT) <= 1) {
               toast.success(
                 `Verified in RazorpayX: annual CTC = ₹${push.verifiedTotal.toLocaleString("en-IN")}`,
                 { id: toastId },

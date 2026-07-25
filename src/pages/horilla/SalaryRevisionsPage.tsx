@@ -108,14 +108,23 @@ export default function SalaryRevisionsPage() {
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
 
-  function hasVerifiedRazorpayCtc(pushInfo: any, expectedTotal: number) {
-    if (!pushInfo || pushInfo.status !== "success") return false;
+  function getRazorpayCtcPushState(pushInfo: any, expectedTotal: number): "verified" | "accepted" | "failed" | "none" {
+    if (!pushInfo) return "none";
+    if (pushInfo.status === "failure") return "failed";
+    if (pushInfo.status !== "success") return "none";
     const snapshot = pushInfo.response_snapshot || {};
     const verify = snapshot.verify || snapshot;
-    if (verify?.overall !== "verified" || !Array.isArray(verify?.fields)) return false;
+    if (!Array.isArray(verify?.fields)) return "none";
     const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
-    const actual = Number(ctcField?.actual);
-    return ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1;
+    const expected = Number(ctcField?.expected);
+    if (verify?.overall === "accepted" && ctcField?.accepted === true && Number.isFinite(expected) && Math.abs(expected - expectedTotal) <= 1) {
+      return "accepted";
+    }
+    if (verify?.overall === "verified") {
+      const actual = Number(ctcField?.actual);
+      if (ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1) return "verified";
+    }
+    return "none";
   }
 
   async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
@@ -126,7 +135,9 @@ export default function SalaryRevisionsPage() {
         silent: true,
         expectedTotal,
       });
-      if (res.ok && typeof res.verifiedTotal === "number" && Math.abs(res.verifiedTotal - expectedTotal) <= 1) {
+      if (res.ok && res.readbackPending) {
+        toast.warning("RazorpayX accepted the CTC; read-back is pending until RazorpayX exposes it after payroll.");
+      } else if (res.ok && typeof res.verifiedTotal === "number" && Math.abs(res.verifiedTotal - expectedTotal) <= 1) {
         toast.success(`Verified in RazorpayX: ₹${res.verifiedTotal.toLocaleString("en-IN")}`);
       } else if (res.skipped) {
         toast.warning("Employee is not linked to RazorpayX — link them from Data Health first.");
@@ -211,13 +222,21 @@ export default function SalaryRevisionsPage() {
             const isApplied = r.status === "APPLIED";
             const pushInfo = pushByEmployee[r.employee_id];
             const expectedTotal = Number(r.new_total || 0);
-            const pushSyncedAfterRevision = pushInfo && pushInfo.created_at >= r.created_at && hasVerifiedRazorpayCtc(pushInfo, expectedTotal);
-            const pushFailedAfterRevision = pushInfo && pushInfo.status === "failure" && pushInfo.created_at >= r.created_at;
+            const pushState = pushInfo && pushInfo.created_at >= r.created_at ? getRazorpayCtcPushState(pushInfo, expectedTotal) : "none";
+            const pushSyncedAfterRevision = pushState === "verified" || pushState === "accepted";
+            const pushAcceptedAfterRevision = pushState === "accepted";
+            const pushFailedAfterRevision = pushState === "failed";
             const pushing = pushingIds.has(r.id);
 
             let syncBadge: React.ReactNode = null;
             if (isApplied) {
-              if (pushSyncedAfterRevision) {
+              if (pushAcceptedAfterRevision) {
+                syncBadge = (
+                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
+                    <AlertTriangle className="h-3 w-3" /> RazorpayX accepted
+                  </Badge>
+                );
+              } else if (pushSyncedAfterRevision) {
                 syncBadge = (
                   <Badge variant="outline" className="text-emerald-700 border-emerald-500/40 gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Synced to RazorpayX

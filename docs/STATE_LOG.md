@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-25: RazorpayX salary push status split clarified — when people:set-salary accepts the exact HRMS CTC but Opfin cannot echo current CTC until payroll execution, HRMS now records "accepted/read-back pending" instead of false failure/not-synced.
 - 2026-07-25: RazorpayX salary CTC mismatch repaired at source — HRMS active salary structures now auto-reconcile to employee total_salary before every salary push; Shubham Singh structure corrected from ₹9,01,800 to ₹9,12,000.
 - 2026-07-25: RazorpayX salary retry repaired — proxy now sends flat people:set-salary payload with data-level custom-salary-structure/annual-ctc; retry failures open/readable verification dialog instead of silent `[object Object]` toasts.
 - 2026-07-25: RazorpayX salary revision green-badge logic hardened — CTC sync now requires live people:view salary read-back with matching Annual CTC; stale payroll-view / HTTP-only success logs no longer count as synced.

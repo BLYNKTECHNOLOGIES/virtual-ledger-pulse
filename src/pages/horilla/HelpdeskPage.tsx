@@ -161,6 +161,7 @@ export default function HelpdeskPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

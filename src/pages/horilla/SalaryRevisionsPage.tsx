@@ -119,6 +119,8 @@ export default function SalaryRevisionsPage() {
   }), [revisions, statusFilter, search]);
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
+  const payrollGateVerified = !!envelope?.push_payroll_endpoint_verified;
+
 
   function getRazorpayCtcPushState(
     logs: Array<{ status: string; created_at: string; error_message: string | null; response_snapshot: any }> | undefined,

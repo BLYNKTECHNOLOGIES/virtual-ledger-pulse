@@ -159,36 +159,64 @@ export default function LateComeEarlyOutPage() {
                   description="No late come or early out incidents were recorded."
                 />
               ) : (
-                <table className="w-full text-sm min-w-[600px]">
-                  <thead className="bg-muted/50 border-b">
-                    <tr>
-                      {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents"].map((h) => (
-                        <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  {/* Mobile */}
+                  <div className="md:hidden divide-y">
                     {summaryList.map((s) => (
-                      <tr key={s.id} className="border-b hover:bg-muted/50">
-                        <td className="px-4 py-3 font-medium">{s.name}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {s.lateCount > 0 ? (
-                            <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.lateCount}</span>
-                          ) : <span className="text-muted-foreground">0</span>}
-                        </td>
-                        <td className="px-4 py-3 text-warning font-medium tabular-nums">{s.totalLateMins || "—"}</td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {s.earlyCount > 0 ? (
-                            <span className="bg-destructive/10 text-destructive border border-destructive/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.earlyCount}</span>
-                          ) : <span className="text-muted-foreground">0</span>}
-                        </td>
-                        <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.totalEarlyMins || "—"}</td>
-                        <td className="px-4 py-3 font-bold tabular-nums">{s.lateCount + s.earlyCount}</td>
-                      </tr>
+                      <div key={s.id} className="p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{s.name}</div>
+                            <div className="text-xs text-muted-foreground">{s.badge}</div>
+                          </div>
+                          <span className="font-bold tabular-nums text-sm shrink-0">{s.lateCount + s.earlyCount}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center justify-between p-2 rounded bg-warning/5">
+                            <span className="text-warning font-medium">Late</span>
+                            <span className="tabular-nums">{s.lateCount} · {s.totalLateMins || 0}m</span>
+                          </div>
+                          <div className="flex items-center justify-between p-2 rounded bg-destructive/5">
+                            <span className="text-destructive font-medium">Early</span>
+                            <span className="tabular-nums">{s.earlyCount} · {s.totalEarlyMins || 0}m</span>
+                          </div>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+
+                  {/* Desktop */}
+                  <table className="hidden md:table w-full text-sm min-w-[600px]">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents"].map((h) => (
+                          <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summaryList.map((s) => (
+                        <tr key={s.id} className="border-b hover:bg-muted/50">
+                          <td className="px-4 py-3 font-medium">{s.name}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
+                          <td className="px-4 py-3 tabular-nums">
+                            {s.lateCount > 0 ? (
+                              <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.lateCount}</span>
+                            ) : <span className="text-muted-foreground">0</span>}
+                          </td>
+                          <td className="px-4 py-3 text-warning font-medium tabular-nums">{s.totalLateMins || "—"}</td>
+                          <td className="px-4 py-3 tabular-nums">
+                            {s.earlyCount > 0 ? (
+                              <span className="bg-destructive/10 text-destructive border border-destructive/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.earlyCount}</span>
+                            ) : <span className="text-muted-foreground">0</span>}
+                          </td>
+                          <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.totalEarlyMins || "—"}</td>
+                          <td className="px-4 py-3 font-bold tabular-nums">{s.lateCount + s.earlyCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
               )}
             </CardContent>
           </Card>
@@ -211,32 +239,53 @@ export default function LateComeEarlyOutPage() {
                   description="No attendance incidents found for the selected filters."
                 />
               ) : (
-                <table className="w-full text-sm min-w-[600px]">
-                  <thead className="bg-muted/50 border-b">
-                    <tr>
-                      {["Date", "Employee", "Badge ID", "Type", "Minutes"].map((h) => (
-                        <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  {/* Mobile */}
+                  <div className="md:hidden divide-y">
                     {filtered.map((r: any) => (
-                      <tr key={r.id} className="border-b hover:bg-muted/50">
-                        <td className="px-4 py-3 tabular-nums">{r.attendance_date}</td>
-                        <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
-                        <td className="px-4 py-3">
+                      <div key={r.id} className="p-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</div>
+                          <div className="text-xs text-muted-foreground tabular-nums">{r.hr_employees?.badge_id} · {r.attendance_date}</div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
                           <span className={`border rounded-full px-2 py-0.5 text-[10px] font-medium ${r.type === "late_come" ? "bg-warning/10 text-warning border-warning/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
-                            {r.type === "late_come" ? "Late Come" : "Early Out"}
+                            {r.type === "late_come" ? "Late" : "Early"}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 font-medium tabular-nums">
-                          {r.type === "late_come" ? r.late_minutes : r.early_minutes} min
-                        </td>
-                      </tr>
+                          <span className="font-medium tabular-nums text-xs">{r.type === "late_come" ? r.late_minutes : r.early_minutes}m</span>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+
+                  {/* Desktop */}
+                  <table className="hidden md:table w-full text-sm min-w-[600px]">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        {["Date", "Employee", "Badge ID", "Type", "Minutes"].map((h) => (
+                          <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((r: any) => (
+                        <tr key={r.id} className="border-b hover:bg-muted/50">
+                          <td className="px-4 py-3 tabular-nums">{r.attendance_date}</td>
+                          <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
+                          <td className="px-4 py-3">
+                            <span className={`border rounded-full px-2 py-0.5 text-[10px] font-medium ${r.type === "late_come" ? "bg-warning/10 text-warning border-warning/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
+                              {r.type === "late_come" ? "Late Come" : "Early Out"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-medium tabular-nums">
+                            {r.type === "late_come" ? r.late_minutes : r.early_minutes} min
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
               )}
             </CardContent>
           </Card>

@@ -167,7 +167,44 @@ export default function LoansPage() {
         </Select>
       </div>
 
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <TableSkeleton rows={4} columns={2} />
+        ) : filtered.length === 0 ? (
+          <Card><CardContent className="p-0"><EmptyState icon={Wallet} title="No loans found" description="Create a loan or advance for an employee." /></CardContent></Card>
+        ) : filtered.map((l: any) => (
+          <Card key={l.id} onClick={() => setSelectedLoan(l)} className="cursor-pointer active:bg-muted/50">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{l.hr_employees?.first_name} {l.hr_employees?.last_name}</div>
+                  <div className="text-xs text-muted-foreground capitalize">{l.loan_type?.replace(/_/g, " ")} · {l.tenure_months} mo</div>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${statusColor(l.status)}`}>{l.status}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div><div className="text-[10px] text-muted-foreground">Amount</div><div className="font-medium tabular-nums">₹{Number(l.amount).toLocaleString("en-IN")}</div></div>
+                <div><div className="text-[10px] text-muted-foreground">EMI</div><div className="tabular-nums">₹{Number(l.emi_amount).toLocaleString("en-IN")}</div></div>
+                <div><div className="text-[10px] text-muted-foreground">Outstanding</div><div className="font-semibold text-destructive tabular-nums">₹{Number(l.outstanding_balance).toLocaleString("en-IN")}</div></div>
+              </div>
+              {l.status === "pending" && (
+                <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="outline" className="flex-1 h-10 text-success" onClick={() => approveMutation.mutate({ id: l.id, action: "approved" })}>
+                    <CheckCircle className="h-4 w-4 mr-1" /> Approve
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 h-10 text-destructive" onClick={() => approveMutation.mutate({ id: l.id, action: "rejected" })}>
+                    <XCircle className="h-4 w-4 mr-1" /> Reject
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">

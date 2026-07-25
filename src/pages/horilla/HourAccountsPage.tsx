@@ -161,49 +161,82 @@ export default function HourAccountsPage() {
               description='Click "Refresh Data" to compute from attendance records.'
             />
           ) : (
-            <table className="w-full text-sm min-w-[700px]">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  {["Employee", "Badge ID", "Worked Hours", "Pending Hours", "Overtime", "Status"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              {/* Mobile */}
+              <div className="md:hidden divide-y">
                 {filtered.map((a: any) => {
                   const hasPending = (a.hour_pending_second || 0) > 0;
                   const hasOT = (a.overtime_second || 0) > 0;
                   return (
-                    <tr key={a.id} className="border-b hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium">
-                        {a.hr_employees?.first_name} {a.hr_employees?.last_name}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.badge_id}</td>
-                      <td className="px-4 py-3 font-medium text-success tabular-nums">{a.worked_hours || "00:00"}</td>
-                      <td className="px-4 py-3 tabular-nums">
-                        <span className={hasPending ? "text-warning font-medium" : "text-muted-foreground"}>
-                          {a.pending_hours || "00:00"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        <span className={hasOT ? "text-info font-medium" : "text-muted-foreground"}>
-                          {a.overtime || "00:00"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
+                    <div key={a.id} className="p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</div>
+                          <div className="text-xs text-muted-foreground">{a.hr_employees?.badge_id}</div>
+                        </div>
                         {hasPending ? (
-                          <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium">Deficit</span>
+                          <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0">Deficit</span>
                         ) : hasOT ? (
-                          <span className="bg-info/10 text-info border border-info/20 rounded-full px-2 py-0.5 text-[10px] font-medium">Overtime</span>
+                          <span className="bg-info/10 text-info border border-info/20 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0">Overtime</span>
                         ) : (
-                          <span className="bg-success/10 text-success border border-success/20 rounded-full px-2 py-0.5 text-[10px] font-medium">On Track</span>
+                          <span className="bg-success/10 text-success border border-success/20 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0">On Track</span>
                         )}
-                      </td>
-                    </tr>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div><div className="text-[10px] text-muted-foreground">Worked</div><div className="text-success font-medium tabular-nums">{a.worked_hours || "00:00"}</div></div>
+                        <div><div className="text-[10px] text-muted-foreground">Pending</div><div className={`tabular-nums ${hasPending ? "text-warning font-medium" : "text-muted-foreground"}`}>{a.pending_hours || "00:00"}</div></div>
+                        <div><div className="text-[10px] text-muted-foreground">Overtime</div><div className={`tabular-nums ${hasOT ? "text-info font-medium" : "text-muted-foreground"}`}>{a.overtime || "00:00"}</div></div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Desktop */}
+              <table className="hidden md:table w-full text-sm min-w-[700px]">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    {["Employee", "Badge ID", "Worked Hours", "Pending Hours", "Overtime", "Status"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((a: any) => {
+                    const hasPending = (a.hour_pending_second || 0) > 0;
+                    const hasOT = (a.overtime_second || 0) > 0;
+                    return (
+                      <tr key={a.id} className="border-b hover:bg-muted/50">
+                        <td className="px-4 py-3 font-medium">
+                          {a.hr_employees?.first_name} {a.hr_employees?.last_name}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.badge_id}</td>
+                        <td className="px-4 py-3 font-medium text-success tabular-nums">{a.worked_hours || "00:00"}</td>
+                        <td className="px-4 py-3 tabular-nums">
+                          <span className={hasPending ? "text-warning font-medium" : "text-muted-foreground"}>
+                            {a.pending_hours || "00:00"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          <span className={hasOT ? "text-info font-medium" : "text-muted-foreground"}>
+                            {a.overtime || "00:00"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {hasPending ? (
+                            <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium">Deficit</span>
+                          ) : hasOT ? (
+                            <span className="bg-info/10 text-info border border-info/20 rounded-full px-2 py-0.5 text-[10px] font-medium">Overtime</span>
+                          ) : (
+                            <span className="bg-success/10 text-success border border-success/20 rounded-full px-2 py-0.5 text-[10px] font-medium">On Track</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </>
           )}
         </CardContent>
       </Card>

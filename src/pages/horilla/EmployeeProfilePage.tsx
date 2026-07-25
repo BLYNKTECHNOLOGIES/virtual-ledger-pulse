@@ -388,15 +388,51 @@ export default function EmployeeProfilePage() {
     enabled: !!id,
   });
 
-  // ─── Attendance ───
+  // ─── Attendance (v4 daily is source of truth; legacy table only used as
+  // a compatibility fallback for very old rows). ───
   const { data: attendance } = useQuery({
-    queryKey: ["hr_attendance", id],
+    queryKey: ["hr_attendance_daily_profile", id],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_attendance").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(30);
-      return data || [];
+      const [dailyRes, legacyRes] = await Promise.all([
+        (supabase as any).from("hr_attendance_daily").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(60),
+        (supabase as any).from("hr_attendance").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(60),
+      ]);
+      const byDate = new Map<string, any>();
+      for (const r of ((dailyRes.data as any[]) || [])) {
+        byDate.set(r.attendance_date, {
+          id: r.id,
+          attendance_date: r.attendance_date,
+          attendance_status: r.status || "no_data",
+          check_in: r.first_in,
+          check_out: r.last_out,
+          late_minutes: r.late_by_minutes,
+          early_leave_minutes: r.early_by_minutes,
+          work_type: null,
+          overtime_hours: null,
+        });
+      }
+      for (const r of ((legacyRes.data as any[]) || [])) {
+        if (byDate.has(r.attendance_date)) continue;
+        byDate.set(r.attendance_date, {
+          id: r.id,
+          attendance_date: r.attendance_date,
+          attendance_status: r.attendance_status,
+          check_in: r.check_in,
+          check_out: r.check_out,
+          late_minutes: r.late_minutes,
+          early_leave_minutes: r.early_leave_minutes,
+          work_type: r.work_type,
+          overtime_hours: r.overtime_hours,
+        });
+      }
+      return Array.from(byDate.values())
+        .sort((a, b) => (a.attendance_date < b.attendance_date ? 1 : -1))
+        .slice(0, 30);
     },
     enabled: !!id,
   });
+
+
 
   // ─── Payslips ───
   const { data: payslips } = useQuery({
@@ -594,6 +630,16 @@ export default function EmployeeProfilePage() {
   const color = colors[emp.id.charCodeAt(0) % colors.length];
 
   const inputCls = "w-full border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#00bcd4] bg-background text-foreground";
+
+  const prettyCase = (s?: string | null) => !s ? "None" : s.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const fmtDate = (d?: string | null) => !d ? "None" : (() => { const t = new Date(d); return isNaN(t.getTime()) ? d : t.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); })();
+  const fmtTime = (d?: string | null) => {
+    if (!d) return "—";
+    // Time-only strings from legacy table
+    if (/^\d{2}:\d{2}/.test(d) && !d.includes("T")) return d.slice(0, 5);
+    const t = new Date(d);
+    return isNaN(t.getTime()) ? d : t.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  };
 
   const InfoRow = ({ label, value, editKey, inputType, selectOptions }: { label: string; value: string | null; editKey?: string; inputType?: string; selectOptions?: { value: string; label: string }[] }) => (
     <div className="py-2">
@@ -854,8 +900,8 @@ export default function EmployeeProfilePage() {
                     { label: "Job Position", value: position?.title || "None" },
                     { label: "Department", value: dept?.name || "None" },
                     { label: "Shift", value: shift?.name || "None" },
-                    { label: "Work Type", value: workInfo?.work_type || "None" },
-                    { label: "Employee Type", value: workInfo?.employee_type || "None" },
+                    { label: "Work Type", value: prettyCase(workInfo?.work_type) },
+                    { label: "Employee Type", value: prettyCase(workInfo?.employee_type) },
                     { label: "Job Role", value: workInfo?.job_role || "None" },
                     { label: "Reporting Manager", value: reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None" },
                   ]} />
@@ -880,8 +926,8 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3 text-muted-foreground">{position?.title || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{dept?.name || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{shift?.name || "None"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.work_type || "None"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.employee_type || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.work_type)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.employee_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.job_role || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">
                           {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
@@ -998,19 +1044,19 @@ export default function EmployeeProfilePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Work Type</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.work_type || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{prettyCase(workInfo?.work_type)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Employee Type</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.employee_type || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{prettyCase(workInfo?.employee_type)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Joining Date</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.joining_date || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{fmtDate(workInfo?.joining_date)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Contract End</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.contract_end_date || "None"}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{fmtDate(workInfo?.contract_end_date)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Reporting Manager</p>
@@ -1201,14 +1247,14 @@ export default function EmployeeProfilePage() {
                   <div key={att.id} className="hrms-mobile-card space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-foreground">{att.attendance_date}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{att.work_type || "None"}</p>
+                        <p className="font-semibold text-foreground">{fmtDate(att.attendance_date)}</p>
+                        <p className="text-xs text-muted-foreground">{prettyCase(att.work_type)}</p>
                       </div>
-                      <InlineStatusBadge value={att.attendance_status} />
+                      <AttendanceRowBadge status={att.attendance_status} />
                     </div>
                     <div className="hrms-mobile-kv">
-                      <span>Check In</span><span>{att.check_in || "—"}</span>
-                      <span>Check Out</span><span>{att.check_out || "—"}</span>
+                      <span>Check In</span><span>{fmtTime(att.check_in)}</span>
+                      <span>Check Out</span><span>{fmtTime(att.check_out)}</span>
                       <span>Late</span><span>{att.late_minutes ?? "—"}</span>
                       <span>OT</span><span>{att.overtime_hours ?? "—"}</span>
                     </div>
@@ -1231,19 +1277,11 @@ export default function EmployeeProfilePage() {
                   <tbody>
                     {(attendance || []).map(att => (
                       <tr key={att.id} className="border-b border-border/50">
-                        <td className="py-2.5 px-3 text-foreground">{att.attendance_date}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            att.attendance_status === "Present" ? "bg-success/10 text-success" :
-                            att.attendance_status === "Absent" ? "bg-destructive/10 text-destructive" :
-                            att.attendance_status === "Half Day" ? "bg-warning/10 text-warning" : "bg-muted text-foreground"
-                          }`}>
-                            {att.attendance_status || "None"}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{att.check_in || "—"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{att.check_out || "—"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{att.work_type || "None"}</td>
+                        <td className="py-2.5 px-3 text-foreground">{fmtDate(att.attendance_date)}</td>
+                        <td className="py-2.5 px-3"><AttendanceRowBadge status={att.attendance_status} /></td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{fmtTime(att.check_in)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{fmtTime(att.check_out)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(att.work_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{att.late_minutes ?? "—"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{att.overtime_hours ?? "—"}</td>
                       </tr>
@@ -1331,3 +1369,24 @@ export default function EmployeeProfilePage() {
     </div>
   );
 }
+
+function AttendanceRowBadge({ status }: { status?: string | null }) {
+  const s = (status || "").toLowerCase();
+  const label =
+    s === "present" ? "Present" :
+    s === "absent" ? "Absent" :
+    s === "late" ? "Late" :
+    s === "half_day" ? "Half Day" :
+    s === "incomplete" ? "Incomplete" :
+    s === "no_data" || s === "" ? "Not Punched" :
+    status || "—";
+  const cls =
+    s === "present" ? "bg-success/10 text-success border-success/20" :
+    s === "absent" ? "bg-destructive/10 text-destructive border-destructive/20" :
+    s === "late" ? "bg-warning/10 text-warning border-warning/20" :
+    s === "half_day" ? "bg-warning/10 text-warning border-warning/20" :
+    s === "incomplete" ? "bg-info/10 text-info border-info/20" :
+    "bg-muted text-muted-foreground border-border";
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${cls}`}>{label}</span>;
+}
+

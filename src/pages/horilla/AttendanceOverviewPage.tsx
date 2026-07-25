@@ -73,8 +73,10 @@ export default function AttendanceOverviewPage() {
       if (legacyByDateRes.error) throw legacyByDateRes.error;
       if (legacyByCheckInRes.error) throw legacyByCheckInRes.error;
 
-      // Only show employees who actually have a daily/legacy row for the day.
-      // "no_data" seed rows for the full roster were removed per product decision.
+      // Show the FULL active roster: employees with a daily/legacy row get their
+      // status; the rest are seeded as `no_data` ("Not punched") so the overview
+      // is deterministic (no asymmetry where some non-punchers appear and others
+      // don't just because the engine happened to touch them).
       const empById = new Map<string, any>(employees.map((e: any) => [e.id, e]));
       const byEmployee = new Map<string, any>();
 
@@ -125,6 +127,24 @@ export default function AttendanceOverviewPage() {
         }
       }
 
+      // Seed placeholders for every active employee missing a row so the
+      // overview mirrors the full active headcount.
+      for (const emp of employees as any[]) {
+        if (byEmployee.has(emp.id)) continue;
+        byEmployee.set(emp.id, {
+          id: `placeholder-${emp.id}`,
+          employee_id: emp.id,
+          hr_employees: emp,
+          check_in: null,
+          check_out: null,
+          attendance_status: "no_data",
+          late_minutes: null,
+          early_leave_minutes: null,
+          work_type: null,
+          notes: null,
+          _source: "placeholder",
+        });
+      }
 
       let rows = Array.from(byEmployee.values()).filter((r) => r.hr_employees);
 
@@ -133,6 +153,7 @@ export default function AttendanceOverviewPage() {
       }
 
       rows.sort((a: any, b: any) => {
+        // punched employees first (chronological), then unpunched by name
         const ai = a.check_in ? new Date(a.check_in).getTime() : Infinity;
         const bi = b.check_in ? new Date(b.check_in).getTime() : Infinity;
         if (ai !== bi) return ai - bi;
@@ -178,7 +199,8 @@ export default function AttendanceOverviewPage() {
   const stats = {
     present: attendance.filter((a: any) => a.attendance_status === "present").length,
     absent: attendance.filter((a: any) => a.attendance_status === "absent").length,
-    late: attendance.filter((a: any) => a.attendance_status === "late").length,
+    late: attendance.filter((a: any) => a.attendance_status === "late" || (a.late_minutes ?? 0) > 0).length,
+    not_punched: attendance.filter((a: any) => a.attendance_status === "no_data" || a.attendance_status === "incomplete").length,
     total: attendance.length,
   };
 
@@ -201,12 +223,13 @@ export default function AttendanceOverviewPage() {
       <BiometricQuarantineBanner />
 
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 stagger-children">
         {[
           { label: "Total", value: stats.total, icon: Clock, color: "text-info", bg: "bg-info/10" },
           { label: "Present", value: stats.present, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-          { label: "Absent", value: stats.absent, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
           { label: "Late", value: stats.late, icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Absent", value: stats.absent, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Not Punched", value: stats.not_punched, icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
         ].map((s) => (
           <Card key={s.label} className="h-full transition-shadow hover:shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
@@ -224,13 +247,15 @@ export default function AttendanceOverviewPage() {
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 sm:w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9 sm:w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="present">Present</SelectItem>
             <SelectItem value="absent">Absent</SelectItem>
             <SelectItem value="late">Late</SelectItem>
             <SelectItem value="half_day">Half Day</SelectItem>
+            <SelectItem value="incomplete">Incomplete</SelectItem>
+            <SelectItem value="no_data">Not Punched</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -343,12 +368,22 @@ export default function AttendanceOverviewPage() {
 }
 
 function AttendanceStatusBadge({ status }: { status: string }) {
+  const label =
+    status === "present" ? "Present" :
+    status === "absent" ? "Absent" :
+    status === "late" ? "Late" :
+    status === "half_day" ? "Half Day" :
+    status === "incomplete" ? "Incomplete" :
+    status === "no_data" ? "Not Punched" :
+    status || "—";
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
       status === "present" ? "bg-success/10 text-success border-success/20" :
       status === "absent" ? "bg-destructive/10 text-destructive border-destructive/20" :
       status === "late" ? "bg-warning/10 text-warning border-warning/20" :
-      "bg-muted text-foreground border-border"
-    }`}>{status}</span>
+      status === "half_day" ? "bg-warning/10 text-warning border-warning/20" :
+      status === "incomplete" ? "bg-info/10 text-info border-info/20" :
+      "bg-muted text-muted-foreground border-border"
+    }`}>{label}</span>
   );
 }

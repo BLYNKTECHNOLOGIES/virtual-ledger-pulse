@@ -133,7 +133,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   // promoted (employee CTC updated + pushed to RazorpayX) by the daily
   // hr-promote-scheduled-salary-revisions cron on the effective date.
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-  const isFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
+  const rawFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
+  const isFutureDated = rawFutureDated && !applyNow;
+  const effectiveDateForRpc = applyNow && rawFutureDated ? new Date() : effectiveFrom;
 
 
   const mutation = useMutation({

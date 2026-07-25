@@ -288,6 +288,21 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
 }
 
 
+/**
+ * Fields the RazorpayX `people:view` (Opfin) read API is known to omit from
+ * its response payload — even when they are set inside the RazorpayX product.
+ * Verified against live-tenant snapshots and the Opfin Postman contract.
+ * When RazorpayX returns null for one of these, treat the push as confirmed
+ * (matches the reconciler's `API_UNAVAILABLE_FIELDS` behavior in
+ * `src/lib/hrms/razorpayReconcile.ts`) instead of blocking the overall status.
+ */
+const API_UNAVAILABLE_FIELDS = new Set<string>([
+  "employee_type",
+  "gender",
+  "probation_end_date",
+  "account_holder_name",
+]);
+
 // -------------------- diff --------------------
 function diffFields(
   kind: PushVerifyKind,
@@ -320,6 +335,16 @@ function diffFields(
       continue;
     }
     if (act === null || act === undefined) {
+      // Known API-unavailable field — RazorpayX read API doesn't expose this,
+      // so we can't verify by read-back. Trust the successful push instead of
+      // blocking the overall status.
+      if (API_UNAVAILABLE_FIELDS.has(k)) {
+        rows.push({
+          key: k, label: LABELS[k] || k, expected: exp, actual: null, match: true,
+          reason: "RazorpayX read API doesn't expose this field — treated as confirmed based on the successful push.",
+        });
+        continue;
+      }
       rows.push({
         key: k, label: LABELS[k] || k, expected: exp, actual: null, match: null,
         reason: probeError ? `RazorpayX read failed: ${probeError}` : "RazorpayX did not return this field.",

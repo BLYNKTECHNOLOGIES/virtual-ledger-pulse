@@ -269,17 +269,35 @@ export default function AttendancePeriodLockPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!unlockId} onOpenChange={(o) => !o && setUnlockId(null)}>
+      <AlertDialog open={!!unlockLock} onOpenChange={(o) => { if (!o) { setUnlockLock(null); setUnlockReason(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unlock this period?</AlertDialogTitle>
+            <AlertDialogTitle>Unlock {unlockLock?.period_start} → {unlockLock?.period_end}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Unlocking allows attendance/regularization to be changed again. If payroll for this period has already been paid, this can cause reconciliation drift. Proceed only if you know what you're doing.
+              {unlockLock?.is_system
+                ? 'This period was auto-locked by the system after the grace window. Unlocking will surface as a Super-Admin intervention.'
+                : 'Unlocking allows attendance/regularization to be changed again. If payroll for this period has already been paid, this can cause reconciliation drift.'}
+              {' '}A reason is required and gets logged.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Textarea
+            rows={3}
+            value={unlockReason}
+            onChange={(e) => setUnlockReason(e.target.value)}
+            placeholder="Reason (e.g. late regularization approved for #EMP102, needs re-run)"
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => unlockId && remove.mutate(unlockId)}>Unlock</AlertDialogAction>
+            <AlertDialogAction
+              disabled={unlockReason.trim().length < 5 || remove.isPending}
+              onClick={() => unlockLock && remove.mutate({
+                periodStart: unlockLock.period_start,
+                periodEnd: unlockLock.period_end,
+                reason: unlockReason.trim(),
+              })}
+            >
+              Unlock
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

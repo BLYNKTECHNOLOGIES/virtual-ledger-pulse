@@ -4691,6 +4691,7 @@ export type Database = {
       }
       hr_attendance_engine_settings: {
         Row: {
+          auto_lock_grace_days: number
           clock_drift_alert_seconds: number
           day_cutoff_ist: string
           debounce_seconds: number
@@ -4708,6 +4709,7 @@ export type Database = {
           watchdog_hours: number
         }
         Insert: {
+          auto_lock_grace_days?: number
           clock_drift_alert_seconds?: number
           day_cutoff_ist?: string
           debounce_seconds?: number
@@ -4725,6 +4727,7 @@ export type Database = {
           watchdog_hours?: number
         }
         Update: {
+          auto_lock_grace_days?: number
           clock_drift_alert_seconds?: number
           day_cutoff_ist?: string
           debounce_seconds?: number
@@ -4797,29 +4800,41 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_system: boolean
           locked_at: string
           locked_by: string | null
           notes: string | null
           period_end: string
           period_start: string
+          unlock_reason: string | null
+          unlocked_at: string | null
+          unlocked_by: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          is_system?: boolean
           locked_at?: string
           locked_by?: string | null
           notes?: string | null
           period_end: string
           period_start: string
+          unlock_reason?: string | null
+          unlocked_at?: string | null
+          unlocked_by?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          is_system?: boolean
           locked_at?: string
           locked_by?: string | null
           notes?: string | null
           period_end?: string
           period_start?: string
+          unlock_reason?: string | null
+          unlocked_at?: string | null
+          unlocked_by?: string | null
         }
         Relationships: []
       }
@@ -11242,6 +11257,7 @@ export type Database = {
         Row: {
           action: Database["public"]["Enums"]["hr_razorpay_sync_action"]
           actor_user_id: string | null
+          coverage_json: Json | null
           created_at: string
           error_text: string | null
           field_diff_summary: Json | null
@@ -11254,6 +11270,7 @@ export type Database = {
         Insert: {
           action: Database["public"]["Enums"]["hr_razorpay_sync_action"]
           actor_user_id?: string | null
+          coverage_json?: Json | null
           created_at?: string
           error_text?: string | null
           field_diff_summary?: Json | null
@@ -11266,6 +11283,7 @@ export type Database = {
         Update: {
           action?: Database["public"]["Enums"]["hr_razorpay_sync_action"]
           actor_user_id?: string | null
+          coverage_json?: Json | null
           created_at?: string
           error_text?: string | null
           field_diff_summary?: Json | null
@@ -20609,6 +20627,18 @@ export type Database = {
           },
         ]
       }
+      hr_payslip_last_coverage_v: {
+        Row: {
+          coverage: Json | null
+          excluded_count: number | null
+          expected_count: number | null
+          imported_count: number | null
+          missing_count: number | null
+          period_month: string | null
+          ran_at: string | null
+        }
+        Relationships: []
+      }
       hr_payslips_v: {
         Row: {
           created_at: string | null
@@ -21917,6 +21947,14 @@ export type Database = {
         Args: { p_date: string; p_employee_id: string }
         Returns: Json
       }
+      hr_auto_lock_completed_periods: {
+        Args: never
+        Returns: {
+          locked_month: string
+          period_end: string
+          period_start: string
+        }[]
+      }
       hr_autolink_biometric_users_by_badge: {
         Args: { p_device_serial?: string }
         Returns: Json
@@ -22121,6 +22159,17 @@ export type Database = {
       }
       hr_open_unexplained_drift_count: { Args: never; Returns: number }
       hr_ops_user_ids: { Args: never; Returns: string[] }
+      hr_payslip_import_coverage: {
+        Args: { _month: string }
+        Returns: {
+          excluded_count: number
+          expected_count: number
+          imported_count: number
+          missing_details: Json
+          missing_names: string[]
+          period_month: string
+        }[]
+      }
       hr_payslip_link_orphans: {
         Args: never
         Returns: {
@@ -22182,6 +22231,12 @@ export type Database = {
         Returns: boolean
       }
       hr_system_pulse: { Args: never; Returns: Json }
+      hr_unlock_attendance_period: {
+        Args: { _period_end: string; _period_start: string; _reason: string }
+        Returns: {
+          unlocked_ids: string[]
+        }[]
+      }
       hr_v4_is_window_locked: { Args: { p_date: string }; Returns: boolean }
       hr_v4_recompute_range: {
         Args: { p_employee_id: string; p_from: string; p_to: string }

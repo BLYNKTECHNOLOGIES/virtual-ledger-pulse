@@ -168,7 +168,7 @@ export default function SystemPulsePage() {
       />
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => { refetch(); refetchExtras(); }} disabled={isFetching}>
+        <Button variant="outline" size="sm" onClick={() => { refetch(); refetchExtras(); refetchWindow(); }} disabled={isFetching}>
           <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
         </Button>

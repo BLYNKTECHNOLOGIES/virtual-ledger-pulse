@@ -20,7 +20,7 @@ import {
 import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
 import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
 import { Link } from "react-router-dom";
-import { PayslipParityTile, EmailDispatchHealthTile } from "@/components/hrms/health/PayrollHealthTiles";
+import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";
 
 type Drift = {
   id: string;

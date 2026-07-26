@@ -107,11 +107,11 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Visual monthly calendar — hero of the tab */}
+      <MyAttendanceCalendar employeeId={employeeId} />
+
       {/* Live today snapshot */}
       <TodayAttendanceCard employeeId={employeeId} />
-
-      {/* Visual monthly calendar with color-coded status */}
-      <MyAttendanceCalendar employeeId={employeeId} />
 
 
       {/* Month selector */}

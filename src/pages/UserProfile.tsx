@@ -637,7 +637,7 @@ export default function UserProfile() {
 
       const tryMatch = async (col: string, val: string | null | undefined) => {
         if (!val) return null;
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from('hr_employees').select('*').eq(col, val).limit(2);
         return data && data.length === 1 ? data[0] : null; // only auto-match if unambiguous
       };

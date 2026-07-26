@@ -284,10 +284,6 @@ export default function SystemPulsePage() {
           actionLabel="Biometric devices"
         />
 
-          secondary={sandbox.expires_at ? `Expires ${new Date(sandbox.expires_at).toLocaleString("en-IN")}` : "Live RazorpayX"}
-          actionHref="/hrms/payroll/razorpay-sync"
-          actionLabel="Razorpay sync"
-        />
       </div>
 
       <Card>

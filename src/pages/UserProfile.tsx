@@ -51,6 +51,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { toast as sonnerToast } from 'sonner';
 import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
 import AttendanceTab from '@/components/profile/AttendanceTab';
+import MyAssetsTab from '@/components/profile/MyAssetsTab';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
@@ -1060,7 +1061,7 @@ export default function UserProfile() {
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList
-          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:grid md:grid-cols-11 md:gap-0"
+          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:grid md:grid-cols-12 md:gap-0"
         >
           <TabsTrigger value="profile" className="shrink-0">Profile</TabsTrigger>
           <TabsTrigger value="tasks" className="shrink-0">My Tasks</TabsTrigger>
@@ -1071,6 +1072,7 @@ export default function UserProfile() {
           <TabsTrigger value="leaves" className="shrink-0">Leaves</TabsTrigger>
           <TabsTrigger value="requests" className="shrink-0">Requests</TabsTrigger>
           <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
+          <TabsTrigger value="assets" className="shrink-0">Assets</TabsTrigger>
           <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
           <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>
@@ -1084,44 +1086,120 @@ export default function UserProfile() {
               <AnnouncementsBanner />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* Personal Information - Read Only */}
+              {/* Identity & Contact */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
+                  <CardTitle className="text-base">Identity &amp; Contact</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
                   {[
-                    { label: 'Date of birth', value: hrEmployee.dob || 'None' },
+                    { label: 'Full Name', value: `${hrEmployee.first_name || ''} ${hrEmployee.last_name || ''}`.trim() || 'None', hint: 'KYC-locked' },
+                    { label: 'Date of Birth', value: hrEmployee.dob || 'None' },
                     { label: 'Gender', value: hrEmployee.gender || 'None' },
-                    { label: 'Address', value: hrEmployee.address || 'None' },
-                    { label: 'Country', value: hrEmployee.country || 'None' },
-                    { label: 'State', value: hrEmployee.state || 'None' },
-                    { label: 'City', value: hrEmployee.city || 'None' },
+                    { label: 'Marital Status', value: hrEmployee.marital_status || 'None' },
+                    { label: 'Phone', value: hrEmployee.phone || 'None' },
+                    { label: 'Work Email', value: hrEmployee.email || 'None' },
                     { label: 'Qualification', value: hrEmployee.qualification || 'None' },
                     { label: 'Experience', value: hrEmployee.experience || 'None' },
-                    { label: 'Emergency Contact', value: hrEmployee.emergency_contact || 'None' },
-                    { label: 'Emergency Contact Name', value: hrEmployee.emergency_contact_name || 'None' },
-                    { label: 'Marital Status', value: hrEmployee.marital_status || 'None' },
-                    { label: 'Children', value: hrEmployee.children?.toString() || 'None' },
                   ].map((item, idx) => (
                     <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
-                      <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
-                      <p className="text-sm font-semibold text-foreground">{item.value}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
+                        {item.hint && <span className="text-[10px] text-muted-foreground">{item.hint}</span>}
+                      </div>
+                      <p className="text-sm font-semibold text-foreground break-words">{item.value}</p>
                     </div>
                   ))}
                 </CardContent>
               </Card>
 
-              {/* Work Information - Read Only */}
+              {/* Address */}
               <Card>
                 <CardHeader>
+                  <CardTitle className="text-base">Address</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    { label: 'Street / Address', value: hrEmployee.address || 'None' },
+                    { label: 'City', value: hrEmployee.city || 'None' },
+                    { label: 'State', value: hrEmployee.state || 'None' },
+                    { label: 'PIN / ZIP', value: hrEmployee.zip || 'None' },
+                    { label: 'Country', value: hrEmployee.country || 'None' },
+                  ].map((item, idx) => (
+                    <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
+                      <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
+                      <p className="text-sm font-semibold text-foreground break-words">{item.value}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Emergency Contact */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Emergency Contact</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    { label: 'Name', value: hrEmployee.emergency_contact_name || 'None' },
+                    { label: 'Relationship', value: (hrEmployee as any).emergency_contact_relation || 'None' },
+                    { label: 'Phone', value: hrEmployee.emergency_contact || 'None' },
+                    { label: 'Dependents / Children', value: hrEmployee.children != null ? String(hrEmployee.children) : 'None' },
+                  ].map((item, idx) => (
+                    <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
+                      <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
+                      <p className="text-sm font-semibold text-foreground break-words">{item.value}</p>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    To update contact, address or emergency details, please raise a request with HR.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Statutory IDs — masked, read-only */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Statutory IDs</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(() => {
+                    const mask = (v?: string | null, keep = 4) => {
+                      if (!v) return 'None';
+                      const s = String(v);
+                      if (s.length <= keep) return s;
+                      return `${'•'.repeat(Math.max(4, s.length - keep))}${s.slice(-keep)}`;
+                    };
+                    const rows = [
+                      { label: 'PAN', value: mask((hrEmployee as any).pan_number, 4) },
+                      { label: 'UAN (PF Universal)', value: mask((hrEmployee as any).uan_number, 4) },
+                      { label: 'PF Number', value: mask((hrEmployee as any).pf_number, 4) },
+                      { label: 'ESIC Number', value: mask((hrEmployee as any).esi_number, 4) },
+                    ];
+                    return rows.map((item, idx) => (
+                      <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
+                        <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
+                        <p className="text-sm font-semibold text-foreground font-mono">{item.value}</p>
+                      </div>
+                    ));
+                  })()}
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    Digits are masked for privacy. Full values are visible to Payroll / HR only.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Work Information - Read Only */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-[#00bcd4] text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
-                    <CardTitle className="text-[#00bcd4]">Work Information</CardTitle>
+                    <Briefcase className="h-4 w-4 text-[#00bcd4]" />
+                    <CardTitle className="text-base text-[#00bcd4]">Work Information</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  {/* Desktop table */}
+                  <div className="hidden md:block border border-border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 border-b border-border">
@@ -1142,6 +1220,21 @@ export default function UserProfile() {
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                  {/* Mobile stacked */}
+                  <div className="md:hidden space-y-2">
+                    {[
+                      { label: 'Badge Id', value: hrEmployee.badge_id },
+                      { label: 'Job Position', value: (workInfo as any)?.positions?.title || (workInfo as any)?.job_role || 'N/A' },
+                      { label: 'Department', value: (workInfo as any)?.departments?.name || 'N/A' },
+                      { label: 'Shift', value: (workInfo as any)?.shift_name || 'N/A' },
+                      { label: 'Work Type', value: (workInfo as any)?.work_type || 'N/A' },
+                    ].map((r, i) => (
+                      <div key={i} className="flex justify-between border-b border-border/50 pb-2 last:border-b-0">
+                        <span className="text-xs text-muted-foreground">{r.label}</span>
+                        <span className="text-sm font-medium text-foreground">{r.value}</span>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -1482,6 +1575,16 @@ export default function UserProfile() {
             <EmployeeDocumentsTab employeeId={hrEmployee.id} />
           )}
         </TabsContent>
+
+        {/* ═══════ Assets Tab ═══════ */}
+        <TabsContent value="assets" className="space-y-6">
+          {!hrEmployee ? (
+            <NoEmployeeProfile />
+          ) : (
+            <MyAssetsTab employeeId={hrEmployee.id} />
+          )}
+        </TabsContent>
+
 
 
         {/* ═══════ Attendance Tab ═══════ */}

@@ -438,10 +438,10 @@ export default function AttendanceRegularizationPage() {
                     {r.approver_notes && <div className="text-xs italic text-muted-foreground">"{r.approver_notes}"</div>}
                     {r.status === 'pending' && (
                       <div className="flex gap-2 pt-1">
-                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
+                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openReview(r, 'approved')}>
                           <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
+                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openReview(r, 'rejected')}>
                           <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
                         </Button>
                       </div>
@@ -502,10 +502,10 @@ export default function AttendanceRegularizationPage() {
                           <td className="px-4 py-2 text-right space-x-1">
                             {r.status === 'pending' && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
+                                <Button size="sm" variant="outline" onClick={() => openReview(r, 'approved')}>
                                   <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
+                                <Button size="sm" variant="outline" onClick={() => openReview(r, 'rejected')}>
                                   <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
                                 </Button>
                               </>

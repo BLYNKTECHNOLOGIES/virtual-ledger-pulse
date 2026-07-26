@@ -1059,18 +1059,20 @@ export default function UserProfile() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-11">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="tasks">My Tasks</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="salary">Salary & PF</TabsTrigger>
-          <TabsTrigger value="payslips">Payslips</TabsTrigger>
-          <TabsTrigger value="banking">Banking</TabsTrigger>
-          <TabsTrigger value="leaves">Leaves</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="notifications">Alerts</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsList
+          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:grid md:grid-cols-11 md:gap-0"
+        >
+          <TabsTrigger value="profile" className="shrink-0">Profile</TabsTrigger>
+          <TabsTrigger value="tasks" className="shrink-0">My Tasks</TabsTrigger>
+          <TabsTrigger value="attendance" className="shrink-0">Attendance</TabsTrigger>
+          <TabsTrigger value="salary" className="shrink-0">Salary &amp; PF</TabsTrigger>
+          <TabsTrigger value="payslips" className="shrink-0">Payslips</TabsTrigger>
+          <TabsTrigger value="banking" className="shrink-0">Banking</TabsTrigger>
+          <TabsTrigger value="leaves" className="shrink-0">Leaves</TabsTrigger>
+          <TabsTrigger value="requests" className="shrink-0">Requests</TabsTrigger>
+          <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
+          <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
+          <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>
 
         {/* ═══════ Profile Tab ═══════ */}

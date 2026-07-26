@@ -614,21 +614,47 @@ export default function UserProfile() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
 
-  // ─── Fetch HRMS employee linked to this user ───
-  const { data: hrEmployee, isLoading: hrLoading } = useQuery({
-    queryKey: ['hr_employee_profile', user?.id],
+  // ─── Fetch HRMS employee linked to this user (with fallback resolution) ───
+  // Primary: user_id link. Fallbacks (Phase 0 — unblocks "No Employee Profile Found"):
+  // badge_id → email → phone. Employees whose auth row wasn't linked at
+  // onboarding still get their ESS surfaces instead of a dead-end.
+  const { data: employeeResolution, isLoading: hrLoading } = useQuery({
+    queryKey: ['hr_employee_profile_resolved', user?.id],
     queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from('hr_employees')
-        .select('*')
-        .eq('user_id', user.id)
+      if (!user?.id) return { employee: null, matchedVia: null as string | null };
+      // 1. Primary link
+      const primary = await supabase
+        .from('hr_employees').select('*').eq('user_id', user.id).maybeSingle();
+      if (primary.error) throw primary.error;
+      if (primary.data) return { employee: primary.data, matchedVia: 'user_id' };
+
+      // Fetch user record for fallback keys
+      const { data: u } = await supabase
+        .from('users')
+        .select('badge_id, email, phone')
+        .eq('id', user.id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+
+      const tryMatch = async (col: string, val: string | null | undefined) => {
+        if (!val) return null;
+        const { data } = await supabase
+          .from('hr_employees').select('*').eq(col, val).limit(2);
+        return data && data.length === 1 ? data[0] : null; // only auto-match if unambiguous
+      };
+
+      const byBadge = await tryMatch('badge_id', u?.badge_id);
+      if (byBadge) return { employee: byBadge, matchedVia: 'badge_id' };
+      const byEmail = await tryMatch('email', u?.email);
+      if (byEmail) return { employee: byEmail, matchedVia: 'email' };
+      const byPhone = await tryMatch('phone', u?.phone);
+      if (byPhone) return { employee: byPhone, matchedVia: 'phone' };
+
+      return { employee: null, matchedVia: null };
     },
     enabled: !!user?.id,
   });
+  const hrEmployee = employeeResolution?.employee ?? null;
+  const employeeMatchedVia = employeeResolution?.matchedVia ?? null;
 
   // ─── Fetch work info for the HRMS employee ───
   const { data: workInfo } = useQuery({

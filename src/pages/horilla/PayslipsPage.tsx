@@ -519,13 +519,18 @@ export default function PayslipsPage() {
                 </div>
               )}
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => generatePayslipPDF(detail)}
-              >
-                <Download className="h-4 w-4 mr-2" /> Download PDF
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => generatePayslipPDF(detail)}
+                >
+                  <Download className="h-4 w-4 mr-2" /> Download Local PDF
+                </Button>
+                {detail.razorpay_payslip_id && (
+                  <RazorpayPayslipLink razorpayPayslipId={detail.razorpay_payslip_id} label="View on RazorpayX" />
+                )}
+              </div>
             </div>
           )}
       </ResponsiveDialog>

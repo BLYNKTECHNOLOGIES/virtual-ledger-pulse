@@ -154,6 +154,10 @@ export default function SystemPulsePage() {
     !coverage?.period_month ? "warn" :
     coverage.coverage_pct >= 100 ? "ok" :
     coverage.coverage_pct >= 95 ? "warn" : "bad";
+  const windowTone: Tone =
+    windowError ? "bad" :
+    !windowTest ? "muted" :
+    windowTest.ok ? "ok" : "bad";
 
 
   return (

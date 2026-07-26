@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   XCircle,
   ShieldAlert,
+  FileCheck,
 } from "lucide-react";
 import { useSystemPulse, useSystemPulseExtras, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
 
@@ -146,6 +147,12 @@ export default function SystemPulsePage() {
     rosterAgeHours == null ? "warn" :
     rosterAgeHours > 72 ? "warn" :
     (roster?.total_discrepancies ?? 0) > (roster?.total_auto_fixed ?? 0) ? "warn" : "ok";
+  const coverage = extras?.payslip_coverage;
+  const coverageMissing = coverage?.missing_names?.length ?? 0;
+  const coverageTone: Tone =
+    !coverage?.period_month ? "warn" :
+    coverage.coverage_pct >= 100 ? "ok" :
+    coverage.coverage_pct >= 95 ? "warn" : "bad";
 
 
   return (
@@ -282,6 +289,25 @@ export default function SystemPulsePage() {
           }
           actionHref="/hrms/attendance/biometric-devices"
           actionLabel="Biometric devices"
+        />
+        <Tile
+          icon={FileCheck}
+          title="Payslip import coverage"
+          tone={coverageTone}
+          primary={
+            !coverage?.period_month
+              ? "no pull yet"
+              : `${coverage.coverage_pct}% (${coverage.imported_count}/${coverage.expected_count})`
+          }
+          secondary={
+            coverage?.period_month
+              ? coverageMissing > 0
+                ? `Missing: ${coverage.missing_names.slice(0, 3).join(", ")}${coverageMissing > 3 ? ` +${coverageMissing - 3} more` : ""}`
+                : `All expected employees present · ${coverage.excluded_count} excluded (dismissed/pre-join)`
+              : "Pull payslips from Cockpit Step 6 to populate"
+          }
+          actionHref="/hrms/payroll/cockpit"
+          actionLabel="Cockpit"
         />
 
       </div>

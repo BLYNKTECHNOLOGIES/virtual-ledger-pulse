@@ -113,6 +113,10 @@ function DetailLine({ step }: { step: CockpitStep }) {
   const d = step.live_detail ?? {};
   switch (step.step_key) {
     case "lock_attendance":
+      if (d.has_system_lock) {
+        const when = d.latest_locked_at ? new Date(d.latest_locked_at).toLocaleDateString("en-IN") : "—";
+        return <span>Auto-locked by system on {when} (grace 2d after month end).</span>;
+      }
       return <span>{d.locked_ranges ?? 0} attendance period(s) locked overlapping this month.</span>;
     case "watchdog_zero":
       return <span>{d.stale_open ?? 0} stale sessions open for this month.</span>;

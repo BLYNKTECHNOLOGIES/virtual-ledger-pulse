@@ -544,6 +544,7 @@ function fieldNames(e: any): string[] {
 async function logSync(svc: SupabaseClient, row: {
   action: string; http_status: number; razorpay_employee_id: string;
   hr_employee_id?: string | null; field_diff_summary?: any; error_text?: string | null; actor_user_id: string | null;
+  coverage_json?: any;
 }) {
   const { error } = await svc.from("hr_razorpay_sync_log").insert(row);
   if (error) {
@@ -5003,6 +5004,29 @@ Deno.serve(async (req) => {
         await svc.from("hr_razorpay_settings")
           .update({ last_payslips_pull_at: new Date().toISOString() }).eq("is_singleton", true);
 
+        // W7 · payslip-import coverage receipt — compute expected vs imported
+        // and record the missing names. Absence becomes an alert, not silence.
+        let coverage: any = null;
+        try {
+          const { data: covRows } = await svc.rpc("hr_payslip_import_coverage", { _month: periodMonthISO });
+          const cov = Array.isArray(covRows) ? covRows[0] : covRows;
+          if (cov) {
+            coverage = {
+              period_month: periodMonthISO,
+              expected_count: cov.expected_count ?? 0,
+              imported_count: cov.imported_count ?? 0,
+              excluded_count: cov.excluded_count ?? 0,
+              missing_names: cov.missing_names ?? [],
+              missing_details: cov.missing_details ?? [],
+              coverage_pct: cov.expected_count > 0
+                ? Math.round((cov.imported_count / cov.expected_count) * 100)
+                : 100,
+            };
+          }
+        } catch (covErr) {
+          console.error("[pull_payslips] coverage compute failed", (covErr as Error)?.message);
+        }
+
         await logSync(svc, {
           action: "pull_payslips",
           http_status: 200,
@@ -5015,6 +5039,7 @@ Deno.serve(async (req) => {
             bypass_run_gate: bypassRunGate,
             ...pull,
           },
+          coverage_json: coverage,
           error_text: null,
           actor_user_id: authed.userId,
         });
@@ -5023,6 +5048,7 @@ Deno.serve(async (req) => {
           ok: true,
           period_month: periodMonthISO,
           summary: { total: pull.pulled, withPdf: pull.withPdf, failed: pull.failed, noEmail: pull.noEmail, noRecord: pull.noRecord, upsertErrors: pull.upsertErrors },
+          coverage,
         });
       }
 

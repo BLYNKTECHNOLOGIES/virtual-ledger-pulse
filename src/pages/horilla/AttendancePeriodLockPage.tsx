@@ -22,7 +22,8 @@ export default function AttendancePeriodLockPage() {
   const y = now.getFullYear();
   const m = now.getMonth();
   const [open, setOpen] = useState(false);
-  const [unlockId, setUnlockId] = useState<string | null>(null);
+  const [unlockLock, setUnlockLock] = useState<any | null>(null);
+  const [unlockReason, setUnlockReason] = useState("");
   const [form, setForm] = useState({
     period_start: format(new Date(y, m - 1, 1), 'yyyy-MM-dd'),
     period_end: format(new Date(y, m, 0), 'yyyy-MM-dd'),
@@ -66,16 +67,18 @@ export default function AttendancePeriodLockPage() {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from('hr_attendance_period_locks')
-        .delete()
-        .eq('id', id);
+    mutationFn: async (args: { periodStart: string; periodEnd: string; reason: string }) => {
+      const { error } = await (supabase as any).rpc('hr_unlock_attendance_period', {
+        _period_start: args.periodStart,
+        _period_end: args.periodEnd,
+        _reason: args.reason,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Lock removed');
-      setUnlockId(null);
+      toast.success('Period unlocked · reason logged to intervention strip');
+      setUnlockLock(null);
+      setUnlockReason('');
       qc.invalidateQueries({ queryKey: ['attendance_period_locks'] });
     },
     onError: (e: any) => toast.error(e.message || 'Failed to unlock'),
@@ -156,9 +159,12 @@ export default function AttendancePeriodLockPage() {
         ) : locks.map((l: any) => (
           <Card key={l.id}>
             <CardContent className="p-3 space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Lock className="h-3.5 w-3.5 text-success shrink-0" />
                 <span className="font-medium tabular-nums text-sm">{l.period_start} → {l.period_end}</span>
+                {l.is_system && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-500 border border-blue-500/30 uppercase tracking-wide">Auto</span>
+                )}
               </div>
               <div className="text-[11px] text-muted-foreground">Locked: {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}</div>
               {l.notes && <div className="text-xs text-muted-foreground">{l.notes}</div>}
@@ -166,7 +172,7 @@ export default function AttendancePeriodLockPage() {
                 <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setVerifyLock(l); setVerifyEmp(''); setVerifyResult(null); }}>
                   <ShieldCheck className="h-4 w-4 mr-1" /> Verify
                 </Button>
-                <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => setUnlockId(l.id)}>
+                <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setUnlockLock(l); setUnlockReason(''); }}>
                   <Unlock className="h-4 w-4 mr-1" /> Unlock
                 </Button>
               </div>
@@ -203,6 +209,9 @@ export default function AttendancePeriodLockPage() {
                       <td className="px-4 py-2 font-medium">
                         <Lock className="h-3 w-3 inline mr-1 text-success" />
                         {l.period_start} → {l.period_end}
+                        {l.is_system && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-500 border border-blue-500/30 uppercase tracking-wide">Auto</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-xs text-muted-foreground">
                         {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}
@@ -213,7 +222,7 @@ export default function AttendancePeriodLockPage() {
                           <Button size="sm" variant="outline" onClick={() => { setVerifyLock(l); setVerifyEmp(''); setVerifyResult(null); }}>
                             <ShieldCheck className="h-4 w-4 mr-1" /> Verify with Razorpay
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setUnlockId(l.id)}>
+                          <Button size="sm" variant="outline" onClick={() => { setUnlockLock(l); setUnlockReason(''); }}>
                             <Unlock className="h-4 w-4 mr-1" /> Unlock
                           </Button>
                         </div>
@@ -260,17 +269,35 @@ export default function AttendancePeriodLockPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!unlockId} onOpenChange={(o) => !o && setUnlockId(null)}>
+      <AlertDialog open={!!unlockLock} onOpenChange={(o) => { if (!o) { setUnlockLock(null); setUnlockReason(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unlock this period?</AlertDialogTitle>
+            <AlertDialogTitle>Unlock {unlockLock?.period_start} → {unlockLock?.period_end}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Unlocking allows attendance/regularization to be changed again. If payroll for this period has already been paid, this can cause reconciliation drift. Proceed only if you know what you're doing.
+              {unlockLock?.is_system
+                ? 'This period was auto-locked by the system after the grace window. Unlocking will surface as a Super-Admin intervention.'
+                : 'Unlocking allows attendance/regularization to be changed again. If payroll for this period has already been paid, this can cause reconciliation drift.'}
+              {' '}A reason is required and gets logged.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Textarea
+            rows={3}
+            value={unlockReason}
+            onChange={(e) => setUnlockReason(e.target.value)}
+            placeholder="Reason (e.g. late regularization approved for #EMP102, needs re-run)"
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => unlockId && remove.mutate(unlockId)}>Unlock</AlertDialogAction>
+            <AlertDialogAction
+              disabled={unlockReason.trim().length < 5 || remove.isPending}
+              onClick={() => unlockLock && remove.mutate({
+                periodStart: unlockLock.period_start,
+                periodEnd: unlockLock.period_end,
+                reason: unlockReason.trim(),
+              })}
+            >
+              Unlock
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

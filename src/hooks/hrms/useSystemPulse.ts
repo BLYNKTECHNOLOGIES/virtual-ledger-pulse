@@ -79,6 +79,16 @@ export interface SystemPulseExtras {
       unsafe_flagged: number;
     }>;
   };
+  // W7 · payslip import coverage receipt
+  payslip_coverage: {
+    period_month: string | null;
+    computed_at: string | null;
+    expected_count: number;
+    imported_count: number;
+    excluded_count: number;
+    coverage_pct: number;
+    missing_names: string[];
+  };
 }
 
 export function useSystemPulseExtras(refetchMs = 60_000) {
@@ -87,7 +97,7 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
     queryFn: async (): Promise<SystemPulseExtras> => {
       const client: any = supabase;
 
-      const [{ data: unexplained }, deadLetter, ghost, marker, roster] = await Promise.all([
+      const [{ data: unexplained }, deadLetter, ghost, marker, roster, coverage] = await Promise.all([
         client.rpc("hr_open_unexplained_drift_count"),
         client
           .from("hr_email_send_log")
@@ -103,6 +113,10 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
         client
           .from("hr_device_roster_reconciliation_latest_v")
           .select("*"),
+        client
+          .from("hr_payslip_last_coverage_v")
+          .select("*")
+          .maybeSingle(),
       ]);
 
       const lastRunAt: string | null = marker?.data?.ran_at ?? null;
@@ -143,6 +157,15 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
             auto_fixed: Number(r.auto_fixed ?? 0),
             unsafe_flagged: Number(r.unsafe_flagged ?? 0),
           })),
+        },
+        payslip_coverage: {
+          period_month: coverage?.data?.period_month ?? null,
+          computed_at: coverage?.data?.computed_at ?? null,
+          expected_count: Number(coverage?.data?.expected_count ?? 0),
+          imported_count: Number(coverage?.data?.imported_count ?? 0),
+          excluded_count: Number(coverage?.data?.excluded_count ?? 0),
+          coverage_pct: Number(coverage?.data?.coverage_pct ?? 0),
+          missing_names: (coverage?.data?.missing_names ?? []) as string[],
         },
       };
     },

@@ -262,6 +262,32 @@ export default function SystemPulsePage() {
           actionHref="/hrms/payroll/razorpay-sync"
           actionLabel="Razorpay sync"
         />
+        <Tile
+          icon={Cpu}
+          title="Device roster parity"
+          tone={rosterTone}
+          primary={
+            roster?.last_ran_at == null
+              ? "never reconciled"
+              : `${roster.total_discrepancies} discrepanc${roster.total_discrepancies === 1 ? "y" : "ies"}`
+          }
+          secondary={
+            roster?.last_ran_at
+              ? `${roster.total_auto_fixed} auto-fixed · ${roster.total_unsafe} unsafe · last ${
+                  rosterAgeHours != null && rosterAgeHours < 1
+                    ? `${Math.round(rosterAgeHours * 60)}m`
+                    : `${Math.round(rosterAgeHours ?? 0)}h`
+                } ago`
+              : "48h sync will populate on next run"
+          }
+          actionHref="/hrms/attendance/biometric-devices"
+          actionLabel="Biometric devices"
+        />
+
+          secondary={sandbox.expires_at ? `Expires ${new Date(sandbox.expires_at).toLocaleString("en-IN")}` : "Live RazorpayX"}
+          actionHref="/hrms/payroll/razorpay-sync"
+          actionLabel="Razorpay sync"
+        />
       </div>
 
       <Card>

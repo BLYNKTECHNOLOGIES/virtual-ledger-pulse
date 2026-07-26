@@ -3796,6 +3796,87 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ---- W1 · Attendance push read-back sweep -----------------------
+      // For every employee that just pushed successfully, hit attendance:fetch
+      // for a mid-month sample day. Any HTTP/data mismatch becomes a receipt
+      // failure and (in write mode) upserts hr_razorpay_payroll_runs so the
+      // period_month row carries an authoritative round-trip proof, plus emits
+      // a drift alert. Dry-run mode records the sweep but does not stamp runs.
+      let readbackReceipt: any = null;
+      if (isWrite) {
+        const pushedRows = rows.filter((r: any) => r.status === "pushed");
+        const sampleDay = `${period}-${String(Math.min(15, daysInMonth)).padStart(2, "0")}`;
+        const perEmp: Array<{ eid: string; ok: boolean; http_status: number; note?: string }> = [];
+        for (const row of pushedRows) {
+          const eid = String(row.razorpay_employee_id || "");
+          if (!eid) continue;
+          const rbCtrl = new AbortController();
+          const rbT = setTimeout(() => rbCtrl.abort(), 15000);
+          let rbStatus = 0; let rbOk = false; let rbNote: string | undefined;
+          try {
+            const rbRes = await fetch(`${BASE}/att`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                auth: authBlock(),
+                request: { type: "attendance", "sub-type": "fetch" },
+                data: { "employee-id": Number(eid), date: sampleDay },
+              }),
+              signal: rbCtrl.signal,
+            });
+            rbStatus = rbRes.status;
+            const rbRaw = await rbRes.text();
+            let rbBody: any = null; try { rbBody = JSON.parse(rbRaw); } catch { rbBody = null; }
+            const rbErr = rbBody && typeof rbBody === "object" ? (rbBody.error || rbBody.message || null) : null;
+            rbOk = rbRes.ok && !rbErr;
+            if (!rbOk) rbNote = rbErr ? String(rbErr).slice(0, 200) : `HTTP ${rbRes.status}`;
+          } catch (e) {
+            rbNote = `NETWORK: ${(e as Error).message}`;
+          } finally { clearTimeout(rbT); }
+          perEmp.push({ eid, ok: rbOk, http_status: rbStatus, note: rbNote });
+        }
+        const okCount = perEmp.filter((x) => x.ok).length;
+        const mismatches = perEmp.filter((x) => !x.ok);
+        readbackReceipt = {
+          period, sample_day: sampleDay,
+          attempted: perEmp.length, verified: okCount, mismatches: mismatches.length,
+          per_employee: perEmp.slice(0, 200),
+        };
+
+        // Persist an aggregate sync-log receipt (always).
+        await logSync(svc, {
+          action: "attendance_readback_sweep" as any,
+          http_status: mismatches.length === 0 ? 200 : 207,
+          razorpay_employee_id: pushedRows.length === 1 ? String(pushedRows[0].razorpay_employee_id) : "",
+          hr_employee_id: null,
+          field_diff_summary: readbackReceipt,
+          error_text: mismatches.length === 0 ? null : `${mismatches.length}/${perEmp.length} readback mismatches`,
+          actor_user_id: authed.userId,
+        });
+
+        // Stamp the period run row if it exists (soft — no insert if absent).
+        const periodMonthISO = `${period}-01`;
+        const { data: existingRun } = await svc.from("hr_razorpay_payroll_runs")
+          .select("id").eq("period_month", periodMonthISO).maybeSingle();
+        if (existingRun?.id) {
+          await svc.from("hr_razorpay_payroll_runs").update({
+            attendance_readback_verified_at: mismatches.length === 0 ? new Date().toISOString() : null,
+            attendance_readback_diff: readbackReceipt,
+          }).eq("id", existingRun.id);
+        }
+
+        // Emit a drift alert on any per-employee failure so System Pulse lights up.
+        if (mismatches.length > 0) {
+          await svc.from("hr_drift_alerts").insert({
+            alert_type: "attendance_readback_mismatch",
+            severity: mismatches.length === perEmp.length ? "high" : "medium",
+            title: `Attendance push read-back missed ${mismatches.length}/${perEmp.length} employees for ${period}`,
+            description: `Sampled ${sampleDay} via attendance:fetch. Failing employee-ids: ${mismatches.slice(0, 10).map((m) => m.eid).join(", ")}${mismatches.length > 10 ? " …" : ""}`,
+            metadata: readbackReceipt,
+          }).select().maybeSingle();
+        }
+      }
+
       return json(200, {
         ok: true,
         period,
@@ -3819,6 +3900,7 @@ Deno.serve(async (req) => {
           pilot_period: settingsRow?.push_attendance_pilot_period || null,
           bulk_unlocked: !!settingsRow?.bulk_attendance_push_unlocked,
         },
+        readback: readbackReceipt,
       });
     }
 

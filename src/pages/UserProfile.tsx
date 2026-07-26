@@ -59,6 +59,7 @@ import NotificationSettingsTab from '@/components/profile/NotificationSettingsTa
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import MyTeamCard from '@/components/profile/MyTeamCard';
 import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
+import MyMilestonesCard from '@/components/profile/MyMilestonesCard';
 import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
 import MyHelpdeskCard from '@/components/profile/MyHelpdeskCard';
 import MyDisciplinaryCard from '@/components/profile/MyDisciplinaryCard';

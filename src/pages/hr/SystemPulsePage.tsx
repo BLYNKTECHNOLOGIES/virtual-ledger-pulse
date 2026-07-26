@@ -110,6 +110,11 @@ export default function SystemPulsePage() {
   const ghostResidual = extras?.ghost_email_residual ?? 0;
   const markerAge = extras?.absent_marker_age_hours;
   const markerStatus = extras?.absent_marker_last_status;
+  const roster = extras?.roster_reconciliation;
+  const rosterAgeHours = roster?.last_ran_at
+    ? Math.max(0, (Date.now() - new Date(roster.last_ran_at).getTime()) / 36e5)
+    : null;
+
 
   const emailTone: Tone =
     deadLettered > 0 || (email.failed_24h ?? 0) > 0 ? "bad" :

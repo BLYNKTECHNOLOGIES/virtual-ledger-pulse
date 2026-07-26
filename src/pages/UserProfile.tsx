@@ -1245,6 +1245,12 @@ export default function UserProfile() {
                 </CardContent>
               </Card>
               </div>
+
+              {/* Phase 6 — Team & Reporting */}
+              <MyTeamCard employeeId={hrEmployee.id} workInfo={workInfo} />
+
+              {/* Phase 7 — Company News */}
+              <MyAnnouncementsCard />
             </div>
           )}
         </TabsContent>

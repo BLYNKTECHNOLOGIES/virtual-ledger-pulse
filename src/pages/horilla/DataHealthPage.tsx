@@ -331,9 +331,10 @@ export default function DataHealthPage() {
       </div>
 
       {/* Payroll infra health */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <PayslipParityTile />
         <EmailDispatchHealthTile />
+        <RosterCompletenessTile />
       </div>
 
       {/* Statutory drift rollup — Razorpay filing toggles vs actual payslip amounts */}

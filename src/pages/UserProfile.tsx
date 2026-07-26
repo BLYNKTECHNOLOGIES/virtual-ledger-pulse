@@ -614,21 +614,47 @@ export default function UserProfile() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
 
-  // ─── Fetch HRMS employee linked to this user ───
-  const { data: hrEmployee, isLoading: hrLoading } = useQuery({
-    queryKey: ['hr_employee_profile', user?.id],
+  // ─── Fetch HRMS employee linked to this user (with fallback resolution) ───
+  // Primary: user_id link. Fallbacks (Phase 0 — unblocks "No Employee Profile Found"):
+  // badge_id → email → phone. Employees whose auth row wasn't linked at
+  // onboarding still get their ESS surfaces instead of a dead-end.
+  const { data: employeeResolution, isLoading: hrLoading } = useQuery({
+    queryKey: ['hr_employee_profile_resolved', user?.id],
     queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from('hr_employees')
-        .select('*')
-        .eq('user_id', user.id)
+      if (!user?.id) return { employee: null, matchedVia: null as string | null };
+      // 1. Primary link
+      const primary = await supabase
+        .from('hr_employees').select('*').eq('user_id', user.id).maybeSingle();
+      if (primary.error) throw primary.error;
+      if (primary.data) return { employee: primary.data, matchedVia: 'user_id' };
+
+      // Fetch user record for fallback keys
+      const { data: u } = await supabase
+        .from('users')
+        .select('badge_id, email, phone')
+        .eq('id', user.id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+
+      const tryMatch = async (col: string, val: string | null | undefined) => {
+        if (!val) return null;
+        const { data } = await (supabase as any)
+          .from('hr_employees').select('*').eq(col, val).limit(2);
+        return data && data.length === 1 ? data[0] : null; // only auto-match if unambiguous
+      };
+
+      const byBadge = await tryMatch('badge_id', u?.badge_id);
+      if (byBadge) return { employee: byBadge, matchedVia: 'badge_id' };
+      const byEmail = await tryMatch('email', u?.email);
+      if (byEmail) return { employee: byEmail, matchedVia: 'email' };
+      const byPhone = await tryMatch('phone', u?.phone);
+      if (byPhone) return { employee: byPhone, matchedVia: 'phone' };
+
+      return { employee: null, matchedVia: null };
     },
     enabled: !!user?.id,
   });
+  const hrEmployee = employeeResolution?.employee ?? null;
+  const employeeMatchedVia = employeeResolution?.matchedVia ?? null;
 
   // ─── Fetch work info for the HRMS employee ───
   const { data: workInfo } = useQuery({
@@ -979,18 +1005,22 @@ export default function UserProfile() {
     <Card>
       <CardContent className="text-center py-12">
         <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">No Employee Profile Found</h3>
-        <p className="text-muted-foreground">Please contact HR to set up your employee profile.</p>
+        <h3 className="text-lg font-medium mb-2">Employee record not linked</h3>
+        <p className="text-muted-foreground max-w-md mx-auto text-sm">
+          Your ERP login isn't linked to an HRMS employee record yet. Profile, Tasks,
+          Documents and Settings still work — leave, attendance and payroll will appear
+          once HR links your record (matched by badge ID, email or phone).
+        </p>
       </CardContent>
     </Card>
   );
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* ─── Header ─── */}
-      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 rounded-xl p-6 text-primary-foreground shadow-lg">
-        <div className="flex items-center gap-6">
-          <Avatar className="h-24 w-24 border-4 border-white/20">
+      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 rounded-xl p-4 sm:p-6 text-primary-foreground shadow-lg">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <Avatar className="h-16 w-16 sm:h-24 sm:w-24 border-4 border-white/20 shrink-0">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
             ) : (
@@ -1000,8 +1030,13 @@ export default function UserProfile() {
             )}
           </Avatar>
           <div className="flex-1">
-            <h1 className="text-3xl font-semibold mb-1">{displayName}</h1>
-            <p className="text-lg opacity-90">{user?.email}</p>
+            <h1 className="text-xl sm:text-3xl font-semibold mb-1 truncate">{displayName}</h1>
+            <p className="text-sm sm:text-lg opacity-90 break-all">{user?.email}</p>
+            {employeeMatchedVia && employeeMatchedVia !== 'user_id' && (
+              <p className="text-[11px] mt-1 inline-block px-2 py-0.5 rounded bg-warning/20 text-warning-foreground border border-warning/40">
+                Profile matched via {employeeMatchedVia} — ask HR to link your account
+              </p>
+            )}
             {hrEmployee && (
               <div className="flex items-center gap-4 text-sm opacity-80 mt-1">
                 {hrEmployee.phone && (
@@ -1024,18 +1059,20 @@ export default function UserProfile() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-11">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="tasks">My Tasks</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="salary">Salary & PF</TabsTrigger>
-          <TabsTrigger value="payslips">Payslips</TabsTrigger>
-          <TabsTrigger value="banking">Banking</TabsTrigger>
-          <TabsTrigger value="leaves">Leaves</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="notifications">Alerts</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsList
+          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:grid md:grid-cols-11 md:gap-0"
+        >
+          <TabsTrigger value="profile" className="shrink-0">Profile</TabsTrigger>
+          <TabsTrigger value="tasks" className="shrink-0">My Tasks</TabsTrigger>
+          <TabsTrigger value="attendance" className="shrink-0">Attendance</TabsTrigger>
+          <TabsTrigger value="salary" className="shrink-0">Salary &amp; PF</TabsTrigger>
+          <TabsTrigger value="payslips" className="shrink-0">Payslips</TabsTrigger>
+          <TabsTrigger value="banking" className="shrink-0">Banking</TabsTrigger>
+          <TabsTrigger value="leaves" className="shrink-0">Leaves</TabsTrigger>
+          <TabsTrigger value="requests" className="shrink-0">Requests</TabsTrigger>
+          <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
+          <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
+          <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>
 
         {/* ═══════ Profile Tab ═══════ */}

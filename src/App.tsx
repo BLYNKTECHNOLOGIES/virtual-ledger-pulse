@@ -111,6 +111,8 @@ const SalaryRegisterImportPage = lazy(() => import('./pages/hr/SalaryRegisterImp
 const PayrollInputsPage = lazy(() => import('./pages/hr/PayrollInputsPage'));
 const DataHealthPage = lazy(() => import('./pages/horilla/DataHealthPage'));
 const ShadowPayrollPage = lazy(() => import('./pages/hr/ShadowPayrollPage'));
+const MonthlyPayrollCockpitPage = lazy(() => import('./pages/hr/MonthlyPayrollCockpitPage'));
+const SystemPulsePage = lazy(() => import('./pages/hr/SystemPulsePage'));
 const PenaltyAutoCalcPage = lazy(() => import('./pages/horilla/PenaltyAutoCalcPage'));
 const AssetPage = lazy(() => import('./pages/horilla/AssetPage'));
 const AssetDashboardPage = lazy(() => import('./pages/horilla/AssetDashboardPage'));
@@ -771,6 +773,8 @@ const router = createBrowserRouter([
         { path: "payroll/salary-register-import", element: <SalaryRegisterImportPage /> },
         { path: "payroll/inputs", element: <PayrollInputsPage /> },
         { path: "payroll/shadow-calculator", element: <ShadowPayrollPage /> },
+        { path: "payroll/cockpit", element: <MonthlyPayrollCockpitPage /> },
+        { path: "system-pulse", element: <SystemPulsePage /> },
         { path: "data-health", element: <DataHealthPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
         

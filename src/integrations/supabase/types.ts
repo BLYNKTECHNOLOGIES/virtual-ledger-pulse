@@ -9372,6 +9372,42 @@ export type Database = {
           },
         ]
       }
+      hr_payroll_cockpit_state: {
+        Row: {
+          acknowledged_at: string | null
+          actor: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          period_month: string
+          status: string
+          step_no: number
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          actor?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          period_month: string
+          status?: string
+          step_no: number
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          actor?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          period_month?: string
+          status?: string
+          step_no?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_payroll_input_additions: {
         Row: {
           addition_type: number
@@ -21710,6 +21746,32 @@ export type Database = {
         }
         Returns: number
       }
+      hr_close_payroll_month: { Args: { _month: string }; Returns: Json }
+      hr_cockpit_ack_step: {
+        Args: {
+          _month: string
+          _notes?: string
+          _status: string
+          _step_no: number
+        }
+        Returns: undefined
+      }
+      hr_cockpit_month_state: {
+        Args: { _month: string }
+        Returns: {
+          ack_actor: string
+          ack_at: string
+          ack_notes: string
+          ack_status: string
+          actor_hint: string
+          auto: boolean
+          live_detail: Json
+          live_status: string
+          step_key: string
+          step_label: string
+          step_no: number
+        }[]
+      }
       hr_compute_fnf_breakdown: {
         Args: {
           p_employee_id: string
@@ -21878,6 +21940,7 @@ export type Database = {
           period_month: string
         }[]
       }
+      hr_system_pulse: { Args: never; Returns: Json }
       hr_v4_is_window_locked: { Args: { p_date: string }; Returns: boolean }
       hr_v4_recompute_range: {
         Args: { p_employee_id: string; p_from: string; p_to: string }

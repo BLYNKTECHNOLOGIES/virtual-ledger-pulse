@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Search, Eye, CheckCircle, Wallet, Download, FileText } from "lucide-react";
+import { Search, Eye, CheckCircle, Wallet, Download, FileText, Info } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
+import { RazorpayPayslipLink } from "@/components/hrms/RazorpayPayslipLink";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -278,6 +280,16 @@ export default function PayslipsPage() {
         description="View individual employee payslips with earnings/deductions breakdown"
       />
 
+      <Alert className="border-primary/30 bg-primary/[0.03]">
+        <Info className="h-4 w-4" />
+        <AlertDescription className="text-xs">
+          <strong>Doctrine:</strong> RazorpayX is the canonical source of payslips. Records shown here
+          include local drafts and legacy runs; for the definitive payslip and PDF, use the "View on
+          RazorpayX" link where present. Payslip parity is monitored on the Data Health page.
+        </AlertDescription>
+      </Alert>
+
+
       <div className="hrms-toolbar">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -507,13 +519,18 @@ export default function PayslipsPage() {
                 </div>
               )}
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => generatePayslipPDF(detail)}
-              >
-                <Download className="h-4 w-4 mr-2" /> Download PDF
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => generatePayslipPDF(detail)}
+                >
+                  <Download className="h-4 w-4 mr-2" /> Download Local PDF
+                </Button>
+                {detail.razorpay_payslip_id && (
+                  <RazorpayPayslipLink razorpayPayslipId={detail.razorpay_payslip_id} label="View on RazorpayX" />
+                )}
+              </div>
             </div>
           )}
       </ResponsiveDialog>

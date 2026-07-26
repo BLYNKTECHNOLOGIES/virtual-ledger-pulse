@@ -1,108 +1,78 @@
 
-# Verification of each claim
+# My honest view on R6–R9
 
-**A6 — Two payslip tables, no canonical owner. TRUE.**
-`hr_payslips` is read by `PayslipsPage`, `PayrollDashboardPage`, `DataHealthPage`. `hr_razorpay_payslip_records` is read by `EmployeeProfilePage`, `RazorpayPayslipsSection`, `StatutoryReportsPanel`, `SalaryRegisterImportPage`, `UserProfile`, `RazorpaySyncPage`. Two writers, two shapes, no join key contract → a payslip visible on one screen can be absent on the other.
-
-**A7 — Advance Salary implemented-but-unreachable. TRUE.**
-`razorpay-payroll-proxy` registers `advance_salary_create` (write, gate: payouts). Vocabulary and enum values exist. But: no UI caller anywhere in `src/`, no `hr_loans.razorpay_advance_id` column, no repayment reconciliation.
-
-**A8 — Regularization page vs no-intervention doctrine. Needs disposition.**
-`AttendanceRegularizationPage` still routed. Under the doctrine only the watchdog is a manual door. Decision proposed below: **repurpose, don't delete.**
-
-**A9 — Repo hygiene. PARTIALLY TRUE.**
-Confirmed present: `fix_proxy.py` at repo root, `docs/binance_api-17.pdf` inside HRMS docs. Not present: `apply-scheduled-salary-revisions` edge function was already removed (only `hr-promote-scheduled-salary-revisions` deploys).
-
-**A10 — Silent-failure dispositions.**
-- P3 (report emails): dispatch cron `dispatch-report-emails-5min` runs; 4 emails sent last 7 days → **addressed but unverified**. Add a health tile.
-- P4 (bell decorative): CONFIRMED. `hr_notifications` has 0 rows and no writer anywhere in edge functions or `src/` — only `HorillaHeader` reads it. Every "notify" expectation is silent.
-
-**A11 — Sandbox toggle still deferred. TRUE per STATE LOG 2026-07-18.**
+Short version: **R6, R7, R8 are worth building. R9 should be folded into R6 as one step, not built as a separate ritual.** All four are grounded — every underlying piece (crons, shadow engine, drift ledger, payslip mirror, `hr_payslips_v`, sandbox toggle, email health tile) already exists in the codebase. This work is **orchestration, not new machinery**.
 
 ---
 
-# Implementation plan
+## R6 · Monthly Payroll Cockpit — **BUILD (highest leverage)**
 
-## Slice 1 — Unify payslips (A6)
+**Verdict:** Legitimate and the single most valuable item on the list. Today the month-end sequence lives partly in `RazorpaySyncPage` (the roadmap stations), partly in `PayrollInputsPage`, partly in `ShadowPayrollPage`, partly in cron jobs no one watches, and partly in your head. That is exactly how the "forgotten deposit for a month-2 employee" and "missed training swap" mistakes happen.
 
-**Doctrine:** `hr_razorpay_payslip_records` is the **canonical owner** (matches "RazorpayX Primary Authority"). `hr_payslips` becomes a derived, read-only projection.
+**What changes for you (frontend):** one new page `/hrms/payroll/cockpit` with 9 numbered steps. Each step is a card showing: **state** (pending / done / blocked-by / N/A), **who acts** (HR / RazorpayX operator / automatic), **what to do** button, and a timestamp of the last action. Steps gate each other — you cannot mark step 4 done if step 1 is unlocked. A single "Current month: Nov 2026" header at the top; changing month reloads all 9 states.
 
-**Backend:**
-- Add `hr_payslips_v` view mapping the 32 legacy columns from `hr_razorpay_payslip_records` (net, gross, month, employee_id, etc.), plus a `source = 'razorpay'` tag.
-- Add `razorpay_payslip_id uuid` FK on any legacy `hr_payslips` rows we keep; write a `hr_payslip_link_orphans()` audit function that flags legacy rows without a razorpay counterpart.
-- Deprecate direct writes to `hr_payslips`: add a `BEFORE INSERT` trigger that raises unless a `service_role` context flag is set (allows the one-off backfill).
-- Rebuild the projection nightly via `hr-sync-payslips-projection` cron.
+**What changes underneath (backend):** one new table `hr_payroll_cockpit_state` (month, step_no, status, actor, notes, updated_at) + one RPC `hr_cockpit_month_state(month)` that reads live signals from existing tables (attendance period lock, watchdog rows, LOP staged rows, inputs push log, payslip import count, shadow run id, drift-open count) and returns the 9-step status. **No new crons**, no duplicated logic — it's a read-through view of what already exists, with a thin state table to record human acknowledgements.
 
-**Frontend:**
-- Point all seven consumer files at `hr_payslips_v` behind a single `usePayslips(employeeId, period)` hook.
-- Add a "Payslip source" badge on `PayrollDashboardPage` and `PayslipsPage`: `RazorpayX` (green) / `Legacy-only orphan` (amber, links to Data Health).
-- `DataHealthPage`: add "Payslip parity" tile — orphan count + one-click reconcile.
+**After it ships:** month-end is a ~30 min checklist any trained HR can execute. Nothing silently skipped. Full audit trail per month.
 
-## Slice 2 — Wire Advance Salary end-to-end (A7)
-
-**Backend:**
-- Migration on `hr_loans`: add `razorpay_advance_id text`, `razorpay_pushed_at timestamptz`, `advance_type text check (advance_type in ('loan','advance'))`, `repayment_source text check (in ('salary_deduction','manual'))`.
-- New RPC `hr_create_salary_advance(employee, amount, reason, recover_from_month)` — inserts `hr_loans` row (`advance_type='advance'`), calls proxy `advance_salary_create` via `hr_call_razorpay_proxy` helper, stores returned id, logs to `hr_razorpay_sync_log`.
-- Repayment reconciliation: extend `hr_compute_payroll_inputs` to auto-emit a `hr_payroll_input_deductions` row for the covering month(s), tagged `source='razorpay_advance'`, idempotent by `(loan_id, month)`.
-
-**Frontend:**
-- `LoansPage`: add "New Salary Advance" action → dialog collecting amount, reason, month; posts to RPC; awaits proxy verification (reuse `razorpayVerify`); shows push result dialog.
-- Per-employee "Advances" tab inside profile with status pill (Draft / Pushed / Recovering / Closed) and repayment ledger.
-- Gate action by `hr_manage_payroll` permission.
-
-## Slice 3 — Regularization page disposition (A8)
-
-**Decision: repurpose, don't delete.**
-- Rename route `/hrms/attendance/regularization` → `/hrms/attendance/interventions` (keep old path as redirect for 60 days).
-- New page composition = three sections:
-  1. **Stale sessions to resolve** (already built in Slice 2 of last plan — move card list here from Overview banner).
-  2. **Regularization requests** (existing table) — but only accepts requests that reference a `stale_session_id` OR a documented reason code from a fixed enum; free-form requests disabled.
-  3. **Audit** — every intervention logs who/why to `hr_attendance_intervention_log` (new table).
-- Add banner: "This is the only manual door. Routine anomalies self-resolve."
-- Removes the "quiet manual-edit surface" risk while keeping a single legitimate home for the watchdog + rare exceptions.
-
-## Slice 4 — Repo & function hygiene (A9)
-
-- `git mv fix_proxy.py .archive/scripts/fix_proxy.py.bak` (or delete after inspection; it's a scratch script).
-- `git mv docs/binance_api-17.pdf docs/reference/binance/binance_api-17.pdf` — out of HRMS-relevant doc space.
-- Confirm `apply-scheduled-salary-revisions` is undeployed via `supabase--delete_edge_functions` no-op check; delete its source folder if present.
-- Add `docs/REPO_LAYOUT.md` recording where scratch scripts, references, and HR docs live so future audits don't re-flag.
-
-## Slice 5 — Activate notification writers (A10-P4) + P3 verification
-
-**P4 fix — make the bell functional:**
-- New helper RPC `hr_emit_notification(employee_id, kind, title, body, link, actor)` inserting into `hr_notifications`.
-- Wire writers at every doctrine touchpoint:
-  - Leave request created / approved / rejected (triggers on `hr_leave_requests`).
-  - Regularization / stale-session assignment (triggers in Slice 3 table).
-  - Salary revision pushed / verified (in `hr-promote-scheduled-salary-revisions` + client push path).
-  - Advance salary pushed / recovered (Slice 2).
-  - Announcements published (trigger on `hr_announcements`).
-  - Payroll run status changes (trigger on `hr_razorpay_payroll_runs`).
-- Notification preferences already exist (`hr_notification_preferences`) — respect them; still write DB row, only suppress email.
-- `HorillaHeader` bell: add unread badge polling every 30s (existing query) + toast on new arrivals.
-
-**P3 verification:**
-- `DataHealthPage`: add "Report email dispatch" tile — last 24h `sent/pending/failed` counts from `hr_email_send_log`, plus last-run timestamp of the 5-min cron. Red if pending > 5 or last run > 15 min ago.
-
-## Slice 6 — Sandbox toggle (A11)
-
-- Migration: `hr_razorpay_settings.sandbox_mode boolean default false`, `sandbox_base_url text`, `sandbox_revoke_after timestamptz` (auto-revert).
-- Proxy: on every request, if `sandbox_mode` and `now() < sandbox_revoke_after`, route to sandbox base URL and add `X-Env: sandbox` header; else production. Never fall through silently — if sandbox chosen but URL missing, refuse with clear error.
-- Auto-revoke cascade: cron `hr-sandbox-auto-revoke-hourly` flips `sandbox_mode=false` when `sandbox_revoke_after` passes and inserts a `hr_notification` to Super Admins.
-- UI: `RazorpaySyncPage` → "Environment" card with red/amber banner while sandbox is active; toggle requires a fresh WebAuthn biometric confirmation (reuse `terminal-biometric-auth-v2` primitives) and asks for a duration (max 24h).
-- Verification envelopes tag rehearsal runs so production reconciler ignores them.
+**Effort:** medium. ~1 page, 1 table, 1 RPC, wiring to existing surfaces.
 
 ---
 
-# Delivery order & shape
+## R7 · Payslip unification + PDF honesty — **BUILD (small, high clarity)**
 
-Six independent slices, each ≤ one migration + one UI page + optional cron. Recommend order **5 → 1 → 2 → 3 → 4 → 6** because notifications (Slice 5) plug into every subsequent slice, and hygiene (4) + sandbox (6) are lowest urgency.
+**Verdict:** Legitimate. Right now 13 files read payslip data; some read `hr_payslips`, some `hr_razorpay_payslip_records`, some the new `hr_payslips_v` view. This is exactly the split that caused the "missing payslip" confusion. `hr_razorpay_payslip_records` carries the `reg_*` statutory columns and IS canonical in reality — we should just declare it so.
 
-# Technical appendix
+**What changes for you (frontend):** every payslip surface (PayslipsPage, EmployeeProfile → Payslips tab, PayrollDashboard, StatutoryReportsPanel, RazorpayPayslipsSection, UserProfile) reads from the same view. Where a PDF used to be implied, we render a "View on RazorpayX Dashboard →" deep link with an honest note "RazorpayX API does not expose payslip PDFs." No more phantom download buttons.
 
-- All new tables ship with the required 4-step `GRANT` block per project rules.
-- `hr_notifications` RLS: employee reads own; HR reads all.
-- All new cron jobs registered via `cron.schedule` in the `supabase--insert` tool (not migrations), following the scheduling doctrine.
-- Every Razorpay call in Slices 2/5/6 goes through the existing verify → gate-unlock → log path — no new bypasses.
-- No new intervention doors are added (Slice 3 explicitly narrows the existing one).
+**What changes underneath:** `hr_payslips_v` becomes the single read path (already exists). `hr_payslips` is either retired or kept as a legacy write-only staging table with a UI banner "legacy — read from view." Migration touches read paths only; no data movement.
+
+**After it ships:** one source of truth for payslips. The "why does this employee show a payslip here but not there" class of bug ends structurally.
+
+**Effort:** small–medium. Mostly find-and-replace across 6–7 read sites + PDF link component.
+
+---
+
+## R8 · System Pulse ops board — **BUILD (small, high visibility)**
+
+**Verdict:** Legitimate. You have 42 cron jobs, an email dispatcher, device command queues, drift alerts, stale-session watchdog, sandbox auto-revoke — all currently invisible unless something breaks loudly. The `DataHealthPage` already has 2 tiles (Payslip Parity, Email Dispatch Health) — this is just extending that pattern into one comprehensive board.
+
+**What changes for you (frontend):** `/hrms/system-pulse` — a single grid of live tiles, each showing green/amber/red plus last-run timestamp: Cron Heartbeats (per-job last run vs schedule from `cron.job_run_details`), Email Queue Depth, Device Command Ages, Razorpay Freshness (from existing `hr_razorpay_payroll_freshness` view), Drift Alert Open Count, Watchdog Stale Sessions, Sandbox Window Status. One click on any red tile → the relevant management page.
+
+**What changes underneath:** one RPC `hr_system_pulse()` that aggregates the signals in a single call. No new data, no new crons — pure aggregation over `cron.job_run_details`, `hr_email_send_log`, `hr_biometric_device_commands`, `hr_drift_alerts`, `hr_attendance_stale_sessions`, `hr_razorpay_settings`.
+
+**After it ships:** silent failures (like the "email dispatcher wedged at 70/70" or "auto-absent-marking never ran" scenarios Claude flagged) become visible in the first 30 seconds of a workday. Reduces your external-auditor role to a glance.
+
+**Effort:** small–medium.
+
+---
+
+## R9 · Shadow proof-run ritual — **FOLD INTO R6, don't build separately**
+
+**Verdict:** The *goal* is legitimate — the shadow engine needs to actually get exercised each cycle with TDS excluded from scoring. But building it as a "separate ritual" with its own page duplicates the cockpit. The shadow run IS step 7 of R6.
+
+**What we do instead:** inside R6 step 7 ("Shadow compare"), the card has: a "Run shadow for this month" button (one click, uses existing engine), a comparison view with a **TDS-excluded toggle default-on** and the **±₹5 tolerance already in place**, and each drift line linked to the existing bidirectional resolution ledger. Step 7 cannot be marked done while drift lines are unresolved.
+
+**After it ships:** the shadow engine finally gets its 2–3 months of real-world validation, but without a parallel ritual competing for HR's attention.
+
+**Effort:** small (the "ritual" is 3 tweaks to the existing ShadowPayrollPage + linking it as step 7).
+
+---
+
+## Overall situation after all four ship
+
+- **You** stop being the human cron monitor. Month-end runs to a checklist; between months you glance at System Pulse.
+- **HR** gets a scripted 30-min procedure with visible state and audit trail. No tribal knowledge required.
+- **Codebase** consolidates: one payslip read path, one cockpit for the month, one pulse for the platform, one place shadow drift is reviewed.
+- **Risk of regression:** low. R6/R8/R9 are read-through orchestrations over existing data. R7 is a read-path migration — needs careful search-and-replace but no schema break.
+
+**My recommendation: build in this order — R7 first (unblocks R6 step 6 cleanly), then R6 (with R9 folded in as step 7), then R8.** Total effort ~1 medium + 2 small–medium slices. If you approve I'll start with R7.
+
+---
+
+## Technical execution outline (for the record)
+
+- **R7:** declare `hr_razorpay_payslip_records` canonical via `hr_payslips_v`; migrate 6 read sites (`PayslipsPage`, `EmployeeProfilePage`, `PayrollDashboardPage`, `StatutoryReportsPanel`, `RazorpayPayslipsSection`, `UserProfile`); add `<RazorpayPayslipLink recordId=… />` component; retire/legacy-flag `hr_payslips` writes.
+- **R6:** new `hr_payroll_cockpit_state` table (month + step_no unique) with GRANTs + RLS to HR roles; RPC `hr_cockpit_month_state(month date)` returning 9 rows with derived status; new `MonthlyPayrollCockpitPage.tsx` under `/hrms/payroll/cockpit`; sidebar entry; each step card wires to the existing surface (period lock, watchdog, LOP push, inputs push, RazorpayX dashboard link, payslip import, shadow run, drift ledger, close-month RPC).
+- **R9 (inside R6):** shadow step card sets TDS-excluded scoring by default; blocks close until `hr_drift_alerts` open-count for that month = 0.
+- **R8:** RPC `hr_system_pulse()` aggregating cron/email/device/drift/watchdog/sandbox/razorpay-freshness; new `SystemPulsePage.tsx` with tile grid; extend existing `DataHealthPage` tile pattern.

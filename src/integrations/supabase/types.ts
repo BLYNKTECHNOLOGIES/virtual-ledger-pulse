@@ -5037,7 +5037,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           employee_id: string
+          evidence_payload: Json | null
+          evidence_status: string | null
           id: string
+          override_admin_id: string | null
+          override_reason: string | null
           razorpay_pending_side: Json | null
           reason: string
           reason_code: string | null
@@ -5054,7 +5058,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           employee_id: string
+          evidence_payload?: Json | null
+          evidence_status?: string | null
           id?: string
+          override_admin_id?: string | null
+          override_reason?: string | null
           razorpay_pending_side?: Json | null
           reason: string
           reason_code?: string | null
@@ -5071,7 +5079,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           employee_id?: string
+          evidence_payload?: Json | null
+          evidence_status?: string | null
           id?: string
+          override_admin_id?: string | null
+          override_reason?: string | null
           razorpay_pending_side?: Json | null
           reason?: string
           reason_code?: string | null
@@ -5552,6 +5564,8 @@ export type Database = {
       }
       hr_biometric_devices: {
         Row: {
+          clock_drift_checked_at: string | null
+          clock_drift_seconds: number | null
           company: string | null
           created_at: string
           device_direction: string
@@ -5567,6 +5581,7 @@ export type Database = {
           last_rejection_pins: string | null
           last_stamp: string | null
           last_sync_at: string | null
+          last_time_sync_at: string | null
           machine_ip: string | null
           name: string
           password: string | null
@@ -5577,6 +5592,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          clock_drift_checked_at?: string | null
+          clock_drift_seconds?: number | null
           company?: string | null
           created_at?: string
           device_direction?: string
@@ -5592,6 +5609,7 @@ export type Database = {
           last_rejection_pins?: string | null
           last_stamp?: string | null
           last_sync_at?: string | null
+          last_time_sync_at?: string | null
           machine_ip?: string | null
           name: string
           password?: string | null
@@ -5602,6 +5620,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          clock_drift_checked_at?: string | null
+          clock_drift_seconds?: number | null
           company?: string | null
           created_at?: string
           device_direction?: string
@@ -5617,6 +5637,7 @@ export type Database = {
           last_rejection_pins?: string | null
           last_stamp?: string | null
           last_sync_at?: string | null
+          last_time_sync_at?: string | null
           machine_ip?: string | null
           name?: string
           password?: string | null
@@ -21772,6 +21793,7 @@ export type Database = {
           step_no: number
         }[]
       }
+      hr_command_queue_sweep: { Args: never; Returns: Json }
       hr_compute_fnf_breakdown: {
         Args: {
           p_employee_id: string
@@ -21845,6 +21867,13 @@ export type Database = {
         }
         Returns: string
       }
+      hr_estimate_device_drift: {
+        Args: never
+        Returns: {
+          device_serial: string
+          drift_seconds: number
+        }[]
+      }
       hr_get_offer_letter_policy: {
         Args: never
         Returns: {
@@ -21903,6 +21932,17 @@ export type Database = {
         Returns: string
       }
       hr_next_razorpay_employee_id: { Args: never; Returns: string }
+      hr_notify: {
+        Args: {
+          _kind: string
+          _link?: string
+          _message: string
+          _title: string
+          _user_ids: string[]
+        }
+        Returns: number
+      }
+      hr_ops_user_ids: { Args: never; Returns: string[] }
       hr_payslip_link_orphans: {
         Args: never
         Returns: {
@@ -21996,6 +22036,16 @@ export type Database = {
         }[]
       }
       hr_v4_window_date_of: { Args: { p_ts: string }; Returns: string }
+      hr_validate_regularization_proposal: {
+        Args: {
+          _date: string
+          _employee_id: string
+          _proposed_in: string
+          _proposed_out: string
+          _window_minutes?: number
+        }
+        Returns: Json
+      }
       hr_watchdog_open_sessions: {
         Args: never
         Returns: {

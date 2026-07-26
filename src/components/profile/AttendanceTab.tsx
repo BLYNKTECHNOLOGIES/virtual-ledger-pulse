@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Clock, CalendarDays, AlertTriangle, TrendingUp, Timer, CheckCircle } from 'lucide-react';
 import RegularizationCard from './RegularizationCard';
+import TodayAttendanceCard from './TodayAttendanceCard';
+import MyCompOffCard from './MyCompOffCard';
 
 interface AttendanceTabProps {
   employeeId: string;
@@ -103,6 +105,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Live today snapshot */}
+      <TodayAttendanceCard employeeId={employeeId} />
+
       {/* Month selector */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-foreground">Attendance & Hours</h3>

@@ -56,6 +56,9 @@ import MyLoansCard from '@/components/profile/MyLoansCard';
 import MyTaxRegimeCard from '@/components/profile/MyTaxRegimeCard';
 import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
+import MyRequestsHub from '@/components/profile/MyRequestsHub';
+import MyTeamCard from '@/components/profile/MyTeamCard';
+import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
@@ -1520,56 +1523,7 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <>
-              {/* Leave Requests Summary */}
-              {leaveRequests.length > 0 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      My Requests
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted/50 border-b border-border">
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Type</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Details</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Date</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {leaveRequests.map((req: any) => {
-                            const lt = getLeaveType(req.leave_type_id);
-                            return (
-                              <tr key={req.id} className="border-b border-border/50 hover:bg-muted/20">
-                                <td className="py-3 px-4 font-medium">Leave Request</td>
-                                <td className="py-3 px-4 text-muted-foreground">
-                                  {lt?.name || 'Leave'} · {req.total_days} day(s)
-                                </td>
-                                <td className="py-3 px-4 text-muted-foreground">{req.start_date} → {req.end_date}</td>
-                                <td className={`py-3 px-4 font-medium ${statusColors[req.status] || 'text-muted-foreground'}`}>{req.status}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Requests</h3>
-                    <p className="text-muted-foreground">You have no pending requests. Use the Leaves tab to apply for leave.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </>
+            <MyRequestsHub employeeId={hrEmployee.id} />
           )}
         </TabsContent>
 

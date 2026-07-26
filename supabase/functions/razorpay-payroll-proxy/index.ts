@@ -1732,8 +1732,8 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, hr_employee_id: hrId, created, matched_by: match.matched_by });
     }
 
-    // ---------- unlock_bulk: human gate after pilot verification ----------
-    if (action === "unlock_bulk") {
+    // ---------- unlock_bulk / unlock_bulk_push: human gate after pilot verification ----------
+    if (action === "unlock_bulk" || action === "unlock_bulk_push") {
       const { data: pilot } = await svc.from("hr_razorpay_employee_map")
         .select("razorpay_employee_id").eq("is_pilot_verified", true).limit(1).maybeSingle();
       if (!pilot) return json(400, { error: "No pilot-verified employee. Run apply_one first." });

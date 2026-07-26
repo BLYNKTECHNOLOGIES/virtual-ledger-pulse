@@ -290,6 +290,25 @@ export default function SystemPulsePage() {
           actionHref="/hrms/attendance/biometric-devices"
           actionLabel="Biometric devices"
         />
+        <Tile
+          icon={FileCheck}
+          title="Payslip import coverage"
+          tone={coverageTone}
+          primary={
+            !coverage?.period_month
+              ? "no pull yet"
+              : `${coverage.coverage_pct}% (${coverage.imported_count}/${coverage.expected_count})`
+          }
+          secondary={
+            coverage?.period_month
+              ? coverageMissing > 0
+                ? `Missing: ${coverage.missing_names.slice(0, 3).join(", ")}${coverageMissing > 3 ? ` +${coverageMissing - 3} more` : ""}`
+                : `All expected employees present · ${coverage.excluded_count} excluded (dismissed/pre-join)`
+              : "Pull payslips from Cockpit Step 6 to populate"
+          }
+          actionHref="/hrms/payroll/cockpit"
+          actionLabel="Cockpit"
+        />
 
       </div>
 

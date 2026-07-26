@@ -1,133 +1,87 @@
-# Wave 5 — W5 · W6 · W7 Plan
+# Employee Self-Service (ESS) — Profile as the Single Point of Contact
 
-## My honest view first
+Non-HR staff will not have `/hrms` access, so `/profile` (`src/pages/UserProfile.tsx`) must carry every HR interaction an employee needs: viewing information, raising requests, tracking status, acknowledging policies, and initiating lifecycle events. Today the page already has 11 tabs (Profile, My Tasks, Attendance, Salary & PF, Payslips, Banking, Leaves, Requests, Documents, Alerts, Settings) but coverage is thin, mobile navigation breaks past ~6 tabs, and several employees (like the screenshot's Shubham Singh) hit a dead-end "No Employee Profile Found" because their `users` row isn't linked to an `hr_employees` row.
 
-All three are legitimate and cheap. They each turn a *promise* into a *check*:
+The build is split into ten phases so nothing important is missed. Each phase ships end-to-end (UI + data + permission gate + mobile layout) before moving on.
 
-- **W5** — the single highest-leverage item we've ever considered. Every "we fixed this class" from the past six days is a document; W5 makes those documents into build failures. Recurrence of eight known bug classes becomes physically impossible.
-- **W6** — trivial. Removes one manual step that guards a month that is definitionally over. Grace window preserves late punches.
-- **W7** — trivial and closes the last silent-gap class in payslip mirroring. Names appear the day they should have.
+## Phase 0 — Foundations (unblocks everything else)
 
-None touch HR-facing behavior. All three are backend/CI discipline.
+- **Employee resolution fallback.** When `hr_employees` isn't linked, try (in order) `badge_id`, work email, phone, then `razorpay_employee_id`. Surface a soft banner ("Ask HR to link your employee record") instead of a hard empty state, and still allow Profile / Tasks / Settings / Alerts / Documents (personal KYC) / Payslips (by employee email match) to render whatever is available.
+- **New tab shell.** Replace the current flat `TabsList` with a mobile-friendly nav: horizontal scroll strip on desktop, a sticky **section dropdown** on mobile (< md). Group tabs into five sections — Me, Time, Leaves, Pay, Requests — plus persistent Alerts/Settings icons in the header row. Unread/actionable counts render as small badges on section labels.
+- **Permission map.** Central `useEssPermissions()` hook: read-only vs editable per section, HR-only editors always hidden, `hr_employees.status` (active / notice / separated) gates the Separation tab.
+- **Deep-link support.** URL params `?tab=…&sub=…&id=…` land on the right sub-section and highlight the target row (reuse existing `useDeepLinkHighlight`).
 
-Recommended order: **W6 → W7 → W5** (ship the two trivial receipts first; W5 is a one-day guard-suite build that needs care because it fails builds).
+## Phase 1 — "Me" (identity, contact, documents, assets)
 
----
+- **Profile tab (rebuilt).** Sections: Identity (verified name — locked, KYC-immutable rule), Contact (phone / personal email — editable with edit-lock), Address (permanent + current), Emergency contacts (add / edit / delete), Family / dependents (view-only unless HR editable), Statutory IDs (PAN / Aadhaar last-4 / UAN / ESIC — masked, read-only), Bank (existing salary account, read-only).
+- **Documents tab (expanded).** Three groups: (a) *My KYC* from onboarding (PAN, Aadhaar, education, previous employment) with re-upload flow that routes to HR review; (b) *Issued by HR* (offer letter, appointment letter, salary revision letters, Form 16, experience/relieving after exit); (c) *Company documents* (HR Policies, employee handbook, code of conduct — with acknowledgement toggle & audit log).
+- **Assets tab (new).** Read-only list from `hr_asset_assignments` — device, serial, issued date, condition; "raise return request" CTA.
 
-## W6 · Month-boundary auto-lock
+## Phase 2 — Time (attendance, regularization, overtime, comp-off, shift)
 
-**What:** Auto-lock the attendance period at `month_end + G days` (default G=3). Admin can unlock with a mandatory reason; unlock is logged as an intervention. Cockpit Step 1 becomes self-completing.
+- **Today card.** Live status (in-progress / done / absent / week-off / holiday / on-leave), first-in / last-out, worked hours, LOP risk flag.
+- **Punches & sessions.** Last 30 days grouped by day, drill-down to Day Detail (reuse `AttendanceDayDetailPage` in embedded mode).
+- **Regularization.** File request (missed punch, wrong shift, WFH), track status, cancel while pending. Uses existing `hr_validate_regularization_proposal`.
+- **Monthly summary.** Present/absent/LOP/OT/late marks + downloadable summary.
+- **Overtime.** Declare OT (needs manager approval); ledger view.
+- **Comp-off.** Ledger (Sunday-work credits already auto-granted), request to redeem.
+- **Shift & week-off.** Current shift, upcoming week-off, holiday overlay.
 
-**How:**
+## Phase 3 — Leaves
 
-- Add `auto_lock_grace_days` to `hr_attendance_engine_settings` (default 2).
-- New cron `hr-attendance-auto-lock-daily` (05:15 IST): for each month whose end + grace has passed and is unlocked, insert into `hr_attendance_period_locks` with `locked_by = 'system:auto-lock'`, emit `hr_notify` to HR + Super Admin.
-- Extend `hr_attendance_period_locks` with `unlock_reason text`, `unlocked_by uuid`, `unlocked_at timestamptz`; unlock RPC requires reason (>10 chars) and Super Admin.
-- Cockpit Step 1 detects `locked_by like 'system:%'` and shows "Auto-locked on &nbsp;" as ✅ complete; manual unlock surfaces as an amber intervention row.
+- Balance dashboard per leave type (retain current logic), Apply / Cancel with clash warnings (reuse `LeaveClashCard`), request history with status, org-wide leave calendar (who's out this week), year-end reset preview.
 
-**After:** No one ever "forgets to lock." Late punches inside grace window still process. If someone genuinely needs to reopen a closed month they can, with a reason permanently on the record.
+## Phase 4 — Pay (payslips, salary, tax, reimbursements, loans)
 
-**Frontend:** Cockpit Step 1 card auto-greens; new "Unlock month" dialog (Super Admin only) with reason field; intervention strip gets an "unlocks" row.
-**Backend:** 1 cron, 1 migration (grace column + unlock audit columns), 1 RPC `hr_unlock_attendance_period(month, reason)`.
+- **Payslips.** Keep existing canonical `hr_payslips_v` list + RazorpayX deep-link (R7 doctrine — no fake PDF).
+- **Salary & PF.** Existing CTC breakdown, plus **Compensation history** (revisions, effective dates, reasons — reuse `CompensationHistory`), PF/UAN passbook deep-link, gratuity accrual estimate.
+- **Tax.** Regime declaration (Old/New) for the FY, investment proofs upload, projected TDS. Locks after HR freezes.
+- **Reimbursements.** Submit expense claim (category, amount, receipt), track approval, RazorpayX push status once reimbursed.
+- **Loans & Advances.** View outstanding, EMI schedule, raise Salary Advance request (reuse `NewSalaryAdvanceDialog`).
 
----
+## Phase 5 — Requests hub
 
-## W7 · Payslip-import completeness receipt
+Single unified "My Requests" inbox aggregating: regularization, leave, comp-off, overtime, reimbursement, salary advance, document re-upload, asset return, helpdesk tickets. Filters by status/type; each row deep-links to its source card. Manager approvals surface here too when the user is someone's reporting manager.
 
-**What:** After every payslip sync run, compare imported employees vs. `active roster − exclusions` and surface the missing names as a single drift line. Pulse shows last import coverage %.
+## Phase 6 — Announcements, Holidays, Policies
 
-**Exclusions:** joined-after-month-end, dismissed-before-month-start, `do_not_pay = true`, unpaid-training (structure-swap doctrine).
+- Announcements timeline (retain `AnnouncementsBanner` on top, full list here).
+- Upcoming Holidays + full year calendar.
+- HR Policies list with per-policy **Acknowledged** toggle written to `hr_policy_acknowledgements` (audit trail HR can pull).
+- Helpdesk ticket creation for anything not covered (routes to HR queue).
 
-**How:**
+## Phase 7 — Growth & Performance
 
-- New SQL function `hr_payslip_import_coverage(month date)` returning `{expected_count, imported_count, missing_names[], excluded_count}`.
-- End of `razorpay-payslip-sync` Edge Function calls it, writes result to a new `hr_razorpay_sync_log.coverage_json` field, and — if `missing_names` non-empty — inserts one `hr_drift_alerts` row per run (not per person) with the full list in details.
-- `SystemPulsePage` gets a "Payslip import coverage" tile: last run %, missing count, click to see names.
+- Skills & tags self-update (reuse `TagsAndSkillsTab`).
+- 360 feedback: pending self-reviews, peer reviews assigned to me, history.
+- Goals / PMS view if data exists (read-only for the employee).
+- Disciplinary actions log (own record, read-only).
 
-**After:** A payslip that fails to arrive announces itself the same day, by name. No silent partial imports.
+## Phase 8 — Separation
 
-**Frontend:** One new Pulse tile; drift alerts list already renders it.
-**Backend:** 1 SQL fn, 1 column, ~30 lines in existing edge function.
+Visible only when `status ∈ (active, notice)`:
+- Initiate resignation (notice period auto-computed from offer-letter policy), LWD calendar, F&F preview (deposit refund, unpaid leave encashment, dues).
+- Exit checklist (asset return, KT handover, clearance sign-offs).
+- Post-LWD read-only view of relieving letter, Form 16, F&F statement.
 
----
+## Phase 9 — Alerts & Settings
 
-## W5 · Incident-memory guards (build-time law)
+- Notification preferences (keep `NotificationSettingsTab`, extend to attendance / payslip / policy channels).
+- Password change, session list, biometric badge ID display, linked devices (WebAuthn).
+- Language / theme / density.
 
-**The core idea:** four static-analysis guards run in the existing typecheck step. Each guard's error message names the historical incident it prevents. Bug classes that consumed the most debugging hours of this project become **uncompilable**.
+## Technical notes
 
-### Guard A — Schema-contract check (highest value)
+- **Files touched:** `src/pages/UserProfile.tsx` (shell + routing only after Phase 0); new sub-components live under `src/components/profile/<section>/…` mirroring the section grouping. Reuse `hrms/` primitives (`SectionHeader`, `EmptyState`, `ResponsiveList`, `ResponsiveDialog`) for consistency with the polished HRMS look.
+- **Data layer:** all reads via `@tanstack/react-query` (per Core rule). New mutations for reimbursements, tax declaration, policy acknowledgement, asset return, resignation — each with optimistic invalidations and `AlertDialog` confirmations for destructive/irreversible actions.
+- **Permissions:** every write path re-validated by RLS on `hr_*` tables scoped to `employee_id = current_user_employee()`. No client-side trust.
+- **Mobile-first:** every new sub-page uses card lists on `< md`, tables on `md+`, matching the earlier HRMS mobile refactor pattern.
+- **Rollout order:** Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Each phase is independently shippable so the employee experience improves incrementally without waiting for the full arc.
 
-**Prevents:** the 8+ schema-column-mismatch incidents (`department` on `hr_employees`, `advance_type` before migration, `readback_status` mis-named, etc.).
+## Out of scope for this arc
 
-**How:**
+- No changes to `/hrms` HR/admin surfaces (already covered).
+- No new RazorpayX write paths — reimbursement/advance pushes stay behind the existing Universal Push Verification.
+- No payroll math changes — RazorpayX remains primary authority.
 
-- Node script `scripts/guards/schema-contract.ts`.
-- Uses `ts-morph` to walk every `supabase/functions/**/index.ts` and `src/**/*.ts` file.
-- Extracts column literals from: `.eq('col', …)`, `.select('a, b, c')`, `.insert({col: …})`, `.update({col: …})`, `.order('col')`, `.filter('col', …)`.
-- Snapshots live schema via `information_schema.columns` → committed to `scripts/guards/schema-snapshot.json` (regenerated by a "refresh snapshot" script that runs after every approved migration).
-- Unknown `table.column` → build fails with: *"Column `hr_employees.department` does not exist. Historical incident: 2026-07-11 attendance-overview crash. If this column was just added, run `bun run guards:refresh-schema`."*
-
-### Guard B — Ghost-endpoint lint
-
-**Prevents:** the 2 ghost-endpoint incidents (`fetchPayrollEnvelope`, `pushAttendanceMirror` calling non-existent proxy actions).
-
-**How:**
-
-- Whitelist source: the collection JSON already in repo at `docs/razorpay/collection.json` (17 verified operations).
-- Script `scripts/guards/proxy-endpoints.ts` greps every `razorpay-payroll-proxy` invocation in the codebase for `type` + `sub_type`, cross-references the whitelist.
-- Unknown pair → build fails with: *"Proxy action `payroll.fetch_envelope` is not in the verified 17-operation whitelist. Historical incident: 2026-07-22 false-green push. Add to collection.json only after Postman verification against sandbox."*
-
-### Guard C — False-green lint
-
-**Prevents:** the 2 false-green logging incidents (statutory push, payroll push logged verified before readback).
-
-**How:**
-
-- ESLint custom rule `no-bare-pushback-success`: any call to `logPushback(…, 'verified')` or `logPushback(…, success: true)` must be lexically inside a function named `verifyAndFinalize` or `pushWithVerification`.
-- Violation → build fails with: *"logPushback with success status must live inside verifyAndFinalize/pushWithVerification. Historical incident: 2026-07-24 statutory false-green. Read-back happens first; log follows the read."*
-
-### Guard D — Single-writer registry
-
-**Prevents:** dual-writer drift (the `hr_attendance_daily` recompute race; the sessions-table dual-write).
-
-**How:**
-
-- Registry file `scripts/guards/single-writer.json`: `{ "hr_attendance_daily": ["hr_recompute_attendance_daily"], "hr_attendance_sessions": ["hr_pair_punches"] }`.
-- Script walks every `INSERT INTO <table>` / `.insert({...}).into('<table>')` / `supabase.from('<table>').insert/update` occurrence.
-- If a write site appears outside the registered writers → build fails with: *"Table `hr_attendance_daily` is single-writer (see `hr_recompute_attendance_daily`). Historical incident: 2026-07-19 duplicate rollup. Route the write through the canonical writer or update the registry with justification."*
-
-### Wiring
-
-- All four guards run in a new `bun run guards` script.
-- Added to the existing typecheck step in CI (and locally via a `precommit` optional hook).
-- One shared reporter so failures list all violations, not just the first.
-- Refresh flow: after every approved migration, `bun run guards:refresh-schema` rewrites the snapshot; PR shows the diff.
-
-**After:** The eight bug classes that consumed the most debugging hours of this project cannot be reintroduced. A new landmine of a known class dies at `bun run guards` with a message that teaches the author its history.
-
-**Frontend:** zero.
-**Backend:** zero runtime cost — this is CI/local-dev discipline only.
-**Effort:** ~1 day (guards A + D are the meat; B + C are ~50 lines each).
-
----
-
-## Situation after all three ship
-
-- **Cockpit** self-completes Step 1 every month with no human involvement (W6).
-- **Payslip mirroring** surfaces missing employees by name the same day, ending the silent-gap class (W7).
-- **The codebase itself refuses** to ship the eight bug classes we've spent the past six days chasing (W5).
-
-Combined with W0–W3, the system now:
-
-- verifies every external write via read-back (F1),
-- monitors its own state via Pulse tiles (F7, W3),
-- self-heals email + suppressed punches (F2, F9),
-- and — after W5 — physically prevents the class of mistakes that created those problems in the first place.
-
-## Priority & sequencing
-
-1. **W6** (trivial, high daily-ergonomics win) — ship first.
-2. **W7** (trivial, closes last silent class in mirroring) — ship second.
-3. **W5** (medium, highest long-term value) — ship third; land guards one at a time (A → D → B → C) so any false positives are easy to diagnose.
-
-Say "proceed" to start with W6 + W7 in the same pass, then W5 guards in the following pass.
+Approve to start with Phase 0 (foundations + employee resolution fix visible in the screenshot).

@@ -21999,6 +21999,7 @@ export type Database = {
       hr_watchdog_open_sessions: {
         Args: never
         Returns: {
+          auto_resolved: number
           closed: number
           opened: number
           refreshed: number

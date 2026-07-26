@@ -19,6 +19,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { useSystemPulse, useSystemPulseExtras, useWindowTestPulse, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
+import { useGovernanceTiles } from "@/hooks/hrms/useGovernanceTiles";
 
 type Tone = "ok" | "warn" | "bad" | "muted";
 

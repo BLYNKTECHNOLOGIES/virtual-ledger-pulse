@@ -67,16 +67,18 @@ export default function AttendancePeriodLockPage() {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from('hr_attendance_period_locks')
-        .delete()
-        .eq('id', id);
+    mutationFn: async (args: { periodStart: string; periodEnd: string; reason: string }) => {
+      const { error } = await (supabase as any).rpc('hr_unlock_attendance_period', {
+        _period_start: args.periodStart,
+        _period_end: args.periodEnd,
+        _reason: args.reason,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Lock removed');
-      setUnlockId(null);
+      toast.success('Period unlocked · reason logged to intervention strip');
+      setUnlockLock(null);
+      setUnlockReason('');
       qc.invalidateQueries({ queryKey: ['attendance_period_locks'] });
     },
     onError: (e: any) => toast.error(e.message || 'Failed to unlock'),

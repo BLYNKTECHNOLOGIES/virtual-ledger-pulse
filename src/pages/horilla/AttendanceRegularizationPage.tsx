@@ -1,27 +1,40 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Hourglass, Search, ShieldAlert } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import {
+  CheckCircle2, XCircle, Hourglass, Search, ShieldAlert, Clock, RefreshCw, AlertTriangle,
+} from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
+import { ResponsiveDialog } from '@/components/horilla/primitives/ResponsiveDialog';
 
 /**
- * Interventions page (renamed from "Regularization").
+ * Attendance Watchdog + Interventions (R2 · doctrine).
  *
- * Doctrine: the v4 attendance engine is the source of truth. Manual attendance
- * edits are audit-tracked "interventions", not routine corrections. Every
- * approval requires a fixed reason_code AND a note, and is written to
- * hr_attendance_intervention_log alongside the request update.
+ * ONE page, TWO stacked concerns:
+ *   1) Watchdog cards (top)   → stale sessions >12h; three explicit verbs
+ *                                (set true out-time / confirm long shift / void).
+ *      Fairness rule: while a stale session is unresolved, hr_lop_days holds
+ *      that day at 0 LOP so no one is docked for a day the engine hasn't
+ *      finished thinking about.
+ *   2) Legacy regularization requests (collapsible) → read-only for history +
+ *      any residual pending items; every approval demands a reason code +
+ *      note and is audited into hr_attendance_intervention_log.
+ *
+ * The old /hrms/attendance/regularization route and the /hrms/attendance/watchdog
+ * alias both land here (route added in App.tsx).
  */
 
 const REASON_CODES: Array<{ value: string; label: string; help: string }> = [
@@ -33,8 +46,31 @@ const REASON_CODES: Array<{ value: string; label: string; help: string }> = [
   { value: 'other_documented', label: 'Other (documented)', help: 'Any other reason — explain fully in notes.' },
 ];
 
+type Resolution = 'set_out_time' | 'confirm_long_shift' | 'void';
+
+type StaleRow = {
+  id: string;
+  session_id: string;
+  employee_id: string;
+  attendance_date: string;
+  in_time: string;
+  hours_open: number;
+  status: string;
+  resolution_note: string | null;
+  resolved_at: string | null;
+  first_seen_at: string;
+  employee?: { badge_id: string; first_name: string; last_name: string };
+};
+
 export default function AttendanceRegularizationPage() {
   const qc = useQueryClient();
+
+  // ---------- Watchdog state ----------
+  const [dlg, setDlg] = useState<{ row: StaleRow; resolution: Resolution } | null>(null);
+  const [outTime, setOutTime] = useState('');
+  const [note, setNote] = useState('');
+
+  // ---------- Legacy regularization state ----------
   const [status, setStatus] = useState('pending');
   const [search, setSearch] = useState('');
   const [reviewing, setReviewing] = useState<any>(null);
@@ -42,6 +78,95 @@ export default function AttendanceRegularizationPage() {
   const [notes, setNotes] = useState('');
   const [reasonCode, setReasonCode] = useState<string>('');
 
+  // ---------- Watchdog data ----------
+  const { data: staleRows = [], isLoading: staleLoading } = useQuery({
+    queryKey: ['hr_stale_sessions_watchdog'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('hr_attendance_stale_sessions')
+        .select('*, employee:hr_employees(badge_id, first_name, last_name)')
+        .eq('status', 'open')
+        .order('in_time', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data || []) as StaleRow[];
+    },
+    refetchInterval: 60_000,
+  });
+
+  const runWatchdog = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).functions.invoke('hr-attendance-watchdog');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      toast.success(`Watchdog: +${d?.opened || 0} new · ${d?.refreshed || 0} refreshed · ${d?.closed || 0} closed`);
+      qc.invalidateQueries({ queryKey: ['hr_stale_sessions_watchdog'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Watchdog failed'),
+  });
+
+  const resolve = useMutation({
+    mutationFn: async (args: { session_id: string; employee_id: string; resolution: Resolution; out_time?: string; note?: string }) => {
+      const { error } = await (supabase as any).rpc('hr_resolve_stale_session', {
+        p_session_id: args.session_id,
+        p_resolution: args.resolution,
+        p_out_time: args.out_time || null,
+        p_note: args.note || null,
+      });
+      if (error) throw error;
+      const { data: u } = await supabase.auth.getUser();
+      await (supabase as any).from('hr_attendance_intervention_log').insert({
+        session_id: args.session_id,
+        employee_id: args.employee_id,
+        action: `watchdog_${args.resolution}`,
+        reason_code: 'stale_session_resolution',
+        notes: args.note || null,
+        actor_id: u?.user?.id ?? null,
+        actor_email: u?.user?.email ?? null,
+        payload: { out_time: args.out_time ?? null },
+      });
+    },
+    onSuccess: () => {
+      toast.success('Session resolved · attendance rebuilt');
+      setDlg(null); setOutTime(''); setNote('');
+      qc.invalidateQueries({ queryKey: ['hr_stale_sessions_watchdog'] });
+      qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
+      qc.invalidateQueries({ queryKey: ['hr_attendance_unified'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Resolution failed'),
+  });
+
+  const openWatchdogDialog = (row: StaleRow, resolution: Resolution) => {
+    setDlg({ row, resolution });
+    setNote('');
+    if (resolution === 'set_out_time') {
+      const suggested = new Date(new Date(row.in_time).getTime() + 9 * 60 * 60 * 1000);
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const local = new Date(suggested.getTime() + istOffset - suggested.getTimezoneOffset() * 60 * 1000);
+      setOutTime(local.toISOString().slice(0, 16));
+    } else {
+      setOutTime('');
+    }
+  };
+
+  const submitWatchdog = () => {
+    if (!dlg) return;
+    const args: any = {
+      session_id: dlg.row.session_id,
+      employee_id: dlg.row.employee_id,
+      resolution: dlg.resolution,
+      note,
+    };
+    if (dlg.resolution === 'set_out_time') {
+      if (!outTime) return toast.error('Pick an out-time');
+      args.out_time = new Date(new Date(outTime).getTime() - 5.5 * 60 * 60 * 1000).toISOString();
+    }
+    resolve.mutate(args);
+  };
+
+  // ---------- Legacy regularization data ----------
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['reg_requests_hr', status],
     queryFn: async () => {
@@ -101,7 +226,6 @@ export default function AttendanceRegularizationPage() {
         .eq('id', reviewing.id);
       if (error) throw error;
 
-      // Audit trail — every manual attendance edit is logged.
       await (supabase as any).from('hr_attendance_intervention_log').insert({
         request_id: reviewing.id,
         employee_id: reviewing.employee_id,
@@ -119,9 +243,7 @@ export default function AttendanceRegularizationPage() {
     },
     onSuccess: () => {
       toast.success(`Intervention ${decision}`);
-      setReviewing(null);
-      setNotes('');
-      setReasonCode('');
+      setReviewing(null); setNotes(''); setReasonCode('');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
     },
@@ -131,157 +253,225 @@ export default function AttendanceRegularizationPage() {
   const fmtTime = (ts: string | null) =>
     ts ? new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 
+  const openCount = staleRows.length;
+
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Attendance Interventions"
-        description="The only manual door into the v4 attendance engine. Every approval is audited with a reason code."
+        title="Attendance Watchdog"
+        description="The only manual door into the v4 attendance engine. Resolve stale sessions and audit every intervention."
+        actions={
+          <Button size="sm" onClick={() => runWatchdog.mutate()} disabled={runWatchdog.isPending}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${runWatchdog.isPending ? 'animate-spin' : ''}`} />
+            Run watchdog now
+          </Button>
+        }
       />
 
       <Alert className="border-warning/40 bg-warning/5">
         <ShieldAlert className="h-4 w-4 text-warning" />
-        <AlertTitle>No-Intervention doctrine</AlertTitle>
+        <AlertTitle>Fairness doctrine</AlertTitle>
         <AlertDescription className="text-xs">
-          The v4 engine is authoritative. Use this page only when biometric data is genuinely incorrect —
-          missed punches, device outages, wrong shifts. Every approval requires a fixed reason code and a
-          note, and is written to <code>hr_attendance_intervention_log</code>. Prefer fixing device mappings
-          and shift schedules over recurring interventions for the same employee.
+          A day whose session is still open on the Watchdog contributes <b>0 LOP</b> until you resolve it —
+          nobody is docked for a day the engine hasn't finished thinking about. Every approval below is audited
+          into <code>hr_attendance_intervention_log</code>.
         </AlertDescription>
       </Alert>
 
-      <Card>
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by badge, name, reason..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-          </div>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="all">All</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {/* Mobile */}
-      <div className="md:hidden space-y-2">
-        {isLoading ? (
-          <TableSkeleton rows={4} columns={2} />
-        ) : filtered.length === 0 ? (
-          <Card><CardContent className="p-0"><EmptyState icon={Hourglass} title="No interventions" description="Nothing matches the current filter." /></CardContent></Card>
-        ) : filtered.map((r: any) => {
-          const emp = r.hr_employees;
-          return (
-            <Card key={r.id}>
-              <CardContent className="p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{emp?.first_name} {emp?.last_name}</div>
-                    <div className="text-xs text-muted-foreground">{emp?.badge_id} · {r.attendance_date}</div>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium capitalize shrink-0 ${
-                    r.status === 'approved' ? 'bg-success/10 text-success' :
-                    r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                    r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
-                    'bg-warning/10 text-warning'
-                  }`}>{r.status}</span>
-                </div>
-                <div className="text-xs font-mono tabular-nums text-muted-foreground">In: {fmtTime(r.requested_check_in)} · Out: {fmtTime(r.requested_check_out)}</div>
-                <div className="text-xs"><span className="text-muted-foreground">Reason:</span> {r.reason}</div>
-                {r.reason_code && <div className="text-[10px] uppercase tracking-wide text-muted-foreground">code: {r.reason_code}</div>}
-                {r.approver_notes && <div className="text-xs italic text-muted-foreground">"{r.approver_notes}"</div>}
-                {r.status === 'pending' && (
-                  <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
-                      <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
-                      <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Desktop */}
-      <Card className="hidden md:block">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <TableSkeleton rows={5} />
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={Hourglass} title="No interventions" description="Nothing matches the current filter." />
+      {/* ============ WATCHDOG (top, primary) ============ */}
+      <Card className={openCount > 0 ? 'border-amber-500/60' : ''}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className={`h-4 w-4 ${openCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
+            Watchdog · {openCount} open session{openCount === 1 ? '' : 's'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {staleLoading ? (
+            <div className="text-sm text-muted-foreground p-4">Loading…</div>
+          ) : staleRows.length === 0 ? (
+            <div className="text-sm text-muted-foreground p-2">All sessions closed within 12 hours. Nothing to resolve.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Employee</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested In</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested Out</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Reason / Code</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
-                    <th className="text-right px-4 py-2 font-medium text-muted-foreground">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((r: any) => {
-                    const emp = r.hr_employees;
-                    return (
-                      <tr key={r.id} className="border-b hover:bg-muted/30">
-                        <td className="px-4 py-2">
-                          <div className="font-medium text-foreground">{emp?.first_name} {emp?.last_name}</div>
-                          <div className="text-xs text-muted-foreground">{emp?.badge_id}</div>
-                        </td>
-                        <td className="px-4 py-2 font-medium">{r.attendance_date}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_in)}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_out)}</td>
-                        <td className="px-4 py-2 max-w-xs">
-                          <div className="truncate" title={r.reason}>{r.reason}</div>
-                          {r.reason_code && <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.reason_code}</div>}
-                          {r.approver_notes && (
-                            <div className="text-xs text-muted-foreground italic mt-0.5">"{r.approver_notes}"</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                            r.status === 'approved' ? 'bg-success/10 text-success' :
-                            r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                            r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
-                            'bg-warning/10 text-warning'
-                          }`}>{r.status}</span>
-                        </td>
-                        <td className="px-4 py-2 text-right space-x-1">
-                          {r.status === 'pending' && (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
-                                <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
-                                <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
-                              </Button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="grid gap-3">
+              {staleRows.map((r) => (
+                <div key={r.id} className="border rounded-lg p-3 bg-card">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {r.employee?.first_name} {r.employee?.last_name}
+                        <span className="text-xs text-muted-foreground ml-2">({r.employee?.badge_id})</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Window {r.attendance_date} · in {format(new Date(r.in_time), 'dd MMM HH:mm')} IST
+                      </div>
+                    </div>
+                    <Badge variant="destructive" className="shrink-0">
+                      <Clock className="h-3 w-3 mr-1" /> {r.hours_open}h open
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-2">
+                    First flagged {formatDistanceToNow(new Date(r.first_seen_at), { addSuffix: true })} — held harmless (0 LOP) until resolved.
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="default" onClick={() => openWatchdogDialog(r, 'set_out_time')}>
+                      Set true out-time
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => openWatchdogDialog(r, 'confirm_long_shift')}>
+                      Confirm long shift
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => openWatchdogDialog(r, 'void')}>
+                      <XCircle className="h-4 w-4 mr-1" /> Void (forgotten punch)
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Intervention log */}
+      {/* ============ LEGACY REGULARIZATION (collapsed style — full data retained) ============ */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Legacy regularization requests</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Retained for history and residual pending items. New attendance edits should go through the Watchdog above.
+          </p>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search by badge, name, reason..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Mobile */}
+          <div className="md:hidden space-y-2">
+            {isLoading ? (
+              <TableSkeleton rows={4} columns={2} />
+            ) : filtered.length === 0 ? (
+              <EmptyState icon={Hourglass} title="No requests" description="Nothing matches the current filter." />
+            ) : filtered.map((r: any) => {
+              const emp = r.hr_employees;
+              return (
+                <Card key={r.id}>
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{emp?.first_name} {emp?.last_name}</div>
+                        <div className="text-xs text-muted-foreground">{emp?.badge_id} · {r.attendance_date}</div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium capitalize shrink-0 ${
+                        r.status === 'approved' ? 'bg-success/10 text-success' :
+                        r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                        r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
+                        'bg-warning/10 text-warning'
+                      }`}>{r.status}</span>
+                    </div>
+                    <div className="text-xs font-mono tabular-nums text-muted-foreground">
+                      In: {fmtTime(r.requested_check_in)} · Out: {fmtTime(r.requested_check_out)}
+                    </div>
+                    <div className="text-xs"><span className="text-muted-foreground">Reason:</span> {r.reason}</div>
+                    {r.reason_code && <div className="text-[10px] uppercase tracking-wide text-muted-foreground">code: {r.reason_code}</div>}
+                    {r.approver_notes && <div className="text-xs italic text-muted-foreground">"{r.approver_notes}"</div>}
+                    {r.status === 'pending' && (
+                      <div className="flex gap-2 pt-1">
+                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
+                          <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
+                          <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Desktop */}
+          <div className="hidden md:block">
+            {isLoading ? (
+              <TableSkeleton rows={5} />
+            ) : filtered.length === 0 ? (
+              <EmptyState icon={Hourglass} title="No requests" description="Nothing matches the current filter." />
+            ) : (
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Employee</th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">In</th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Out</th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Reason / Code</th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
+                      <th className="text-right px-4 py-2 font-medium text-muted-foreground">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((r: any) => {
+                      const emp = r.hr_employees;
+                      return (
+                        <tr key={r.id} className="border-b hover:bg-muted/30">
+                          <td className="px-4 py-2">
+                            <div className="font-medium text-foreground">{emp?.first_name} {emp?.last_name}</div>
+                            <div className="text-xs text-muted-foreground">{emp?.badge_id}</div>
+                          </td>
+                          <td className="px-4 py-2 font-medium">{r.attendance_date}</td>
+                          <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_in)}</td>
+                          <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_out)}</td>
+                          <td className="px-4 py-2 max-w-xs">
+                            <div className="truncate" title={r.reason}>{r.reason}</div>
+                            {r.reason_code && <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.reason_code}</div>}
+                            {r.approver_notes && (
+                              <div className="text-xs text-muted-foreground italic mt-0.5">"{r.approver_notes}"</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                              r.status === 'approved' ? 'bg-success/10 text-success' :
+                              r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                              r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
+                              'bg-warning/10 text-warning'
+                            }`}>{r.status}</span>
+                          </td>
+                          <td className="px-4 py-2 text-right space-x-1">
+                            {r.status === 'pending' && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
+                                  <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
+                                  <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
+                                </Button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Intervention audit log */}
       {recentInterventions.length > 0 && (
         <Card>
           <CardContent className="p-4">
@@ -291,7 +481,9 @@ export default function AttendanceRegularizationPage() {
                 <div key={l.id} className="flex items-start justify-between gap-3 border-b border-border/50 pb-1">
                   <div className="min-w-0">
                     <div className="font-medium">{l.action.replace(/_/g, ' ')}</div>
-                    <div className="text-muted-foreground truncate">{l.notes} {l.reason_code && <span className="uppercase">· {l.reason_code}</span>}</div>
+                    <div className="text-muted-foreground truncate">
+                      {l.notes} {l.reason_code && <span className="uppercase">· {l.reason_code}</span>}
+                    </div>
                   </div>
                   <div className="text-right shrink-0 text-muted-foreground">
                     <div>{l.actor_email || 'system'}</div>
@@ -304,6 +496,54 @@ export default function AttendanceRegularizationPage() {
         </Card>
       )}
 
+      {/* ============ Watchdog resolution dialog ============ */}
+      <ResponsiveDialog
+        open={!!dlg}
+        onOpenChange={(o) => !o && setDlg(null)}
+        title={
+          dlg?.resolution === 'set_out_time' ? 'Set true out-time' :
+          dlg?.resolution === 'confirm_long_shift' ? 'Confirm long shift' :
+          'Void session'
+        }
+      >
+        <div className="space-y-3">
+          {dlg && (
+            <div className="text-xs text-muted-foreground p-2 rounded bg-muted/40">
+              {dlg.row.employee?.first_name} {dlg.row.employee?.last_name} — window {dlg.row.attendance_date} · open {dlg.row.hours_open}h
+            </div>
+          )}
+          {dlg?.resolution === 'set_out_time' && (
+            <div className="space-y-1">
+              <Label>Out-time (IST)</Label>
+              <Input type="datetime-local" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Inserts a manual out-punch and rebuilds the day.</p>
+            </div>
+          )}
+          {dlg?.resolution === 'confirm_long_shift' && (
+            <div className="text-sm text-muted-foreground">
+              Marks a genuine long shift. Out-time is capped at <b>watchdog + 2h</b> from the in-time and the day is stamped
+              <code className="ml-1">night_span</code>.
+            </div>
+          )}
+          {dlg?.resolution === 'void' && (
+            <div className="text-sm text-destructive">
+              Deletes the offending in-punch. Use only for forgotten in-punches.
+            </div>
+          )}
+          <div className="space-y-1">
+            <Label>Note (optional but recommended)</Label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDlg(null)}>Cancel</Button>
+            <Button onClick={submitWatchdog} disabled={resolve.isPending}>
+              <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
+
+      {/* ============ Legacy review dialog ============ */}
       <Dialog open={!!reviewing} onOpenChange={(o) => !o && setReviewing(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -340,21 +580,12 @@ export default function AttendanceRegularizationPage() {
                 <Label>Notes *</Label>
                 <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Explain the intervention — this is stored in the audit log." />
               </div>
-              {decision === 'approved' && (
-                <p className="text-xs text-muted-foreground">
-                  Approving patches attendance for {reviewing.attendance_date} and appends an intervention log entry.
-                </p>
-              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewing(null)}>Cancel</Button>
-            <Button
-              onClick={() => review.mutate()}
-              disabled={review.isPending}
-              variant={decision === 'rejected' ? 'destructive' : 'default'}
-            >
-              {review.isPending ? 'Saving...' : `Confirm ${decision === 'approved' ? 'Approve' : 'Reject'}`}
+            <Button onClick={() => review.mutate()} disabled={review.isPending}>
+              Confirm {decision}
             </Button>
           </DialogFooter>
         </DialogContent>

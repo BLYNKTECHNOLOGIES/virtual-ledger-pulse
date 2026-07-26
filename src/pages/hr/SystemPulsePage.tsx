@@ -100,6 +100,8 @@ export default function SystemPulsePage() {
   const drift = data?.drift ?? {};
   const stale = data?.stale_sessions ?? {};
   const sandbox = data?.sandbox ?? {};
+  const clock = data?.clock ?? {};
+  const interv = data?.interventions ?? {};
 
   const emailTone: Tone =
     (email.failed_24h ?? 0) > 0 ? "bad" :
@@ -114,6 +116,11 @@ export default function SystemPulsePage() {
     (stale.oldest_age_hours ?? 0) > 24 ? "bad" :
     (stale.open ?? 0) > 0 ? "warn" : "ok";
   const sandboxTone: Tone = sandbox.enabled ? "warn" : "ok";
+  const clockTone: Tone =
+    (clock.max_drift_seconds ?? 0) > 120 ? "bad" :
+    (clock.max_drift_seconds ?? 0) > 30 ? "warn" : "ok";
+  const intervTone: Tone =
+    (interv.unsupported_overrides_this_month ?? 0) > 0 ? "warn" : "ok";
 
   return (
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
@@ -159,11 +166,24 @@ export default function SystemPulsePage() {
           actionLabel="Biometric devices"
         />
         <Tile
+          icon={Clock}
+          title="Device clock drift"
+          tone={clockTone}
+          primary={
+            (clock.max_drift_seconds ?? 0) > 0
+              ? `±${clock.max_drift_seconds}s max`
+              : "in sync"
+          }
+          secondary={`${clock.devices_over_30s ?? 0} > 30s · ${clock.devices_over_120s ?? 0} > 2m · sweep every 30m`}
+          actionHref="/hrms/attendance/biometric-devices"
+          actionLabel="Devices"
+        />
+        <Tile
           icon={ScaleIcon}
           title="Drift alerts"
           tone={driftTone}
           primary={`${drift.open ?? 0} open`}
-          secondary={`${drift.critical_open ?? 0} critical`}
+          secondary={`${drift.critical_open ?? 0} critical · nightly re-audit at 02:00 IST`}
           actionHref="/hrms/data-health"
           actionLabel="Data Health"
         />
@@ -173,8 +193,17 @@ export default function SystemPulsePage() {
           tone={staleTone}
           primary={`${stale.open ?? 0} open`}
           secondary={`Oldest ${stale.oldest_age_hours ?? 0}h`}
-          actionHref="/hrms/attendance/stale-sessions"
-          actionLabel="Stale sessions"
+          actionHref="/hrms/attendance/regularization"
+          actionLabel="Watchdog"
+        />
+        <Tile
+          icon={ShieldAlert}
+          title="Interventions (this month)"
+          tone={intervTone}
+          primary={`${interv.this_month ?? 0}`}
+          secondary={`${interv.unsupported_overrides_this_month ?? 0} unsupported override${(interv.unsupported_overrides_this_month ?? 0) === 1 ? "" : "s"}`}
+          actionHref="/hrms/attendance/regularization"
+          actionLabel="Interventions"
         />
         <Tile
           icon={Beaker}

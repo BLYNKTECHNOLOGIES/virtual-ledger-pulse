@@ -36,6 +36,8 @@ type Drift = {
   employee_name: string;
   badge_id: string | null;
   is_active: boolean;
+  auto_status?: "open" | "auto_dismissed" | "auto_labeled" | null;
+  auto_reason?: string | null;
 };
 
 const SEVERITY_STYLE: Record<Drift["severity"], string> = {
@@ -88,8 +90,24 @@ export default function DataHealthPage() {
   const empFilter = params.get("employee");
   const [severity, setSeverity] = useState<string>("all");
   const [systemPair, setSystemPair] = useState<string>("all");
+  const [unexplainedOnly, setUnexplainedOnly] = useState<boolean>(
+    params.get("unexplained") === "1",
+  );
   const [scanning, setScanning] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+  const { data: ghostResidual } = useQuery({
+    queryKey: ["data_health_ghost_residual"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_ghost_email_residual_v")
+        .select("*")
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; recipient: string | null; subject: string | null; last_error: string | null; attempts: number | null }>;
+    },
+    staleTime: 60_000,
+  });
 
   const { data: drifts, isLoading } = useQuery({
     queryKey: ["data_health_drifts", empFilter],
@@ -182,19 +200,22 @@ export default function DataHealthPage() {
   const filtered = useMemo(() => {
     if (!drifts) return [];
     return drifts.filter((d) => {
+      if (unexplainedOnly && (d.auto_status ?? "open") !== "open") return false;
       if (severity !== "all" && d.severity !== severity) return false;
       if (systemPair !== "all") {
-        const pair = systemPair.split("_"); // e.g. "hrms_razorpay"
+        const pair = systemPair.split("_");
         if (!pair.every((s) => d.systems_involved.includes(s))) return false;
       }
       return true;
     });
-  }, [drifts, severity, systemPair]);
+  }, [drifts, severity, systemPair, unexplainedOnly]);
 
   const kpis = useMemo(() => {
     const all = drifts ?? [];
+    const unexplained = all.filter((d) => (d.auto_status ?? "open") === "open");
     return {
       total: all.length,
+      unexplained: unexplained.length,
       critical: all.filter((d) => d.severity === "critical").length,
       high: all.filter((d) => d.severity === "high").length,
       medium: all.filter((d) => d.severity === "medium").length,

@@ -21880,6 +21880,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      hr_lop_days: {
+        Args: { p_employee_ids: string[]; p_period_month: string }
+        Returns: {
+          absent_days: number
+          config_errors: string[]
+          employee_id: string
+          formula: string
+          half_days: number
+          incomplete_held_days: number
+          lop_days: number
+          paid_leave_days: number
+          present_days: number
+          unpaid_leave_days: number
+          weekly_off_days: number[]
+          weekly_off_source: string
+          working_days: number
+        }[]
+      }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string
@@ -21932,6 +21950,7 @@ export type Database = {
         }
         Returns: Json
       }
+      hr_roster_completeness: { Args: never; Returns: Json }
       hr_schedule_security_deposit: {
         Args: { p_employee_id: string }
         Returns: {
@@ -21939,6 +21958,10 @@ export type Database = {
           installment_no: number
           period_month: string
         }[]
+      }
+      hr_stale_session_held: {
+        Args: { p_date: string; p_employee_id: string }
+        Returns: boolean
       }
       hr_system_pulse: { Args: never; Returns: Json }
       hr_v4_is_window_locked: { Args: { p_date: string }; Returns: boolean }

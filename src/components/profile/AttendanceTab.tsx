@@ -110,6 +110,10 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
       {/* Live today snapshot */}
       <TodayAttendanceCard employeeId={employeeId} />
 
+      {/* Visual monthly calendar with color-coded status */}
+      <MyAttendanceCalendar employeeId={employeeId} />
+
+
       {/* Month selector */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-foreground">Attendance & Hours</h3>

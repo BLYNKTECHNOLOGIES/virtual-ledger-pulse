@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mail, FileText, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Mail, FileText, AlertTriangle, CheckCircle2, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
 
 /** Payslip parity — how many legacy hr_payslips rows lack a RazorpayX counterpart. */
 export function PayslipParityTile() {

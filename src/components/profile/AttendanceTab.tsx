@@ -7,6 +7,8 @@ import { Clock, CalendarDays, AlertTriangle, TrendingUp, Timer, CheckCircle } fr
 import RegularizationCard from './RegularizationCard';
 import TodayAttendanceCard from './TodayAttendanceCard';
 import MyCompOffCard from './MyCompOffCard';
+import MyAttendanceCalendar from './MyAttendanceCalendar';
+
 
 interface AttendanceTabProps {
   employeeId: string;

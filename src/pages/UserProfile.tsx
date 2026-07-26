@@ -686,9 +686,7 @@ export default function UserProfile() {
     })();
   }, [employeeResolution, user?.id]);
 
-    },
-    enabled: !!user?.id,
-  });
+
   const hrEmployee = employeeResolution?.employee ?? null;
   const employeeMatchedVia = employeeResolution?.matchedVia ?? null;
 

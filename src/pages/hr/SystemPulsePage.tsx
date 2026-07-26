@@ -18,7 +18,7 @@ import {
   ShieldAlert,
   FileCheck,
 } from "lucide-react";
-import { useSystemPulse, useSystemPulseExtras, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
+import { useSystemPulse, useSystemPulseExtras, useWindowTestPulse, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
 
 type Tone = "ok" | "warn" | "bad" | "muted";
 
@@ -95,6 +95,7 @@ function cronTone(rows: CronPulseRow[]): { tone: Tone; failing: number; stale: n
 export default function SystemPulsePage() {
   const { data, isLoading, refetch, isFetching } = useSystemPulse();
   const { data: extras, refetch: refetchExtras } = useSystemPulseExtras();
+  const { data: windowTest, refetch: refetchWindow, isError: windowError } = useWindowTestPulse();
 
   const cron = data?.cron ?? [];
   const cronStat = cronTone(cron);
@@ -153,6 +154,10 @@ export default function SystemPulsePage() {
     !coverage?.period_month ? "warn" :
     coverage.coverage_pct >= 100 ? "ok" :
     coverage.coverage_pct >= 95 ? "warn" : "bad";
+  const windowTone: Tone =
+    windowError ? "bad" :
+    !windowTest ? "muted" :
+    windowTest.ok ? "ok" : "bad";
 
 
   return (
@@ -163,7 +168,7 @@ export default function SystemPulsePage() {
       />
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => { refetch(); refetchExtras(); }} disabled={isFetching}>
+        <Button variant="outline" size="sm" onClick={() => { refetch(); refetchExtras(); refetchWindow(); }} disabled={isFetching}>
           <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -309,8 +314,24 @@ export default function SystemPulsePage() {
           actionHref="/hrms/payroll/cockpit"
           actionLabel="Cockpit"
         />
+        <Tile
+          icon={ShieldAlert}
+          title="Window rule (05:00 IST)"
+          tone={windowTone}
+          primary={
+            windowError ? "check failed"
+              : !windowTest ? "checking…"
+              : `${windowTest.passed}/${windowTest.total} passed`
+          }
+          secondary={
+            windowTest?.checked_at
+              ? `Last verified ${new Date(windowTest.checked_at).toLocaleTimeString("en-IN")} · absence boundary`
+              : "Runs hr-window-test edge function"
+          }
+        />
 
       </div>
+
 
       <Card>
         <CardContent className="p-4">

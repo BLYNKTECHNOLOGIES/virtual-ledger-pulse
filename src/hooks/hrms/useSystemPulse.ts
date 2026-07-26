@@ -174,3 +174,27 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
   });
 }
 
+// F10 · Executable window-rule check triggered from System Pulse.
+export interface WindowTestPulse {
+  ok: boolean;
+  passed: number;
+  total: number;
+  checked_at: string;
+  results: Array<{ name: string; iso: string; expected: string; actual: string; pass: boolean }>;
+}
+
+export function useWindowTestPulse(refetchMs = 5 * 60_000) {
+  return useQuery({
+    queryKey: ["hr_window_test_pulse"],
+    queryFn: async (): Promise<WindowTestPulse> => {
+      const { data, error } = await supabase.functions.invoke("hr-window-test", { body: {} });
+      if (error) throw error;
+      return data as WindowTestPulse;
+    },
+    refetchInterval: refetchMs,
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+

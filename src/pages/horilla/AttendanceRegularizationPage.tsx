@@ -210,13 +210,50 @@ export default function AttendanceRegularizationPage() {
     );
   });
 
+  // F4 · fetch the propose-and-validate evidence whenever the review dialog opens
+  // for an approve decision. The server returns the raw punch matches (or lack
+  // thereof) and any conflict with an existing session.
+  const openReview = async (r: any, dec: 'approved' | 'rejected') => {
+    setReviewing(r);
+    setDecision(dec);
+    setNotes('');
+    setReasonCode('');
+    setOverrideReason('');
+    setEvidence(null);
+    if (dec !== 'approved') return;
+    setEvidenceLoading(true);
+    try {
+      const { data, error } = await (supabase as any).rpc('hr_validate_regularization_proposal', {
+        _employee_id: r.employee_id,
+        _date: r.attendance_date,
+        _proposed_in: r.requested_check_in,
+        _proposed_out: r.requested_check_out,
+        _window_minutes: 10,
+      });
+      if (error) throw error;
+      setEvidence(data);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not validate against raw punches');
+    } finally {
+      setEvidenceLoading(false);
+    }
+  };
+
   const review = useMutation({
     mutationFn: async () => {
       if (!reviewing) return;
       if (decision === 'approved' && !reasonCode) throw new Error('Pick a reason code before approving');
       if (!notes.trim()) throw new Error('Notes are mandatory for every intervention');
+      const isOverride = decision === 'approved' && evidence && !evidence.evidence_ok;
+      if (isOverride && !overrideReason.trim()) {
+        throw new Error('Unsupported edits require an override reason (this is audited).');
+      }
       const { data: u } = await supabase.auth.getUser();
       const nowIso = new Date().toISOString();
+
+      const evidenceStatus = decision === 'approved'
+        ? (evidence?.evidence_ok ? 'evidence_ok' : 'unsupported_override')
+        : null;
 
       const { error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')
@@ -226,6 +263,10 @@ export default function AttendanceRegularizationPage() {
           approver_id: u?.user?.id,
           approver_notes: notes,
           approved_at: nowIso,
+          evidence_status: evidenceStatus,
+          evidence_payload: evidence ?? null,
+          override_admin_id: isOverride ? u?.user?.id : null,
+          override_reason: isOverride ? overrideReason : null,
         })
         .eq('id', reviewing.id);
       if (error) throw error;
@@ -233,7 +274,9 @@ export default function AttendanceRegularizationPage() {
       await (supabase as any).from('hr_attendance_intervention_log').insert({
         request_id: reviewing.id,
         employee_id: reviewing.employee_id,
-        action: decision === 'approved' ? 'regularization_approved' : 'regularization_rejected',
+        action: decision === 'approved'
+          ? (isOverride ? 'regularization_unsupported_override' : 'regularization_approved')
+          : 'regularization_rejected',
         reason_code: decision === 'approved' ? reasonCode : null,
         notes,
         actor_id: u?.user?.id ?? null,
@@ -242,12 +285,16 @@ export default function AttendanceRegularizationPage() {
           attendance_date: reviewing.attendance_date,
           requested_check_in: reviewing.requested_check_in,
           requested_check_out: reviewing.requested_check_out,
+          evidence_status: evidenceStatus,
+          override_reason: isOverride ? overrideReason : null,
+          matched_in_punch_id: evidence?.matched_in_punch_id ?? null,
+          matched_out_punch_id: evidence?.matched_out_punch_id ?? null,
         },
       });
     },
     onSuccess: () => {
       toast.success(`Intervention ${decision}`);
-      setReviewing(null); setNotes(''); setReasonCode('');
+      setReviewing(null); setNotes(''); setReasonCode(''); setEvidence(null); setOverrideReason('');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
     },

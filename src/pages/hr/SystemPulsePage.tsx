@@ -314,8 +314,24 @@ export default function SystemPulsePage() {
           actionHref="/hrms/payroll/cockpit"
           actionLabel="Cockpit"
         />
+        <Tile
+          icon={ShieldAlert}
+          title="Window rule (05:00 IST)"
+          tone={windowTone}
+          primary={
+            windowError ? "check failed"
+              : !windowTest ? "checking…"
+              : `${windowTest.passed}/${windowTest.total} passed`
+          }
+          secondary={
+            windowTest?.checked_at
+              ? `Last verified ${new Date(windowTest.checked_at).toLocaleTimeString("en-IN")} · absence boundary`
+              : "Runs hr-window-test edge function"
+          }
+        />
 
       </div>
+
 
       <Card>
         <CardContent className="p-4">

@@ -17,7 +17,7 @@ import {
   XCircle,
   ShieldAlert,
 } from "lucide-react";
-import { useSystemPulse, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
+import { useSystemPulse, useSystemPulseExtras, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
 
 type Tone = "ok" | "warn" | "bad" | "muted";
 
@@ -93,6 +93,7 @@ function cronTone(rows: CronPulseRow[]): { tone: Tone; failing: number; stale: n
 
 export default function SystemPulsePage() {
   const { data, isLoading, refetch, isFetching } = useSystemPulse();
+  const { data: extras, refetch: refetchExtras } = useSystemPulseExtras();
 
   const cron = data?.cron ?? [];
   const cronStat = cronTone(cron);
@@ -104,15 +105,22 @@ export default function SystemPulsePage() {
   const clock = data?.clock ?? {};
   const interv = data?.interventions ?? {};
 
+  const unexplainedDrift = extras?.unexplained_drift ?? 0;
+  const deadLettered = extras?.dead_lettered_emails ?? 0;
+  const ghostResidual = extras?.ghost_email_residual ?? 0;
+  const markerAge = extras?.absent_marker_age_hours;
+  const markerStatus = extras?.absent_marker_last_status;
+
   const emailTone: Tone =
-    (email.failed_24h ?? 0) > 0 ? "bad" :
+    deadLettered > 0 || (email.failed_24h ?? 0) > 0 ? "bad" :
     (email.pending ?? 0) > 10 || (email.oldest_pending_age_min ?? 0) > 30 ? "warn" : "ok";
   const deviceTone: Tone =
     (devices.failed_24h ?? 0) > 0 ? "bad" :
     (devices.pending ?? 0) > 20 || (devices.oldest_pending_age_min ?? 0) > 60 ? "warn" : "ok";
+  // Drift tone now honors F8 triage — only unexplained rows escalate.
   const driftTone: Tone =
-    (drift.critical_open ?? 0) > 0 ? "bad" :
-    (drift.open ?? 0) > 0 ? "warn" : "ok";
+    (drift.critical_open ?? 0) > 0 && unexplainedDrift > 0 ? "bad" :
+    unexplainedDrift > 0 ? "warn" : "ok";
   const staleTone: Tone =
     (stale.oldest_age_hours ?? 0) > 24 ? "bad" :
     (stale.open ?? 0) > 0 ? "warn" : "ok";
@@ -122,6 +130,12 @@ export default function SystemPulsePage() {
     (clock.max_drift_seconds ?? 0) > 30 ? "warn" : "ok";
   const intervTone: Tone =
     (interv.unsupported_overrides_this_month ?? 0) > 0 ? "warn" : "ok";
+  const deadLetterTone: Tone = deadLettered > 0 ? "bad" : ghostResidual > 0 ? "warn" : "ok";
+  const markerTone: Tone =
+    markerStatus && markerStatus !== "ok" && markerStatus !== "succeeded" ? "bad" :
+    markerAge == null ? "warn" :
+    markerAge > 30 ? "bad" :
+    markerAge > 26 ? "warn" : "ok";
 
   return (
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
@@ -131,7 +145,7 @@ export default function SystemPulsePage() {
       />
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+        <Button variant="outline" size="sm" onClick={() => { refetch(); refetchExtras(); }} disabled={isFetching}>
           <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -181,12 +195,34 @@ export default function SystemPulsePage() {
         />
         <Tile
           icon={ScaleIcon}
-          title="Drift alerts"
+          title="Drift alerts (unexplained)"
           tone={driftTone}
-          primary={`${drift.open ?? 0} open`}
-          secondary={`${drift.critical_open ?? 0} critical · nightly re-audit at 02:00 IST`}
+          primary={`${unexplainedDrift} unexplained`}
+          secondary={`${drift.open ?? 0} raw open · ±₹5 & TDS auto-tolerated · nightly re-audit 02:00 IST`}
+          actionHref="/hrms/data-health?unexplained=1"
+          actionLabel="Data Health"
+        />
+        <Tile
+          icon={Mail}
+          title="Email dead-letter"
+          tone={deadLetterTone}
+          primary={`${deadLettered} dead-lettered`}
+          secondary={`${ghostResidual} ghost residual · retry every 5m · escalates after 3 attempts`}
           actionHref="/hrms/data-health"
           actionLabel="Data Health"
+        />
+        <Tile
+          icon={Activity}
+          title="Auto-absent marker"
+          tone={markerTone}
+          primary={
+            markerAge == null
+              ? "never run"
+              : markerAge < 1
+              ? `${Math.round(markerAge * 60)}m ago`
+              : `${markerAge.toFixed(1)}h ago`
+          }
+          secondary={`Last: ${markerStatus ?? "—"} · daily 05:15 IST`}
         />
         <Tile
           icon={Activity}

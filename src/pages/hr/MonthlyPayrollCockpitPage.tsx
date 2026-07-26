@@ -139,7 +139,12 @@ function DetailLine({ step }: { step: CockpitStep }) {
         <span>No shadow run for this month yet.</span>
       );
     case "drift_review":
-      return <span>{d.drift_open ?? 0} open drift alerts for this month.</span>;
+      return (
+        <span>
+          {d.drift_open ?? 0} <strong>unexplained</strong> drift alert(s) for this month.{" "}
+          <span className="text-muted-foreground text-xs">(±₹5 & TDS rounding auto-tolerated)</span>
+        </span>
+      );
     case "close_month":
       return <span>Closes the month and freezes acknowledgements.</span>;
     default:

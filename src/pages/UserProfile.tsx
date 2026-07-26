@@ -1256,6 +1256,8 @@ export default function UserProfile() {
           ) : (
             <>
               <SalaryPFTab hrEmployee={hrEmployee} />
+              <MyTaxRegimeCard employeeId={hrEmployee.id} />
+              <MyLoansCard employeeId={hrEmployee.id} />
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1356,6 +1358,7 @@ export default function UserProfile() {
               </div>
 
               <UpcomingHolidaysCard />
+              <OrgLeaveCalendarCard />
 
               {/* ─── Leave Balance Cards ─── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

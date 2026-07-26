@@ -172,6 +172,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
       {/* Regularization requests */}
       <RegularizationCard employeeId={employeeId} />
 
+      {/* Comp-off ledger */}
+      <MyCompOffCard employeeId={employeeId} />
+
       {/* Late/Early alerts */}
       {lateEarlyRecords.length > 0 && (
         <Card>

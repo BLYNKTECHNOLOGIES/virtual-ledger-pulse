@@ -36,6 +36,8 @@ type Drift = {
   employee_name: string;
   badge_id: string | null;
   is_active: boolean;
+  auto_status?: "open" | "auto_dismissed" | "auto_labeled" | null;
+  auto_reason?: string | null;
 };
 
 const SEVERITY_STYLE: Record<Drift["severity"], string> = {
@@ -88,8 +90,24 @@ export default function DataHealthPage() {
   const empFilter = params.get("employee");
   const [severity, setSeverity] = useState<string>("all");
   const [systemPair, setSystemPair] = useState<string>("all");
+  const [unexplainedOnly, setUnexplainedOnly] = useState<boolean>(
+    params.get("unexplained") === "1",
+  );
   const [scanning, setScanning] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+  const { data: ghostResidual } = useQuery({
+    queryKey: ["data_health_ghost_residual"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_ghost_email_residual_v")
+        .select("*")
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; recipient: string | null; subject: string | null; last_error: string | null; attempts: number | null }>;
+    },
+    staleTime: 60_000,
+  });
 
   const { data: drifts, isLoading } = useQuery({
     queryKey: ["data_health_drifts", empFilter],
@@ -182,19 +200,22 @@ export default function DataHealthPage() {
   const filtered = useMemo(() => {
     if (!drifts) return [];
     return drifts.filter((d) => {
+      if (unexplainedOnly && (d.auto_status ?? "open") !== "open") return false;
       if (severity !== "all" && d.severity !== severity) return false;
       if (systemPair !== "all") {
-        const pair = systemPair.split("_"); // e.g. "hrms_razorpay"
+        const pair = systemPair.split("_");
         if (!pair.every((s) => d.systems_involved.includes(s))) return false;
       }
       return true;
     });
-  }, [drifts, severity, systemPair]);
+  }, [drifts, severity, systemPair, unexplainedOnly]);
 
   const kpis = useMemo(() => {
     const all = drifts ?? [];
+    const unexplained = all.filter((d) => (d.auto_status ?? "open") === "open");
     return {
       total: all.length,
+      unexplained: unexplained.length,
       critical: all.filter((d) => d.severity === "critical").length,
       high: all.filter((d) => d.severity === "high").length,
       medium: all.filter((d) => d.severity === "medium").length,
@@ -315,9 +336,10 @@ export default function DataHealthPage() {
       </header>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
           { label: "Open drifts", value: kpis.total, tone: "text-foreground" },
+          { label: "Unexplained", value: kpis.unexplained, tone: kpis.unexplained > 0 ? "text-destructive" : "text-success" },
           { label: "Critical", value: kpis.critical, tone: "text-destructive" },
           { label: "High", value: kpis.high, tone: "text-destructive/80" },
           { label: "Medium", value: kpis.medium, tone: "text-warning" },
@@ -329,6 +351,31 @@ export default function DataHealthPage() {
           </div>
         ))}
       </div>
+
+      {/* Ghost email residual — dispatcher retries have escalated to dead-letter */}
+      {ghostResidual && ghostResidual.length > 0 && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-foreground">
+                Ghost email residual — {ghostResidual.length} message{ghostResidual.length === 1 ? "" : "s"} dead-lettered after retries
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Dispatcher exhausted retry attempts (15m / 45m / 120m backoff). Review recipient address, fix the underlying cause, then re-enqueue.
+              </p>
+              <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
+                {ghostResidual.slice(0, 3).map((g) => (
+                  <li key={g.id}>
+                    <span className="font-mono">{g.recipient ?? "—"}</span> · {g.subject ?? "(no subject)"} · {g.last_error ?? "unknown"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Payroll infra health */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -403,6 +450,21 @@ export default function DataHealthPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
+        <label className="inline-flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={unexplainedOnly}
+            onChange={(e) => {
+              setUnexplainedOnly(e.target.checked);
+              const next = new URLSearchParams(params);
+              if (e.target.checked) next.set("unexplained", "1"); else next.delete("unexplained");
+              setParams(next, { replace: true });
+            }}
+            className="rounded border-border"
+          />
+          Unexplained only (hide auto-tolerated)
+        </label>
+
 
         <select
           value={severity}

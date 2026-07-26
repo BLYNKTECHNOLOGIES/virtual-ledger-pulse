@@ -18,7 +18,7 @@ import {
   ShieldAlert,
   FileCheck,
 } from "lucide-react";
-import { useSystemPulse, useSystemPulseExtras, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
+import { useSystemPulse, useSystemPulseExtras, useWindowTestPulse, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
 
 type Tone = "ok" | "warn" | "bad" | "muted";
 

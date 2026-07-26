@@ -141,6 +141,12 @@ export default function SystemPulsePage() {
     markerAge == null ? "warn" :
     markerAge > 30 ? "bad" :
     markerAge > 26 ? "warn" : "ok";
+  const rosterTone: Tone =
+    (roster?.total_unsafe ?? 0) > 0 ? "bad" :
+    rosterAgeHours == null ? "warn" :
+    rosterAgeHours > 72 ? "warn" :
+    (roster?.total_discrepancies ?? 0) > (roster?.total_auto_fixed ?? 0) ? "warn" : "ok";
+
 
   return (
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">

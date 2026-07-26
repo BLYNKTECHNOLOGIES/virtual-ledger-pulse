@@ -209,6 +209,9 @@ export default function AttendancePeriodLockPage() {
                       <td className="px-4 py-2 font-medium">
                         <Lock className="h-3 w-3 inline mr-1 text-success" />
                         {l.period_start} → {l.period_end}
+                        {l.is_system && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-500 border border-blue-500/30 uppercase tracking-wide">Auto</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-xs text-muted-foreground">
                         {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}
@@ -219,7 +222,7 @@ export default function AttendancePeriodLockPage() {
                           <Button size="sm" variant="outline" onClick={() => { setVerifyLock(l); setVerifyEmp(''); setVerifyResult(null); }}>
                             <ShieldCheck className="h-4 w-4 mr-1" /> Verify with Razorpay
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setUnlockId(l.id)}>
+                          <Button size="sm" variant="outline" onClick={() => { setUnlockLock(l); setUnlockReason(''); }}>
                             <Unlock className="h-4 w-4 mr-1" /> Unlock
                           </Button>
                         </div>

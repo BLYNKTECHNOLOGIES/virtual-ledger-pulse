@@ -352,7 +352,16 @@ function diffFields(
       continue;
     }
     const actN = norm(act);
-    const match = expN === actN;
+    let match = expN === actN;
+    // ±₹1 tolerance for salary — RazorpayX often rounds paise differently
+    // than our source of truth (base × 12 rounding, DA rounding, etc.).
+    if (!match && k === "annual_ctc") {
+      const expNum = Number(exp);
+      const actNum = Number(act);
+      if (Number.isFinite(expNum) && Number.isFinite(actNum) && Math.abs(expNum - actNum) <= 1) {
+        match = true;
+      }
+    }
     rows.push({
       key: k, label: LABELS[k] || k, expected: exp, actual: act,
       match,

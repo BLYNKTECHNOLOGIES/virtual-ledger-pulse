@@ -2,43 +2,51 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, LogIn, LogOut, Timer, AlertCircle } from 'lucide-react';
+import { useAttendanceDay } from '@/hooks/hrms/useAttendanceDay';
 
 interface TodayAttendanceCardProps {
   employeeId: string;
 }
 
 /**
- * Live "Today" attendance snapshot for the employee — sourced from the v4
- * `hr_attendance_daily` row for the current IST date. Falls back to sensible
- * defaults on holidays / week-offs / days with no punch yet.
+ * Live "Today" attendance snapshot for the employee — reads the canonical
+ * `hr_attendance_day_v` via useAttendanceDay (V1 single-source rule).
  */
 export default function TodayAttendanceCard({ employeeId }: TodayAttendanceCardProps) {
   // IST date (UTC+05:30)
   const istNow = new Date(Date.now() + 5.5 * 3600 * 1000);
   const today = istNow.toISOString().slice(0, 10);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['profile_today_attendance', employeeId, today],
+  const { data: daily, isLoading } = useAttendanceDay(employeeId, today);
+
+  const { data: holiday } = useQuery({
+    queryKey: ['profile_today_holiday', today],
     queryFn: async () => {
-      const [{ data: daily }, { data: holiday }] = await Promise.all([
-        (supabase as any)
-          .from('hr_attendance_daily')
-          .select('*')
-          .eq('employee_id', employeeId)
-          .eq('attendance_date', today)
-          .maybeSingle(),
-        (supabase as any)
-          .from('hr_holidays')
-          .select('name')
-          .eq('date', today)
-          .eq('is_active', true)
-          .maybeSingle(),
-      ]);
-      return { daily, holiday };
+      const { data } = await (supabase as any)
+        .from('hr_holidays')
+        .select('name')
+        .eq('date', today)
+        .eq('is_active', true)
+        .maybeSingle();
+      return data;
     },
-    enabled: !!employeeId,
-    refetchInterval: 60_000,
   });
+
+  // Legacy alias so the render block below stays untouched.
+  const data = {
+    daily: daily
+      ? {
+          status: daily.status,
+          first_in: daily.first_in,
+          last_out: daily.last_out,
+          net_work_minutes: daily.worked_minutes,
+          total_hours: daily.total_hours,
+          late_by_minutes: daily.late_minutes,
+          suppressed_count: daily.suppressed_count,
+        }
+      : null,
+    holiday,
+  };
 
   const fmtTime = (ts: string | null | undefined) =>
     ts

@@ -15,6 +15,7 @@ import {
   startOfDay,
 } from 'date-fns';
 import { useComplianceSettings, isWeeklyOff } from '@/hooks/hrms/useComplianceSettings';
+import { useAttendanceDayRange, type AttendanceDay } from '@/hooks/hrms/useAttendanceDay';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -109,35 +110,13 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
 
   const { data: compliance } = useComplianceSettings();
 
-  const { data: daily = [] } = useQuery({
-    queryKey: ['profile_att_daily_v4', employeeId, monthKey],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('hr_attendance_daily')
-        .select('attendance_date, status, first_in, last_out, net_work_minutes, late_by_minutes, total_hours')
-        .eq('employee_id', employeeId)
-        .gte('attendance_date', format(monthStart, 'yyyy-MM-dd'))
-        .lte('attendance_date', format(monthEnd, 'yyyy-MM-dd'));
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!employeeId,
-  });
-
-  const { data: legacy = [] } = useQuery({
-    queryKey: ['profile_att_legacy', employeeId, monthKey],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('hr_attendance')
-        .select('attendance_date, attendance_status, check_in, check_out, late_minutes')
-        .eq('employee_id', employeeId)
-        .gte('attendance_date', format(monthStart, 'yyyy-MM-dd'))
-        .lte('attendance_date', format(monthEnd, 'yyyy-MM-dd'));
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!employeeId,
-  });
+  // V1: single sanctioned reader — same shape HR overview and Day Detail see.
+  const { data: dayRows = [] } = useAttendanceDayRange(
+    [employeeId],
+    format(monthStart, 'yyyy-MM-dd'),
+    format(monthEnd, 'yyyy-MM-dd'),
+    { enabled: !!employeeId },
+  );
 
   const { data: holidays = [] } = useQuery({
     queryKey: ['profile_holidays', monthKey],
@@ -155,24 +134,32 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
 
   const map = useMemo(() => {
     const holidayMap = new Map<string, string>(holidays.map((h: any) => [h.date, h.name]));
-    const dailyMap = new Map<string, any>(daily.map((d: any) => [d.attendance_date, d]));
-    const legacyMap = new Map<string, any>(legacy.map((d: any) => [d.attendance_date, d]));
+    const dayMap = new Map<string, AttendanceDay>(
+      (dayRows as AttendanceDay[]).map((d) => [d.date, d]),
+    );
     const today = startOfDay(new Date());
 
     const out: Record<string, { key: LegendKey; meta?: any; label?: string }> = {};
     for (const d of days) {
       const iso = format(d, 'yyyy-MM-dd');
       const holiday = holidayMap.get(iso);
-      const v4 = dailyMap.get(iso);
-      const lg = legacyMap.get(iso);
+      const row = dayMap.get(iso);
       const upcoming = isAfter(startOfDay(d), today);
 
       let key: LegendKey | null = null;
       let meta: any = null;
-      if (v4) {
-        meta = v4;
-        switch (v4.status) {
-          case 'present':      key = (v4.late_by_minutes ?? 0) > 0 ? 'late' : 'present'; break;
+      if (row) {
+        meta = {
+          first_in: row.first_in,
+          last_out: row.last_out,
+          net_work_minutes: row.worked_minutes,
+          late_by_minutes: row.late_minutes,
+          total_hours: row.total_hours,
+          lop_contribution: row.lop_contribution,
+          watchdog_held: row.watchdog_held,
+        };
+        switch (row.status) {
+          case 'present':      key = row.late_minutes > 0 ? 'late' : 'present'; break;
           case 'half_day':     key = 'half_day'; break;
           case 'absent':       key = 'absent'; break;
           case 'on_leave':     key = 'on_leave'; break;
@@ -183,17 +170,6 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
           default:             key = null;
         }
       }
-      if (!key && lg) {
-        meta = lg;
-        switch (lg.attendance_status) {
-          case 'present':  key = (lg.late_minutes ?? 0) > 0 ? 'late' : 'present'; break;
-          case 'half_day': key = 'half_day'; break;
-          case 'absent':   key = 'absent'; break;
-          case 'late':     key = 'late'; break;
-          case 'on_leave': key = 'on_leave'; break;
-          default:         key = null;
-        }
-      }
       if (!key && holiday) { key = 'holiday'; meta = { name: holiday }; }
       if (!key && isWeeklyOff(d, compliance)) key = 'week_off';
       if (!key) key = upcoming ? 'upcoming' : 'no_punch';
@@ -201,7 +177,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
       out[iso] = { key, meta, label: holiday };
     }
     return out;
-  }, [days, daily, legacy, holidays, compliance]);
+  }, [days, dayRows, holidays, compliance]);
 
   const counts = useMemo(() => {
     const c: Partial<Record<LegendKey, number>> = {};

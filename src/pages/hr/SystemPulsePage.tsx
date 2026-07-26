@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  ShieldAlert,
 } from "lucide-react";
 import { useSystemPulse, type CronPulseRow } from "@/hooks/hrms/useSystemPulse";
 

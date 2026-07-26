@@ -1061,7 +1061,7 @@ export default function UserProfile() {
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList
-          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:grid md:grid-cols-11 md:gap-0"
+          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:grid md:grid-cols-12 md:gap-0"
         >
           <TabsTrigger value="profile" className="shrink-0">Profile</TabsTrigger>
           <TabsTrigger value="tasks" className="shrink-0">My Tasks</TabsTrigger>
@@ -1072,6 +1072,7 @@ export default function UserProfile() {
           <TabsTrigger value="leaves" className="shrink-0">Leaves</TabsTrigger>
           <TabsTrigger value="requests" className="shrink-0">Requests</TabsTrigger>
           <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
+          <TabsTrigger value="assets" className="shrink-0">Assets</TabsTrigger>
           <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
           <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>

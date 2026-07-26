@@ -81,3 +81,61 @@ export function EmailDispatchHealthTile() {
     </Card>
   );
 }
+
+/**
+ * Roster completeness — how many active employees are missing a current shift
+ * assignment or a current weekly-off pattern. The attendance v4 engine can't
+ * decide "late" or "weekly-off day" without these, so any non-zero here means
+ * silent under-counting downstream (people appearing "absent" who are really
+ * on a WO). Click through to the profile to assign.
+ */
+export function RosterCompletenessTile() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["hr_roster_completeness"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("hr_roster_completeness");
+      if (error) throw error;
+      return (data ?? null) as {
+        active_total: number;
+        missing_shift_count: number;
+        missing_weekly_off_count: number;
+        missing_shift: Array<{ id: string; badge_id: string; first_name: string; last_name: string }>;
+        missing_weekly_off: Array<{ id: string; badge_id: string; first_name: string; last_name: string }>;
+      } | null;
+    },
+    refetchInterval: 10 * 60_000,
+  });
+
+  const shift = data?.missing_shift_count ?? 0;
+  const woff = data?.missing_weekly_off_count ?? 0;
+  const total = shift + woff;
+  const good = total === 0;
+  const first = (data?.missing_shift ?? [])[0] || (data?.missing_weekly_off ?? [])[0];
+
+  return (
+    <Card className={good ? "border-success/40 bg-success/5" : "border-warning/40 bg-warning/5"}>
+      <CardContent className="p-4 flex items-start gap-3">
+        <div className={`p-2 rounded-lg ${good ? "bg-success/10" : "bg-warning/10"}`}>
+          {good ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Users className="h-5 w-5 text-warning" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Roster completeness</div>
+          <div className="text-2xl font-semibold mt-0.5">{isLoading ? "…" : total}</div>
+          <div className="text-xs text-muted-foreground">
+            {good
+              ? `All ${data?.active_total ?? 0} active employees have shift + weekly-off`
+              : `${shift} missing shift · ${woff} missing weekly-off`}
+            {first && (
+              <>
+                {" · "}
+                <Link className="underline hover:text-foreground" to={`/hrms/employees/${first.id}`}>
+                  fix {first.first_name}
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

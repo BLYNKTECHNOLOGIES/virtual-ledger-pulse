@@ -1,68 +1,112 @@
-# R10–R13 Review
+## Verdict up front
 
-Read before planning: `fix_proxy.py` (not present), `supabase/functions/` (no `apply-scheduled-salary-revisions`; only `hr-promote-scheduled-salary-revisions` exists), `docs/` (no `RAZORPAYX_COMMISSIONING.md` — only PAYROLL_DOCTRINE, RAZORPAY_API_FIELD_AUDIT, REPO_LAYOUT, STATE_LOG, reference/), and existing employee surfaces (`src/pages/UserProfile.tsx`, `EmployeeProfilePage`, `LeaveRequestsPage`). Core memory: ESS lives in the ERP profile view, not `/hrms`.
+- **F8 — legitimate, not built.** `hr_drift_alerts` has no tolerance/classification/auto-dismiss columns and no reason taxonomy. Every rupee-rounding delta today reads as "open drift" and forces HR to review noise.
+- **F9 (ghost-email half) — mostly already built.** The `razorpay-payroll-proxy` already runs the Gmail-`+alias` recovery in-line when RazorpayX blocks an email as ghost. What's missing is a **surface** for the residual cases where even the alias flow fails.
+- **F9 (dispatcher half) — legitimate, not built.** `hr_email_send_log` has only `status/error_message/created_at` — no `attempt_count`, no `next_retry_at`, no dead-letter marker. 3 rows are currently stuck at "pending". No retry loop exists.
+- **F10 — likely already correct, needs certification.** `auto-absent-marking/index.ts` is already v4-window-aware: uses the 05:00 IST window boundary, shifts back 2 days when it fires in the 00:00–05:00 grey zone, gates on `absent_if_no_punch`, skips holidays / approved leave / weekly-off / already-handled dailies. F10 is a **read + prove**, not a rewrite.
 
-## My view on each recommendation
+## My view
 
-### R10 · Employee self-service (phase one) — **DO IT (medium)**
-Legitimate and high-leverage. Today an employee has no first-person view of "my punches today / my leave balance / my payslips". Every dispute becomes an HR ticket. Since v4 attendance, leave allocations, and the RazorpayX payslip mirror already exist and mobile primitives are in place, the build is mostly a read-only surface over data we already trust.
+F8 is the highest-leverage of the three. Without it, the shadow ritual never sees adoption — you'll open the drift page, see 30+ open rows that are all ±₹2 rounding, close the tab, and the Razorpay-vs-HRMS validation exercise silently dies. F9-dispatcher is small and pays back forever (no more "why didn't payroll get emailed" mysteries). F9-ghost-email is mostly cosmetic since the recovery is already automated. F10 is 15 minutes with the code — mostly documentation.
 
-- **Where it lives:** inside the ERP `UserProfile.tsx` (per doctrine `/hrms` stays HR-only), as four tabs: Today, Leaves, Payslips, Profile.
-- **Backend:** no schema changes. Add three RLS-scoped views/RPCs so an employee can read only their own rows: `ess_my_attendance_today`, `ess_my_leave_summary`, `ess_my_payslips` (thin wrappers over `hr_attendance_daily` / `hr_attendance_sessions`, `hr_leave_allocations` + `hr_leave_requests`, `hr_payslips_v`). Leave-request `INSERT` uses the existing table with a self-scoped policy.
-- **Frontend:** four small tab components, no new design system. Payslip row = deep-link into RazorpayX dashboard (per R7 doctrine — we do not fabricate a PDF).
-- **After it ships:** employees self-check attendance/leaves/payslips on mobile; HR ticket volume drops; foundation for later declarations/reimbursements is in place. No change to HRMS admin flows.
+Order I recommend: **F8 → F9-dispatcher → F9-ghost-email surface → F10 cert**. Small, sequenced, no cross-dependencies.
 
-### R11 · Hygiene pass — **PARTIALLY STALE, do the real parts (trivial)**
-Verified current state:
-- `fix_proxy.py` — **not in the repo.** Nothing to delete.
-- `apply-scheduled-salary-revisions` — **does not exist** as a deployed function. What exists is `hr-promote-scheduled-salary-revisions`, which is the *current* cron promoter (not retired). Do **not** undeploy it — that would break future-dated revisions.
-- `RAZORPAYX_COMMISSIONING.md` — **not in `docs/`.** There is nothing to refresh; if we want a "commissioning reality" doc, we create one fresh.
-- Stray docs — worth a scan; there are only 4 docs today so likely nothing to move.
+---
 
-What's actually worth doing: (a) audit `supabase/functions/` for genuinely retired functions and prune them; (b) write a short `RAZORPAYX_LIVE_STATE.md` capturing which envelopes are verified in production after the July-25 arc (salary, payroll) and which remain unverified; (c) append the corresponding STATE_LOG line.
+## F8 · Drift auto-triage
 
-- **After it ships:** repo reflects reality; no phantom paths mislead the next debugging session. Zero user-visible impact.
+### What changes
+Add classification to every drift row so HR sees only unexplained lines.
 
-### R12 · Sandbox activation — **DEFER (blocked, correctly)**
-Not required now. The design already exists (`SandboxToggleCard.tsx`, base-URL toggle, banner, auto-revoke cron). It is *correctly* gated on Razorpay issuing sandbox credentials — building further before we have credentials risks divergence from whatever sandbox actually behaves like. Action = a one-line checklist entry: "on receipt of Razorpay sandbox keys, flip the toggle, rehearse the two remaining unverified envelopes (contractor payouts, reimbursements), then flip back."
+**Backend**
+- Extend `hr_drift_alerts` with `auto_status` (`open` | `auto_dismissed` | `auto_labeled`), `auto_reason` (short code like `within_tolerance`, `tds_gated`, `lop_pre_close`, `mid_month_revision`), `delta_amount` (numeric, when both sides are numeric), `tolerance_used` (numeric).
+- New SQL helper `hr_classify_drift(row)` that computes `auto_status` + `auto_reason` from the row's field name and values, using:
+  - **±₹5 tolerance** for salary/CTC/component fields (numeric compare).
+  - **Cause labels** for the three known patterns:
+    - TDS field mismatch while `push_tds_endpoint_verified=false` in `hr_razorpay_settings` → `tds_gated`.
+    - LOP-days mismatch when the affected month has open watchdog sessions or unresolved regularization requests → `lop_pre_close`.
+    - Any structure-field mismatch where a `hr_salary_revisions` row was pushed within the current month → `mid_month_revision`.
+- Trigger on `hr_drift_alerts` insert/update runs the classifier so every write auto-labels itself.
+- One-time backfill classifies existing 36 open rows.
+- New RPC `hr_open_unexplained_drift_count()` — the only counter the close-month gate uses.
 
-- **After it ships (later):** risky verifications happen with fake money; new payroll operators can be trained safely. Until credentials arrive, no code change.
+**Frontend**
+- Drift list on `SystemPulsePage.tsx` / `RazorpaySyncPage.tsx` defaults to **"Unexplained only"** with a segmented filter: `Unexplained · Auto-labeled · Auto-dismissed · All`.
+- Each auto-labeled/auto-dismissed row shows a small chip explaining why (e.g. "±₹3 rounding", "TDS gated", "structure revision this month").
+- Monthly Payroll Cockpit's close-month gate reads `hr_open_unexplained_drift_count()` instead of raw open count.
 
-### R13 · Module seams — **STRATEGIC, do incrementally, not in this pass**
-Legitimate but not a single deliverable — it's four independent bridges of varying value:
-1. **Recruitment "hired" → Onboarding candidate:** highest value, removes double data entry.
-2. **PMS/MPI → variable-pay inputs (Payroll Inputs hub):** valuable but requires a policy decision (how MPI score maps to ₹) before code.
-3. **Assets → F&F clearance checklist:** small, obvious win.
-4. **Disciplinary → penalty engine:** already partially wired via `hr_penalty_rules`; needs an audit before we touch it.
+### Situation after F8
+- Backend: `hr_drift_alerts` becomes a labeled ledger, not a flat list. Every row carries its own explanation.
+- Frontend: the drift page shows 2–5 lines a month that HR actually needs to touch. Close-month button unblocks itself once those are resolved.
+- HR touch: only genuinely unexplained lines.
 
-Recommend doing #1 and #3 opportunistically after R10, and treating #2 and #4 as separate briefs.
+---
 
-- **After it ships (per seam):** data entered once flows to the next module; HRMS behaves as one organism rather than parallel modules.
+## F9 · Two halves
 
-## Recommended order
+### F9a — Dispatcher self-healing (real work)
 
-1. **R10 (ESS phase one)** — biggest user-facing win, no external dependency.
-2. **R11 (hygiene, corrected scope)** — trivial, do alongside R10 as cleanup.
-3. **R13 seam #1 (Recruitment → Onboarding)** — small, unblocks the "hired" moment.
-4. **R12** — when Razorpay grants sandbox creds.
-5. **R13 seams #2/#3/#4** — separate briefs when prioritized.
+**Backend**
+- Add `attempt_count int default 0`, `next_retry_at timestamptz`, `dead_letter boolean default false`, `last_error text` to `hr_email_send_log`.
+- New cron (every 5 min) → edge function `hr-email-dispatch-retry`: picks rows where `status='pending' AND created_at < now() - '15 min' AND dead_letter=false`, re-invokes the original send function, increments `attempt_count`, sets exponential `next_retry_at` (15m, 45m, 2h). At `attempt_count >= 3`, sets `dead_letter=true` and inserts a `hr_drift_alert` (`field='email_dispatch_dead_letter'`).
+- System Pulse gains a **"Dead-lettered emails"** tile.
 
-## What changes for you after each ships
+**Situation after F9a**
+- Backend: transient SMTP hiccups self-heal within 15 min. Terminal failures land in a visible dead-letter queue.
+- Frontend: existing 3 stuck rows either send or dead-letter cleanly. New tile on System Pulse. No new HR pages.
+- HR touch: only when the dead-letter tile is non-zero.
 
-- **After R10:** every employee has a mobile-first "my HR" view inside the ERP profile; can raise a leave request without HR; can see their payslip and open the RazorpayX PDF. HR sees fewer "what's my balance?" pings. No change to the HRMS admin console.
-- **After R11:** docs reflect the July-25 live-fire reality; no orphan functions; STATE_LOG updated. Nothing visible in the app.
-- **After R12 (when unblocked):** a sandbox banner appears when ops flip the toggle; risky pushes go to sandbox; auto-revokes after the rehearsal window.
-- **After R13 seams (incrementally):** hired candidates land in Onboarding automatically; asset returns block F&F; MPI scores feed variable pay; disciplinary actions feed penalties.
+### F9b — Ghost-email surface (light work — recovery is already automatic)
 
-## Technical scope (for reference)
+The alias-recovery flow already runs inside `razorpay-payroll-proxy` (`gmail_alias_after_ghost_email`). The only missing piece is a **visible surface** for the small subset where even that fails.
 
-- **R10:**
-  - Migration: three security-invoker views (`ess_my_*`) + policies that scope to `auth.uid()` → `hr_employees.user_id`; INSERT policy on `hr_leave_requests` for self.
-  - Frontend: `src/pages/user-profile/ess/{TodayTab,LeavesTab,PayslipsTab,ProfileTab}.tsx` mounted inside `UserProfile.tsx`.
-  - Reuse: `hr_payslips_v`, `RazorpayPayslipLink`, `useDeepLinkHighlight`, existing regularization dialog for punch corrections.
-- **R11:**
-  - Enumerate `supabase/functions/` and confirm each is still referenced from a cron or a caller before pruning.
-  - New `docs/RAZORPAYX_LIVE_STATE.md`; append STATE_LOG entry.
-- **R13 #1:** trigger on `hr_candidates.status='HIRED'` that inserts an `hr_employee_onboarding` row and links back via `source_candidate_id`.
+**Backend**
+- New SQL view `hr_ghost_email_residual_v` reading `hr_razorpay_sync_log` for `action='create_person'` rows whose latest attempt has `code IN ('RAZORPAY_EMAIL_EXISTS','RAZORPAY_ALIAS_MAPPING_FAILED')` and no successful follow-up.
 
-Nothing here touches financial engines, RLS on payroll writes, or the RazorpayX push doctrine.
+**Frontend**
+- Small "Ghost-email residuals" card on the RazorpaySync page (hidden when empty), with a one-click "Retry alias recovery" button.
+
+**Situation after F9b**
+- Backend: no new logic — just a read view.
+- Frontend: a card that stays empty most days.
+- HR touch: only the residual cases.
+
+---
+
+## F10 · Absence-ownership certification
+
+Not a rewrite. A **prove-and-document** pass.
+
+**Backend**
+- Add three Deno tests under `supabase/functions/auto-absent-marking/`:
+  1. Running at IST 02:00 marks the window ending 05:00 IST **two days ago**.
+  2. Running at IST 08:00 marks the window ending 05:00 IST **yesterday**.
+  3. Approved leave, weekly-off, holiday, and pre-existing non-`no_data` dailies are all skipped.
+- Add a `hr_absent_marker_last_run_v` SQL view over `hr_attendance_absent_marker_runs` exposing last-24h health.
+
+**Frontend**
+- System Pulse tile "Auto-absent marker" → green when today's run exists and `marked_count` is sane vs roster, amber if it hasn't run, red if it errored.
+- Add a one-paragraph doctrine note in `docs/hrms/AUTO_ABSENT.md` describing the window semantics so it's certified in writing.
+
+**Situation after F10**
+- Backend: unchanged code, but now covered by tests and a health view.
+- Frontend: one tile on System Pulse showing "ran today at HH:MM IST, marked N".
+- HR touch: zero unless the tile goes amber/red.
+
+---
+
+## Sequenced delivery
+
+1. F8 schema + classifier + backfill + frontend filter + cockpit gate rewire.
+2. F9a schema + retry cron + dead-letter tile.
+3. F9b residual view + card.
+4. F10 tests + view + tile + doctrine note.
+
+All four ship as small, independently reviewable slices.
+
+## Technical notes (for the record)
+
+- Drift classifier and dispatcher retry both need `service_role` because they run under crons.
+- `hr_drift_alerts` unique key stays `(hr_employee_id, field)`; the classifier writes to the same row via `UPDATE`.
+- The retry cron uses `pg_cron + net.http_post` (same pattern as the F6 snapshot-refresh you scheduled last turn).
+- F10 tests use Deno's stdlib assert and mock `Date.now()` — no live DB.

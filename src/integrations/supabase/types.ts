@@ -6204,7 +6204,11 @@ export type Database = {
       }
       hr_drift_alerts: {
         Row: {
+          auto_classified_at: string | null
+          auto_reason: string | null
+          auto_status: string
           created_at: string
+          delta_amount: number | null
           essl_value: string | null
           field: string
           first_seen_at: string
@@ -6219,10 +6223,15 @@ export type Database = {
           resolved_by: string | null
           severity: string
           systems_involved: string[]
+          tolerance_used: number | null
           updated_at: string
         }
         Insert: {
+          auto_classified_at?: string | null
+          auto_reason?: string | null
+          auto_status?: string
           created_at?: string
+          delta_amount?: number | null
           essl_value?: string | null
           field: string
           first_seen_at?: string
@@ -6237,10 +6246,15 @@ export type Database = {
           resolved_by?: string | null
           severity?: string
           systems_involved?: string[]
+          tolerance_used?: number | null
           updated_at?: string
         }
         Update: {
+          auto_classified_at?: string | null
+          auto_reason?: string | null
+          auto_status?: string
           created_at?: string
+          delta_amount?: number | null
           essl_value?: string | null
           field?: string
           first_seen_at?: string
@@ -6255,6 +6269,7 @@ export type Database = {
           resolved_by?: string | null
           severity?: string
           systems_involved?: string[]
+          tolerance_used?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -6283,34 +6298,49 @@ export type Database = {
       }
       hr_email_send_log: {
         Row: {
+          attempt_count: number
           created_at: string
+          dead_letter: boolean
           error_message: string | null
           id: string
+          last_error: string | null
           message_id: string
           metadata: Json | null
+          next_retry_at: string | null
           recipient_email: string
+          retry_payload: Json | null
           status: string
           subject: string | null
           template_name: string
         }
         Insert: {
+          attempt_count?: number
           created_at?: string
+          dead_letter?: boolean
           error_message?: string | null
           id?: string
+          last_error?: string | null
           message_id: string
           metadata?: Json | null
+          next_retry_at?: string | null
           recipient_email: string
+          retry_payload?: Json | null
           status?: string
           subject?: string | null
           template_name: string
         }
         Update: {
+          attempt_count?: number
           created_at?: string
+          dead_letter?: boolean
           error_message?: string | null
           id?: string
+          last_error?: string | null
           message_id?: string
           metadata?: Json | null
+          next_retry_at?: string | null
           recipient_email?: string
+          retry_payload?: Json | null
           status?: string
           subject?: string | null
           template_name?: string
@@ -20320,6 +20350,16 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_absent_marker_last_run_v: {
+        Row: {
+          last_marked_count: number | null
+          last_notes: string | null
+          last_run_at: string | null
+          last_window_date: string | null
+          runs_last_24h: number | null
+        }
+        Relationships: []
+      }
       hr_drift_open: {
         Row: {
           created_at: string | null
@@ -20408,6 +20448,39 @@ export type Database = {
           has_salary: boolean | null
         }
         Relationships: []
+      }
+      hr_ghost_email_residual_v: {
+        Row: {
+          action: Database["public"]["Enums"]["hr_razorpay_sync_action"] | null
+          created_at: string | null
+          error_text: string | null
+          field_diff_summary: Json | null
+          hr_employee_id: string | null
+          http_status: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
       }
       hr_monthly_hours_summary: {
         Row: {
@@ -21767,6 +21840,20 @@ export type Database = {
         }
         Returns: number
       }
+      hr_classify_drift_row: {
+        Args: {
+          _employee_id: string
+          _field: string
+          _hrms: string
+          _razorpay: string
+        }
+        Returns: {
+          auto_reason: string
+          auto_status: string
+          delta_amount: number
+          tolerance_used: number
+        }[]
+      }
       hr_close_payroll_month: { Args: { _month: string }; Returns: Json }
       hr_cockpit_ack_step: {
         Args: {
@@ -21942,6 +22029,7 @@ export type Database = {
         }
         Returns: number
       }
+      hr_open_unexplained_drift_count: { Args: never; Returns: number }
       hr_ops_user_ids: { Args: never; Returns: string[] }
       hr_payslip_link_orphans: {
         Args: never

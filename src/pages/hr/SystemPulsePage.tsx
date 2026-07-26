@@ -146,6 +146,12 @@ export default function SystemPulsePage() {
     rosterAgeHours == null ? "warn" :
     rosterAgeHours > 72 ? "warn" :
     (roster?.total_discrepancies ?? 0) > (roster?.total_auto_fixed ?? 0) ? "warn" : "ok";
+  const coverage = extras?.payslip_coverage;
+  const coverageMissing = coverage?.missing_names?.length ?? 0;
+  const coverageTone: Tone =
+    !coverage?.period_month ? "warn" :
+    coverage.coverage_pct >= 100 ? "ok" :
+    coverage.coverage_pct >= 95 ? "warn" : "bad";
 
 
   return (

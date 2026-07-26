@@ -1016,11 +1016,11 @@ export default function UserProfile() {
   );
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* ─── Header ─── */}
-      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 rounded-xl p-6 text-primary-foreground shadow-lg">
-        <div className="flex items-center gap-6">
-          <Avatar className="h-24 w-24 border-4 border-white/20">
+      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 rounded-xl p-4 sm:p-6 text-primary-foreground shadow-lg">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <Avatar className="h-16 w-16 sm:h-24 sm:w-24 border-4 border-white/20 shrink-0">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
             ) : (

@@ -332,6 +332,71 @@ export default function SystemPulsePage() {
           }
         />
 
+        {/* V5 · Engine self-test */}
+        <Tile
+          icon={Beaker}
+          title="Engine self-test"
+          tone={
+            !gov?.self_test.last_ran_at ? "muted" :
+            gov.self_test.outcome === "pass" ? "ok" :
+            gov.self_test.outcome === "fail" ? "bad" : "warn"
+          }
+          primary={
+            gov?.self_test.last_ran_at
+              ? `${gov.self_test.passed}/${gov.self_test.total} passed`
+              : "never run"
+          }
+          secondary={
+            gov?.self_test.last_ran_at
+              ? `Last ${new Date(gov.self_test.last_ran_at).toLocaleString("en-IN")} · nightly 03:10 IST`
+              : "Runs nightly on canonical messy-punch fixture"
+          }
+        />
+
+        {/* V7 · Retention purge */}
+        <Tile
+          icon={FileCheck}
+          title="Retention purge"
+          tone={gov?.retention.enabled ? "ok" : "warn"}
+          primary={gov?.retention.enabled ? "Automated" : "Disabled"}
+          secondary="Monthly 02:00 IST · raw 24m · suppressed 12m · quarantine 6m"
+          actionHref="/hrms/data-health"
+          actionLabel="Data Health"
+        />
+
+        {/* V8 · Alert noise ratio */}
+        <Tile
+          icon={ShieldAlert}
+          title="Alert noise ratio (7d)"
+          tone={
+            (gov?.alert_noise.critical_open ?? 0) > 0 ? "bad" :
+            (gov?.alert_noise.ratio_pct ?? 0) < 50 && (gov?.alert_noise.opened_7d ?? 0) > 5 ? "warn" :
+            "ok"
+          }
+          primary={`${gov?.alert_noise.ratio_pct ?? 0}% auto-closed`}
+          secondary={`${gov?.alert_noise.opened_7d ?? 0} opened · ${gov?.alert_noise.auto_closed_7d ?? 0} auto-closed · ${gov?.alert_noise.critical_open ?? 0} critical open`}
+          actionHref="/hrms/data-health"
+          actionLabel="Data Health"
+        />
+
+        {/* V9 · New-joiner readiness */}
+        <Tile
+          icon={CheckCircle2}
+          title="New-joiner readiness"
+          tone={
+            (gov?.joiner_readiness.broken ?? 0) > 0 ? "bad" :
+            (gov?.joiner_readiness.tracked ?? 0) === 0 ? "muted" : "ok"
+          }
+          primary={
+            (gov?.joiner_readiness.tracked ?? 0) === 0
+              ? "no active joiners"
+              : `${gov!.joiner_readiness.receipts_stamped}/${gov!.joiner_readiness.tracked} stamped`
+          }
+          secondary={`${gov?.joiner_readiness.broken ?? 0} broken chain${(gov?.joiner_readiness.broken ?? 0) === 1 ? "" : "s"} · re-checked daily 07:00 IST`}
+          actionHref="/hrms/employees"
+          actionLabel="Employees"
+        />
+
       </div>
 
 

@@ -15,59 +15,68 @@ type Milestone = {
   first_name: string | null;
   last_name: string | null;
   badge_id: string | null;
+  department: string | null;
   date: string; // YYYY-MM-DD
   kind: 'birthday' | 'anniversary';
   years?: number;
   dayLabel: string;
   daysUntil: number;
+  sameDept: boolean;
 };
 
 /**
  * ESS — Birthday & Work-Anniversary Feed.
- * Shows upcoming milestones (next 30 days) for teammates in the same
- * department. Read-only, celebratory surface — no age is displayed, no year
- * of birth, only the day/month. Anniversaries show completed years.
+ * Shows upcoming milestones (next 30 days) for ALL active teammates across
+ * the company (mirrors what RazorpayX surfaces). Read-only, celebratory —
+ * no age or year of birth displayed, only day/month. Anniversaries show
+ * completed years. Employees in the viewer's own department are highlighted.
  */
 export default function MyMilestonesCard({ employeeId, workInfo }: Props) {
-  const departmentId: string | null = workInfo?.department_id || null;
+  const myDeptId: string | null = workInfo?.department_id || null;
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['ess_milestones', departmentId, employeeId],
+    queryKey: ['ess_milestones_org', employeeId],
     queryFn: async (): Promise<Milestone[]> => {
-      if (!departmentId) return [];
-
-      // Teammates in same department (exclude self)
-      const { data: wi, error: wErr } = await supabase
-        .from('hr_employee_work_info')
-        .select('employee_id, joining_date')
-        .eq('department_id', departmentId);
-      if (wErr) throw wErr;
-
-      const teammateMap = new Map<string, string | null>(); // employee_id -> joining_date
-      (wi || []).forEach((r: any) => {
-        if (r.employee_id && r.employee_id !== employeeId) {
-          teammateMap.set(r.employee_id, r.joining_date || null);
-        }
-      });
-      const ids = Array.from(teammateMap.keys());
-      if (ids.length === 0) return [];
-
+      // All active employees (exclude self)
       const { data: emps, error: eErr } = await supabase
         .from('hr_employees')
         .select('id, first_name, last_name, badge_id, dob, is_active')
-        .in('id', ids)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .neq('id', employeeId);
       if (eErr) throw eErr;
+      if (!emps || emps.length === 0) return [];
+
+      const ids = emps.map((e: any) => e.id);
+      const { data: wi } = await supabase
+        .from('hr_employee_work_info')
+        .select('employee_id, joining_date, department_id')
+        .in('employee_id', ids);
+
+      const wiMap = new Map<string, { joining_date: string | null; department_id: string | null }>();
+      (wi || []).forEach((r: any) => {
+        wiMap.set(r.employee_id, { joining_date: r.joining_date || null, department_id: r.department_id || null });
+      });
+
+      // Department names
+      const deptIds = Array.from(new Set((wi || []).map((r: any) => r.department_id).filter(Boolean)));
+      const deptMap = new Map<string, string>();
+      if (deptIds.length) {
+        const { data: depts } = await supabase
+          .from('departments')
+          .select('id, name')
+          .in('id', deptIds as string[]);
+        (depts || []).forEach((d: any) => deptMap.set(d.id, d.name));
+      }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const HORIZON_DAYS = 30;
 
-      const nextOccurrence = (mmdd: { m: number; d: number }) => {
+      const nextOccurrence = (m: number, d: number) => {
         const y = today.getFullYear();
-        let next = new Date(y, mmdd.m - 1, mmdd.d);
+        let next = new Date(y, m - 1, d);
         next.setHours(0, 0, 0, 0);
-        if (next < today) next = new Date(y + 1, mmdd.m - 1, mmdd.d);
+        if (next < today) next = new Date(y + 1, m - 1, d);
         const diff = Math.round((next.getTime() - today.getTime()) / 86400000);
         return { next, diff };
       };
@@ -80,31 +89,37 @@ export default function MyMilestonesCard({ employeeId, workInfo }: Props) {
 
       const out: Milestone[] = [];
       (emps || []).forEach((e: any) => {
-        // Birthday
+        const info = wiMap.get(e.id);
+        const deptId = info?.department_id || null;
+        const deptName = deptId ? deptMap.get(deptId) || null : null;
+        const sameDept = !!myDeptId && deptId === myDeptId;
+
         if (e.dob) {
-          const [y, m, d] = String(e.dob).split('-').map(Number);
+          const [, m, d] = String(e.dob).split('-').map(Number);
           if (m && d) {
-            const { next, diff } = nextOccurrence({ m, d });
+            const { next, diff } = nextOccurrence(m, d);
             if (diff <= HORIZON_DAYS) {
               out.push({
                 id: `bd-${e.id}`,
                 first_name: e.first_name,
                 last_name: e.last_name,
                 badge_id: e.badge_id,
+                department: deptName,
                 date: e.dob,
                 kind: 'birthday',
                 dayLabel: formatDay(next, diff),
                 daysUntil: diff,
+                sameDept,
               });
             }
           }
         }
-        // Anniversary
-        const jd = teammateMap.get(e.id);
+
+        const jd = info?.joining_date;
         if (jd) {
           const [y, m, d] = String(jd).split('-').map(Number);
           if (y && m && d) {
-            const { next, diff } = nextOccurrence({ m, d });
+            const { next, diff } = nextOccurrence(m, d);
             const years = next.getFullYear() - y;
             if (diff <= HORIZON_DAYS && years >= 1) {
               out.push({
@@ -112,11 +127,13 @@ export default function MyMilestonesCard({ employeeId, workInfo }: Props) {
                 first_name: e.first_name,
                 last_name: e.last_name,
                 badge_id: e.badge_id,
+                department: deptName,
                 date: jd,
                 kind: 'anniversary',
                 years,
                 dayLabel: formatDay(next, diff),
                 daysUntil: diff,
+                sameDept,
               });
             }
           }
@@ -125,7 +142,7 @@ export default function MyMilestonesCard({ employeeId, workInfo }: Props) {
 
       return out.sort((a, b) => a.daysUntil - b.daysUntil);
     },
-    enabled: !!departmentId,
+    enabled: !!employeeId,
     staleTime: 60 * 60 * 1000,
   });
 
@@ -138,18 +155,16 @@ export default function MyMilestonesCard({ employeeId, workInfo }: Props) {
         <CardTitle className="flex items-center gap-2 text-base">
           <PartyPopper className="h-4 w-4 text-primary" /> Team Milestones
           <span className="text-[11px] font-normal text-muted-foreground ml-auto">
-            Next 30 days
+            Next 30 days · Company-wide
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {!departmentId ? (
-          <p className="text-xs text-muted-foreground">Department not set.</p>
-        ) : isLoading ? (
+        {isLoading ? (
           <p className="text-xs text-muted-foreground">Loading…</p>
         ) : items.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            No birthdays or work anniversaries in your department in the next 30 days.
+            No birthdays or work anniversaries across the company in the next 30 days.
           </p>
         ) : (
           <div className="space-y-2">
@@ -182,6 +197,11 @@ export default function MyMilestonesCard({ employeeId, workInfo }: Props) {
                       {isToday && (
                         <Sparkles className="h-3 w-3 text-primary flex-shrink-0" />
                       )}
+                      {it.sameDept && (
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary flex-shrink-0">
+                          MY TEAM
+                        </span>
+                      )}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
                       {isBd ? (
@@ -191,9 +211,10 @@ export default function MyMilestonesCard({ employeeId, workInfo }: Props) {
                       ) : (
                         <>
                           <PartyPopper className="h-3 w-3" /> {it.years}
-                          {it.years === 1 ? ' year' : ' years'} at the company
+                          {it.years === 1 ? ' year' : ' years'}
                         </>
                       )}
+                      {it.department && <span className="truncate">· {it.department}</span>}
                     </p>
                   </div>
                   <Badge

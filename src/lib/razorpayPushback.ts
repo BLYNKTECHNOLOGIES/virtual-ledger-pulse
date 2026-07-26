@@ -617,25 +617,12 @@ export async function pushStatutoryToRazorpay(
       return { ok: false, error: msg, needsEnvelope };
     }
 
-    await logPushback({
-      hr_employee_id: hrEmployeeId,
-      razorpay_employee_id: razorpayId,
-      kind: "statutory",
-      action: "push_statutory_apply_one",
-      status: "success",
-      response_snapshot: d ?? null,
-      triggered_from: opts?.triggeredFrom,
-    });
+    // Doctrine: do NOT log status="success" here. RazorpayX may return HTTP 200
+    // while silently keeping the old statutory flags. verifyAndFinalize() below
+    // performs the read-back and writes the authoritative status row so drift
+    // auto-resolution keyed on status="success" only fires on true verification.
 
-    await logPushback({
-      hr_employee_id: hrEmployeeId,
-      razorpay_employee_id: razorpayId,
-      kind: "statutory",
-      action: "push_statutory_apply_one",
-      status: "success",
-      response_snapshot: d ?? null,
-      triggered_from: opts?.triggeredFrom,
-    });
+
 
     const verifyResult = await verifyAndFinalize({
       kind: "statutory",

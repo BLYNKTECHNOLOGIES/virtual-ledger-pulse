@@ -1005,8 +1005,12 @@ export default function UserProfile() {
     <Card>
       <CardContent className="text-center py-12">
         <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">No Employee Profile Found</h3>
-        <p className="text-muted-foreground">Please contact HR to set up your employee profile.</p>
+        <h3 className="text-lg font-medium mb-2">Employee record not linked</h3>
+        <p className="text-muted-foreground max-w-md mx-auto text-sm">
+          Your ERP login isn't linked to an HRMS employee record yet. Profile, Tasks,
+          Documents and Settings still work — leave, attendance and payroll will appear
+          once HR links your record (matched by badge ID, email or phone).
+        </p>
       </CardContent>
     </Card>
   );

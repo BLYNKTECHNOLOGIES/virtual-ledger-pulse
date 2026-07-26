@@ -1027,7 +1027,12 @@ export default function UserProfile() {
           </Avatar>
           <div className="flex-1">
             <h1 className="text-3xl font-semibold mb-1">{displayName}</h1>
-            <p className="text-lg opacity-90">{user?.email}</p>
+            <p className="text-lg opacity-90 break-all">{user?.email}</p>
+            {employeeMatchedVia && employeeMatchedVia !== 'user_id' && (
+              <p className="text-[11px] mt-1 inline-block px-2 py-0.5 rounded bg-warning/20 text-warning-foreground border border-warning/40">
+                Profile matched via {employeeMatchedVia} — ask HR to link your account
+              </p>
+            )}
             {hrEmployee && (
               <div className="flex items-center gap-4 text-sm opacity-80 mt-1">
                 {hrEmployee.phone && (

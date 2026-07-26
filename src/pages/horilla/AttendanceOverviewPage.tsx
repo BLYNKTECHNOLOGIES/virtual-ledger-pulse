@@ -13,6 +13,7 @@ import { Plus, Search, Clock, CheckCircle, XCircle, AlertTriangle, Upload } from
 import BiometricReportUploader from "@/components/hrms/BiometricReportUploader";
 import { BiometricQuarantineBanner } from "@/components/hrms/BiometricQuarantineBanner";
 import { StaleSessionAlert } from "@/components/hrms/StaleSessionAlert";
+import { useAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -45,8 +46,17 @@ export default function AttendanceOverviewPage() {
     },
   });
 
+  // V1: canonical per-day view (all employees for the chosen date).
+  const employeeIds = (employees as any[]).map((e) => e.id);
+  const { data: dayRows = [] } = useAttendanceDayRange(
+    employeeIds,
+    dateFilter,
+    dateFilter,
+    { enabled: employees.length > 0 },
+  );
+
   const { data: attendance = [], isLoading, error: queryError } = useQuery({
-    queryKey: ["hr_attendance_unified", dateFilter, statusFilter, employees.length],
+    queryKey: ["hr_attendance_unified_v1", dateFilter, statusFilter, employees.length, dayRows.length],
     enabled: employees.length > 0,
     queryFn: async () => {
       const nextDate = format(
@@ -54,11 +64,10 @@ export default function AttendanceOverviewPage() {
         "yyyy-MM-dd"
       );
 
-      const [dailyRes, legacyByDateRes, legacyByCheckInRes] = await Promise.all([
-        (supabase as any)
-          .from("hr_attendance_daily")
-          .select("*")
-          .eq("attendance_date", dateFilter),
+      // Legacy hr_attendance rows are a different table (not covered by V1);
+      // keep as compatibility fallback only for punches that never made it
+      // into hr_attendance_daily.
+      const [legacyByDateRes, legacyByCheckInRes] = await Promise.all([
         (supabase as any)
           .from("hr_attendance")
           .select("*")
@@ -70,30 +79,25 @@ export default function AttendanceOverviewPage() {
           .lt("check_in", `${nextDate}T00:00:00`),
       ]);
 
-      if (dailyRes.error) throw dailyRes.error;
       if (legacyByDateRes.error) throw legacyByDateRes.error;
       if (legacyByCheckInRes.error) throw legacyByCheckInRes.error;
 
-      // Show the FULL active roster: employees with a daily/legacy row get their
-      // status; the rest are seeded as `no_data` ("Not punched") so the overview
-      // is deterministic (no asymmetry where some non-punchers appear and others
-      // don't just because the engine happened to touch them).
       const empById = new Map<string, any>(employees.map((e: any) => [e.id, e]));
       const byEmployee = new Map<string, any>();
 
-      for (const r of ((dailyRes.data as any[]) || [])) {
-        if (!r.employee_id) continue;
+      // Canonical daily rows via V1 view.
+      for (const r of (dayRows as any[])) {
         const emp = empById.get(r.employee_id);
-        if (!emp) continue; // skip inactive/unknown employees
+        if (!emp) continue;
         byEmployee.set(r.employee_id, {
-          id: r.id,
+          id: `${r.employee_id}-${r.date}`,
           employee_id: r.employee_id,
           hr_employees: emp,
           check_in: r.first_in,
           check_out: r.last_out,
           attendance_status: r.status || "no_data",
-          late_minutes: r.late_by_minutes,
-          early_leave_minutes: r.early_by_minutes,
+          late_minutes: r.late_minutes,
+          early_leave_minutes: r.early_minutes,
           work_type: null,
           notes: null,
           _source: "daily",
@@ -182,7 +186,8 @@ export default function AttendanceOverviewPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["hr_attendance_unified"] });
+    queryClient.invalidateQueries({ queryKey: ["hr_attendance_unified_v1"] });
+    queryClient.invalidateQueries({ queryKey: ["hr_attendance_day_v1"] });
       setShowAdd(false);
       toast.success("Attendance recorded");
     },

@@ -392,25 +392,37 @@ export default function EmployeeProfilePage() {
     enabled: !!id,
   });
 
-  // ─── Attendance (v4 daily is source of truth; legacy table only used as
-  // a compatibility fallback for very old rows). ───
+  // ─── Attendance (V1: canonical view via useAttendanceDayRange; legacy
+  // `hr_attendance` table only used as a compatibility fallback for very
+  // old rows that never made it into hr_attendance_daily). ───
   const { data: attendance } = useQuery({
-    queryKey: ["hr_attendance_daily_profile", id],
+    queryKey: ["hr_attendance_profile_v1", id],
+    enabled: !!id,
     queryFn: async () => {
-      const [dailyRes, legacyRes] = await Promise.all([
-        (supabase as any).from("hr_attendance_daily").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(60),
+      // Last 60 days window (yyyy-MM-dd), IST-agnostic (day resolution).
+      const to = new Date();
+      const from = new Date(to.getTime() - 60 * 24 * 3600 * 1000);
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+      const [dayRes, legacyRes] = await Promise.all([
+        (supabase as any).rpc("hr_attendance_day_range", {
+          p_employee_ids: [id],
+          p_from: iso(from),
+          p_to: iso(to),
+        }),
         (supabase as any).from("hr_attendance").select("*").eq("employee_id", id!).order("attendance_date", { ascending: false }).limit(60),
       ]);
+
       const byDate = new Map<string, any>();
-      for (const r of ((dailyRes.data as any[]) || [])) {
-        byDate.set(r.attendance_date, {
-          id: r.id,
-          attendance_date: r.attendance_date,
+      for (const r of ((dayRes.data as any[]) || [])) {
+        byDate.set(r.date, {
+          id: `${r.employee_id}-${r.date}`,
+          attendance_date: r.date,
           attendance_status: r.status || "no_data",
           check_in: r.first_in,
           check_out: r.last_out,
-          late_minutes: r.late_by_minutes,
-          early_leave_minutes: r.early_by_minutes,
+          late_minutes: r.late_minutes,
+          early_leave_minutes: r.early_minutes,
           work_type: null,
           overtime_hours: null,
         });
@@ -433,7 +445,6 @@ export default function EmployeeProfilePage() {
         .sort((a, b) => (a.attendance_date < b.attendance_date ? 1 : -1))
         .slice(0, 30);
     },
-    enabled: !!id,
   });
 
 

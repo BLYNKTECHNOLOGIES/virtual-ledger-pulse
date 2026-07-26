@@ -1,87 +1,95 @@
-# Employee Self-Service (ESS) — Profile as the Single Point of Contact
 
-Non-HR staff will not have `/hrms` access, so `/profile` (`src/pages/UserProfile.tsx`) must carry every HR interaction an employee needs: viewing information, raising requests, tracking status, acknowledging policies, and initiating lifecycle events. Today the page already has 11 tabs (Profile, My Tasks, Attendance, Salary & PF, Payslips, Banking, Leaves, Requests, Documents, Alerts, Settings) but coverage is thin, mobile navigation breaks past ~6 tabs, and several employees (like the screenshot's Shubham Singh) hit a dead-end "No Employee Profile Found" because their `users` row isn't linked to an `hr_employees` row.
+# Analysis of V1–V4 and Recommended Plan
 
-The build is split into ten phases so nothing important is missed. Each phase ships end-to-end (UI + data + permission gate + mobile layout) before moving on.
+## My honest verdict up front
 
-## Phase 0 — Foundations (unblocks everything else)
+- **V1 — Do it. Priority 1.** Legitimate and cheap. Three surfaces (HR Overview, HR Day Detail, ESS calendar) each derive "status/worked/LOP" from raw tables. That's the same class of drift that caused the payroll-split incidents. One shared read layer is the correct structural fix.
+- **V2 — Do it, but scoped. Priority 2.** The risk is real (ESS runs on policies authored in the HR era), but the pragmatic version is *view-based whitelists + a lightweight RLS-drift check*, not a full re-architecture. Full "employee-JWT can't touch raw HR tables" would require reworking many existing HR queries that share the same authenticated role. Do the fence for ESS-consumed tables now; expand later.
+- **V3 — Do it. Cheap and calendar-bound.** This is a status audit, not new code. Payroll month is close; we should know which of W0–W8 are actually shipped vs assumed, and finish W1/W2 before the run.
+- **V4 — Do it, but last. Priority 4.** Real value (kills the "closed tab lost the push" class of bug), but medium effort and touches every RazorpayX call site. Worth it, but only after V1–V3.
 
-- **Employee resolution fallback.** When `hr_employees` isn't linked, try (in order) `badge_id`, work email, phone, then `razorpay_employee_id`. Surface a soft banner ("Ask HR to link your employee record") instead of a hard empty state, and still allow Profile / Tasks / Settings / Alerts / Documents (personal KYC) / Payslips (by employee email match) to render whatever is available.
-- **New tab shell.** Replace the current flat `TabsList` with a mobile-friendly nav: horizontal scroll strip on desktop, a sticky **section dropdown** on mobile (< md). Group tabs into five sections — Me, Time, Leaves, Pay, Requests — plus persistent Alerts/Settings icons in the header row. Unread/actionable counts render as small badges on section labels.
-- **Permission map.** Central `useEssPermissions()` hook: read-only vs editable per section, HR-only editors always hidden, `hr_employees.status` (active / notice / separated) gates the Separation tab.
-- **Deep-link support.** URL params `?tab=…&sub=…&id=…` land on the right sub-section and highlight the target row (reuse existing `useDeepLinkHighlight`).
+Net: all four are legitimate. None are gold-plating. V1 and V3 are near-mandatory; V2 and V4 are high-value structural upgrades.
 
-## Phase 1 — "Me" (identity, contact, documents, assets)
+---
 
-- **Profile tab (rebuilt).** Sections: Identity (verified name — locked, KYC-immutable rule), Contact (phone / personal email — editable with edit-lock), Address (permanent + current), Emergency contacts (add / edit / delete), Family / dependents (view-only unless HR editable), Statutory IDs (PAN / Aadhaar last-4 / UAN / ESIC — masked, read-only), Bank (existing salary account, read-only).
-- **Documents tab (expanded).** Three groups: (a) *My KYC* from onboarding (PAN, Aadhaar, education, previous employment) with re-upload flow that routes to HR review; (b) *Issued by HR* (offer letter, appointment letter, salary revision letters, Form 16, experience/relieving after exit); (c) *Company documents* (HR Policies, employee handbook, code of conduct — with acknowledgement toggle & audit log).
-- **Assets tab (new).** Read-only list from `hr_asset_assignments` — device, serial, issued date, condition; "raise return request" CTA.
+## V1 — One attendance truth
 
-## Phase 2 — Time (attendance, regularization, overtime, comp-off, shift)
+### What changes
+- New SQL view `public.hr_attendance_day_v` (employee_id, date, status, first_in, last_out, worked_minutes, break_minutes, is_late, lop_contribution, engine_version, flags) built from `hr_attendance_daily` + `hr_lop_days` + `hr_stale_session_held` — the same inputs the Day Detail RPC already uses.
+- New hook `useAttendanceDay(employeeId, date | dateRange)` — the ONLY sanctioned reader.
+- Rewrite three call sites to consume it: `MyAttendanceCalendar.tsx`, `AttendanceOverviewPage.tsx` (list cells), `AttendanceDayDetailPage.tsx` (summary block).
+- Build-time guard script `scripts/check-attendance-single-source.sh` — greps `src/**` for direct `.from('hr_attendance_daily')` / `hr_lop_days` outside the sanctioned hook and fails CI.
 
-- **Today card.** Live status (in-progress / done / absent / week-off / holiday / on-leave), first-in / last-out, worked hours, LOP risk flag.
-- **Punches & sessions.** Last 30 days grouped by day, drill-down to Day Detail (reuse `AttendanceDayDetailPage` in embedded mode).
-- **Regularization.** File request (missed punch, wrong shift, WFH), track status, cancel while pending. Uses existing `hr_validate_regularization_proposal`.
-- **Monthly summary.** Present/absent/LOP/OT/late marks + downloadable summary.
-- **Overtime.** Declare OT (needs manager approval); ledger view.
-- **Comp-off.** Ledger (Sunday-work credits already auto-granted), request to redeem.
-- **Shift & week-off.** Current shift, upcoming week-off, holiday overlay.
+### After it ships
+- **Employee's calendar cell, HR's day row, and payroll's LOP number are literally the same value** — a mismatch is impossible without a schema change.
+- **Frontend:** cells may render 1 tick differently (status vocab unified). No workflow change.
+- **Backend:** one thin view + one hook. No writes, no migrations to existing tables.
+- **HR effort:** zero.
 
-## Phase 3 — Leaves
+---
 
-- Balance dashboard per leave type (retain current logic), Apply / Cancel with clash warnings (reuse `LeaveClashCard`), request history with status, org-wide leave calendar (who's out this week), year-end reset preview.
+## V2 — ESS read fencing (pragmatic version)
 
-## Phase 4 — Pay (payslips, salary, tax, reimbursements, loans)
+### What changes
+- New views: `ess_profile_v`, `ess_attendance_day_v` (wrapper over V1), `ess_leave_balance_v`, `ess_payslip_summary_v`, `ess_milestones_v` — each with an explicit column whitelist and `WHERE employee_id = current_hr_employee_id()` (helper resolves auth.uid → hr_employees.id via existing linkage).
+- Grants: `SELECT` to `authenticated` on views only; nothing else touched.
+- ESS cards migrated to read from these views. HR-only surfaces continue reading raw tables as today.
+- Enable the existing `hr-drift-scan` (or extend it) to snapshot RLS on ESS-touched tables weekly and alert on change (this is the W8 monitor).
 
-- **Payslips.** Keep existing canonical `hr_payslips_v` list + RazorpayX deep-link (R7 doctrine — no fake PDF).
-- **Salary & PF.** Existing CTC breakdown, plus **Compensation history** (revisions, effective dates, reasons — reuse `CompensationHistory`), PF/UAN passbook deep-link, gratuity accrual estimate.
-- **Tax.** Regime declaration (Old/New) for the FY, investment proofs upload, projected TDS. Locks after HR freezes.
-- **Reimbursements.** Submit expense claim (category, amount, receipt), track approval, RazorpayX push status once reimbursed.
-- **Loans & Advances.** View outstanding, EMI schedule, raise Salary Advance request (reuse `NewSalaryAdvanceDialog`).
+### After it ships
+- **Structural guarantee for ESS cards:** even if a future ESS card forgets a filter, it can only ask for whitelisted columns of the viewer's own row.
+- **Frontend:** ESS cards swap their `.from()` targets. No UI changes visible to the employee.
+- **Backend:** additive views + grants; no changes to raw table RLS (so HR flows untouched).
+- **HR effort:** zero. Effort: small-medium.
 
-## Phase 5 — Requests hub
+### Explicit non-goal
+Not rewriting existing HR RLS. That's a separate, larger project. This version fences ESS *reads*; writes stay on today's RLS.
 
-Single unified "My Requests" inbox aggregating: regularization, leave, comp-off, overtime, reimbursement, salary advance, document re-upload, asset return, helpdesk tickets. Filters by status/type; each row deep-links to its source card. Manager approvals surface here too when the user is someone's reporting manager.
+---
 
-## Phase 6 — Announcements, Holidays, Policies
+## V3 — Wave reconciliation (receipts before frontier)
 
-- Announcements timeline (retain `AnnouncementsBanner` on top, full list here).
-- Upcoming Holidays + full year calendar.
-- HR Policies list with per-policy **Acknowledged** toggle written to `hr_policy_acknowledgements` (audit trail HR can pull).
-- Helpdesk ticket creation for anything not covered (routes to HR queue).
+### What changes (verification pass, not code)
+- One document: `docs/attendance/WAVE_STATUS.md` — for each of W0–W8: exists? which file? verified how? last run?
+- Grep-level audit of: post-push fetch-backs, `verified_at` stamps, guard suite presence, auto-assign proposals, auto-lock, coverage receipts, RLS snapshots.
+- If W1/W2 (payroll round-trip) gaps found → finish them before the payroll month. If not, dated decision recorded.
 
-## Phase 7 — Growth & Performance
+### After it ships
+- **Truthful wave ledger.** No "we assumed it shipped" going into payroll.
+- **Frontend:** none.
+- **Backend:** possibly small fixes surfaced by the audit; scoped separately.
+- **HR effort:** zero.
 
-- Skills & tags self-update (reuse `TagsAndSkillsTab`).
-- 360 feedback: pending self-reviews, peer reviews assigned to me, history.
-- Goals / PMS view if data exists (read-only for the employee).
-- Disciplinary actions log (own record, read-only).
+---
 
-## Phase 8 — Separation
+## V4 — Durable outbox for RazorpayX writes
 
-Visible only when `status ∈ (active, notice)`:
-- Initiate resignation (notice period auto-computed from offer-letter policy), LWD calendar, F&F preview (deposit refund, unpaid leave encashment, dues).
-- Exit checklist (asset return, KT handover, clearance sign-offs).
-- Post-LWD read-only view of relieving letter, Form 16, F&F statement.
+### What changes
+- New table `razorpay_outbox` (kind, payload jsonb, hr_employee_id, status, attempt, last_error, next_attempt_at, verified_at, receipt).
+- New worker Edge Function `razorpay-outbox-worker`, called on the existing scheduler cadence: pops due rows, calls the existing push helper, runs F1 verification, stamps receipt or reschedules with backoff, opens a drift alert only after exhausted retries.
+- `pushWithVerification` becomes an enqueue call by default, returning `{status: 'queued', outboxId}`. Existing sync UIs show "Queued · will verify" and poll the outbox row (or subscribe via realtime).
+- Callers that must stay synchronous (rare — interactive dialogs where the operator waits) opt in via a `mode: 'sync'` flag that preserves today's behavior.
 
-## Phase 9 — Alerts & Settings
+### After it ships
+- **Transient RazorpayX outages become invisible to HR.** Closed tab or 5xx no longer loses the write.
+- **Frontend:** buttons flip from "Pushing…" spinner-block to instant "Queued · verifying" chip; a small "recent pushes" tray shows lifecycle. `RazorpayPushFeedbackProvider` continues to raise the diff dialog only on exhausted-retry / partial-verified outcomes.
+- **Backend:** every RazorpayX write now has one lifecycle (queued → pushed → verified → receipted) and one alert path.
+- **HR effort:** occasional exhausted-retry alert triage.
+- **Risk to manage:** ordering. If two revisions for the same employee are queued back-to-back, worker must serialize per `hr_employee_id + kind`. Plan covers this via a partial unique index on `(hr_employee_id, kind, status='queued')` + FIFO processing per key.
 
-- Notification preferences (keep `NotificationSettingsTab`, extend to attendance / payslip / policy channels).
-- Password change, session list, biometric badge ID display, linked devices (WebAuthn).
-- Language / theme / density.
+---
 
-## Technical notes
+## Recommended sequencing
 
-- **Files touched:** `src/pages/UserProfile.tsx` (shell + routing only after Phase 0); new sub-components live under `src/components/profile/<section>/…` mirroring the section grouping. Reuse `hrms/` primitives (`SectionHeader`, `EmptyState`, `ResponsiveList`, `ResponsiveDialog`) for consistency with the polished HRMS look.
-- **Data layer:** all reads via `@tanstack/react-query` (per Core rule). New mutations for reimbursements, tax declaration, policy acknowledgement, asset return, resignation — each with optimistic invalidations and `AlertDialog` confirmations for destructive/irreversible actions.
-- **Permissions:** every write path re-validated by RLS on `hr_*` tables scoped to `employee_id = current_user_employee()`. No client-side trust.
-- **Mobile-first:** every new sub-page uses card lists on `< md`, tables on `md+`, matching the earlier HRMS mobile refactor pattern.
-- **Rollout order:** Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Each phase is independently shippable so the employee experience improves incrementally without waiting for the full arc.
+| Order | Item | Effort | HR touch | Blocker? |
+|---|---|---|---|---|
+| 1 | V1 single attendance truth + CI guard | Small | none | Before more ESS cards |
+| 2 | V2 ESS read fencing (views + drift monitor) | Small-medium | none | Pairs with V1 |
+| 3 | V3 Wave status audit doc | Verification | none | Before next payroll run |
+| 4 | V4 RazorpayX outbox | Medium | rare alerts | After V1–V3 |
 
-## Out of scope for this arc
+## My view
 
-- No changes to `/hrms` HR/admin surfaces (already covered).
-- No new RazorpayX write paths — reimbursement/advance pushes stay behind the existing Universal Push Verification.
-- No payroll math changes — RazorpayX remains primary authority.
+These aren't overkill; they're the natural next step now that employees are consumers. V1 in particular I'd push to do *before* any new ESS card — every additional card without it deepens the divergence surface. V2 is the "do it once so we stop asking the same audit question" move. V3 is basically free insurance for the imminent payroll month. V4 is the only one big enough to defer if we're constrained, but it's also the one that permanently removes a class of human-retry pain.
 
-Approve to start with Phase 0 (foundations + employee resolution fix visible in the screenshot).
+Ship V1 + V2 + V3 this week; schedule V4 as a standalone slice after.

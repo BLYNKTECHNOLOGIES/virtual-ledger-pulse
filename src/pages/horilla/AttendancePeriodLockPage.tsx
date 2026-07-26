@@ -22,7 +22,8 @@ export default function AttendancePeriodLockPage() {
   const y = now.getFullYear();
   const m = now.getMonth();
   const [open, setOpen] = useState(false);
-  const [unlockId, setUnlockId] = useState<string | null>(null);
+  const [unlockLock, setUnlockLock] = useState<any | null>(null);
+  const [unlockReason, setUnlockReason] = useState("");
   const [form, setForm] = useState({
     period_start: format(new Date(y, m - 1, 1), 'yyyy-MM-dd'),
     period_end: format(new Date(y, m, 0), 'yyyy-MM-dd'),

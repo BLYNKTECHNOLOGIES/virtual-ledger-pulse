@@ -130,6 +130,7 @@ const navGroups: NavGroup[] = [
         icon: Wallet,
         path: "/hrms/payroll",
         children: [
+          { label: "🎯 Monthly Cockpit", path: "/hrms/payroll/cockpit" },
           { label: "Dashboard", path: "/hrms/payroll" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
           // Salary Structure entry retired — Razorpay is authority; view per-employee mirror inside the employee profile.
@@ -141,10 +142,9 @@ const navGroups: NavGroup[] = [
           { label: "Loans & Advances", path: "/hrms/payroll/loans" },
           { label: "Tax Config", path: "/hrms/payroll/tax-config" },
           { label: "Deposits", path: "/hrms/payroll/deposits" },
-          
-          
           { label: "Razorpay Diagnostics", path: "/hrms/payroll/razorpay-sync" },
           { label: "Payroll Calculation (Building)", path: "/hrms/payroll/shadow-calculator" },
+          { label: "System Pulse", path: "/hrms/system-pulse" },
           { label: "Data Health", path: "/hrms/data-health" },
         ],
       },

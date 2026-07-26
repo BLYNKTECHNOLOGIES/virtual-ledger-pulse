@@ -59,6 +59,12 @@ import NotificationSettingsTab from '@/components/profile/NotificationSettingsTa
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import MyTeamCard from '@/components/profile/MyTeamCard';
 import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
+import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
+import MyHelpdeskCard from '@/components/profile/MyHelpdeskCard';
+import MyDisciplinaryCard from '@/components/profile/MyDisciplinaryCard';
+import MyFeedback360Card from '@/components/profile/MyFeedback360Card';
+import MySeparationCard from '@/components/profile/MySeparationCard';
+import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
@@ -1067,7 +1073,7 @@ export default function UserProfile() {
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList
-          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:grid md:grid-cols-12 md:gap-0"
+          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start md:flex md:flex-wrap md:gap-1"
         >
           <TabsTrigger value="profile" className="shrink-0">Profile</TabsTrigger>
           <TabsTrigger value="tasks" className="shrink-0">My Tasks</TabsTrigger>
@@ -1079,6 +1085,10 @@ export default function UserProfile() {
           <TabsTrigger value="requests" className="shrink-0">Requests</TabsTrigger>
           <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
           <TabsTrigger value="assets" className="shrink-0">Assets</TabsTrigger>
+          <TabsTrigger value="policies" className="shrink-0">Policies</TabsTrigger>
+          <TabsTrigger value="growth" className="shrink-0">Growth</TabsTrigger>
+          <TabsTrigger value="helpdesk" className="shrink-0">Help</TabsTrigger>
+          <TabsTrigger value="separation" className="shrink-0">Separation</TabsTrigger>
           <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
           <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>
@@ -1687,6 +1697,43 @@ export default function UserProfile() {
               </Button>
             </CardContent>
           </Card>
+          {user?.id && (
+            <div className="md:col-span-2">
+              <MySecurityCard userId={user.id} badgeId={hrEmployee?.badge_id} />
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ═══════ Policies Tab ═══════ */}
+        <TabsContent value="policies" className="space-y-6">
+          {user?.id && <MyPoliciesCard userId={user.id} />}
+          <UpcomingHolidaysCard />
+        </TabsContent>
+
+        {/* ═══════ Growth Tab ═══════ */}
+        <TabsContent value="growth" className="space-y-6">
+          {!hrEmployee ? (
+            <NoEmployeeProfile />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <MyFeedback360Card employeeId={hrEmployee.id} />
+              <MyDisciplinaryCard employeeId={hrEmployee.id} />
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ═══════ Helpdesk Tab ═══════ */}
+        <TabsContent value="helpdesk" className="space-y-6">
+          {user?.id && <MyHelpdeskCard userId={user.id} />}
+        </TabsContent>
+
+        {/* ═══════ Separation Tab ═══════ */}
+        <TabsContent value="separation" className="space-y-6">
+          {!hrEmployee ? (
+            <NoEmployeeProfile />
+          ) : (
+            <MySeparationCard employee={hrEmployee as any} />
+          )}
         </TabsContent>
       </Tabs>
 

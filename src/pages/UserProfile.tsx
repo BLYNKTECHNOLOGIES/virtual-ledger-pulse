@@ -1262,6 +1262,9 @@ export default function UserProfile() {
 
               {/* Phase 7 — Company News */}
               <MyAnnouncementsCard />
+
+              {/* Team Milestones — birthdays & work anniversaries */}
+              <MyMilestonesCard employeeId={hrEmployee.id} workInfo={workInfo} />
             </div>
           )}
         </TabsContent>

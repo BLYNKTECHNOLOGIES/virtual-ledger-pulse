@@ -59,6 +59,7 @@ import NotificationSettingsTab from '@/components/profile/NotificationSettingsTa
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import MyTeamCard from '@/components/profile/MyTeamCard';
 import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
+import MyMilestonesCard from '@/components/profile/MyMilestonesCard';
 import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
 import MyHelpdeskCard from '@/components/profile/MyHelpdeskCard';
 import MyDisciplinaryCard from '@/components/profile/MyDisciplinaryCard';
@@ -1261,6 +1262,9 @@ export default function UserProfile() {
 
               {/* Phase 7 — Company News */}
               <MyAnnouncementsCard />
+
+              {/* Team Milestones — birthdays & work anniversaries */}
+              <MyMilestonesCard employeeId={hrEmployee.id} workInfo={workInfo} />
             </div>
           )}
         </TabsContent>

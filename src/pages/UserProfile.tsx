@@ -667,6 +667,28 @@ export default function UserProfile() {
     },
     enabled: !!user?.id,
   });
+
+  // Auto-heal: if we resolved the employee via a fallback (badge/email/phone)
+  // silently backfill hr_employees.user_id so this only happens once. The
+  // employee should never see linkage warnings — that's an HR-internal detail.
+  useEffect(() => {
+    const emp = employeeResolution?.employee;
+    const via = employeeResolution?.matchedVia;
+    if (!emp || !user?.id || !via || via === 'user_id' || emp.user_id) return;
+    (async () => {
+      try {
+        await (supabase as any)
+          .from('hr_employees')
+          .update({ user_id: user.id })
+          .eq('id', emp.id)
+          .is('user_id', null);
+      } catch { /* best-effort; HR can fix manually */ }
+    })();
+  }, [employeeResolution, user?.id]);
+
+    },
+    enabled: !!user?.id,
+  });
   const hrEmployee = employeeResolution?.employee ?? null;
   const employeeMatchedVia = employeeResolution?.matchedVia ?? null;
 

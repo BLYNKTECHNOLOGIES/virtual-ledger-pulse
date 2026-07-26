@@ -1,95 +1,133 @@
-## My view
+# Wave 5 — W5 · W6 · W7 Plan
 
-All four are legitimate and consistent with the doctrine we've been building — "every write earns a receipt." W0 is the highest-value one because it certifies things we've already claimed shipped; W1–W3 close the last three unverified writes (attendance push, inputs push, device roster). None require new UI journeys or HR ritual — they add read-back after existing writes and surface only mismatches. Recommend implementing all four in the given order.
+## My honest view first
 
-Below is what changes, why, and what you'll see afterwards.
+All three are legitimate and cheap. They each turn a *promise* into a *check*:
 
----
+- **W5** — the single highest-leverage item we've ever considered. Every "we fixed this class" from the past six days is a document; W5 makes those documents into build failures. Recurrence of eight known bug classes becomes physically impossible.
+- **W6** — trivial. Removes one manual step that guards a month that is definitionally over. Grace window preserves late punches.
+- **W7** — trivial and closes the last silent-gap class in payslip mirroring. Names appear the day they should have.
 
-## W0 · Certify Wave 2 (F5, F2, F9, F10)
+None touch HR-facing behavior. All three are backend/CI discipline.
 
-**Why:** F-items shipped, but their verifying halves live in code that no one is watching. Silent regression here is the exact "false-green" class we've been eliminating.
-
-**What we'll do**
-- **F5 (device clock sync):** confirm the `SET TIME` command is actually enqueued daily for both device serials, and that measured drift lands in `hr_biometric_devices.clock_drift_seconds`. If missing, add the enqueue + drift-record step and a "last handshake" field to the Pulse tile.
-- **F2 (watchdog auto-resolve):** read the evaluator. If a stale session has exactly one candidate suppressed OUT punch within the allowed window, auto-close it with `auto_resolved_from_suppressed = true` and log to the intervention table. Only ambiguous cases stay on the Watchdog card.
-- **F10 (absence window test):** wire `window_test.ts` into an executable check that runs at deploy and can be re-triggered from System Pulse; store `last_pass_at` and surface a red tile on failure.
-- **F9 (ghost-email auto-remediation):** on ghost detection, automatically invoke the RazorpayX edit-by-email recovery path already documented; only card in Data Health if that recovery itself fails.
-
-**After it lands:** every green tile on System Pulse is backed by a stored receipt, not a code path we hope still runs. HR sees nothing new unless something actually breaks.
-
-**Frontend touch:** small — add "last verified" timestamps to four Pulse tiles.
-**Backend touch:** small — one migration for receipt columns; edits inside four existing functions.
-**Effort:** ~half a day. **Priority: 0.**
+Recommended order: **W6 → W7 → W5** (ship the two trivial receipts first; W5 is a one-day guard-suite build that needs care because it fails builds).
 
 ---
 
-## W1 · Attendance mirror round-trip
+## W6 · Month-boundary auto-lock
 
-**Why:** Today we push monthly LOP/present-days to RazorpayX and trust the proxy's 200 OK. RazorpayX offers `attendance:attendance-fetch` (62-day cap) and it's already reachable in `razorpay-payroll-proxy` — we just never read it back. A silently mangled attendance month currently surfaces only when someone questions a payslip.
+**What:** Auto-lock the attendance period at `month_end + G days` (default G=3). Admin can unlock with a mandatory reason; unlock is logged as an intervention. Cockpit Step 1 becomes self-completing.
 
-**What we'll do**
-- Immediately after `push_attendance_apply_one` / `push_attendance_apply_bulk` succeeds, the proxy calls `attendance-fetch` for the same YYYY-MM.
-- Field-compares per employee: `lop_days`, `present_days`, `paid_days` (source = our `hr_lop_days` view).
-- Writes onto the push record (`hr_razorpay_pushback_log` + `hr_razorpay_payroll_runs`): `readback_verified_at`, `readback_diff` (JSON of any mismatches).
-- On mismatch: opens a `hr_drift_alerts` row per employee-day with `kind = 'attendance_readback'`, auto-status = `open`, so it flows into the existing unexplained-drift tile.
-- No new cron; verification is the tail of the push action.
+**How:**
 
-**After it lands:** the payroll input chain — v4 engine → `hr_lop_days` → push → fetch-back — is provable end-to-end. Cockpit's "attendance pushed" step turns green only after read-back matches. If a bulk push silently drops one employee's LOP, HR sees a named drift alert within seconds.
+- Add `auto_lock_grace_days` to `hr_attendance_engine_settings` (default 2).
+- New cron `hr-attendance-auto-lock-daily` (05:15 IST): for each month whose end + grace has passed and is unlocked, insert into `hr_attendance_period_locks` with `locked_by = 'system:auto-lock'`, emit `hr_notify` to HR + Super Admin.
+- Extend `hr_attendance_period_locks` with `unlock_reason text`, `unlocked_by uuid`, `unlocked_at timestamptz`; unlock RPC requires reason (>10 chars) and Super Admin.
+- Cockpit Step 1 detects `locked_by like 'system:%'` and shows "Auto-locked on &nbsp;" as ✅ complete; manual unlock surfaces as an amber intervention row.
 
-**Frontend touch:** none new — mismatches use the existing drift alert surface.
-**Backend touch:** proxy addition + migration for two receipt columns + one drift kind.
-**Effort:** small. **Priority: 1.**
+**After:** No one ever "forgets to lock." Late punches inside grace window still process. If someone genuinely needs to reopen a closed month they can, with a reason permanently on the record.
 
----
-
-## W2 · Inputs mirror round-trip
-
-**Why:** Additions (bonuses, reimbursements) and deductions push through `pushWithVerification`, but nothing confirms the row actually landed inside that payroll month. `payroll:view-payroll` returns an additions block and deduction total we don't read post-push. A dropped bonus is discovered by the employee.
-
-**What we'll do**
-- After each additions/deductions push, the proxy pulls `view-payroll` for that employee+month.
-- Matches each staged item by (name, amount) for additions and a within-tolerance check for the deduction total.
-- Stamps `verified_at` and `verified_diff` onto `hr_payroll_input_additions` / `hr_payroll_input_deductions` (they already have `pushed_at` / `push_response`).
-- Mismatch → drift alert `kind = 'inputs_readback'` naming employee + item.
-- Cockpit "Inputs staged" step self-completes on verified-count === pushed-count, not on push-count.
-
-**After it lands:** staging tables become a proven ledger. The cockpit no longer trusts push receipts — it trusts read-back receipts. Every bonus either provably inside the month or loudly flagged before payroll runs.
-
-**Frontend touch:** cockpit signal tightens; staging pages show a small "verified in Razorpay" tick.
-**Backend touch:** proxy addition + two receipt columns per staging table + one drift kind.
-**Effort:** small. **Priority: 2.**
+**Frontend:** Cockpit Step 1 card auto-greens; new "Unlock month" dialog (Super Admin only) with reason field; intervention strip gets an "unlocks" row.
+**Backend:** 1 cron, 1 migration (grace column + unlock audit columns), 1 RPC `hr_unlock_attendance_period(month, reason)`.
 
 ---
 
-## W3 · Device-user mirror round-trip
+## W7 · Payslip-import completeness receipt
 
-**Why:** Identity parity is doctrine section 2, but the eSSL leg is assumed. The 48h sync refreshes device data without reconciling it against employees or `hr_biometric_device_users`. Ghost enrollments (the 17-user incident) accumulated silently before there was any auto-catch.
+**What:** After every payslip sync run, compare imported employees vs. `active roster − exclusions` and surface the missing names as a single drift line. Pulse shows last import coverage %.
 
-**What we'll do (extend existing 48h `hr-essl-sync-devices`, no new cron)**
-- After refresh, three-way compare per device: device roster ↔ `hr_biometric_device_users` ↔ active `hr_employees`.
-- Classify each discrepancy: `ghost_on_device`, `missing_on_device`, `pin_mismatch`, `dismissed_still_enrolled`.
-- Auto-queue safe fixes through the existing command channel:
-  - `dismissed_still_enrolled` → enqueue delete on all devices.
-  - `missing_on_device` for active employees with a valid badge → re-push enrollment.
-- Surface only unsafe cases (PIN collisions, name mismatch) as `hr_drift_alerts` for HR review.
-- New Pulse tile: "Device roster parity — last reconciled, N discrepancies (M auto-fixed)."
+**Exclusions:** joined-after-month-end, dismissed-before-month-start, `do_not_pay = true`, unpaid-training (structure-swap doctrine).
 
-**After it lands:** all three systems (v4 attendance, RazorpayX, eSSL) carry the same self-verifying property. Tri-system parity becomes machine-enforced. Ghost users can no longer accumulate — they're deleted or flagged within 48h of appearing.
+**How:**
 
-**Frontend touch:** one new Pulse tile; existing Biometric Devices page unchanged.
-**Backend touch:** additions to `hr-essl-sync-devices`; one reconciliation-log table; drift kind.
-**Effort:** small-medium. **Priority: 3.**
+- New SQL function `hr_payslip_import_coverage(month date)` returning `{expected_count, imported_count, missing_names[], excluded_count}`.
+- End of `razorpay-payslip-sync` Edge Function calls it, writes result to a new `hr_razorpay_sync_log.coverage_json` field, and — if `missing_names` non-empty — inserts one `hr_drift_alerts` row per run (not per person) with the full list in details.
+- `SystemPulsePage` gets a "Payslip import coverage" tile: last run %, missing count, click to see names.
+
+**After:** A payslip that fails to arrive announces itself the same day, by name. No silent partial imports.
+
+**Frontend:** One new Pulse tile; drift alerts list already renders it.
+**Backend:** 1 SQL fn, 1 column, ~30 lines in existing edge function.
 
 ---
 
-## Sequencing & user-visible situation after Wave 3
+## W5 · Incident-memory guards (build-time law)
 
-1. W0 first — certifies the ground we're standing on.
-2. W1 next — closes the highest-consequence unverified write (payroll input).
-3. W2 — closes the second (inputs).
-4. W3 — closes the last one (identity).
+**The core idea:** four static-analysis guards run in the existing typecheck step. Each guard's error message names the historical incident it prevents. Bug classes that consumed the most debugging hours of this project become **uncompilable**.
 
-**Net situation:** every write into RazorpayX and every write into the biometric fleet is followed by a read-back the same code path can prove. System Pulse becomes a receipt board. HR sees zero new work in the happy path and only named, actionable mismatches when something is actually wrong. The cockpit's green ticks stop meaning "we tried" and start meaning "we verified."
+### Guard A — Schema-contract check (highest value)
 
-I'll ship all four in one build pass, log to `docs/STATE_LOG.md`, and note the certifications in `docs/hrms/`.
+**Prevents:** the 8+ schema-column-mismatch incidents (`department` on `hr_employees`, `advance_type` before migration, `readback_status` mis-named, etc.).
+
+**How:**
+
+- Node script `scripts/guards/schema-contract.ts`.
+- Uses `ts-morph` to walk every `supabase/functions/**/index.ts` and `src/**/*.ts` file.
+- Extracts column literals from: `.eq('col', …)`, `.select('a, b, c')`, `.insert({col: …})`, `.update({col: …})`, `.order('col')`, `.filter('col', …)`.
+- Snapshots live schema via `information_schema.columns` → committed to `scripts/guards/schema-snapshot.json` (regenerated by a "refresh snapshot" script that runs after every approved migration).
+- Unknown `table.column` → build fails with: *"Column `hr_employees.department` does not exist. Historical incident: 2026-07-11 attendance-overview crash. If this column was just added, run `bun run guards:refresh-schema`."*
+
+### Guard B — Ghost-endpoint lint
+
+**Prevents:** the 2 ghost-endpoint incidents (`fetchPayrollEnvelope`, `pushAttendanceMirror` calling non-existent proxy actions).
+
+**How:**
+
+- Whitelist source: the collection JSON already in repo at `docs/razorpay/collection.json` (17 verified operations).
+- Script `scripts/guards/proxy-endpoints.ts` greps every `razorpay-payroll-proxy` invocation in the codebase for `type` + `sub_type`, cross-references the whitelist.
+- Unknown pair → build fails with: *"Proxy action `payroll.fetch_envelope` is not in the verified 17-operation whitelist. Historical incident: 2026-07-22 false-green push. Add to collection.json only after Postman verification against sandbox."*
+
+### Guard C — False-green lint
+
+**Prevents:** the 2 false-green logging incidents (statutory push, payroll push logged verified before readback).
+
+**How:**
+
+- ESLint custom rule `no-bare-pushback-success`: any call to `logPushback(…, 'verified')` or `logPushback(…, success: true)` must be lexically inside a function named `verifyAndFinalize` or `pushWithVerification`.
+- Violation → build fails with: *"logPushback with success status must live inside verifyAndFinalize/pushWithVerification. Historical incident: 2026-07-24 statutory false-green. Read-back happens first; log follows the read."*
+
+### Guard D — Single-writer registry
+
+**Prevents:** dual-writer drift (the `hr_attendance_daily` recompute race; the sessions-table dual-write).
+
+**How:**
+
+- Registry file `scripts/guards/single-writer.json`: `{ "hr_attendance_daily": ["hr_recompute_attendance_daily"], "hr_attendance_sessions": ["hr_pair_punches"] }`.
+- Script walks every `INSERT INTO <table>` / `.insert({...}).into('<table>')` / `supabase.from('<table>').insert/update` occurrence.
+- If a write site appears outside the registered writers → build fails with: *"Table `hr_attendance_daily` is single-writer (see `hr_recompute_attendance_daily`). Historical incident: 2026-07-19 duplicate rollup. Route the write through the canonical writer or update the registry with justification."*
+
+### Wiring
+
+- All four guards run in a new `bun run guards` script.
+- Added to the existing typecheck step in CI (and locally via a `precommit` optional hook).
+- One shared reporter so failures list all violations, not just the first.
+- Refresh flow: after every approved migration, `bun run guards:refresh-schema` rewrites the snapshot; PR shows the diff.
+
+**After:** The eight bug classes that consumed the most debugging hours of this project cannot be reintroduced. A new landmine of a known class dies at `bun run guards` with a message that teaches the author its history.
+
+**Frontend:** zero.
+**Backend:** zero runtime cost — this is CI/local-dev discipline only.
+**Effort:** ~1 day (guards A + D are the meat; B + C are ~50 lines each).
+
+---
+
+## Situation after all three ship
+
+- **Cockpit** self-completes Step 1 every month with no human involvement (W6).
+- **Payslip mirroring** surfaces missing employees by name the same day, ending the silent-gap class (W7).
+- **The codebase itself refuses** to ship the eight bug classes we've spent the past six days chasing (W5).
+
+Combined with W0–W3, the system now:
+
+- verifies every external write via read-back (F1),
+- monitors its own state via Pulse tiles (F7, W3),
+- self-heals email + suppressed punches (F2, F9),
+- and — after W5 — physically prevents the class of mistakes that created those problems in the first place.
+
+## Priority & sequencing
+
+1. **W6** (trivial, high daily-ergonomics win) — ship first.
+2. **W7** (trivial, closes last silent class in mirroring) — ship second.
+3. **W5** (medium, highest long-term value) — ship third; land guards one at a time (A → D → B → C) so any false positives are easy to diagnose.
+
+Say "proceed" to start with W6 + W7 in the same pass, then W5 guards in the following pass.

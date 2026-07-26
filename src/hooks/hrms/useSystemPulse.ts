@@ -158,6 +158,15 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
             unsafe_flagged: Number(r.unsafe_flagged ?? 0),
           })),
         },
+        payslip_coverage: {
+          period_month: coverage?.data?.period_month ?? null,
+          computed_at: coverage?.data?.computed_at ?? null,
+          expected_count: Number(coverage?.data?.expected_count ?? 0),
+          imported_count: Number(coverage?.data?.imported_count ?? 0),
+          excluded_count: Number(coverage?.data?.excluded_count ?? 0),
+          coverage_pct: Number(coverage?.data?.coverage_pct ?? 0),
+          missing_names: (coverage?.data?.missing_names ?? []) as string[],
+        },
       };
     },
     refetchInterval: refetchMs,

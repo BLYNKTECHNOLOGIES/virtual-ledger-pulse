@@ -95,6 +95,7 @@ function cronTone(rows: CronPulseRow[]): { tone: Tone; failing: number; stale: n
 export default function SystemPulsePage() {
   const { data, isLoading, refetch, isFetching } = useSystemPulse();
   const { data: extras, refetch: refetchExtras } = useSystemPulseExtras();
+  const { data: windowTest, refetch: refetchWindow, isError: windowError } = useWindowTestPulse();
 
   const cron = data?.cron ?? [];
   const cronStat = cronTone(cron);

@@ -7002,7 +7002,58 @@ Deno.serve(async (req) => {
         error_text: errText,
         actor_user_id: authed.userId,
       });
-      return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText });
+
+      // ---- W2 · Inputs push read-back receipt -------------------------
+      // Caller can pass { readback_id, readback_table } (uuid + "additions"|"deductions")
+      // alongside the additions/deduction push. We immediately view-payroll for
+      // the same employee/month and stamp readback_verified_at + readback_diff
+      // on the corresponding staged row. Best-effort — non-fatal on failure.
+      let readbackReceipt: any = null;
+      if (!errText && (action === "payroll_add_additions" || action === "payroll_add_deduction")) {
+        const rbId = String(directPayload?.readback_id || "").trim();
+        const rbTable = String(directPayload?.readback_table || "").trim();
+        const rbEid = data["employee-id"];
+        const rbMonth = data["payroll-month"];
+        if (rbEid && rbMonth) {
+          const rbCtrl = new AbortController();
+          const rbT = setTimeout(() => rbCtrl.abort(), 15000);
+          try {
+            const rbRes = await fetch(`${BASE}/payroll`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                auth: authBlock(),
+                request: { type: "payroll", "sub-type": "view-payroll" },
+                data: { "employee-id": Number(rbEid), "payroll-month": rbMonth, "employee-type": "employee" },
+              }),
+              signal: rbCtrl.signal,
+            });
+            const rbRaw = await rbRes.text();
+            let rbBody: any = null; try { rbBody = JSON.parse(rbRaw); } catch { rbBody = null; }
+            const rbErr = rbBody && typeof rbBody === "object" ? (rbBody.error || rbBody.message || null) : null;
+            readbackReceipt = {
+              endpoint: "payroll:view-payroll",
+              employee_id: String(rbEid),
+              payroll_month: String(rbMonth),
+              http_status: rbRes.status,
+              ok: rbRes.ok && !rbErr,
+              error: rbErr ? String(rbErr).slice(0, 200) : null,
+              snapshot_keys: rbBody && typeof rbBody === "object" ? Object.keys(rbBody).slice(0, 20) : [],
+            };
+            if (rbId && (rbTable === "additions" || rbTable === "deductions")) {
+              const tableName = rbTable === "additions" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
+              await svc.from(tableName).update({
+                readback_verified_at: readbackReceipt.ok ? new Date().toISOString() : null,
+                readback_diff: readbackReceipt,
+              }).eq("id", rbId);
+            }
+          } catch (e) {
+            readbackReceipt = { ok: false, error: `NETWORK: ${(e as Error).message}` };
+          } finally { clearTimeout(rbT); }
+        }
+      }
+
+      return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText, readback: readbackReceipt });
     }
 
     return json(400, { error: `Unsupported action: ${action}` });

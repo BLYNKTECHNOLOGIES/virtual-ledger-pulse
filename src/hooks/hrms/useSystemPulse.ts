@@ -19,6 +19,25 @@ export interface SystemPulse {
   stale_sessions: { open?: number; oldest_age_hours?: number };
   sandbox: { enabled?: boolean; expires_at?: string | null };
   razorpay_freshness: Record<string, any>;
+  clock?: {
+    total_devices?: number;
+    max_drift_seconds?: number;
+    devices_over_30s?: number;
+    devices_over_120s?: number;
+    last_time_sync_at?: string | null;
+    oldest_since_sync_hours?: number;
+    per_device?: Array<{
+      device_serial: string;
+      name: string | null;
+      drift_seconds: number | null;
+      last_sync_at: string | null;
+      checked_at: string | null;
+    }>;
+  };
+  interventions?: {
+    this_month?: number;
+    unsupported_overrides_this_month?: number;
+  };
 }
 
 export function useSystemPulse(refetchMs = 60_000) {

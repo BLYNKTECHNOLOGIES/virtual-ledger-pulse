@@ -5215,6 +5215,39 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_self_test_runs: {
+        Row: {
+          duration_ms: number | null
+          failures: Json
+          fixture_version: string
+          id: string
+          outcome: string
+          passed: number
+          ran_at: string
+          total: number
+        }
+        Insert: {
+          duration_ms?: number | null
+          failures?: Json
+          fixture_version?: string
+          id?: string
+          outcome: string
+          passed?: number
+          ran_at?: string
+          total?: number
+        }
+        Update: {
+          duration_ms?: number | null
+          failures?: Json
+          fixture_version?: string
+          id?: string
+          outcome?: string
+          passed?: number
+          ran_at?: string
+          total?: number
+        }
+        Relationships: []
+      }
       hr_attendance_sessions: {
         Row: {
           attendance_date: string
@@ -5600,6 +5633,7 @@ export type Database = {
       hr_biometric_device_users: {
         Row: {
           card_no: string | null
+          consent_recorded_at: string | null
           created_at: string
           device_serial: string
           face_count: number | null
@@ -5625,6 +5659,7 @@ export type Database = {
         }
         Insert: {
           card_no?: string | null
+          consent_recorded_at?: string | null
           created_at?: string
           device_serial: string
           face_count?: number | null
@@ -5650,6 +5685,7 @@ export type Database = {
         }
         Update: {
           card_no?: string | null
+          consent_recorded_at?: string | null
           created_at?: string
           device_serial?: string
           face_count?: number | null
@@ -6264,6 +6300,39 @@ export type Database = {
           },
         ]
       }
+      hr_data_retention_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: boolean
+          quarantine_days: number
+          raw_punch_days: number
+          suppressed_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: boolean
+          quarantine_days?: number
+          raw_punch_days?: number
+          suppressed_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: boolean
+          quarantine_days?: number
+          raw_punch_days?: number
+          suppressed_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       hr_deposit_transactions: {
         Row: {
           amount: number
@@ -6445,9 +6514,12 @@ export type Database = {
       hr_drift_alerts: {
         Row: {
           auto_classified_at: string | null
+          auto_closed_at: string | null
+          auto_closed_reason: string | null
           auto_reason: string | null
           auto_status: string
           created_at: string
+          dedup_key: string | null
           delta_amount: number | null
           essl_value: string | null
           field: string
@@ -6456,6 +6528,7 @@ export type Database = {
           hrms_value: string | null
           id: string
           last_seen_at: string
+          occurrence_count: number
           razorpay_value: string | null
           resolution_direction: string | null
           resolution_note: string | null
@@ -6468,9 +6541,12 @@ export type Database = {
         }
         Insert: {
           auto_classified_at?: string | null
+          auto_closed_at?: string | null
+          auto_closed_reason?: string | null
           auto_reason?: string | null
           auto_status?: string
           created_at?: string
+          dedup_key?: string | null
           delta_amount?: number | null
           essl_value?: string | null
           field: string
@@ -6479,6 +6555,7 @@ export type Database = {
           hrms_value?: string | null
           id?: string
           last_seen_at?: string
+          occurrence_count?: number
           razorpay_value?: string | null
           resolution_direction?: string | null
           resolution_note?: string | null
@@ -6491,9 +6568,12 @@ export type Database = {
         }
         Update: {
           auto_classified_at?: string | null
+          auto_closed_at?: string | null
+          auto_closed_reason?: string | null
           auto_reason?: string | null
           auto_status?: string
           created_at?: string
+          dedup_key?: string | null
           delta_amount?: number | null
           essl_value?: string | null
           field?: string
@@ -6502,6 +6582,7 @@ export type Database = {
           hrms_value?: string | null
           id?: string
           last_seen_at?: string
+          occurrence_count?: number
           razorpay_value?: string | null
           resolution_direction?: string | null
           resolution_note?: string | null
@@ -9567,6 +9648,90 @@ export type Database = {
             foreignKeyName: "hr_loans_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
+      hr_new_joiner_readiness: {
+        Row: {
+          broken_links: string[]
+          created_at: string
+          deposit_scheduled: boolean
+          first_payroll_month: string | null
+          hr_employee_id: string
+          joined_at: string
+          last_checked_at: string | null
+          mapping_ok: boolean
+          receipt_stamped_at: string | null
+          salary_pushed_verified: boolean
+          shift_proposal_ripe: boolean
+          training_swap_applied: boolean
+          updated_at: string
+        }
+        Insert: {
+          broken_links?: string[]
+          created_at?: string
+          deposit_scheduled?: boolean
+          first_payroll_month?: string | null
+          hr_employee_id: string
+          joined_at: string
+          last_checked_at?: string | null
+          mapping_ok?: boolean
+          receipt_stamped_at?: string | null
+          salary_pushed_verified?: boolean
+          shift_proposal_ripe?: boolean
+          training_swap_applied?: boolean
+          updated_at?: string
+        }
+        Update: {
+          broken_links?: string[]
+          created_at?: string
+          deposit_scheduled?: boolean
+          first_payroll_month?: string | null
+          hr_employee_id?: string
+          joined_at?: string
+          last_checked_at?: string | null
+          mapping_ok?: boolean
+          receipt_stamped_at?: string | null
+          salary_pushed_verified?: boolean
+          shift_proposal_ripe?: boolean
+          training_swap_applied?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_new_joiner_readiness_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_new_joiner_readiness_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_new_joiner_readiness_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_new_joiner_readiness_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_new_joiner_readiness_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
             referencedRelation: "hr_razorpay_payroll_freshness"
             referencedColumns: ["hr_employee_id"]
           },
@@ -23416,6 +23581,25 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      hr_attendance_self_test_run: {
+        Args: never
+        Returns: {
+          duration_ms: number | null
+          failures: Json
+          fixture_version: string
+          id: string
+          outcome: string
+          passed: number
+          ran_at: string
+          total: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "hr_attendance_self_test_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       hr_auto_lock_completed_periods: {
         Args: never
         Returns: {
@@ -23531,6 +23715,23 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: Json
       }
+      hr_drift_alerts_auto_close: {
+        Args: { p_dedup_key: string; p_reason?: string }
+        Returns: number
+      }
+      hr_drift_alerts_upsert: {
+        Args: {
+          p_dedup_key: string
+          p_essl_value?: string
+          p_field: string
+          p_hr_employee_id: string
+          p_hrms_value?: string
+          p_razorpay_value?: string
+          p_severity?: string
+          p_systems_involved: string[]
+        }
+        Returns: string
+      }
       hr_email_dispatch_health: {
         Args: never
         Returns: {
@@ -23617,6 +23818,31 @@ export type Database = {
         Args: { p_name: string }
         Returns: string
       }
+      hr_new_joiner_check: {
+        Args: { p_employee_id: string }
+        Returns: {
+          broken_links: string[]
+          created_at: string
+          deposit_scheduled: boolean
+          first_payroll_month: string | null
+          hr_employee_id: string
+          joined_at: string
+          last_checked_at: string | null
+          mapping_ok: boolean
+          receipt_stamped_at: string | null
+          salary_pushed_verified: boolean
+          shift_proposal_ripe: boolean
+          training_swap_applied: boolean
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "hr_new_joiner_readiness"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      hr_new_joiner_check_sweep: { Args: never; Returns: number }
       hr_next_razorpay_employee_id: { Args: never; Returns: string }
       hr_notify: {
         Args: {
@@ -23664,6 +23890,13 @@ export type Database = {
       hr_pull_observed_salary: {
         Args: { p_hr_employee_id: string }
         Returns: Json
+      }
+      hr_purge_expired_attendance_rows: {
+        Args: { p_dry_run?: boolean }
+        Returns: {
+          rows_affected: number
+          source: string
+        }[]
       }
       hr_razorpay_sandbox_auto_revoke: {
         Args: never

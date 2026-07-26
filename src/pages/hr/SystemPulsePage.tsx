@@ -97,6 +97,7 @@ export default function SystemPulsePage() {
   const { data, isLoading, refetch, isFetching } = useSystemPulse();
   const { data: extras, refetch: refetchExtras } = useSystemPulseExtras();
   const { data: windowTest, refetch: refetchWindow, isError: windowError } = useWindowTestPulse();
+  const { data: gov } = useGovernanceTiles();
 
   const cron = data?.cron ?? [];
   const cronStat = cronTone(cron);

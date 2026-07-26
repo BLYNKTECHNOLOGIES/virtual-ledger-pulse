@@ -8727,6 +8727,7 @@ export type Database = {
       }
       hr_loans: {
         Row: {
+          advance_type: string
           amount: number
           approved_at: string | null
           approved_by: string | null
@@ -8743,12 +8744,14 @@ export type Database = {
           razorpay_pushed_at: string | null
           reason: string | null
           rejection_reason: string | null
+          repayment_source: string
           start_emi_date: string
           status: string
           tenure_months: number
           updated_at: string | null
         }
         Insert: {
+          advance_type?: string
           amount: number
           approved_at?: string | null
           approved_by?: string | null
@@ -8765,12 +8768,14 @@ export type Database = {
           razorpay_pushed_at?: string | null
           reason?: string | null
           rejection_reason?: string | null
+          repayment_source?: string
           start_emi_date: string
           status?: string
           tenure_months?: number
           updated_at?: string | null
         }
         Update: {
+          advance_type?: string
           amount?: number
           approved_at?: string | null
           approved_by?: string | null
@@ -8787,6 +8792,7 @@ export type Database = {
           razorpay_pushed_at?: string | null
           reason?: string | null
           rejection_reason?: string | null
+          repayment_source?: string
           start_emi_date?: string
           status?: string
           tenure_months?: number
@@ -10772,6 +10778,9 @@ export type Database = {
           push_statutory_envelope_verified_by: string | null
           push_statutory_pilot_hr_employee_id: string | null
           push_statutory_pilot_verified_at: string | null
+          sandbox_base_url: string | null
+          sandbox_mode: boolean
+          sandbox_revoke_after: string | null
           shifts_track_timings: boolean
           updated_at: string
           use_xpayroll_default_structure: boolean
@@ -10883,6 +10892,9 @@ export type Database = {
           push_statutory_envelope_verified_by?: string | null
           push_statutory_pilot_hr_employee_id?: string | null
           push_statutory_pilot_verified_at?: string | null
+          sandbox_base_url?: string | null
+          sandbox_mode?: boolean
+          sandbox_revoke_after?: string | null
           shifts_track_timings?: boolean
           updated_at?: string
           use_xpayroll_default_structure?: boolean
@@ -10994,6 +11006,9 @@ export type Database = {
           push_statutory_envelope_verified_by?: string | null
           push_statutory_pilot_hr_employee_id?: string | null
           push_statutory_pilot_verified_at?: string | null
+          sandbox_base_url?: string | null
+          sandbox_mode?: boolean
+          sandbox_revoke_after?: string | null
           shifts_track_timings?: boolean
           updated_at?: string
           use_xpayroll_default_structure?: boolean
@@ -20321,6 +20336,100 @@ export type Database = {
           },
         ]
       }
+      hr_payslips_v: {
+        Row: {
+          created_at: string | null
+          do_not_pay: boolean | null
+          employee_id: string | null
+          employee_name_snapshot: string | null
+          esi_amount: number | null
+          gross: number | null
+          id: string | null
+          net: number | null
+          pdf_storage_path: string | null
+          pdf_url: string | null
+          period_label: string | null
+          period_month: string | null
+          pf_amount: number | null
+          professional_tax: number | null
+          pulled_at: string | null
+          razorpay_employee_id: string | null
+          source: string | null
+          tds_amount: number | null
+          total_deductions: number | null
+          updated_at: string | null
+          working_days: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          do_not_pay?: boolean | null
+          employee_id?: string | null
+          employee_name_snapshot?: string | null
+          esi_amount?: number | null
+          gross?: never
+          id?: string | null
+          net?: never
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          period_label?: never
+          period_month?: string | null
+          pf_amount?: number | null
+          professional_tax?: number | null
+          pulled_at?: string | null
+          razorpay_employee_id?: string | null
+          source?: never
+          tds_amount?: number | null
+          total_deductions?: number | null
+          updated_at?: string | null
+          working_days?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          do_not_pay?: boolean | null
+          employee_id?: string | null
+          employee_name_snapshot?: string | null
+          esi_amount?: number | null
+          gross?: never
+          id?: string | null
+          net?: never
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          period_label?: never
+          period_month?: string | null
+          pf_amount?: number | null
+          professional_tax?: number | null
+          pulled_at?: string | null
+          razorpay_employee_id?: string | null
+          source?: never
+          tds_amount?: number | null
+          total_deductions?: number | null
+          updated_at?: string | null
+          working_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_razorpay_payroll_freshness: {
         Row: {
           badge_id: string | null
@@ -21580,6 +21689,15 @@ export type Database = {
         Args: { p_hr_employee_id: string }
         Returns: Json
       }
+      hr_create_salary_advance: {
+        Args: {
+          p_amount: number
+          p_employee_id: string
+          p_reason: string
+          p_recover_from_month: string
+        }
+        Returns: string
+      }
       hr_derive_all_statutory_enrollments: { Args: never; Returns: Json }
       hr_derive_statutory_enrollment_from_history: {
         Args: { p_employee_id: string }
@@ -21636,6 +21754,15 @@ export type Database = {
         Returns: string
       }
       hr_next_razorpay_employee_id: { Args: never; Returns: string }
+      hr_payslip_link_orphans: {
+        Args: never
+        Returns: {
+          employee_id: string
+          payslip_id: string
+          period_month: string
+          reason: string
+        }[]
+      }
       hr_pending_training_swaps: {
         Args: never
         Returns: {

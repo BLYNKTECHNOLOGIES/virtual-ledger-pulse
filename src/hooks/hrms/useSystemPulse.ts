@@ -64,6 +64,21 @@ export interface SystemPulseExtras {
   absent_marker_last_run_at: string | null;
   absent_marker_last_status: string | null;
   absent_marker_age_hours: number | null;
+  // W3 · device roster parity
+  roster_reconciliation: {
+    last_ran_at: string | null;
+    total_discrepancies: number;
+    total_auto_fixed: number;
+    total_unsafe: number;
+    per_device: Array<{
+      device_serial: string;
+      device_name: string | null;
+      ran_at: string | null;
+      total_discrepancies: number;
+      auto_fixed: number;
+      unsafe_flagged: number;
+    }>;
+  };
 }
 
 export function useSystemPulseExtras(refetchMs = 60_000) {
@@ -72,7 +87,7 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
     queryFn: async (): Promise<SystemPulseExtras> => {
       const client: any = supabase;
 
-      const [{ data: unexplained }, deadLetter, ghost, marker] = await Promise.all([
+      const [{ data: unexplained }, deadLetter, ghost, marker, roster] = await Promise.all([
         client.rpc("hr_open_unexplained_drift_count"),
         client
           .from("hr_email_send_log")
@@ -85,12 +100,28 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
           .from("hr_absent_marker_last_run_v")
           .select("*")
           .maybeSingle(),
+        client
+          .from("hr_device_roster_reconciliation_latest_v")
+          .select("*"),
       ]);
 
       const lastRunAt: string | null = marker?.data?.ran_at ?? null;
       const ageHours = lastRunAt
         ? Math.max(0, (Date.now() - new Date(lastRunAt).getTime()) / 36e5)
         : null;
+
+      const rosterRows = (roster?.data ?? []) as any[];
+      const rosterAgg = rosterRows.reduce(
+        (acc, r) => {
+          const ranAt = r.ran_at ? new Date(r.ran_at).getTime() : 0;
+          if (!acc.lastMs || ranAt > acc.lastMs) acc.lastMs = ranAt;
+          acc.discr += Number(r.total_discrepancies ?? 0);
+          acc.autoFixed += Number(r.auto_fixed ?? 0);
+          acc.unsafe += Number(r.unsafe_flagged ?? 0);
+          return acc;
+        },
+        { lastMs: 0, discr: 0, autoFixed: 0, unsafe: 0 },
+      );
 
       return {
         unexplained_drift: Number(unexplained ?? 0),
@@ -99,9 +130,24 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
         absent_marker_last_run_at: lastRunAt,
         absent_marker_last_status: marker?.data?.status ?? null,
         absent_marker_age_hours: ageHours,
+        roster_reconciliation: {
+          last_ran_at: rosterAgg.lastMs ? new Date(rosterAgg.lastMs).toISOString() : null,
+          total_discrepancies: rosterAgg.discr,
+          total_auto_fixed: rosterAgg.autoFixed,
+          total_unsafe: rosterAgg.unsafe,
+          per_device: rosterRows.map((r) => ({
+            device_serial: r.device_serial,
+            device_name: r.device_name ?? null,
+            ran_at: r.ran_at ?? null,
+            total_discrepancies: Number(r.total_discrepancies ?? 0),
+            auto_fixed: Number(r.auto_fixed ?? 0),
+            unsafe_flagged: Number(r.unsafe_flagged ?? 0),
+          })),
+        },
       };
     },
     refetchInterval: refetchMs,
     staleTime: 30_000,
   });
 }
+

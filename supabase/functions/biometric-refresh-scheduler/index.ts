@@ -37,18 +37,24 @@ Deno.serve(async (req) => {
   // Note: we deliberately DO NOT queue ATTLOG queries — attendance is live push.
   const buildCommands = (serial: string) => {
     const now = Date.now();
+    // Current IST timestamp for the device clock-sync command.
+    // eSSL/ZKTeco SET TIME format: YYYY-MM-DD HH:MM:SS in device local time (IST for us).
+    const istIso = new Date(now + 5.5 * 3600_000).toISOString();
+    const setTime = `${istIso.slice(0, 10)} ${istIso.slice(11, 19)}`;
     return [
       { device_serial: serial, command_text: `C:${now}:CHECK`, status: "pending" },
       { device_serial: serial, command_text: `C:${now + 1}:INFO`, status: "pending" },
+      // F5 · Daily clock-sync — device compares its local time to the pushed value
+      // when it next handshakes; the operlog push-back stamps clock_drift_seconds.
+      { device_serial: serial, command_text: `C:${now + 2}:SET TIME ${setTime}`, status: "pending" },
       // Broad USERINFO query is the most compatible with eSSL/ZKTeco ADMS firmware.
-      // Some devices ignore filtered variants like `PIN=*` but return the full
-      // roster for the unfiltered table query.
-      { device_serial: serial, command_text: `C:${now + 2}:DATA QUERY USERINFO`, status: "pending" },
-      { device_serial: serial, command_text: `C:${now + 3}:DATA QUERY TEMPLATE`, status: "pending" },
-      { device_serial: serial, command_text: `C:${now + 4}:DATA QUERY BIODATA`, status: "pending" },
-      { device_serial: serial, command_text: `C:${now + 5}:LOG`, status: "pending" },
+      { device_serial: serial, command_text: `C:${now + 3}:DATA QUERY USERINFO`, status: "pending" },
+      { device_serial: serial, command_text: `C:${now + 4}:DATA QUERY TEMPLATE`, status: "pending" },
+      { device_serial: serial, command_text: `C:${now + 5}:DATA QUERY BIODATA`, status: "pending" },
+      { device_serial: serial, command_text: `C:${now + 6}:LOG`, status: "pending" },
     ];
   };
+
 
   let queued = 0;
   const results: any[] = [];

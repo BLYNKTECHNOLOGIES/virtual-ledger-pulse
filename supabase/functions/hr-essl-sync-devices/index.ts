@@ -141,6 +141,129 @@ serve(async (req) => {
       });
     }
 
+    // -----------------------------------------------------------------
+    // W3 · Three-way parity reconciliation per device.
+    //  device roster (hr_biometric_device_users) ↔ active employees.
+    // Classifies discrepancies, auto-queues safe fixes, logs to
+    // hr_device_roster_reconciliation_log for the System Pulse tile.
+    // -----------------------------------------------------------------
+    const { data: activeEmployees } = await supa
+      .from("hr_employees")
+      .select("id, badge_id, employee_first_name, employee_last_name, is_active, employment_status");
+
+    const activeByBadge = new Map<string, any>();
+    const activeBadgeSet = new Set<string>();
+    const dismissedBadgeSet = new Set<string>();
+    for (const e of activeEmployees || []) {
+      const badge = String(e.badge_id || "").trim();
+      if (!badge) continue;
+      const dismissed = e.is_active === false ||
+        ["terminated", "resigned", "dismissed", "separated", "left"].includes(
+          String(e.employment_status || "").toLowerCase(),
+        );
+      if (dismissed) dismissedBadgeSet.add(badge);
+      else {
+        activeBadgeSet.add(badge);
+        activeByBadge.set(badge, e);
+      }
+    }
+
+    const reconResults: any[] = [];
+    for (const device of devices || []) {
+      if (!device.device_serial) continue;
+      const { data: deviceUsers } = await supa
+        .from("hr_biometric_device_users")
+        .select("pin, name")
+        .eq("device_serial", device.device_serial);
+
+      const devicePinSet = new Set<string>((deviceUsers || []).map((u) => String(u.pin).trim()));
+      const devicePinToName = new Map<string, string>(
+        (deviceUsers || []).map((u) => [String(u.pin).trim(), esslSafeName(u.name || "")]),
+      );
+
+      let ghost = 0, missing = 0, dismissed = 0, pinMismatch = 0, autoFixed = 0, unsafe = 0;
+      const discrepancies: any[] = [];
+
+      // Dismissed still enrolled → auto-queue delete.
+      for (const pin of devicePinSet) {
+        if (dismissedBadgeSet.has(pin)) {
+          dismissed++;
+          if (!dryRun) {
+            const seed = Date.now() + Math.floor(Math.random() * 100_000);
+            await supa.from("hr_biometric_device_commands").insert({
+              device_serial: device.device_serial,
+              command_text: `C:${seed}:DATA DELETE USERINFO PIN=${pin}`,
+              status: "pending",
+            });
+            autoFixed++;
+          }
+          discrepancies.push({ pin, kind: "dismissed_still_enrolled", action: "auto_delete" });
+        } else if (!activeBadgeSet.has(pin)) {
+          ghost++;
+          discrepancies.push({ pin, kind: "ghost_on_device", action: "flag_unsafe" });
+          unsafe++;
+        }
+      }
+
+      // Active employees missing on this device → auto re-push enrollment.
+      for (const badge of activeBadgeSet) {
+        if (!devicePinSet.has(badge)) {
+          missing++;
+          if (!dryRun) {
+            const emp = activeByBadge.get(badge);
+            const safeName = esslSafeName(
+              `${emp?.employee_first_name || ""} ${emp?.employee_last_name || ""}`.trim() || badge,
+            );
+            const seed = Date.now() + Math.floor(Math.random() * 100_000);
+            const cmd = `C:${seed}:DATA UPDATE USERINFO PIN=${badge}\tName=${safeName}\tPri=0\tGrp=1`;
+            await supa.from("hr_biometric_device_commands").insert({
+              device_serial: device.device_serial,
+              command_text: cmd,
+              status: "pending",
+            });
+            autoFixed++;
+          }
+          discrepancies.push({ pin: badge, kind: "missing_on_device", action: "auto_reenroll" });
+        } else {
+          // PIN present — check name parity. Mismatch stays flagged (unsafe: could be a real rename).
+          const emp = activeByBadge.get(badge);
+          const expected = esslSafeName(
+            `${emp?.employee_first_name || ""} ${emp?.employee_last_name || ""}`.trim(),
+          );
+          const actual = devicePinToName.get(badge) || "";
+          if (expected && actual && expected !== actual) {
+            pinMismatch++;
+            unsafe++;
+            discrepancies.push({ pin: badge, kind: "pin_mismatch", expected, actual, action: "flag_unsafe" });
+          }
+        }
+      }
+
+      if (!dryRun) {
+        await supa.from("hr_device_roster_reconciliation_log").insert({
+          device_serial: device.device_serial,
+          device_name: device.name,
+          triggered_from: triggeredFrom,
+          device_user_count: devicePinSet.size,
+          hrms_user_count: (deviceUsers || []).length,
+          active_employee_count: activeBadgeSet.size,
+          ghost_on_device: ghost,
+          missing_on_device: missing,
+          dismissed_still_enrolled: dismissed,
+          pin_mismatch: pinMismatch,
+          auto_fixed: autoFixed,
+          unsafe_flagged: unsafe,
+          details: { sample: discrepancies.slice(0, 50) },
+        });
+      }
+
+      reconResults.push({
+        device_serial: device.device_serial,
+        device_name: device.name,
+        ghost, missing, dismissed, pinMismatch, autoFixed, unsafe,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -151,6 +274,7 @@ serve(async (req) => {
         queued, skipped, errors,
         dry_run: dryRun,
         details: details.slice(0, 100),
+        reconciliation: reconResults,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
@@ -160,3 +284,4 @@ serve(async (req) => {
     });
   }
 });
+

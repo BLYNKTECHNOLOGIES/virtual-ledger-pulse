@@ -110,6 +110,11 @@ export default function SystemPulsePage() {
   const ghostResidual = extras?.ghost_email_residual ?? 0;
   const markerAge = extras?.absent_marker_age_hours;
   const markerStatus = extras?.absent_marker_last_status;
+  const roster = extras?.roster_reconciliation;
+  const rosterAgeHours = roster?.last_ran_at
+    ? Math.max(0, (Date.now() - new Date(roster.last_ran_at).getTime()) / 36e5)
+    : null;
+
 
   const emailTone: Tone =
     deadLettered > 0 || (email.failed_24h ?? 0) > 0 ? "bad" :
@@ -136,6 +141,12 @@ export default function SystemPulsePage() {
     markerAge == null ? "warn" :
     markerAge > 30 ? "bad" :
     markerAge > 26 ? "warn" : "ok";
+  const rosterTone: Tone =
+    (roster?.total_unsafe ?? 0) > 0 ? "bad" :
+    rosterAgeHours == null ? "warn" :
+    rosterAgeHours > 72 ? "warn" :
+    (roster?.total_discrepancies ?? 0) > (roster?.total_auto_fixed ?? 0) ? "warn" : "ok";
+
 
   return (
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
@@ -251,6 +262,28 @@ export default function SystemPulsePage() {
           actionHref="/hrms/payroll/razorpay-sync"
           actionLabel="Razorpay sync"
         />
+        <Tile
+          icon={Cpu}
+          title="Device roster parity"
+          tone={rosterTone}
+          primary={
+            roster?.last_ran_at == null
+              ? "never reconciled"
+              : `${roster.total_discrepancies} discrepanc${roster.total_discrepancies === 1 ? "y" : "ies"}`
+          }
+          secondary={
+            roster?.last_ran_at
+              ? `${roster.total_auto_fixed} auto-fixed · ${roster.total_unsafe} unsafe · last ${
+                  rosterAgeHours != null && rosterAgeHours < 1
+                    ? `${Math.round(rosterAgeHours * 60)}m`
+                    : `${Math.round(rosterAgeHours ?? 0)}h`
+                } ago`
+              : "48h sync will populate on next run"
+          }
+          actionHref="/hrms/attendance/biometric-devices"
+          actionLabel="Biometric devices"
+        />
+
       </div>
 
       <Card>

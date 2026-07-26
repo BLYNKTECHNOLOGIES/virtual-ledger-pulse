@@ -4743,6 +4743,56 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_attendance_intervention_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          notes: string | null
+          payload: Json | null
+          reason_code: string | null
+          request_id: string | null
+          session_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          payload?: Json | null
+          reason_code?: string | null
+          request_id?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          payload?: Json | null
+          reason_code?: string | null
+          request_id?: string | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_intervention_log_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "hr_attendance_regularization_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_attendance_period_locks: {
         Row: {
           created_at: string
@@ -4990,6 +5040,7 @@ export type Database = {
           id: string
           razorpay_pending_side: Json | null
           reason: string
+          reason_code: string | null
           requested_check_in: string | null
           requested_check_out: string | null
           status: string
@@ -5006,6 +5057,7 @@ export type Database = {
           id?: string
           razorpay_pending_side?: Json | null
           reason: string
+          reason_code?: string | null
           requested_check_in?: string | null
           requested_check_out?: string | null
           status?: string
@@ -5022,6 +5074,7 @@ export type Database = {
           id?: string
           razorpay_pending_side?: Json | null
           reason?: string
+          reason_code?: string | null
           requested_check_in?: string | null
           requested_check_out?: string | null
           status?: string
@@ -20339,21 +20392,17 @@ export type Database = {
       hr_payslips_v: {
         Row: {
           created_at: string | null
-          do_not_pay: boolean | null
           employee_id: string | null
-          employee_name_snapshot: string | null
           esi_amount: number | null
           gross: number | null
           id: string | null
           net: number | null
-          pdf_storage_path: string | null
           pdf_url: string | null
-          period_label: string | null
           period_month: string | null
           pf_amount: number | null
           professional_tax: number | null
           pulled_at: string | null
-          razorpay_employee_id: string | null
+          razorpay_payslip_id: string | null
           source: string | null
           tds_amount: number | null
           total_deductions: number | null
@@ -20362,21 +20411,17 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          do_not_pay?: boolean | null
           employee_id?: string | null
-          employee_name_snapshot?: string | null
           esi_amount?: number | null
-          gross?: never
+          gross?: number | null
           id?: string | null
-          net?: never
-          pdf_storage_path?: string | null
+          net?: number | null
           pdf_url?: string | null
-          period_label?: never
           period_month?: string | null
           pf_amount?: number | null
           professional_tax?: number | null
           pulled_at?: string | null
-          razorpay_employee_id?: string | null
+          razorpay_payslip_id?: string | null
           source?: never
           tds_amount?: number | null
           total_deductions?: number | null
@@ -20385,21 +20430,17 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          do_not_pay?: boolean | null
           employee_id?: string | null
-          employee_name_snapshot?: string | null
           esi_amount?: number | null
-          gross?: never
+          gross?: number | null
           id?: string | null
-          net?: never
-          pdf_storage_path?: string | null
+          net?: number | null
           pdf_url?: string | null
-          period_label?: never
           period_month?: string | null
           pf_amount?: number | null
           professional_tax?: number | null
           pulled_at?: string | null
-          razorpay_employee_id?: string | null
+          razorpay_payslip_id?: string | null
           source?: never
           tds_amount?: number | null
           total_deductions?: number | null
@@ -21644,6 +21685,14 @@ export type Database = {
           scope: string
         }[]
       }
+      hr_apply_razorpay_advance_ack: {
+        Args: {
+          p_loan_id: string
+          p_razorpay_advance_salary_id: number
+          p_status?: string
+        }
+        Returns: undefined
+      }
       hr_attendance_day_detail: {
         Args: { p_date: string; p_employee_id: string }
         Returns: Json
@@ -21689,19 +21738,39 @@ export type Database = {
         Args: { p_hr_employee_id: string }
         Returns: Json
       }
-      hr_create_salary_advance: {
-        Args: {
-          p_amount: number
-          p_employee_id: string
-          p_reason: string
-          p_recover_from_month: string
-        }
-        Returns: string
-      }
+      hr_create_salary_advance:
+        | {
+            Args: {
+              p_amount: number
+              p_employee_id: string
+              p_reason: string
+              p_recover_from_month: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_employee_id: string
+              p_notes?: string
+              p_reason: string
+              p_recover_from_month: string
+            }
+            Returns: string
+          }
       hr_derive_all_statutory_enrollments: { Args: never; Returns: Json }
       hr_derive_statutory_enrollment_from_history: {
         Args: { p_employee_id: string }
         Returns: Json
+      }
+      hr_email_dispatch_health: {
+        Args: never
+        Returns: {
+          failed_24h: number
+          last_activity: string
+          pending_now: number
+          sent_24h: number
+        }[]
       }
       hr_emit_notification: {
         Args: {
@@ -21758,9 +21827,10 @@ export type Database = {
         Args: never
         Returns: {
           employee_id: string
-          payslip_id: string
+          legacy_id: string
+          net_salary: number
           period_month: string
-          reason: string
+          status: string
         }[]
       }
       hr_pending_training_swaps: {
@@ -21776,6 +21846,12 @@ export type Database = {
       hr_pull_observed_salary: {
         Args: { p_hr_employee_id: string }
         Returns: Json
+      }
+      hr_razorpay_sandbox_auto_revoke: {
+        Args: never
+        Returns: {
+          revoked: number
+        }[]
       }
       hr_rebuild_attendance_daily_range: {
         Args: { p_date_from: string; p_date_to: string; p_employee_id: string }

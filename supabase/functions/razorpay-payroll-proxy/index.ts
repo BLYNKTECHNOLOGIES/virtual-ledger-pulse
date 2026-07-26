@@ -27,7 +27,13 @@ const corsHeaders = {
 
 const KEY_ID = Deno.env.get("RAZORPAY_PAYROLL_KEY_ID") ?? "";
 const KEY_SECRET = Deno.env.get("RAZORPAY_PAYROLL_KEY_SECRET") ?? "";
-const BASE = "https://payroll.razorpay.com/api";
+const BASE_DEFAULT = "https://payroll.razorpay.com/api";
+// NOTE: `BASE` is a module-scoped mutable so the request handler can flip it to
+// sandbox_base_url when hr_razorpay_settings.sandbox_mode = true. Deno Deploy
+// isolates share module scope, so this is best-effort routing appropriate for
+// this low-QPS internal tool. The DB job hr_razorpay_sandbox_auto_revoke()
+// flips it back off at the sandbox deadline.
+let BASE = BASE_DEFAULT;
 const SUPA_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SVC = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1135,8 +1141,28 @@ Deno.serve(async (req) => {
     const perm = authed.serviceRole ? { ok: true, msg: "" } : await requirePermission(authed.userId!, svc);
     if (!perm.ok) return json(403, { error: perm.msg });
 
+    // Sandbox routing — every request re-reads the singleton settings row and
+    // flips BASE for the duration of this invocation. Auto-revoke enforced by
+    // hr_razorpay_sandbox_auto_revoke() hourly cron.
+    try {
+      const sb: any = await readSettings(svc);
+      if (sb?.sandbox_mode && sb?.sandbox_base_url
+        && (!sb.sandbox_revoke_after || new Date(sb.sandbox_revoke_after) > new Date())) {
+        BASE = String(sb.sandbox_base_url).replace(/\/$/, "");
+      } else {
+        BASE = BASE_DEFAULT;
+      }
+    } catch {
+      BASE = BASE_DEFAULT;
+    }
+
     const payload = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const action = payload?.action ?? "validate_creds";
+
+    // ---------- sandbox_status ----------
+    if (action === "sandbox_status") {
+      return json(200, { ok: true, base_url_active: BASE, is_sandbox: BASE !== BASE_DEFAULT });
+    }
 
     // ---------- validate_creds / introspect_envelope ----------
     if (action === "validate_creds" || action === "introspect_envelope") {

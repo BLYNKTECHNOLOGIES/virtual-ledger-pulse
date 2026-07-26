@@ -5048,6 +5048,7 @@ Deno.serve(async (req) => {
           ok: true,
           period_month: periodMonthISO,
           summary: { total: pull.pulled, withPdf: pull.withPdf, failed: pull.failed, noEmail: pull.noEmail, noRecord: pull.noRecord, upsertErrors: pull.upsertErrors },
+          coverage,
         });
       }
 

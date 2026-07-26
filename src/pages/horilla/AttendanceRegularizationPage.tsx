@@ -77,6 +77,10 @@ export default function AttendanceRegularizationPage() {
   const [decision, setDecision] = useState<'approved' | 'rejected'>('approved');
   const [notes, setNotes] = useState('');
   const [reasonCode, setReasonCode] = useState<string>('');
+  // F4 · propose-and-validate
+  const [evidence, setEvidence] = useState<any>(null);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
 
   // ---------- Watchdog data ----------
   const { data: staleRows = [], isLoading: staleLoading } = useQuery({

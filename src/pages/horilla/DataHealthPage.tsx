@@ -20,6 +20,7 @@ import {
 import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
 import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
 import { Link } from "react-router-dom";
+import { PayslipParityTile, EmailDispatchHealthTile } from "@/components/hrms/health/PayrollHealthTiles";
 
 type Drift = {
   id: string;
@@ -327,6 +328,12 @@ export default function DataHealthPage() {
             <div className={`text-2xl font-semibold mt-0.5 ${k.tone}`}>{k.value}</div>
           </div>
         ))}
+      </div>
+
+      {/* Payroll infra health */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <PayslipParityTile />
+        <EmailDispatchHealthTile />
       </div>
 
       {/* Statutory drift rollup — Razorpay filing toggles vs actual payslip amounts */}

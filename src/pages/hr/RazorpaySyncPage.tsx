@@ -13,6 +13,8 @@ import { RoadmapJourneyNav } from "./RoadmapJourneyNav";
 import { TodaysFocusHero } from "./TodaysFocusHero";
 import { cn } from "@/lib/utils";
 import { ContractorPayoutsHub } from "@/components/hrms/razorpay/ContractorPayoutsHub";
+import { SandboxToggleCard } from "@/components/hrms/razorpay/SandboxToggleCard";
+
 
 
 interface Settings {
@@ -965,6 +967,8 @@ export default function RazorpaySyncPage() {
           </button>
         </div>
       </div>
+
+      <SandboxToggleCard />
 
       {/* Statutory splits — API gap workaround: the RazorpayX API does not expose PF/ESI/PT/TDS breakdowns.
           The monthly Salary Register CSV from the dashboard is the only source of these fields. */}

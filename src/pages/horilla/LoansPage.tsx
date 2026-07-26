@@ -15,10 +15,12 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { NewSalaryAdvanceDialog } from "@/components/hrms/salary/NewSalaryAdvanceDialog";
 
 export default function LoansPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [showAdvance, setShowAdvance] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [form, setForm] = useState({
@@ -129,10 +131,17 @@ export default function LoansPage() {
           <h1 className="text-2xl font-semibold text-foreground">Loans & Advances</h1>
           <p className="text-sm text-muted-foreground">Manage employee salary advances and loan EMI deductions</p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> New Loan/Advance
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAdvance(true)}>
+            <IndianRupee className="h-4 w-4 mr-2" /> New Salary Advance
+          </Button>
+          <Button onClick={() => setShowCreate(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
+            <Plus className="h-4 w-4 mr-2" /> New Loan
+          </Button>
+        </div>
       </div>
+
+      <NewSalaryAdvanceDialog open={showAdvance} onOpenChange={setShowAdvance} employees={employees as any} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

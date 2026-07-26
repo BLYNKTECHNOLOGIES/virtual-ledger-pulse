@@ -52,6 +52,9 @@ import { toast as sonnerToast } from 'sonner';
 import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
 import AttendanceTab from '@/components/profile/AttendanceTab';
 import MyAssetsTab from '@/components/profile/MyAssetsTab';
+import MyLoansCard from '@/components/profile/MyLoansCard';
+import MyTaxRegimeCard from '@/components/profile/MyTaxRegimeCard';
+import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
@@ -1256,6 +1259,8 @@ export default function UserProfile() {
           ) : (
             <>
               <SalaryPFTab hrEmployee={hrEmployee} />
+              <MyTaxRegimeCard employeeId={hrEmployee.id} />
+              <MyLoansCard employeeId={hrEmployee.id} />
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1356,6 +1361,7 @@ export default function UserProfile() {
               </div>
 
               <UpcomingHolidaysCard />
+              <OrgLeaveCalendarCard />
 
               {/* ─── Leave Balance Cards ─── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

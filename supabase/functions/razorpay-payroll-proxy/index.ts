@@ -544,6 +544,7 @@ function fieldNames(e: any): string[] {
 async function logSync(svc: SupabaseClient, row: {
   action: string; http_status: number; razorpay_employee_id: string;
   hr_employee_id?: string | null; field_diff_summary?: any; error_text?: string | null; actor_user_id: string | null;
+  coverage_json?: any;
 }) {
   const { error } = await svc.from("hr_razorpay_sync_log").insert(row);
   if (error) {

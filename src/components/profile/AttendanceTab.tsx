@@ -7,6 +7,8 @@ import { Clock, CalendarDays, AlertTriangle, TrendingUp, Timer, CheckCircle } fr
 import RegularizationCard from './RegularizationCard';
 import TodayAttendanceCard from './TodayAttendanceCard';
 import MyCompOffCard from './MyCompOffCard';
+import MyAttendanceCalendar from './MyAttendanceCalendar';
+
 
 interface AttendanceTabProps {
   employeeId: string;
@@ -107,6 +109,10 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
     <div className="space-y-6">
       {/* Live today snapshot */}
       <TodayAttendanceCard employeeId={employeeId} />
+
+      {/* Visual monthly calendar with color-coded status */}
+      <MyAttendanceCalendar employeeId={employeeId} />
+
 
       {/* Month selector */}
       <div className="flex items-center justify-between">

@@ -667,6 +667,26 @@ export default function UserProfile() {
     },
     enabled: !!user?.id,
   });
+
+  // Auto-heal: if we resolved the employee via a fallback (badge/email/phone)
+  // silently backfill hr_employees.user_id so this only happens once. The
+  // employee should never see linkage warnings — that's an HR-internal detail.
+  useEffect(() => {
+    const emp = employeeResolution?.employee;
+    const via = employeeResolution?.matchedVia;
+    if (!emp || !user?.id || !via || via === 'user_id' || emp.user_id) return;
+    (async () => {
+      try {
+        await (supabase as any)
+          .from('hr_employees')
+          .update({ user_id: user.id })
+          .eq('id', emp.id)
+          .is('user_id', null);
+      } catch { /* best-effort; HR can fix manually */ }
+    })();
+  }, [employeeResolution, user?.id]);
+
+
   const hrEmployee = employeeResolution?.employee ?? null;
   const employeeMatchedVia = employeeResolution?.matchedVia ?? null;
 
@@ -1046,11 +1066,8 @@ export default function UserProfile() {
           <div className="flex-1">
             <h1 className="text-xl sm:text-3xl font-semibold mb-1 truncate">{displayName}</h1>
             <p className="text-sm sm:text-lg opacity-90 break-all">{user?.email}</p>
-            {employeeMatchedVia && employeeMatchedVia !== 'user_id' && (
-              <p className="text-[11px] mt-1 inline-block px-2 py-0.5 rounded bg-warning/20 text-warning-foreground border border-warning/40">
-                Profile matched via {employeeMatchedVia} — ask HR to link your account
-              </p>
-            )}
+            {/* Linkage warnings are intentionally hidden from employees — HR-internal concern. */}
+
             {hrEmployee && (
               <div className="flex items-center gap-4 text-sm opacity-80 mt-1">
                 {hrEmployee.phone && (

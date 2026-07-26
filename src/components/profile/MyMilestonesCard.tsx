@@ -15,7 +15,6 @@ type Milestone = {
   first_name: string | null;
   last_name: string | null;
   badge_id: string | null;
-  department: string | null;
   date: string; // YYYY-MM-DD
   kind: 'birthday' | 'anniversary';
   years?: number;

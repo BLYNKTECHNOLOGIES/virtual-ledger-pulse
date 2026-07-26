@@ -19,6 +19,7 @@ import NotificationPreferences from "@/components/hrms/NotificationPreferences";
 import { Progress } from "@/components/ui/progress";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { DriftBadge } from "@/components/hrms/DriftBadge";
+import NewJoinerReadinessCard from "@/components/hrms/NewJoinerReadinessCard";
 
 // ─── Tabs matching Horilla ───
 const TABS = [
@@ -778,6 +779,9 @@ export default function EmployeeProfilePage() {
           </button>
         ))}
       </div>
+
+      {/* V9 · New-joiner first-payroll readiness (HR-admin only via RLS) */}
+      {emp?.id && <NewJoinerReadinessCard employeeId={emp.id} />}
 
       {/* ─── Tab Content ─── */}
       <div className="bg-card border border-border rounded-xl p-3 md:p-6 overflow-hidden">

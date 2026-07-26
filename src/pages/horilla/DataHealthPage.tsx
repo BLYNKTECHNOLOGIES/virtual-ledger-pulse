@@ -336,9 +336,10 @@ export default function DataHealthPage() {
       </header>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
           { label: "Open drifts", value: kpis.total, tone: "text-foreground" },
+          { label: "Unexplained", value: kpis.unexplained, tone: kpis.unexplained > 0 ? "text-destructive" : "text-success" },
           { label: "Critical", value: kpis.critical, tone: "text-destructive" },
           { label: "High", value: kpis.high, tone: "text-destructive/80" },
           { label: "Medium", value: kpis.medium, tone: "text-warning" },
@@ -350,6 +351,31 @@ export default function DataHealthPage() {
           </div>
         ))}
       </div>
+
+      {/* Ghost email residual — dispatcher retries have escalated to dead-letter */}
+      {ghostResidual && ghostResidual.length > 0 && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-foreground">
+                Ghost email residual — {ghostResidual.length} message{ghostResidual.length === 1 ? "" : "s"} dead-lettered after retries
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Dispatcher exhausted retry attempts (15m / 45m / 120m backoff). Review recipient address, fix the underlying cause, then re-enqueue.
+              </p>
+              <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
+                {ghostResidual.slice(0, 3).map((g) => (
+                  <li key={g.id}>
+                    <span className="font-mono">{g.recipient ?? "—"}</span> · {g.subject ?? "(no subject)"} · {g.last_error ?? "unknown"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Payroll infra health */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -424,6 +450,21 @@ export default function DataHealthPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
+        <label className="inline-flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={unexplainedOnly}
+            onChange={(e) => {
+              setUnexplainedOnly(e.target.checked);
+              const next = new URLSearchParams(params);
+              if (e.target.checked) next.set("unexplained", "1"); else next.delete("unexplained");
+              setParams(next, { replace: true });
+            }}
+            className="rounded border-border"
+          />
+          Unexplained only (hide auto-tolerated)
+        </label>
+
 
         <select
           value={severity}

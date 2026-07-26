@@ -400,21 +400,13 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
   );
 }
 
-// ─── Employee Payslips Sub-Component (ESS — view own payslips) ───
+// ─── Employee Payslips Sub-Component (ESS — canonical hr_payslips_v) ───
+// R7 doctrine: RazorpayX is the canonical payslip source. We read from
+// hr_payslips_v (a view over hr_razorpay_payslip_records) and deep-link into
+// the RazorpayX dashboard for the PDF binary — the RazorpayX API does not
+// expose PDFs, so a fake "Download" button would be dishonest.
 function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
-  const { data: payslips = [], isLoading } = useQuery({
-    queryKey: ['hr_payslips_ess', employeeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('hr_payslips')
-        .select('*, hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)')
-        .eq('employee_id', employeeId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!employeeId,
-  });
+  const { data: payslips = [], isLoading } = useCanonicalPayslips({ employeeId });
 
   if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading payslips...</p>;
 
@@ -424,7 +416,9 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
         <CardContent className="text-center py-12">
           <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No Payslips Yet</h3>
-          <p className="text-muted-foreground">Your payslips will appear here once payroll is processed.</p>
+          <p className="text-muted-foreground">
+            Your payslips will appear here once RazorpayX processes payroll for the month.
+          </p>
         </CardContent>
       </Card>
     );
@@ -432,107 +426,74 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">My Payslips</h3>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h3 className="text-lg font-semibold">My Payslips</h3>
+        <span className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wider">
+          Source · RazorpayX
+        </span>
+      </div>
       <div className="space-y-3">
-        {payslips.map((p: any) => {
-          const earnings = p.earnings_breakdown as Record<string, number> || {};
-          const deductions = p.deductions_breakdown as Record<string, number> || {};
+        {payslips.map((p) => {
+          const period = p.period_month
+            ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+            : '';
           return (
             <Card key={p.id}>
               <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between mb-4 flex-wrap gap-2">
                   <div>
                     <h4 className="font-semibold text-foreground flex items-center gap-2">
-                      {(p as any).hr_payroll_runs?.title
-                        || (p.source === 'razorpay_import'
-                          ? `RazorpayX Payslip — ${p.period_month ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
-                          : 'Payslip')}
-                      {p.source === 'razorpay_import' && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase">Imported</span>
-                      )}
+                      Payslip — {period}
                     </h4>
-                    <p className="text-xs text-muted-foreground">
-                      {(p as any).hr_payroll_runs?.pay_period_start
-                        ? `${(p as any).hr_payroll_runs?.pay_period_start} — ${(p as any).hr_payroll_runs?.pay_period_end}`
-                        : (p.period_month || '')}
+                    {p.pulled_at && (
+                      <p className="text-xs text-muted-foreground">
+                        Synced {formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}
+                      </p>
+                    )}
+                  </div>
+                  <RazorpayPayslipLink razorpayPayslipId={p.razorpay_payslip_id} />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div className="bg-muted/30 rounded-lg p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Gross</p>
+                    <p className="text-lg font-bold">₹{Number(p.gross || 0).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
+                    <p className="text-lg font-bold text-destructive">
+                      ₹{Number(p.total_deductions || 0).toLocaleString('en-IN')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {p.pdf_url && (
-                      <a
-                        href={p.pdf_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs px-2 py-1 rounded border hover:bg-muted"
-                      >
-                        View PDF
-                      </a>
-                    )}
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      p.status === 'paid' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
-                    }`}>{p.status || 'draft'}</span>
+                  <div className="bg-muted/30 rounded-lg p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
+                    <p className="text-lg font-bold text-success">
+                      ₹{Number(p.net || 0).toLocaleString('en-IN')}
+                    </p>
                   </div>
-                </div>
-
-
-                <div className="grid grid-cols-4 gap-3 text-center mb-4">
-                  <div className="bg-muted/30 rounded-lg p-3">
+                  <div className="bg-muted/30 rounded-lg p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Working Days</p>
-                    <p className="text-lg font-bold">{p.working_days || 0}</p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Present</p>
-                    <p className="text-lg font-bold text-success">{p.present_days || 0}</p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">LOP Days</p>
-                    <p className="text-lg font-bold text-destructive">{p.lop_days || (p.working_days && p.present_days ? p.working_days - p.present_days : 0)}</p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">OT Hours</p>
-                    <p className="text-lg font-bold">{p.overtime_hours || 0}</p>
+                    <p className="text-lg font-bold">{p.working_days ?? '—'}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Earnings</p>
-                    {Object.entries(earnings).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-sm border-b border-border/50 py-1">
-                        <span className="text-muted-foreground">{k}</span>
-                        <span className="font-medium text-success">₹{Number(v).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between text-sm font-bold pt-2">
-                      <span>Total Earnings</span>
-                      <span className="text-success">₹{Number(p.total_earnings).toLocaleString('en-IN')}</span>
-                    </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div className="flex justify-between border-b border-border/50 py-1">
+                    <span className="text-muted-foreground">PF</span>
+                    <span className="font-medium">₹{Number(p.pf_amount || 0).toLocaleString('en-IN')}</span>
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Deductions</p>
-                    {Object.entries(deductions).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-sm border-b border-border/50 py-1">
-                        <span className="text-muted-foreground">{k}</span>
-                        <span className="font-medium text-destructive">-₹{Number(v).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
-                    {(p.lop_deduction && Number(p.lop_deduction) > 0) && (
-                      <div className="flex justify-between text-sm border-b border-border/50 py-1">
-                        <span className="text-muted-foreground">LOP Deduction</span>
-                        <span className="font-medium text-destructive">-₹{Number(p.lop_deduction).toLocaleString('en-IN')}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm font-bold pt-2">
-                      <span>Total Deductions</span>
-                      <span className="text-destructive">-₹{Number(p.total_deductions).toLocaleString('en-IN')}</span>
-                    </div>
+                  <div className="flex justify-between border-b border-border/50 py-1">
+                    <span className="text-muted-foreground">ESI</span>
+                    <span className="font-medium">₹{Number(p.esi_amount || 0).toLocaleString('en-IN')}</span>
                   </div>
-                </div>
-
-                <Separator className="my-3" />
-                <div className="flex justify-between items-center">
-                  <span className="text-base font-bold">Net Pay</span>
-                  <span className="text-xl font-bold text-success">₹{Number(p.net_salary).toLocaleString('en-IN')}</span>
+                  <div className="flex justify-between border-b border-border/50 py-1">
+                    <span className="text-muted-foreground">PT</span>
+                    <span className="font-medium">₹{Number(p.professional_tax || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-border/50 py-1">
+                    <span className="text-muted-foreground">TDS</span>
+                    <span className="font-medium">₹{Number(p.tds_amount || 0).toLocaleString('en-IN')}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -542,6 +503,7 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
     </div>
   );
 }
+
 
 // ─── Employee Documents Sub-Component (view own docs uploaded by HR) ───
 function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {

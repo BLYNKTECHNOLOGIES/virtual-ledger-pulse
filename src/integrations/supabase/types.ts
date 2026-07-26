@@ -21543,6 +21543,15 @@ export type Database = {
         Args: { p_device_serial?: string }
         Returns: Json
       }
+      hr_broadcast_notification_to_hr: {
+        Args: {
+          p_link?: string
+          p_message: string
+          p_title: string
+          p_type: string
+        }
+        Returns: number
+      }
       hr_compute_fnf_breakdown: {
         Args: {
           p_employee_id: string
@@ -21575,6 +21584,17 @@ export type Database = {
       hr_derive_statutory_enrollment_from_history: {
         Args: { p_employee_id: string }
         Returns: Json
+      }
+      hr_emit_notification: {
+        Args: {
+          p_employee_id: string
+          p_link?: string
+          p_message: string
+          p_title: string
+          p_type: string
+          p_user_id?: string
+        }
+        Returns: string
       }
       hr_get_offer_letter_policy: {
         Args: never

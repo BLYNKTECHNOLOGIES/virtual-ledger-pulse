@@ -6166,6 +6166,63 @@ export type Database = {
           },
         ]
       }
+      hr_device_roster_reconciliation_log: {
+        Row: {
+          active_employee_count: number
+          auto_fixed: number
+          created_at: string
+          details: Json | null
+          device_name: string | null
+          device_serial: string
+          device_user_count: number
+          dismissed_still_enrolled: number
+          ghost_on_device: number
+          hrms_user_count: number
+          id: string
+          missing_on_device: number
+          pin_mismatch: number
+          ran_at: string
+          triggered_from: string | null
+          unsafe_flagged: number
+        }
+        Insert: {
+          active_employee_count?: number
+          auto_fixed?: number
+          created_at?: string
+          details?: Json | null
+          device_name?: string | null
+          device_serial: string
+          device_user_count?: number
+          dismissed_still_enrolled?: number
+          ghost_on_device?: number
+          hrms_user_count?: number
+          id?: string
+          missing_on_device?: number
+          pin_mismatch?: number
+          ran_at?: string
+          triggered_from?: string | null
+          unsafe_flagged?: number
+        }
+        Update: {
+          active_employee_count?: number
+          auto_fixed?: number
+          created_at?: string
+          details?: Json | null
+          device_name?: string | null
+          device_serial?: string
+          device_user_count?: number
+          dismissed_still_enrolled?: number
+          ghost_on_device?: number
+          hrms_user_count?: number
+          id?: string
+          missing_on_device?: number
+          pin_mismatch?: number
+          ran_at?: string
+          triggered_from?: string | null
+          unsafe_flagged?: number
+        }
+        Relationships: []
+      }
       hr_disciplinary_actions: {
         Row: {
           action_type: string
@@ -9472,6 +9529,8 @@ export type Database = {
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
+          readback_diff: Json | null
+          readback_verified_at: string | null
           taxable: boolean
           updated_at: string
         }
@@ -9487,6 +9546,8 @@ export type Database = {
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
+          readback_diff?: Json | null
+          readback_verified_at?: string | null
           taxable?: boolean
           updated_at?: string
         }
@@ -9502,6 +9563,8 @@ export type Database = {
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
+          readback_diff?: Json | null
+          readback_verified_at?: string | null
           taxable?: boolean
           updated_at?: string
         }
@@ -9541,6 +9604,8 @@ export type Database = {
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
+          readback_diff: Json | null
+          readback_verified_at: string | null
           updated_at: string
         }
         Insert: {
@@ -9554,6 +9619,8 @@ export type Database = {
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
+          readback_diff?: Json | null
+          readback_verified_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -9567,6 +9634,8 @@ export type Database = {
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
+          readback_diff?: Json | null
+          readback_verified_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -10500,6 +10569,8 @@ export type Database = {
       hr_razorpay_payroll_runs: {
         Row: {
           apply_response: Json | null
+          attendance_readback_diff: Json | null
+          attendance_readback_verified_at: string | null
           created_at: string
           created_by: string | null
           dry_run_response: Json | null
@@ -10523,6 +10594,8 @@ export type Database = {
         }
         Insert: {
           apply_response?: Json | null
+          attendance_readback_diff?: Json | null
+          attendance_readback_verified_at?: string | null
           created_at?: string
           created_by?: string | null
           dry_run_response?: Json | null
@@ -10546,6 +10619,8 @@ export type Database = {
         }
         Update: {
           apply_response?: Json | null
+          attendance_readback_diff?: Json | null
+          attendance_readback_verified_at?: string | null
           created_at?: string
           created_by?: string | null
           dry_run_response?: Json | null
@@ -20357,6 +20432,21 @@ export type Database = {
           last_run_at: string | null
           last_window_date: string | null
           runs_last_24h: number | null
+        }
+        Relationships: []
+      }
+      hr_device_roster_reconciliation_latest_v: {
+        Row: {
+          auto_fixed: number | null
+          device_name: string | null
+          device_serial: string | null
+          dismissed_still_enrolled: number | null
+          ghost_on_device: number | null
+          missing_on_device: number | null
+          pin_mismatch: number | null
+          ran_at: string | null
+          total_discrepancies: number | null
+          unsafe_flagged: number | null
         }
         Relationships: []
       }

@@ -77,6 +77,10 @@ export default function AttendanceRegularizationPage() {
   const [decision, setDecision] = useState<'approved' | 'rejected'>('approved');
   const [notes, setNotes] = useState('');
   const [reasonCode, setReasonCode] = useState<string>('');
+  // F4 · propose-and-validate
+  const [evidence, setEvidence] = useState<any>(null);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
 
   // ---------- Watchdog data ----------
   const { data: staleRows = [], isLoading: staleLoading } = useQuery({
@@ -206,13 +210,50 @@ export default function AttendanceRegularizationPage() {
     );
   });
 
+  // F4 · fetch the propose-and-validate evidence whenever the review dialog opens
+  // for an approve decision. The server returns the raw punch matches (or lack
+  // thereof) and any conflict with an existing session.
+  const openReview = async (r: any, dec: 'approved' | 'rejected') => {
+    setReviewing(r);
+    setDecision(dec);
+    setNotes('');
+    setReasonCode('');
+    setOverrideReason('');
+    setEvidence(null);
+    if (dec !== 'approved') return;
+    setEvidenceLoading(true);
+    try {
+      const { data, error } = await (supabase as any).rpc('hr_validate_regularization_proposal', {
+        _employee_id: r.employee_id,
+        _date: r.attendance_date,
+        _proposed_in: r.requested_check_in,
+        _proposed_out: r.requested_check_out,
+        _window_minutes: 10,
+      });
+      if (error) throw error;
+      setEvidence(data);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not validate against raw punches');
+    } finally {
+      setEvidenceLoading(false);
+    }
+  };
+
   const review = useMutation({
     mutationFn: async () => {
       if (!reviewing) return;
       if (decision === 'approved' && !reasonCode) throw new Error('Pick a reason code before approving');
       if (!notes.trim()) throw new Error('Notes are mandatory for every intervention');
+      const isOverride = decision === 'approved' && evidence && !evidence.evidence_ok;
+      if (isOverride && !overrideReason.trim()) {
+        throw new Error('Unsupported edits require an override reason (this is audited).');
+      }
       const { data: u } = await supabase.auth.getUser();
       const nowIso = new Date().toISOString();
+
+      const evidenceStatus = decision === 'approved'
+        ? (evidence?.evidence_ok ? 'evidence_ok' : 'unsupported_override')
+        : null;
 
       const { error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')
@@ -222,6 +263,10 @@ export default function AttendanceRegularizationPage() {
           approver_id: u?.user?.id,
           approver_notes: notes,
           approved_at: nowIso,
+          evidence_status: evidenceStatus,
+          evidence_payload: evidence ?? null,
+          override_admin_id: isOverride ? u?.user?.id : null,
+          override_reason: isOverride ? overrideReason : null,
         })
         .eq('id', reviewing.id);
       if (error) throw error;
@@ -229,7 +274,9 @@ export default function AttendanceRegularizationPage() {
       await (supabase as any).from('hr_attendance_intervention_log').insert({
         request_id: reviewing.id,
         employee_id: reviewing.employee_id,
-        action: decision === 'approved' ? 'regularization_approved' : 'regularization_rejected',
+        action: decision === 'approved'
+          ? (isOverride ? 'regularization_unsupported_override' : 'regularization_approved')
+          : 'regularization_rejected',
         reason_code: decision === 'approved' ? reasonCode : null,
         notes,
         actor_id: u?.user?.id ?? null,
@@ -238,12 +285,16 @@ export default function AttendanceRegularizationPage() {
           attendance_date: reviewing.attendance_date,
           requested_check_in: reviewing.requested_check_in,
           requested_check_out: reviewing.requested_check_out,
+          evidence_status: evidenceStatus,
+          override_reason: isOverride ? overrideReason : null,
+          matched_in_punch_id: evidence?.matched_in_punch_id ?? null,
+          matched_out_punch_id: evidence?.matched_out_punch_id ?? null,
         },
       });
     },
     onSuccess: () => {
       toast.success(`Intervention ${decision}`);
-      setReviewing(null); setNotes(''); setReasonCode('');
+      setReviewing(null); setNotes(''); setReasonCode(''); setEvidence(null); setOverrideReason('');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
     },
@@ -387,10 +438,10 @@ export default function AttendanceRegularizationPage() {
                     {r.approver_notes && <div className="text-xs italic text-muted-foreground">"{r.approver_notes}"</div>}
                     {r.status === 'pending' && (
                       <div className="flex gap-2 pt-1">
-                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
+                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openReview(r, 'approved')}>
                           <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
+                        <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openReview(r, 'rejected')}>
                           <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
                         </Button>
                       </div>
@@ -451,10 +502,10 @@ export default function AttendanceRegularizationPage() {
                           <td className="px-4 py-2 text-right space-x-1">
                             {r.status === 'pending' && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('approved'); setNotes(''); setReasonCode(''); }}>
+                                <Button size="sm" variant="outline" onClick={() => openReview(r, 'approved')}>
                                   <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={() => { setReviewing(r); setDecision('rejected'); setNotes(''); setReasonCode(''); }}>
+                                <Button size="sm" variant="outline" onClick={() => openReview(r, 'rejected')}>
                                   <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
                                 </Button>
                               </>
@@ -559,22 +610,66 @@ export default function AttendanceRegularizationPage() {
                 <div className="text-xs mt-1">In: {fmtTime(reviewing.requested_check_in)} · Out: {fmtTime(reviewing.requested_check_out)}</div>
               </div>
               {decision === 'approved' && (
-                <div>
-                  <Label>Reason code *</Label>
-                  <Select value={reasonCode} onValueChange={setReasonCode}>
-                    <SelectTrigger><SelectValue placeholder="Pick a reason code" /></SelectTrigger>
-                    <SelectContent>
-                      {REASON_CODES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>
-                          <div className="flex flex-col">
-                            <span>{c.label}</span>
-                            <span className="text-[10px] text-muted-foreground">{c.help}</span>
+                <>
+                  {/* F4 · propose-and-validate evidence panel */}
+                  <div className="rounded border p-2 text-xs space-y-1">
+                    <div className="font-medium flex items-center gap-2">
+                      Raw-punch evidence
+                      {evidenceLoading && <span className="text-muted-foreground">checking…</span>}
+                    </div>
+                    {evidence ? (
+                      evidence.evidence_ok ? (
+                        <div className="text-success flex items-start gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5" />
+                          <div>
+                            Proposal is supported by raw punches within ±{evidence.window_minutes ?? 10} min.
+                            {evidence.matched_in_punch_at && <div>Matched IN: {fmtTime(evidence.matched_in_punch_at)}</div>}
+                            {evidence.matched_out_punch_at && <div>Matched OUT: {fmtTime(evidence.matched_out_punch_at)}</div>}
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        </div>
+                      ) : (
+                        <div className="text-warning flex items-start gap-1">
+                          <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
+                          <div>
+                            No raw punches match this proposal. Approving will record an <b>unsupported override</b> in the audit log.
+                            {Array.isArray(evidence.nearby_punches) && evidence.nearby_punches.length > 0 && (
+                              <div className="mt-1 text-muted-foreground">
+                                Nearby: {evidence.nearby_punches.slice(0, 4).map((p: any) => fmtTime(p.punch_time)).join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    ) : !evidenceLoading ? (
+                      <div className="text-muted-foreground">Validator returned no evidence payload.</div>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <Label>Reason code *</Label>
+                    <Select value={reasonCode} onValueChange={setReasonCode}>
+                      <SelectTrigger><SelectValue placeholder="Pick a reason code" /></SelectTrigger>
+                      <SelectContent>
+                        {REASON_CODES.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>
+                            <div className="flex flex-col">
+                              <span>{c.label}</span>
+                              <span className="text-[10px] text-muted-foreground">{c.help}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {evidence && !evidence.evidence_ok && (
+                    <div>
+                      <Label>Override reason * <span className="text-warning">(audited)</span></Label>
+                      <Textarea rows={2} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+                        placeholder="Why is HR approving without raw-punch support?" />
+                    </div>
+                  )}
+                </>
               )}
               <div>
                 <Label>Notes *</Label>

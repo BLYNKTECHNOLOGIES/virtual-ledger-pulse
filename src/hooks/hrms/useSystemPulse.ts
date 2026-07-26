@@ -79,6 +79,16 @@ export interface SystemPulseExtras {
       unsafe_flagged: number;
     }>;
   };
+  // W7 · payslip import coverage receipt
+  payslip_coverage: {
+    period_month: string | null;
+    computed_at: string | null;
+    expected_count: number;
+    imported_count: number;
+    excluded_count: number;
+    coverage_pct: number;
+    missing_names: string[];
+  };
 }
 
 export function useSystemPulseExtras(refetchMs = 60_000) {

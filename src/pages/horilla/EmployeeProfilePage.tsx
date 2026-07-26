@@ -780,6 +780,9 @@ export default function EmployeeProfilePage() {
         ))}
       </div>
 
+      {/* V9 · New-joiner first-payroll readiness (HR-admin only via RLS) */}
+      {emp?.id && <NewJoinerReadinessCard employeeId={emp.id} />}
+
       {/* ─── Tab Content ─── */}
       <div className="bg-card border border-border rounded-xl p-3 md:p-6 overflow-hidden">
         {/* ── ABOUT TAB ── */}

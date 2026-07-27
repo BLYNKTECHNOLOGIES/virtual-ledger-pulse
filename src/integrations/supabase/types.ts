@@ -11575,21 +11575,42 @@ export type Database = {
           razorpay_employee_id: string
           razorpay_payslip_id: string | null
           reg_advance_salary: number | null
+          reg_bank_acc_no: string | null
           reg_basic: number | null
           reg_da: number | null
+          reg_department: string | null
+          reg_designation: string | null
+          reg_dob: string | null
           reg_employer_esi_contr: number | null
           reg_employer_pf_contr: number | null
           reg_esi_ee: number | null
           reg_esi_er: number | null
+          reg_esi_number: string | null
+          reg_gender: string | null
           reg_gross_salary: number | null
+          reg_has_left: boolean | null
+          reg_hire_date: string | null
           reg_hra: number | null
+          reg_ifsc: string | null
           reg_loan_emi: number | null
+          reg_location: string | null
           reg_lta: number | null
+          reg_lwf_ee: number | null
+          reg_lwf_er: number | null
           reg_net_pay: number | null
           reg_one_time_payments: number | null
+          reg_overtime: number | null
+          reg_pan: string | null
+          reg_performance_incentive: number | null
+          reg_personal_email: string | null
+          reg_personal_phone: string | null
           reg_pf_ee: number | null
           reg_pf_er: number | null
+          reg_pf_uan: string | null
           reg_pt: number | null
+          reg_pt_location: string | null
+          reg_refund_security_deposit: number | null
+          reg_relieving_date: string | null
           reg_sa: number | null
           reg_source_filename: string | null
           reg_source_uploaded_at: string | null
@@ -11625,21 +11646,42 @@ export type Database = {
           razorpay_employee_id: string
           razorpay_payslip_id?: string | null
           reg_advance_salary?: number | null
+          reg_bank_acc_no?: string | null
           reg_basic?: number | null
           reg_da?: number | null
+          reg_department?: string | null
+          reg_designation?: string | null
+          reg_dob?: string | null
           reg_employer_esi_contr?: number | null
           reg_employer_pf_contr?: number | null
           reg_esi_ee?: number | null
           reg_esi_er?: number | null
+          reg_esi_number?: string | null
+          reg_gender?: string | null
           reg_gross_salary?: number | null
+          reg_has_left?: boolean | null
+          reg_hire_date?: string | null
           reg_hra?: number | null
+          reg_ifsc?: string | null
           reg_loan_emi?: number | null
+          reg_location?: string | null
           reg_lta?: number | null
+          reg_lwf_ee?: number | null
+          reg_lwf_er?: number | null
           reg_net_pay?: number | null
           reg_one_time_payments?: number | null
+          reg_overtime?: number | null
+          reg_pan?: string | null
+          reg_performance_incentive?: number | null
+          reg_personal_email?: string | null
+          reg_personal_phone?: string | null
           reg_pf_ee?: number | null
           reg_pf_er?: number | null
+          reg_pf_uan?: string | null
           reg_pt?: number | null
+          reg_pt_location?: string | null
+          reg_refund_security_deposit?: number | null
+          reg_relieving_date?: string | null
           reg_sa?: number | null
           reg_source_filename?: string | null
           reg_source_uploaded_at?: string | null
@@ -11675,21 +11717,42 @@ export type Database = {
           razorpay_employee_id?: string
           razorpay_payslip_id?: string | null
           reg_advance_salary?: number | null
+          reg_bank_acc_no?: string | null
           reg_basic?: number | null
           reg_da?: number | null
+          reg_department?: string | null
+          reg_designation?: string | null
+          reg_dob?: string | null
           reg_employer_esi_contr?: number | null
           reg_employer_pf_contr?: number | null
           reg_esi_ee?: number | null
           reg_esi_er?: number | null
+          reg_esi_number?: string | null
+          reg_gender?: string | null
           reg_gross_salary?: number | null
+          reg_has_left?: boolean | null
+          reg_hire_date?: string | null
           reg_hra?: number | null
+          reg_ifsc?: string | null
           reg_loan_emi?: number | null
+          reg_location?: string | null
           reg_lta?: number | null
+          reg_lwf_ee?: number | null
+          reg_lwf_er?: number | null
           reg_net_pay?: number | null
           reg_one_time_payments?: number | null
+          reg_overtime?: number | null
+          reg_pan?: string | null
+          reg_performance_incentive?: number | null
+          reg_personal_email?: string | null
+          reg_personal_phone?: string | null
           reg_pf_ee?: number | null
           reg_pf_er?: number | null
+          reg_pf_uan?: string | null
           reg_pt?: number | null
+          reg_pt_location?: string | null
+          reg_refund_security_deposit?: number | null
+          reg_relieving_date?: string | null
           reg_sa?: number | null
           reg_source_filename?: string | null
           reg_source_uploaded_at?: string | null
@@ -22221,94 +22284,151 @@ export type Database = {
         Row: {
           advance_salary: number | null
           basic: number | null
-          created_at: string | null
           dearness_allowance: number | null
           employee_id: string | null
           employer_esi: number | null
           employer_pf: number | null
           esi_amount: number | null
           gross: number | null
+          has_left: boolean | null
           has_register: boolean | null
           hra: number | null
           id: string | null
           loan_emi: number | null
           lta: number | null
+          lwf_ee: number | null
+          lwf_er: number | null
           net: number | null
           one_time_payments: number | null
+          overtime: number | null
           pdf_url: string | null
+          performance_incentive: number | null
           period_month: string | null
           pf_amount: number | null
           professional_tax: number | null
           pulled_at: string | null
-          razorpay_payslip_id: string | null
+          razorpay_payslip_id: number | null
+          refund_security_deposit: number | null
+          reg_bank_acc_no: string | null
+          reg_department: string | null
+          reg_designation: string | null
+          reg_dob: string | null
+          reg_esi_number: string | null
+          reg_gender: string | null
+          reg_hire_date: string | null
+          reg_ifsc: string | null
+          reg_location: string | null
+          reg_pan: string | null
+          reg_personal_email: string | null
+          reg_personal_phone: string | null
+          reg_pf_uan: string | null
+          reg_pt_location: string | null
           register_source: string | null
+          relieving_date: string | null
           source: string | null
           special_allowance: number | null
           tds_amount: number | null
           total_deductions: number | null
-          updated_at: string | null
           working_days: number | null
         }
         Insert: {
           advance_salary?: number | null
           basic?: number | null
-          created_at?: string | null
           dearness_allowance?: number | null
           employee_id?: string | null
           employer_esi?: number | null
           employer_pf?: number | null
           esi_amount?: never
           gross?: never
+          has_left?: boolean | null
           has_register?: never
           hra?: number | null
           id?: string | null
           loan_emi?: number | null
           lta?: number | null
+          lwf_ee?: never
+          lwf_er?: never
           net?: never
           one_time_payments?: number | null
+          overtime?: number | null
           pdf_url?: string | null
+          performance_incentive?: number | null
           period_month?: string | null
           pf_amount?: never
           professional_tax?: never
           pulled_at?: string | null
-          razorpay_payslip_id?: string | null
+          razorpay_payslip_id?: never
+          refund_security_deposit?: number | null
+          reg_bank_acc_no?: string | null
+          reg_department?: string | null
+          reg_designation?: string | null
+          reg_dob?: string | null
+          reg_esi_number?: string | null
+          reg_gender?: string | null
+          reg_hire_date?: string | null
+          reg_ifsc?: string | null
+          reg_location?: string | null
+          reg_pan?: string | null
+          reg_personal_email?: string | null
+          reg_personal_phone?: string | null
+          reg_pf_uan?: string | null
+          reg_pt_location?: string | null
           register_source?: string | null
+          relieving_date?: string | null
           source?: never
           special_allowance?: number | null
           tds_amount?: never
           total_deductions?: never
-          updated_at?: string | null
           working_days?: number | null
         }
         Update: {
           advance_salary?: number | null
           basic?: number | null
-          created_at?: string | null
           dearness_allowance?: number | null
           employee_id?: string | null
           employer_esi?: number | null
           employer_pf?: number | null
           esi_amount?: never
           gross?: never
+          has_left?: boolean | null
           has_register?: never
           hra?: number | null
           id?: string | null
           loan_emi?: number | null
           lta?: number | null
+          lwf_ee?: never
+          lwf_er?: never
           net?: never
           one_time_payments?: number | null
+          overtime?: number | null
           pdf_url?: string | null
+          performance_incentive?: number | null
           period_month?: string | null
           pf_amount?: never
           professional_tax?: never
           pulled_at?: string | null
-          razorpay_payslip_id?: string | null
+          razorpay_payslip_id?: never
+          refund_security_deposit?: number | null
+          reg_bank_acc_no?: string | null
+          reg_department?: string | null
+          reg_designation?: string | null
+          reg_dob?: string | null
+          reg_esi_number?: string | null
+          reg_gender?: string | null
+          reg_hire_date?: string | null
+          reg_ifsc?: string | null
+          reg_location?: string | null
+          reg_pan?: string | null
+          reg_personal_email?: string | null
+          reg_personal_phone?: string | null
+          reg_pf_uan?: string | null
+          reg_pt_location?: string | null
           register_source?: string | null
+          relieving_date?: string | null
           source?: never
           special_allowance?: number | null
           tds_amount?: never
           total_deductions?: never
-          updated_at?: string | null
           working_days?: number | null
         }
         Relationships: [

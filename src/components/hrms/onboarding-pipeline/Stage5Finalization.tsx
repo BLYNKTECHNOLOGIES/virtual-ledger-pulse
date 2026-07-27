@@ -1245,6 +1245,57 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             />
           </div>
           <div className="sm:col-span-2">
+            {/* Bank Details — required by RazorpayX invite create, so placed BEFORE Step 1. */}
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Landmark className="h-4 w-4" />
+                <p className="text-sm font-medium">Bank Details (for salary payout)</p>
+                <span className="text-xs text-muted-foreground ml-auto">Required before RazorpayX create</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <Label>Account Holder Name</Label>
+                  <Input
+                    value={form.bank_account_holder}
+                    disabled
+                    readOnly
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Auto-filled from employee name — must match bank records.
+                  </p>
+                </div>
+                <div>
+                  <Label>Account Number *</Label>
+                  <Input
+                    placeholder="e.g. 123456789012"
+                    value={form.bank_account_number}
+                    onChange={e => updateForm({ bank_account_number: e.target.value.replace(/\s/g, "") })}
+                    disabled={readOnly}
+                    className="font-mono"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div>
+                  <Label>IFSC Code *</Label>
+                  <Input
+                    placeholder="e.g. HDFC0001234"
+                    value={form.bank_ifsc_code}
+                    onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") })}
+                    disabled={readOnly}
+                    className="font-mono uppercase"
+                    maxLength={11}
+                  />
+                  {form.bank_ifsc_code && !ifscValid && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Invalid IFSC format
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="sm:col-span-2">
             {/* Step 1 — create/verify RazorpayX identity first. */}
             <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
               <div className="flex items-center gap-3">

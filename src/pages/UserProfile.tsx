@@ -415,30 +415,45 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
     );
   }
 
+  const fmt = (n: number | null | undefined) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-lg font-semibold">My Payslips</h3>
-        <span className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wider">
-          Source · RazorpayX
+        <span className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
+          Source · RazorpayX API + Salary Register
         </span>
       </div>
+      <p className="text-[11px] text-muted-foreground -mt-2">
+        Statutory splits (PF / ESI / PT / TDS) and component-wise pay come from the monthly Salary Register CSV.
+        Months without a register only show the RazorpayX net figure and are marked <b>register pending</b>.
+      </p>
       <div className="space-y-3">
         {payslips.map((p) => {
           const period = p.period_month
             ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
             : '';
+          const hasReg = !!p.has_register;
+          const earnings: Array<[string, number | null]> = [
+            ['Basic', p.basic], ['HRA', p.hra], ['Special Allowance', p.special_allowance],
+            ['LTA', p.lta], ['DA', p.dearness_allowance],
+          ].filter(([, v]) => Number(v) > 0) as any;
           return (
             <Card key={p.id}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-4 flex-wrap gap-2">
                   <div>
-                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
                       Payslip — {period}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${hasReg ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning-foreground'}`}>
+                        {hasReg ? 'Register CSV' : 'Register pending'}
+                      </span>
                     </h4>
                     {p.pulled_at && (
                       <p className="text-xs text-muted-foreground">
                         Synced {formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}
+                        {p.register_source && ` · ${p.register_source}`}
                       </p>
                     )}
                   </div>
@@ -448,19 +463,17 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <div className="bg-muted/30 rounded-lg p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Gross</p>
-                    <p className="text-lg font-bold">₹{Number(p.gross || 0).toLocaleString('en-IN')}</p>
+                    <p className="text-lg font-bold">{fmt(p.gross)}</p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
                     <p className="text-lg font-bold text-destructive">
-                      ₹{Number(p.total_deductions || 0).toLocaleString('en-IN')}
+                      {hasReg ? fmt(p.total_deductions) : '—'}
                     </p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
-                    <p className="text-lg font-bold text-success">
-                      ₹{Number(p.net || 0).toLocaleString('en-IN')}
-                    </p>
+                    <p className="text-lg font-bold text-success">{fmt(p.net)}</p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Working Days</p>
@@ -468,24 +481,72 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                  <div className="flex justify-between border-b border-border/50 py-1">
-                    <span className="text-muted-foreground">PF</span>
-                    <span className="font-medium">₹{Number(p.pf_amount || 0).toLocaleString('en-IN')}</span>
+                {hasReg ? (
+                  <>
+                    {earnings.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Earnings</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                          {earnings.map(([k, v]) => (
+                            <div key={k} className="flex justify-between border-b border-border/50 py-1">
+                              <span className="text-muted-foreground">{k}</span>
+                              <span className="font-medium tabular-nums">{fmt(v)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Statutory deductions (employee share)</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                        <div className="flex justify-between border-b border-border/50 py-1">
+                          <span className="text-muted-foreground">PF</span>
+                          <span className="font-medium tabular-nums">{fmt(p.pf_amount)}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-border/50 py-1">
+                          <span className="text-muted-foreground">ESI</span>
+                          <span className="font-medium tabular-nums">{fmt(p.esi_amount)}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-border/50 py-1">
+                          <span className="text-muted-foreground">PT</span>
+                          <span className="font-medium tabular-nums">{fmt(p.professional_tax)}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-border/50 py-1">
+                          <span className="text-muted-foreground">TDS</span>
+                          <span className="font-medium tabular-nums">{fmt(p.tds_amount)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {(Number(p.loan_emi) > 0 || Number(p.advance_salary) > 0 || Number(p.one_time_payments) > 0) && (
+                      <div className="mt-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Other</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                          {Number(p.loan_emi) > 0 && (
+                            <div className="flex justify-between border-b border-border/50 py-1"><span className="text-muted-foreground">Loan EMI</span><span className="font-medium tabular-nums">{fmt(p.loan_emi)}</span></div>
+                          )}
+                          {Number(p.advance_salary) > 0 && (
+                            <div className="flex justify-between border-b border-border/50 py-1"><span className="text-muted-foreground">Advance</span><span className="font-medium tabular-nums">{fmt(p.advance_salary)}</span></div>
+                          )}
+                          {Number(p.one_time_payments) > 0 && (
+                            <div className="flex justify-between border-b border-border/50 py-1"><span className="text-muted-foreground">One-time</span><span className="font-medium tabular-nums">{fmt(p.one_time_payments)}</span></div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {(Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
+                      <div className="mt-3 text-[11px] text-muted-foreground">
+                        Employer contribution: PF {fmt(p.employer_pf)} · ESI {fmt(p.employer_esi)} (not deducted from net)
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
+                    The Salary Register CSV for this month has not been uploaded yet, so component-wise
+                    Basic / HRA / PF / ESI / PT / TDS values aren't available. The RazorpayX API only
+                    returns the summary net figure. HR will publish the register after the payroll run
+                    is finalised.
                   </div>
-                  <div className="flex justify-between border-b border-border/50 py-1">
-                    <span className="text-muted-foreground">ESI</span>
-                    <span className="font-medium">₹{Number(p.esi_amount || 0).toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-border/50 py-1">
-                    <span className="text-muted-foreground">PT</span>
-                    <span className="font-medium">₹{Number(p.professional_tax || 0).toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-border/50 py-1">
-                    <span className="text-muted-foreground">TDS</span>
-                    <span className="font-medium">₹{Number(p.tds_amount || 0).toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           );

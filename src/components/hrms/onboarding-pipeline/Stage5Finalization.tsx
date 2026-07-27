@@ -840,7 +840,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
 
 
-  const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
+  const ifscValid = !form.bank_ifsc_code || /^[A-Z0-9]{11}$/.test(form.bank_ifsc_code.trim().toUpperCase());
 
   // Checklist for the "Also create in RazorpayX Payroll" toggle. Razorpay's
   // POST /people (sub-type: add) requires all of these — surface gaps in the

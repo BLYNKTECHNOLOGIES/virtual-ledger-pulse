@@ -22219,59 +22219,95 @@ export type Database = {
       }
       hr_payslips_v: {
         Row: {
+          advance_salary: number | null
+          basic: number | null
           created_at: string | null
+          dearness_allowance: number | null
           employee_id: string | null
+          employer_esi: number | null
+          employer_pf: number | null
           esi_amount: number | null
           gross: number | null
+          has_register: boolean | null
+          hra: number | null
           id: string | null
+          loan_emi: number | null
+          lta: number | null
           net: number | null
+          one_time_payments: number | null
           pdf_url: string | null
           period_month: string | null
           pf_amount: number | null
           professional_tax: number | null
           pulled_at: string | null
           razorpay_payslip_id: string | null
+          register_source: string | null
           source: string | null
+          special_allowance: number | null
           tds_amount: number | null
           total_deductions: number | null
           updated_at: string | null
           working_days: number | null
         }
         Insert: {
+          advance_salary?: number | null
+          basic?: number | null
           created_at?: string | null
+          dearness_allowance?: number | null
           employee_id?: string | null
-          esi_amount?: number | null
-          gross?: number | null
+          employer_esi?: number | null
+          employer_pf?: number | null
+          esi_amount?: never
+          gross?: never
+          has_register?: never
+          hra?: number | null
           id?: string | null
-          net?: number | null
+          loan_emi?: number | null
+          lta?: number | null
+          net?: never
+          one_time_payments?: number | null
           pdf_url?: string | null
           period_month?: string | null
-          pf_amount?: number | null
-          professional_tax?: number | null
+          pf_amount?: never
+          professional_tax?: never
           pulled_at?: string | null
           razorpay_payslip_id?: string | null
+          register_source?: string | null
           source?: never
-          tds_amount?: number | null
-          total_deductions?: number | null
+          special_allowance?: number | null
+          tds_amount?: never
+          total_deductions?: never
           updated_at?: string | null
           working_days?: number | null
         }
         Update: {
+          advance_salary?: number | null
+          basic?: number | null
           created_at?: string | null
+          dearness_allowance?: number | null
           employee_id?: string | null
-          esi_amount?: number | null
-          gross?: number | null
+          employer_esi?: number | null
+          employer_pf?: number | null
+          esi_amount?: never
+          gross?: never
+          has_register?: never
+          hra?: number | null
           id?: string | null
-          net?: number | null
+          loan_emi?: number | null
+          lta?: number | null
+          net?: never
+          one_time_payments?: number | null
           pdf_url?: string | null
           period_month?: string | null
-          pf_amount?: number | null
-          professional_tax?: number | null
+          pf_amount?: never
+          professional_tax?: never
           pulled_at?: string | null
           razorpay_payslip_id?: string | null
+          register_source?: string | null
           source?: never
-          tds_amount?: number | null
-          total_deductions?: number | null
+          special_allowance?: number | null
+          tds_amount?: never
+          total_deductions?: never
           updated_at?: string | null
           working_days?: number | null
         }

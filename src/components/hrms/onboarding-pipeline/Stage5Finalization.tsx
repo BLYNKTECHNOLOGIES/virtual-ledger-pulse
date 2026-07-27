@@ -840,7 +840,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
 
 
-  const ifscValid = !form.bank_ifsc_code || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.bank_ifsc_code.trim().toUpperCase());
+  const ifscValid = !form.bank_ifsc_code || /^[A-Z0-9]{11}$/.test(form.bank_ifsc_code.trim().toUpperCase());
 
   // Checklist for the "Also create in RazorpayX Payroll" toggle. Razorpay's
   // POST /people (sub-type: add) requires all of these — surface gaps in the
@@ -850,7 +850,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const razorpayChecklist = useMemo(() => {
     // The razorpay-payroll-proxy edge function rejects invite creation without
     // bank_account_number + bank_ifsc, so gate the button on those too.
-    const ifscOk = /^[A-Z]{4}0[A-Z0-9]{6}$/.test((form.bank_ifsc_code || "").trim().toUpperCase());
+    const ifscOk = /^[A-Z0-9]{11}$/.test((form.bank_ifsc_code || "").trim().toUpperCase());
     const items = [
       { key: "name", label: "Full name", ok: !!(onboardingRecord?.first_name) },
       { key: "email", label: "Email", ok: !!onboardingRecord?.email },
@@ -988,7 +988,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       return false;
     }
     if (form.bank_ifsc_code && !ifscValid) {
-      toast.error("IFSC must be 11 characters (e.g. HDFC0001234)");
+      toast.error("IFSC must be exactly 11 alphanumeric characters");
       return false;
     }
     const docs = (onboardingRecord?.documents as any) || {};
@@ -1281,14 +1281,14 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   <Input
                     placeholder="e.g. HDFC0001234"
                     value={form.bank_ifsc_code}
-                    onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") })}
+                    onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
                     disabled={readOnly}
                     className="font-mono uppercase"
                     maxLength={11}
                   />
                   {form.bank_ifsc_code && !ifscValid && (
                     <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Invalid IFSC format
+                      <AlertTriangle className="h-3 w-3" /> IFSC must be exactly 11 alphanumeric characters
                     </p>
                   )}
                 </div>

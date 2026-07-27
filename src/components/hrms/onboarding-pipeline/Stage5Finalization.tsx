@@ -848,10 +848,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const docs = (onboardingRecord?.documents as any) || {};
   const panFromDocs = String(docs.pan?.value || "").toUpperCase().trim();
   const razorpayChecklist = useMemo(() => {
-    // Bank details are NOT required at invite-create time — RazorpayX accepts
-    // the employee record without bank info and the hire fills it in during
-    // self-registration (or HR patches it later). Only enforce fields that
-    // POST /people 'add' actually rejects when missing.
+    // The razorpay-payroll-proxy edge function rejects invite creation without
+    // bank_account_number + bank_ifsc, so gate the button on those too.
+    const ifscOk = /^[A-Z]{4}0[A-Z0-9]{6}$/.test((form.bank_ifsc_code || "").trim().toUpperCase());
     const items = [
       { key: "name", label: "Full name", ok: !!(onboardingRecord?.first_name) },
       { key: "email", label: "Email", ok: !!onboardingRecord?.email },
@@ -861,10 +860,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       { key: "dept", label: "Department", ok: !!onboardingRecord?.department_id },
       { key: "title", label: "Job Role / Title", ok: !!onboardingRecord?.job_role },
       { key: "ctc", label: "Annual CTC", ok: Number(onboardingRecord?.ctc) > 0 },
+      { key: "bank_account", label: "Bank Account Number", ok: !!form.bank_account_number.trim() },
+      { key: "bank_ifsc", label: "Bank IFSC (valid format)", ok: ifscOk },
     ];
-    // IFSC is only validated if supplied — bank block is optional pre-create.
     return { items, allOk: items.every(i => i.ok), missing: items.filter(i => !i.ok).map(i => i.label) };
-  }, [onboardingRecord, form.date_of_joining, panFromDocs]);
+  }, [onboardingRecord, form.date_of_joining, form.bank_account_number, form.bank_ifsc_code, panFromDocs]);
 
 
   const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());
@@ -1245,6 +1245,57 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             />
           </div>
           <div className="sm:col-span-2">
+            {/* Bank Details — required by RazorpayX invite create, so placed BEFORE Step 1. */}
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Landmark className="h-4 w-4" />
+                <p className="text-sm font-medium">Bank Details (for salary payout)</p>
+                <span className="text-xs text-muted-foreground ml-auto">Required before RazorpayX create</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <Label>Account Holder Name</Label>
+                  <Input
+                    value={form.bank_account_holder}
+                    disabled
+                    readOnly
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Auto-filled from employee name — must match bank records.
+                  </p>
+                </div>
+                <div>
+                  <Label>Account Number *</Label>
+                  <Input
+                    placeholder="e.g. 123456789012"
+                    value={form.bank_account_number}
+                    onChange={e => updateForm({ bank_account_number: e.target.value.replace(/\s/g, "") })}
+                    disabled={readOnly}
+                    className="font-mono"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div>
+                  <Label>IFSC Code *</Label>
+                  <Input
+                    placeholder="e.g. HDFC0001234"
+                    value={form.bank_ifsc_code}
+                    onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") })}
+                    disabled={readOnly}
+                    className="font-mono uppercase"
+                    maxLength={11}
+                  />
+                  {form.bank_ifsc_code && !ifscValid && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Invalid IFSC format
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="sm:col-span-2">
             {/* Step 1 — create/verify RazorpayX identity first. */}
             <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
               <div className="flex items-center gap-3">
@@ -1573,55 +1624,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           </div>
         </div>
 
-        {/* Bank Details */}
-        <div className="rounded-lg border p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Landmark className="h-4 w-4" />
-            <p className="text-sm font-medium">Bank Details (for salary payout)</p>
-            <span className="text-xs text-muted-foreground ml-auto">Required for payroll</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2">
-              <Label>Account Holder Name</Label>
-              <Input
-                value={form.bank_account_holder}
-                disabled
-                readOnly
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Auto-filled from employee name — must match bank records.
-              </p>
-            </div>
-            <div>
-              <Label>Account Number</Label>
-              <Input
-                placeholder="e.g. 123456789012"
-                value={form.bank_account_number}
-                onChange={e => updateForm({ bank_account_number: e.target.value.replace(/\s/g, "") })}
-                disabled={readOnly}
-                className="font-mono"
-                inputMode="numeric"
-              />
-            </div>
-            <div>
-              <Label>IFSC Code</Label>
-              <Input
-                placeholder="e.g. HDFC0001234"
-                value={form.bank_ifsc_code}
-                onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") })}
-                disabled={readOnly}
-                className="font-mono uppercase"
-                maxLength={11}
-              />
-              {form.bank_ifsc_code && !ifscValid && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> Invalid IFSC format
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Bank Details moved above Step 1 — RazorpayX invite requires bank_account_number + bank_ifsc. */}
+
 
 
 

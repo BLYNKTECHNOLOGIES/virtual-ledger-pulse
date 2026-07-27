@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-07-27: ERP user deletion cleanup RPC repaired — stale hard-coded token/table/column references replaced with typed schema-aware cleanup; historical records preserved while deleted user links are unlinked/anonymized.
 - 2026-07-26: R10/R11/R13#1 arc — ESS Payslips tab retargeted to canonical `hr_payslips_v` + RazorpayPayslipLink deep-link (no fake PDFs); recruitment `hired` transition now auto-provisions a draft `hr_employee_onboarding` row (idempotent by candidate_id); `docs/RAZORPAYX_LIVE_STATE.md` captures post-July-25 envelope reality.
 - 2026-07-25: RazorpayX one-time payout payload repair — bonus additions now send direct `data` to payroll:add-additions and proxy validates required fields before Opfin call.
 - 2026-07-25: RazorpayX one-time payout gate repair — Step G payroll envelope now auto-verifies with E/F so bonus additions can retry; stale gate-lock errors show as retryable, not Razorpay rejection.

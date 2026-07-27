@@ -5860,7 +5860,7 @@ Deno.serve(async (req) => {
       if (!ob.job_role) missing.push("job_title");
       if (!ctcAnnual || ctcAnnual <= 0) missing.push("ctc_annual");
       if (!accountNumber) missing.push("bank_account_number");
-      if (!ifsc || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) missing.push("bank_ifsc");
+      if (!ifsc || !/^[A-Z0-9]{11}$/.test(ifsc)) missing.push("bank_ifsc");
       if (!accountHolder) missing.push("bank_account_holder_name");
       if (missing.length) return json(400, { ok: false, reason: "missing_fields", missing });
 
@@ -6049,7 +6049,7 @@ Deno.serve(async (req) => {
       if (!wi?.job_role) missing.push("job_title");
       if (!ctcAnnual || ctcAnnual <= 0) missing.push("ctc_annual");
       if (!bank?.account_number) missing.push("bank_account_number");
-      if (!bank?.ifsc_code || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bank.ifsc_code)) missing.push("bank_ifsc");
+      if (!bank?.ifsc_code || !/^[A-Z0-9]{11}$/.test(bank.ifsc_code)) missing.push("bank_ifsc");
       if (!accountHolder) missing.push("bank_account_holder_name");
 
       if (missing.length) {

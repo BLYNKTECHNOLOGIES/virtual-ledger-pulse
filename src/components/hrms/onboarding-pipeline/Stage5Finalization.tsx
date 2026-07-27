@@ -1288,7 +1288,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   />
                   {form.bank_ifsc_code && !ifscValid && (
                     <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Invalid IFSC format
+                      <AlertTriangle className="h-3 w-3" /> IFSC must be exactly 11 alphanumeric characters
                     </p>
                   )}
                 </div>

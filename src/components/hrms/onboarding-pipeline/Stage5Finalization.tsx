@@ -850,7 +850,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const razorpayChecklist = useMemo(() => {
     // The razorpay-payroll-proxy edge function rejects invite creation without
     // bank_account_number + bank_ifsc, so gate the button on those too.
-    const ifscOk = /^[A-Z]{4}0[A-Z0-9]{6}$/.test((form.bank_ifsc_code || "").trim().toUpperCase());
+    const ifscOk = /^[A-Z0-9]{11}$/.test((form.bank_ifsc_code || "").trim().toUpperCase());
     const items = [
       { key: "name", label: "Full name", ok: !!(onboardingRecord?.first_name) },
       { key: "email", label: "Email", ok: !!onboardingRecord?.email },

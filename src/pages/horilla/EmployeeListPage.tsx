@@ -589,14 +589,16 @@ export default function EmployeeListPage() {
             )}
           </div>
 
-          {/* Create */}
+          {/* Create — employees can only be onboarded via the pipeline (or synced from RazorpayX). Route to the onboarding page instead of opening an ad-hoc dialog. */}
           <button
-            onClick={() => setAddOpen(true)}
+            onClick={() => navigate("/hrms/onboarding-pipeline")}
             className="flex items-center gap-1.5 bg-[#00bcd4] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#00a5bb] transition-colors"
+            title="Start a new onboarding — direct creation is disabled"
           >
             <Plus className="h-4 w-4" />
             Create
           </button>
+
           </div>
         }
       />

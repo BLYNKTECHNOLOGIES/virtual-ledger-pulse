@@ -338,6 +338,104 @@ export default function WeeklyOffPage() {
             </div>
           </div>
       </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={showBulkAssign}
+        onOpenChange={setShowBulkAssign}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><UsersRound className="h-4 w-4" /> Bulk Assign Weekly-Off Pattern</span>}
+        description="Apply one pattern to many employees at once. Any existing pattern for these employees is replaced."
+        footer={
+          <>
+            <Button variant="outline" className="h-9" onClick={() => setShowBulkAssign(false)}>Cancel</Button>
+            <Button
+              className="h-9"
+              onClick={() => bulkAssignMutation.mutate()}
+              disabled={bulkAssignMutation.isPending || !bulkForm.pattern_id || bulkForm.employee_ids.length === 0}
+            >
+              Assign to {bulkForm.employee_ids.length || 0}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <Label>Pattern</Label>
+            <Select value={bulkForm.pattern_id} onValueChange={v => setBulkForm({ ...bulkForm, pattern_id: v })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select pattern..." /></SelectTrigger>
+              <SelectContent>
+                {patterns.filter((p: any) => p.is_active !== false).map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <Label>Employees ({bulkForm.employee_ids.length} selected)</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => {
+                    const filtered = employees.filter((e: any) => {
+                      const q = bulkForm.search.trim().toLowerCase();
+                      if (!q) return true;
+                      return `${e.first_name} ${e.last_name} ${e.badge_id}`.toLowerCase().includes(q);
+                    });
+                    setBulkForm({ ...bulkForm, employee_ids: filtered.map((e: any) => e.id) });
+                  }}
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:underline"
+                  onClick={() => setBulkForm({ ...bulkForm, employee_ids: [] })}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                className="h-9 pl-7"
+                placeholder="Search by name or badge..."
+                value={bulkForm.search}
+                onChange={e => setBulkForm({ ...bulkForm, search: e.target.value })}
+              />
+            </div>
+            <div className="mt-2 max-h-72 overflow-y-auto rounded-md border border-border divide-y divide-border">
+              {employees
+                .filter((e: any) => {
+                  const q = bulkForm.search.trim().toLowerCase();
+                  if (!q) return true;
+                  return `${e.first_name} ${e.last_name} ${e.badge_id}`.toLowerCase().includes(q);
+                })
+                .map((e: any) => {
+                  const checked = bulkForm.employee_ids.includes(e.id);
+                  return (
+                    <label key={e.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/40">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          const set = new Set(bulkForm.employee_ids);
+                          if (v) set.add(e.id); else set.delete(e.id);
+                          setBulkForm({ ...bulkForm, employee_ids: Array.from(set) });
+                        }}
+                      />
+                      <span className="text-sm text-foreground">{e.first_name} {e.last_name}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">{e.badge_id}</span>
+                    </label>
+                  );
+                })}
+              {employees.length === 0 && (
+                <div className="px-3 py-4 text-xs text-muted-foreground text-center">No employees found</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }

@@ -27,6 +27,16 @@ const STATUS_COLORS: Record<string, string> = {
   leave: "bg-primary",
 };
 
+// Tile styles for filled calendar day cells (semantic tokens only)
+const STATUS_TILE: Record<string, string> = {
+  present: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
+  absent: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
+  late: "bg-warning/20 text-warning-foreground ring-1 ring-inset ring-warning/40",
+  half_day: "bg-info/15 text-info ring-1 ring-inset ring-info/30",
+  holiday: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
+  leave: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
+};
+
 const STATUS_BG: Record<string, string> = {
   present: "bg-success/10 border-success/20 text-success",
   absent: "bg-destructive/10 border-destructive/20 text-destructive",
@@ -173,19 +183,26 @@ export default function AttendanceCalendarPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 flex-wrap text-xs">
+      <div className="flex gap-2 flex-wrap">
         {Object.entries(STATUS_COLORS).map(([status, color]) => (
-          <div key={status} className="flex items-center gap-1.5">
-            <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
+          <div
+            key={status}
+            className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]"
+          >
+            <div className={`w-2 h-2 rounded-full ${color}`} />
             <span className="capitalize text-muted-foreground">{status.replace("_", " ")}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]">
+          <div className="w-2 h-2 rounded-sm bg-muted-foreground/30" />
+          <span className="text-muted-foreground">Weekly off</span>
+        </div>
       </div>
 
       {/* Employee Calendar Cards */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {filteredEmps.length === 0 ? (
-          <Card>
+          <Card className="xl:col-span-2">
             <CardContent className="py-0">
               <EmptyState icon={Calendar} title="No employees found" description="Try adjusting your search or filter." />
             </CardContent>
@@ -193,15 +210,20 @@ export default function AttendanceCalendarPage() {
         ) : (
           filteredEmps.map((emp: any) => {
             const empAttendance = attendanceMap[emp.id] || {};
-            const empPresent = Object.values(empAttendance).filter((a: any) => a.attendance_status === "present").length;
-            const empTotal = Object.values(empAttendance).length;
+            const values = Object.values(empAttendance) as any[];
+            const empPresent = values.filter((a) => a.attendance_status === "present").length;
+            const empAbsent = values.filter((a) => a.attendance_status === "absent").length;
+            const empLate = values.filter((a) => a.attendance_status === "late").length;
+            const empTotal = values.length;
+            const rate = empTotal > 0 ? Math.round((empPresent / empTotal) * 100) : 0;
 
             return (
-            <Card key={emp.id} className="min-w-0">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+              <Card key={emp.id} className="min-w-0 overflow-hidden">
+                <CardContent className="p-4 space-y-3">
+                  {/* Header */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-bold text-xs shrink-0 ring-1 ring-primary/20">
                         {emp.first_name?.[0]}{emp.last_name?.[0]}
                       </div>
                       <div className="min-w-0">
@@ -209,41 +231,50 @@ export default function AttendanceCalendarPage() {
                         <p className="text-[10px] text-muted-foreground truncate">{emp.badge_id}</p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-foreground tabular-nums">{empPresent}/{empTotal}</p>
-                      <p className="text-[10px] text-muted-foreground">Present days</p>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="rounded-md bg-success/10 text-success text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empPresent} P</span>
+                      {empAbsent > 0 && <span className="rounded-md bg-destructive/10 text-destructive text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empAbsent} A</span>}
+                      {empLate > 0 && <span className="rounded-md bg-warning/15 text-warning text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empLate} L</span>}
+                      <span className="rounded-md bg-muted text-foreground text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{rate}%</span>
                     </div>
+                  </div>
+
+                  {/* Attendance rate bar */}
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-success transition-all" style={{ width: `${rate}%` }} />
                   </div>
 
                   {/* Mini Calendar Grid */}
                   <div className="grid grid-cols-7 gap-1">
                     {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                      <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
+                      <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider py-1">{d}</div>
                     ))}
-                    {Array.from({ length: startDay }).map((_, i) => <div key={`pad-${i}`} />)}
+                    {Array.from({ length: startDay }).map((_, i) => <div key={`pad-${i}`} className="aspect-square" />)}
                     {days.map(day => {
                       const dateStr = format(day, "yyyy-MM-dd");
                       const record = empAttendance[dateStr];
                       const status = record?.attendance_status;
-                      const dotColor = status ? STATUS_COLORS[status] || "bg-muted/20" : "";
                       const today = isToday(day);
                       const weeklyOff = isWeeklyOff(day, complianceSettings);
+                      const tile = status ? STATUS_TILE[status] : "";
 
                       return (
                         <div
                           key={dateStr}
-                          className={`text-center py-1 rounded text-[11px] relative ${today ? "ring-1 ring-primary font-bold" : ""} ${
-                            status ? "font-medium" : "text-muted-foreground"
-                          } ${weeklyOff && !status ? "bg-muted/40 text-muted-foreground/70" : ""}`}
+                          className={`aspect-square flex items-center justify-center rounded-md text-[11px] font-medium relative transition-colors
+                            ${status ? tile : weeklyOff ? "bg-muted/60 text-muted-foreground/60" : "bg-muted/20 text-muted-foreground hover:bg-muted/40"}
+                            ${today ? "ring-2 ring-primary ring-offset-1 ring-offset-background font-bold" : ""}
+                          `}
                           title={
-                            status ? `${format(day, "MMM d")} — ${status}` :
+                            status ? `${format(day, "MMM d")} — ${status.replace("_", " ")}` :
                             weeklyOff ? `${format(day, "MMM d")} — Weekly off` :
                             format(day, "MMM d")
                           }
                         >
                           {day.getDate()}
-                          {status && <div className={`w-1.5 h-1.5 rounded-full ${dotColor} mx-auto mt-0.5`} />}
-                          {weeklyOff && !status && <div className="w-1 h-1 rounded-full bg-muted-foreground/40 mx-auto mt-0.5" />}
+                          {weeklyOff && !status && (
+                            <span className="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-muted-foreground/40" />
+                          )}
                         </div>
                       );
                     })}
@@ -254,6 +285,7 @@ export default function AttendanceCalendarPage() {
           })
         )}
       </div>
+
 
       {/* Bulk Attendance Dialog */}
       <ResponsiveDialog

@@ -323,6 +323,72 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                 </div>
               )}
 
+              {/* Register extras — LWF, Overtime, PLI, Refund of Security Deposit (Salary Register CSV only) */}
+              {(openRow.reg_lwf_ee != null || openRow.reg_lwf_er != null || openRow.reg_overtime != null ||
+                openRow.reg_performance_incentive != null || openRow.reg_refund_security_deposit != null) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-foreground">Variable Pay & Welfare</h4>
+                    <SourceTag source="register_csv" compact />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {(openRow.reg_lwf_ee != null || openRow.reg_lwf_er != null) && (
+                      <div className="border border-border rounded p-3 bg-muted/30">
+                        <p className="text-[10px] uppercase text-muted-foreground">LWF (Employee)</p>
+                        <p className="text-sm font-semibold">{INR(openRow.reg_lwf_ee)}</p>
+                        {openRow.reg_lwf_er != null && <p className="text-[10px] text-muted-foreground mt-0.5">Employer: {INR(openRow.reg_lwf_er)}</p>}
+                      </div>
+                    )}
+                    {openRow.reg_overtime != null && Number(openRow.reg_overtime) !== 0 && (
+                      <div className="border border-border rounded p-3 bg-muted/30">
+                        <p className="text-[10px] uppercase text-muted-foreground">Overtime</p>
+                        <p className="text-sm font-semibold">{INR(openRow.reg_overtime)}</p>
+                      </div>
+                    )}
+                    {openRow.reg_performance_incentive != null && Number(openRow.reg_performance_incentive) !== 0 && (
+                      <div className="border border-border rounded p-3 bg-muted/30">
+                        <p className="text-[10px] uppercase text-muted-foreground">Performance Incentive</p>
+                        <p className="text-sm font-semibold">{INR(openRow.reg_performance_incentive)}</p>
+                      </div>
+                    )}
+                    {openRow.reg_refund_security_deposit != null && Number(openRow.reg_refund_security_deposit) !== 0 && (
+                      <div className="border border-border rounded p-3 bg-muted/30">
+                        <p className="text-[10px] uppercase text-muted-foreground">Refund of Security Deposit</p>
+                        <p className="text-sm font-semibold">{INR(openRow.reg_refund_security_deposit)}</p>
+                      </div>
+                    )}
+                    {openRow.reg_working_days != null && (
+                      <div className="border border-border rounded p-3 bg-muted/30">
+                        <p className="text-[10px] uppercase text-muted-foreground">Working Days (CSV)</p>
+                        <p className="text-sm font-semibold">{openRow.reg_working_days}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Identity snapshot from Salary Register CSV — proves data lineage for statutory audits */}
+              {(openRow.reg_pan || openRow.reg_pf_uan || openRow.reg_esi_number || openRow.reg_bank_acc_no) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-foreground">Identity Snapshot (as of this payroll)</h4>
+                    <SourceTag source="register_csv" compact />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                    {openRow.reg_pan && <div><span className="text-muted-foreground">PAN:</span> <span className="font-mono">{openRow.reg_pan}</span></div>}
+                    {openRow.reg_pf_uan && <div><span className="text-muted-foreground">UAN:</span> <span className="font-mono">{openRow.reg_pf_uan}</span></div>}
+                    {openRow.reg_esi_number && <div><span className="text-muted-foreground">ESI No:</span> <span className="font-mono">{openRow.reg_esi_number}</span></div>}
+                    {openRow.reg_bank_acc_no && <div><span className="text-muted-foreground">A/C:</span> <span className="font-mono">{openRow.reg_bank_acc_no}</span></div>}
+                    {openRow.reg_ifsc && <div><span className="text-muted-foreground">IFSC:</span> <span className="font-mono">{openRow.reg_ifsc}</span></div>}
+                    {openRow.reg_department && <div><span className="text-muted-foreground">Dept:</span> {openRow.reg_department}</div>}
+                    {openRow.reg_designation && <div><span className="text-muted-foreground">Designation:</span> {openRow.reg_designation}</div>}
+                    {openRow.reg_pt_location && <div><span className="text-muted-foreground">PT Location:</span> {openRow.reg_pt_location}</div>}
+                  </div>
+                </div>
+              )}
+
+
+
               {/* Additions detail (Bonus / Reimbursement / Arrear chips) */}
               {openRow.additions_detail && typeof openRow.additions_detail === "object" && Object.keys(openRow.additions_detail).length > 0 && (
                 <div>

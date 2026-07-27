@@ -251,6 +251,16 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           </DialogHeader>
           {openRow && (
             <div className="space-y-4">
+              {/* Separation banner (from Salary Register CSV) */}
+              {openRow.reg_has_left && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>
+                    Marked as separated in the RazorpayX Salary Register
+                    {openRow.reg_relieving_date ? ` · Relieving date ${new Date(openRow.reg_relieving_date).toLocaleDateString("en-IN")}` : ""}.
+                  </span>
+                </div>
+              )}
               {/* Doctrine banner: this dialog mirrors RazorpayX. Statutory splits (when present) come from the monthly Salary Register CSV. */}
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/30 p-2">
                 <div className="flex items-center gap-2 text-xs">
@@ -259,6 +269,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                 </div>
                 <DashboardLink />
               </div>
+
 
               {/* Summary — every headline number tagged by real source */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

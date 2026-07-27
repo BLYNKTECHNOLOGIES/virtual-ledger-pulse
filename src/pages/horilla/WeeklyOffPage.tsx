@@ -24,6 +24,8 @@ export default function WeeklyOffPage() {
   const [tab, setTab] = useState("patterns");
   const [showAddPattern, setShowAddPattern] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkForm, setBulkForm] = useState({ pattern_id: "", employee_ids: [] as string[], search: "" });
   const [form, setForm] = useState({ name: "", weekly_offs: [0] as number[], is_alternating: false, alternate_week_offs: [] as number[], description: "" });
   const [assignForm, setAssignForm] = useState({ employee_id: "", pattern_id: "" });
 

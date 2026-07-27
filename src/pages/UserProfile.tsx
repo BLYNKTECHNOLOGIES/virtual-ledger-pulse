@@ -172,154 +172,47 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
   );
 }
 
-// ─── Salary & PF Sub-Component (uses real HRMS salary structure) ───
+// ─── Salary & PF Sub-Component ───────────────────────────────────────────────
+// RazorpayX is the primary authority for salary. We mirror the assigned
+// structure into `hr_employee_salary_structures` per employee. This tab reads
+// that mirror (never a local template) so the employee always sees exactly
+// what RazorpayX will pay. Falls back to CTC-only when the mirror is empty.
 function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
   const totalSalary = Number(hrEmployee?.total_salary) || 0;
-  const templateId = hrEmployee?.salary_structure_template_id;
+  const monthlyCTC = totalSalary / 12;
 
-  const { data: templateItems = [], isLoading } = useQuery({
-    queryKey: ['salary_template_items_profile', templateId],
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['ess_salary_mirror', hrEmployee?.id],
     queryFn: async () => {
-      if (!templateId) return [];
-      const { data, error } = await supabase
-        .from('hr_salary_structure_template_items' as any)
-        .select('*, hr_salary_components!hr_salary_structure_template_items_component_id_fkey(id, name, code, component_type)')
-        .eq('template_id', templateId);
+      const { data, error } = await (supabase as any)
+        .from('hr_employee_salary_structures')
+        .select('id, amount, is_percentage, hr_salary_components!hr_employee_salary_structures_component_id_fkey(name, code, component_type, is_taxable)')
+        .eq('employee_id', hrEmployee.id)
+        .eq('is_active', true)
+        .order('created_at');
       if (error) throw error;
       return (data || []) as any[];
     },
-    enabled: !!templateId,
+    enabled: !!hrEmployee?.id,
   });
 
-  // ─── Formula engine (same as SalaryStructureAssignments) ───
-  const evalFormula = (formula: string, vars: Record<string, number>): number => {
-    try {
-      let expr = formula.trim();
-      Object.keys(vars).sort((a, b) => b.length - a.length).forEach(k => {
-        expr = expr.replace(new RegExp(k, 'g'), String(vars[k]));
-      });
-      if (/^[\d\s+\-*/().]+$/.test(expr)) {
-        return new Function(`return (${expr})`)() as number;
-      }
-      return 0;
-    } catch { return 0; }
-  };
+  // Doctrine: mirrored values are always monthly rupee amounts from RazorpayX;
+  // any is_percentage=true with value > 100 is a legacy mis-flag → treat as ₹.
+  const isRupees = (r: any) => !r.is_percentage || Number(r.amount) > 100;
+  const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
-  const toSnakeCase = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const earnings = rows.filter((r) => {
+    const t = r.hr_salary_components?.component_type;
+    return t !== 'deduction' && t !== 'employer_contribution';
+  });
+  const deductions = rows.filter((r) => r.hr_salary_components?.component_type === 'deduction');
+  const employerContribs = rows.filter((r) => r.hr_salary_components?.component_type === 'employer_contribution');
 
-  // Compute breakdown using the real engine
-  const breakdown = (() => {
-    if (!templateItems.length) return { earnings: [], deductions: [], employerContribs: [], netPay: 0 };
-
-    // Step 1: Find basic pay
-    let basicPay = Number(hrEmployee?.basic_salary) || 0;
-    const basicItem = templateItems.find((i: any) =>
-      i.hr_salary_components?.code === "BASIC" || i.hr_salary_components?.name?.toLowerCase().includes("basic")
-    );
-    if (basicItem) {
-      if (basicItem.calculation_type === "percentage") {
-        basicPay = (Number(basicItem.value) / 100) * totalSalary;
-      } else if (basicItem.calculation_type === "fixed") {
-        basicPay = Number(basicItem.value);
-      }
-    }
-
-    // Step 2: Build vars map (non-formula first, then formula)
-    const codeAmounts: Record<string, number> = {};
-    let tempDeductions = 0, tempAllowances = 0;
-
-    templateItems.forEach((i: any) => {
-      const comp = i.hr_salary_components;
-      if (!comp || i.calculation_type === "formula" || i.is_variable) return;
-      let amount = 0;
-      if (i.calculation_type === "percentage") {
-        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
-        amount = (Number(i.value) / 100) * base;
-      } else {
-        amount = Number(i.value) || 0;
-      }
-      const code = comp.code?.toLowerCase();
-      if (code) codeAmounts[code] = amount;
-      const sn = toSnakeCase(comp.name || '');
-      if (sn && sn !== code) codeAmounts[sn] = amount;
-      if (comp.component_type === "deduction") tempDeductions += amount;
-      else tempAllowances += amount;
-    });
-
-    const vars: Record<string, number> = {
-      total_salary: totalSalary, basic_pay: basicPay,
-      total_deductions: tempDeductions, total_allowances: tempAllowances,
-      ...codeAmounts,
-    };
-
-    // Resolve formulas
-    templateItems.forEach((i: any) => {
-      const comp = i.hr_salary_components;
-      if (!comp || i.calculation_type !== "formula" || !i.formula) return;
-      const amount = evalFormula(i.formula, vars);
-      const code = comp.code?.toLowerCase();
-      if (code) vars[code] = amount;
-      const sn = toSnakeCase(comp.name || '');
-      if (sn && sn !== code) vars[sn] = amount;
-      if (comp.component_type === "deduction") vars.total_deductions += amount;
-      else vars.total_allowances += amount;
-    });
-
-    // Step 3: Build display lists
-    const earnings: any[] = [], deductions: any[] = [], employerContribs: any[] = [];
-
-    templateItems.forEach((i: any) => {
-      const comp = i.hr_salary_components;
-      if (!comp) return;
-      if (i.is_variable) return; // skip variable/occasional
-
-      let amount: number;
-      if (i.calculation_type === "formula" && i.formula) {
-        amount = evalFormula(i.formula, vars);
-      } else if (i.calculation_type === "percentage") {
-        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
-        amount = (Number(i.value) / 100) * base;
-      } else {
-        amount = Number(i.value) || 0;
-      }
-      amount = Math.round(amount);
-
-      const calcLabel = i.calculation_type === "percentage"
-        ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic" : "CTC"}`
-        : i.calculation_type === "formula" ? "Formula" : "Fixed";
-
-      const entry = { name: comp.name, code: comp.code, amount, calcLabel, type: comp.component_type };
-
-      const isEmployer = comp.component_type === 'employer_contribution' ||
-        comp.name?.toLowerCase().includes('employer') ||
-        ['PFC', 'ESIC'].includes(comp.code);
-
-      if (isEmployer) {
-        employerContribs.push(entry);
-      } else if (comp.component_type === "deduction") {
-        deductions.push(entry);
-      } else {
-        earnings.push(entry);
-      }
-    });
-
-    const totalEarn = earnings.reduce((s: number, e: any) => s + e.amount, 0);
-    const totalDed = deductions.reduce((s: number, e: any) => s + e.amount, 0);
-
-    return { earnings, deductions, employerContribs, netPay: totalEarn - totalDed };
-  })();
-
-  if (!templateId) {
-    return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <IndianRupee className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Salary Structure Assigned</h3>
-          <p className="text-muted-foreground">Please contact HR to assign a salary structure.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const sum = (list: any[]) => list.reduce((s, r) => s + (isRupees(r) ? Number(r.amount) || 0 : 0), 0);
+  const monthlyEarnings = sum(earnings);
+  const monthlyDeductions = sum(deductions);
+  const monthlyEmployer = sum(employerContribs);
+  const netPay = monthlyEarnings - monthlyDeductions;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -332,33 +225,45 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-[#00bcd4]">Gross Salary (CTC)</Label>
-            <div className="text-2xl font-bold text-success">₹{totalSalary.toLocaleString('en-IN')}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
+              <Label className="text-[#00bcd4] text-xs">Annual CTC</Label>
+              <div className="text-lg font-bold text-success">{fmt(totalSalary)}</div>
+            </div>
+            <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
+              <Label className="text-[#00bcd4] text-xs">Monthly CTC</Label>
+              <div className="text-lg font-bold text-success">{fmt(monthlyCTC)}</div>
+            </div>
           </div>
+
           <Separator />
-          
+
           {isLoading ? (
-            <p className="text-muted-foreground text-sm">Loading salary structure...</p>
+            <p className="text-muted-foreground text-sm">Loading salary structure…</p>
+          ) : rows.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-4 text-center space-y-1">
+              <p className="font-medium text-foreground">Structure not yet mirrored from RazorpayX</p>
+              <p>Your CTC above is what payroll will pay. The component-wise breakdown appears here after the next RazorpayX sync.</p>
+            </div>
           ) : (
             <>
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings</p>
-                {breakdown.earnings.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
-                    <Label className="text-[#00bcd4]">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
-                    <span className="text-base font-semibold">₹{item.amount.toLocaleString('en-IN')}</span>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings (monthly)</p>
+                {earnings.map((r) => (
+                  <div key={r.id} className="flex justify-between items-center border-b border-border/50 pb-2">
+                    <Label className="text-[#00bcd4]">{r.hr_salary_components?.name || '—'}</Label>
+                    <span className="text-base font-semibold">{isRupees(r) ? fmt(Number(r.amount)) : `${r.amount}%`}</span>
                   </div>
                 ))}
               </div>
 
-              {breakdown.deductions.length > 0 && (
+              {deductions.length > 0 && (
                 <div className="space-y-1 pt-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions</p>
-                  {breakdown.deductions.map((item: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
-                      <Label className="text-destructive">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
-                      <span className="text-base font-semibold text-destructive">-₹{item.amount.toLocaleString('en-IN')}</span>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions (monthly)</p>
+                  {deductions.map((r) => (
+                    <div key={r.id} className="flex justify-between items-center border-b border-border/50 pb-2">
+                      <Label className="text-destructive">{r.hr_salary_components?.name || '—'}</Label>
+                      <span className="text-base font-semibold text-destructive">-{isRupees(r) ? fmt(Number(r.amount)) : `${r.amount}%`}</span>
                     </div>
                   ))}
                 </div>
@@ -366,9 +271,12 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 
               <Separator />
               <div className="flex justify-between items-center pt-1">
-                <Label className="text-base font-bold">Net Pay</Label>
-                <span className="text-xl font-bold text-success">₹{breakdown.netPay.toLocaleString('en-IN')}</span>
+                <Label className="text-base font-bold">Net Pay (approx / month)</Label>
+                <span className="text-xl font-bold text-success">{fmt(netPay)}</span>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                Mirror of RazorpayX. Actual payslip may differ by LOP, one-off additions/deductions, and tax.
+              </p>
             </>
           )}
         </CardContent>
@@ -384,29 +292,25 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoading ? (
-            <p className="text-muted-foreground text-sm">Loading...</p>
-          ) : breakdown.employerContribs.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No employer contributions configured in salary structure.</p>
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : employerContribs.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No employer contributions configured in your salary structure.</p>
           ) : (
             <>
-              {breakdown.employerContribs.map((item: any, idx: number) => (
-                <div key={idx} className="border-b border-border/50 pb-3">
-                  <Label className="text-[#00bcd4]">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
-                  <div className="text-xl font-semibold">₹{item.amount.toLocaleString('en-IN')}</div>
+              {employerContribs.map((r) => (
+                <div key={r.id} className="border-b border-border/50 pb-3">
+                  <Label className="text-[#00bcd4]">{r.hr_salary_components?.name || '—'}</Label>
+                  <div className="text-xl font-semibold">{isRupees(r) ? fmt(Number(r.amount)) : `${r.amount}%`}</div>
                 </div>
               ))}
               <Separator />
               <div>
                 <Label>Monthly Employer Total</Label>
-                <div className="text-xl font-bold text-info">
-                  ₹{breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0).toLocaleString('en-IN')}
-                </div>
+                <div className="text-xl font-bold text-info">{fmt(monthlyEmployer)}</div>
               </div>
               <div>
                 <Label>Estimated Annual</Label>
-                <div className="text-lg">
-                  ₹{(breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0) * 12).toLocaleString('en-IN')}
-                </div>
+                <div className="text-lg">{fmt(monthlyEmployer * 12)}</div>
               </div>
             </>
           )}
@@ -415,6 +319,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     </div>
   );
 }
+
 
 // ─── Employee Payslips Sub-Component (ESS — canonical hr_payslips_v) ───
 // R7 doctrine: RazorpayX is the canonical payslip source. We read from

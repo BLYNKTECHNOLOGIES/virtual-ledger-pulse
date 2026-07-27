@@ -69,7 +69,14 @@ export default function MyTaxRegimeCard({ employeeId }: MyTaxRegimeCardProps) {
                 <div className="p-2 rounded-md border border-border/60 bg-muted/30 text-center">
                   <p className="text-[10px] text-muted-foreground uppercase">Cess</p>
                   <p className="text-sm font-semibold text-foreground">
-                    {(Number(data.matched.cess_rate || 0) * 100).toFixed(1)}%
+                    {(() => {
+                      // cess_rate is stored as a percent (e.g. 4 = 4%). Some
+                      // legacy rows accidentally stored it as a fraction
+                      // (0.04). Normalize: values ≤ 1 are fractions.
+                      const raw = Number(data.matched.cess_rate || 0);
+                      const pct = raw <= 1 ? raw * 100 : raw;
+                      return `${pct.toFixed(1)}%`;
+                    })()}
                   </p>
                 </div>
                 <div className="p-2 rounded-md border border-border/60 bg-muted/30 text-center">

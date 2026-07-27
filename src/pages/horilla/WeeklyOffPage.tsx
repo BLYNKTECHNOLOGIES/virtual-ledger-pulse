@@ -14,7 +14,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { toast } from "sonner";
-import { Plus, CalendarDays, Users, Trash2 } from "lucide-react";
+import { Plus, CalendarDays, Users, Trash2, UsersRound, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

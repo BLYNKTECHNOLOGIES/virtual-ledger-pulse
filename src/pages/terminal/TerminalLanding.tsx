@@ -1,9 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
-const TerminalOrders = lazy(() => import('./TerminalOrders'));
-const TerminalDashboard = lazy(() => import('./TerminalDashboard'));
+const TerminalOrders = lazyWithRetry(() => import('./TerminalOrders'));
+const TerminalDashboard = lazyWithRetry(() => import('./TerminalDashboard'));
 
 /**
  * Default terminal landing.

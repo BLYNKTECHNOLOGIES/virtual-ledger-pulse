@@ -79,20 +79,32 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Mirror doctrine: values stored here are ALWAYS rupee amounts pulled from
-  // RazorpayX (the API never gives us a percentage). Some historical rows have
-  // is_percentage=true mistakenly set — treat any amount > 100 as rupees.
+  // The RazorpayX mirror historically stored some rows as ANNUAL and others as
+  // MONTHLY. Detect per-employee by comparing earnings sum vs. total_salary.
   const isRupees = (s: any) => !s.is_percentage || Number(s.amount) > 100;
-  const totalFixed = structures
-    .filter(isRupees)
-    .reduce((sum: number, s: any) => sum + (Number(s.amount) || 0), 0);
+  const earningRows = structures.filter((s: any) => {
+    const t = s.hr_salary_components?.component_type;
+    return t !== 'deduction' && t !== 'employer_contribution';
+  });
+  const earnSum = earningRows.filter(isRupees).reduce((sum: number, s: any) => sum + (Number(s.amount) || 0), 0);
+  const emp = (structures[0] as any)?.hr_employees?.total_salary;
+  const annualHint = Number(emp) || 0;
+  let unit: 'annual' | 'monthly' = 'monthly';
+  if (annualHint > 0 && earnSum > 0) {
+    const dA = Math.abs(earnSum - annualHint) / annualHint;
+    const dM = Math.abs(earnSum - annualHint / 12) / (annualHint / 12);
+    unit = dA <= dM ? 'annual' : 'monthly';
+  }
+  const toMonthly = (n: number) => (unit === 'annual' ? n / 12 : n);
+  const toAnnual = (n: number) => (unit === 'annual' ? n : n * 12);
+  const totalMonthly = structures.filter(isRupees).reduce((sum: number, s: any) => sum + toMonthly(Number(s.amount) || 0), 0);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-sm font-semibold flex items-center gap-1.5">
           <DollarSign className="h-4 w-4" /> Salary Structure
-          <Badge variant="outline" className="text-[10px] uppercase ml-1">Mirror · RazorpayX</Badge>
+          <Badge variant="outline" className="text-[10px] uppercase ml-1">Mirror · RazorpayX ({unit})</Badge>
         </h3>
         <Button asChild size="sm" variant="outline">
           <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">Edit on RazorpayX ↗</a>
@@ -100,7 +112,7 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
       </div>
 
       <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-        This is a read-only mirror of the salary structure stored on RazorpayX. Salary edits happen on RazorpayX; the mirror re-syncs after the next sync run.
+        Read-only mirror of the RazorpayX salary structure. Stored amounts are auto-detected as <b>{unit}</b> based on total CTC; monthly and annual columns are derived. Edits happen on RazorpayX and re-sync on the next pull.
       </div>
 
       {structures.length === 0 ? (
@@ -110,8 +122,14 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
           <div className="flex gap-2">
             <Card className="flex-1">
               <CardContent className="p-3 text-center">
-                <div className="text-lg font-bold text-success">₹{totalFixed.toLocaleString("en-IN")}</div>
-                <div className="text-xs text-muted-foreground">Total Fixed</div>
+                <div className="text-lg font-bold text-success">₹{Math.round(totalMonthly).toLocaleString("en-IN")}</div>
+                <div className="text-xs text-muted-foreground">Total / month</div>
+              </CardContent>
+            </Card>
+            <Card className="flex-1">
+              <CardContent className="p-3 text-center">
+                <div className="text-lg font-bold text-success">₹{Math.round(totalMonthly * 12).toLocaleString("en-IN")}</div>
+                <div className="text-xs text-muted-foreground">Total / year</div>
               </CardContent>
             </Card>
             <Card className="flex-1">
@@ -127,23 +145,31 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
               <TableRow>
                 <TableHead>Component</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead className="text-right">Monthly</TableHead>
+                <TableHead className="text-right">Annual</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {structures.map((s: any) => (
-                <TableRow key={s.id}>
-                  <TableCell className="text-sm font-medium">{s.hr_salary_components?.name || "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={s.hr_salary_components?.component_type === "deduction" ? "destructive" : "default"} className="text-xs">
-                      {s.hr_salary_components?.component_type || "—"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">
-                    {isRupees(s) ? `₹${Number(s.amount).toLocaleString("en-IN")}` : `${s.amount}%`}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {structures.map((s: any) => {
+                const raw = Number(s.amount) || 0;
+                const rupees = isRupees(s);
+                return (
+                  <TableRow key={s.id}>
+                    <TableCell className="text-sm font-medium">{s.hr_salary_components?.name || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={s.hr_salary_components?.component_type === "deduction" ? "destructive" : "default"} className="text-xs">
+                        {s.hr_salary_components?.component_type || "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm tabular-nums text-right">
+                      {rupees ? `₹${Math.round(toMonthly(raw)).toLocaleString("en-IN")}` : `${raw}%`}
+                    </TableCell>
+                    <TableCell className="text-sm tabular-nums text-right text-muted-foreground">
+                      {rupees ? `₹${Math.round(toAnnual(raw)).toLocaleString("en-IN")}` : "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </>

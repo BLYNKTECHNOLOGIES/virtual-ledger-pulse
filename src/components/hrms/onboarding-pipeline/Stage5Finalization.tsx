@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw, ArrowRight } from "lucide-react";
 import { reconcileOnboarding, isReconciled, unresolvedCount, type ReconcileDiff } from "@/lib/hrms/razorpayReconcile";
 import { Checkbox } from "@/components/ui/checkbox";
+import { suggestNextEmployeeId } from "@/lib/hrms/suggestEmployeeId";
+import { Sparkles } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;

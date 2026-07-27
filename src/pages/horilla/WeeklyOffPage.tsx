@@ -199,7 +199,10 @@ export default function WeeklyOffPage() {
         </TabsContent>
 
         <TabsContent value="assignments" className="space-y-3">
-          <div className="hrms-toolbar justify-end">
+          <div className="hrms-toolbar justify-end gap-2 flex-wrap">
+            <Button variant="outline" className="h-9 w-full sm:w-auto" onClick={() => setShowBulkAssign(true)} disabled={patterns.length === 0}>
+              <UsersRound className="h-4 w-4 mr-1" /> Bulk Assign
+            </Button>
             <Button className="h-9 w-full sm:w-auto" onClick={() => setShowAssign(true)} disabled={patterns.length === 0}>
               <Users className="h-4 w-4 mr-1" /> Assign Pattern
             </Button>

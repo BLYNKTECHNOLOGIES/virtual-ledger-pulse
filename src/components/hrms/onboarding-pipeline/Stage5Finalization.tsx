@@ -848,10 +848,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const docs = (onboardingRecord?.documents as any) || {};
   const panFromDocs = String(docs.pan?.value || "").toUpperCase().trim();
   const razorpayChecklist = useMemo(() => {
-    // Bank details are NOT required at invite-create time — RazorpayX accepts
-    // the employee record without bank info and the hire fills it in during
-    // self-registration (or HR patches it later). Only enforce fields that
-    // POST /people 'add' actually rejects when missing.
+    // The razorpay-payroll-proxy edge function rejects invite creation without
+    // bank_account_number + bank_ifsc, so gate the button on those too.
+    const ifscOk = /^[A-Z]{4}0[A-Z0-9]{6}$/.test((form.bank_ifsc_code || "").trim().toUpperCase());
     const items = [
       { key: "name", label: "Full name", ok: !!(onboardingRecord?.first_name) },
       { key: "email", label: "Email", ok: !!onboardingRecord?.email },
@@ -861,10 +860,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       { key: "dept", label: "Department", ok: !!onboardingRecord?.department_id },
       { key: "title", label: "Job Role / Title", ok: !!onboardingRecord?.job_role },
       { key: "ctc", label: "Annual CTC", ok: Number(onboardingRecord?.ctc) > 0 },
+      { key: "bank_account", label: "Bank Account Number", ok: !!form.bank_account_number.trim() },
+      { key: "bank_ifsc", label: "Bank IFSC (valid format)", ok: ifscOk },
     ];
-    // IFSC is only validated if supplied — bank block is optional pre-create.
     return { items, allOk: items.every(i => i.ok), missing: items.filter(i => !i.ok).map(i => i.label) };
-  }, [onboardingRecord, form.date_of_joining, panFromDocs]);
+  }, [onboardingRecord, form.date_of_joining, form.bank_account_number, form.bank_ifsc_code, panFromDocs]);
 
 
   const hasBankInput = !!(form.bank_account_number.trim() && form.bank_ifsc_code.trim());

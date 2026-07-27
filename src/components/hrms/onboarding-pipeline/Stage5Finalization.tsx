@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw, ArrowRight } from "lucide-react";
 import { reconcileOnboarding, isReconciled, unresolvedCount, type ReconcileDiff } from "@/lib/hrms/razorpayReconcile";
 import { Checkbox } from "@/components/ui/checkbox";
+import { suggestNextEmployeeId } from "@/lib/hrms/suggestEmployeeId";
+import { Sparkles } from "lucide-react";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -475,6 +477,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     enabled: !!linkedEmpId,
   });
   const alreadyInRazorpay = !!(razorpayMap as any)?.razorpay_employee_id;
+
+  // Suggests the next unused numeric Employee ID (checked against all current
+  // and historical HRMS identifiers) so the operator can create the RazorpayX
+  // invite with a guaranteed non-clashing ID.
+  const { data: suggestedEmployeeId, refetch: refetchSuggestedId, isFetching: loadingSuggestedId } = useQuery({
+    queryKey: ["stage5-suggested-employee-id"],
+    queryFn: suggestNextEmployeeId,
+    enabled: !alreadyInRazorpay,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     const mappedId = String((razorpayMap as any)?.razorpay_employee_id || "").trim();
@@ -1361,6 +1373,30 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         )}
                       </p>
                     )}
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 px-2.5 py-1.5">
+                      <div className="text-[11px] flex items-center gap-1.5 min-w-0">
+                        <Sparkles className="h-3 w-3 text-primary shrink-0" />
+                        <span className="text-muted-foreground">Suggested Employee ID (no clash with any current or past record):</span>
+                        <span className="font-mono font-semibold text-primary">
+                          {loadingSuggestedId ? "…" : suggestedEmployeeId || "—"}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[11px] px-2"
+                        disabled={readOnly || !suggestedEmployeeId || loadingSuggestedId}
+                        onClick={() => {
+                          if (!suggestedEmployeeId) return;
+                          setRpVerification(null);
+                          updateForm({ razorpay_employee_id: suggestedEmployeeId, essl_badge_id: "" });
+                          toast.info(`Use ID ${suggestedEmployeeId} when creating the employee in RazorpayX, then verify.`);
+                        }}
+                      >
+                        Use this ID
+                      </Button>
+                    </div>
                   </div>
                   )}
 
@@ -1385,6 +1421,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         inputMode="numeric"
                       />
                     </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const res = await refetchSuggestedId();
+                        const id = res.data;
+                        if (!id) { toast.error("Could not compute a suggested ID."); return; }
+                        setRpVerification(null);
+                        updateForm({ razorpay_employee_id: id, essl_badge_id: "" });
+                        toast.success(`Suggested Employee ID: ${id}`);
+                      }}
+                      disabled={readOnly || loadingSuggestedId}
+                      title="Suggest the next Employee ID that doesn't clash with any current or historical HRMS record"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                      Suggest
+                    </Button>
                     <Button
                       type="button"
                       size="sm"

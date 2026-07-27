@@ -1281,7 +1281,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   <Input
                     placeholder="e.g. HDFC0001234"
                     value={form.bank_ifsc_code}
-                    onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/\s/g, "") })}
+                    onChange={e => updateForm({ bank_ifsc_code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
                     disabled={readOnly}
                     className="font-mono uppercase"
                     maxLength={11}

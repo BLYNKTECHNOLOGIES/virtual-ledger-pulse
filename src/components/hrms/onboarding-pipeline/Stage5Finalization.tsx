@@ -988,7 +988,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       return false;
     }
     if (form.bank_ifsc_code && !ifscValid) {
-      toast.error("IFSC must be 11 characters (e.g. HDFC0001234)");
+      toast.error("IFSC must be exactly 11 alphanumeric characters");
       return false;
     }
     const docs = (onboardingRecord?.documents as any) || {};

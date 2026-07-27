@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     });
 
     const { data: cleanupResult, error: cleanupError } = await userClient.rpc("delete_user_with_cleanup", {
-      p_user_id: parsed.data.userId,
+      target_user_id: parsed.data.userId,
     });
 
     if (cleanupError) {

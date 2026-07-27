@@ -478,6 +478,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   });
   const alreadyInRazorpay = !!(razorpayMap as any)?.razorpay_employee_id;
 
+  // Suggests the next unused numeric Employee ID (checked against all current
+  // and historical HRMS identifiers) so the operator can create the RazorpayX
+  // invite with a guaranteed non-clashing ID.
+  const { data: suggestedEmployeeId, refetch: refetchSuggestedId, isFetching: loadingSuggestedId } = useQuery({
+    queryKey: ["stage5-suggested-employee-id"],
+    queryFn: suggestNextEmployeeId,
+    enabled: !alreadyInRazorpay,
+    staleTime: 30_000,
+  });
+
   useEffect(() => {
     const mappedId = String((razorpayMap as any)?.razorpay_employee_id || "").trim();
     if (!mappedId) return;

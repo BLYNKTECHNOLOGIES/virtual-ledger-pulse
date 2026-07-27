@@ -27,6 +27,16 @@ const STATUS_COLORS: Record<string, string> = {
   leave: "bg-primary",
 };
 
+// Tile styles for filled calendar day cells (semantic tokens only)
+const STATUS_TILE: Record<string, string> = {
+  present: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
+  absent: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
+  late: "bg-warning/20 text-warning-foreground ring-1 ring-inset ring-warning/40",
+  half_day: "bg-info/15 text-info ring-1 ring-inset ring-info/30",
+  holiday: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
+  leave: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
+};
+
 const STATUS_BG: Record<string, string> = {
   present: "bg-success/10 border-success/20 text-success",
   absent: "bg-destructive/10 border-destructive/20 text-destructive",

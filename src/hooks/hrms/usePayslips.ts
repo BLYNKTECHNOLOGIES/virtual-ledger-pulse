@@ -21,11 +21,23 @@ export interface CanonicalPayslip {
   pf_amount: number;
   esi_amount: number;
   professional_tax: number;
+  employer_pf: number | null;
+  employer_esi: number | null;
+  basic: number | null;
+  hra: number | null;
+  special_allowance: number | null;
+  lta: number | null;
+  dearness_allowance: number | null;
+  loan_emi: number | null;
+  advance_salary: number | null;
+  one_time_payments: number | null;
   working_days: number | null;
+  register_source: string | null;
+  has_register: boolean;
   pdf_url: string | null;
   razorpay_payslip_id: number | null;
   pulled_at: string | null;
-  source: "razorpay";
+  source: "razorpay" | "register_csv";
 }
 
 export function useCanonicalPayslips(params?: {

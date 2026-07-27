@@ -178,8 +178,8 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
 // that mirror (never a local template) so the employee always sees exactly
 // what RazorpayX will pay. Falls back to CTC-only when the mirror is empty.
 function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
-  const totalSalary = Number(hrEmployee?.total_salary) || 0;
-  const monthlyCTC = totalSalary / 12;
+  const annualCTC = Number(hrEmployee?.total_salary) || 0;
+  const monthlyCTC = annualCTC / 12;
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['ess_salary_mirror', hrEmployee?.id],
@@ -196,23 +196,70 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     enabled: !!hrEmployee?.id,
   });
 
-  // Doctrine: mirrored values are always monthly rupee amounts from RazorpayX;
-  // any is_percentage=true with value > 100 is a legacy mis-flag → treat as ₹.
-  const isRupees = (r: any) => !r.is_percentage || Number(r.amount) > 100;
   const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+  const isRupees = (r: any) => !r.is_percentage || Number(r.amount) > 100;
 
+  // Detect stored unit: the RazorpayX mirror historically stored ANNUAL amounts
+  // for some rows and MONTHLY for others. Auto-detect per employee by
+  // comparing the earnings-side sum against annual vs monthly CTC and pick
+  // the closer match. This keeps the UI honest regardless of import shape.
   const earnings = rows.filter((r) => {
     const t = r.hr_salary_components?.component_type;
     return t !== 'deduction' && t !== 'employer_contribution';
   });
   const deductions = rows.filter((r) => r.hr_salary_components?.component_type === 'deduction');
   const employerContribs = rows.filter((r) => r.hr_salary_components?.component_type === 'employer_contribution');
+  const sumRaw = (list: any[]) => list.reduce((s, r) => s + (isRupees(r) ? Number(r.amount) || 0 : 0), 0);
 
-  const sum = (list: any[]) => list.reduce((s, r) => s + (isRupees(r) ? Number(r.amount) || 0 : 0), 0);
-  const monthlyEarnings = sum(earnings);
-  const monthlyDeductions = sum(deductions);
-  const monthlyEmployer = sum(employerContribs);
-  const netPay = monthlyEarnings - monthlyDeductions;
+  const earningsSum = sumRaw(earnings);
+  let storedUnit: 'annual' | 'monthly' = 'monthly';
+  if (annualCTC > 0 && earningsSum > 0) {
+    const distToAnnual = Math.abs(earningsSum - annualCTC) / annualCTC;
+    const distToMonthly = Math.abs(earningsSum - monthlyCTC) / monthlyCTC;
+    storedUnit = distToAnnual <= distToMonthly ? 'annual' : 'monthly';
+  }
+  const toAnnual = (amt: number) => (storedUnit === 'annual' ? amt : amt * 12);
+  const toMonthly = (amt: number) => (storedUnit === 'annual' ? amt / 12 : amt);
+
+  const annualEarnings = toAnnual(earningsSum);
+  const monthlyEarnings = toMonthly(earningsSum);
+  const annualDeductions = toAnnual(sumRaw(deductions));
+  const monthlyDeductions = toMonthly(sumRaw(deductions));
+  const annualEmployer = toAnnual(sumRaw(employerContribs));
+  const monthlyEmployer = toMonthly(sumRaw(employerContribs));
+  const monthlyNet = monthlyEarnings - monthlyDeductions;
+  const annualNet = annualEarnings - annualDeductions;
+
+  // Reconciliation vs. CTC on record — surfaces silent drift honestly.
+  const ctcDelta = annualCTC > 0 ? annualEarnings - annualCTC : 0;
+  const ctcDriftPct = annualCTC > 0 ? Math.abs(ctcDelta) / annualCTC : 0;
+  const hasDrift = annualCTC > 0 && ctcDriftPct > 0.02;
+
+  const renderRow = (r: any, tone: 'earn' | 'ded') => {
+    const rupees = isRupees(r);
+    const raw = Number(r.amount) || 0;
+    const monthly = rupees ? toMonthly(raw) : 0;
+    const annual = rupees ? toAnnual(raw) : 0;
+    return (
+      <div key={r.id} className="flex justify-between items-center border-b border-border/50 pb-2 gap-3">
+        <Label className={tone === 'ded' ? 'text-destructive' : 'text-[#00bcd4]'}>
+          {r.hr_salary_components?.name || '—'}
+        </Label>
+        {rupees ? (
+          <div className="text-right tabular-nums">
+            <div className={`text-sm font-semibold ${tone === 'ded' ? 'text-destructive' : ''}`}>
+              {tone === 'ded' ? '-' : ''}{fmt(monthly)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {tone === 'ded' ? '-' : ''}{fmt(annual)} /yr
+            </div>
+          </div>
+        ) : (
+          <span className="text-base font-semibold">{raw}%</span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -228,7 +275,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
               <Label className="text-[#00bcd4] text-xs">Annual CTC</Label>
-              <div className="text-lg font-bold text-success">{fmt(totalSalary)}</div>
+              <div className="text-lg font-bold text-success">{fmt(annualCTC)}</div>
             </div>
             <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
               <Label className="text-[#00bcd4] text-xs">Monthly CTC</Label>
@@ -248,34 +295,44 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
           ) : (
             <>
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings (monthly)</p>
-                {earnings.map((r) => (
-                  <div key={r.id} className="flex justify-between items-center border-b border-border/50 pb-2">
-                    <Label className="text-[#00bcd4]">{r.hr_salary_components?.name || '—'}</Label>
-                    <span className="text-base font-semibold">{isRupees(r) ? fmt(Number(r.amount)) : `${r.amount}%`}</span>
-                  </div>
-                ))}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings</p>
+                  <p className="text-[10px] text-muted-foreground">monthly · annual</p>
+                </div>
+                {earnings.map((r) => renderRow(r, 'earn'))}
+                <div className="flex justify-between items-center pt-2 text-sm">
+                  <span className="text-muted-foreground">Gross Earnings</span>
+                  <span className="tabular-nums font-semibold">{fmt(monthlyEarnings)} <span className="text-[10px] text-muted-foreground font-normal">/ {fmt(annualEarnings)} yr</span></span>
+                </div>
               </div>
 
               {deductions.length > 0 && (
                 <div className="space-y-1 pt-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions (monthly)</p>
-                  {deductions.map((r) => (
-                    <div key={r.id} className="flex justify-between items-center border-b border-border/50 pb-2">
-                      <Label className="text-destructive">{r.hr_salary_components?.name || '—'}</Label>
-                      <span className="text-base font-semibold text-destructive">-{isRupees(r) ? fmt(Number(r.amount)) : `${r.amount}%`}</span>
-                    </div>
-                  ))}
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions</p>
+                  {deductions.map((r) => renderRow(r, 'ded'))}
+                  <div className="flex justify-between items-center pt-2 text-sm">
+                    <span className="text-muted-foreground">Total Deductions</span>
+                    <span className="tabular-nums font-semibold text-destructive">-{fmt(monthlyDeductions)} <span className="text-[10px] text-muted-foreground font-normal">/ -{fmt(annualDeductions)} yr</span></span>
+                  </div>
                 </div>
               )}
 
               <Separator />
               <div className="flex justify-between items-center pt-1">
-                <Label className="text-base font-bold">Net Pay (approx / month)</Label>
-                <span className="text-xl font-bold text-success">{fmt(netPay)}</span>
+                <Label className="text-base font-bold">Net Pay (approx)</Label>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-success tabular-nums">{fmt(monthlyNet)} <span className="text-xs text-muted-foreground font-normal">/mo</span></div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">{fmt(annualNet)} /yr</div>
+                </div>
               </div>
+
+              {hasDrift && (
+                <div className="text-[11px] rounded-md border border-warning/40 bg-warning/10 text-warning-foreground p-2">
+                  Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR is notified to reconcile with RazorpayX.
+                </div>
+              )}
               <p className="text-[11px] text-muted-foreground">
-                Mirror of RazorpayX. Actual payslip may differ by LOP, one-off additions/deductions, and tax.
+                Mirror of RazorpayX (stored as {storedUnit} amounts, shown both /mo and /yr). Actual payslip may differ by LOP, one-off additions/deductions, and tax.
               </p>
             </>
           )}
@@ -294,23 +351,36 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
           {isLoading ? (
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : employerContribs.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No employer contributions configured in your salary structure.</p>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>No separate employer contributions (PF / ESI / gratuity) are configured in your mirrored structure.</p>
+              <p className="text-[11px]">If you expect PF or ESI on your payslip, please confirm with HR — RazorpayX may be computing it outside the assigned structure.</p>
+            </div>
           ) : (
             <>
-              {employerContribs.map((r) => (
-                <div key={r.id} className="border-b border-border/50 pb-3">
-                  <Label className="text-[#00bcd4]">{r.hr_salary_components?.name || '—'}</Label>
-                  <div className="text-xl font-semibold">{isRupees(r) ? fmt(Number(r.amount)) : `${r.amount}%`}</div>
-                </div>
-              ))}
+              {employerContribs.map((r) => {
+                const rupees = isRupees(r);
+                const raw = Number(r.amount) || 0;
+                return (
+                  <div key={r.id} className="border-b border-border/50 pb-3">
+                    <Label className="text-[#00bcd4]">{r.hr_salary_components?.name || '—'}</Label>
+                    {rupees ? (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-semibold tabular-nums">{fmt(toMonthly(raw))}</span>
+                        <span className="text-xs text-muted-foreground">/mo · {fmt(toAnnual(raw))} /yr</span>
+                      </div>
+                    ) : (
+                      <div className="text-xl font-semibold">{raw}%</div>
+                    )}
+                  </div>
+                );
+              })}
               <Separator />
-              <div>
-                <Label>Monthly Employer Total</Label>
-                <div className="text-xl font-bold text-info">{fmt(monthlyEmployer)}</div>
-              </div>
-              <div>
-                <Label>Estimated Annual</Label>
-                <div className="text-lg">{fmt(monthlyEmployer * 12)}</div>
+              <div className="flex justify-between items-baseline">
+                <Label>Employer Total</Label>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-info tabular-nums">{fmt(monthlyEmployer)} <span className="text-xs text-muted-foreground font-normal">/mo</span></div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">{fmt(annualEmployer)} /yr</div>
+                </div>
               </div>
             </>
           )}

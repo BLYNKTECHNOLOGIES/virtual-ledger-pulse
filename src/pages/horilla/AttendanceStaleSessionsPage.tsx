@@ -250,6 +250,15 @@ export default function AttendanceStaleSessionsPage() {
                     <Button size="sm" onClick={() => openDialog(r, "set_out_time")}>
                       Set out-time
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => markFullDay.mutate(r)}
+                      disabled={markFullDay.isPending}
+                      title="Close session at the employee's shift end for this date"
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Mark full day
+                    </Button>
                     <Button size="sm" variant="secondary" onClick={() => openDialog(r, "confirm_long_shift")}>
                       Confirm long shift
                     </Button>

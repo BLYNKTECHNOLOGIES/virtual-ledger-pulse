@@ -1424,6 +1424,24 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     <Button
                       type="button"
                       size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const res = await refetchSuggestedId();
+                        const id = res.data;
+                        if (!id) { toast.error("Could not compute a suggested ID."); return; }
+                        setRpVerification(null);
+                        updateForm({ razorpay_employee_id: id, essl_badge_id: "" });
+                        toast.success(`Suggested Employee ID: ${id}`);
+                      }}
+                      disabled={readOnly || loadingSuggestedId}
+                      title="Suggest the next Employee ID that doesn't clash with any current or historical HRMS record"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                      Suggest
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
                       onClick={handleVerifyRazorpayId}
                       disabled={readOnly || verifyingRpId || !form.razorpay_employee_id.trim()}
                     >

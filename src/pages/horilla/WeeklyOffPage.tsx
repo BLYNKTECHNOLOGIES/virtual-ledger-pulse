@@ -102,6 +102,32 @@ export default function WeeklyOffPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const bulkAssignMutation = useMutation({
+    mutationFn: async () => {
+      if (!bulkForm.pattern_id) throw new Error("Select a pattern");
+      if (bulkForm.employee_ids.length === 0) throw new Error("Select at least one employee");
+      // Deactivate existing current assignments for these employees so the new one becomes current
+      await (supabase as any).from("hr_employee_weekly_off")
+        .update({ is_current: false })
+        .in("employee_id", bulkForm.employee_ids)
+        .eq("is_current", true);
+      const rows = bulkForm.employee_ids.map(eid => ({
+        employee_id: eid,
+        pattern_id: bulkForm.pattern_id,
+        is_current: true,
+      }));
+      const { error } = await (supabase as any).from("hr_employee_weekly_off").insert(rows);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_employee_weekly_off"] });
+      setShowBulkAssign(false);
+      setBulkForm({ pattern_id: "", employee_ids: [], search: "" });
+      toast.success("Bulk assignment complete");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any).from("hr_employee_weekly_off").delete().eq("id", id);

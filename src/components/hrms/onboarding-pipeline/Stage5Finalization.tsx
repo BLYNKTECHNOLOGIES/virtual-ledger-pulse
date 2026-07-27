@@ -1373,6 +1373,30 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                         )}
                       </p>
                     )}
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 px-2.5 py-1.5">
+                      <div className="text-[11px] flex items-center gap-1.5 min-w-0">
+                        <Sparkles className="h-3 w-3 text-primary shrink-0" />
+                        <span className="text-muted-foreground">Suggested Employee ID (no clash with any current or past record):</span>
+                        <span className="font-mono font-semibold text-primary">
+                          {loadingSuggestedId ? "…" : suggestedEmployeeId || "—"}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[11px] px-2"
+                        disabled={readOnly || !suggestedEmployeeId || loadingSuggestedId}
+                        onClick={() => {
+                          if (!suggestedEmployeeId) return;
+                          setRpVerification(null);
+                          updateForm({ razorpay_employee_id: suggestedEmployeeId, essl_badge_id: "" });
+                          toast.info(`Use ID ${suggestedEmployeeId} when creating the employee in RazorpayX, then verify.`);
+                        }}
+                      >
+                        Use this ID
+                      </Button>
+                    </div>
                   </div>
                   )}
 

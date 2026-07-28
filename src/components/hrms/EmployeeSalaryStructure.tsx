@@ -36,6 +36,18 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
     enabled: !!employeeId,
   });
 
+  const { data: employee } = useQuery({
+    queryKey: ["hr_employees_total_salary", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("hr_employees")
+        .select("total_salary")
+        .eq("id", employeeId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!employeeId,
+  });
+
   const { data: components = [] } = useQuery({
     queryKey: ["hr_salary_components_all"],
     queryFn: async () => {

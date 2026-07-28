@@ -99,7 +99,7 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
     return t !== 'deduction' && t !== 'employer_contribution';
   });
   const earnSum = earningRows.filter(isRupees).reduce((sum: number, s: any) => sum + (Number(s.amount) || 0), 0);
-  const emp = (structures[0] as any)?.hr_employees?.total_salary;
+  const emp = (employee as any)?.total_salary;
   const annualHint = Number(emp) || 0;
   let unit: 'annual' | 'monthly' = 'monthly';
   if (annualHint > 0 && earnSum > 0) {

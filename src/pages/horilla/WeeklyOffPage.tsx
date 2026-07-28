@@ -87,10 +87,13 @@ export default function WeeklyOffPage() {
   const assignMutation = useMutation({
     mutationFn: async () => {
       if (!assignForm.employee_id || !assignForm.pattern_id) throw new Error("Select employee and pattern");
-      const { error } = await (supabase as any).from("hr_employee_weekly_off").insert({
+      // A unique index enforces one row per employee — upsert so switching the
+      // pattern replaces the auto-seeded/existing row instead of failing.
+      const { error } = await (supabase as any).from("hr_employee_weekly_off").upsert({
         employee_id: assignForm.employee_id,
         pattern_id: assignForm.pattern_id,
-      });
+        is_current: true,
+      }, { onConflict: "employee_id" });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -106,17 +109,14 @@ export default function WeeklyOffPage() {
     mutationFn: async () => {
       if (!bulkForm.pattern_id) throw new Error("Select a pattern");
       if (bulkForm.employee_ids.length === 0) throw new Error("Select at least one employee");
-      // Deactivate existing current assignments for these employees so the new one becomes current
-      await (supabase as any).from("hr_employee_weekly_off")
-        .update({ is_current: false })
-        .in("employee_id", bulkForm.employee_ids)
-        .eq("is_current", true);
       const rows = bulkForm.employee_ids.map(eid => ({
         employee_id: eid,
         pattern_id: bulkForm.pattern_id,
         is_current: true,
       }));
-      const { error } = await (supabase as any).from("hr_employee_weekly_off").insert(rows);
+      // Upsert on the unique employee_id index — replaces the pre-seeded row.
+      const { error } = await (supabase as any).from("hr_employee_weekly_off")
+        .upsert(rows, { onConflict: "employee_id" });
       if (error) throw error;
     },
     onSuccess: () => {

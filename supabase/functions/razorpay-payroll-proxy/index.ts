@@ -1506,7 +1506,11 @@ Deno.serve(async (req) => {
           case "employee_type": data["employment-type"] = employeeKind(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "job_role": data["title"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "tax_regime": data["tax-regime"] = String(raw).toLowerCase().replace(/[^a-z]/g, ""); applied.push(k); break;
-          case "pan": data["pan-number"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
+          // RazorpayX opfin people:edit envelope accepts `pan` (NOT `pan-number`).
+          // The verified bank+PAN push path (push_bank_apply_*) uses `pan` and
+          // it lands; sending `pan-number` here made the API silently no-op the
+          // PAN write while returning 200, so PAN never reached RazorpayX.
+          case "pan": data["pan"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
           case "uan": data["uan-number"] = String(raw).replace(/\D/g, ""); applied.push(k); expectedReadBack[k] = raw; break;
           case "bank_account_number": data["bank-account-number"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "bank_ifsc_code": data["bank-ifsc"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;

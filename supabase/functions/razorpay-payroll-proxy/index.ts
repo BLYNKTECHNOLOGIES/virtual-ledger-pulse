@@ -3228,7 +3228,10 @@ Deno.serve(async (req) => {
               data: {
                 "employee-id": rpId,
                 "employee-type": "employee",
-                "custom-salary-structure": breakdown,
+                // RazorpayX contract: MUST be boolean. Sending a breakdown object
+                // triggers "Undefined property: stdClass::$custom-salary-structure".
+                // Push false and let RazorpayX derive components from annual CTC.
+                "custom-salary-structure": false,
                 "annual-ctc": annualCtc,
                 "ctc-annual": annualCtc,
               },

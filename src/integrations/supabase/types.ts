@@ -4852,6 +4852,45 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_offset_backfill_log: {
+        Row: {
+          applied_at: string
+          applied_by: string | null
+          device_serial: string
+          id: string
+          offset_minutes: number
+          rows_shifted: number
+          rows_skipped_conflict: number
+          target_table: string
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string | null
+          device_serial: string
+          id?: string
+          offset_minutes: number
+          rows_shifted?: number
+          rows_skipped_conflict?: number
+          target_table: string
+          window_end: string
+          window_start: string
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string | null
+          device_serial?: string
+          id?: string
+          offset_minutes?: number
+          rows_shifted?: number
+          rows_skipped_conflict?: number
+          target_table?: string
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       hr_attendance_period_locks: {
         Row: {
           created_at: string
@@ -5715,6 +5754,9 @@ export type Database = {
         Row: {
           clock_drift_checked_at: string | null
           clock_drift_seconds: number | null
+          clock_offset_minutes: number
+          clock_offset_reason: string | null
+          clock_offset_updated_at: string | null
           company: string | null
           created_at: string
           device_direction: string
@@ -5743,6 +5785,9 @@ export type Database = {
         Insert: {
           clock_drift_checked_at?: string | null
           clock_drift_seconds?: number | null
+          clock_offset_minutes?: number
+          clock_offset_reason?: string | null
+          clock_offset_updated_at?: string | null
           company?: string | null
           created_at?: string
           device_direction?: string
@@ -5771,6 +5816,9 @@ export type Database = {
         Update: {
           clock_drift_checked_at?: string | null
           clock_drift_seconds?: number | null
+          clock_offset_minutes?: number
+          clock_offset_reason?: string | null
+          clock_offset_updated_at?: string | null
           company?: string | null
           created_at?: string
           device_direction?: string

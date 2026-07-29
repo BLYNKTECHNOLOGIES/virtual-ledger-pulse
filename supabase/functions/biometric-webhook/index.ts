@@ -38,11 +38,11 @@ Deno.serve(async (req) => {
     // Resolve the calling device once — used both for auth and for direction
     // enforcement further down. A device flagged as "In Device" / "Out Device"
     // forces every push it emits to that direction, regardless of raw_status.
-    let deviceRow: { id: string; device_direction: string | null } | null = null;
+    let deviceRow: { id: string; device_direction: string | null; clock_offset_minutes: number | null } | null = null;
     if (serialNumber) {
       const { data: knownDevice } = await supabase
         .from("hr_biometric_devices")
-        .select("id, device_direction")
+        .select("id, device_direction, clock_offset_minutes")
         .eq("device_serial", serialNumber)
         .maybeSingle();
 
@@ -74,6 +74,12 @@ Deno.serve(async (req) => {
         : deviceRow?.device_direction === "Out Device"
         ? "out"
         : null;
+
+    // Per-device clock correction (minutes). Applied to every raw ESSL timestamp
+    // before it is stored. Set on hr_biometric_devices.clock_offset_minutes.
+    // e.g. device stuck at UTC+5 instead of UTC+5:30 → offset = 30.
+    const deviceOffsetMin: number = Number(deviceRow?.clock_offset_minutes ?? 0) || 0;
+
 
     // ─── ICLOCK PROTOCOL: GET requests ───
     if (req.method === "GET" && serialNumber) {
@@ -221,9 +227,10 @@ Deno.serve(async (req) => {
             const raw_status = parts.length > 2 ? parseInt(parts[2]) : null;
             const verify_type = parts.length > 3 ? parseInt(parts[3]) : null;
             const work_code = parts.length > 4 ? parts[4].trim() : null;
-            const punchISO = parseESSLTimestamp(punch_time_str);
+            const punchISO = parseESSLTimestamp(punch_time_str, deviceOffsetMin);
             const punchDateObj = new Date(punchISO);
-            const punchDate = getPunchDateFromESSLTimestamp(punch_time_str);
+            const punchDate = getPunchDateFromESSLTimestamp(punch_time_str, deviceOffsetMin);
+
             if (!maxPunchDate || punchDateObj > maxPunchDate) maxPunchDate = punchDateObj;
             if (punchDateObj < cutoffDate) { results.skipped++; continue; }
             const derivedDirection: "in" | "out" =
@@ -426,13 +433,14 @@ Deno.serve(async (req) => {
       // OPERLOG / DATA QUERY responses — parse USER / FP / FACE / PALM / VEIN / USERPIC / OPLOG / BIODATA lines.
       // Different eSSL firmwares return roster pulls either as table=OPERLOG or table=USERINFO/TEMPLATE/BIODATA.
       if (isRosterPayload(table, bodyText)) {
-        await parseOperlog(supabase, serialNumber, bodyText, table || undefined);
+        await parseOperlog(supabase, serialNumber, bodyText, table || undefined, deviceOffsetMin);
         return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
       }
 
       // ATTPHOTO — attendance photo lines
       if (table === "ATTPHOTO") {
-        await parseAttPhoto(supabase, serialNumber, bodyText);
+        await parseAttPhoto(supabase, serialNumber, bodyText, deviceOffsetMin);
+
         return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
       }
 
@@ -485,14 +493,16 @@ Deno.serve(async (req) => {
         // is registered as an "In Device" or "Out Device", force punch_type to
         // match its role regardless of what the caller sent.
         let jsonForcedDirection: "in" | "out" | null = null;
+        let jsonDeviceOffsetMin = 0;
         if (device_serial) {
           const { data: devRow } = await supabase
             .from("hr_biometric_devices")
-            .select("device_direction")
+            .select("device_direction, clock_offset_minutes")
             .eq("device_serial", device_serial)
             .maybeSingle();
           if (devRow?.device_direction === "In Device") jsonForcedDirection = "in";
           else if (devRow?.device_direction === "Out Device") jsonForcedDirection = "out";
+          jsonDeviceOffsetMin = Number(devRow?.clock_offset_minutes ?? 0) || 0;
         }
         const effectivePunchType = jsonForcedDirection ?? punch_type;
 
@@ -501,7 +511,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const punchISO = new Date(punch_time).toISOString();
+        const parsedTime = new Date(punch_time);
+        const punchISO = jsonDeviceOffsetMin
+          ? new Date(parsedTime.getTime() + jsonDeviceOffsetMin * 60 * 1000).toISOString()
+          : parsedTime.toISOString();
+
         const punchDate = punchISO.split("T")[0];
 
         // Resolve badge_id → employee UUID
@@ -559,15 +573,20 @@ Deno.serve(async (req) => {
 });
 
 // ─── Helper: Parse ESSL timestamp (local time, usually IST) to ISO ───
-function parseESSLTimestamp(timeStr: string): string {
+// `offsetMinutes` is added AFTER parsing to correct devices whose physical
+// clock is stuck at the wrong UTC offset (e.g. UTC+5 instead of UTC+5:30 → 30).
+function parseESSLTimestamp(timeStr: string, offsetMinutes = 0): string {
   const cleaned = timeStr.replace(/\s+/g, " ").trim();
-  const date = new Date(cleaned + "+05:30"); // Assume IST
+  const date = new Date(cleaned + "+05:30"); // Assume IST wall-clock
+  if (offsetMinutes) {
+    return new Date(date.getTime() + offsetMinutes * 60 * 1000).toISOString();
+  }
   return date.toISOString();
 }
 
 // Keep attendance date aligned to device-local date (prevents UTC date shift issues)
-function getPunchDateFromESSLTimestamp(timeStr: string): string {
-  const iso = parseESSLTimestamp(timeStr);
+function getPunchDateFromESSLTimestamp(timeStr: string, offsetMinutes = 0): string {
+  const iso = parseESSLTimestamp(timeStr, offsetMinutes);
   const utc = new Date(iso);
   const ist = new Date(utc.getTime() + 330 * 60 * 1000);
 
@@ -576,6 +595,7 @@ function getPunchDateFromESSLTimestamp(timeStr: string): string {
   const dd = String(ist.getUTCDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
 
 function formatESSLStamp(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -1150,7 +1170,7 @@ async function applyAckedCommandSideEffects(supabase: any, serialNumber: string,
   return 0;
 }
 
-async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string) {
+async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string, offsetMinutes = 0) {
   const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const userUpserts = new Map<string, any>();
   const templates: any[] = [];
@@ -1213,7 +1233,7 @@ async function parseOperlog(supabase: any, serialNumber: string, body: string, t
           op_code: code,
           op_label: code != null ? (OPLOG_LABELS[code] || `OP_${code}`) : null,
           admin_pin: parts[2] || null,
-          occurred_at: parts[3] ? parseESSLTimestamp(parts[3]) : null,
+          occurred_at: parts[3] ? parseESSLTimestamp(parts[3], offsetMinutes) : null,
           target_pin: parts[4] || null,
           value_1: parts[4] || null,
           value_2: parts[5] || null,
@@ -1296,7 +1316,7 @@ async function parseOperlog(supabase: any, serialNumber: string, body: string, t
   console.log(`OPERLOG parsed from ${serialNumber}: users=${userUpserts.size} tpl=${templates.length} pics=${photos.length} oplog=${oplogs.length}`);
 }
 
-async function parseAttPhoto(supabase: any, serialNumber: string, body: string) {
+async function parseAttPhoto(supabase: any, serialNumber: string, body: string, offsetMinutes = 0) {
   // Lines: PIN=1\tSN=xxx\tsize=nnn\tCMD=xxx\tContent=<b64>  (optionally with time)
   const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const rows: any[] = [];
@@ -1309,7 +1329,7 @@ async function parseAttPhoto(supabase: any, serialNumber: string, body: string) 
       kind: "ATTPHOTO",
       size_bytes: kv["size"] ? parseInt(kv["size"]) : null,
       photo_base64: kv["content"] || null,
-      punch_time: kv["time"] ? parseESSLTimestamp(kv["time"]) : null,
+      punch_time: kv["time"] ? parseESSLTimestamp(kv["time"], offsetMinutes) : null,
     });
   }
   if (rows.length) await supabase.from("hr_biometric_device_photos").insert(rows);

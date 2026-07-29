@@ -6978,6 +6978,46 @@ Deno.serve(async (req) => {
         if (!Array.isArray(data.additions) || data.additions.length === 0) missing.push("additions");
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll addition field(s): ${missing.join(", ")}` });
       }
+      // ---- people:dismiss requires the employee's email in the data block
+      // (opfin returns {"message":"Invalid email address","code":4} otherwise,
+      // silently no-oping the dismissal). Auto-hydrate email + name from the
+      // ERP↔RazorpayX map / hr_employees so callers don't have to know this.
+      if (action === "people_dismiss") {
+        const rpEid = data["employee-id"];
+        if (!rpEid) return json(400, { ok: false, error: "Missing required dismissal field: employee-id" });
+        if (!data["date-of-dismissal"]) return json(400, { ok: false, error: "Missing required dismissal field: date-of-dismissal" });
+        if (!data["employee-type"]) data["employee-type"] = "employee";
+        if (!data.email || !data.name) {
+          try {
+            const { data: mapRow } = await svc
+              .from("hr_razorpay_employee_map")
+              .select("hr_employee_id, last_pull_snapshot")
+              .eq("razorpay_employee_id", String(rpEid))
+              .maybeSingle();
+            const snap: any = mapRow?.last_pull_snapshot || {};
+            let email = data.email || snap.email || snap.work_email || snap.personal_email || snap["work-email"] || snap["personal-email"] || "";
+            let name = data.name || snap.name || "";
+            if ((!email || !name) && mapRow?.hr_employee_id) {
+              const { data: emp } = await svc
+                .from("hr_employees")
+                .select("email, personal_email, first_name, last_name")
+                .eq("id", mapRow.hr_employee_id)
+                .maybeSingle();
+              if (!email) email = emp?.email || emp?.personal_email || "";
+              if (!name && emp) name = [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim();
+            }
+            if (email) data.email = String(email).trim();
+            if (name) data.name = String(name).trim();
+          } catch (_) { /* best-effort; opfin will surface a clear error if still missing */ }
+        }
+        if (!data.email) {
+          return json(400, {
+            ok: false,
+            code: "DISMISS_EMAIL_REQUIRED",
+            error: "RazorpayX people:dismiss requires the employee email. No email is stored for this RazorpayX employee in HRMS or in the last pull snapshot — set email on the employee record and retry.",
+          });
+        }
+      }
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;

@@ -887,9 +887,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       return;
     }
     if (!razorpayChecklist.allOk) {
-      toast.error(`Complete these fields first: ${razorpayChecklist.missing.join(", ")}`);
-      return;
+      toast.warning(`Proceeding without: ${razorpayChecklist.missing.join(", ")}. RazorpayX may reject if required.`);
     }
+
     setCreatingRazorpayInvite(true);
     const t = toast.loading("Creating RazorpayX employee invite…");
     try {

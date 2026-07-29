@@ -184,25 +184,58 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     return normalizedUpdates;
   };
 
-  // Create new record if none exists
-  const createRecord = async (stageData: any) => {
-    const { data: user } = await supabase.auth.getUser();
-    const safeStageData = normalizeDatabaseBlanks(stageData || {});
-    const { data, error } = await supabase
-      .from("hr_employee_onboarding")
-      .insert({
-        ...safeStageData,
-        status: safeStageData.status || "draft",
-        current_stage: safeStageData.current_stage || 1,
-        created_by: user?.user?.id,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    setRecordId(data.id);
-    await logAudit(data.id, 1, "created", safeStageData);
-    return data.id;
+  // Create new record if none exists. Deduped via a module-level in-flight
+  // promise so concurrent callers all await the same INSERT.
+  const createRecord = async (stageData: any): Promise<string> => {
+    if (recordIdRef.current) return recordIdRef.current;
+    if (createInFlightRef.current) return createInFlightRef.current;
+
+    const run = (async () => {
+      const { data: user } = await supabase.auth.getUser();
+      const safeStageData = normalizeDatabaseBlanks(stageData || {});
+      const email = String(safeStageData.email || "").trim().toLowerCase();
+
+      // Belt-and-braces: if an open draft already exists for this email,
+      // reuse it instead of inserting a duplicate.
+      if (email) {
+        const { data: existing } = await supabase
+          .from("hr_employee_onboarding")
+          .select("id")
+          .eq("email", email)
+          .not("status", "in", "(completed,cancelled)")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existing?.id) {
+          setRecordId(existing.id);
+          return existing.id as string;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("hr_employee_onboarding")
+        .insert({
+          ...safeStageData,
+          status: safeStageData.status || "draft",
+          current_stage: safeStageData.current_stage || 1,
+          created_by: user?.user?.id,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      setRecordId(data.id);
+      await logAudit(data.id, 1, "created", safeStageData);
+      return data.id as string;
+    })();
+
+    createInFlightRef.current = run;
+    try {
+      return await run;
+    } finally {
+      createInFlightRef.current = null;
+    }
   };
+
 
   const updateRecord = async (updates: any) => {
     if (!recordId) return;

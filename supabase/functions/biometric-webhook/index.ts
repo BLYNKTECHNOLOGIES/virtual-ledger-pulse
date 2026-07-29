@@ -433,13 +433,14 @@ Deno.serve(async (req) => {
       // OPERLOG / DATA QUERY responses — parse USER / FP / FACE / PALM / VEIN / USERPIC / OPLOG / BIODATA lines.
       // Different eSSL firmwares return roster pulls either as table=OPERLOG or table=USERINFO/TEMPLATE/BIODATA.
       if (isRosterPayload(table, bodyText)) {
-        await parseOperlog(supabase, serialNumber, bodyText, table || undefined);
+        await parseOperlog(supabase, serialNumber, bodyText, table || undefined, deviceOffsetMin);
         return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
       }
 
       // ATTPHOTO — attendance photo lines
       if (table === "ATTPHOTO") {
-        await parseAttPhoto(supabase, serialNumber, bodyText);
+        await parseAttPhoto(supabase, serialNumber, bodyText, deviceOffsetMin);
+
         return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain", ...corsHeaders } });
       }
 

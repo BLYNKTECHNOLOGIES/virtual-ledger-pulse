@@ -44,6 +44,7 @@ export interface ReconcileDiff {
  * these keys under any spelling.
  */
 const API_UNAVAILABLE_FIELDS = new Set<string>([
+  "ctc",
   "gender",
   "employee_type",
   "probation_end_date",
@@ -344,13 +345,23 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
 
 
     (() => {
+      // Do NOT use `__salary` here. The proxy attaches it from
+      // payroll:view-payroll, which reflects the last executed payroll month,
+      // not the master CTC just set on a new RazorpayX employee. Treat CTC as
+      // API-unavailable unless people:view exposes a live salary field itself.
+      const proxyInjectedPayrollCtc =
+        rp?.__salary?.annual_ctc != null &&
+        rp?.annual_ctc != null &&
+        Number(rp.annual_ctc) === Number(rp.__salary.annual_ctc);
       const rpCtcRaw =
-        rp?.annual_ctc ??
-        rp?.__salary?.annual_ctc ??
+        (proxyInjectedPayrollCtc ? null : rp?.annual_ctc) ??
         rp?.ctc ??
         rp?.["annual-ctc"] ??
         rp?.["ctc-annual"] ??
-        (rp?.__salary?.monthly_gross ? rp.__salary.monthly_gross * 12 : null);
+        rp?.salary?.annual_ctc ??
+        rp?.salary?.["annual-ctc"] ??
+        rp?.salary?.["ctc-annual"] ??
+        null;
       const rpCtc = num(rpCtcRaw);
       return {
         field: "ctc",

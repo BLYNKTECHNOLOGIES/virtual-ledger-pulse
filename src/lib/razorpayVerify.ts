@@ -248,9 +248,19 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
   // last executed payroll month, so using it here can produce a false green
   // badge after a CTC revision. If people:view does not expose the current
   // salary block, keep this unverified instead of falling back to stale payroll.
+  const proxyInjectedPayrollCtc =
+    snap?.__salary?.annual_ctc != null &&
+    snap?.annual_ctc != null &&
+    Number(snap.annual_ctc) === Number(snap.__salary.annual_ctc);
   const liveCtc =
     pick(liveSalaryBlock, "ctc-annual", "annual-ctc", "ctc_annual", "annual_ctc", "annualCtc") ??
-    pick(snap, "ctc-annual", "annual-ctc", "ctc_annual", "annual_ctc");
+    pick(
+      snap,
+      "ctc-annual",
+      "annual-ctc",
+      "ctc_annual",
+      ...(proxyInjectedPayrollCtc ? [] : ["annual_ctc"]),
+    );
 
   const raw: Record<string, any> = {
     first_name: pick(snap, "first_name", "firstName", "first-name") || nameParts[0] || null,

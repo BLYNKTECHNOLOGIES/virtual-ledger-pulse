@@ -77,7 +77,6 @@ const HourAccountsPage = lazy(() => import('./pages/horilla/HourAccountsPage'));
 const LateComeEarlyOutPage = lazy(() => import('./pages/horilla/LateComeEarlyOutPage'));
 const LeaveDashboardPage = lazy(() => import('./pages/horilla/LeaveDashboardPage'));
 const LeaveAccrualPlansPage = lazy(() => import('./pages/horilla/LeaveAccrualPlansPage'));
-const TaxConfigPage = lazy(() => import('./pages/horilla/TaxConfigPage'));
 const LeaveRequestsPage = lazy(() => import('./pages/horilla/LeaveRequestsPage'));
 const LeaveTypesPage = lazy(() => import('./pages/horilla/LeaveTypesPage'));
 const HolidaysPage = lazy(() => import('./pages/horilla/HolidaysPage'));
@@ -746,7 +745,6 @@ const router = createBrowserRouter([
         { path: "leave/allocation-requests", element: <LeaveAllocationRequestsPage /> },
         { path: "leave/weekly-off", element: <WeeklyOffPage /> },
         { path: "payroll", element: <PayrollDashboardPage /> },
-        { path: "payroll/tax-config", element: <TaxConfigPage /> },
         { path: "payroll/payslips", element: <PayslipsPage /> },
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },

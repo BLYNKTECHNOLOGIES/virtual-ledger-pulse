@@ -1164,7 +1164,7 @@ async function applyAckedCommandSideEffects(supabase: any, serialNumber: string,
   return 0;
 }
 
-async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string) {
+async function parseOperlog(supabase: any, serialNumber: string, body: string, tableHint?: string, offsetMinutes = 0) {
   const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const userUpserts = new Map<string, any>();
   const templates: any[] = [];

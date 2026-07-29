@@ -1559,7 +1559,12 @@ Deno.serve(async (req) => {
               data: {
                 "employee-id": rpId,
                 "employee-type": "employee",
-                salary: { "ctc-annual": ctcAnnual },
+                // Use RazorpayX's existing/default salary structure — do NOT
+                // send a custom breakdown. `custom-salary-structure` must be a
+                // boolean; false = RazorpayX derives components from CTC.
+                "custom-salary-structure": false,
+                "annual-ctc": ctcAnnual,
+                "ctc-annual": ctcAnnual,
               },
             }),
             signal: ctrl.signal,

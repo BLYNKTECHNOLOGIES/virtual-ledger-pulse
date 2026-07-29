@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Clock, CheckCircle2, XCircle, Trash2 } from "lucide-react";
-import { BulkCompletionPanel } from "./BulkCompletionPanel";
+
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -190,9 +190,6 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
         </Card>
       </div>
 
-
-      {/* Bulk Completion fast-lane (fills data only, never activates) */}
-      <BulkCompletionPanel />
 
       {/* Records Table */}
       <Card className="border-0 bg-transparent shadow-none sm:border sm:bg-card">

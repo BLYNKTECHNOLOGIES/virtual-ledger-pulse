@@ -21,7 +21,17 @@ interface OnboardingWizardProps {
 
 export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps) {
   const queryClient = useQueryClient();
-  const [recordId, setRecordId] = useState<string | null>(onboardingId);
+  const [recordId, setRecordIdState] = useState<string | null>(onboardingId);
+  // Ref mirrors recordId so concurrent autosaves see the freshest value even
+  // before React flushes the state update. Without this, two rapid saves
+  // (e.g. autosave + stage-complete firing back-to-back) both observed
+  // `recordId === null` and each inserted a new hr_employee_onboarding row —
+  // that's how duplicate onboarding drafts appeared for the same email.
+  const recordIdRef = useRef<string | null>(onboardingId);
+  const setRecordId = (id: string | null) => { recordIdRef.current = id; setRecordIdState(id); };
+  // Serializes the first createRecord call so any subsequent save awaits it
+  // instead of racing into a second INSERT.
+  const createInFlightRef = useRef<Promise<string> | null>(null);
   const [activeStage, setActiveStage] = useState(1);
 
   const { data: record, refetch } = useQuery({
@@ -174,25 +184,58 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     return normalizedUpdates;
   };
 
-  // Create new record if none exists
-  const createRecord = async (stageData: any) => {
-    const { data: user } = await supabase.auth.getUser();
-    const safeStageData = normalizeDatabaseBlanks(stageData || {});
-    const { data, error } = await supabase
-      .from("hr_employee_onboarding")
-      .insert({
-        ...safeStageData,
-        status: safeStageData.status || "draft",
-        current_stage: safeStageData.current_stage || 1,
-        created_by: user?.user?.id,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    setRecordId(data.id);
-    await logAudit(data.id, 1, "created", safeStageData);
-    return data.id;
+  // Create new record if none exists. Deduped via a module-level in-flight
+  // promise so concurrent callers all await the same INSERT.
+  const createRecord = async (stageData: any): Promise<string> => {
+    if (recordIdRef.current) return recordIdRef.current;
+    if (createInFlightRef.current) return createInFlightRef.current;
+
+    const run = (async () => {
+      const { data: user } = await supabase.auth.getUser();
+      const safeStageData = normalizeDatabaseBlanks(stageData || {});
+      const email = String(safeStageData.email || "").trim().toLowerCase();
+
+      // Belt-and-braces: if an open draft already exists for this email,
+      // reuse it instead of inserting a duplicate.
+      if (email) {
+        const { data: existing } = await supabase
+          .from("hr_employee_onboarding")
+          .select("id")
+          .eq("email", email)
+          .not("status", "in", "(completed,cancelled)")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existing?.id) {
+          setRecordId(existing.id);
+          return existing.id as string;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("hr_employee_onboarding")
+        .insert({
+          ...safeStageData,
+          status: safeStageData.status || "draft",
+          current_stage: safeStageData.current_stage || 1,
+          created_by: user?.user?.id,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      setRecordId(data.id);
+      await logAudit(data.id, 1, "created", safeStageData);
+      return data.id as string;
+    })();
+
+    createInFlightRef.current = run;
+    try {
+      return await run;
+    } finally {
+      createInFlightRef.current = null;
+    }
   };
+
 
   const updateRecord = async (updates: any) => {
     if (!recordId) return;
@@ -300,7 +343,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   // Generic save draft handler
   const handleSaveDraft = async (stage: number, stageData: any, options?: { silent?: boolean }) => {
     try {
-      if (!recordId) {
+      if (!recordIdRef.current) {
         await createRecord(stageData);
       } else {
         await updateRecord(stageData);
@@ -331,12 +374,12 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         stage_completions: updatedCompletions,
       };
 
-      if (!recordId) {
+      if (!recordIdRef.current) {
         const id = await createRecord({ ...stageData, current_stage: nextStage, status: `stage_${stage}`, stage_completions: updatedCompletions });
         await logAudit(id, stage, "completed", stageData);
       } else {
         await updateRecord(updates);
-        await logAudit(recordId, stage, "completed", stageData);
+        await logAudit(recordIdRef.current, stage, "completed", stageData);
       }
 
       await refetch();

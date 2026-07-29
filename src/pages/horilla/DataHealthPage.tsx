@@ -121,9 +121,29 @@ export default function DataHealthPage() {
       if (empFilter) q = q.eq("hr_employee_id", empFilter);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as Drift[];
+      const rows = (data ?? []) as Drift[];
+
+      // The drift view carries only the employee UUID — hydrate name / badge
+      // so HR can tell whose record is out of sync.
+      const ids = Array.from(new Set(rows.map((r) => r.hr_employee_id).filter(Boolean)));
+      if (ids.length) {
+        const { data: emps } = await (supabase as any)
+          .from("hr_employees")
+          .select("id, first_name, last_name, badge_id, is_active")
+          .in("id", ids);
+        const map = new Map<string, any>((emps ?? []).map((e: any) => [e.id, e]));
+        for (const r of rows) {
+          const e = map.get(r.hr_employee_id);
+          r.employee_name =
+            [e?.first_name, e?.last_name].filter(Boolean).join(" ").trim() || "Unknown employee";
+          r.badge_id = e?.badge_id ?? null;
+          r.is_active = e?.is_active ?? true;
+        }
+      }
+      return rows;
     },
   });
+
 
   // Statutory rollup — scans recent imported Razorpay payslips against the
   // compliance mirror; a payslip shows an amount for a filing Razorpay says

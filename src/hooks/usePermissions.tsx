@@ -168,6 +168,7 @@ export function usePermissions() {
   return {
     permissions,
     isLoading,
+    isDegraded,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,

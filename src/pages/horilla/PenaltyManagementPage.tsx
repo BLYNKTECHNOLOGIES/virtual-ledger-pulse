@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { AlertTriangle, Plus, Settings, FileText, Gavel, Clock, Trash2, Edit2 } from "lucide-react";
+import { AlertTriangle, Plus, Settings, FileText, Gavel, Clock, Trash2, Edit2, Calculator, CheckCircle } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,8 @@ export default function PenaltyManagementPage() {
   const [showEditRule, setShowEditRule] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [monthFilter, setMonthFilter] = useState(format(new Date(), "yyyy-MM"));
+  const [preview, setPreview] = useState<any[] | null>(null);
+  const [previewMonth, setPreviewMonth] = useState<string>("");
   const [penaltyForm, setPenaltyForm] = useState({
     employee_id: "",
     penalty_type: "manual",
@@ -72,40 +74,78 @@ export default function PenaltyManagementPage() {
     },
   });
 
-  // Fetch employees
+  // Fetch employees (total_salary is needed to estimate ₹ impact of day-based slabs)
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active_penalty"],
     queryFn: async () => {
-      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true).order("first_name"));
+      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, total_salary").eq("is_active", true).order("first_name"));
       return data || [];
     },
   });
 
-  // Auto-calculate late penalties for the month
-  const autoCalcMutation = useMutation({
+  const activeSlabRules = rules.filter((r: any) => r.is_active && r.rule_type === "late_slab");
+
+  // Step 1 — dry-run preview of late-slab penalties for the selected month.
+  const previewMutation = useMutation({
     mutationFn: async () => {
       const monthStart = `${monthFilter}-01`;
-      const monthEnd = new Date(Number(monthFilter.split("-")[0]), Number(monthFilter.split("-")[1]), 0).toISOString().slice(0, 10);
+      const [yy, mm] = monthFilter.split("-").map(Number);
+      const monthEnd = `${monthFilter}-${String(new Date(yy, mm, 0).getDate()).padStart(2, "0")}`;
 
-      // Get late attendance counts per employee
-      const { data: attendance, error: attErr } = await (supabase as any)
+      if (activeSlabRules.length === 0) throw new Error("No active late-slab rules configured — add one in the Rules tab first");
+
+      const attendance = await fetchAllPaginated<any>(() => (supabase as any)
         .from("hr_attendance")
-        .select("employee_id, attendance_status")
-        .eq("attendance_status", "late")
+        .select("employee_id, attendance_status, late_minutes")
         .gte("attendance_date", monthStart)
-        .lte("attendance_date", monthEnd);
-      if (attErr) throw attErr;
+        .lte("attendance_date", monthEnd));
 
       const lateCounts: Record<string, number> = {};
       (attendance || []).forEach((a: any) => {
-        lateCounts[a.employee_id] = (lateCounts[a.employee_id] || 0) + 1;
+        const isLate = a.attendance_status === "late" || Number(a.late_minutes || 0) > 0;
+        if (isLate) lateCounts[a.employee_id] = (lateCounts[a.employee_id] || 0) + 1;
       });
 
-      // Get active slab rules
-      const activeRules = rules.filter((r: any) => r.is_active && r.rule_type === "late_slab");
-      if (activeRules.length === 0) throw new Error("No active late slab rules configured");
+      const rows: any[] = [];
+      for (const [empId, count] of Object.entries(lateCounts)) {
+        const matchingRule = activeSlabRules
+          .filter((r: any) => count >= r.late_count_min && (r.late_count_max === null || count <= r.late_count_max))
+          .sort((a: any, b: any) => b.late_count_min - a.late_count_min)[0];
+        if (!matchingRule) continue;
 
-      // Delete existing auto-calculated late penalties for this month
+        const emp = employees.find((e: any) => e.id === empId);
+        const penaltyDays = matchingRule.penalty_type === "days" ? Number(matchingRule.penalty_value) : 0;
+        const penaltyAmount = matchingRule.penalty_type === "fixed" ? Number(matchingRule.penalty_value) : 0;
+        const dailySalary = Number(emp?.total_salary || 0) / 30;
+
+        rows.push({
+          employee_id: empId,
+          employee_name: emp ? `${emp.first_name} ${emp.last_name}` : empId,
+          badge_id: emp?.badge_id || "—",
+          late_count: count,
+          rule_id: matchingRule.id,
+          rule_name: matchingRule.rule_name,
+          penalty_days: penaltyDays,
+          penalty_amount: penaltyAmount,
+          estimated_value: Math.round(penaltyAmount + dailySalary * penaltyDays),
+        });
+      }
+      rows.sort((a, b) => b.late_count - a.late_count);
+      return rows;
+    },
+    onSuccess: (rows) => {
+      setPreview(rows);
+      setPreviewMonth(monthFilter);
+      if (rows.length === 0) toast.success("No employee crossed a late slab this month");
+    },
+    onError: (e: any) => { setPreview(null); toast.error(e.message); },
+  });
+
+  // Step 2 — commit the previewed rows (replaces unapplied auto rows for the month).
+  const applyPreviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!preview || preview.length === 0) throw new Error("Nothing to apply — run a preview first");
+
       await (supabase as any)
         .from("hr_penalties")
         .delete()
@@ -113,41 +153,30 @@ export default function PenaltyManagementPage() {
         .eq("penalty_type", "late_slab")
         .eq("is_applied", false);
 
-      // Generate penalties
-      const newPenalties: any[] = [];
-      for (const [empId, count] of Object.entries(lateCounts)) {
-        // Find matching slab rule (highest matching)
-        const matchingRule = activeRules
-          .filter((r: any) => count >= r.late_count_min && (r.late_count_max === null || count <= r.late_count_max))
-          .sort((a: any, b: any) => b.late_count_min - a.late_count_min)[0];
-
-        if (matchingRule) {
-          newPenalties.push({
-            employee_id: empId,
-            penalty_month: monthFilter,
-            penalty_type: "late_slab",
-            penalty_reason: `${count} late marks — ${matchingRule.rule_name}`,
-            penalty_amount: matchingRule.penalty_type === "fixed" ? Number(matchingRule.penalty_value) : 0,
-            penalty_days: matchingRule.penalty_type === "days" ? Number(matchingRule.penalty_value) : 0,
-            late_count: count,
-            rule_id: matchingRule.id,
-          });
-        }
-      }
-
-      if (newPenalties.length > 0) {
-        const { error } = await (supabase as any).from("hr_penalties").insert(newPenalties);
-        if (error) throw error;
-      }
-
-      return newPenalties.length;
+      const { error } = await (supabase as any).from("hr_penalties").insert(
+        preview.map((r) => ({
+          employee_id: r.employee_id,
+          penalty_month: monthFilter,
+          penalty_type: "late_slab",
+          penalty_reason: `${r.late_count} late marks — ${r.rule_name}`,
+          penalty_amount: r.penalty_amount,
+          penalty_days: r.penalty_days,
+          late_count: r.late_count,
+          rule_id: r.rule_id,
+        })),
+      );
+      if (error) throw error;
+      return preview.length;
     },
     onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["hr_penalties"] });
-      toast.success(`Auto-calculated ${count} late penalties for ${monthFilter}`);
+      setPreview(null);
+      setTab("penalties");
+      toast.success(`${count} late penalties written for ${monthFilter}`);
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   // Add manual penalty
   const addPenaltyMutation = useMutation({
@@ -265,22 +294,106 @@ export default function PenaltyManagementPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="penalties"><AlertTriangle className="h-4 w-4 mr-1" /> Penalties</TabsTrigger>
+          <TabsTrigger value="autocalc"><Calculator className="h-4 w-4 mr-1" /> Auto-Calculate</TabsTrigger>
           <TabsTrigger value="rules"><Settings className="h-4 w-4 mr-1" /> Penalty Rules</TabsTrigger>
         </TabsList>
+
+        {/* Auto-Calculate Tab */}
+        <TabsContent value="autocalc" className="space-y-4">
+          <Card>
+            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1 min-w-[180px]">
+                <Label>Penalty month</Label>
+                <Input type="month" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPreview(null); }} className="w-full sm:w-48" />
+                <p className="text-xs text-muted-foreground mt-1">Counts late attendance and matches the active slab rules — nothing is written until you apply.</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" onClick={() => previewMutation.mutate()} disabled={previewMutation.isPending}>
+                  <Calculator className="h-4 w-4 mr-1" /> {previewMutation.isPending ? "Calculating…" : "Preview"}
+                </Button>
+                <Button
+                  onClick={() => applyPreviewMutation.mutate()}
+                  disabled={!preview || preview.length === 0 || previewMonth !== monthFilter || applyPreviewMutation.isPending}
+                  className="bg-[#E8604C] hover:bg-[#d4553f]"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  {applyPreviewMutation.isPending ? "Applying…" : preview ? `Apply ${preview.length} penalties` : "Apply"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Active late-slab rules</CardTitle></CardHeader>
+            <CardContent>
+              {activeSlabRules.length === 0 ? (
+                <EmptyState icon={Settings} title="No active slab rules" description="Add a late-slab rule in the Penalty Rules tab to enable auto-calculation." />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {activeSlabRules.map((r: any) => (
+                    <div key={r.id} className="p-3 rounded-lg border bg-card text-sm">
+                      <p className="font-medium text-foreground">{r.rule_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.late_count_min}{r.late_count_max ? `–${r.late_count_max}` : "+"} lates → {r.penalty_type === "days" ? `${r.penalty_value} day(s) salary` : `₹${Number(r.penalty_value).toLocaleString("en-IN")}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {preview && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Preview for {previewMonth} — not saved yet</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {preview.length === 0 ? (
+                  <EmptyState icon={CheckCircle} title="No penalties to apply" description="Every employee stayed within the configured late slabs." />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead className="text-right">Late Count</TableHead>
+                        <TableHead>Rule Applied</TableHead>
+                        <TableHead className="text-right">Penalty Days</TableHead>
+                        <TableHead className="text-right">Est. Value (₹)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {preview.map((r) => (
+                        <TableRow key={r.employee_id}>
+                          <TableCell className="font-medium">{r.employee_name} <span className="text-xs text-muted-foreground">({r.badge_id})</span></TableCell>
+                          <TableCell className="text-right tabular-nums text-warning font-semibold">{r.late_count}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{r.rule_name}</TableCell>
+                          <TableCell className="text-right tabular-nums">{r.penalty_days || "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums text-destructive font-semibold">₹{r.estimated_value.toLocaleString("en-IN")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         {/* Penalties Tab */}
         <TabsContent value="penalties" className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <Input type="month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="w-48" />
-            <Button variant="outline" onClick={() => autoCalcMutation.mutate()} disabled={autoCalcMutation.isPending}>
-              <Clock className="h-4 w-4 mr-1" /> {autoCalcMutation.isPending ? "Calculating..." : "Auto-Calculate Late Penalties"}
+            <Input type="month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="w-full sm:w-48" />
+            <Button variant="outline" onClick={() => setTab("autocalc")}>
+              <Calculator className="h-4 w-4 mr-1" /> Auto-Calculate Late Penalties
             </Button>
             <Button onClick={() => setShowAddPenalty(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
               <Plus className="h-4 w-4 mr-1" /> Add Manual Penalty
             </Button>
           </div>
+
 
           <Card>
             <CardContent className="p-0">

@@ -38,11 +38,11 @@ Deno.serve(async (req) => {
     // Resolve the calling device once — used both for auth and for direction
     // enforcement further down. A device flagged as "In Device" / "Out Device"
     // forces every push it emits to that direction, regardless of raw_status.
-    let deviceRow: { id: string; device_direction: string | null } | null = null;
+    let deviceRow: { id: string; device_direction: string | null; clock_offset_minutes: number | null } | null = null;
     if (serialNumber) {
       const { data: knownDevice } = await supabase
         .from("hr_biometric_devices")
-        .select("id, device_direction")
+        .select("id, device_direction, clock_offset_minutes")
         .eq("device_serial", serialNumber)
         .maybeSingle();
 
@@ -74,6 +74,12 @@ Deno.serve(async (req) => {
         : deviceRow?.device_direction === "Out Device"
         ? "out"
         : null;
+
+    // Per-device clock correction (minutes). Applied to every raw ESSL timestamp
+    // before it is stored. Set on hr_biometric_devices.clock_offset_minutes.
+    // e.g. device stuck at UTC+5 instead of UTC+5:30 → offset = 30.
+    const deviceOffsetMin: number = Number(deviceRow?.clock_offset_minutes ?? 0) || 0;
+
 
     // ─── ICLOCK PROTOCOL: GET requests ───
     if (req.method === "GET" && serialNumber) {

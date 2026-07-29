@@ -121,9 +121,29 @@ export default function DataHealthPage() {
       if (empFilter) q = q.eq("hr_employee_id", empFilter);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as Drift[];
+      const rows = (data ?? []) as Drift[];
+
+      // The drift view carries only the employee UUID — hydrate name / badge
+      // so HR can tell whose record is out of sync.
+      const ids = Array.from(new Set(rows.map((r) => r.hr_employee_id).filter(Boolean)));
+      if (ids.length) {
+        const { data: emps } = await (supabase as any)
+          .from("hr_employees")
+          .select("id, first_name, last_name, badge_id, is_active")
+          .in("id", ids);
+        const map = new Map<string, any>((emps ?? []).map((e: any) => [e.id, e]));
+        for (const r of rows) {
+          const e = map.get(r.hr_employee_id);
+          r.employee_name =
+            [e?.first_name, e?.last_name].filter(Boolean).join(" ").trim() || "Unknown employee";
+          r.badge_id = e?.badge_id ?? null;
+          r.is_active = e?.is_active ?? true;
+        }
+      }
+      return rows;
     },
   });
+
 
   // Statutory rollup — scans recent imported Razorpay payslips against the
   // compliance mirror; a payslip shows an amount for a filing Razorpay says
@@ -513,16 +533,24 @@ export default function DataHealthPage() {
                     <span className="text-sm font-medium text-foreground">
                       {FIELD_LABEL[d.field] || d.field}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {d.employee_name}
-                      {d.badge_id ? ` · ${d.badge_id}` : ""}
-                    </span>
                     {!d.is_active && (
                       <span className="text-[10px] uppercase text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                         inactive
                       </span>
                     )}
                   </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      to={`/hrms/employee/${d.hr_employee_id}`}
+                      className="text-sm font-semibold text-primary hover:underline"
+                    >
+                      {d.employee_name || "Unknown employee"}
+                    </Link>
+                    <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      ID: {d.badge_id || "—"}
+                    </span>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <ValueCol label="HRMS" value={d.hrms_value} highlight />
                     <ValueCol label="Razorpay" value={d.razorpay_value} />

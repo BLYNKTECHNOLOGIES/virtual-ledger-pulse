@@ -1362,9 +1362,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     {!razorpayChecklist.allOk && (
                       <p className="text-[11px] text-warning flex items-start gap-1">
                         <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                        <span>Complete before create: {razorpayChecklist.missing.join(", ")}</span>
+                        <span>Recommended before create (not blocking): {razorpayChecklist.missing.join(", ")}</span>
                       </p>
                     )}
+
                     {razorpayCreateRequest?.status && (
                       <p className="text-[11px] text-muted-foreground">
                         Last RazorpayX create status: <span className="font-mono">{razorpayCreateRequest.status}</span>

@@ -112,7 +112,6 @@ const DataHealthPage = lazy(() => import('./pages/horilla/DataHealthPage'));
 const ShadowPayrollPage = lazy(() => import('./pages/hr/ShadowPayrollPage'));
 const MonthlyPayrollCockpitPage = lazy(() => import('./pages/hr/MonthlyPayrollCockpitPage'));
 const SystemPulsePage = lazy(() => import('./pages/hr/SystemPulsePage'));
-const PenaltyAutoCalcPage = lazy(() => import('./pages/horilla/PenaltyAutoCalcPage'));
 const AssetPage = lazy(() => import('./pages/horilla/AssetPage'));
 const AssetDashboardPage = lazy(() => import('./pages/horilla/AssetDashboardPage'));
 const AssetAssignmentsPage = lazy(() => import('./pages/horilla/AssetAssignmentsPage'));
@@ -764,7 +763,7 @@ const router = createBrowserRouter([
         { path: "employee/documents", element: <EmployeeDocumentsPage /> },
         { path: "employee/separation", element: <SeparationPage /> },
         { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },
-        { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
+        { path: "payroll/penalty-calc", element: <Navigate to="/hrms/payroll/penalties" replace /> },
         { path: "payroll/razorpay-sync", element: <RazorpaySyncPage /> },
         
         

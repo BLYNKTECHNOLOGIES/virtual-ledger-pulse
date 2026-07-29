@@ -2,7 +2,7 @@
 import React, { useEffect, Suspense } from 'react';
 import { lazyWithRetry as lazy } from './lib/lazyWithRetry';
 
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 // --- Eager: app shell, providers, guards, first-paint login, tiny 404 ---
 import { TerminalLayout } from './components/terminal/TerminalLayout';
 import { LoginPage } from './components/website/pages/LoginPage';

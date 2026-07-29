@@ -235,6 +235,12 @@ export function EditLeaveBalancesDialog({
                     </Button>
                   </div>
                 </div>
+                {blocked && (
+                  <p className="text-[11px] text-warning px-2 pt-1">
+                    Sick / Medical leave is not allotted during probation{probationEndDate(employeeId) ? ` (ends ${probationEndDate(employeeId)})` : ""} — keep this at 0.
+                  </p>
+                )}
+                </div>
               );
             })}
           </div>

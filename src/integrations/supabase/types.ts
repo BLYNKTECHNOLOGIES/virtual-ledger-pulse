@@ -10968,6 +10968,30 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_probation_policy: {
+        Row: {
+          block_sick_leave: boolean
+          created_at: string
+          default_probation_months: number
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          block_sick_leave?: boolean
+          created_at?: string
+          default_probation_months?: number
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          block_sick_leave?: boolean
+          created_at?: string
+          default_probation_months?: number
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_pt_slabs: {
         Row: {
           created_at: string
@@ -24000,6 +24024,10 @@ export type Database = {
         }
       }
       hr_is_hr_admin: { Args: never; Returns: boolean }
+      hr_is_on_probation: {
+        Args: { p_employee_id: string; p_on?: string }
+        Returns: boolean
+      }
       hr_lop_days: {
         Args: { p_employee_ids: string[]; p_period_month: string }
         Returns: {
@@ -24090,6 +24118,10 @@ export type Database = {
           swap_due: string
           training_period_months: number
         }[]
+      }
+      hr_probation_end_date: {
+        Args: { p_employee_id: string }
+        Returns: string
       }
       hr_pull_observed_salary: {
         Args: { p_hr_employee_id: string }

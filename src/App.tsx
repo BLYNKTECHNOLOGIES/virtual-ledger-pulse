@@ -745,8 +745,9 @@ const router = createBrowserRouter([
         { path: "leave/weekly-off", element: <WeeklyOffPage /> },
         { path: "payroll", element: <PayrollDashboardPage /> },
         { path: "payroll/payslips", element: <PayslipsPage /> },
-        { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
-        { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
+        { path: "payroll/salary-components", element: <SalaryComponentsPage /> },
+        { path: "payroll/allowances", element: <Navigate to="/hrms/payroll/salary-components" replace /> },
+        { path: "payroll/deductions", element: <Navigate to="/hrms/payroll/salary-components" replace /> },
         // Salary Structure page retired — Razorpay is the authority; per-employee breakdown is mirrored in the employee profile.
         { path: "payroll/penalties", element: <PenaltyManagementPage /> },
         { path: "payroll/deposits", element: <DepositManagementPage /> },

@@ -1226,7 +1226,7 @@ async function parseOperlog(supabase: any, serialNumber: string, body: string, t
           op_code: code,
           op_label: code != null ? (OPLOG_LABELS[code] || `OP_${code}`) : null,
           admin_pin: parts[2] || null,
-          occurred_at: parts[3] ? parseESSLTimestamp(parts[3]) : null,
+          occurred_at: parts[3] ? parseESSLTimestamp(parts[3], deviceOffsetMin) : null,
           target_pin: parts[4] || null,
           value_1: parts[4] || null,
           value_2: parts[5] || null,

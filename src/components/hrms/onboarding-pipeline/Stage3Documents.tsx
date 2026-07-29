@@ -363,7 +363,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         {!readOnly && (
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={onBack}>← Back</Button>
-            <Button variant="outline" onClick={() => onSave(getPayload())}>Save Draft</Button>
             <Button onClick={() => onComplete(getPayload())} disabled={!allRequiredReceived}>
               Complete & Next →
             </Button>

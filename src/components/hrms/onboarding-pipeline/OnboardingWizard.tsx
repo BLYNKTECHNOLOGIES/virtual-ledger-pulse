@@ -343,7 +343,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   // Generic save draft handler
   const handleSaveDraft = async (stage: number, stageData: any, options?: { silent?: boolean }) => {
     try {
-      if (!recordId) {
+      if (!recordIdRef.current) {
         await createRecord(stageData);
       } else {
         await updateRecord(stageData);

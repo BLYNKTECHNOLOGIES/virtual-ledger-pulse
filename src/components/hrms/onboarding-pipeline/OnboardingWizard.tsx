@@ -21,7 +21,17 @@ interface OnboardingWizardProps {
 
 export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps) {
   const queryClient = useQueryClient();
-  const [recordId, setRecordId] = useState<string | null>(onboardingId);
+  const [recordId, setRecordIdState] = useState<string | null>(onboardingId);
+  // Ref mirrors recordId so concurrent autosaves see the freshest value even
+  // before React flushes the state update. Without this, two rapid saves
+  // (e.g. autosave + stage-complete firing back-to-back) both observed
+  // `recordId === null` and each inserted a new hr_employee_onboarding row —
+  // that's how duplicate onboarding drafts appeared for the same email.
+  const recordIdRef = useRef<string | null>(onboardingId);
+  const setRecordId = (id: string | null) => { recordIdRef.current = id; setRecordIdState(id); };
+  // Serializes the first createRecord call so any subsequent save awaits it
+  // instead of racing into a second INSERT.
+  const createInFlightRef = useRef<Promise<string> | null>(null);
   const [activeStage, setActiveStage] = useState(1);
 
   const { data: record, refetch } = useQuery({

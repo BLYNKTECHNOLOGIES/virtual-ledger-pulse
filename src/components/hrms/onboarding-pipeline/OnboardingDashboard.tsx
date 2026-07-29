@@ -191,9 +191,6 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
       </div>
 
 
-      {/* Bulk Completion fast-lane (fills data only, never activates) */}
-      <BulkCompletionPanel />
-
       {/* Records Table */}
       <Card className="border-0 bg-transparent shadow-none sm:border sm:bg-card">
         <CardHeader className="px-0 pb-3 pt-0 sm:py-3 sm:px-4 flex flex-row items-center justify-between gap-2">

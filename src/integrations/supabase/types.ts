@@ -24516,13 +24516,6 @@ export type Database = {
         Returns: string
       }
       hr_ess_current_employee_id: { Args: never; Returns: string }
-      hr_estimate_device_drift: {
-        Args: never
-        Returns: {
-          device_serial: string
-          drift_seconds: number
-        }[]
-      }
       hr_get_offer_letter_policy: {
         Args: never
         Returns: {

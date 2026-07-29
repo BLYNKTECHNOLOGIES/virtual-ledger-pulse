@@ -13,6 +13,7 @@ import { Plus, Search, Users, CalendarDays, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { useProbationStatus, isSickLeaveType } from "@/hooks/useProbationStatus";
 
 function getCurrentQuarter() {
   return Math.ceil((new Date().getMonth() + 1) / 3);
@@ -30,6 +31,8 @@ export default function LeaveAllocationsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", allocated_days: 12 });
+
+  const { isOnProbation, probationEndDate } = useProbationStatus();
 
   const year = parseInt(yearFilter);
   const quarter = parseInt(quarterFilter);
@@ -66,8 +69,13 @@ export default function LeaveAllocationsPage() {
     },
   });
 
+  const selectedIsProbationer = isOnProbation(form.employee_id);
+  const selectedType = leaveTypes.find((t: any) => t.id === form.leave_type_id);
+  const blockedByProbation = selectedIsProbationer && !!selectedType && isSickLeaveType(selectedType);
+
   const addMutation = useMutation({
     mutationFn: async () => {
+      if (blockedByProbation) throw new Error("Sick/Medical leave cannot be allocated to an employee on probation");
       const { error } = await (supabase as any).from("hr_leave_allocations").insert({
         employee_id: form.employee_id,
         leave_type_id: form.leave_type_id,
@@ -90,7 +98,7 @@ export default function LeaveAllocationsPage() {
   const bulkAllocateMutation = useMutation({
     mutationFn: async () => {
       const rows = employees.flatMap((emp: any) =>
-        leaveTypes.map((lt: any) => ({
+        leaveTypes.filter((lt: any) => !(isSickLeaveType(lt) && isOnProbation(emp.id))).map((lt: any) => ({
           employee_id: emp.id,
           leave_type_id: lt.id,
           year,
@@ -283,18 +291,24 @@ export default function LeaveAllocationsPage() {
                 setForm({ ...form, leave_type_id: v, allocated_days: lt?.max_days_per_year || 12 });
               }}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{leaveTypes.map((lt: any) => {
+                  const blocked = selectedIsProbationer && isSickLeaveType(lt);
+                  return <SelectItem key={lt.id} value={lt.id} disabled={blocked}>{lt.name}{blocked ? " — blocked (on probation)" : ""}</SelectItem>;
+                })}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Days to Allocate (this quarter)</Label>
               <Input type="number" value={form.allocated_days} onChange={(e) => setForm({ ...form, allocated_days: parseFloat(e.target.value) || 0 })} className="h-9" />
             </div>
+            {selectedIsProbationer && (
+              <p className="text-xs text-warning">⚠ This employee is on probation{probationEndDate(form.employee_id) ? ` until ${probationEndDate(form.employee_id)}` : ""}. Sick / Medical leave cannot be allocated as per company policy.</p>
+            )}
             <p className="text-xs text-muted-foreground">Quarter: {getQuarterLabel(quarter)} {year} • All unused days carry forward automatically</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Allocate</Button>
+            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id || blockedByProbation} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Allocate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -318,6 +332,7 @@ export default function LeaveAllocationsPage() {
                 </div>
               ))}
             </div>
+            <p className="text-xs text-warning">⚠ Sick / Medical leave is automatically skipped for employees currently on probation.</p>
             <p className="text-xs text-muted-foreground">💡 Unused days from previous quarters automatically carry forward.</p>
             {leaveTypes.length === 0 && <p className="text-xs text-warning">⚠ Create leave types first before bulk allocating.</p>}
           </div>

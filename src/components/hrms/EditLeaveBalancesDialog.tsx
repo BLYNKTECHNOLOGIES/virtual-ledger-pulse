@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
+import { useProbationStatus, isSickLeaveType } from "@/hooks/useProbationStatus";
 
 interface Props {
   open: boolean;
@@ -52,7 +53,11 @@ export function EditLeaveBalancesDialog({
     }
   }, [open, leaveAllocations]);
 
+  const { isOnProbation, probationEndDate } = useProbationStatus();
+  const onProbation = isOnProbation(employeeId);
+
   const getLt = (id: string) => leaveTypes.find((t) => t.id === id);
+  const isBlockedRow = (leaveTypeId: string) => onProbation && isSickLeaveType(getLt(leaveTypeId));
 
   const updateRow = (idx: number, patch: Partial<Row>) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch, _dirty: true } : r)));
@@ -88,6 +93,8 @@ export function EditLeaveBalancesDialog({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const offending = rows.find((r) => !r._delete && Number(r.allocated_days) > 0 && isBlockedRow(r.leave_type_id));
+      if (offending) throw new Error("Sick/Medical leave cannot be allocated while the employee is on probation");
       const toDelete = rows.filter((r) => r._delete && r.id).map((r) => r.id!);
       const toInsert = rows.filter((r) => r._new && !r._delete).map((r) => ({
         employee_id: employeeId,
@@ -157,7 +164,9 @@ export function EditLeaveBalancesDialog({
             )}
             {visible.map(({ r, i }) => {
               const lt = getLt(r.leave_type_id);
+              const blocked = isBlockedRow(r.leave_type_id);
               return (
+                <div key={`wrap-${r.id ?? `new-${i}`}`}>
                 <div key={r.id ?? `new-${i}`} className="grid grid-cols-12 gap-2 items-center bg-muted/30 rounded-md p-2">
                   <div className="col-span-4">
                     <Select value={r.leave_type_id} onValueChange={(v) => updateRow(i, { leave_type_id: v })}>
@@ -175,11 +184,14 @@ export function EditLeaveBalancesDialog({
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {leaveTypes.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name} ({t.code})
-                          </SelectItem>
-                        ))}
+                        {leaveTypes.map((t) => {
+                          const tBlocked = onProbation && isSickLeaveType(t);
+                          return (
+                            <SelectItem key={t.id} value={t.id} disabled={tBlocked}>
+                              {t.name} ({t.code}){tBlocked ? " — on probation" : ""}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -222,6 +234,12 @@ export function EditLeaveBalancesDialog({
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
+                </div>
+                {blocked && (
+                  <p className="text-[11px] text-warning px-2 pt-1">
+                    Sick / Medical leave is not allotted during probation{probationEndDate(employeeId) ? ` (ends ${probationEndDate(employeeId)})` : ""} — keep this at 0.
+                  </p>
+                )}
                 </div>
               );
             })}

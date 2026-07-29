@@ -5853,11 +5853,12 @@ Deno.serve(async (req) => {
       const missing: string[] = [];
       if (!fullName) missing.push("name");
       if (!ob.email) missing.push("email");
-      if (!ob.phone) missing.push("phone");
+      // phone + job_title are optional at create time — RazorpayX accepts a
+      // minimal invite and the hire fills these in via self-registration.
       if (!pan || !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) missing.push("pan");
       if (!dojRp) missing.push("date_of_joining");
       if (!deptName) missing.push("department");
-      if (!ob.job_role) missing.push("job_title");
+
       if (!ctcAnnual || ctcAnnual <= 0) missing.push("ctc_annual");
       if (!accountNumber) missing.push("bank_account_number");
       if (!ifsc || !/^[A-Z0-9]{11}$/.test(ifsc)) missing.push("bank_ifsc");

@@ -493,14 +493,16 @@ Deno.serve(async (req) => {
         // is registered as an "In Device" or "Out Device", force punch_type to
         // match its role regardless of what the caller sent.
         let jsonForcedDirection: "in" | "out" | null = null;
+        let jsonDeviceOffsetMin = 0;
         if (device_serial) {
           const { data: devRow } = await supabase
             .from("hr_biometric_devices")
-            .select("device_direction")
+            .select("device_direction, clock_offset_minutes")
             .eq("device_serial", device_serial)
             .maybeSingle();
           if (devRow?.device_direction === "In Device") jsonForcedDirection = "in";
           else if (devRow?.device_direction === "Out Device") jsonForcedDirection = "out";
+          jsonDeviceOffsetMin = Number(devRow?.clock_offset_minutes ?? 0) || 0;
         }
         const effectivePunchType = jsonForcedDirection ?? punch_type;
 
@@ -509,7 +511,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const punchISO = new Date(punch_time).toISOString();
+        const parsedTime = new Date(punch_time);
+        const punchISO = jsonDeviceOffsetMin
+          ? new Date(parsedTime.getTime() + jsonDeviceOffsetMin * 60 * 1000).toISOString()
+          : parsedTime.toISOString();
+
         const punchDate = punchISO.split("T")[0];
 
         // Resolve badge_id → employee UUID

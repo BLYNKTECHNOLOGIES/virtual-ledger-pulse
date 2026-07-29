@@ -533,16 +533,24 @@ export default function DataHealthPage() {
                     <span className="text-sm font-medium text-foreground">
                       {FIELD_LABEL[d.field] || d.field}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {d.employee_name}
-                      {d.badge_id ? ` · ${d.badge_id}` : ""}
-                    </span>
                     {!d.is_active && (
                       <span className="text-[10px] uppercase text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                         inactive
                       </span>
                     )}
                   </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      to={`/hrms/employees/${d.hr_employee_id}`}
+                      className="text-sm font-semibold text-primary hover:underline"
+                    >
+                      {d.employee_name || "Unknown employee"}
+                    </Link>
+                    <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      ID: {d.badge_id || "—"}
+                    </span>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <ValueCol label="HRMS" value={d.hrms_value} highlight />
                     <ValueCol label="Razorpay" value={d.razorpay_value} />

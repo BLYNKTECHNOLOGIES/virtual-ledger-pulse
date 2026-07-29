@@ -106,7 +106,6 @@ export default function SystemPulsePage() {
   const drift = data?.drift ?? {};
   const stale = data?.stale_sessions ?? {};
   const sandbox = data?.sandbox ?? {};
-  const clock = data?.clock ?? {};
   const interv = data?.interventions ?? {};
 
   const unexplainedDrift = extras?.unexplained_drift ?? 0;
@@ -134,9 +133,6 @@ export default function SystemPulsePage() {
     (stale.oldest_age_hours ?? 0) > 24 ? "bad" :
     (stale.open ?? 0) > 0 ? "warn" : "ok";
   const sandboxTone: Tone = sandbox.enabled ? "warn" : "ok";
-  const clockTone: Tone =
-    (clock.max_drift_seconds ?? 0) > 120 ? "bad" :
-    (clock.max_drift_seconds ?? 0) > 30 ? "warn" : "ok";
   const intervTone: Tone =
     (interv.unsupported_overrides_this_month ?? 0) > 0 ? "warn" : "ok";
   const deadLetterTone: Tone = deadLettered > 0 ? "bad" : ghostResidual > 0 ? "warn" : "ok";
@@ -204,19 +200,6 @@ export default function SystemPulsePage() {
           secondary={`${devices.failed_24h ?? 0} failed 24h · oldest ${devices.oldest_pending_age_min ?? 0}m`}
           actionHref="/hrms/attendance/biometric-devices"
           actionLabel="Biometric devices"
-        />
-        <Tile
-          icon={Clock}
-          title="Device clock drift"
-          tone={clockTone}
-          primary={
-            (clock.max_drift_seconds ?? 0) > 0
-              ? `±${clock.max_drift_seconds}s max`
-              : "in sync"
-          }
-          secondary={`${clock.devices_over_30s ?? 0} > 30s · ${clock.devices_over_120s ?? 0} > 2m · sweep every 30m`}
-          actionHref="/hrms/attendance/biometric-devices"
-          actionLabel="Devices"
         />
         <Tile
           icon={ScaleIcon}

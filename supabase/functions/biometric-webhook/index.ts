@@ -227,9 +227,10 @@ Deno.serve(async (req) => {
             const raw_status = parts.length > 2 ? parseInt(parts[2]) : null;
             const verify_type = parts.length > 3 ? parseInt(parts[3]) : null;
             const work_code = parts.length > 4 ? parts[4].trim() : null;
-            const punchISO = parseESSLTimestamp(punch_time_str);
+            const punchISO = parseESSLTimestamp(punch_time_str, deviceOffsetMin);
             const punchDateObj = new Date(punchISO);
-            const punchDate = getPunchDateFromESSLTimestamp(punch_time_str);
+            const punchDate = getPunchDateFromESSLTimestamp(punch_time_str, deviceOffsetMin);
+
             if (!maxPunchDate || punchDateObj > maxPunchDate) maxPunchDate = punchDateObj;
             if (punchDateObj < cutoffDate) { results.skipped++; continue; }
             const derivedDirection: "in" | "out" =

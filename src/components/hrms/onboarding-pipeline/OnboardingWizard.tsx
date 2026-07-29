@@ -374,12 +374,12 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         stage_completions: updatedCompletions,
       };
 
-      if (!recordId) {
+      if (!recordIdRef.current) {
         const id = await createRecord({ ...stageData, current_stage: nextStage, status: `stage_${stage}`, stage_completions: updatedCompletions });
         await logAudit(id, stage, "completed", stageData);
       } else {
         await updateRecord(updates);
-        await logAudit(recordId, stage, "completed", stageData);
+        await logAudit(recordIdRef.current, stage, "completed", stageData);
       }
 
       await refetch();

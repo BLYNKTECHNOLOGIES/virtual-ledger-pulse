@@ -72,40 +72,78 @@ export default function PenaltyManagementPage() {
     },
   });
 
-  // Fetch employees
+  // Fetch employees (total_salary is needed to estimate ₹ impact of day-based slabs)
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active_penalty"],
     queryFn: async () => {
-      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true).order("first_name"));
+      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, total_salary").eq("is_active", true).order("first_name"));
       return data || [];
     },
   });
 
-  // Auto-calculate late penalties for the month
-  const autoCalcMutation = useMutation({
+  const activeSlabRules = rules.filter((r: any) => r.is_active && r.rule_type === "late_slab");
+
+  // Step 1 — dry-run preview of late-slab penalties for the selected month.
+  const previewMutation = useMutation({
     mutationFn: async () => {
       const monthStart = `${monthFilter}-01`;
-      const monthEnd = new Date(Number(monthFilter.split("-")[0]), Number(monthFilter.split("-")[1]), 0).toISOString().slice(0, 10);
+      const [yy, mm] = monthFilter.split("-").map(Number);
+      const monthEnd = `${monthFilter}-${String(new Date(yy, mm, 0).getDate()).padStart(2, "0")}`;
 
-      // Get late attendance counts per employee
-      const { data: attendance, error: attErr } = await (supabase as any)
+      if (activeSlabRules.length === 0) throw new Error("No active late-slab rules configured — add one in the Rules tab first");
+
+      const attendance = await fetchAllPaginated<any>(() => (supabase as any)
         .from("hr_attendance")
-        .select("employee_id, attendance_status")
-        .eq("attendance_status", "late")
+        .select("employee_id, attendance_status, late_minutes")
         .gte("attendance_date", monthStart)
-        .lte("attendance_date", monthEnd);
-      if (attErr) throw attErr;
+        .lte("attendance_date", monthEnd));
 
       const lateCounts: Record<string, number> = {};
       (attendance || []).forEach((a: any) => {
-        lateCounts[a.employee_id] = (lateCounts[a.employee_id] || 0) + 1;
+        const isLate = a.attendance_status === "late" || Number(a.late_minutes || 0) > 0;
+        if (isLate) lateCounts[a.employee_id] = (lateCounts[a.employee_id] || 0) + 1;
       });
 
-      // Get active slab rules
-      const activeRules = rules.filter((r: any) => r.is_active && r.rule_type === "late_slab");
-      if (activeRules.length === 0) throw new Error("No active late slab rules configured");
+      const rows: any[] = [];
+      for (const [empId, count] of Object.entries(lateCounts)) {
+        const matchingRule = activeSlabRules
+          .filter((r: any) => count >= r.late_count_min && (r.late_count_max === null || count <= r.late_count_max))
+          .sort((a: any, b: any) => b.late_count_min - a.late_count_min)[0];
+        if (!matchingRule) continue;
 
-      // Delete existing auto-calculated late penalties for this month
+        const emp = employees.find((e: any) => e.id === empId);
+        const penaltyDays = matchingRule.penalty_type === "days" ? Number(matchingRule.penalty_value) : 0;
+        const penaltyAmount = matchingRule.penalty_type === "fixed" ? Number(matchingRule.penalty_value) : 0;
+        const dailySalary = Number(emp?.total_salary || 0) / 30;
+
+        rows.push({
+          employee_id: empId,
+          employee_name: emp ? `${emp.first_name} ${emp.last_name}` : empId,
+          badge_id: emp?.badge_id || "—",
+          late_count: count,
+          rule_id: matchingRule.id,
+          rule_name: matchingRule.rule_name,
+          penalty_days: penaltyDays,
+          penalty_amount: penaltyAmount,
+          estimated_value: Math.round(penaltyAmount + dailySalary * penaltyDays),
+        });
+      }
+      rows.sort((a, b) => b.late_count - a.late_count);
+      return rows;
+    },
+    onSuccess: (rows) => {
+      setPreview(rows);
+      setPreviewMonth(monthFilter);
+      if (rows.length === 0) toast.success("No employee crossed a late slab this month");
+    },
+    onError: (e: any) => { setPreview(null); toast.error(e.message); },
+  });
+
+  // Step 2 — commit the previewed rows (replaces unapplied auto rows for the month).
+  const applyPreviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!preview || preview.length === 0) throw new Error("Nothing to apply — run a preview first");
+
       await (supabase as any)
         .from("hr_penalties")
         .delete()
@@ -113,41 +151,30 @@ export default function PenaltyManagementPage() {
         .eq("penalty_type", "late_slab")
         .eq("is_applied", false);
 
-      // Generate penalties
-      const newPenalties: any[] = [];
-      for (const [empId, count] of Object.entries(lateCounts)) {
-        // Find matching slab rule (highest matching)
-        const matchingRule = activeRules
-          .filter((r: any) => count >= r.late_count_min && (r.late_count_max === null || count <= r.late_count_max))
-          .sort((a: any, b: any) => b.late_count_min - a.late_count_min)[0];
-
-        if (matchingRule) {
-          newPenalties.push({
-            employee_id: empId,
-            penalty_month: monthFilter,
-            penalty_type: "late_slab",
-            penalty_reason: `${count} late marks — ${matchingRule.rule_name}`,
-            penalty_amount: matchingRule.penalty_type === "fixed" ? Number(matchingRule.penalty_value) : 0,
-            penalty_days: matchingRule.penalty_type === "days" ? Number(matchingRule.penalty_value) : 0,
-            late_count: count,
-            rule_id: matchingRule.id,
-          });
-        }
-      }
-
-      if (newPenalties.length > 0) {
-        const { error } = await (supabase as any).from("hr_penalties").insert(newPenalties);
-        if (error) throw error;
-      }
-
-      return newPenalties.length;
+      const { error } = await (supabase as any).from("hr_penalties").insert(
+        preview.map((r) => ({
+          employee_id: r.employee_id,
+          penalty_month: monthFilter,
+          penalty_type: "late_slab",
+          penalty_reason: `${r.late_count} late marks — ${r.rule_name}`,
+          penalty_amount: r.penalty_amount,
+          penalty_days: r.penalty_days,
+          late_count: r.late_count,
+          rule_id: r.rule_id,
+        })),
+      );
+      if (error) throw error;
+      return preview.length;
     },
     onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["hr_penalties"] });
-      toast.success(`Auto-calculated ${count} late penalties for ${monthFilter}`);
+      setPreview(null);
+      setTab("penalties");
+      toast.success(`${count} late penalties written for ${monthFilter}`);
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   // Add manual penalty
   const addPenaltyMutation = useMutation({

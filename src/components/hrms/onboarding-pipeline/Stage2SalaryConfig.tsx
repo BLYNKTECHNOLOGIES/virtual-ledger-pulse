@@ -110,7 +110,6 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
         {!readOnly && (
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={onBack}>← Back</Button>
-            <Button variant="outline" onClick={() => onSave(getPayload())}>Save Draft</Button>
             <Button onClick={() => { if (validate()) onComplete(getPayload()); }}>Complete & Next →</Button>
           </div>
         )}

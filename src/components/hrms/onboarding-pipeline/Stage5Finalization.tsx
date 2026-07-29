@@ -1725,13 +1725,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={handleBack}>← Back</Button>
             <Button
-              type="button"
-              variant="outline"
-              onClick={() => onSave?.(getDraftPayload()).then(() => toast.success("Draft saved"))}
-            >
-              Save Draft
-            </Button>
-            <Button
               onClick={handleFinalize}
               disabled={finalizing || !reconcileReady}
               className="bg-success hover:bg-success text-primary-foreground"

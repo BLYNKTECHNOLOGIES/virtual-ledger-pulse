@@ -201,9 +201,6 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
         {!readOnly && (
           <div className="flex gap-2 pt-2 flex-wrap">
             <Button variant="outline" onClick={onBack}>← Back</Button>
-            {onSave && (
-              <Button variant="outline" onClick={() => onSave(getPayload())}>Save Draft</Button>
-            )}
             <Button onClick={() => onComplete(getPayload())} disabled={!allRequiredReceived}>
               Complete & Next →
             </Button>

@@ -232,7 +232,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         </div>
         {!readOnly && (
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={handleSave}>Save Draft</Button>
             <Button onClick={handleComplete} disabled={isCompleting}>
               {isCompleting ? "Completing..." : "Complete & Next →"}
             </Button>

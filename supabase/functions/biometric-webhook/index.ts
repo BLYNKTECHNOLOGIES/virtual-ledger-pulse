@@ -565,15 +565,20 @@ Deno.serve(async (req) => {
 });
 
 // ─── Helper: Parse ESSL timestamp (local time, usually IST) to ISO ───
-function parseESSLTimestamp(timeStr: string): string {
+// `offsetMinutes` is added AFTER parsing to correct devices whose physical
+// clock is stuck at the wrong UTC offset (e.g. UTC+5 instead of UTC+5:30 → 30).
+function parseESSLTimestamp(timeStr: string, offsetMinutes = 0): string {
   const cleaned = timeStr.replace(/\s+/g, " ").trim();
-  const date = new Date(cleaned + "+05:30"); // Assume IST
+  const date = new Date(cleaned + "+05:30"); // Assume IST wall-clock
+  if (offsetMinutes) {
+    return new Date(date.getTime() + offsetMinutes * 60 * 1000).toISOString();
+  }
   return date.toISOString();
 }
 
 // Keep attendance date aligned to device-local date (prevents UTC date shift issues)
-function getPunchDateFromESSLTimestamp(timeStr: string): string {
-  const iso = parseESSLTimestamp(timeStr);
+function getPunchDateFromESSLTimestamp(timeStr: string, offsetMinutes = 0): string {
+  const iso = parseESSLTimestamp(timeStr, offsetMinutes);
   const utc = new Date(iso);
   const ist = new Date(utc.getTime() + 330 * 60 * 1000);
 
@@ -582,6 +587,7 @@ function getPunchDateFromESSLTimestamp(timeStr: string): string {
   const dd = String(ist.getUTCDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
 
 function formatESSLStamp(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");

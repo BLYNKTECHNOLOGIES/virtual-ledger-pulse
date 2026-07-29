@@ -541,7 +541,7 @@ export default function DataHealthPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={`/hrms/employees/${d.hr_employee_id}`}
+                      to={`/hrms/employee/${d.hr_employee_id}`}
                       className="text-sm font-semibold text-primary hover:underline"
                     >
                       {d.employee_name || "Unknown employee"}

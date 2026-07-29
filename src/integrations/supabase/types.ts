@@ -11322,6 +11322,7 @@ export type Database = {
         Row: {
           block_sick_leave: boolean
           created_at: string
+          default_probation_days: number
           default_probation_months: number
           id: boolean
           updated_at: string
@@ -11329,6 +11330,7 @@ export type Database = {
         Insert: {
           block_sick_leave?: boolean
           created_at?: string
+          default_probation_days?: number
           default_probation_months?: number
           id?: boolean
           updated_at?: string
@@ -11336,6 +11338,7 @@ export type Database = {
         Update: {
           block_sick_leave?: boolean
           created_at?: string
+          default_probation_days?: number
           default_probation_months?: number
           id?: boolean
           updated_at?: string

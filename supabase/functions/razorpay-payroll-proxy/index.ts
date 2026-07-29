@@ -1443,7 +1443,6 @@ Deno.serve(async (req) => {
             monthly_gross: sal.monthly_gross,
             components: sal.components,
           };
-          (r.body as any).annual_ctc = sal.annual_ctc;
         } else {
           (r.body as any).__salary_probe_error = sal.err;
         }

@@ -887,9 +887,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       return;
     }
     if (!razorpayChecklist.allOk) {
-      toast.error(`Complete these fields first: ${razorpayChecklist.missing.join(", ")}`);
-      return;
+      toast.warning(`Proceeding without: ${razorpayChecklist.missing.join(", ")}. RazorpayX may reject if required.`);
     }
+
     setCreatingRazorpayInvite(true);
     const t = toast.loading("Creating RazorpayX employee invite…");
     try {
@@ -1344,7 +1344,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                             type="button"
                             size="sm"
                             onClick={handleCreateRazorpayInvite}
-                            disabled={readOnly || creatingRazorpayInvite || !razorpayChecklist.allOk || alreadyCreated}
+                            disabled={readOnly || creatingRazorpayInvite || alreadyCreated}
                             title={alreadyCreated ? "Already created in RazorpayX — creating again would produce a duplicate." : undefined}
                           >
                             <Cloud className="h-3.5 w-3.5 mr-1.5" />
@@ -1362,9 +1362,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     {!razorpayChecklist.allOk && (
                       <p className="text-[11px] text-warning flex items-start gap-1">
                         <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                        <span>Complete before create: {razorpayChecklist.missing.join(", ")}</span>
+                        <span>Recommended before create (not blocking): {razorpayChecklist.missing.join(", ")}</span>
                       </p>
                     )}
+
                     {razorpayCreateRequest?.status && (
                       <p className="text-[11px] text-muted-foreground">
                         Last RazorpayX create status: <span className="font-mono">{razorpayCreateRequest.status}</span>

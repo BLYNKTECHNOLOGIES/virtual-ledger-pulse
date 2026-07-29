@@ -1323,7 +1323,7 @@ async function parseAttPhoto(supabase: any, serialNumber: string, body: string, 
       kind: "ATTPHOTO",
       size_bytes: kv["size"] ? parseInt(kv["size"]) : null,
       photo_base64: kv["content"] || null,
-      punch_time: kv["time"] ? parseESSLTimestamp(kv["time"]) : null,
+      punch_time: kv["time"] ? parseESSLTimestamp(kv["time"], offsetMinutes) : null,
     });
   }
   if (rows.length) await supabase.from("hr_biometric_device_photos").insert(rows);

@@ -7000,10 +7000,10 @@ Deno.serve(async (req) => {
             if ((!email || !name) && mapRow?.hr_employee_id) {
               const { data: emp } = await svc
                 .from("hr_employees")
-                .select("email, personal_email, first_name, last_name")
+                .select("email, first_name, last_name")
                 .eq("id", mapRow.hr_employee_id)
                 .maybeSingle();
-              if (!email) email = emp?.email || emp?.personal_email || "";
+              if (!email) email = emp?.email || "";
               if (!name && emp) name = [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim();
             }
             if (email) data.email = String(email).trim();

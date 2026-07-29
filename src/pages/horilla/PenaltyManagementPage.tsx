@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { AlertTriangle, Plus, Settings, FileText, Gavel, Clock, Trash2, Edit2 } from "lucide-react";
+import { AlertTriangle, Plus, Settings, FileText, Gavel, Clock, Trash2, Edit2, Calculator, CheckCircle } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,8 @@ export default function PenaltyManagementPage() {
   const [showEditRule, setShowEditRule] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [monthFilter, setMonthFilter] = useState(format(new Date(), "yyyy-MM"));
+  const [preview, setPreview] = useState<any[] | null>(null);
+  const [previewMonth, setPreviewMonth] = useState<string>("");
   const [penaltyForm, setPenaltyForm] = useState({
     employee_id: "",
     penalty_type: "manual",

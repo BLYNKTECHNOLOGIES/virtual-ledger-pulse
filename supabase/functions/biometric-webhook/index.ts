@@ -1310,7 +1310,7 @@ async function parseOperlog(supabase: any, serialNumber: string, body: string, t
   console.log(`OPERLOG parsed from ${serialNumber}: users=${userUpserts.size} tpl=${templates.length} pics=${photos.length} oplog=${oplogs.length}`);
 }
 
-async function parseAttPhoto(supabase: any, serialNumber: string, body: string) {
+async function parseAttPhoto(supabase: any, serialNumber: string, body: string, offsetMinutes = 0) {
   // Lines: PIN=1\tSN=xxx\tsize=nnn\tCMD=xxx\tContent=<b64>  (optionally with time)
   const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const rows: any[] = [];

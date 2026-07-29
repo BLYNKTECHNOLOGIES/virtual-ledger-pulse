@@ -292,22 +292,106 @@ export default function PenaltyManagementPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="penalties"><AlertTriangle className="h-4 w-4 mr-1" /> Penalties</TabsTrigger>
+          <TabsTrigger value="autocalc"><Calculator className="h-4 w-4 mr-1" /> Auto-Calculate</TabsTrigger>
           <TabsTrigger value="rules"><Settings className="h-4 w-4 mr-1" /> Penalty Rules</TabsTrigger>
         </TabsList>
+
+        {/* Auto-Calculate Tab */}
+        <TabsContent value="autocalc" className="space-y-4">
+          <Card>
+            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1 min-w-[180px]">
+                <Label>Penalty month</Label>
+                <Input type="month" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPreview(null); }} className="w-full sm:w-48" />
+                <p className="text-xs text-muted-foreground mt-1">Counts late attendance and matches the active slab rules — nothing is written until you apply.</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" onClick={() => previewMutation.mutate()} disabled={previewMutation.isPending}>
+                  <Calculator className="h-4 w-4 mr-1" /> {previewMutation.isPending ? "Calculating…" : "Preview"}
+                </Button>
+                <Button
+                  onClick={() => applyPreviewMutation.mutate()}
+                  disabled={!preview || preview.length === 0 || previewMonth !== monthFilter || applyPreviewMutation.isPending}
+                  className="bg-[#E8604C] hover:bg-[#d4553f]"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  {applyPreviewMutation.isPending ? "Applying…" : preview ? `Apply ${preview.length} penalties` : "Apply"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Active late-slab rules</CardTitle></CardHeader>
+            <CardContent>
+              {activeSlabRules.length === 0 ? (
+                <EmptyState icon={Settings} title="No active slab rules" description="Add a late-slab rule in the Penalty Rules tab to enable auto-calculation." />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {activeSlabRules.map((r: any) => (
+                    <div key={r.id} className="p-3 rounded-lg border bg-card text-sm">
+                      <p className="font-medium text-foreground">{r.rule_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.late_count_min}{r.late_count_max ? `–${r.late_count_max}` : "+"} lates → {r.penalty_type === "days" ? `${r.penalty_value} day(s) salary` : `₹${Number(r.penalty_value).toLocaleString("en-IN")}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {preview && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Preview for {previewMonth} — not saved yet</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {preview.length === 0 ? (
+                  <EmptyState icon={CheckCircle} title="No penalties to apply" description="Every employee stayed within the configured late slabs." />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead className="text-right">Late Count</TableHead>
+                        <TableHead>Rule Applied</TableHead>
+                        <TableHead className="text-right">Penalty Days</TableHead>
+                        <TableHead className="text-right">Est. Value (₹)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {preview.map((r) => (
+                        <TableRow key={r.employee_id}>
+                          <TableCell className="font-medium">{r.employee_name} <span className="text-xs text-muted-foreground">({r.badge_id})</span></TableCell>
+                          <TableCell className="text-right tabular-nums text-warning font-semibold">{r.late_count}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{r.rule_name}</TableCell>
+                          <TableCell className="text-right tabular-nums">{r.penalty_days || "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums text-destructive font-semibold">₹{r.estimated_value.toLocaleString("en-IN")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         {/* Penalties Tab */}
         <TabsContent value="penalties" className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <Input type="month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="w-48" />
-            <Button variant="outline" onClick={() => autoCalcMutation.mutate()} disabled={autoCalcMutation.isPending}>
-              <Clock className="h-4 w-4 mr-1" /> {autoCalcMutation.isPending ? "Calculating..." : "Auto-Calculate Late Penalties"}
+            <Input type="month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="w-full sm:w-48" />
+            <Button variant="outline" onClick={() => setTab("autocalc")}>
+              <Calculator className="h-4 w-4 mr-1" /> Auto-Calculate Late Penalties
             </Button>
             <Button onClick={() => setShowAddPenalty(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
               <Plus className="h-4 w-4 mr-1" /> Add Manual Penalty
             </Button>
           </div>
+
 
           <Card>
             <CardContent className="p-0">

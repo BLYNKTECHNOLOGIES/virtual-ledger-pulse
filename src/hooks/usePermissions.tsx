@@ -31,12 +31,39 @@ const ADMIN_PERMISSIONS = [
 
 const permissionCache = new Map<string, string[]>();
 
+const PERMISSION_STORAGE_PREFIX = 'blynk_permissions_';
+
+function readPersistedPermissions(userId: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(PERMISSION_STORAGE_PREFIX + userId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistPermissions(userId: string, perms: string[]) {
+  permissionCache.set(userId, perms);
+  try {
+    localStorage.setItem(PERMISSION_STORAGE_PREFIX + userId, JSON.stringify(perms));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export function usePermissions() {
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?.id || null;
-  const cachedPermissions = userId ? permissionCache.get(userId) : undefined;
+  const cachedPermissions = userId
+    ? permissionCache.get(userId) || readPersistedPermissions(userId) || undefined
+    : undefined;
   const [permissions, setPermissions] = useState<string[]>(cachedPermissions || []);
   const [isLoading, setIsLoading] = useState(!cachedPermissions);
+  const [isDegraded, setIsDegraded] = useState(false);
 
   const fetchPermissions = useCallback(async () => {
     try {
@@ -50,8 +77,9 @@ export function usePermissions() {
         return;
       }
 
-      const cached = permissionCache.get(user.id);
+      const cached = permissionCache.get(user.id) || readPersistedPermissions(user.id);
       if (cached) {
+        permissionCache.set(user.id, cached);
         setPermissions(cached);
         setIsLoading(false);
       } else {
@@ -60,43 +88,62 @@ export function usePermissions() {
       
       // Check if user is super admin (role-based only)
       if (user.roles?.some(r => r.toLowerCase() === 'super admin')) {
-        permissionCache.set(user.id, ADMIN_PERMISSIONS);
+        persistPermissions(user.id, ADMIN_PERMISSIONS);
         setPermissions(ADMIN_PERMISSIONS);
+        setIsDegraded(false);
         return;
       }
 
-      // For database users, fetch permissions from role_permissions table
-      
-      const { data: userPermissions, error } = await supabase
-        .rpc('get_user_permissions', { user_uuid: user.id });
+      // For database users, fetch permissions from role_permissions table.
+      // Retry with backoff: transient backend outages must never permanently
+      // downgrade a user to dashboard-only access.
+      let userPermissions: any = null;
+      let error: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await supabase.rpc('get_user_permissions', { user_uuid: user.id });
+        userPermissions = res.data;
+        error = res.error;
+        if (!error) break;
+        if (attempt < 2) await sleep(1500 * (attempt + 1));
+      }
 
       if (error) {
         console.error('Error fetching user permissions:', error);
-        
+
         // Fallback: check if user has admin role from user object
         const isAdmin = user.roles?.some(role => role.toLowerCase() === 'admin');
         if (isAdmin) {
-          permissionCache.set(user.id, ADMIN_PERMISSIONS);
+          persistPermissions(user.id, ADMIN_PERMISSIONS);
           setPermissions(ADMIN_PERMISSIONS);
-        } else {
-          permissionCache.set(user.id, ['dashboard_view']);
-          setPermissions(['dashboard_view']);
+          setIsDegraded(false);
+          return;
         }
+
+        // Keep whatever we last knew (memory or localStorage) instead of
+        // poisoning the cache with a dashboard-only set.
+        const lastKnown = permissionCache.get(user.id) || readPersistedPermissions(user.id);
+        setPermissions(lastKnown && lastKnown.length > 0 ? lastKnown : ['dashboard_view']);
+        setIsDegraded(true);
         return;
       }
 
-      if (userPermissions && Array.isArray(userPermissions)) {
-        const fetchedPermissions = userPermissions.map(p => p.permission);
-        permissionCache.set(user.id, fetchedPermissions);
+      if (userPermissions && Array.isArray(userPermissions) && userPermissions.length > 0) {
+        const fetchedPermissions = userPermissions.map((p: any) => p.permission);
+        persistPermissions(user.id, fetchedPermissions);
         setPermissions(fetchedPermissions);
+        setIsDegraded(false);
       } else {
-        permissionCache.set(user.id, ['dashboard_view']);
+        // Genuine empty result from the backend — authoritative.
+        persistPermissions(user.id, ['dashboard_view']);
         setPermissions(['dashboard_view']);
+        setIsDegraded(false);
       }
       
     } catch (error) {
       console.error('Error fetching permissions:', error);
-      setPermissions(['dashboard_view']);
+      const lastKnown = user ? permissionCache.get(user.id) || readPersistedPermissions(user.id) : null;
+      setPermissions(lastKnown && lastKnown.length > 0 ? lastKnown : ['dashboard_view']);
+      setIsDegraded(true);
     } finally {
       setIsLoading(false);
     }
@@ -121,6 +168,7 @@ export function usePermissions() {
   return {
     permissions,
     isLoading,
+    isDegraded,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,

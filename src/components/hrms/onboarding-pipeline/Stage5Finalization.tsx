@@ -1344,7 +1344,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                             type="button"
                             size="sm"
                             onClick={handleCreateRazorpayInvite}
-                            disabled={readOnly || creatingRazorpayInvite || !razorpayChecklist.allOk || alreadyCreated}
+                            disabled={readOnly || creatingRazorpayInvite || alreadyCreated}
                             title={alreadyCreated ? "Already created in RazorpayX — creating again would produce a duplicate." : undefined}
                           >
                             <Cloud className="h-3.5 w-3.5 mr-1.5" />

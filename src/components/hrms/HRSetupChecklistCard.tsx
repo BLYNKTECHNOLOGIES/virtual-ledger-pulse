@@ -35,24 +35,6 @@ const rows: Row[] = [
     route: "/hrms/leave/holidays",
     cta: "Set holidays",
   },
-  {
-    key: "tax",
-    label: "Income tax slabs (old & new regime)",
-    actor: "Decision",
-    need: (d) => d.tax_brackets === 0,
-    detail: (d) => `${d.tax_brackets} tax bracket${d.tax_brackets === 1 ? "" : "s"} configured`,
-    route: "/hrms/payroll/tax-config",
-    cta: "Configure tax",
-  },
-  {
-    key: "filing_statuses",
-    label: "Employee filing statuses (Single / Married / HUF)",
-    actor: "Decision",
-    need: (d) => d.filing_statuses === 0,
-    detail: (d) => `${d.filing_statuses} filing status${d.filing_statuses === 1 ? "" : "es"} defined`,
-    route: "/hrms/payroll/tax-config",
-    cta: "Add statuses",
-  },
   // "Salary structure attached to every employee" row retired — Razorpay is authority;
   // structures are assigned on RazorpayX and mirrored read-only per employee.
   {
@@ -89,10 +71,8 @@ export function HRSetupChecklistCard() {
   const { data, isLoading } = useQuery({
     queryKey: ["hr_setup_checklist"],
     queryFn: async () => {
-      const [h, tb, fs, es, bd, wo, sh, emp] = await Promise.all([
+      const [h, es, bd, wo, sh, emp] = await Promise.all([
         (supabase as any).from("hr_holidays").select("id", { count: "exact", head: true }),
-        (supabase as any).from("hr_tax_brackets").select("id", { count: "exact", head: true }),
-        (supabase as any).from("hr_filing_statuses").select("id", { count: "exact", head: true }),
         (supabase as any).from("hr_employee_salary_structures").select("employee_id", { count: "exact", head: true }),
         (supabase as any).from("hr_employee_bank_details").select("employee_id", { count: "exact", head: true }),
         (supabase as any).from("hr_employee_weekly_off").select("employee_id", { count: "exact", head: true }),
@@ -101,8 +81,6 @@ export function HRSetupChecklistCard() {
       ]);
       return {
         holidays: h.count || 0,
-        tax_brackets: tb.count || 0,
-        filing_statuses: fs.count || 0,
         structures: es.count || 0,
         bank: bd.count || 0,
         weekly_off: wo.count || 0,

@@ -140,7 +140,6 @@ const navGroups: NavGroup[] = [
           { label: "Penalties", path: "/hrms/payroll/penalties" },
           { label: "Penalty Auto-Calc", path: "/hrms/payroll/penalty-calc" },
           { label: "Loans & Advances", path: "/hrms/payroll/loans" },
-          { label: "Tax Config", path: "/hrms/payroll/tax-config" },
           { label: "Deposits", path: "/hrms/payroll/deposits" },
           { label: "Razorpay Diagnostics", path: "/hrms/payroll/razorpay-sync" },
           { label: "Payroll Calculation (Building)", path: "/hrms/payroll/shadow-calculator" },

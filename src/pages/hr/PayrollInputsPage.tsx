@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -25,8 +26,12 @@ type Kind = "addition" | "deduction";
 
 export default function PayrollInputsPage() {
   const qc = useQueryClient();
-  const [period, setPeriod] = useState(currentPeriod());
-  const [tab, setTab] = useState<Kind>("addition");
+  const [searchParams] = useSearchParams();
+  const paramTab = searchParams.get("tab") === "deduction" ? "deduction" : searchParams.get("tab") === "addition" ? "addition" : null;
+  const paramPeriod = searchParams.get("period");
+  const lopFocus = searchParams.get("focus") === "lop";
+  const [period, setPeriod] = useState(paramPeriod && /^\d{4}-\d{2}$/.test(paramPeriod) ? paramPeriod : currentPeriod());
+  const [tab, setTab] = useState<Kind>((paramTab as Kind) ?? (lopFocus ? "deduction" : "addition"));
   const [form, setForm] = useState({ hr_employee_id: "", label: "", amount: "", addition_type: "bonus", taxable: true });
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
@@ -77,6 +82,15 @@ export default function PayrollInputsPage() {
       return data || [];
     },
   });
+
+  // Cockpit step 3 deep-links here with focus=lop — narrow the list to loss-of-pay rows.
+  const visibleRows = useMemo(() => {
+    const all = (rows as any[]) ?? [];
+    if (!lopFocus || tab !== "deduction") return all;
+    return all.filter((r) => /lop|loss of pay|loss-of-pay/i.test(String(r.label ?? "")));
+  }, [rows, lopFocus, tab]);
+
+
 
   const stageMutation = useMutation({
     mutationFn: async () => {
@@ -201,11 +215,21 @@ export default function PayrollInputsPage() {
         </CardHeader>
       </Card>
 
+      {lopFocus && tab === "deduction" && (
+        <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+          <div className="font-medium">LOP push view</div>
+          <div className="text-muted-foreground mt-1">
+            Showing only loss-of-pay deductions staged for {period} (Cockpit step 3). Switch tabs to see all inputs.
+          </div>
+        </div>
+      )}
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
         <TabsList>
           <TabsTrigger value="addition">Additions</TabsTrigger>
           <TabsTrigger value="deduction">Deductions</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value={tab} className="space-y-4 mt-4">
           <Card>
@@ -277,7 +301,7 @@ export default function PayrollInputsPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-sm">Staged {tab}s for {period}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
@@ -290,9 +314,9 @@ export default function PayrollInputsPage() {
                 <tbody>
                   {isLoading ? (
                     <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
-                  ) : (rows as any[]).length === 0 ? (
-                    <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No staged {tab}s for {period}.</td></tr>
-                  ) : (rows as any[]).map((r) => (
+                  ) : visibleRows.length === 0 ? (
+                    <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
+                  ) : visibleRows.map((r) => (
                     <tr key={r.id} className="border-b hover:bg-muted/30">
                       <td className="px-3 py-2">{empLabel(r)}</td>
                       <td className="px-3 py-2">{r.label}</td>

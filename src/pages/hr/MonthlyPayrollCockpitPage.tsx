@@ -63,8 +63,8 @@ const STEP_ICONS: Record<string, any> = {
 const STEP_TARGET: Record<string, { path: string; label: string } | { href: string; label: string }> = {
   lock_attendance: { path: "/hrms/attendance/period-locks", label: "Open Period Locks" },
   watchdog_zero: { path: "/hrms/attendance/stale-sessions", label: "Open Stale Sessions" },
-  lop_push: { path: "/hrms/payroll/inputs", label: "Open Payroll Inputs" },
-  inputs_push: { path: "/hrms/payroll/inputs", label: "Open Payroll Inputs" },
+  lop_push: { path: "/hrms/payroll/inputs?tab=deduction&focus=lop", label: "Open LOP deductions" },
+  inputs_push: { path: "/hrms/payroll/inputs?tab=addition", label: "Open additions / deductions" },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
   import_payslips: { path: "/hrms/payroll/payslip-history-import", label: "Import Payslips" },
   shadow_compare: { path: "/hrms/payroll/shadow-calculator", label: "Run Shadow Payroll" },
@@ -298,7 +298,13 @@ export default function MonthlyPayrollCockpitPage() {
                     <div className="flex flex-col gap-2 md:min-w-[200px] md:items-end">
                       {target && "path" in target && step.step_key !== "close_month" && (
                         <Button variant="outline" size="sm" asChild className="gap-1.5">
-                          <Link to={target.path}>
+                          <Link
+                            to={
+                              target.path.includes("/payroll/inputs")
+                                ? `${target.path}&period=${month.slice(0, 7)}`
+                                : target.path
+                            }
+                          >
                             {target.label} <ChevronRight className="h-3.5 w-3.5" />
                           </Link>
                         </Button>

@@ -216,12 +216,14 @@ export default function MonthlyPayrollCockpitPage() {
             ) : (
               <Button
                 onClick={() => setCloseOpen(true)}
-                disabled={blockers.length > 0 || close.isPending}
+                disabled={close.isPending}
+                variant={blockers.length > 0 ? "outline" : "default"}
                 className="gap-1.5"
               >
                 <Flag className="h-4 w-4" />
-                Close month
+                {blockers.length > 0 ? `Close month (${blockers.length} blockers)` : "Close month"}
               </Button>
+
             )}
           </div>
         </CardContent>

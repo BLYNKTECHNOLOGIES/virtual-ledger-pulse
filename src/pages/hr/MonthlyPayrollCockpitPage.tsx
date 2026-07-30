@@ -229,9 +229,16 @@ export default function MonthlyPayrollCockpitPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {error ? (
+        <Card className="border-destructive/40">
+          <CardContent className="p-6 text-sm text-destructive">
+            Could not load cockpit steps: {(error as any)?.message || "unknown error"}
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading cockpit…</CardContent></Card>
       ) : (
+
         <div className="space-y-3">
           {steps.map((step) => {
             const Icon = STEP_ICONS[step.step_key] ?? Circle;

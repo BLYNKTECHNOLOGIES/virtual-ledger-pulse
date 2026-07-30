@@ -298,7 +298,13 @@ export default function MonthlyPayrollCockpitPage() {
                     <div className="flex flex-col gap-2 md:min-w-[200px] md:items-end">
                       {target && "path" in target && step.step_key !== "close_month" && (
                         <Button variant="outline" size="sm" asChild className="gap-1.5">
-                          <Link to={target.path}>
+                          <Link
+                            to={
+                              target.path.includes("/payroll/inputs")
+                                ? `${target.path}&period=${month.slice(0, 7)}`
+                                : target.path
+                            }
+                          >
                             {target.label} <ChevronRight className="h-3.5 w-3.5" />
                           </Link>
                         </Button>

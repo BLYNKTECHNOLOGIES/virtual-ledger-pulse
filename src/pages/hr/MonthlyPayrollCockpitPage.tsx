@@ -63,8 +63,8 @@ const STEP_ICONS: Record<string, any> = {
 const STEP_TARGET: Record<string, { path: string; label: string } | { href: string; label: string }> = {
   lock_attendance: { path: "/hrms/attendance/period-locks", label: "Open Period Locks" },
   watchdog_zero: { path: "/hrms/attendance/stale-sessions", label: "Open Stale Sessions" },
-  lop_push: { path: "/hrms/payroll/inputs", label: "Open Payroll Inputs" },
-  inputs_push: { path: "/hrms/payroll/inputs", label: "Open Payroll Inputs" },
+  lop_push: { path: "/hrms/payroll/inputs?tab=deduction&focus=lop", label: "Open LOP deductions" },
+  inputs_push: { path: "/hrms/payroll/inputs?tab=addition", label: "Open additions / deductions" },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
   import_payslips: { path: "/hrms/payroll/payslip-history-import", label: "Import Payslips" },
   shadow_compare: { path: "/hrms/payroll/shadow-calculator", label: "Run Shadow Payroll" },

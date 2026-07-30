@@ -292,7 +292,7 @@ export default function PayrollInputsPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-sm">Staged {tab}s for {period}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
@@ -305,9 +305,9 @@ export default function PayrollInputsPage() {
                 <tbody>
                   {isLoading ? (
                     <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
-                  ) : (rows as any[]).length === 0 ? (
-                    <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No staged {tab}s for {period}.</td></tr>
-                  ) : (rows as any[]).map((r) => (
+                  ) : visibleRows.length === 0 ? (
+                    <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
+                  ) : visibleRows.map((r) => (
                     <tr key={r.id} className="border-b hover:bg-muted/30">
                       <td className="px-3 py-2">{empLabel(r)}</td>
                       <td className="px-3 py-2">{r.label}</td>

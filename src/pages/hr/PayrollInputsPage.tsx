@@ -25,8 +25,12 @@ type Kind = "addition" | "deduction";
 
 export default function PayrollInputsPage() {
   const qc = useQueryClient();
-  const [period, setPeriod] = useState(currentPeriod());
-  const [tab, setTab] = useState<Kind>("addition");
+  const [searchParams] = useSearchParams();
+  const paramTab = searchParams.get("tab") === "deduction" ? "deduction" : searchParams.get("tab") === "addition" ? "addition" : null;
+  const paramPeriod = searchParams.get("period");
+  const lopFocus = searchParams.get("focus") === "lop";
+  const [period, setPeriod] = useState(paramPeriod && /^\d{4}-\d{2}$/.test(paramPeriod) ? paramPeriod : currentPeriod());
+  const [tab, setTab] = useState<Kind>((paramTab as Kind) ?? (lopFocus ? "deduction" : "addition"));
   const [form, setForm] = useState({ hr_employee_id: "", label: "", amount: "", addition_type: "bonus", taxable: true });
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);

@@ -169,7 +169,7 @@ export default function MonthlyPayrollCockpitPage() {
   const monthLabel = monthDate.toLocaleString("en-IN", { month: "long", year: "numeric" });
   const opts = useMemo(() => monthOptions(), []);
 
-  const { data: steps = [], isLoading } = useCockpitMonth(month);
+  const { data: steps = [], isLoading, error } = useCockpitMonth(month);
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 

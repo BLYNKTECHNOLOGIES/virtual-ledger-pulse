@@ -169,7 +169,7 @@ export default function MonthlyPayrollCockpitPage() {
   const monthLabel = monthDate.toLocaleString("en-IN", { month: "long", year: "numeric" });
   const opts = useMemo(() => monthOptions(), []);
 
-  const { data: steps = [], isLoading } = useCockpitMonth(month);
+  const { data: steps = [], isLoading, error } = useCockpitMonth(month);
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 
@@ -216,20 +216,29 @@ export default function MonthlyPayrollCockpitPage() {
             ) : (
               <Button
                 onClick={() => setCloseOpen(true)}
-                disabled={blockers.length > 0 || close.isPending}
+                disabled={close.isPending}
+                variant={blockers.length > 0 ? "outline" : "default"}
                 className="gap-1.5"
               >
                 <Flag className="h-4 w-4" />
-                Close month
+                {blockers.length > 0 ? `Close month (${blockers.length} blockers)` : "Close month"}
               </Button>
+
             )}
           </div>
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {error ? (
+        <Card className="border-destructive/40">
+          <CardContent className="p-6 text-sm text-destructive">
+            Could not load cockpit steps: {(error as any)?.message || "unknown error"}
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading cockpit…</CardContent></Card>
       ) : (
+
         <div className="space-y-3">
           {steps.map((step) => {
             const Icon = STEP_ICONS[step.step_key] ?? Circle;

@@ -206,11 +206,21 @@ export default function PayrollInputsPage() {
         </CardHeader>
       </Card>
 
+      {lopFocus && tab === "deduction" && (
+        <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+          <div className="font-medium">LOP push view</div>
+          <div className="text-muted-foreground mt-1">
+            Showing only loss-of-pay deductions staged for {period} (Cockpit step 3). Switch tabs to see all inputs.
+          </div>
+        </div>
+      )}
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
         <TabsList>
           <TabsTrigger value="addition">Additions</TabsTrigger>
           <TabsTrigger value="deduction">Deductions</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value={tab} className="space-y-4 mt-4">
           <Card>

@@ -83,6 +83,15 @@ export default function PayrollInputsPage() {
     },
   });
 
+  // Cockpit step 3 deep-links here with focus=lop — narrow the list to loss-of-pay rows.
+  const visibleRows = useMemo(() => {
+    const all = (rows as any[]) ?? [];
+    if (!lopFocus || tab !== "deduction") return all;
+    return all.filter((r) => /lop|loss of pay|loss-of-pay/i.test(String(r.label ?? "")));
+  }, [rows, lopFocus, tab]);
+
+
+
   const stageMutation = useMutation({
     mutationFn: async () => {
       const emp = empById.get(form.hr_employee_id);

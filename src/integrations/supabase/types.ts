@@ -24556,6 +24556,14 @@ export type Database = {
         Args: { p_employee_id: string; p_on?: string }
         Returns: boolean
       }
+      hr_is_sick_leave_code: {
+        Args: { _code: string; _name?: string }
+        Returns: boolean
+      }
+      hr_is_sick_leave_type: {
+        Args: { _leave_type_id: string }
+        Returns: boolean
+      }
       hr_lop_days: {
         Args: { p_employee_ids: string[]; p_period_month: string }
         Returns: {

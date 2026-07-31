@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -136,73 +136,73 @@ export function DirectoryTab() {
       // The journal directory and its CSV export must include the full history, not just the latest page.
 
       // Bank transactions - EXCLUDE purchase-related transactions to avoid duplicates
-      const bankData = await fetchAllPaginated<any>(
-        () => supabase
-          .from('bank_transactions')
-          .select(`
-            id,
-            amount,
-            transaction_date,
-            transaction_type,
-            description,
-            category,
-            reference_number,
-            related_account_name,
-            created_at,
-            created_by,
-            is_reversed,
-            reverses_transaction_id,
-            reversal_reason,
-            bank_accounts!bank_account_id(account_name, bank_name, id, account_number),
-            created_by_user:users!created_by(username, first_name, last_name)
-          `)
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
-          .order('transaction_date', { ascending: false })
-      );
-
-      // Sales orders - only show orders that actually created bank transactions (non-payment gateway)
-      const salesData = await fetchAllPaginated<any>(
-        () => supabase
-          .from('sales_orders')
-          .select(`
-            id,
-            total_amount,
-            order_date,
-            order_number,
-            client_name,
-            description,
-            status,
-            created_at,
-            created_by,
-            settlement_status,
-            sales_payment_methods(type, payment_gateway, bank_accounts(account_name, bank_name, id, account_number)),
-            created_by_user:users!created_by(username, first_name, last_name)
-          `)
-          .eq('settlement_status', 'DIRECT')
-          .order('order_date', { ascending: false })
-      );
-
-      // Purchase orders with bank account details - only show completed ones
-      const purchaseData = await fetchAllPaginated<any>(
-        () => supabase
-          .from('purchase_orders')
-          .select(`
-            id,
-            total_amount,
-            order_date,
-            order_number,
-            supplier_name,
-            description,
-            status,
-            created_at,
-            created_by,
-            bank_account_id,
-            bank_accounts:bank_account_id(account_name, bank_name, id, account_number),
-            created_by_user:users!created_by(username, first_name, last_name)
-          `)
-          .eq('status', 'COMPLETED')
-          .order('order_date', { ascending: false })
-      );
+      const [bankData, salesData, purchaseData] = await Promise.all([
+        fetchAllPaginated<any>(
+          () => supabase
+            .from('bank_transactions')
+            .select(`
+              id,
+              amount,
+              transaction_date,
+              transaction_type,
+              description,
+              category,
+              reference_number,
+              related_account_name,
+              created_at,
+              created_by,
+              is_reversed,
+              reverses_transaction_id,
+              reversal_reason,
+              bank_accounts!bank_account_id(account_name, bank_name, id, account_number),
+              created_by_user:users!created_by(username, first_name, last_name)
+            `)
+            .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
+            .order('transaction_date', { ascending: false })
+        ),
+        // Sales orders - only show orders that actually created bank transactions (non-payment gateway)
+        fetchAllPaginated<any>(
+          () => supabase
+            .from('sales_orders')
+            .select(`
+              id,
+              total_amount,
+              order_date,
+              order_number,
+              client_name,
+              description,
+              status,
+              created_at,
+              created_by,
+              settlement_status,
+              sales_payment_methods(type, payment_gateway, bank_accounts(account_name, bank_name, id, account_number)),
+              created_by_user:users!created_by(username, first_name, last_name)
+            `)
+            .eq('settlement_status', 'DIRECT')
+            .order('order_date', { ascending: false })
+        ),
+        // Purchase orders with bank account details - only show completed ones
+        fetchAllPaginated<any>(
+          () => supabase
+            .from('purchase_orders')
+            .select(`
+              id,
+              total_amount,
+              order_date,
+              order_number,
+              supplier_name,
+              description,
+              status,
+              created_at,
+              created_by,
+              bank_account_id,
+              bank_accounts:bank_account_id(account_name, bank_name, id, account_number),
+              created_by_user:users!created_by(username, first_name, last_name)
+            `)
+            .eq('status', 'COMPLETED')
+            .order('order_date', { ascending: false })
+        ),
+      ]);
 
       // Fetch split payments for purchase orders (chunked IN-clause to stay under URL limits)
       const purchaseIds = (purchaseData || []).map(p => p.id);
@@ -210,20 +210,24 @@ export function DirectoryTab() {
 
       if (purchaseIds.length > 0) {
         const SPLIT_CHUNK = 200;
-        const allSplits: any[] = [];
+        const chunks: string[][] = [];
         for (let i = 0; i < purchaseIds.length; i += SPLIT_CHUNK) {
-          const chunk = purchaseIds.slice(i, i + SPLIT_CHUNK);
-          const { data: splitData } = await supabase
-            .from('purchase_order_payment_splits')
-            .select(`
-              purchase_order_id,
-              amount,
-              bank_account_id,
-              bank_accounts:bank_account_id(account_name, bank_name, id, account_number)
-            `)
-            .in('purchase_order_id', chunk);
-          if (splitData) allSplits.push(...splitData);
+          chunks.push(purchaseIds.slice(i, i + SPLIT_CHUNK));
         }
+        const results = await Promise.all(
+          chunks.map((chunk) =>
+            supabase
+              .from('purchase_order_payment_splits')
+              .select(`
+                purchase_order_id,
+                amount,
+                bank_account_id,
+                bank_accounts:bank_account_id(account_name, bank_name, id, account_number)
+              `)
+              .in('purchase_order_id', chunk)
+          )
+        );
+        const allSplits: any[] = results.flatMap((r) => r.data || []);
         for (const split of allSplits) {
           const poId = (split as any).purchase_order_id;
           if (!splitPaymentsMap[poId]) splitPaymentsMap[poId] = [];
@@ -316,50 +320,58 @@ export function DirectoryTab() {
         return bTime - aTime;
       });
     },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  // Filter transactions based on selected filters
-  const filteredTransactions = allTransactions?.filter(transaction => {
-    // Bank account filter
-    if (selectedBankAccount && selectedBankAccount !== "all" && transaction.bank_account_id !== selectedBankAccount) {
-      return false;
-    }
+  // Filter transactions based on selected filters (memoized — the dataset is large)
+  const filteredTransactions = useMemo(() => {
+    if (!allTransactions) return [];
+    const typeMapping: { [key: string]: string[] } = {
+      'sales': ['SALES_ORDER'],
+      'settlement': ['INCOME'],
+      'expense': ['EXPENSE'],
+      'income': ['INCOME'],
+      'transfer': ['TRANSFER_IN', 'TRANSFER_OUT'],
+      'purchase': ['PURCHASE_ORDER'],
+      'adjustment': ['ADJUSTMENT'],
+    };
+    const fromTime = dateFrom ? dateFrom.getTime() : null;
+    const toTime = dateTo ? dateTo.getTime() : null;
 
-    // Transaction type filter
-    if (selectedTransactionType && selectedTransactionType !== "all") {
-      const typeMapping: { [key: string]: string[] } = {
-        'sales': ['SALES_ORDER'],
-        'settlement': ['INCOME'],
-        'expense': ['EXPENSE'],
-        'income': ['INCOME'],
-        'transfer': ['TRANSFER_IN', 'TRANSFER_OUT'],
-        'purchase': ['PURCHASE_ORDER'],
-        'adjustment': ['ADJUSTMENT']
-      };
-      
-      const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];
-      if (!allowedTypes.includes(transaction.display_type)) {
+    return allTransactions.filter((transaction: any) => {
+      if (selectedBankAccount !== "all" && transaction.bank_account_id !== selectedBankAccount) return false;
+
+      if (selectedTransactionType !== "all") {
+        const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];
+        if (!allowedTypes.includes(transaction.display_type)) return false;
+      }
+
+      if (fromTime !== null || toTime !== null) {
+        const t = new Date(transaction.display_date).getTime();
+        if (fromTime !== null && t < fromTime) return false;
+        if (toTime !== null && t > toTime) return false;
+      }
+
+      if (hideReversalNoise && transaction.source === 'BANK' && (transaction.is_reversed || transaction.reverses_transaction_id)) {
         return false;
       }
-    }
+      return true;
+    });
+  }, [allTransactions, selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
 
-    // Date range filter
-    const transactionDate = new Date(transaction.display_date);
-    if (dateFrom && transactionDate < dateFrom) {
-      return false;
-    }
-    if (dateTo && transactionDate > dateTo) {
-      return false;
-    }
+  // Render only a window of rows — rendering ~18k cards freezes/crashes the tab
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
+  const visibleTransactions = useMemo(
+    () => filteredTransactions.slice(0, visibleCount),
+    [filteredTransactions, visibleCount]
+  );
 
-    return true;
-  }).filter((transaction: any) => {
-    // Hide reversal noise toggle (BANK source only — derived rows from sales/purchase don't carry these flags)
-    if (hideReversalNoise && transaction.source === 'BANK' && (transaction.is_reversed || transaction.reverses_transaction_id)) {
-      return false;
-    }
-    return true;
-  }) || [];
 
   const clearFilters = () => {
     setSelectedBankAccount("all");
@@ -797,7 +809,7 @@ export function DirectoryTab() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredTransactions.map((transaction) => (
+              {visibleTransactions.map((transaction) => (
                 <div
                   key={`${transaction.source}-${transaction.id}`}
                   className="p-3 md:p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
@@ -868,6 +880,20 @@ export function DirectoryTab() {
                   </div>
                 </div>
               ))}
+              {visibleCount < filteredTransactions.length && (
+                <div className="flex flex-col items-center gap-2 pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {visibleTransactions.length} of {filteredTransactions.length}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

@@ -173,7 +173,7 @@ export function ProductCardListingTab() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{totalInventoryValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold">₹{totalInventoryValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">Based on average buying price</p>
           </CardContent>
         </Card>

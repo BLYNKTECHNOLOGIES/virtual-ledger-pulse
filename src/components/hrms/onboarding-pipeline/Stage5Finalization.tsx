@@ -1238,7 +1238,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             <span className="text-muted-foreground">Email:</span>
             <span>{onboardingRecord?.email || "—"}</span>
             <span className="text-muted-foreground">CTC:</span>
-            <span>{onboardingRecord?.ctc ? `₹${Number(onboardingRecord.ctc).toLocaleString()}` : "—"}</span>
+            <span>{onboardingRecord?.ctc ? `₹${Number(onboardingRecord.ctc).toLocaleString("en-IN")}` : "—"}</span>
             <span className="text-muted-foreground">Documents:</span>
             <Badge variant={onboardingRecord?.document_collection_status === "completed" ? "default" : "destructive"}>
               {onboardingRecord?.document_collection_status || "pending"}

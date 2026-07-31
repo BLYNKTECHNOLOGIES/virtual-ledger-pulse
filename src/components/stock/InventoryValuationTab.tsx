@@ -29,7 +29,7 @@ export function InventoryValuationTab() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold">₹{totalValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
               Based on average buying price
             </p>
@@ -90,7 +90,7 @@ export function InventoryValuationTab() {
                       {product.average_cost > 0 ? `₹${product.average_cost.toFixed(2)}` : '—'}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
-                      {product.total_value > 0 ? `₹${product.total_value.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
+                      {product.total_value > 0 ? `₹${product.total_value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : '—'}
                     </TableCell>
                   </TableRow>
                 ))}

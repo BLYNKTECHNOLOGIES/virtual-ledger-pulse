@@ -148,7 +148,7 @@ export function ClientOrderSummaryDialog({
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <span className="text-sm text-muted-foreground">Avg. Value</span>
               </div>
-              <p className="text-2xl font-bold mt-1">₹{summary.averageValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+              <p className="text-2xl font-bold mt-1">₹{summary.averageValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</p>
             </CardContent>
           </Card>
           

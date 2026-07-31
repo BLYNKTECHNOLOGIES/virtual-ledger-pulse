@@ -880,6 +880,20 @@ export function DirectoryTab() {
                   </div>
                 </div>
               ))}
+              {visibleCount < filteredTransactions.length && (
+                <div className="flex flex-col items-center gap-2 pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {visibleTransactions.length} of {filteredTransactions.length}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

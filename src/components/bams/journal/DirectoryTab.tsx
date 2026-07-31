@@ -809,7 +809,7 @@ export function DirectoryTab() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredTransactions.map((transaction) => (
+              {visibleTransactions.map((transaction) => (
                 <div
                   key={`${transaction.source}-${transaction.id}`}
                   className="p-3 md:p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors"

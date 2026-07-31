@@ -136,73 +136,73 @@ export function DirectoryTab() {
       // The journal directory and its CSV export must include the full history, not just the latest page.
 
       // Bank transactions - EXCLUDE purchase-related transactions to avoid duplicates
-      const bankData = await fetchAllPaginated<any>(
-        () => supabase
-          .from('bank_transactions')
-          .select(`
-            id,
-            amount,
-            transaction_date,
-            transaction_type,
-            description,
-            category,
-            reference_number,
-            related_account_name,
-            created_at,
-            created_by,
-            is_reversed,
-            reverses_transaction_id,
-            reversal_reason,
-            bank_accounts!bank_account_id(account_name, bank_name, id, account_number),
-            created_by_user:users!created_by(username, first_name, last_name)
-          `)
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
-          .order('transaction_date', { ascending: false })
-      );
-
-      // Sales orders - only show orders that actually created bank transactions (non-payment gateway)
-      const salesData = await fetchAllPaginated<any>(
-        () => supabase
-          .from('sales_orders')
-          .select(`
-            id,
-            total_amount,
-            order_date,
-            order_number,
-            client_name,
-            description,
-            status,
-            created_at,
-            created_by,
-            settlement_status,
-            sales_payment_methods(type, payment_gateway, bank_accounts(account_name, bank_name, id, account_number)),
-            created_by_user:users!created_by(username, first_name, last_name)
-          `)
-          .eq('settlement_status', 'DIRECT')
-          .order('order_date', { ascending: false })
-      );
-
-      // Purchase orders with bank account details - only show completed ones
-      const purchaseData = await fetchAllPaginated<any>(
-        () => supabase
-          .from('purchase_orders')
-          .select(`
-            id,
-            total_amount,
-            order_date,
-            order_number,
-            supplier_name,
-            description,
-            status,
-            created_at,
-            created_by,
-            bank_account_id,
-            bank_accounts:bank_account_id(account_name, bank_name, id, account_number),
-            created_by_user:users!created_by(username, first_name, last_name)
-          `)
-          .eq('status', 'COMPLETED')
-          .order('order_date', { ascending: false })
-      );
+      const [bankData, salesData, purchaseData] = await Promise.all([
+        fetchAllPaginated<any>(
+          () => supabase
+            .from('bank_transactions')
+            .select(`
+              id,
+              amount,
+              transaction_date,
+              transaction_type,
+              description,
+              category,
+              reference_number,
+              related_account_name,
+              created_at,
+              created_by,
+              is_reversed,
+              reverses_transaction_id,
+              reversal_reason,
+              bank_accounts!bank_account_id(account_name, bank_name, id, account_number),
+              created_by_user:users!created_by(username, first_name, last_name)
+            `)
+            .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
+            .order('transaction_date', { ascending: false })
+        ),
+        // Sales orders - only show orders that actually created bank transactions (non-payment gateway)
+        fetchAllPaginated<any>(
+          () => supabase
+            .from('sales_orders')
+            .select(`
+              id,
+              total_amount,
+              order_date,
+              order_number,
+              client_name,
+              description,
+              status,
+              created_at,
+              created_by,
+              settlement_status,
+              sales_payment_methods(type, payment_gateway, bank_accounts(account_name, bank_name, id, account_number)),
+              created_by_user:users!created_by(username, first_name, last_name)
+            `)
+            .eq('settlement_status', 'DIRECT')
+            .order('order_date', { ascending: false })
+        ),
+        // Purchase orders with bank account details - only show completed ones
+        fetchAllPaginated<any>(
+          () => supabase
+            .from('purchase_orders')
+            .select(`
+              id,
+              total_amount,
+              order_date,
+              order_number,
+              supplier_name,
+              description,
+              status,
+              created_at,
+              created_by,
+              bank_account_id,
+              bank_accounts:bank_account_id(account_name, bank_name, id, account_number),
+              created_by_user:users!created_by(username, first_name, last_name)
+            `)
+            .eq('status', 'COMPLETED')
+            .order('order_date', { ascending: false })
+        ),
+      ]);
 
       // Fetch split payments for purchase orders (chunked IN-clause to stay under URL limits)
       const purchaseIds = (purchaseData || []).map(p => p.id);
@@ -210,20 +210,24 @@ export function DirectoryTab() {
 
       if (purchaseIds.length > 0) {
         const SPLIT_CHUNK = 200;
-        const allSplits: any[] = [];
+        const chunks: string[][] = [];
         for (let i = 0; i < purchaseIds.length; i += SPLIT_CHUNK) {
-          const chunk = purchaseIds.slice(i, i + SPLIT_CHUNK);
-          const { data: splitData } = await supabase
-            .from('purchase_order_payment_splits')
-            .select(`
-              purchase_order_id,
-              amount,
-              bank_account_id,
-              bank_accounts:bank_account_id(account_name, bank_name, id, account_number)
-            `)
-            .in('purchase_order_id', chunk);
-          if (splitData) allSplits.push(...splitData);
+          chunks.push(purchaseIds.slice(i, i + SPLIT_CHUNK));
         }
+        const results = await Promise.all(
+          chunks.map((chunk) =>
+            supabase
+              .from('purchase_order_payment_splits')
+              .select(`
+                purchase_order_id,
+                amount,
+                bank_account_id,
+                bank_accounts:bank_account_id(account_name, bank_name, id, account_number)
+              `)
+              .in('purchase_order_id', chunk)
+          )
+        );
+        const allSplits: any[] = results.flatMap((r) => r.data || []);
         for (const split of allSplits) {
           const poId = (split as any).purchase_order_id;
           if (!splitPaymentsMap[poId]) splitPaymentsMap[poId] = [];

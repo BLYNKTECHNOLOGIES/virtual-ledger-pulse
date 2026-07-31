@@ -49,7 +49,7 @@ export function AssetValueHistoryTab() {
   }, [historyData, viewMode]);
 
   const formatCurrency = (value: number) =>
-    `₹${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
   const latestValue = historyData?.length
     ? Number(historyData[historyData.length - 1].total_asset_value)

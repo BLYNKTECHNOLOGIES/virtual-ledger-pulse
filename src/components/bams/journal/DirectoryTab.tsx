@@ -320,50 +320,58 @@ export function DirectoryTab() {
         return bTime - aTime;
       });
     },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  // Filter transactions based on selected filters
-  const filteredTransactions = allTransactions?.filter(transaction => {
-    // Bank account filter
-    if (selectedBankAccount && selectedBankAccount !== "all" && transaction.bank_account_id !== selectedBankAccount) {
-      return false;
-    }
+  // Filter transactions based on selected filters (memoized — the dataset is large)
+  const filteredTransactions = useMemo(() => {
+    if (!allTransactions) return [];
+    const typeMapping: { [key: string]: string[] } = {
+      'sales': ['SALES_ORDER'],
+      'settlement': ['INCOME'],
+      'expense': ['EXPENSE'],
+      'income': ['INCOME'],
+      'transfer': ['TRANSFER_IN', 'TRANSFER_OUT'],
+      'purchase': ['PURCHASE_ORDER'],
+      'adjustment': ['ADJUSTMENT'],
+    };
+    const fromTime = dateFrom ? dateFrom.getTime() : null;
+    const toTime = dateTo ? dateTo.getTime() : null;
 
-    // Transaction type filter
-    if (selectedTransactionType && selectedTransactionType !== "all") {
-      const typeMapping: { [key: string]: string[] } = {
-        'sales': ['SALES_ORDER'],
-        'settlement': ['INCOME'],
-        'expense': ['EXPENSE'],
-        'income': ['INCOME'],
-        'transfer': ['TRANSFER_IN', 'TRANSFER_OUT'],
-        'purchase': ['PURCHASE_ORDER'],
-        'adjustment': ['ADJUSTMENT']
-      };
-      
-      const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];
-      if (!allowedTypes.includes(transaction.display_type)) {
+    return allTransactions.filter((transaction: any) => {
+      if (selectedBankAccount !== "all" && transaction.bank_account_id !== selectedBankAccount) return false;
+
+      if (selectedTransactionType !== "all") {
+        const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];
+        if (!allowedTypes.includes(transaction.display_type)) return false;
+      }
+
+      if (fromTime !== null || toTime !== null) {
+        const t = new Date(transaction.display_date).getTime();
+        if (fromTime !== null && t < fromTime) return false;
+        if (toTime !== null && t > toTime) return false;
+      }
+
+      if (hideReversalNoise && transaction.source === 'BANK' && (transaction.is_reversed || transaction.reverses_transaction_id)) {
         return false;
       }
-    }
+      return true;
+    });
+  }, [allTransactions, selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
 
-    // Date range filter
-    const transactionDate = new Date(transaction.display_date);
-    if (dateFrom && transactionDate < dateFrom) {
-      return false;
-    }
-    if (dateTo && transactionDate > dateTo) {
-      return false;
-    }
+  // Render only a window of rows — rendering ~18k cards freezes/crashes the tab
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
+  const visibleTransactions = useMemo(
+    () => filteredTransactions.slice(0, visibleCount),
+    [filteredTransactions, visibleCount]
+  );
 
-    return true;
-  }).filter((transaction: any) => {
-    // Hide reversal noise toggle (BANK source only — derived rows from sales/purchase don't carry these flags)
-    if (hideReversalNoise && transaction.source === 'BANK' && (transaction.is_reversed || transaction.reverses_transaction_id)) {
-      return false;
-    }
-    return true;
-  }) || [];
 
   const clearFilters = () => {
     setSelectedBankAccount("all");

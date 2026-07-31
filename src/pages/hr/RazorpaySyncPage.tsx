@@ -2412,7 +2412,7 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
       const d = await invoke<any>({ action, period_month: period, ...body });
       toast({ title: `${action} · ok`, description: d?.summary
         ? `pushed ${d.summary.pushed} · failed ${d.summary.failed}`
-        : d?.totals ? `net ₹${Math.round(d.totals.net).toLocaleString()}` : "done" });
+        : d?.totals ? `net ₹${Math.round(d.totals.net).toLocaleString("en-IN")}` : "done" });
       await reload();
     } catch (e: any) {
       toast({ title: `${action} failed`, description: e?.message, variant: "destructive" });
@@ -2481,11 +2481,11 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
             </div>
             <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
               <div className="text-[10px] uppercase tracking-wide opacity-70">Gross</div>
-              <div className="text-base font-semibold tabular-nums">₹{Math.round(run.totals_gross ?? 0).toLocaleString()}</div>
+              <div className="text-base font-semibold tabular-nums">₹{Math.round(run.totals_gross ?? 0).toLocaleString("en-IN")}</div>
             </div>
             <div className="rounded-md border px-2 py-1.5 border-border bg-muted/40">
               <div className="text-[10px] uppercase tracking-wide opacity-70">Net</div>
-              <div className="text-base font-semibold tabular-nums">₹{Math.round(run.totals_net ?? 0).toLocaleString()}</div>
+              <div className="text-base font-semibold tabular-nums">₹{Math.round(run.totals_net ?? 0).toLocaleString("en-IN")}</div>
             </div>
           </div>
         )}
@@ -2607,11 +2607,11 @@ function PayrollRunSection({ invoke }: { invoke: <T,>(body: object) => Promise<T
                   {lines.slice(0, 300).map((l) => (
                     <tr key={l.id} className="border-t">
                       <td className="p-2 font-mono">{l.employee_id.slice(0, 8)}</td>
-                      <td className="p-2 tabular-nums">₹{Math.round(l.gross_earnings).toLocaleString()}</td>
-                      <td className="p-2 tabular-nums">₹{Math.round(l.lop_amount).toLocaleString()}</td>
-                      <td className="p-2 tabular-nums">₹{Math.round(l.loan_emi).toLocaleString()}</td>
-                      <td className="p-2 tabular-nums">₹{Math.round(l.other_deductions).toLocaleString()}</td>
-                      <td className="p-2 tabular-nums font-semibold">₹{Math.round(l.net_pay).toLocaleString()}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.gross_earnings).toLocaleString("en-IN")}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.lop_amount).toLocaleString("en-IN")}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.loan_emi).toLocaleString("en-IN")}</td>
+                      <td className="p-2 tabular-nums">₹{Math.round(l.other_deductions).toLocaleString("en-IN")}</td>
+                      <td className="p-2 tabular-nums font-semibold">₹{Math.round(l.net_pay).toLocaleString("en-IN")}</td>
                       <td className="p-2">
                         {l.skip_label
                           ? <Badge variant="outline" className="text-[10px]">{l.skip_label}</Badge>
@@ -2821,10 +2821,10 @@ function PayoutReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
                             {r.payout_status || "—"}
                           </Badge>
                         </td>
-                        <td className="p-2 tabular-nums">{r.expected_amount != null ? `₹${Math.round(r.expected_amount).toLocaleString()}` : "—"}</td>
-                        <td className="p-2 tabular-nums">{r.paid_amount != null ? `₹${Math.round(r.paid_amount).toLocaleString()}` : "—"}</td>
+                        <td className="p-2 tabular-nums">{r.expected_amount != null ? `₹${Math.round(r.expected_amount).toLocaleString("en-IN")}` : "—"}</td>
+                        <td className="p-2 tabular-nums">{r.paid_amount != null ? `₹${Math.round(r.paid_amount).toLocaleString("en-IN")}` : "—"}</td>
                         <td className={`p-2 tabular-nums ${bad ? "text-destructive font-semibold" : ""}`}>
-                          {r.variance != null ? `₹${Math.round(r.variance).toLocaleString()}` : "—"}
+                          {r.variance != null ? `₹${Math.round(r.variance).toLocaleString("en-IN")}` : "—"}
                         </td>
                         <td className="p-2 font-mono">{r.utr || "—"}</td>
                         <td className="p-2">{r.paid_at ? new Date(r.paid_at).toLocaleDateString() : "—"}</td>
@@ -3063,13 +3063,13 @@ function PayslipTaxDocSection({ invoke }: { invoke: <T,>(body: object) => Promis
                       return (
                         <tr key={r.id} className="border-t">
                           <td className="p-2 font-mono">{r.razorpay_employee_id}</td>
-                          <td className="p-2 tabular-nums">{r.gross_earnings != null ? `₹${Math.round(r.gross_earnings).toLocaleString()}` : "—"}</td>
-                          <td className="p-2 tabular-nums">{r.total_deductions != null ? `₹${Math.round(r.total_deductions).toLocaleString()}` : "—"}</td>
-                          <td className="p-2 tabular-nums">{r.net_pay != null ? `₹${Math.round(r.net_pay).toLocaleString()}` : "—"}</td>
-                          <td className="p-2 tabular-nums">{r.tds_amount != null ? `₹${Math.round(r.tds_amount).toLocaleString()}` : "—"}</td>
-                          <td className="p-2 tabular-nums">{r.expected_net != null ? `₹${Math.round(r.expected_net).toLocaleString()}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.gross_earnings != null ? `₹${Math.round(r.gross_earnings).toLocaleString("en-IN")}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.total_deductions != null ? `₹${Math.round(r.total_deductions).toLocaleString("en-IN")}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.net_pay != null ? `₹${Math.round(r.net_pay).toLocaleString("en-IN")}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.tds_amount != null ? `₹${Math.round(r.tds_amount).toLocaleString("en-IN")}` : "—"}</td>
+                          <td className="p-2 tabular-nums">{r.expected_net != null ? `₹${Math.round(r.expected_net).toLocaleString("en-IN")}` : "—"}</td>
                           <td className={`p-2 tabular-nums ${bad ? "text-destructive font-semibold" : ""}`}>
-                            {r.variance != null ? `₹${Math.round(r.variance).toLocaleString()}` : "—"}
+                            {r.variance != null ? `₹${Math.round(r.variance).toLocaleString("en-IN")}` : "—"}
                           </td>
                           <td className="p-2">
                             {r.pdf_url
@@ -3166,8 +3166,8 @@ function PayslipTaxDocSection({ invoke }: { invoke: <T,>(body: object) => Promis
                     <tr key={r.id} className="border-t">
                       <td className="p-2 font-mono">{r.razorpay_employee_id}</td>
                       <td className="p-2 font-mono">{r.razorpay_document_id || "—"}</td>
-                      <td className="p-2 tabular-nums">{r.gross_annual != null ? `₹${Math.round(r.gross_annual).toLocaleString()}` : "—"}</td>
-                      <td className="p-2 tabular-nums">{r.total_tds != null ? `₹${Math.round(r.total_tds).toLocaleString()}` : "—"}</td>
+                      <td className="p-2 tabular-nums">{r.gross_annual != null ? `₹${Math.round(r.gross_annual).toLocaleString("en-IN")}` : "—"}</td>
+                      <td className="p-2 tabular-nums">{r.total_tds != null ? `₹${Math.round(r.total_tds).toLocaleString("en-IN")}` : "—"}</td>
                       <td className="p-2">
                         {r.pdf_url
                           ? <a href={r.pdf_url} target="_blank" rel="noreferrer" className="text-primary underline">open</a>

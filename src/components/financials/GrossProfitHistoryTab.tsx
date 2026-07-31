@@ -165,7 +165,7 @@ export function GrossProfitHistoryTab() {
 
 
   const formatCurrency = (value: number) =>
-    `₹${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
   const latestValue = mergedData?.length
     ? Number(mergedData[mergedData.length - 1].gross_profit)
@@ -379,7 +379,7 @@ export function GrossProfitHistoryTab() {
                         <TableCell className="text-right font-mono text-sm">{Number(item.total_sales_qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-mono text-sm">₹{npm.toFixed(2)}</TableCell>
                         <TableCell className={`text-right font-mono text-sm font-semibold ${Number(item.gross_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          ₹{Number(item.gross_profit).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          ₹{Number(item.gross_profit).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
                     );
@@ -390,7 +390,7 @@ export function GrossProfitHistoryTab() {
                       <TableCell className="text-right font-mono text-sm">—</TableCell>
                       <TableCell className="text-right font-mono text-sm">₹{Number(item.npm).toFixed(2)}</TableCell>
                       <TableCell className={`text-right font-mono text-sm font-semibold ${item.value >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        ₹{Number(item.value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        ₹{Number(item.value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
                   ))}

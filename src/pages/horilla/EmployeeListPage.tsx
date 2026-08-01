@@ -389,7 +389,7 @@ export default function EmployeeListPage() {
         "Shift": getShiftName(wi?.shift_id || null),
         "Work Type": wi?.work_type || "",
         "Employee Type": wi?.employee_type || "",
-        "Date of Joining": (wi as any)?.date_joining || "",
+        "Date of Joining": (wi as any)?.joining_date || (wi as any)?.date_joining || "",
         "Status": emp.is_active ? "Active" : "Inactive",
       };
     });
@@ -1161,6 +1161,7 @@ export default function EmployeeListPage() {
       "Shift": getShiftName(wi?.shift_id || null),
       "Work Type": wi?.work_type || "",
       "Employee Type": wi?.employee_type || "",
+      "Date of Joining": (wi as any)?.joining_date || "",
       "Status": emp.is_active ? "Active" : "Inactive",
     }];
     const ws = XLSX.utils.json_to_sheet(rows);

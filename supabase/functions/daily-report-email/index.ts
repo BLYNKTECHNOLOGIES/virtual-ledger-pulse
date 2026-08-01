@@ -223,6 +223,23 @@ async function fetchAllRows(builder: () => any): Promise<any[]> {
   return out;
 }
 
+// Fetch rows filtered by a large ID list, in chunks. PostgREST puts `.in()`
+// filters in the request URL, so a few thousand UUIDs (routine for a MONTHLY
+// range) trip the gateway's header limit -> "Request Header Fields Too Large".
+async function fetchByIdsChunked(
+  build: (idsChunk: string[]) => any,
+  ids: string[],
+  chunkSize = 150,
+): Promise<any[]> {
+  const out: any[] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const rows = await fetchAllRows(() => build(chunk));
+    out.push(...rows);
+  }
+  return out;
+}
+
 async function buildAssetValue(supabase: any) {
   // 1. Bank balances (Active + Dormant), excluding adjustment bucket
   const { data: banks } = await supabase

@@ -200,10 +200,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">Employee Type</label>
             <select value={form.employee_type} onChange={e => setForm({ ...form, employee_type: e.target.value })} className={inputCls}>
-              <option value="Full-time">Full-time</option>
-              <option value="Part-time">Part-time</option>
-              <option value="Contract">Contract</option>
-              <option value="Intern">Intern</option>
+              {EMPLOYEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
         </div>

@@ -24551,6 +24551,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      hr_is_contractor: { Args: { _employee_id: string }; Returns: boolean }
       hr_is_hr_admin: { Args: never; Returns: boolean }
       hr_is_on_probation: {
         Args: { p_employee_id: string; p_on?: string }

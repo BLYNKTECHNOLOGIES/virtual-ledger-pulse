@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { toast } from "sonner";
 import { RazorpayPushToggle } from "@/components/hrms/primitives/RazorpayPushToggle";
 import { pushIdentityToRazorpay, pushEmploymentToRazorpay } from "@/lib/razorpayPushback";
+import { EMPLOYEE_TYPES, normalizeEmployeeType } from "@/lib/hrms/employeeTypes";
 
 interface EditEmployeeDialogProps {
   open: boolean;

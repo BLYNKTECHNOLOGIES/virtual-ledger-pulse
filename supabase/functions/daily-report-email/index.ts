@@ -258,7 +258,7 @@ async function buildAssetValue(supabase: any) {
   const pmIds = [...new Set(pendingSettlements.map((p: any) => p.payment_method_id).filter(Boolean))];
   const pmNameMap = new Map<string, string>();
   if (pmIds.length) {
-    const { data: pms } = await supabase.from("sales_payment_methods").select("id, type, nickname").in("id", pmIds);
+    const pms = await fetchByIdsChunked((c) => supabase.from("sales_payment_methods").select("id, type, nickname").in("id", c), pmIds as string[]);
     (pms || []).forEach((pm: any) => pmNameMap.set(pm.id, pm.nickname || pm.type || "Unknown"));
   }
   const gwMap = new Map<string, { total: number; count: number }>();
@@ -517,10 +517,10 @@ async function buildRejected(supabase: any, startDate: string, endDate: string) 
   );
   const nameMap: Record<string, string> = {};
   if (ids.length) {
-    const { data: users } = await supabase
+    const users = await fetchByIdsChunked((c) => supabase
       .from("users")
       .select("id, first_name, last_name, username")
-      .in("id", ids);
+      .in("id", c), ids);
     for (const u of users || []) {
       nameMap[u.id] = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "—";
     }
@@ -624,7 +624,7 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
   const productIds = Array.from(new Set(salesRaw.map((s: any) => s.product_id).filter(Boolean)));
   const productMap: Record<string, string> = {};
   if (productIds.length) {
-    const { data: prods } = await supabase.from("products").select("id, name").in("id", productIds);
+    const prods = await fetchByIdsChunked((c) => supabase.from("products").select("id, name").in("id", c), productIds);
     for (const p of prods || []) productMap[p.id] = p.name;
   }
 
@@ -635,8 +635,8 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
   const salesSyncIds = Array.from(new Set(salesRaw.map((s: any) => s.terminal_sync_id).filter(Boolean)));
   const salesTsMap = new Map<string, number>(); // sales_order_id -> ms
   if (salesSyncIds.length) {
-    const rows = await fetchAllRows(() =>
-      supabase.from("terminal_sales_sync").select("sales_order_id, order_data").in("id", salesSyncIds));
+    const rows = await fetchByIdsChunked((c) =>
+      supabase.from("terminal_sales_sync").select("sales_order_id, order_data").in("id", c), salesSyncIds);
     for (const r of rows) {
       const ms = Number(r.order_data?.create_time);
       if (r.sales_order_id && isFinite(ms) && ms > 0) salesTsMap.set(r.sales_order_id, ms);
@@ -645,8 +645,8 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
   const purTsMap = new Map<string, number>(); // purchase_order_id -> ms
   const purIdsAll = purchasesRaw.map((o: any) => o.id);
   if (purIdsAll.length) {
-    const rows = await fetchAllRows(() =>
-      supabase.from("terminal_purchase_sync").select("purchase_order_id, order_data").in("purchase_order_id", purIdsAll));
+    const rows = await fetchByIdsChunked((c) =>
+      supabase.from("terminal_purchase_sync").select("purchase_order_id, order_data").in("purchase_order_id", c), purIdsAll);
     for (const r of rows) {
       const ms = Number(r.order_data?.create_time);
       if (r.purchase_order_id && isFinite(ms) && ms > 0) purTsMap.set(r.purchase_order_id, ms);
@@ -724,8 +724,8 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
   const purIds = purchasesCompleted.map((o: any) => o.id);
   const purPlatformMap = new Map<string, string>();
   if (purIds.length) {
-    const syncRows = await fetchAllRows(() =>
-      supabase.from("terminal_purchase_sync").select("purchase_order_id, exchange_account_id").in("purchase_order_id", purIds));
+    const syncRows = await fetchByIdsChunked((c) =>
+      supabase.from("terminal_purchase_sync").select("purchase_order_id, exchange_account_id").in("purchase_order_id", c), purIds);
     for (const r of syncRows) {
       if (r.purchase_order_id && r.exchange_account_id && EXCH_LABEL[r.exchange_account_id]) {
         purPlatformMap.set(r.purchase_order_id, EXCH_LABEL[r.exchange_account_id]);

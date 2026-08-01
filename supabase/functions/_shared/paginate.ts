@@ -23,3 +23,21 @@ export async function fetchAllRows<T = any>(
   }
   return all;
 }
+
+// Fetch rows filtered by a potentially huge ID list, in chunks.
+// PostgREST puts `.in()` filters in the URL, so a few thousand UUIDs blow past
+// the gateway's header/URL limit ("Request Header Fields Too Large"). Monthly
+// report ranges hit this easily — always chunk.
+export async function fetchByIdsChunked<T = any>(
+  build: (idsChunk: string[], from: number, to: number) => any,
+  ids: string[],
+  chunkSize = 150,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const rows = await fetchAllRows<T>((from, to) => build(chunk, from, to));
+    out.push(...rows);
+  }
+  return out;
+}

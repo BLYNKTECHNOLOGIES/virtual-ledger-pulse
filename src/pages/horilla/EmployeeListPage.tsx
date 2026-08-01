@@ -106,6 +106,8 @@ export default function EmployeeListPage() {
   const [editWorkInfo, setEditWorkInfo] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
     { field: "is_active", label: "Is active", value: "true", displayValue: "True" },
@@ -372,8 +374,9 @@ export default function EmployeeListPage() {
   };
 
   // ─── Export logic ───
-  const handleExport = () => {
-    const rows = sorted.map(emp => {
+  const buildExportRows = () => {
+    const source = selectedIds.size > 0 ? sorted.filter(e => selectedIds.has(e.id)) : sorted;
+    return source.map(emp => {
       const wi = getWorkInfo(emp.id);
       return {
         "Badge ID": emp.badge_id,
@@ -386,15 +389,37 @@ export default function EmployeeListPage() {
         "Shift": getShiftName(wi?.shift_id || null),
         "Work Type": wi?.work_type || "",
         "Employee Type": wi?.employee_type || "",
+        "Date of Joining": (wi as any)?.date_joining || "",
         "Status": emp.is_active ? "Active" : "Inactive",
       };
     });
+  };
+
+  const handleExport = () => {
+    const rows = buildExportRows();
+    if (!rows.length) { toast.error("No employees to export"); return; }
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Employees");
-    XLSX.writeFile(wb, "employees_export.xlsx");
+    XLSX.writeFile(wb, `employees_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success(`Exported ${rows.length} employees`);
   };
+
+  const handleExportCsv = () => {
+    const rows = buildExportRows();
+    if (!rows.length) { toast.error("No employees to export"); return; }
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `employees_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} employees (CSV)`);
+  };
+
 
   // ─── Bulk delete ───
   const handleBulkDelete = async () => {
@@ -537,10 +562,45 @@ export default function EmployeeListPage() {
             Filter
           </button>
 
+          {/* Export */}
+          <div className="relative">
+            <button
+              onClick={() => setExportOpen(!exportOpen)}
+              className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground hover:bg-muted transition-colors"
+              title="Export basic employee data"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+            {exportOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setExportOpen(false)} />
+                <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-md py-1 min-w-[190px] z-50">
+                  <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${sorted.length} employees`}
+                  </div>
+                  <button
+                    onClick={() => { handleExport(); setExportOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={() => { handleExportCsv(); setExportOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                  >
+                    <Download className="h-3.5 w-3.5" /> CSV (.csv)
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Actions */}
           <div className="relative">
             <button
               onClick={() => setActionsOpen(!actionsOpen)}
+
               className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground hover:bg-muted transition-colors"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />

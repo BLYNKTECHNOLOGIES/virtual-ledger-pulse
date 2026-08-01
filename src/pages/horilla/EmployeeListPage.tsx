@@ -372,8 +372,9 @@ export default function EmployeeListPage() {
   };
 
   // ─── Export logic ───
-  const handleExport = () => {
-    const rows = sorted.map(emp => {
+  const buildExportRows = () => {
+    const source = selectedIds.size > 0 ? sorted.filter(e => selectedIds.has(e.id)) : sorted;
+    return source.map(emp => {
       const wi = getWorkInfo(emp.id);
       return {
         "Badge ID": emp.badge_id,
@@ -386,15 +387,37 @@ export default function EmployeeListPage() {
         "Shift": getShiftName(wi?.shift_id || null),
         "Work Type": wi?.work_type || "",
         "Employee Type": wi?.employee_type || "",
+        "Date of Joining": (wi as any)?.date_joining || "",
         "Status": emp.is_active ? "Active" : "Inactive",
       };
     });
+  };
+
+  const handleExport = () => {
+    const rows = buildExportRows();
+    if (!rows.length) { toast.error("No employees to export"); return; }
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Employees");
-    XLSX.writeFile(wb, "employees_export.xlsx");
+    XLSX.writeFile(wb, `employees_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success(`Exported ${rows.length} employees`);
   };
+
+  const handleExportCsv = () => {
+    const rows = buildExportRows();
+    if (!rows.length) { toast.error("No employees to export"); return; }
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `employees_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} employees (CSV)`);
+  };
+
 
   // ─── Bulk delete ───
   const handleBulkDelete = async () => {

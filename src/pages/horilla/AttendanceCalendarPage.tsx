@@ -212,7 +212,7 @@ export default function AttendanceCalendarPage() {
             const empAttendance = attendanceMap[emp.id] || {};
             const values = Object.values(empAttendance) as any[];
             const empPresent = values.filter((a) => a.attendance_status === "present").length;
-            const empAbsent = values.filter((a) => a.attendance_status === "absent").length;
+            const empAbsent = values.filter((a) => a.attendance_status === "absent" && !isWeeklyOff(new Date(`${a.attendance_date}T00:00:00`), complianceSettings)).length;
             const empLate = values.filter((a) => a.attendance_status === "late").length;
             const empTotal = values.length;
             const rate = empTotal > 0 ? Math.round((empPresent / empTotal) * 100) : 0;

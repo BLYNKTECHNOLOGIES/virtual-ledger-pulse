@@ -7,12 +7,13 @@ const corsHeaders = {
 };
 
 // Current IST date (YYYY-MM-DD) and minutes-since-midnight.
-function istNow(): { date: string; minutes: number } {
+function istNow(): { date: string; minutes: number; dayOfMonth: number } {
   const nowMs = Date.now() + 5.5 * 60 * 60 * 1000;
   const ist = new Date(nowMs);
   return {
     date: ist.toISOString().split("T")[0],
     minutes: ist.getUTCHours() * 60 + ist.getUTCMinutes(),
+    dayOfMonth: ist.getUTCDate(),
   };
 }
 

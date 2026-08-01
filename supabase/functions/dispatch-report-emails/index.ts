@@ -7,12 +7,13 @@ const corsHeaders = {
 };
 
 // Current IST date (YYYY-MM-DD) and minutes-since-midnight.
-function istNow(): { date: string; minutes: number } {
+function istNow(): { date: string; minutes: number; dayOfMonth: number } {
   const nowMs = Date.now() + 5.5 * 60 * 60 * 1000;
   const ist = new Date(nowMs);
   return {
     date: ist.toISOString().split("T")[0],
     minutes: ist.getUTCHours() * 60 + ist.getUTCMinutes(),
+    dayOfMonth: ist.getUTCDate(),
   };
 }
 
@@ -40,7 +41,7 @@ serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* no body */ }
 
-    const { date: today, minutes: nowMin } = istNow();
+    const { date: today, minutes: nowMin, dayOfMonth } = istNow();
 
     const { data: configs, error } = await supabase
       .from("report_email_configs")
@@ -55,6 +56,9 @@ serve(async (req) => {
         if (!cfg.enabled) continue;
         const cfgMin = parseHHMM(cfg.send_time);
         if (cfgMin === null) continue;
+        // Monthly configs fire only on the 1st of the IST month (covering the
+        // previous calendar month), never on other days.
+        if (cfg.is_monthly && dayOfMonth !== 1) continue;
         // Catch-up semantics: fire once per IST day as soon as we're past send_time
         // AND today's send hasn't been recorded. This survives short outages,
         // deploy gaps, and transient 401s during the exact 5-minute cron slot.

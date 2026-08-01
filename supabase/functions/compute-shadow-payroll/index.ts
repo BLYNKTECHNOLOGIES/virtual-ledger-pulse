@@ -286,27 +286,39 @@ Deno.serve(async (req) => {
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
 
-      // Salary snapshot — schema-correct column name.
+      // Salary snapshot — schema-correct columns (no effective_from; latest row by created_at).
       const { data: salaryAssignArr, error: saErr } = await supabase
         .from("hr_employee_salary_structure_assignments")
         .select("*")
         .eq("employee_id", emp.id)
-        .lte("effective_from", periodStr)
-        .order("effective_from", { ascending: false })
+        .lte("created_at", `${periodEndStr}T23:59:59Z`)
+        .order("created_at", { ascending: false })
         .limit(1);
       if (saErr) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `salary_assignment: ${saErr.message}` });
         continue;
       }
-      if (!salaryAssignArr?.length) {
+      let monthlyGross = 0;
+      if (salaryAssignArr?.length) {
+        monthlyGross = Number(salaryAssignArr[0]?.annual_ctc ?? 0) / 12;
+      } else {
+        // Fallback: Razorpay-mirrored structure cache
+        const { data: mirror } = await supabase
+          .from("hr_employee_salary_structures")
+          .select("*")
+          .eq("hr_employee_id", emp.id)
+          .order("synced_at", { ascending: false })
+          .limit(1);
+        const m: any = mirror?.[0];
+        const annual = Number(m?.annual_ctc ?? 0);
+        monthlyGross = annual > 0 ? annual / 12 : Number(m?.monthly_ctc ?? 0);
+      }
+      monthlyGross = Math.round(monthlyGross);
+      if (!(monthlyGross > 0)) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "no_salary_assignment" });
         continue;
       }
-      const monthlyGross = Number(salaryAssignArr[0]?.monthly_ctc ?? 0);
-      if (monthlyGross <= 0) {
-        skipped.push({ employee_id: emp.id, name: empName, reason: "zero_ctc" });
-        continue;
-      }
+
 
       const pct = resolveStructurePct(emp.custom_structure_pct, defaultComps, useDefault);
       const preBasic = Math.round(monthlyGross * (pct.basic / 100));

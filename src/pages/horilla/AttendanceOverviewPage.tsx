@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { Plus, Search, Clock, CheckCircle, XCircle, AlertTriangle, Upload } from "lucide-react";
 import BiometricReportUploader from "@/components/hrms/BiometricReportUploader";
 import { BiometricQuarantineBanner } from "@/components/hrms/BiometricQuarantineBanner";
+import { BiometricDeviceOfflineBanner } from "@/components/hrms/BiometricDeviceOfflineBanner";
 import { StaleSessionAlert } from "@/components/hrms/StaleSessionAlert";
 import { useAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
 
@@ -226,6 +227,7 @@ export default function AttendanceOverviewPage() {
           </>
         }
       />
+      <BiometricDeviceOfflineBanner />
       <BiometricQuarantineBanner />
       <StaleSessionAlert />
 

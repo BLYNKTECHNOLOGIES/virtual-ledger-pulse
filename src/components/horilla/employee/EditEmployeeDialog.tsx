@@ -21,7 +21,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
   const [form, setForm] = useState({
     badge_id: "", first_name: "", last_name: "", email: "", phone: "",
     gender: "", dob: "", is_active: true,
-    department_id: "", job_position_id: "", job_role: "", joining_date: "", employee_type: "Full-time",
+    department_id: "", job_position_id: "", job_role: "", joining_date: "", employee_type: "permanent",
   });
   const [pushToRazorpay, setPushToRazorpay] = useState(true);
 
@@ -40,7 +40,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
         job_position_id: workInfo?.job_position_id || "",
         job_role: workInfo?.job_role || "",
         joining_date: workInfo?.joining_date || "",
-        employee_type: workInfo?.employee_type || "Full-time",
+        employee_type: normalizeEmployeeType(workInfo?.employee_type) || "permanent",
       });
     }
   }, [employee, workInfo]);

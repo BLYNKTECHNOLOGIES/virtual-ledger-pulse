@@ -286,27 +286,51 @@ Deno.serve(async (req) => {
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
 
-      // Salary snapshot — schema-correct column name.
+      // Salary snapshot — schema-correct columns (no effective_from; latest row by created_at).
       const { data: salaryAssignArr, error: saErr } = await supabase
         .from("hr_employee_salary_structure_assignments")
         .select("*")
         .eq("employee_id", emp.id)
-        .lte("effective_from", periodStr)
-        .order("effective_from", { ascending: false })
+        .lte("created_at", `${monthEndStr}T23:59:59Z`)
+        .order("created_at", { ascending: false })
         .limit(1);
       if (saErr) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `salary_assignment: ${saErr.message}` });
         continue;
       }
-      if (!salaryAssignArr?.length) {
+      let monthlyGross = 0;
+      if (salaryAssignArr?.length) {
+        monthlyGross = Number(salaryAssignArr[0]?.annual_ctc ?? 0) / 12;
+      } else {
+        // Fallback 1: Razorpay-mirrored structure cache (component rows, annual amounts)
+        const { data: mirror } = await supabase
+          .from("hr_employee_salary_structures")
+          .select("amount")
+          .eq("employee_id", emp.id)
+          .eq("is_active", true);
+        const mirrorTotal = (mirror ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+        if (mirrorTotal > 0) {
+          // Mirror stores annual figures; anything below a month-scale threshold is already monthly.
+          monthlyGross = mirrorTotal > 100000 ? mirrorTotal / 12 : mirrorTotal;
+        } else {
+          // Fallback 2: imported Salary Register gross for the period
+          const { data: reg } = await supabase
+            .from("hr_razorpay_payslip_records")
+            .select("gross_earnings, reg_gross_salary")
+            .eq("hr_employee_id", emp.id)
+            .eq("period_month", periodStr)
+            .limit(1);
+          const r: any = reg?.[0];
+          monthlyGross = Number(r?.reg_gross_salary ?? r?.gross_earnings ?? 0);
+        }
+      }
+
+      monthlyGross = Math.round(monthlyGross);
+      if (!(monthlyGross > 0)) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "no_salary_assignment" });
         continue;
       }
-      const monthlyGross = Number(salaryAssignArr[0]?.monthly_ctc ?? 0);
-      if (monthlyGross <= 0) {
-        skipped.push({ employee_id: emp.id, name: empName, reason: "zero_ctc" });
-        continue;
-      }
+
 
       const pct = resolveStructurePct(emp.custom_structure_pct, defaultComps, useDefault);
       const preBasic = Math.round(monthlyGross * (pct.basic / 100));

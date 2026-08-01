@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { EMPLOYEE_TYPES } from "@/lib/hrms/employeeTypes";
 import { pushIdentityToRazorpay, pushEmploymentToRazorpay } from "@/lib/razorpayPushback";
 
 interface AddEmployeeDialogProps {
@@ -17,7 +18,7 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
   const [form, setForm] = useState({
     badge_id: "", first_name: "", last_name: "", email: "", phone: "",
     gender: "", dob: "", department_id: "", job_position_id: "",
-    job_role: "", joining_date: "", employee_type: "Full-time",
+    job_role: "", joining_date: "", employee_type: "permanent",
   });
   const [pushToRazorpay, setPushToRazorpay] = useState(true);
 
@@ -66,7 +67,7 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
       setForm({
         badge_id: "", first_name: "", last_name: "", email: "", phone: "",
         gender: "", dob: "", department_id: "", job_position_id: "",
-        job_role: "", joining_date: "", employee_type: "Full-time",
+        job_role: "", joining_date: "", employee_type: "permanent",
       });
     },
     onError: () => toast.error("Failed to create employee"),
@@ -168,10 +169,7 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">Employee Type</label>
             <select value={form.employee_type} onChange={(e) => setForm({ ...form, employee_type: e.target.value })} className={inputCls}>
-              <option value="Full-time">Full-time</option>
-              <option value="Part-time">Part-time</option>
-              <option value="Contract">Contract</option>
-              <option value="Intern">Intern</option>
+              {EMPLOYEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
         </div>

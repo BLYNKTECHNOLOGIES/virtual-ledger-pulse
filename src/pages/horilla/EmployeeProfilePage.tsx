@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
 import { useState, useMemo, type ReactNode } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, Building2, User,
@@ -897,12 +898,9 @@ export default function EmployeeProfilePage() {
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Employee Type</label>
-                      <select value={workInfoForm.employee_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, employee_type: e.target.value })} className={inputCls}>
+                      <select value={normalizeEmployeeType(workInfoForm.employee_type)} onChange={e => setWorkInfoForm({ ...workInfoForm, employee_type: e.target.value })} className={inputCls}>
                         <option value="">Select</option>
-                        <option value="Full-time">Full-time</option>
-                        <option value="Part-time">Part-time</option>
-                        <option value="Contract">Contract</option>
-                        <option value="Intern">Intern</option>
+                        {EMPLOYEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
                     <div>
@@ -920,7 +918,7 @@ export default function EmployeeProfilePage() {
                     { label: "Department", value: dept?.name || "None" },
                     { label: "Shift", value: shift?.name || "None" },
                     { label: "Work Type", value: prettyCase(workInfo?.work_type) },
-                    { label: "Employee Type", value: prettyCase(workInfo?.employee_type) },
+                    { label: "Employee Type", value: employeeTypeLabel(workInfo?.employee_type) },
                     { label: "Job Role", value: workInfo?.job_role || "None" },
                     { label: "Reporting Manager", value: reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None" },
                   ]} />
@@ -946,7 +944,7 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3 text-muted-foreground">{dept?.name || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{shift?.name || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.work_type)}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.employee_type)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{employeeTypeLabel(workInfo?.employee_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.job_role || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">
                           {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
@@ -1001,12 +999,9 @@ export default function EmployeeProfilePage() {
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Employee Type</label>
-                    <select value={workInfoForm.employee_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, employee_type: e.target.value })} className={inputCls}>
+                    <select value={normalizeEmployeeType(workInfoForm.employee_type)} onChange={e => setWorkInfoForm({ ...workInfoForm, employee_type: e.target.value })} className={inputCls}>
                       <option value="">Select</option>
-                      <option value="Full-time">Full-time</option>
-                      <option value="Part-time">Part-time</option>
-                      <option value="Contract">Contract</option>
-                      <option value="Intern">Intern</option>
+                      {EMPLOYEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
                   <div>
@@ -1067,7 +1062,7 @@ export default function EmployeeProfilePage() {
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Employee Type</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{prettyCase(workInfo?.employee_type)}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{employeeTypeLabel(workInfo?.employee_type)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Joining Date</p>

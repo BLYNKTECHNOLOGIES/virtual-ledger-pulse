@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";
+import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -85,7 +86,7 @@ const FILTER_FIELDS = [
   { key: "position", label: "Job Position", type: "dynamic" },
   { key: "shift", label: "Shift", type: "dynamic" },
   { key: "work_type", label: "Work Type", type: "select", options: [{ value: "Work From Office", label: "Work From Office" }, { value: "Work From Home", label: "Work From Home" }, { value: "Hybrid", label: "Hybrid" }] },
-  { key: "employee_type", label: "Employee Type", type: "select", options: [{ value: "Full-time", label: "Full-time" }, { value: "Part-time", label: "Part-time" }, { value: "Contract", label: "Contract" }, { value: "Intern", label: "Intern" }, { value: "Permanent", label: "Permanent" }] },
+  { key: "employee_type", label: "Employee Type", type: "select", options: EMPLOYEE_TYPES.map(t => ({ value: t.value, label: t.label })) },
   { key: "gender", label: "Gender", type: "select", options: [{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }] },
 ];
 
@@ -281,7 +282,7 @@ export default function EmployeeListPage() {
             if ((wi?.work_type || "") !== filter.value) return false;
             break;
           case "employee_type":
-            if ((wi?.employee_type || "") !== filter.value) return false;
+            if (normalizeEmployeeType(wi?.employee_type) !== filter.value) return false;
             break;
           case "gender":
             if ((e.gender || "") !== filter.value) return false;
@@ -388,7 +389,7 @@ export default function EmployeeListPage() {
         "Job Position": getPositionTitle(wi?.job_position_id || null),
         "Shift": getShiftName(wi?.shift_id || null),
         "Work Type": wi?.work_type || "",
-        "Employee Type": wi?.employee_type || "",
+        "Employee Type": employeeTypeLabel(wi?.employee_type),
         "Date of Joining": (wi as any)?.joining_date || (wi as any)?.date_joining || "",
         "Status": emp.is_active ? "Active" : "Inactive",
       };
@@ -913,7 +914,7 @@ export default function EmployeeListPage() {
                     )}
                     {isColVisible("type") && (
                       <td className="py-3 px-3">
-                        {wi?.employee_type ? <span className="bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{wi.employee_type}</span> : <span className="text-muted-foreground text-xs">None</span>}
+                        {wi?.employee_type ? <span className="bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{employeeTypeLabel(wi.employee_type)}</span> : <span className="text-muted-foreground text-xs">None</span>}
                       </td>
                     )}
 
@@ -1160,7 +1161,7 @@ export default function EmployeeListPage() {
       "Job Position": getPositionTitle(wi?.job_position_id || null),
       "Shift": getShiftName(wi?.shift_id || null),
       "Work Type": wi?.work_type || "",
-      "Employee Type": wi?.employee_type || "",
+      "Employee Type": employeeTypeLabel(wi?.employee_type),
       "Date of Joining": (wi as any)?.joining_date || "",
       "Status": emp.is_active ? "Active" : "Inactive",
     }];

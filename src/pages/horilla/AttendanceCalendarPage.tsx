@@ -83,25 +83,35 @@ export default function AttendanceCalendarPage() {
 
   const bulkMutation = useMutation({
     mutationFn: async () => {
+      // check_in/check_out are timestamptz columns — a bare "HH:mm" is invalid,
+      // combine with the selected date.
+      const toTs = (t: string) => (t && bulkDate ? new Date(`${bulkDate}T${t}:00`).toISOString() : null);
       const rows = selectedEmps.map(empId => ({
         employee_id: empId,
         attendance_date: bulkDate,
         attendance_status: bulkStatus,
-        check_in: bulkCheckIn || null,
-        check_out: bulkCheckOut || null,
+        check_in: toTs(bulkCheckIn),
+        check_out: toTs(bulkCheckOut),
         work_type: "office",
       }));
-      const { error } = await (supabase as any).from("hr_attendance").upsert(rows, { onConflict: "employee_id,attendance_date", ignoreDuplicates: false });
+      const { error, data } = await (supabase as any)
+        .from("hr_attendance")
+        .upsert(rows, { onConflict: "employee_id,attendance_date", ignoreDuplicates: false })
+        .select("id");
       if (error) throw error;
+      return (data as any[])?.length ?? rows.length;
     },
-    onSuccess: () => {
+    onSuccess: (count: number) => {
       qc.invalidateQueries({ queryKey: ["hr_attendance_month"] });
       qc.invalidateQueries({ queryKey: ["hr_attendance"] });
+      toast.success(`Attendance marked for ${count} employee${count === 1 ? "" : "s"}`);
       setShowBulk(false);
       setSelectedEmps([]);
-      toast.success(`Attendance marked for ${selectedEmps.length} employees`);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      console.error("[bulk-mark-attendance]", e);
+      toast.error(e?.message || e?.details || "Failed to mark attendance");
+    },
   });
 
   // Build attendance lookup: { "emp_id": { "2026-02-15": status } }

@@ -106,6 +106,8 @@ export default function EmployeeListPage() {
   const [editWorkInfo, setEditWorkInfo] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
     { field: "is_active", label: "Is active", value: "true", displayValue: "True" },

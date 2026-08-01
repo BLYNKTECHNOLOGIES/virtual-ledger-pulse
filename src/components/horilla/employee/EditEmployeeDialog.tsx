@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { toast } from "sonner";
 import { RazorpayPushToggle } from "@/components/hrms/primitives/RazorpayPushToggle";
 import { pushIdentityToRazorpay, pushEmploymentToRazorpay } from "@/lib/razorpayPushback";
+import { EMPLOYEE_TYPES, normalizeEmployeeType } from "@/lib/hrms/employeeTypes";
 
 interface EditEmployeeDialogProps {
   open: boolean;
@@ -20,7 +21,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
   const [form, setForm] = useState({
     badge_id: "", first_name: "", last_name: "", email: "", phone: "",
     gender: "", dob: "", is_active: true,
-    department_id: "", job_position_id: "", job_role: "", joining_date: "", employee_type: "Full-time",
+    department_id: "", job_position_id: "", job_role: "", joining_date: "", employee_type: "permanent",
   });
   const [pushToRazorpay, setPushToRazorpay] = useState(true);
 
@@ -39,7 +40,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
         job_position_id: workInfo?.job_position_id || "",
         job_role: workInfo?.job_role || "",
         joining_date: workInfo?.joining_date || "",
-        employee_type: workInfo?.employee_type || "Full-time",
+        employee_type: normalizeEmployeeType(workInfo?.employee_type) || "permanent",
       });
     }
   }, [employee, workInfo]);
@@ -200,10 +201,7 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">Employee Type</label>
             <select value={form.employee_type} onChange={e => setForm({ ...form, employee_type: e.target.value })} className={inputCls}>
-              <option value="Full-time">Full-time</option>
-              <option value="Part-time">Part-time</option>
-              <option value="Contract">Contract</option>
-              <option value="Intern">Intern</option>
+              {EMPLOYEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
         </div>

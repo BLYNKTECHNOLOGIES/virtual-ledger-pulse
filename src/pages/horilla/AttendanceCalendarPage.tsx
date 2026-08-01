@@ -212,7 +212,7 @@ export default function AttendanceCalendarPage() {
             const empAttendance = attendanceMap[emp.id] || {};
             const values = Object.values(empAttendance) as any[];
             const empPresent = values.filter((a) => a.attendance_status === "present").length;
-            const empAbsent = values.filter((a) => a.attendance_status === "absent").length;
+            const empAbsent = values.filter((a) => a.attendance_status === "absent" && !isWeeklyOff(new Date(`${a.attendance_date}T00:00:00`), complianceSettings)).length;
             const empLate = values.filter((a) => a.attendance_status === "late").length;
             const empTotal = values.length;
             const rate = empTotal > 0 ? Math.round((empPresent / empTotal) * 100) : 0;
@@ -253,9 +253,11 @@ export default function AttendanceCalendarPage() {
                     {days.map(day => {
                       const dateStr = format(day, "yyyy-MM-dd");
                       const record = empAttendance[dateStr];
-                      const status = record?.attendance_status;
-                      const today = isToday(day);
                       const weeklyOff = isWeeklyOff(day, complianceSettings);
+                      // A weekly-off day can never be "absent" — the off-day wins.
+                      const rawStatus = record?.attendance_status;
+                      const status = weeklyOff && (!rawStatus || rawStatus === "absent") ? undefined : rawStatus;
+                      const today = isToday(day);
                       const tile = status ? STATUS_TILE[status] : "";
 
                       return (
@@ -266,7 +268,7 @@ export default function AttendanceCalendarPage() {
                             ${today ? "ring-2 ring-primary ring-offset-1 ring-offset-background font-bold" : ""}
                           `}
                           title={
-                            status ? `${format(day, "MMM d")} — ${status.replace("_", " ")}` :
+                            status ? `${format(day, "MMM d")} — ${status.replace("_", " ")}${weeklyOff ? " (weekly off)" : ""}` :
                             weeklyOff ? `${format(day, "MMM d")} — Weekly off` :
                             format(day, "MMM d")
                           }
@@ -278,6 +280,7 @@ export default function AttendanceCalendarPage() {
                         </div>
                       );
                     })}
+
                   </div>
                 </CardContent>
               </Card>

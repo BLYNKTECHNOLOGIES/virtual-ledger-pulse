@@ -55,7 +55,7 @@ export function BiometricDeviceOfflineBanner() {
           <p className="text-muted-foreground">
             Punches made on an offline reader are buffered on the device and arrive when it reconnects. Until then,
             days may show as <em>Not Punched</em> even though the employee was present — do not treat this as absence.{" "}
-            <Link to="/hrms/biometric-devices" className="underline text-foreground">Check devices</Link>
+            <Link to="/hrms/attendance/biometric-devices" className="underline text-foreground">Check devices</Link>
           </p>
         </div>
       </div>

@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
         .from("hr_employee_salary_structure_assignments")
         .select("*")
         .eq("employee_id", emp.id)
-        .lte("created_at", `${periodEndStr}T23:59:59Z`)
+        .lte("created_at", `${monthEndStr}T23:59:59Z`)
         .order("created_at", { ascending: false })
         .limit(1);
       if (saErr) {

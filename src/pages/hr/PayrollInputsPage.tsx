@@ -302,25 +302,26 @@ export default function PayrollInputsPage() {
         </CardHeader>
       </Card>
 
-      {lopFocus && tab === "deduction" && (
+      {lopFocus && (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
-          <div className="font-medium">LOP push view</div>
+          <div className="font-medium">LOP-only view</div>
           <div className="text-muted-foreground mt-1">
-            Showing only loss-of-pay deductions staged for {period} (Cockpit step 3). Switch tabs to see all inputs.
+            Only loss-of-pay deductions for {period} are staged, listed and pushed here. Additions, bonuses and other deductions are intentionally hidden — open Payroll Inputs from the cockpit tools to manage those.
           </div>
         </div>
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
-        <TabsList>
-          <TabsTrigger value="addition">Additions</TabsTrigger>
-          <TabsTrigger value="deduction">Deductions</TabsTrigger>
-        </TabsList>
-
+        {!lopFocus && (
+          <TabsList>
+            <TabsTrigger value="addition">Additions</TabsTrigger>
+            <TabsTrigger value="deduction">Deductions</TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value={tab} className="space-y-4 mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-sm">Stage a new {tab}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm">{lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                 <div className="md:col-span-2">

@@ -28,6 +28,9 @@ interface Props {
 
 const fullName = (e: any) => `${e?.first_name || ""} ${e?.last_name || ""}`.trim();
 
+// RazorpayX "Bonus" additions are restricted to these two labels by policy.
+const BONUS_LABELS = ["Performance bonus", "Overtime"];
+
 type RowDraft = { key: string; hr_employee_id: string; label: string; amount: string; addition_type: string; taxable: boolean };
 
 const newDraft = (defaults?: Partial<RowDraft>): RowDraft => ({

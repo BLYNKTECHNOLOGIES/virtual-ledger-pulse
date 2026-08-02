@@ -1562,11 +1562,21 @@ Deno.serve(async (req) => {
     if (action === "read_person_by_id") {
       const rpId = Number(payload?.razorpay_employee_id);
       if (!Number.isFinite(rpId) || rpId < 1) return json(400, { error: "razorpay_employee_id required" });
+      // allow_dismissed: snapshot refreshers MUST be able to read dismissed
+      // people — otherwise a dashboard-side dismissal can never reach HRMS and
+      // the stale snapshot keeps reporting the person as active forever.
+      const allowDismissed = payload?.allow_dismissed === true;
       const r = await opfinView(rpId, "employee");
       if (!r.ok) return json(200, { ok: false, code: "RAZORPAY_ID_NOT_FOUND", error: `Razorpay employee-id ${rpId} was not found or is inactive.`, http_status: r.status });
-      if (isDismissedRazorpayPerson(r.body)) {
+      const dismissedPerson = isDismissedRazorpayPerson(r.body);
+      if (dismissedPerson && !allowDismissed) {
         return json(200, { ok: false, code: "RAZORPAY_EMPLOYEE_DISMISSED", error: `Razorpay employee-id ${rpId} is dismissed/inactive and cannot be linked.`, http_status: r.status });
       }
+      if (dismissedPerson && r.body && typeof r.body === "object") {
+        (r.body as any).is_active = false;
+        (r.body as any).__dismissed = true;
+      }
+
       // Best-effort salary attach — people:view never carries CTC; the
       // separate payroll:view-payroll endpoint returns it, but only after an
       // executed payroll run. We probe executed months only (same gating as

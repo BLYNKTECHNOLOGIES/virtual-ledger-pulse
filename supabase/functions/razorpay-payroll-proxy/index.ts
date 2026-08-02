@@ -1560,12 +1560,16 @@ Deno.serve(async (req) => {
     // the Stage 5 reconciliation panel to show a field-by-field diff BEFORE the
     // operator commits to linking. Refuses dismissed employees.
     if (action === "read_person_by_id") {
-      const rpId = Number(payload?.razorpay_employee_id);
+      // Accept both the flat body and a nested {payload:{...}} envelope —
+      // callers historically used both and the nested form silently 400'd.
+      const p = (payload?.payload && typeof payload.payload === "object") ? payload.payload : payload;
+      const rpId = Number(p?.razorpay_employee_id);
       if (!Number.isFinite(rpId) || rpId < 1) return json(400, { error: "razorpay_employee_id required" });
       // allow_dismissed: snapshot refreshers MUST be able to read dismissed
       // people — otherwise a dashboard-side dismissal can never reach HRMS and
       // the stale snapshot keeps reporting the person as active forever.
-      const allowDismissed = payload?.allow_dismissed === true;
+      const allowDismissed = p?.allow_dismissed === true;
+
       const r = await opfinView(rpId, "employee");
       if (!r.ok) return json(200, { ok: false, code: "RAZORPAY_ID_NOT_FOUND", error: `Razorpay employee-id ${rpId} was not found or is inactive.`, http_status: r.status });
       const dismissedPerson = isDismissedRazorpayPerson(r.body);

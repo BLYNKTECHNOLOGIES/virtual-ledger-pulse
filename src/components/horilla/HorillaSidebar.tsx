@@ -133,7 +133,11 @@ const navGroups: NavGroup[] = [
         children: [
           { label: "🎯 Monthly Cockpit", path: "/hrms/payroll/cockpit" },
           { label: "Dashboard", path: "/hrms/payroll" },
+          { label: "Payroll Inputs (Additions / Deductions)", path: "/hrms/payroll/inputs" },
+          { label: "LOP Deductions", path: "/hrms/payroll/inputs?tab=deduction&focus=lop" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
+          { label: "Import Payslip History", path: "/hrms/payroll/payslip-history-import" },
+          { label: "Import Salary Register (CSV)", path: "/hrms/payroll/salary-register-import" },
           // Salary Structure entry retired — Razorpay is authority; view per-employee mirror inside the employee profile.
           { label: "Salary Revisions", path: "/hrms/payroll/salary-revisions" },
           { label: "Statutory Settings", path: "/hrms/payroll/statutory-settings" },

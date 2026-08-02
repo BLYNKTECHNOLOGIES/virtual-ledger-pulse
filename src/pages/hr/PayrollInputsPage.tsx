@@ -46,6 +46,14 @@ export default function PayrollInputsPage() {
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
+  // Persist the single-entry staging form across refreshes.
+  const { clearDraft: clearFormDraftState } = useFormDraftPersistence(
+    `payroll-input:${tab}:${period}${lopFocus ? ":lop" : ""}`,
+    form,
+    (saved: any) => { if (saved) setForm((prev) => ({ ...prev, ...saved })); },
+    { isEmpty: (v: any) => !v?.hr_employee_id && !v?.amount && (!v?.label || (lopFocus && v.label === "Loss of Pay")) },
+  );
+
   // Mirror of Razorpay bonus catalogue — filters the Bonus subtype dropdown.
   const { data: complianceSettings } = useComplianceSettings();
   const enabledBonusTypes = useMemo(

@@ -102,6 +102,8 @@ const FnFSettlementPage = lazy(() => import('./pages/horilla/FnFSettlementPage')
 const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumentsPage'));
 const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
 const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPage'));
+const StatutorySettingsPage = lazy(() => import('./pages/horilla/StatutorySettingsPage'));
+
 const RazorpaySyncPage = lazy(() => import('./pages/hr/RazorpaySyncPage'));
 
 

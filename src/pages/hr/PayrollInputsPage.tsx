@@ -58,7 +58,7 @@ export default function PayrollInputsPage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_mapped_employees_for_inputs"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("hr_razorpay_employee_map")
         .select("razorpay_employee_id, hr_employee_id, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
         .not("hr_employee_id", "is", null)

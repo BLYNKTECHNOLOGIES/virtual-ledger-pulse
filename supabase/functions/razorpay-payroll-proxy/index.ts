@@ -1603,6 +1603,15 @@ Deno.serve(async (req) => {
           // PAN write while returning 200, so PAN never reached RazorpayX.
           case "pan": data["pan"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
           case "uan": data["uan-number"] = String(raw).replace(/\D/g, ""); applied.push(k); expectedReadBack[k] = raw; break;
+          // Statutory keys. Only `pt-enabled` and `state` are documented in the
+          // Opfin people:edit contract; the PF/ESI keys below are probe-only —
+          // people:view never returns any statutory field, so writes here can
+          // be accepted (HTTP 200) but can NEVER be read back / verified.
+          case "pt_enabled": data["pt-enabled"] = !!raw && raw !== "false"; applied.push(k); break;
+          case "state": data["state"] = String(raw).toLowerCase(); applied.push(k); break;
+          case "pf_enabled": data["pf-enabled"] = !!raw && raw !== "false"; applied.push(k); break;
+          case "esi_enabled": data["esi-enabled"] = !!raw && raw !== "false"; applied.push(k); break;
+          case "esic_number": data["esic-number"] = String(raw).replace(/\D/g, ""); applied.push(k); break;
           case "bank_account_number": data["bank-account-number"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "bank_ifsc_code": data["bank-ifsc"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
           case "bank_account_holder": data["bank-account-holder-name"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;

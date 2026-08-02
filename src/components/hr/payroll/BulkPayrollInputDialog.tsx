@@ -11,6 +11,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import { EmployeeCombobox } from "./EmployeeCombobox";
+
 
 type Kind = "addition" | "deduction";
 
@@ -179,7 +181,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[97vw] md:max-w-[1400px] w-[97vw] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bulk stage {kind}s · {period}</DialogTitle>
           <DialogDescription>
@@ -199,17 +201,17 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
               {drafts.map((d, i) => (
                 <div key={d.key} className="grid grid-cols-12 gap-2 items-center">
                   <div className="col-span-12 md:col-span-4">
-                    <Select value={d.hr_employee_id} onValueChange={(v) => patchDraft(d.key, { hr_employee_id: v })}>
-                      <SelectTrigger className="h-9 text-foreground"><SelectValue placeholder="Employee" /></SelectTrigger>
-                      <SelectContent className="max-h-64">
-                        {employees.filter((r) => r.hr_employees).map((r) => (
-                          <SelectItem key={r.hr_employee_id} value={r.hr_employee_id}>
-                            {fullName(r.hr_employees)}{r.hr_employees.badge_id ? ` · ${r.hr_employees.badge_id}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <EmployeeCombobox
+                      value={d.hr_employee_id}
+                      onChange={(v) => patchDraft(d.key, { hr_employee_id: v })}
+                      options={employees.filter((r) => r.hr_employees).map((r) => ({
+                        value: r.hr_employee_id,
+                        label: `${fullName(r.hr_employees)}${r.hr_employees.badge_id ? ` · ${r.hr_employees.badge_id}` : ""}`,
+                        keywords: String(r.hr_employees.badge_id ?? ""),
+                      }))}
+                    />
                   </div>
+
                   <div className="col-span-6 md:col-span-3">
                     <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
                   </div>

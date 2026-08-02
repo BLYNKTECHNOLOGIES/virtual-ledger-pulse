@@ -35,7 +35,7 @@ export default function PayrollInputsPage() {
   const lopFocus = searchParams.get("focus") === "lop";
   const [period, setPeriod] = useState(paramPeriod && /^\d{4}-\d{2}$/.test(paramPeriod) ? paramPeriod : currentPeriod());
   const [tab, setTab] = useState<Kind>((paramTab as Kind) ?? (lopFocus ? "deduction" : "addition"));
-  const [form, setForm] = useState({ hr_employee_id: "", label: "", amount: "", addition_type: "bonus", taxable: true });
+  const [form, setForm] = useState({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);

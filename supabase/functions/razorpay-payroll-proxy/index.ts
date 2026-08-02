@@ -7198,6 +7198,8 @@ Deno.serve(async (req) => {
       }
       const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
         ? directPayload.data : {};
+      let payrollEmployeeId = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
+        ? String(data["employee-id"]) : "";
       // ---- payroll modifications
       // Opfin's official Postman collection defines asymmetric contracts:
       //   add-additions -> additions ARRAY carrying `label`
@@ -7355,8 +7357,7 @@ Deno.serve(async (req) => {
         errText = `NETWORK: ${(e as Error).message}`;
       } finally { clearTimeout(t); }
 
-      const rpEid = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
-        ? String(data["employee-id"]) : "";
+      const rpEid = payrollEmployeeId;
       await logSync(svc, {
         action: spec.logAs as any,
         http_status: httpStatus,
@@ -7376,9 +7377,10 @@ Deno.serve(async (req) => {
       if (!errText && (action === "payroll_add_additions" || action === "payroll_add_deduction")) {
         const rbId = String(directPayload?.readback_id || "").trim();
         const rbTable = String(directPayload?.readback_table || "").trim();
-        const rbEid = data["employee-id"];
+        const rbEid = payrollEmployeeId;
         const rbMonth = data["payroll-month"];
-        if (rbEid && rbMonth) {
+        const rbEmail = String(data.email || "").trim();
+        if ((rbEid || rbEmail) && rbMonth) {
           const rbCtrl = new AbortController();
           const rbT = setTimeout(() => rbCtrl.abort(), 15000);
           try {
@@ -7388,7 +7390,9 @@ Deno.serve(async (req) => {
               body: JSON.stringify({
                 auth: authBlock(),
                 request: { type: "payroll", "sub-type": "view-payroll" },
-                data: { "employee-id": Number(rbEid), "payroll-month": rbMonth, "employee-type": "employee" },
+                data: rbEmail
+                  ? { email: rbEmail, "payroll-month": rbMonth }
+                  : { "employee-id": Number(rbEid), "payroll-month": rbMonth, "employee-type": "employee" },
               }),
               signal: rbCtrl.signal,
             });

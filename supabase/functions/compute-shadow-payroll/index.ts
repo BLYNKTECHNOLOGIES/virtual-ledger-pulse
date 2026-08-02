@@ -28,6 +28,7 @@
  *    so drift alerts don't churn on the still-simplified projection.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { resolveMonthlyGross } from "../_shared/salaryBase.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

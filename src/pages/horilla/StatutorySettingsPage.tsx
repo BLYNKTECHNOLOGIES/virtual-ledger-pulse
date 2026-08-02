@@ -54,7 +54,7 @@ export default function StatutorySettingsPage() {
     vpf_value: "0",
     esi_enabled: true,
 
-    pt_enabled: true,
+    pt_enabled: false,
     uan: "",
     esic_number: "",
     effective_from: monthStart(),
@@ -124,7 +124,7 @@ export default function StatutorySettingsPage() {
       vpf_value: String(p?.vpf_value ?? 0),
       esi_enabled: p?.esi_enabled ?? true,
 
-      pt_enabled: p?.pt_enabled ?? true,
+      pt_enabled: p?.pt_enabled ?? false,
       uan: p?.uan ?? "",
       esic_number: p?.esic_number ?? "",
       effective_from: monthStart(),
@@ -194,7 +194,7 @@ export default function StatutorySettingsPage() {
           vpf_mode: p?.vpf_mode ?? "none",
           vpf_value: p?.vpf_value ?? 0,
           esi_enabled: bulk.field === "esi" ? bulk.value : (p?.esi_enabled ?? false),
-          pt_enabled: bulk.field === "pt" ? bulk.value : (p?.pt_enabled ?? true),
+          pt_enabled: bulk.field === "pt" ? bulk.value : (p?.pt_enabled ?? false),
           uan: p?.uan ?? null,
           esic_number: p?.esic_number ?? null,
           reason: bulk.reason.trim(),

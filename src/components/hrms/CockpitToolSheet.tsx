@@ -1,7 +1,7 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 // Every payroll sub-tool now lives INSIDE the cockpit instead of the sidebar.
 const PayrollInputsPage = lazy(() => import("@/pages/hr/PayrollInputsPage"));
@@ -50,27 +50,42 @@ export function CockpitToolSheet({
 }) {
   const entry = tool ? TOOLS[tool] : null;
 
-  return (
-    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent
-        className="max-w-none w-[100vw] h-[100dvh] sm:w-[96vw] sm:h-[94dvh] sm:max-w-[1400px] p-0 gap-0 overflow-hidden flex flex-col"
-      >
-        <div className="flex items-center gap-2 border-b px-4 py-2.5 shrink-0">
-          <DialogTitle className="text-sm font-semibold truncate">{entry?.title}</DialogTitle>
-          <Button variant="ghost" size="sm" className="ml-auto gap-1.5" onClick={onClose}>
-            <X className="h-4 w-4" /> Back to cockpit
-          </Button>
-        </div>
-        <div className="flex-1 overflow-y-auto overscroll-contain">
-          {entry && (
-            <Suspense
-              fallback={<div className="p-6 text-sm text-muted-foreground">Loading tool…</div>}
-            >
-              <entry.Component />
-            </Suspense>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+  // Lock body scroll while the full-page tool is open, and allow Esc to close.
+  useEffect(() => {
+    if (!entry) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [entry, onClose]);
+
+  if (!entry) return null;
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={entry.title}
+      className="fixed inset-0 z-50 flex flex-col bg-background"
+    >
+      <div className="flex items-center gap-2 border-b px-4 py-2.5 shrink-0 bg-background">
+        <h2 className="text-sm font-semibold truncate">{entry.title}</h2>
+        <Button variant="ghost" size="sm" className="ml-auto gap-1.5" onClick={onClose}>
+          <X className="h-4 w-4" /> Back to cockpit
+        </Button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading tool…</div>}>
+          <entry.Component />
+        </Suspense>
+      </div>
+    </div>,
+    document.body,
   );
 }

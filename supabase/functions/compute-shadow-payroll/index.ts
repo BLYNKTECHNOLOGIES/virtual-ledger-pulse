@@ -173,6 +173,21 @@ Deno.serve(async (req) => {
     const { data: employees, error: empErr } = await empQ;
     if (empErr) throw empErr;
 
+    // 2b. Effective-dated statutory profiles active for THIS period month.
+    //     Latest row with effective_from <= period start wins (history preserved).
+    const statutoryProfiles = new Map<string, any>();
+    {
+      const { data: profRows, error: profErr } = await supabase
+        .from("hr_employee_statutory_profiles")
+        .select("hr_employee_id,effective_from,pf_enabled,pf_wage_basis,vpf_mode,vpf_value,esi_enabled,pt_enabled")
+        .lte("effective_from", periodStr)
+        .order("effective_from", { ascending: true });
+      if (profErr) console.error("statutory profile fetch err", profErr);
+      for (const r of profRows ?? []) statutoryProfiles.set(r.hr_employee_id, r); // ascending ⇒ last write = latest
+    }
+
+
+
     // 3. Input readiness
     const monthEnd = new Date(period);
     monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);

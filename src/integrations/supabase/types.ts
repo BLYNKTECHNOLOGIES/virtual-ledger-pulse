@@ -24529,6 +24529,29 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      hr_attendance_month_summary: {
+        Args: { p_employee_ids: string[]; p_period_month: string }
+        Returns: {
+          absent_days: number
+          config_errors: string[]
+          early_minutes: number
+          employee_id: string
+          evidence_days: number
+          formula: string
+          half_days: number
+          held_harmless_days: number
+          late_minutes: number
+          legacy_present_days: number
+          lop_days: number
+          no_biometric_signal: boolean
+          ot_hours: number
+          paid_leave_days: number
+          present_days: number
+          unpaid_leave_days: number
+          unverified_days: number
+          working_days: number
+        }[]
+      }
       hr_attendance_self_test_run: {
         Args: never
         Returns: {

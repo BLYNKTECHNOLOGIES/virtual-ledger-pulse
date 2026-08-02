@@ -54,7 +54,9 @@ type Drift = {
 // Alerts raised by a FAILED push (not by the 3-way scanner) carry no
 // hrms/razorpay/essl values — the failure detail lives in resolution_note.
 // Rendering three empty boxes for these makes them look like phantom drifts.
+const isPushFailureAlert = (d: Drift) =>
   !d.hrms_value && !d.razorpay_value && !d.essl_value;
+
 
 
 const SEVERITY_STYLE: Record<Drift["severity"], string> = {

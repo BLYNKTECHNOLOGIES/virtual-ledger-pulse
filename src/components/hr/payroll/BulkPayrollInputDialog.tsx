@@ -28,6 +28,9 @@ interface Props {
 
 const fullName = (e: any) => `${e?.first_name || ""} ${e?.last_name || ""}`.trim();
 
+// RazorpayX "Bonus" additions are restricted to these two labels by policy.
+const BONUS_LABELS = ["Performance bonus", "Overtime"];
+
 type RowDraft = { key: string; hr_employee_id: string; label: string; amount: string; addition_type: string; taxable: boolean };
 
 const newDraft = (defaults?: Partial<RowDraft>): RowDraft => ({
@@ -213,14 +216,23 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
                   </div>
 
                   <div className="col-span-6 md:col-span-3">
-                    <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
+                    {kind === "addition" && d.addition_type === "bonus" ? (
+                      <Select value={BONUS_LABELS.includes(d.label) ? d.label : ""} onValueChange={(v) => patchDraft(d.key, { label: v })}>
+                        <SelectTrigger className="h-9 text-foreground"><SelectValue placeholder="Select bonus label" /></SelectTrigger>
+                        <SelectContent>
+                          {BONUS_LABELS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
+                    )}
                   </div>
                   <div className="col-span-6 md:col-span-2">
                     <Input className="h-9 tabular-nums" inputMode="decimal" value={d.amount} onChange={(e) => patchDraft(d.key, { amount: e.target.value })} placeholder="Amount ₹" />
                   </div>
                   {kind === "addition" ? (
                     <div className="col-span-9 md:col-span-2">
-                      <Select value={d.addition_type} onValueChange={(v) => patchDraft(d.key, { addition_type: v })}>
+                      <Select value={d.addition_type} onValueChange={(v) => patchDraft(d.key, { addition_type: v, ...(v === "bonus" && !BONUS_LABELS.includes(d.label) ? { label: "" } : {}) })}>
                         <SelectTrigger className="h-9 text-foreground"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="bonus">Bonus</SelectItem>
@@ -321,7 +333,16 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
           <div className="md:col-span-1">
             <Label className="text-xs">Label{mode === "select" ? "" : " (default for blank rows)"}</Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "addition" ? "Performance bonus" : "Advance recovery"} />
+            {kind === "addition" && additionType === "bonus" && mode !== "rows" ? (
+              <Select value={BONUS_LABELS.includes(label) ? label : ""} onValueChange={setLabel}>
+                <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bonus label" /></SelectTrigger>
+                <SelectContent>
+                  {BONUS_LABELS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "addition" ? "Performance bonus" : "Advance recovery"} />
+            )}
           </div>
           {mode === "select" && (
             <div>
@@ -332,7 +353,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
           {kind === "addition" && mode !== "rows" && (
             <div>
               <Label className="text-xs">Type</Label>
-              <Select value={additionType} onValueChange={setAdditionType}>
+              <Select value={additionType} onValueChange={(v) => { setAdditionType(v); if (v === "bonus" && !BONUS_LABELS.includes(label)) setLabel(""); }}>
                 <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bonus">Bonus</SelectItem>

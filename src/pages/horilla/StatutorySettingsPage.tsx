@@ -48,11 +48,12 @@ export default function StatutorySettingsPage() {
   const [bulk, setBulk] = useState({ field: "pf" as "pf" | "esi" | "pt", value: true, effective_from: monthStart(), reason: "" });
 
   const [form, setForm] = useState({
-    pf_enabled: false,
+    pf_enabled: true,
     pf_wage_basis: "capped" as "capped" | "actual",
     vpf_mode: "none" as "none" | "percent" | "fixed",
     vpf_value: "0",
-    esi_enabled: false,
+    esi_enabled: true,
+
     pt_enabled: true,
     uan: "",
     esic_number: "",
@@ -117,11 +118,12 @@ export default function StatutorySettingsPage() {
   const openEdit = (emp: any) => {
     const p = activeByEmp.get(emp.id);
     setForm({
-      pf_enabled: p?.pf_enabled ?? false,
+      pf_enabled: p?.pf_enabled ?? true,
       pf_wage_basis: (p?.pf_wage_basis as any) ?? "capped",
       vpf_mode: (p?.vpf_mode as any) ?? "none",
       vpf_value: String(p?.vpf_value ?? 0),
-      esi_enabled: p?.esi_enabled ?? false,
+      esi_enabled: p?.esi_enabled ?? true,
+
       pt_enabled: p?.pt_enabled ?? true,
       uan: p?.uan ?? "",
       esic_number: p?.esic_number ?? "",

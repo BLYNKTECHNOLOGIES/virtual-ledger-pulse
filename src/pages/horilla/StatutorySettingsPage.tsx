@@ -217,7 +217,34 @@ export default function StatutorySettingsPage() {
   const toggleSelect = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
+  const renderBadges = (r: any) => {
+    const { emp, p } = r;
+    const monthlyGross = Number(emp.total_salary || 0) / 12;
+    const esiIneligible = monthlyGross > 21000;
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        <Badge variant={p?.pf_enabled ? "default" : "secondary"}>PF {p?.pf_enabled ? "on" : "off"}</Badge>
+        {p?.pf_enabled && (
+          <Badge variant="outline">
+            {p.pf_wage_basis === "actual" ? "PF on actual Basic" : "PF capped ₹15,000"}
+          </Badge>
+        )}
+        {p?.vpf_mode && p.vpf_mode !== "none" && (
+          <Badge variant="outline">
+            VPF {p.vpf_mode === "percent" ? `${p.vpf_value}%` : inr(p.vpf_value)}
+          </Badge>
+        )}
+        <Badge variant={p?.esi_enabled ? "default" : "secondary"}>ESI {p?.esi_enabled ? "on" : "off"}</Badge>
+        {esiIneligible && <Badge variant="outline">gross &gt; ₹21,000 — auto-ineligible</Badge>}
+        <Badge variant={p?.pt_enabled ? "default" : "secondary"}>PT {p?.pt_enabled ? "on" : "off"}</Badge>
+        {p?.pf_enabled && !p?.uan && <Badge variant="destructive">UAN missing</Badge>}
+        {p?.esi_enabled && !p?.esic_number && <Badge variant="destructive">ESIC no. missing</Badge>}
+      </div>
+    );
+  };
+
   return (
+
     <div className="space-y-4">
       <PageHeader
         title="Statutory Settings"

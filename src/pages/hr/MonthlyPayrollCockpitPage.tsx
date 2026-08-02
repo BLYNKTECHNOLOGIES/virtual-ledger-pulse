@@ -60,17 +60,30 @@ const STEP_ICONS: Record<string, any> = {
   close_month: Flag,
 };
 
-const STEP_TARGET: Record<string, { path: string; label: string } | { href: string; label: string }> = {
-  lock_attendance: { path: "/hrms/attendance/period-locks", label: "Open Period Locks" },
-  watchdog_zero: { path: "/hrms/attendance/stale-sessions", label: "Open Stale Sessions" },
-  lop_push: { path: "/hrms/payroll/inputs?tab=deduction&focus=lop", label: "Open LOP deductions" },
-  inputs_push: { path: "/hrms/payroll/inputs?tab=addition", label: "Open additions / deductions" },
+type StepTarget =
+  | { tool: CockpitToolKey; label: string; params?: Record<string, string> }
+  | { href: string; label: string };
+
+const STEP_TARGET: Record<string, StepTarget> = {
+  lock_attendance: { tool: "period_locks", label: "Open Period Locks" },
+  watchdog_zero: { tool: "stale_sessions", label: "Open Stale Sessions" },
+  lop_push: { tool: "inputs", label: "Open LOP deductions", params: { tab: "deduction", focus: "lop" } },
+  inputs_push: { tool: "inputs", label: "Open additions / deductions", params: { tab: "addition" } },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
-  import_payslips: { path: "/hrms/payroll/payslip-history-import", label: "Import Payslips" },
-  shadow_compare: { path: "/hrms/payroll/shadow-calculator", label: "Run Shadow Payroll" },
-  drift_review: { path: "/hrms/data-health", label: "Open Data Health" },
-  close_month: { path: "#", label: "" },
+  import_payslips: { tool: "payslip_import", label: "Import Payslips" },
+  shadow_compare: { tool: "shadow", label: "Run Shadow Payroll" },
+  drift_review: { tool: "data_health", label: "Open Data Health" },
 };
+
+const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
+  { tool: "inputs", label: "Payroll Inputs" },
+  { tool: "salary_register", label: "Import Salary Register" },
+  { tool: "payslip_import", label: "Import Payslips" },
+  { tool: "shadow", label: "Shadow Payroll" },
+  { tool: "razorpay_sync", label: "RazorpayX Diagnostics" },
+  { tool: "system_pulse", label: "System Pulse" },
+  { tool: "data_health", label: "Data Health" },
+];
 
 function monthOptions(): { value: string; label: string }[] {
   const opts: { value: string; label: string }[] = [];

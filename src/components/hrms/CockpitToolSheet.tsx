@@ -53,7 +53,6 @@ export function CockpitToolSheet({
   return (
     <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        hideClose
         className="max-w-none w-[100vw] h-[100dvh] sm:w-[96vw] sm:h-[94dvh] sm:max-w-[1400px] p-0 gap-0 overflow-hidden flex flex-col"
       >
         <div className="flex items-center gap-2 border-b px-4 py-2.5 shrink-0">

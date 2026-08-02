@@ -86,6 +86,33 @@ export default function PayrollInputsPage() {
   // Keep the operator-facing value as YYYY-MM, but always query/write its canonical date.
   const periodDate = `${period}-01`;
 
+  // Applied Do-Not-Pay marks for this period — read from the RazorpayX sync log so
+  // the button reflects the real state after a reload, not just the toast.
+  const { data: dnpMarks = {} } = useQuery({
+    queryKey: ["payroll_dnp_marks", period],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_sync_log")
+        .select("razorpay_employee_id, created_at, error_text, field_diff_summary, action")
+        .in("action", ["payroll_do_not_pay", "payroll_reset_modifications"])
+        .order("created_at", { ascending: true })
+        .limit(1000);
+      if (error) return {};
+      const map: Record<string, string> = {};
+      for (const r of data || []) {
+        const fds = r.field_diff_summary || {};
+        if (String(fds.payroll_month || "") !== period) continue;
+        const key = String(r.razorpay_employee_id ?? "");
+        if (!key) continue;
+        if (r.error_text) continue;
+        if (r.action === "payroll_reset_modifications") delete map[key];
+        else if (fds.do_not_pay !== false) map[key] = r.created_at;
+      }
+      return map;
+    },
+  });
+
+
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["payroll_inputs", table, period],
     queryFn: async () => {

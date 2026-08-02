@@ -7418,7 +7418,7 @@ Deno.serve(async (req) => {
         http_status: httpStatus,
         razorpay_employee_id: rpEid,
         hr_employee_id: null,
-        field_diff_summary: { url: `/${spec.urlPath}`, body_type: spec.bodyType, sub_type: spec.sub_type, data_keys: Object.keys(data).slice(0, 20) },
+        field_diff_summary: { url: `/${spec.urlPath}`, body_type: spec.bodyType, sub_type: spec.sub_type, data_keys: Object.keys(data).slice(0, 20), payroll_month: data["payroll-month"] ?? null, do_not_pay: action === "payroll_do_not_pay" ? doNotPayExpected : undefined },
         error_text: errText,
         actor_user_id: authed.userId,
       });

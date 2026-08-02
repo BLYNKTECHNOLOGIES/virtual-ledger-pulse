@@ -19,6 +19,8 @@ project_id = "vagiqbespusdxsbqpvbo"
   port = 54322
 
 [functions]
+  [functions.tmp-rp-debug]
+    verify_jwt = false
   [functions.hr-razorpay-orphan-scan]
     verify_jwt = false
   [functions.auth-email-hook]

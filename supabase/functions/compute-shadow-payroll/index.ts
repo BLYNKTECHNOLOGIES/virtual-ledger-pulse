@@ -514,7 +514,7 @@ Deno.serve(async (req) => {
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
       const earningsTotal = grossEarnings + addPositive;
-      const deductions = epf.employee + esi.employee + pt + tds + addNegative;
+      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative;
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 

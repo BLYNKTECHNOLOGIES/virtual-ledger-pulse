@@ -265,6 +265,7 @@ export default function LoansPage() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="paused">Paused</SelectItem>
             <SelectItem value="closed">Closed</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>

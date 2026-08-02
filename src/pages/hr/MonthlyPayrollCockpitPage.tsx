@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { CockpitToolSheet, type CockpitToolKey } from "@/components/hrms/CockpitToolSheet";
 import {
   CheckCircle2,
   Circle,
@@ -60,17 +61,30 @@ const STEP_ICONS: Record<string, any> = {
   close_month: Flag,
 };
 
-const STEP_TARGET: Record<string, { path: string; label: string } | { href: string; label: string }> = {
-  lock_attendance: { path: "/hrms/attendance/period-locks", label: "Open Period Locks" },
-  watchdog_zero: { path: "/hrms/attendance/stale-sessions", label: "Open Stale Sessions" },
-  lop_push: { path: "/hrms/payroll/inputs?tab=deduction&focus=lop", label: "Open LOP deductions" },
-  inputs_push: { path: "/hrms/payroll/inputs?tab=addition", label: "Open additions / deductions" },
+type StepTarget =
+  | { tool: CockpitToolKey; label: string; params?: Record<string, string> }
+  | { href: string; label: string };
+
+const STEP_TARGET: Record<string, StepTarget> = {
+  lock_attendance: { tool: "period_locks", label: "Open Period Locks" },
+  watchdog_zero: { tool: "stale_sessions", label: "Open Stale Sessions" },
+  lop_push: { tool: "inputs", label: "Open LOP deductions", params: { tab: "deduction", focus: "lop" } },
+  inputs_push: { tool: "inputs", label: "Open additions / deductions", params: { tab: "addition" } },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
-  import_payslips: { path: "/hrms/payroll/payslip-history-import", label: "Import Payslips" },
-  shadow_compare: { path: "/hrms/payroll/shadow-calculator", label: "Run Shadow Payroll" },
-  drift_review: { path: "/hrms/data-health", label: "Open Data Health" },
-  close_month: { path: "#", label: "" },
+  import_payslips: { tool: "payslip_import", label: "Import Payslips" },
+  shadow_compare: { tool: "shadow", label: "Run Shadow Payroll" },
+  drift_review: { tool: "data_health", label: "Open Data Health" },
 };
+
+const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
+  { tool: "inputs", label: "Payroll Inputs" },
+  { tool: "salary_register", label: "Import Salary Register" },
+  { tool: "payslip_import", label: "Import Payslips" },
+  { tool: "shadow", label: "Shadow Payroll" },
+  { tool: "razorpay_sync", label: "RazorpayX Diagnostics" },
+  { tool: "system_pulse", label: "System Pulse" },
+  { tool: "data_health", label: "Data Health" },
+];
 
 function monthOptions(): { value: string; label: string }[] {
   const opts: { value: string; label: string }[] = [];
@@ -164,6 +178,20 @@ export default function MonthlyPayrollCockpitPage() {
   const [ackStep, setAckStep] = useState<CockpitStep | null>(null);
   const [ackNotes, setAckNotes] = useState("");
   const [closeOpen, setCloseOpen] = useState(false);
+  const [tool, setTool] = useState<CockpitToolKey | null>(null);
+  const [, setSearchParams] = useSearchParams();
+
+  // Embedded tools read the URL (tab / focus / period), so the cockpit sets them before opening.
+  function openTool(key: CockpitToolKey, params?: Record<string, string>) {
+    const next = new URLSearchParams(params ?? {});
+    next.set("period", month.slice(0, 7));
+    setSearchParams(next, { replace: true });
+    setTool(key);
+  }
+  function closeTool() {
+    setTool(null);
+    setSearchParams(new URLSearchParams(), { replace: true });
+  }
 
   const monthDate = useMemo(() => new Date(month + "T00:00:00Z"), [month]);
   const monthLabel = monthDate.toLocaleString("en-IN", { month: "long", year: "numeric" });
@@ -225,6 +253,26 @@ export default function MonthlyPayrollCockpitPage() {
               </Button>
 
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payroll toolbox — every sub-tool opens inside the cockpit, not the sidebar. */}
+      <Card>
+        <CardContent className="p-3 md:p-4">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Payroll toolbox</div>
+          <div className="flex flex-wrap gap-2">
+            {EXTRA_TOOLS.map((t) => (
+              <Button
+                key={t.tool + t.label}
+                variant="secondary"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => openTool(t.tool)}
+              >
+                {t.label}
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -296,22 +344,19 @@ export default function MonthlyPayrollCockpitPage() {
                     </div>
 
                     <div className="flex flex-col gap-2 md:min-w-[200px] md:items-end">
-                      {target && "path" in target && step.step_key !== "close_month" && (
-                        <Button variant="outline" size="sm" asChild className="gap-1.5">
-                          <Link
-                            to={
-                              target.path.includes("/payroll/inputs")
-                                ? `${target.path}&period=${month.slice(0, 7)}`
-                                : target.path
-                            }
-                          >
-                            {target.label} <ChevronRight className="h-3.5 w-3.5" />
-                          </Link>
+                      {target && "tool" in target && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => openTool(target.tool, target.params)}
+                        >
+                          {target.label} <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                       )}
                       {target && "href" in target && (
                         <Button variant="outline" size="sm" asChild className="gap-1.5">
-                          <a href={(target as any).href} target="_blank" rel="noreferrer">
+                          <a href={target.href} target="_blank" rel="noreferrer">
                             {target.label} <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         </Button>
@@ -411,6 +456,8 @@ export default function MonthlyPayrollCockpitPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CockpitToolSheet tool={tool} onClose={closeTool} />
     </div>
   );
 }

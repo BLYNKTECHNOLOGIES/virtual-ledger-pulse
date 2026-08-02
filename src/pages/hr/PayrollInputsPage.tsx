@@ -556,7 +556,12 @@ export default function PayrollInputsPage() {
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (
       <Card>
-        <CardHeader><CardTitle className="text-sm">Per-employee actions for {period}</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+          <CardTitle className="text-sm">Per-employee actions for {period}</CardTitle>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportPayableList}>
+            <Download className="h-3 w-3 mr-1" /> Export payable list
+          </Button>
+        </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">

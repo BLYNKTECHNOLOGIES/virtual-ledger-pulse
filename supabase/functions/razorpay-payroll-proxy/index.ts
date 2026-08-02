@@ -338,6 +338,60 @@ function extractPayrollViewFigures(body: any) {
   return { gross, deductions, net, tds, pdf, payslipId, pf, esi, pt, additionsDetail, doNotPay, employeeName, deductionAmount: deductions };
 }
 
+// ---------------------------------------------------------------------------
+// RazorpayX payroll modification wire shape (verified against the Postman
+// collection / docs/RAZORPAY_API_FIELD_AUDIT.md §3–4):
+//   data.additions  = { "<label>": { name, amount, type: 0|1|2, taxable: 0|1 } }
+//   data.deductions = { "<label>": { name, amount, type, taxable, deductFrom } }
+// Amounts are plain rupees (integers), NOT paise. It is a label-keyed MAP, not
+// an array — an array is silently ignored by Opfin, which is why staged bonuses
+// never showed up on the run. Callers may pass either an array of
+// { label, amount, taxable, type } or an already-shaped map; both normalise here.
+// ---------------------------------------------------------------------------
+function additionTypeCode(t: unknown): number {
+  const s = String(t ?? "bonus").toLowerCase();
+  if (s === "0" || s === "1" || s === "2") return Number(s);
+  if (s.includes("arrear")) return 1;
+  if (s.includes("reimburse")) return 2;
+  return 0;
+}
+function normalizePayrollModifications(
+  input: unknown,
+  kind: "additions" | "deductions",
+): { map: Record<string, any>; expect: Array<{ label: string; amount: number }> } {
+  const map: Record<string, any> = {};
+  const expect: Array<{ label: string; amount: number }> = [];
+  const add = (rawLabel: unknown, rawAmount: unknown, taxable: unknown, type: unknown, deductFrom?: unknown) => {
+    const label = String(rawLabel ?? "").trim();
+    const amount = Math.round(Number(rawAmount));
+    if (!label || !Number.isFinite(amount) || amount <= 0) return;
+    // Same label twice for one employee/month collapses in Opfin's map — sum it
+    // here so the operator's intent (two ₹500 rows) is not silently halved.
+    const prev = map[label]?.amount ?? 0;
+    const total = prev + amount;
+    map[label] = kind === "additions"
+      ? { name: label, amount: total, type: additionTypeCode(type), taxable: taxable === false || taxable === 0 ? 0 : 1 }
+      : { name: label, amount: total, type: additionTypeCode(type), taxable: taxable === true || taxable === 1 ? 1 : 0, deductFrom: String(deductFrom ?? "net") };
+    const found = expect.find((e) => e.label === label);
+    if (found) found.amount = total; else expect.push({ label, amount: total });
+  };
+  if (Array.isArray(input)) {
+    for (const it of input) {
+      if (!it || typeof it !== "object") continue;
+      const o = it as any;
+      add(o.label ?? o.name, o.amount, o.taxable, o.type ?? o.addition_type, o.deductFrom ?? o.deduct_from);
+    }
+  } else if (input && typeof input === "object") {
+    for (const [k, v] of Object.entries(input as Record<string, any>)) {
+      if (v && typeof v === "object") add(v.name ?? k, v.amount, v.taxable, v.type, v.deductFrom);
+      else add(k, v, undefined, undefined);
+    }
+  }
+  return { map, expect };
+}
+
+
+
 
 async function loadExpectedNetByRpId(svc: SupabaseClient, periodMonthISO: string) {
   const expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();

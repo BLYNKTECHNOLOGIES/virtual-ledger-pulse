@@ -21,6 +21,7 @@ import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
 import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
 import { Link } from "react-router-dom";
 import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";
+import { RazorpayOrphanPanel } from "@/components/hrms/health/RazorpayOrphanPanel";
 
 type Drift = {
   id: string;

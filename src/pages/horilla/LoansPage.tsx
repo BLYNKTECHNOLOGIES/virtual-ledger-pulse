@@ -496,6 +496,28 @@ export default function LoansPage() {
         </DialogContent>
 
       </Dialog>
+
+      <AlertDialog open={!!closeConfirm} onOpenChange={(o) => !o && setCloseConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{closeConfirm === "written_off" ? "Write off this loan?" : "Foreclose this loan?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              All unpaid installments are cancelled and the outstanding balance is set to zero, so nothing further is pushed to RazorpayX. Installments already pushed for a running payroll month stay in effect.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={closeConfirm === "written_off" ? "bg-destructive text-destructive-foreground" : ""}
+              onClick={() => closeConfirm && closeLoan.mutate(closeConfirm)}
+              disabled={closeLoan.isPending}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }

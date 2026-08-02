@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";

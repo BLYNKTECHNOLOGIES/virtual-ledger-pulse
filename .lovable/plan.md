@@ -1,96 +1,30 @@
-# July 2026 Payroll — Full Processing Runbook
+# Auto-calculate Loss of Pay from attendance
 
-This is the complete step-by-step runbook for closing July 2026 payroll through the Monthly Payroll Cockpit. It is written against the live state of the system as read today.
+Today LOP deduction rows have to be typed in one employee at a time on the Payroll Inputs page, even though the system already derives LOP days from attendance (the shadow payroll engine uses the shared `hr_compute_lop_days` calculation). This adds a one-click generator so the LOP rows for the whole month are produced from attendance, reviewed, and staged for RazorpayX.
 
-Doctrine reminder that governs every step: **RazorpayX is the paying authority; HRMS is the feeder and the auditor.** HRMS pushes inputs in, the run happens on the RazorpayX dashboard, and HRMS then imports what actually happened and compares.
+## What you will get
 
-## Where July stands right now
+1. **"Auto-calculate LOP from attendance"** button on the Payroll Inputs → Deductions tab (and on the cockpit's LOP step).
+2. A **preview table** before anything is saved, one row per active RazorpayX-mapped employee:
+   - Name · badge
+   - Working days, present, paid leave, unpaid leave
+   - LOP days
+   - Monthly base used and the computed LOP amount
+   - Status: New / Unchanged / Amount changed / Already pushed (locked) / Skipped with reason
+3. **Stage all** (or tick specific rows) writes the deduction rows for the period. Existing auto-generated rows for that month are refreshed; rows already pushed to RazorpayX or created manually are never overwritten.
+4. Employees with zero LOP days are not staged (and any stale auto LOP row for them is removed if it hasn't been pushed).
+5. Re-running is safe — it recalculates and updates, it does not duplicate.
 
-Read from `hr_cockpit_month_state('2026-07-01')`:
+## Calculation (same rules the shadow payroll already uses)
 
-| # | Step | Live state |
-|---|------|-----------|
-| 1 | Lock attendance period | Complete — 1 locked range covering July, locked 1 Aug |
-| 2 | Watchdog: zero stale sessions | Complete — 0 open |
-| 3 | LOP push to RazorpayX | 0 LOP rows staged |
-| 4 | Inputs push (additions/deductions) | 0 rows staged |
-| 5 | Run payroll on RazorpayX | Pending |
-| 6 | Import payslips + register CSV | 37 payslips present, **0 register rows** |
-| 7 | Shadow compare | A run exists (`66c1bfae`, computed, 35 lines) |
-| 8 | Drift review | 40 unexplained alerts |
-| 9 | Close month | Pending |
-
-Supporting numbers: 37 active employees, 1,026 July attendance-daily rows across 38 employees, 0 pending leave requests, 0 pending regularizations, 0 July penalties.
-
-**One thing to resolve before we start.** 37 July payslips are already sitting in the system tagged `razorpay_import`, and a shadow run has already been computed with 35 lines — even though July has not been run on RazorpayX. Those are almost certainly carried-over/placeholder rows, and the shadow run only covers 35 of 37 people. Step 0 below deals with this before anything else, because a stale payslip set will silently poison the drift comparison at step 8.
-
-## Step 0 — Clear the pre-run artefacts
-
-Before touching inputs: confirm the 37 existing July payslips are placeholders (not a real RazorpayX export), identify the 2 employees missing from the 35-line shadow run, and clear/replace both sets so the post-run import is the only source of July actuals.
-
-## Step 1 — Attendance lock (already green)
-
-Page: **HRMS → Attendance → Period Locks**. July is locked. Verify the locked range actually spans 1–31 July and not a partial window, then acknowledge step 1 in the Cockpit.
-
-## Step 2 — Stale sessions watchdog (already green)
-
-Page: **HRMS → Attendance → Stale Sessions**. Zero open. Auto-passes; acknowledge.
-
-## Step 3 — LOP push
-
-Page: **HRMS → Payroll → Payroll Inputs**, Deductions tab, LOP focus.
-
-- Generate LOP from locked July attendance: unapproved absences minus approved leave minus comp-off, applying weekly-off and holiday exclusions.
-- Review the LOP list employee by employee. Currently 0 rows are staged — with 1,026 attendance rows and 0 recorded absences, either July genuinely has no LOP or the absent-marker did not run for July. We confirm which before pushing.
-- Push staged LOP rows to RazorpayX (payroll-write gate must be open).
-
-## Step 4 — Other inputs
-
-Same page, Additions and Deductions tabs. Stage and push, in this order:
-
-1. Additions — incentives, arrears, reimbursements, one-off bonuses.
-2. Deductions — penalties (none for July yet), loan/advance EMIs from `hr_loans`, deposit instalments from the deposit schedule.
-3. Training-period swaps and any Do-Not-Pay marks for the month.
-4. New joiners and exits — F&F cases handled through the F&F page, not as ad-hoc deductions.
-
-Each row is pushed individually and logged; the push is blocked when the payroll-write gate is locked.
-
-## Step 5 — Run on RazorpayX
-
-Open the RazorpayX payroll run for July, verify the input counts match what HRMS pushed, execute the run, then come back and acknowledge step 5. RazorpayX exposes no API for run status, so this acknowledgement is manual by design — the cockpit will never auto-tick it.
-
-## Step 6 — Import actuals
-
-Two imports, both required:
-
-1. **Payslip import** — HRMS → Payroll → Payslip History Import. Discover, then import July payslips.
-2. **Salary Register CSV** — HRMS → Payroll → Import Salary Register. You have the 42-column July register. This is the only trustworthy source of the PF / ESI / PT statutory breakdown, and register rows are currently 0, so this step is mandatory before drift review means anything.
-
-Match rate is shown before import commits; unmatched rows point at gaps in `hr_razorpay_employee_map` and get resolved there.
-
-## Step 7 — Shadow compare
-
-Page: **HRMS → Payroll → Shadow Calculator**. Re-run for July after the imports so the shadow computes against the real register, not the stale artefacts. The engine applies the CTC-inclusive doctrine (employer statutory carved out of the CTC pool via fixed-point iteration) and per-employee statutory enrollment from `hr_employee_statutory_profiles` — including the PF/ESIC switches set from the registration reports.
-
-Expect the run to cover all 37 active employees; anything short of that is a mapping gap to fix, not a result to accept.
-
-## Step 8 — Drift review
-
-Page: **HRMS → Data Health**. 40 unexplained alerts stand today. The open set across all months breaks down as: designation 23, department 9, active state 4, date of joining 4, dismissal state 3, email 1, bank account 1, full name 1.
-
-Note that most of these are **master-data** drift, not money drift. They still block the close, so each is either corrected on the authoritative side or explicitly resolved with a note. Money drift within ±₹5 and TDS rounding is auto-tolerated and will not appear.
-
-## Step 9 — Close month
-
-Once steps 1–8 are acknowledged, `hr_close_payroll_month` runs. If it refuses, it returns the exact blocker list and we clear them one at a time.
+- LOP days = working days − (present + paid leave + incomplete days held harmless), from `hr_compute_lop_days`. Weekly offs, holidays and approved regularizations are already honoured there.
+- LOP amount = monthly regular base × (LOP days ÷ working days), rounded to the rupee.
+- Monthly base resolution order: salary structure assignment → RazorpayX-mirrored structure → imported Salary Register for the period → onboarding CTC → most recent imported payslip. If none resolves, the employee is listed as skipped ("no salary base"), never guessed.
+- Employees with leave-configuration errors are surfaced as skipped with the reason, not silently zeroed.
 
 ## Technical notes
 
-- Cockpit state comes from `hr_cockpit_month_state(_month)`; acknowledgements from `hr_cockpit_ack_step`; closing from `hr_close_payroll_month` — all keyed on `2026-07-01`.
-- Payroll input rows live in `hr_payroll_input_additions` / `hr_payroll_input_deductions`, keyed by `period_month`.
-- Statutory intent is `hr_employee_statutory_profiles` (effective-dated); RazorpayX actuals are only knowable from the imported register, since Opfin's `people:view` returns 13 keys and none are statutory.
-- Drift lives in `hr_drift_alerts` with `auto_status` / `dedup_key` de-duplication.
-
-## How we work through it
-
-I will walk you through the steps in order. At each step I will tell you exactly what to click, what numbers to expect, and what a wrong number means. You report back what you see — errors, mismatched counts, missing buttons — and I fix the underlying cause (root cause, not a patch) before we move on.
+- **Migration**: add `source text not null default 'manual'` and `lop_days numeric` to `hr_payroll_input_deductions` so auto rows are identifiable and idempotent (unique partial index on `(hr_employee_id, period_month)` where `source = 'auto_lop'`).
+- **New edge function** `generate-lop-deductions` with `{ period, dry_run, employee_ids? }`. It calls `hr_compute_lop_days` in one batch and reuses the exact salary-base resolution ladder from `compute-shadow-payroll` (extracted into `supabase/functions/_shared/salaryBase.ts` and imported by both, so the two can never drift). Returns the preview rows; on `dry_run: false` it upserts/removes auto rows and skips any row with `pushed_at` set.
+- **UI**: `AutoLopDialog` component used by `PayrollInputsPage`; the existing push / bulk-push flow is unchanged, so staged auto rows go to RazorpayX through the same verified envelope path.
+- Cockpit step 3 detail line will show "N employees with LOP · M rows staged" so the step reflects the generated state.

@@ -412,13 +412,8 @@ export default function DepositManagementPage() {
           <div>
             <Label>Deduction Start Month</Label>
             <Input type="month" value={form.deduction_start_month} onChange={(e) => setForm({ ...form, deduction_start_month: e.target.value })} />
-            <p className="text-xs text-muted-foreground mt-1">
-              A past month is allowed — the installment is included in that month's payroll if it has not been processed yet. Months already processed/locked are skipped automatically.
-            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            An installment counts as collected only after that month's payroll is processed; until then it shows as pushed and the deposit balance stays unchanged.
-          </p>
+
         </>
       )}
       {form.deposit_type === "error_recovery" && (

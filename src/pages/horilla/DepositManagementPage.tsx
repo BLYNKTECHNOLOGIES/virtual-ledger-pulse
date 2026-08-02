@@ -367,6 +367,15 @@ export default function DepositManagementPage() {
 
   const isPct = (m: string) => m === "percentage" || m === "percentage_ctc";
 
+  // total_salary is stored as annual CTC → monthly CTC = /12
+  const monthlyCtcFor = (employeeId?: string) => {
+    if (!employeeId) return 0;
+    const emp = employees.find((e: any) => e.id === employeeId);
+    const annual = Number(emp?.total_salary || 0);
+    return annual > 0 ? annual / 12 : 0;
+  };
+
+
   const renderDepositForm = (isEdit: boolean) => (
     <div className="space-y-4">
       {!isEdit && (

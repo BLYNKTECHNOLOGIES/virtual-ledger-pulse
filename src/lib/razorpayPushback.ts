@@ -102,7 +102,7 @@ async function logPushback(row: {
   razorpay_employee_id: string | null;
   kind: PushKind;
   action: string;
-  status: "success" | "failure" | "skipped";
+  status: "success" | "failure" | "skipped" | "manual_required";
   request_snapshot?: unknown;
   response_snapshot?: unknown;
   error_message?: string | null;
@@ -469,7 +469,7 @@ export const pushEmploymentToRazorpay = (id: string, opts?: { triggeredFrom?: st
 export async function dismissInRazorpay(
   hrEmployeeId: string,
   opts: { dateOfDismissal: string; reason?: string | null; triggeredFrom?: string },
-): Promise<{ ok: boolean; skipped?: boolean; error?: string; razorpay_employee_id?: string }> {
+): Promise<{ ok: boolean; skipped?: boolean; manualRequired?: boolean; error?: string; razorpay_employee_id?: string }> {
   const razorpayId = await resolveRazorpayEmployeeId(hrEmployeeId);
   if (!razorpayId) {
     await logPushback({

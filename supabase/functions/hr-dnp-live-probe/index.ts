@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
       action: "payroll_do_not_pay",
       payload: {
         data: {
-          "employee-id": 40,
+          "employee-id": 8,
           "employee-type": "employee",
           "payroll-month": "2026-07",
           "do-not-pay": true,

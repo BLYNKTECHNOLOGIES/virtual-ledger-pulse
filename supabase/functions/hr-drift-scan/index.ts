@@ -313,7 +313,8 @@ serve(async (req) => {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${svcKey}` },
           body: JSON.stringify({
             action: "read_person_by_id",
-            payload: { razorpay_employee_id: row.razorpay_employee_id, allow_dismissed: true },
+            razorpay_employee_id: row.razorpay_employee_id,
+            allow_dismissed: true,
           }),
         });
         const body = await r.json().catch(() => null);

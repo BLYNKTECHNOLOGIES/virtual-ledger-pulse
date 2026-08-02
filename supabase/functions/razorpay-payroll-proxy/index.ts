@@ -7197,6 +7197,19 @@ Deno.serve(async (req) => {
         ? directPayload.data : {};
       let payrollEmployeeId = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
         ? String(data["employee-id"]) : "";
+      // Opfin's do-not-pay handler dereferences the boolean field internally;
+      // omitting it produces HTTP 200 with "Undefined property: stdClass::$value".
+      // Normalize the complete documented contract here so every UI caller is
+      // safe, including older clients that only sent employee + month.
+      if (action === "payroll_do_not_pay") {
+        if (!data["employee-id"]) return json(400, { ok: false, error: "Missing required payroll do-not-pay field: employee-id" });
+        if (!data["payroll-month"] && data.month) data["payroll-month"] = String(data.month).slice(0, 7);
+        if (!data["payroll-month"]) return json(400, { ok: false, error: "Missing required payroll do-not-pay field: payroll-month" });
+        data["employee-id"] = Number(data["employee-id"]);
+        data["employee-type"] = String(data["employee-type"] || "employee");
+        data["do-not-pay"] = data["do-not-pay"] !== false;
+        delete data.month;
+      }
       // ---- payroll modifications
       // Opfin's official Postman collection defines asymmetric contracts:
       //   add-additions -> additions ARRAY carrying `label`

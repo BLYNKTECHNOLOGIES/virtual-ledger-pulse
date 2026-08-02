@@ -243,7 +243,7 @@ export default function PayrollInputsPage() {
   const doNotPay = useMutation({
     mutationFn: async (empRow: any) => {
       const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
-        body: { action: "payroll_do_not_pay", payload: { data: { "employee-id": empRow.razorpay_employee_id, "payroll-month": period } } },
+        body: { action: "payroll_do_not_pay", payload: { data: { "employee-id": Number(empRow.razorpay_employee_id), "employee-type": "employee", "payroll-month": period, "do-not-pay": true } } },
       });
       if (error) throw error;
       if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);

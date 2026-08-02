@@ -48,7 +48,7 @@ export default function PayrollInputsPage() {
   const { data: settings } = useQuery({
     queryKey: ["hr_razorpay_settings_gate"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_razorpay_settings").select("push_payroll_endpoint_verified,push_payroll_envelope_key,push_payroll_envelope_verified_at").limit(1).maybeSingle();
+      const { data, error } = await (supabase as any).from("hr_razorpay_settings").select("push_payroll_endpoint_verified,push_payroll_envelope_key,push_payroll_envelope_verified_at").limit(1).maybeSingle();
       return data || null;
     },
   });
@@ -60,10 +60,11 @@ export default function PayrollInputsPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_razorpay_employee_map")
-        .select("razorpay_employee_id, hr_employee_id, hr_employees:hr_employee_id(id, first_name, last_name, employee_id, status)")
+        .select("razorpay_employee_id, hr_employee_id, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
         .not("hr_employee_id", "is", null)
         .not("razorpay_employee_id", "is", null);
-      return (data || []).filter((r: any) => r.hr_employees && r.hr_employees.status !== "dismissed");
+      if (error) throw error;
+      return (data || []).filter((r: any) => r.hr_employees && r.hr_employees.is_active !== false);
     },
   });
   const empById = useMemo(() => {
@@ -172,7 +173,7 @@ export default function PayrollInputsPage() {
 
   const empLabel = (r: any) => {
     const e = empById.get(r.hr_employee_id)?.hr_employees;
-    return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.employee_id ? ` · ${e.employee_id}` : "") : r.razorpay_employee_id;
+    return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : r.razorpay_employee_id;
   };
 
   return (
@@ -243,7 +244,7 @@ export default function PayrollInputsPage() {
                     <SelectContent>
                       {(employees as any[]).map((r) => (
                         <SelectItem key={r.hr_employee_id} value={r.hr_employee_id}>
-                          {`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.employee_id ? `· ${r.hr_employees.employee_id}` : ""}
+                          {`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -365,7 +366,7 @@ export default function PayrollInputsPage() {
             <tbody>
               {(employees as any[]).slice(0, 200).map((r) => (
                 <tr key={r.hr_employee_id} className="border-b hover:bg-muted/30">
-                  <td className="px-3 py-2">{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.employee_id ? `· ${r.hr_employees.employee_id}` : ""}</td>
+                  <td className="px-3 py-2">{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</td>
                   <td className="px-3 py-2">
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setDnpConfirm(r)} title={gateOpen ? "" : "Payroll-write gate locked"}>

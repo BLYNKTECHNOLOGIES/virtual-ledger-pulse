@@ -213,7 +213,16 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
                   </div>
 
                   <div className="col-span-6 md:col-span-3">
-                    <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
+                    {kind === "addition" && d.addition_type === "bonus" ? (
+                      <Select value={BONUS_LABELS.includes(d.label) ? d.label : ""} onValueChange={(v) => patchDraft(d.key, { label: v })}>
+                        <SelectTrigger className="h-9 text-foreground"><SelectValue placeholder="Select bonus label" /></SelectTrigger>
+                        <SelectContent>
+                          {BONUS_LABELS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
+                    )}
                   </div>
                   <div className="col-span-6 md:col-span-2">
                     <Input className="h-9 tabular-nums" inputMode="decimal" value={d.amount} onChange={(e) => patchDraft(d.key, { amount: e.target.value })} placeholder="Amount ₹" />

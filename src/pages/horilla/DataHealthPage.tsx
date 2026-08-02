@@ -586,7 +586,13 @@ export default function DataHealthPage() {
                         inactive
                       </span>
                     )}
+                    {d.field === "active_state" && d.razorpay_value === "inactive" && d.hrms_value === "active" && (
+                      <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-warning/15 text-warning">
+                        dismissal pending in HRMS
+                      </span>
+                    )}
                   </div>
+
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       to={`/hrms/employee/${d.hr_employee_id}`}

@@ -447,7 +447,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, scanned: employees.length, drifts_upserted: upserted, resolved }),
+      JSON.stringify({ ok: true, scanned: employees.length, drifts_upserted: upserted, resolved, snapshots_refreshed: refreshed, snapshot_refresh_failed: refreshFailed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e: any) {

@@ -100,6 +100,7 @@ const navGroups: NavGroup[] = [
           { label: "Raw Punches", path: "/hrms/attendance/punches" },
           { label: "Monthly Hours", path: "/hrms/attendance/monthly-hours" },
           { label: "Regularization Requests", path: "/hrms/attendance/regularization" },
+          { label: "Stale Sessions (Watchdog)", path: "/hrms/attendance/stale-sessions" },
           { label: "Period Locks", path: "/hrms/attendance/period-locks" },
         ],
       },
@@ -132,7 +133,11 @@ const navGroups: NavGroup[] = [
         children: [
           { label: "🎯 Monthly Cockpit", path: "/hrms/payroll/cockpit" },
           { label: "Dashboard", path: "/hrms/payroll" },
+          { label: "Payroll Inputs (Additions / Deductions)", path: "/hrms/payroll/inputs" },
+          { label: "LOP Deductions", path: "/hrms/payroll/inputs?tab=deduction&focus=lop" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
+          { label: "Import Payslip History", path: "/hrms/payroll/payslip-history-import" },
+          { label: "Import Salary Register (CSV)", path: "/hrms/payroll/salary-register-import" },
           // Salary Structure entry retired — Razorpay is authority; view per-employee mirror inside the employee profile.
           { label: "Salary Revisions", path: "/hrms/payroll/salary-revisions" },
           { label: "Statutory Settings", path: "/hrms/payroll/statutory-settings" },
@@ -242,8 +247,10 @@ export function HorillaSidebar({
   }, [location.pathname]);
 
   const isActive = (path: string) => {
-    if (path === "/hrms") return location.pathname === "/hrms";
-    return location.pathname.startsWith(path);
+    // Entries may carry query strings (e.g. LOP focus view) — match on pathname only.
+    const base = path.split("?")[0];
+    if (base === "/hrms") return location.pathname === "/hrms";
+    return location.pathname.startsWith(base);
   };
 
   const toggleExpand = (label: string) => {

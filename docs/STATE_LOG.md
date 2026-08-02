@@ -1,3 +1,4 @@
+- 2026-08-02: RazorpayX designation push root cause fixed — Data Health used linked positions.title while push/read-back verification used legacy work_info.job_role, producing false green verification without changing the displayed designation; all paths now use position title first and legacy role only as fallback.
 # STATE LOG
 
 Living cross-agent log. **Newest entry at top.** One dated line per event. Prune entries older than 30 days.

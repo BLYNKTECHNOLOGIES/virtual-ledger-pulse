@@ -348,11 +348,39 @@ export default function PayrollInputsPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+              <CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
+              <div className="flex items-center gap-2">
+                {selectedPending.length > 0 && (
+                  <>
+                    <span className="text-xs text-muted-foreground">{selectedPending.length} selected</span>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => setBulkPushConfirm(true)} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                      {bulkPush.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />} Push selected
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => setBulkDeleteConfirm(true)}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Delete selected
+                    </Button>
+                  </>
+                )}
+                <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
+                  <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
+                </Button>
+              </div>
+            </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>
+                    <th className="px-3 py-2 w-8">
+                      <Checkbox
+                        checked={pendingRows.length > 0 && selectedPending.length === pendingRows.length}
+                        onCheckedChange={(c) => {
+                          if (c) { const next: Record<string, boolean> = {}; pendingRows.forEach((r: any) => { next[r.id] = true; }); setSelected(next); }
+                          else setSelected({});
+                        }}
+                        aria-label="Select all pending"
+                      />
+                    </th>
                     {["Employee", "Label", tab === "addition" ? "Type" : "", "Amount", "Status", "Actions"].filter(Boolean).map((h) => (
                       <th key={h as string} className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground text-left">{h}</th>
                     ))}
@@ -360,11 +388,20 @@ export default function PayrollInputsPage() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
+                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
                   ) : visibleRows.length === 0 ? (
-                    <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
+                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
                   ) : visibleRows.map((r) => (
                     <tr key={r.id} className="border-b hover:bg-muted/30">
+                      <td className="px-3 py-2">
+                        {!r.pushed_at && (
+                          <Checkbox
+                            checked={!!selected[r.id]}
+                            onCheckedChange={(c) => setSelected((p) => ({ ...p, [r.id]: !!c }))}
+                            aria-label="Select row"
+                          />
+                        )}
+                      </td>
                       <td className="px-3 py-2">{empLabel(r)}</td>
                       <td className="px-3 py-2">{r.label}</td>
                       {tab === "addition" && <td className="px-3 py-2">{r.addition_type}{r.taxable === false ? " · non-tax" : ""}</td>}

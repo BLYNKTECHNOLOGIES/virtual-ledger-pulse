@@ -7280,22 +7280,54 @@ Deno.serve(async (req) => {
             const rbRaw = await rbRes.text();
             let rbBody: any = null; try { rbBody = JSON.parse(rbRaw); } catch { rbBody = null; }
             const rbErr = rbBody && typeof rbBody === "object" ? (rbBody.error || rbBody.message || null) : null;
+            // Confirm the pushed labels/amounts actually landed on the live run.
+            // Opfin acknowledges writes with an opaque 200, so the view-payroll
+            // read is the only real proof the modification is on the payroll.
+            const rbKind = action === "payroll_add_additions" ? "additions" : "deductions";
+            const detail: any = rbBody && typeof rbBody === "object"
+              ? (rbBody[rbKind] ?? rbBody[rbKind === "additions" ? "addition" : "deduction"] ?? null)
+              : null;
+            const flat: Array<{ label: string; amount: number }> = [];
+            if (detail && typeof detail === "object") {
+              const entries = Array.isArray(detail) ? detail.map((v: any) => [v?.name ?? v?.label, v] as const)
+                                                    : Object.entries(detail);
+              for (const [k, v] of entries as any) {
+                const amt = Number((v && typeof v === "object") ? (v.amount ?? v.value) : v);
+                if (k && Number.isFinite(amt)) flat.push({ label: String(k), amount: amt });
+              }
+            }
+            const matched = modExpect.map((e) => {
+              const hit = flat.find((f) => f.label.trim().toLowerCase() === e.label.trim().toLowerCase());
+              // Opfin may echo rupees or paise depending on tenant config.
+              const okAmt = !!hit && (Math.abs(hit.amount - e.amount) < 1 || Math.abs(hit.amount - e.amount * 100) < 1);
+              return { label: e.label, expected: e.amount, found: hit ? hit.amount : null, ok: okAmt };
+            });
+            const allMatched = matched.length > 0 && matched.every((m) => m.ok);
             readbackReceipt = {
               endpoint: "payroll:view-payroll",
               employee_id: String(rbEid),
               payroll_month: String(rbMonth),
               http_status: rbRes.status,
-              ok: rbRes.ok && !rbErr,
-              error: rbErr ? String(rbErr).slice(0, 200) : null,
+              read_ok: rbRes.ok && !rbErr,
+              ok: rbRes.ok && !rbErr && allMatched,
+              verified_on_run: allMatched,
+              expected: modExpect,
+              found_on_run: flat.slice(0, 25),
+              matched,
+              error: rbErr ? String(rbErr).slice(0, 200) : (allMatched ? null : "Pushed, but the modification was not visible on the RazorpayX run read-back."),
               snapshot_keys: rbBody && typeof rbBody === "object" ? Object.keys(rbBody).slice(0, 20) : [],
             };
-            if (rbId && (rbTable === "additions" || rbTable === "deductions")) {
+            const rbIds: string[] = Array.isArray(directPayload?.readback_ids)
+              ? directPayload.readback_ids.map((x: any) => String(x)).filter(Boolean)
+              : (rbId ? [rbId] : []);
+            if (rbIds.length && (rbTable === "additions" || rbTable === "deductions")) {
               const tableName = rbTable === "additions" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
               await svc.from(tableName).update({
                 readback_verified_at: readbackReceipt.ok ? new Date().toISOString() : null,
                 readback_diff: readbackReceipt,
-              }).eq("id", rbId);
+              }).in("id", rbIds);
             }
+
           } catch (e) {
             readbackReceipt = { ok: false, error: `NETWORK: ${(e as Error).message}` };
           } finally { clearTimeout(rbT); }

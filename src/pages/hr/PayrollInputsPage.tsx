@@ -490,6 +490,7 @@ export default function PayrollInputsPage() {
       </Tabs>
 
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
+      {!lopFocus && (
       <Card>
         <CardHeader><CardTitle className="text-sm">Per-employee actions for {period}</CardTitle></CardHeader>
         <CardContent className="p-0 overflow-x-auto">

@@ -629,5 +629,6 @@ export default function StatutorySettingsPage() {
         </div>
       </ResponsiveDialog>
     </div>
+    </TooltipProvider>
   );
 }

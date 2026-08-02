@@ -67,6 +67,10 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   // change right now instead of scheduling it for the future date.
   const [applyNow, setApplyNow] = useState<boolean>(false);
 
+  // Back-dated revisions: RazorpayX API has no salary-effective-date field, so
+  // arrears must be staged as a one-time addition on the current payroll month.
+  const [stageArrears, setStageArrears] = useState<boolean>(true);
+
   useEffect(() => {
     if (open) {
       setMode("recurring");

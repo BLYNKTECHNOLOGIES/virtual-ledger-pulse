@@ -293,7 +293,36 @@ serve(async (req) => {
       const rzp = rzpByEmp.get(emp.id);
       const esslUser = emp.badge_id ? esslByPin.get(String(emp.badge_id).trim()) : null;
 
+      // Dismissed-in-RazorpayX employees: their snapshot is frozen/partial, so
+      // field-level drift is noise. Suppress everything except the pending
+      // dismissal signal when HRMS still marks them active.
+      const rzpDismissed = !!rzpVal(rzp, "date-of-dismissal") ||
+        norm(rzpVal(rzp, "status")) === "dismissed" ||
+        rzpVal(rzp, "is-active") === false;
+      const hrmsActive = emp.is_active !== false;
+      const suppressAllButActiveState = rzpDismissed;
+
       for (const spec of FIELDS) {
+        if (suppressAllButActiveState && !(spec.field === "active_state" && hrmsActive)) {
+          const { data: existing } = await supa
+            .from("hr_drift_alerts")
+            .select("id")
+            .eq("hr_employee_id", emp.id)
+            .eq("field", spec.field)
+            .is("resolved_at", null)
+            .maybeSingle();
+          if (existing?.id) {
+            await supa
+              .from("hr_drift_alerts")
+              .update({
+                resolved_at: new Date().toISOString(),
+                resolution_note: "Auto-resolved: employee dismissed in RazorpayX — field drift not tracked",
+              })
+              .eq("id", existing.id);
+            resolved++;
+          }
+          continue;
+        }
         const values = spec.extract({ emp, workInfo, bank, salary, rzp, esslUser });
         const present: SystemKey[] = (Object.keys(values) as SystemKey[]).filter(
           (k) => values[k] !== null && values[k] !== undefined,

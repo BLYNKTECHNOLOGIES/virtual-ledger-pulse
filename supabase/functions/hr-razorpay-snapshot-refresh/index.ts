@@ -84,7 +84,7 @@ serve(async (req) => {
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${svcKey}` },
           // allow_dismissed: dismissed people must still be snapshotted, that's
           // precisely the state we need mirrored into HRMS.
-          body: JSON.stringify({ action: "read_person_by_id", payload: { razorpay_employee_id: rpId, allow_dismissed: true } }),
+          body: JSON.stringify({ action: "read_person_by_id", razorpay_employee_id: rpId, allow_dismissed: true }),
         });
         if (!r.ok) { errors++; continue; }
         const body = await r.json();

@@ -141,20 +141,6 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const isFutureDated = rawFutureDated && !applyNow;
   const effectiveDateForRpc = applyNow && rawFutureDated ? new Date() : effectiveFrom;
 
-  // ---- Back-dated arrears (RazorpayX has no effective-date field on set-salary) ----
-  const approvedByLabel = useMemo(() => {
-    const u = user as any;
-    return [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "System";
-  }, [user]);
-  const now = new Date();
-  const curMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const effMonthStart = new Date(effectiveFrom.getFullYear(), effectiveFrom.getMonth(), 1);
-  const isBackDated = mode === "recurring" && effMonthStart < curMonthStart;
-  const backdatedMonths = isBackDated
-    ? (curMonthStart.getFullYear() - effMonthStart.getFullYear()) * 12 + (curMonthStart.getMonth() - effMonthStart.getMonth())
-    : 0;
-  const arrearsAmount = isBackDated && totalDelta > 0 ? (totalDelta / 12) * backdatedMonths : 0;
-
 
   const mutation = useMutation({
     mutationFn: async () => {

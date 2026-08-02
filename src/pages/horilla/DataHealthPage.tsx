@@ -614,7 +614,28 @@ export default function DataHealthPage() {
                     {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                     Push → Razorpay
                   </button>
+                  {PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay") && (
+                    <button
+                      disabled={pulling}
+                      onClick={() =>
+                        setPullTarget({
+                          driftId: d.id,
+                          hrEmployeeId: d.hr_employee_id,
+                          employeeName: d.employee_name || "Unknown employee",
+                          field: d.field,
+                          fieldLabel: FIELD_LABEL[d.field] || d.field,
+                          hrmsValue: d.hrms_value,
+                          razorpayValue: d.razorpay_value,
+                        })
+                      }
+                      title="Overwrite the HRMS value with the value RazorpayX holds (re-read live on confirm)."
+                      className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
+                    >
+                      Pull ← Razorpay
+                    </button>
+                  )}
                   {ESSL_PUSHABLE_FIELDS.has(d.field) && (
+
                     <button
                       disabled={resolvingId === d.id}
                       onClick={() => adoptEssl(d)}

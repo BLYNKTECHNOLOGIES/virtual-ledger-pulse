@@ -403,7 +403,7 @@ export default function LoansPage() {
 
       {/* Loan Detail Dialog */}
       <Dialog open={!!selectedLoan} onOpenChange={() => setSelectedLoan(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-[#E8604C]" />
@@ -419,35 +419,82 @@ export default function LoansPage() {
                 <div><p className="text-muted-foreground">Outstanding</p><p className="font-bold text-destructive">₹{Number(selectedLoan.outstanding_balance).toLocaleString("en-IN")}</p></div>
                 <div><p className="text-muted-foreground">EMI</p><p className="font-medium">₹{Number(selectedLoan.emi_amount).toLocaleString("en-IN")}/mo</p></div>
                 <div><p className="text-muted-foreground">Tenure</p><p className="font-medium">{selectedLoan.tenure_months} months</p></div>
-                <div><p className="text-muted-foreground">Disbursed</p><p className="font-medium">{selectedLoan.disbursement_date}</p></div>
+                <div><p className="text-muted-foreground">Disbursed</p><p className="font-medium">{selectedLoan.disbursement_date || "—"}</p></div>
                 <div><p className="text-muted-foreground">EMI Start</p><p className="font-medium">{selectedLoan.start_emi_date}</p></div>
               </div>
               {selectedLoan.reason && <div className="text-sm"><p className="text-muted-foreground">Reason</p><p>{selectedLoan.reason}</p></div>}
 
               <div>
-                <h4 className="text-sm font-semibold mb-2">Repayment History</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Recovery schedule</h4>
+                  <span className="text-xs text-muted-foreground">
+                    Recovered ₹{repayments.filter((r: any) => r.status === "paid").reduce((s: number, r: any) => s + Number(r.amount || 0), 0).toLocaleString("en-IN")} of ₹{Number(selectedLoan.amount).toLocaleString("en-IN")}
+                  </span>
+                </div>
                 {repayments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No repayments recorded yet.</p>
+                  <p className="text-xs text-muted-foreground">No installments scheduled yet — approve the loan to generate the plan.</p>
                 ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {repayments.map((r: any) => (
-                      <div key={r.id} className="flex items-center justify-between text-xs border-b border-border/50 pb-2">
-                        <div>
-                          <p className="font-medium">{r.repayment_date}</p>
-                          <p className="text-muted-foreground capitalize">{r.repayment_type?.replace(/_/g, " ")}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-success">₹{Number(r.amount).toLocaleString("en-IN")}</p>
-                          <p className="text-muted-foreground">Bal: ₹{Number(r.balance_after).toLocaleString("en-IN")}</p>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="border rounded-md overflow-hidden max-h-56 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 border-b sticky top-0">
+                        <tr>
+                          {["#", "Period", "Amount", "Status", "Balance after"].map((h) => (
+                            <th key={h} className="px-2 py-1.5 text-left font-medium text-muted-foreground uppercase tracking-wide">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {repayments.map((r: any) => (
+                          <tr key={r.id} className="border-b last:border-0">
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.installment_no ?? "—"}</td>
+                            <td className="px-2 py-1.5">{r.period_month || r.repayment_date}</td>
+                            <td className="px-2 py-1.5 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
+                            <td className="px-2 py-1.5">
+                              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                                r.status === "paid" ? "bg-success/10 text-success"
+                                : r.status === "failed" ? "bg-destructive/10 text-destructive"
+                                : r.status === "pushed" ? "bg-info/10 text-info"
+                                : "bg-muted text-muted-foreground"}`}>
+                                {r.repayment_type === "manual" ? "manual · " : ""}{r.status || "scheduled"}
+                              </span>
+                              {r.failure_reason && <span className="block text-[10px] text-destructive">{r.failure_reason}</span>}
+                            </td>
+                            <td className="px-2 py-1.5 tabular-nums text-muted-foreground">
+                              {r.balance_after != null ? `₹${Number(r.balance_after).toLocaleString("en-IN")}` : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
+
+              {["active", "approved", "paused"].includes(selectedLoan.status) && (
+                <div className="border-t pt-4 space-y-3">
+                  <h4 className="text-sm font-semibold">Record repayment received outside payroll</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div><Label className="text-xs">Amount (₹)</Label><Input type="number" value={manual.amount} onChange={(e) => setManual({ ...manual, amount: e.target.value })} /></div>
+                    <div><Label className="text-xs">Date</Label><Input type="date" value={manual.date} onChange={(e) => setManual({ ...manual, date: e.target.value })} /></div>
+                    <div><Label className="text-xs">Note</Label><Input value={manual.notes} onChange={(e) => setManual({ ...manual, notes: e.target.value })} placeholder="Cash / bank ref" /></div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => manualRepay.mutate()} disabled={manualRepay.isPending}>Record repayment</Button>
+                    <Button size="sm" variant="outline" onClick={() => togglePause.mutate(selectedLoan.status !== "paused")} disabled={togglePause.isPending}>
+                      {selectedLoan.status === "paused" ? "Resume recovery" : "Pause recovery"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setCloseConfirm("settled")}>Foreclose (settled)</Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setCloseConfirm("written_off")}>Write off</Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Paused loans stop being pushed to RazorpayX. Manual repayments rebuild the remaining installments automatically.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
+
       </Dialog>
     </div>
   );

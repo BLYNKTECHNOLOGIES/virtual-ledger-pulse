@@ -124,7 +124,7 @@ export function AutoLopDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90dvh] flex flex-col">
+      <DialogContent className="w-[97vw] max-w-[97vw] sm:max-w-[1500px] max-h-[92dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="h-4 w-4" /> Auto-calculate LOP from attendance — {period}

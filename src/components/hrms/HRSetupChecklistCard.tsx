@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Circle, AlertTriangle, ArrowRight, Settings, ListChecks } from "lucide-react";
+import { useState } from "react";
+import { AssignMissingShiftsDialog } from "./AssignMissingShiftsDialog";
 
 /**
  * HR Setup Checklist — the "am I done configuring HRMS?" home base.
@@ -68,6 +70,7 @@ const rows: Row[] = [
 
 export function HRSetupChecklistCard() {
   const navigate = useNavigate();
+  const [shiftDialog, setShiftDialog] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ["hr_setup_checklist"],
     queryFn: async () => {
@@ -162,7 +165,7 @@ export function HRSetupChecklistCard() {
                     size="sm"
                     variant="ghost"
                     className="h-7 text-xs shrink-0 gap-1"
-                    onClick={() => navigate(r.route)}
+                    onClick={() => (r.key === "shifts" ? setShiftDialog(true) : navigate(r.route))}
                   >
                     {r.cta} <ArrowRight className="h-3 w-3" />
                   </Button>
@@ -179,6 +182,7 @@ export function HRSetupChecklistCard() {
           </span>
         </div>
       </CardContent>
+      <AssignMissingShiftsDialog open={shiftDialog} onOpenChange={setShiftDialog} />
     </Card>
   );
 }

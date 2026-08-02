@@ -7227,6 +7227,19 @@ Deno.serve(async (req) => {
         }
       }
 
+      // people:dismiss — "Unable to locate the user" means RazorpayX could not
+      // resolve a user login for this person (non-activated account). Surface it
+      // as an actionable manual-dismissal instruction, not an opaque 502.
+      if (action === "people_dismiss" && errText && /locate the user/i.test(errText)) {
+        return json(200, {
+          ok: false,
+          manual_required: true,
+          code: "RZP_NOT_ACTIVATED",
+          http_status: httpStatus,
+          body: bodyOut,
+          error: "RazorpayX could not locate a user account for this employee (they never activated their RazorpayX login), so people:dismiss cannot dismiss them. Dismiss the employee from the RazorpayX dashboard, then re-verify from HRMS.",
+        });
+      }
       return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText, readback: readbackReceipt });
     }
 

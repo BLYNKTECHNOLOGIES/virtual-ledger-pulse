@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
@@ -121,6 +121,37 @@ export default function PayrollInputsPage() {
       return map;
     },
   });
+
+  // Reconciliation export — payable roster for the period, excluding anyone
+  // marked Do-Not-Pay on RazorpayX or inactive there.
+  const exportPayableList = () => {
+    const marks = dnpMarks as Record<string, string>;
+    const payable = (employees as any[]).filter(
+      (r) => !marks[String(r.razorpay_employee_id)] && r.last_pull_snapshot?.is_active !== false,
+    );
+    if (!payable.length) { toast.error("No payable employees to export for this period"); return; }
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Badge ID", "Employee name", "RazorpayX employee ID", "Payroll month"];
+    const lines = [
+      header.join(","),
+      ...payable
+        .map((r) => ({
+          badge: r.hr_employees?.badge_id ?? "",
+          name: `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim(),
+          rzp: r.razorpay_employee_id,
+        }))
+        .sort((a, b) => String(a.badge).localeCompare(String(b.badge), undefined, { numeric: true }))
+        .map((e) => [e.badge, e.name, e.rzp, period].map(esc).join(",")),
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payable-employees-${period}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${payable.length} payable employee(s) for ${period}`);
+  };
 
 
   const { data: rows = [], isLoading } = useQuery({
@@ -556,7 +587,12 @@ export default function PayrollInputsPage() {
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (
       <Card>
-        <CardHeader><CardTitle className="text-sm">Per-employee actions for {period}</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+          <CardTitle className="text-sm">Per-employee actions for {period}</CardTitle>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportPayableList}>
+            <Download className="h-3 w-3 mr-1" /> Export payable list
+          </Button>
+        </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">

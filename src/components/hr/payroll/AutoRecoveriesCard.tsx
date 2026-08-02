@@ -2,16 +2,19 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Lock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { StatusPill, type PillTone } from "@/components/hrms/primitives/StatusPill";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Lock, CalendarClock, Clock, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
 
 type Props = { period: string }; // YYYY-MM
 
+const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
 /**
- * Read-only mirror of every automatic recovery scheduled for the period:
- * loan/advance EMIs plus security-deposit and error-recovery installments.
- * These are pushed to RazorpayX by the hr-schedule-deposits job, not staged here,
- * so the rows are intentionally not editable.
+ * Read-only mirror of every automatic recovery scheduled for the period.
+ * Presentation only: progress is shown as a bar, status as an icon pill;
+ * all narrative detail lives in tooltips.
  */
 export function AutoRecoveriesCard({ period }: Props) {
   const periodDate = `${period}-01`;
@@ -46,101 +49,157 @@ export function AutoRecoveriesCard({ period }: Props) {
         ? `a future payroll (${periodLabel})`
         : `the ${periodLabel} payroll (not yet processed)`;
 
-  const statusCell = (r: any) => {
-    const s = r.status;
-    if (s === "collected")
-      return {
-        badge: <Badge variant="default">Collected</Badge>,
-        note: `Deducted and settled in the ${periodLabel} payroll`,
-      };
-    if (s === "pushed" || s === "paid")
-      return {
-        badge: <Badge variant="secondary">Pushed to RazorpayX</Badge>,
-        note: `On the ${periodLabel} run — settles when payroll is locked`,
-      };
-    if (s === "failed")
-      return { badge: <Badge variant="destructive">Failed</Badge>, note: "Push failed — will retry" };
-    if (s === "cancelled")
-      return { badge: <Badge variant="muted">Cancelled</Badge>, note: "No longer recovered" };
-    return {
-      badge: <Badge variant="outline">Scheduled</Badge>,
-      note: `Will be deducted in ${timing}`,
-    };
+  const statusMeta = (
+    r: any,
+  ): { tone: PillTone; label: string; icon: JSX.Element; tip: string } => {
+    switch (r.status) {
+      case "collected":
+        return {
+          tone: "emerald",
+          label: "Collected",
+          icon: <CheckCircle2 className="h-3 w-3" />,
+          tip: `Deducted and settled in the ${periodLabel} payroll`,
+        };
+      case "pushed":
+      case "paid":
+        return {
+          tone: "info",
+          label: "Pushed",
+          icon: <Clock className="h-3 w-3" />,
+          tip: `On the ${periodLabel} run — settles when payroll is locked`,
+        };
+      case "failed":
+        return {
+          tone: "destructive",
+          label: "Failed",
+          icon: <AlertTriangle className="h-3 w-3" />,
+          tip: r.failure_reason || "Push failed — will retry",
+        };
+      case "cancelled":
+        return {
+          tone: "default",
+          label: "Cancelled",
+          icon: <Ban className="h-3 w-3" />,
+          tip: "No longer recovered",
+        };
+      default:
+        return {
+          tone: "amber",
+          label: "Scheduled",
+          icon: <CalendarClock className="h-3 w-3" />,
+          tip: `Will be deducted in ${timing}`,
+        };
+    }
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 flex-wrap">
-        <div>
+    <TooltipProvider delayDuration={120}>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 flex-wrap">
           <CardTitle className="text-sm flex items-center gap-2">
             <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-            Automatic recoveries for {period}
+            Automatic recoveries · {periodLabel}
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Loan / advance EMIs and deposit installments. Generated from the loan and deposit
-            schedules and pushed automatically — manage them on the Loans and Deposits pages.
-          </p>
-        </div>
-        <span className="text-xs text-muted-foreground">
-          {(rows as any[]).length} row(s) · ₹{total.toLocaleString("en-IN")}
-        </span>
-      </CardHeader>
-      <CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 border-b">
-            <tr>
-              {["Employee", "Recovery", "Installment", "Amount", "Recovery progress", "RazorpayX code", "Status"].map((h) => (
-                <th key={h} className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
-            ) : (rows as any[]).length === 0 ? (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No automatic recoveries scheduled for {period}.</td></tr>
-            ) : (rows as any[]).map((r) => (
-              <tr key={`${r.source_kind}-${r.id}`} className="border-b hover:bg-muted/30">
-                <td className="px-3 py-2">
-                  {r.employee_name || "—"}{r.badge_id ? ` · ${r.badge_id}` : ""}
-                </td>
-                <td className="px-3 py-2">{r.label}</td>
-                <td className="px-3 py-2 text-muted-foreground">
-                  #{r.installment_no}
-                  {r.total_installments ? ` of ${r.total_installments}` : ""}
-                </td>
-                <td className="px-3 py-2 tabular-nums">
-                  ₹{Number(r.amount || 0).toLocaleString("en-IN")}
-                  {Number(r.remaining_after || 0) <= 0.01 && (
-                    <span className="ml-2 text-[11px] text-muted-foreground">final</span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">
-                  ₹{Number(r.collected_amount || 0).toLocaleString("en-IN")} of ₹
-                  {Number(r.total_amount || 0).toLocaleString("en-IN")} recovered
-                  <div>
-                    {Number(r.remaining_after || 0) > 0.01
-                      ? `₹${Number(r.remaining_after).toLocaleString("en-IN")} left after this`
-                      : "Completes the recovery"}
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">{r.razorpay_code}</td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-col gap-1">
-                    {statusCell(r).badge}
-                    <span className="text-[11px] text-muted-foreground">{statusCell(r).note}</span>
-                    {r.failure_reason && (
-                      <span className="text-[11px] text-destructive">{r.failure_reason}</span>
-                    )}
-                  </div>
-                </td>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {(rows as any[]).length} · {inr(total)}
+          </span>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 border-b">
+              <tr>
+                {["Employee", "Recovery", "Amount", "Progress", "Status"].map((h) => (
+                  <th
+                    key={h}
+                    className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="p-4 text-center text-muted-foreground">Loading…</td>
+                </tr>
+              ) : (rows as any[]).length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                    No automatic recoveries scheduled.
+                  </td>
+                </tr>
+              ) : (
+                (rows as any[]).map((r) => {
+                  const s = statusMeta(r);
+                  const totalAmt = Number(r.total_amount || 0);
+                  const collected = Number(r.collected_amount || 0);
+                  const afterThis = Math.max(0, totalAmt - collected - Number(r.amount || 0));
+                  const pct = totalAmt > 0 ? Math.min(100, ((collected + Number(r.amount || 0)) / totalAmt) * 100) : 0;
+                  const isFinal = Number(r.remaining_after || 0) <= 0.01;
+                  return (
+                    <tr key={`${r.source_kind}-${r.id}`} className="border-b hover:bg-muted/30">
+                      <td className="px-3 py-2 whitespace-nowrap">{r.employee_name || "—"}</td>
+                      <td className="px-3 py-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-default">
+                              {r.label}
+                              <span className="ml-1 text-xs text-muted-foreground tabular-nums">
+                                {r.installment_no}
+                                {r.total_installments ? `/${r.total_installments}` : ""}
+                              </span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-xs">
+                            Installment {r.installment_no}
+                            {r.total_installments ? ` of ${r.total_installments}` : ""} ·{" "}
+                            {r.razorpay_code}
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                      <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                        {inr(r.amount)}
+                        {isFinal && (
+                          <span className="ml-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                            final
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 w-[180px]">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 cursor-default">
+                              <Progress value={pct} className="h-1.5 flex-1" />
+                              <span className="text-[11px] text-muted-foreground tabular-nums w-9 text-right">
+                                {Math.round(pct)}%
+                              </span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-xs">
+                            {inr(collected)} of {inr(totalAmt)} recovered ·{" "}
+                            {afterThis > 0.01 ? `${inr(afterThis)} left after this` : "completes the recovery"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <StatusPill tone={s.tone} icon={s.icon}>{s.label}</StatusPill>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-xs max-w-[240px]">{s.tip}</TooltipContent>
+                        </Tooltip>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 }

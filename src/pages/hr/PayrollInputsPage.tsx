@@ -415,7 +415,6 @@ export default function PayrollInputsPage() {
                   </Button>
                 )}
               </div>
-              </div>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">

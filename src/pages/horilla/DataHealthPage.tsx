@@ -22,6 +22,15 @@ import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/u
 import { Link } from "react-router-dom";
 import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";
 import { RazorpayOrphanPanel } from "@/components/hrms/health/RazorpayOrphanPanel";
+import { PullFromRazorpayDialog, type PullTarget } from "@/components/hr/governance/PullFromRazorpayDialog";
+
+// Fields we can write back into HRMS from RazorpayX. Mirrors PULLABLE_FIELDS
+// in the hr-razorpay-pull-apply edge function.
+const PULLABLE_FIELDS = new Set([
+  "full_name", "email", "phone", "dob", "gender", "pan", "date_of_joining",
+  "department", "designation", "bank_account", "bank_ifsc", "annual_ctc", "active_state",
+]);
+
 
 type Drift = {
   id: string;

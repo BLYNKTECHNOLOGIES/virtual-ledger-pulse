@@ -338,6 +338,60 @@ function extractPayrollViewFigures(body: any) {
   return { gross, deductions, net, tds, pdf, payslipId, pf, esi, pt, additionsDetail, doNotPay, employeeName, deductionAmount: deductions };
 }
 
+// ---------------------------------------------------------------------------
+// RazorpayX payroll modification wire shape (verified against the Postman
+// collection / docs/RAZORPAY_API_FIELD_AUDIT.md §3–4):
+//   data.additions  = { "<label>": { name, amount, type: 0|1|2, taxable: 0|1 } }
+//   data.deductions = { "<label>": { name, amount, type, taxable, deductFrom } }
+// Amounts are plain rupees (integers), NOT paise. It is a label-keyed MAP, not
+// an array — an array is silently ignored by Opfin, which is why staged bonuses
+// never showed up on the run. Callers may pass either an array of
+// { label, amount, taxable, type } or an already-shaped map; both normalise here.
+// ---------------------------------------------------------------------------
+function additionTypeCode(t: unknown): number {
+  const s = String(t ?? "bonus").toLowerCase();
+  if (s === "0" || s === "1" || s === "2") return Number(s);
+  if (s.includes("arrear")) return 1;
+  if (s.includes("reimburse")) return 2;
+  return 0;
+}
+function normalizePayrollModifications(
+  input: unknown,
+  kind: "additions" | "deductions",
+): { map: Record<string, any>; expect: Array<{ label: string; amount: number }> } {
+  const map: Record<string, any> = {};
+  const expect: Array<{ label: string; amount: number }> = [];
+  const add = (rawLabel: unknown, rawAmount: unknown, taxable: unknown, type: unknown, deductFrom?: unknown) => {
+    const label = String(rawLabel ?? "").trim();
+    const amount = Math.round(Number(rawAmount));
+    if (!label || !Number.isFinite(amount) || amount <= 0) return;
+    // Same label twice for one employee/month collapses in Opfin's map — sum it
+    // here so the operator's intent (two ₹500 rows) is not silently halved.
+    const prev = map[label]?.amount ?? 0;
+    const total = prev + amount;
+    map[label] = kind === "additions"
+      ? { name: label, amount: total, type: additionTypeCode(type), taxable: taxable === false || taxable === 0 ? 0 : 1 }
+      : { name: label, amount: total, type: additionTypeCode(type), taxable: taxable === true || taxable === 1 ? 1 : 0, deductFrom: String(deductFrom ?? "net") };
+    const found = expect.find((e) => e.label === label);
+    if (found) found.amount = total; else expect.push({ label, amount: total });
+  };
+  if (Array.isArray(input)) {
+    for (const it of input) {
+      if (!it || typeof it !== "object") continue;
+      const o = it as any;
+      add(o.label ?? o.name, o.amount, o.taxable, o.type ?? o.addition_type, o.deductFrom ?? o.deduct_from);
+    }
+  } else if (input && typeof input === "object") {
+    for (const [k, v] of Object.entries(input as Record<string, any>)) {
+      if (v && typeof v === "object") add(v.name ?? k, v.amount, v.taxable, v.type, v.deductFrom);
+      else add(k, v, undefined, undefined);
+    }
+  }
+  return { map, expect };
+}
+
+
+
 
 async function loadExpectedNetByRpId(svc: SupabaseClient, periodMonthISO: string) {
   const expectedByRpId = new Map<string, { hr_employee_id: string; net_pay: number }>();
@@ -7071,13 +7125,22 @@ Deno.serve(async (req) => {
       }
       const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
         ? directPayload.data : {};
-      if (action === "payroll_add_additions") {
+      // ---- payroll modifications: enforce the documented map wire shape.
+      let modExpect: Array<{ label: string; amount: number }> = [];
+      if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
+        const kind = action === "payroll_add_additions" ? "additions" : "deductions";
         const missing: string[] = [];
         if (!data["employee-id"]) missing.push("employee-id");
         if (!data["payroll-month"]) missing.push("payroll-month");
-        if (!Array.isArray(data.additions) || data.additions.length === 0) missing.push("additions");
-        if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll addition field(s): ${missing.join(", ")}` });
+        const { map, expect } = normalizePayrollModifications(data[kind], kind as any);
+        if (Object.keys(map).length === 0) missing.push(kind);
+        if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
+        data[kind] = map;
+        modExpect = expect;
+        data["employee-id"] = Number(data["employee-id"]);
+        if (!data["employee-type"]) data["employee-type"] = "employee";
       }
+
       // ---- people:dismiss requires the employee's email in the data block
       // (opfin returns {"message":"Invalid email address","code":4} otherwise,
       // silently no-oping the dismissal). Auto-hydrate email + name from the
@@ -7217,22 +7280,54 @@ Deno.serve(async (req) => {
             const rbRaw = await rbRes.text();
             let rbBody: any = null; try { rbBody = JSON.parse(rbRaw); } catch { rbBody = null; }
             const rbErr = rbBody && typeof rbBody === "object" ? (rbBody.error || rbBody.message || null) : null;
+            // Confirm the pushed labels/amounts actually landed on the live run.
+            // Opfin acknowledges writes with an opaque 200, so the view-payroll
+            // read is the only real proof the modification is on the payroll.
+            const rbKind = action === "payroll_add_additions" ? "additions" : "deductions";
+            const detail: any = rbBody && typeof rbBody === "object"
+              ? (rbBody[rbKind] ?? rbBody[rbKind === "additions" ? "addition" : "deduction"] ?? null)
+              : null;
+            const flat: Array<{ label: string; amount: number }> = [];
+            if (detail && typeof detail === "object") {
+              const entries = Array.isArray(detail) ? detail.map((v: any) => [v?.name ?? v?.label, v] as const)
+                                                    : Object.entries(detail);
+              for (const [k, v] of entries as any) {
+                const amt = Number((v && typeof v === "object") ? (v.amount ?? v.value) : v);
+                if (k && Number.isFinite(amt)) flat.push({ label: String(k), amount: amt });
+              }
+            }
+            const matched = modExpect.map((e) => {
+              const hit = flat.find((f) => f.label.trim().toLowerCase() === e.label.trim().toLowerCase());
+              // Opfin may echo rupees or paise depending on tenant config.
+              const okAmt = !!hit && (Math.abs(hit.amount - e.amount) < 1 || Math.abs(hit.amount - e.amount * 100) < 1);
+              return { label: e.label, expected: e.amount, found: hit ? hit.amount : null, ok: okAmt };
+            });
+            const allMatched = matched.length > 0 && matched.every((m) => m.ok);
             readbackReceipt = {
               endpoint: "payroll:view-payroll",
               employee_id: String(rbEid),
               payroll_month: String(rbMonth),
               http_status: rbRes.status,
-              ok: rbRes.ok && !rbErr,
-              error: rbErr ? String(rbErr).slice(0, 200) : null,
+              read_ok: rbRes.ok && !rbErr,
+              ok: rbRes.ok && !rbErr && allMatched,
+              verified_on_run: allMatched,
+              expected: modExpect,
+              found_on_run: flat.slice(0, 25),
+              matched,
+              error: rbErr ? String(rbErr).slice(0, 200) : (allMatched ? null : "Pushed, but the modification was not visible on the RazorpayX run read-back."),
               snapshot_keys: rbBody && typeof rbBody === "object" ? Object.keys(rbBody).slice(0, 20) : [],
             };
-            if (rbId && (rbTable === "additions" || rbTable === "deductions")) {
+            const rbIds: string[] = Array.isArray(directPayload?.readback_ids)
+              ? directPayload.readback_ids.map((x: any) => String(x)).filter(Boolean)
+              : (rbId ? [rbId] : []);
+            if (rbIds.length && (rbTable === "additions" || rbTable === "deductions")) {
               const tableName = rbTable === "additions" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
               await svc.from(tableName).update({
                 readback_verified_at: readbackReceipt.ok ? new Date().toISOString() : null,
                 readback_diff: readbackReceipt,
-              }).eq("id", rbId);
+              }).in("id", rbIds);
             }
+
           } catch (e) {
             readbackReceipt = { ok: false, error: `NETWORK: ${(e as Error).message}` };
           } finally { clearTimeout(rbT); }

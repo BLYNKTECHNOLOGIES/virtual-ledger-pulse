@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 
 type Kind = "addition" | "deduction";
 
@@ -26,9 +26,21 @@ interface Props {
 
 const fullName = (e: any) => `${e?.first_name || ""} ${e?.last_name || ""}`.trim();
 
+type RowDraft = { key: string; hr_employee_id: string; label: string; amount: string; addition_type: string; taxable: boolean };
+
+const newDraft = (defaults?: Partial<RowDraft>): RowDraft => ({
+  key: Math.random().toString(36).slice(2),
+  hr_employee_id: "",
+  label: "",
+  amount: "",
+  addition_type: "bonus",
+  taxable: true,
+  ...defaults,
+});
+
 export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, employees, onDone }: Props) {
   const table = kind === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
-  const [mode, setMode] = useState<"select" | "paste">("select");
+  const [mode, setMode] = useState<"rows" | "select" | "paste">("rows");
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [label, setLabel] = useState("");
@@ -36,6 +48,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
   const [additionType, setAdditionType] = useState("bonus");
   const [taxable, setTaxable] = useState(true);
   const [paste, setPaste] = useState("");
+  const [drafts, setDrafts] = useState<RowDraft[]>([newDraft()]);
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
@@ -50,6 +63,12 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
 
   const pickedCount = Object.values(picked).filter(Boolean).length;
 
+  const empById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const r of employees) if (r.hr_employees) m.set(r.hr_employee_id, r);
+    return m;
+  }, [employees]);
+
   // badge_id -> map row, for the paste path
   const byBadge = useMemo(() => {
     const m = new Map<string, any>();
@@ -60,9 +79,18 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
     return m;
   }, [employees]);
 
+  const draftsTotal = useMemo(
+    () => drafts.reduce((s, d) => s + (Number.isFinite(parseFloat(d.amount)) ? parseFloat(d.amount) : 0), 0),
+    [drafts],
+  );
+
+  function patchDraft(key: string, patch: Partial<RowDraft>) {
+    setDrafts((ds) => ds.map((d) => (d.key === key ? { ...d, ...patch } : d)));
+  }
+
   function buildRows(): { rows: any[]; skipped: string[] } {
     const skipped: string[] = [];
-    const base = (empRow: any, amt: number, lbl: string) => {
+    const base = (empRow: any, amt: number, lbl: string, type?: string, tax?: boolean) => {
       const row: any = {
         hr_employee_id: empRow.hr_employee_id,
         razorpay_employee_id: empRow.razorpay_employee_id,
@@ -70,9 +98,32 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
         label: lbl,
         amount: amt,
       };
-      if (kind === "addition") { row.addition_type = additionType; row.taxable = taxable; }
+      if (kind === "addition") { row.addition_type = type ?? additionType; row.taxable = tax ?? taxable; }
       return row;
     };
+
+    // rows mode: one line per employee, each with its own amount
+    if (mode === "rows") {
+      const rows: any[] = [];
+      const seen = new Set<string>();
+      drafts.forEach((d, i) => {
+        const empRow = empById.get(d.hr_employee_id);
+        const lbl = (d.label.trim() || label.trim());
+        const amt = parseFloat(String(d.amount).replace(/[₹,\s]/g, ""));
+        if (!empRow && !d.label && !d.amount) return; // untouched blank row
+        if (!empRow) { skipped.push(`Row ${i + 1} — no employee picked`); return; }
+        if (!lbl) { skipped.push(`Row ${i + 1} — label missing`); return; }
+        if (!Number.isFinite(amt) || amt <= 0) { skipped.push(`Row ${i + 1} — amount must be > 0`); return; }
+        // RazorpayX keys modifications by label per employee/month — the same
+        // label twice would collapse into one entry on the run.
+        const dupKey = `${d.hr_employee_id}::${lbl.toLowerCase()}`;
+        if (seen.has(dupKey)) { skipped.push(`Row ${i + 1} — duplicate label "${lbl}" for the same employee`); return; }
+        seen.add(dupKey);
+        rows.push(base(empRow, amt, lbl, d.addition_type, d.taxable));
+      });
+      if (!rows.length) throw new Error("Add at least one complete row (employee + label + amount)");
+      return { rows, skipped };
+    }
 
     if (mode === "select") {
       const lbl = label.trim();
@@ -103,6 +154,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
     return { rows, skipped };
   }
 
+
   async function submit() {
     let built: { rows: any[]; skipped: string[] };
     try {
@@ -120,26 +172,106 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
       (built.skipped.length ? ` · ${built.skipped.length} line(s) skipped` : ""),
     );
     if (built.skipped.length) console.warn("Bulk payroll input skipped lines:", built.skipped);
-    setPicked({}); setLabel(""); setAmount(""); setPaste("");
+    setPicked({}); setLabel(""); setAmount(""); setPaste(""); setDrafts([newDraft()]);
     onDone();
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bulk stage {kind}s · {period}</DialogTitle>
           <DialogDescription>
-            Stage the same {kind} for many employees at once, or paste per-employee amounts. Rows are staged only — push to RazorpayX from the list.
+            Add one row per employee with its own amount, apply the same {kind} to many employees, or paste amounts. Rows are staged only — push to RazorpayX from the list.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
           <TabsList className="w-full">
-            <TabsTrigger value="select" className="flex-1">Pick employees</TabsTrigger>
+            <TabsTrigger value="rows" className="flex-1">Row by row</TabsTrigger>
+            <TabsTrigger value="select" className="flex-1">Same amount</TabsTrigger>
             <TabsTrigger value="paste" className="flex-1">Paste amounts</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="rows" className="space-y-2 mt-3">
+            <div className="space-y-2">
+              {drafts.map((d, i) => (
+                <div key={d.key} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-12 md:col-span-4">
+                    <Select value={d.hr_employee_id} onValueChange={(v) => patchDraft(d.key, { hr_employee_id: v })}>
+                      <SelectTrigger className="h-9 text-foreground"><SelectValue placeholder="Employee" /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {employees.filter((r) => r.hr_employees).map((r) => (
+                          <SelectItem key={r.hr_employee_id} value={r.hr_employee_id}>
+                            {fullName(r.hr_employees)}{r.hr_employees.badge_id ? ` · ${r.hr_employees.badge_id}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-6 md:col-span-3">
+                    <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
+                  </div>
+                  <div className="col-span-6 md:col-span-2">
+                    <Input className="h-9 tabular-nums" inputMode="decimal" value={d.amount} onChange={(e) => patchDraft(d.key, { amount: e.target.value })} placeholder="Amount ₹" />
+                  </div>
+                  {kind === "addition" ? (
+                    <div className="col-span-9 md:col-span-2">
+                      <Select value={d.addition_type} onValueChange={(v) => patchDraft(d.key, { addition_type: v })}>
+                        <SelectTrigger className="h-9 text-foreground"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bonus">Bonus</SelectItem>
+                          <SelectItem value="arrears">Arrears</SelectItem>
+                          <SelectItem value="reimbursement">Reimbursement</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : <div className="hidden md:block md:col-span-2" />}
+                  <div className="col-span-3 md:col-span-1 flex justify-end">
+                    <Button
+                      size="icon" variant="ghost" className="h-8 w-8 text-destructive"
+                      aria-label={`Remove row ${i + 1}`}
+                      onClick={() => setDrafts((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDraft()]))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-8" onClick={() => setDrafts((ds) => [...ds, newDraft({ label: label.trim(), addition_type: additionType, taxable })])}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add row
+                </Button>
+                <Button
+                  size="sm" variant="ghost" className="h-8"
+                  onClick={() => {
+                    const used = new Set(drafts.map((d) => d.hr_employee_id).filter(Boolean));
+                    const rest = employees.filter((r) => r.hr_employees && !used.has(r.hr_employee_id));
+                    if (!rest.length) { toast.message("Every mapped employee already has a row"); return; }
+                    setDrafts((ds) => [
+                      ...ds.filter((d) => d.hr_employee_id || d.label || d.amount),
+                      ...rest.map((r) => newDraft({ hr_employee_id: r.hr_employee_id, label: label.trim(), addition_type: additionType, taxable })),
+                    ]);
+                  }}
+                >
+                  Add all employees
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground tabular-nums">
+                {drafts.filter((d) => d.hr_employee_id && parseFloat(d.amount) > 0).length} row(s) · total ₹{draftsTotal.toLocaleString("en-IN")}
+              </div>
+            </div>
+            {kind === "addition" && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                <Checkbox checked={taxable} onCheckedChange={(c) => { setTaxable(!!c); setDrafts((ds) => ds.map((d) => ({ ...d, taxable: !!c }))); }} /> Taxable (applies to all rows)
+              </label>
+            )}
+          </TabsContent>
+
 
           <TabsContent value="select" className="space-y-3 mt-3">
             <div className="flex items-center gap-2">
@@ -186,7 +318,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
           <div className="md:col-span-1">
-            <Label className="text-xs">Label{mode === "paste" ? " (fallback)" : ""}</Label>
+            <Label className="text-xs">Label{mode === "select" ? "" : " (default for blank rows)"}</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "addition" ? "Performance bonus" : "Advance recovery"} />
           </div>
           {mode === "select" && (
@@ -195,7 +327,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
               <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
             </div>
           )}
-          {kind === "addition" && (
+          {kind === "addition" && mode !== "rows" && (
             <div>
               <Label className="text-xs">Type</Label>
               <Select value={additionType} onValueChange={setAdditionType}>
@@ -218,7 +350,9 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-            Stage {mode === "select" && pickedCount ? `${pickedCount} row${pickedCount === 1 ? "" : "s"}` : "rows"}
+            Stage {mode === "rows"
+              ? `${drafts.filter((d) => d.hr_employee_id && parseFloat(d.amount) > 0).length || ""} row${drafts.filter((d) => d.hr_employee_id && parseFloat(d.amount) > 0).length === 1 ? "" : "s"}`.trim()
+              : mode === "select" && pickedCount ? `${pickedCount} row${pickedCount === 1 ? "" : "s"}` : "rows"}
           </Button>
         </DialogFooter>
       </DialogContent>

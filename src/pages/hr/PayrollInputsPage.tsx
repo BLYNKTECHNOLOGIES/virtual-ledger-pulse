@@ -18,6 +18,7 @@ import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
+import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
 const currentPeriod = () => {
@@ -145,7 +146,7 @@ export default function PayrollInputsPage() {
         label: form.label.trim(),
         amount: amt,
       };
-      if (tab === "addition") { row.addition_type = form.addition_type; row.taxable = form.taxable; }
+      if (tab === "addition") { row.addition_type = additionTypeCode(form.addition_type); row.taxable = form.taxable; }
       const { error } = await (supabase as any).from(table).insert(row);
       if (error) throw error;
     },
@@ -175,7 +176,7 @@ export default function PayrollInputsPage() {
     const first = group[0];
     const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
     const items = group.map((r) => (tab === "addition"
-      ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: r.addition_type || "bonus" }
+      ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
       : { label: r.label, amount: Number(r.amount) }));
     const data: any = {
       "employee-id": Number(first.razorpay_employee_id),
@@ -506,7 +507,7 @@ export default function PayrollInputsPage() {
                       </td>
                       <td className="px-3 py-2">{empLabel(r)}</td>
                       <td className="px-3 py-2">{r.label}</td>
-                      {tab === "addition" && <td className="px-3 py-2">{r.addition_type}{r.taxable === false ? " · non-tax" : ""}</td>}
+                      {tab === "addition" && <td className="px-3 py-2 capitalize">{additionTypeSlug(r.addition_type)}{r.taxable === false ? " · non-tax" : ""}</td>}
                       <td className="px-3 py-2 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
                       <td className="px-3 py-2">
                         {r.readback_verified_at ? (

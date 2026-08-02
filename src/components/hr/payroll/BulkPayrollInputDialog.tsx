@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { EmployeeCombobox } from "./EmployeeCombobox";
+import { additionTypeCode } from "@/lib/hrms/additionType";
 
 
 type Kind = "addition" | "deduction";
@@ -103,7 +104,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
         label: lbl,
         amount: amt,
       };
-      if (kind === "addition") { row.addition_type = type ?? additionType; row.taxable = tax ?? taxable; }
+      if (kind === "addition") { row.addition_type = additionTypeCode(type ?? additionType); row.taxable = tax ?? taxable; }
       return row;
     };
 

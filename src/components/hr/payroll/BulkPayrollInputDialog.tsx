@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useFormDraftPersistence } from "@/hooks/useFormDraftPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,30 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
   const [paste, setPaste] = useState("");
   const [drafts, setDrafts] = useState<RowDraft[]>([newDraft()]);
   const [saving, setSaving] = useState(false);
+
+  // Persist in-progress work so a refresh / accidental close never loses rows.
+  const snapshot = { mode, picked, label, amount, additionType, taxable, paste, drafts };
+  const { clearDraft } = useFormDraftPersistence(
+    open ? `payroll-bulk:${kind}:${period}` : null,
+    snapshot,
+    (saved: any) => {
+      if (!saved) return;
+      if (saved.mode) setMode(saved.mode);
+      if (saved.picked) setPicked(saved.picked);
+      if (typeof saved.label === "string") setLabel(saved.label);
+      if (typeof saved.amount === "string") setAmount(saved.amount);
+      if (saved.additionType) setAdditionType(saved.additionType);
+      if (typeof saved.taxable === "boolean") setTaxable(saved.taxable);
+      if (typeof saved.paste === "string") setPaste(saved.paste);
+      if (Array.isArray(saved.drafts) && saved.drafts.length) setDrafts(saved.drafts);
+    },
+    {
+      isEmpty: (v: any) =>
+        !v?.label && !v?.amount && !v?.paste &&
+        !Object.values(v?.picked || {}).some(Boolean) &&
+        !(v?.drafts || []).some((d: RowDraft) => d.hr_employee_id || d.label || d.amount),
+    },
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -179,6 +204,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
       (built.skipped.length ? ` · ${built.skipped.length} line(s) skipped` : ""),
     );
     if (built.skipped.length) console.warn("Bulk payroll input skipped lines:", built.skipped);
+    clearDraft();
     setPicked({}); setLabel(""); setAmount(""); setPaste(""); setDrafts([newDraft()]);
     onDone();
     onOpenChange(false);

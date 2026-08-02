@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useFormDraftPersistence } from "@/hooks/useFormDraftPersistence";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +46,14 @@ export default function PayrollInputsPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+
+  // Persist the single-entry staging form across refreshes.
+  const { clearDraft: clearFormDraftState } = useFormDraftPersistence(
+    `payroll-input:${tab}:${period}${lopFocus ? ":lop" : ""}`,
+    form,
+    (saved: any) => { if (saved) setForm((prev) => ({ ...prev, ...saved })); },
+    { isEmpty: (v: any) => !v?.hr_employee_id && !v?.amount && (!v?.label || (lopFocus && v.label === "Loss of Pay")) },
+  );
 
   // Mirror of Razorpay bonus catalogue — filters the Bonus subtype dropdown.
   const { data: complianceSettings } = useComplianceSettings();
@@ -152,7 +161,8 @@ export default function PayrollInputsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
-      setForm({ hr_employee_id: "", label: "", amount: "", addition_type: "bonus", taxable: true });
+      clearFormDraftState();
+      setForm({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
       toast.success("Staged. Push to RazorpayX when ready.");
     },
     onError: (e: any) => toast.error(e.message),

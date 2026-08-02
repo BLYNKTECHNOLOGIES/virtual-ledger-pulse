@@ -21,6 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "APPLIED" | "SCHEDULED" | "CANCELLED" | "ALL";
@@ -235,45 +236,47 @@ export default function SalaryRevisionsPage() {
 
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Salary Revision History"
-        description="Every applied revision is auto-pushed to RazorpayX on submit. Retry any that didn't sync directly on the row."
         actions={
-          canManage ? (
-            <Button onClick={() => setShowDialog(true)}>
-              <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+                      envelopeVerified
+                        ? "border-emerald-500/40 text-emerald-600"
+                        : "border-destructive/40 text-destructive",
+                    )}
+                  >
+                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-emerald-500" : "bg-destructive")} />
+                    RazorpayX
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  {envelopeVerified
+                    ? `Salary push live${envelope?.push_salary_envelope_verified_at ? ` · verified ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}`
+                    : "Salary push disabled — verify the envelope in Payroll Sync · Step E"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {canManage && !envelopeVerified && (
+              <Button asChild size="sm" variant="secondary">
+                <Link to="/hrms/payroll/razorpay-sync">Fix sync</Link>
+              </Button>
+            )}
+            {canManage && (
+              <Button onClick={() => setShowDialog(true)}>
+                <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
+              </Button>
+            )}
+          </div>
         }
       />
-
-      {canManage && !envelopeVerified && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>RazorpayX salary push is disabled</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <p className="text-sm">
-              Revisions are saved locally but <b>cannot be mirrored to RazorpayX</b> until the salary API envelope is
-              verified. Every payroll run after a revision will use the old CTC until this is fixed.
-            </p>
-              <Button asChild size="sm" variant="secondary">
-                <Link to="/hrms/payroll/razorpay-sync">Open Payroll Sync · Step E →</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {canManage && envelopeVerified && (
-        <Alert className="border-emerald-500/40">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <AlertTitle>RazorpayX salary push is live</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground">
-            Envelope <code className="px-1 rounded bg-muted">{envelope?.push_salary_envelope_key}</code> verified
-            {envelope?.push_salary_envelope_verified_at ? ` on ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
@@ -289,6 +292,7 @@ export default function SalaryRevisionsPage() {
           <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
+
 
       {isLoading ? (
         <TableSkeleton rows={4} columns={4} />
@@ -312,59 +316,65 @@ export default function SalaryRevisionsPage() {
             const pushing = pushingIds.has(r.id);
 
 
+            const StatusPill = ({ tone, icon: Icon, label }: { tone: "ok" | "warn" | "bad" | "info"; icon: any; label: string }) => (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex h-6 w-6 items-center justify-center rounded-full border",
+                      tone === "ok" && "border-emerald-500/40 text-emerald-600 bg-emerald-500/10",
+                      tone === "info" && "border-sky-500/40 text-sky-600 bg-sky-500/10",
+                      tone === "warn" && "border-amber-500/40 text-amber-600 bg-amber-500/10",
+                      tone === "bad" && "border-destructive/40 text-destructive bg-destructive/10",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs text-xs">{label}</TooltipContent>
+              </Tooltip>
+            );
+
             let syncBadge: React.ReactNode = null;
             if (isOneTime) {
               const gateOnlyError = isPayrollGateError(r.razorpay_push_error);
-              // One-time payouts are staged on the target RazorpayX payroll month.
-              // They are only fully "paid" once that month's payroll run is executed
-              // there — we show the queued / rejected / not-sent state honestly.
               if (gateOnlyError && payrollGateVerified) {
-                syncBadge = (
-                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
-                    <AlertTriangle className="h-3 w-3" /> Ready to retry
-                  </Badge>
-                );
+                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Ready to retry the RazorpayX push" />;
               } else if (r.razorpay_push_error) {
                 syncBadge = (
-                  <Badge variant="outline" className="text-destructive border-destructive/40 gap-1">
-                    <XCircle className="h-3 w-3" /> {gateOnlyError ? "Payroll gate locked" : "RazorpayX rejected"}
-                  </Badge>
+                  <StatusPill
+                    tone="bad"
+                    icon={XCircle}
+                    label={`${gateOnlyError ? "Payroll gate locked" : "RazorpayX rejected"}: ${r.razorpay_push_error}`}
+                  />
                 );
               } else if (r.razorpay_pushed_at) {
                 syncBadge = (
-                  <Badge variant="outline" className="text-sky-700 border-sky-500/40 gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Queued in RazorpayX{r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
-                  </Badge>
+                  <StatusPill
+                    tone="info"
+                    icon={CheckCircle2}
+                    label={`Queued in RazorpayX${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}`}
+                  />
                 );
               } else {
-                syncBadge = (
-                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
-                    <AlertTriangle className="h-3 w-3" /> Not sent to RazorpayX
-                  </Badge>
-                );
+                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not sent to RazorpayX" />;
               }
             } else if (isApplied) {
               if (pushSyncedAfterRevision) {
-                syncBadge = (
-                  <Badge variant="outline" className="text-emerald-700 border-emerald-500/40 gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> Synced to RazorpayX
-                  </Badge>
-                );
+                syncBadge = <StatusPill tone="ok" icon={CheckCircle2} label="Synced to RazorpayX" />;
               } else if (pushFailedAfterRevision) {
                 syncBadge = (
-                  <Badge variant="outline" className="text-destructive border-destructive/40 gap-1">
-                    <XCircle className="h-3 w-3" /> Not synced
-                  </Badge>
+                  <StatusPill
+                    tone="bad"
+                    icon={XCircle}
+                    label={`Not synced${pushInfo?.error_message ? ` · ${pushInfo.error_message}` : ""}`}
+                  />
                 );
               } else {
-                syncBadge = (
-                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 gap-1">
-                    <AlertTriangle className="h-3 w-3" /> Not synced
-                  </Badge>
-                );
+                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not synced to RazorpayX yet" />;
               }
             }
+
 
 
 
@@ -391,19 +401,8 @@ export default function SalaryRevisionsPage() {
                       {r.revision_reason && (
                         <p className="text-xs text-muted-foreground italic mt-0.5 truncate max-w-md">{r.revision_reason}</p>
                       )}
-                      {pushFailedAfterRevision && pushInfo?.error_message && (
-                        <p className="text-[11px] text-destructive mt-0.5 truncate max-w-md" title={pushInfo.error_message}>
-                          Last RazorpayX error: {pushInfo.error_message}
-                        </p>
-                      )}
-                      {isOneTime && r.razorpay_push_error && (
-                        <p className={cn(
-                          "text-[11px] mt-0.5 truncate max-w-md",
-                          isPayrollGateError(r.razorpay_push_error) && payrollGateVerified ? "text-amber-700" : "text-destructive"
-                        )} title={r.razorpay_push_error}>
-                          {isPayrollGateError(r.razorpay_push_error) && payrollGateVerified ? "Ready to retry" : "RazorpayX rejected"}: {r.razorpay_push_error}
-                        </p>
-                      )}
+
+
 
                     </div>
                   </div>
@@ -426,11 +425,14 @@ export default function SalaryRevisionsPage() {
                       )}
                       <div className="flex items-center gap-1.5 justify-end mt-1 flex-wrap">
                         <Badge variant={isScheduled ? "outline" : isCancelled ? "secondary" : isIncrease ? "default" : "destructive"} className="text-xs">
-                          {isScheduled ? "SCHEDULED" : isCancelled ? "CANCELLED" : (ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) ? `+₹${Number(r.one_time_amount || 0).toLocaleString("en-IN")}` : `${diff >= 0 ? "+" : ""}₹${diff.toLocaleString("en-IN")}`}
+                          {isScheduled ? "Scheduled" : isCancelled ? "Cancelled" : (ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) ? `+₹${Number(r.one_time_amount || 0).toLocaleString("en-IN")}` : `${diff >= 0 ? "+" : ""}₹${diff.toLocaleString("en-IN")}`}
                         </Badge>
-                        <Badge variant="secondary" className="text-xs capitalize">{String(r.revision_type).replace(/_/g, " ")}</Badge>
+                        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {String(r.revision_type).replace(/_/g, " ")}
+                        </span>
                         {syncBadge}
                       </div>
+
                     </div>
                     {isApplied && !isOneTime && canManage && !pushSyncedAfterRevision && (
                       <Button
@@ -494,5 +496,7 @@ export default function SalaryRevisionsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
+
 }

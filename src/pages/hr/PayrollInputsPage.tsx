@@ -122,6 +122,37 @@ export default function PayrollInputsPage() {
     },
   });
 
+  // Reconciliation export — payable roster for the period, excluding anyone
+  // marked Do-Not-Pay on RazorpayX or inactive there.
+  const exportPayableList = () => {
+    const marks = dnpMarks as Record<string, string>;
+    const payable = (employees as any[]).filter(
+      (r) => !marks[String(r.razorpay_employee_id)] && r.last_pull_snapshot?.is_active !== false,
+    );
+    if (!payable.length) { toast.error("No payable employees to export for this period"); return; }
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Badge ID", "Employee name", "RazorpayX employee ID", "Payroll month"];
+    const lines = [
+      header.join(","),
+      ...payable
+        .map((r) => ({
+          badge: r.hr_employees?.badge_id ?? "",
+          name: `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim(),
+          rzp: r.razorpay_employee_id,
+        }))
+        .sort((a, b) => String(a.badge).localeCompare(String(b.badge), undefined, { numeric: true }))
+        .map((e) => [e.badge, e.name, e.rzp, period].map(esc).join(",")),
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payable-employees-${period}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${payable.length} payable employee(s) for ${period}`);
+  };
+
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["payroll_inputs", table, period],

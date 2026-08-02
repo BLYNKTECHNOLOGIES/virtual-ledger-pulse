@@ -42,6 +42,18 @@ Deno.serve(async (req) => {
   try {
     const b = await req.json();
     extraZeroRpIds = Array.isArray(b?.zeroDeductionsFor) ? b.zeroDeductionsFor.map(String) : [];
+    if (b?.resetAllStagedAdditions === true) {
+      // Opfin ignores a zero-amount addition push, so clearing a live addition
+      // also needs reset-modifications on that employee/month.
+      const { data: rows } = await svc
+        .from("hr_payroll_input_additions")
+        .select("razorpay_employee_id")
+        .eq("period_month", PERIOD);
+      for (const r of (rows ?? []) as any[]) {
+        if (r.razorpay_employee_id) extraZeroRpIds.push(String(r.razorpay_employee_id));
+      }
+      extraZeroRpIds = [...new Set(extraZeroRpIds)];
+    }
   } catch (_) { /* no body */ }
   const out: any = { period: PERIOD, dryRun, lop: [], additions: [] };
 

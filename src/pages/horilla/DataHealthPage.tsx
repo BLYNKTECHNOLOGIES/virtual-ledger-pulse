@@ -331,7 +331,37 @@ export default function DataHealthPage() {
     }
   }
 
+  // Reverse direction: adopt the RazorpayX value into HRMS.
+  async function runPull(target: PullTarget, confirmSensitive: boolean) {
+    setPulling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("hr-razorpay-pull-apply", {
+        body: {
+          hr_employee_id: target.hrEmployeeId,
+          fields: [target.field],
+          confirm_sensitive: confirmSensitive,
+        },
+      });
+      if (error) throw error;
+      const result = data?.results?.[0];
+      if (data?.ok && result?.applied) {
+        toast.success(
+          `${target.fieldLabel} adopted into HRMS${result.reason ? ` — ${result.reason}` : ""}`,
+        );
+        setPullTarget(null);
+        qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+      } else {
+        toast.error(result?.reason || data?.error || "Nothing was applied");
+      }
+    } catch (e: any) {
+      toast.error(`Pull failed: ${e?.message || e}`);
+    } finally {
+      setPulling(false);
+    }
+  }
+
   return (
+
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>

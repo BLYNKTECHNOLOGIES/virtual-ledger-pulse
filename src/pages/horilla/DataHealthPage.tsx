@@ -85,6 +85,13 @@ const FIELD_LABEL: Record<string, string> = {
   dismissal_state: "Dismissal — push failure",
 };
 
+const PUSH_FAILURE_HELP: Record<string, string> = {
+  employment_bundle:
+    "RazorpayX cannot accept employment edits after the employee is dismissed or inactive. Reconcile the Active / dismissed status instead.",
+  dismissal_state:
+    "Run a rescan first. If RazorpayX already shows the employee as inactive, this historical failure closes automatically; otherwise dismiss from the RazorpayX dashboard when the API reports that the login was never activated.",
+};
+
 
 // Field → which Razorpay push to use when adopting the HRMS value.
 const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
@@ -645,7 +652,10 @@ export default function DataHealthPage() {
                           "The last ERP → RazorpayX push for this employee did not verify. No side-by-side values were captured."}
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        Raised {new Date(d.first_seen_at).toLocaleString("en-IN")} · retry the push, or mark resolved if it is already correct in RazorpayX.
+                        {PUSH_FAILURE_HELP[d.field] || "Retry the push, or mark resolved if it is already correct in RazorpayX."}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Raised {new Date(d.first_seen_at).toLocaleString("en-IN")}
                       </div>
                     </div>
                   ) : (

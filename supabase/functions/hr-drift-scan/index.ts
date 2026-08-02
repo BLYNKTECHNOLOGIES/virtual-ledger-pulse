@@ -380,6 +380,33 @@ serve(async (req) => {
       const hrmsActive = emp.is_active !== false;
       const suppressAllButActiveState = rzpDismissed;
 
+      // Bundle alerts are written by the pushback helper, not by FIELDS below.
+      // Close their stale historical failures once the live Razorpay snapshot
+      // proves the employee is already dismissed/inactive. RazorpayX does not
+      // permit employment edits for a dismissed person, and a dismissal push
+      // is already satisfied when that person is no longer active/resolvable.
+      if (rzpDismissed) {
+        const { data: staleBundleAlerts } = await supa
+          .from("hr_drift_alerts")
+          .select("id, field")
+          .eq("hr_employee_id", emp.id)
+          .in("field", ["employment_bundle", "dismissal_state"])
+          .is("resolved_at", null);
+        if (staleBundleAlerts?.length) {
+          const now = new Date().toISOString();
+          for (const alert of staleBundleAlerts) {
+            const note = alert.field === "dismissal_state"
+              ? "Auto-resolved: employee is already dismissed/inactive in RazorpayX"
+              : "Auto-resolved: employment edits do not apply after the employee is dismissed/inactive in RazorpayX";
+            const { error } = await supa
+              .from("hr_drift_alerts")
+              .update({ resolved_at: now, resolution_note: note })
+              .eq("id", alert.id);
+            if (!error) resolved++;
+          }
+        }
+      }
+
       for (const spec of FIELDS) {
         // Never assert an active/dismissed verdict from a snapshot we could not
         // refresh — a stale cached "active" is exactly the false alarm we hit.

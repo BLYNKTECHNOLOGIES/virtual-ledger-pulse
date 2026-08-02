@@ -1,3 +1,4 @@
+- 2026-08-02: Data Health lifecycle cleanup shipped — live RazorpayX inactive/dismissed state now auto-closes stale employment/dismissal push-failure bundles; only Active / dismissed remains when HRMS is still active.
 - 2026-08-02: RazorpayX designation push root cause fixed — Data Health used linked positions.title while push/read-back verification used legacy work_info.job_role, producing false green verification without changing the displayed designation; all paths now use position title first and legacy role only as fallback.
 # STATE LOG
 

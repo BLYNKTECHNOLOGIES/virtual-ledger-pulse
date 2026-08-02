@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
       "employee-id": 8,
       "employee-type": "employee",
       "payroll-month": "2026-07",
-      "do-not-pay": true,
+      "do-not-pay": false,
     } } }),
   });
   return new Response(await response.text(), {

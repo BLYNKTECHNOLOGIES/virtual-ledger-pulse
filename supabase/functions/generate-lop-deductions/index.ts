@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
       if (toUpsert.length) {
         const { error: upErr } = await supabase
           .from("hr_payroll_input_deductions")
-          .upsert(toUpsert, { onConflict: "hr_employee_id,period_month", ignoreDuplicates: false });
+          .upsert(toUpsert, { onConflict: "razorpay_employee_id,period_month,label", ignoreDuplicates: false });
         if (upErr) throw upErr;
         staged = toUpsert.length;
       }

@@ -118,7 +118,7 @@ serve(async (req) => {
         const scanUrl = `${supaUrl}/functions/v1/hr-drift-scan`;
         const s = await fetch(scanUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}`, apikey: anonKey },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${svcKey}` },
         });
         scanResult = await s.json().catch(() => null);
       } catch (e) {
@@ -129,11 +129,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       ok: true,
       lookback_days: lookbackDays,
-      candidates: candidateIds.length,
+      prioritized: prioritized.size,
       linked: mapRows?.length ?? 0,
-      refreshed, errors,
+      refreshed, errors, marked_inactive: markedInactive,
       drift_scan: scanResult,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   } catch (e: any) {
     console.error("hr-razorpay-snapshot-refresh error", e);
     return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }),

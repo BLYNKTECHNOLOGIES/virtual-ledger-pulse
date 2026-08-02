@@ -82,11 +82,14 @@ export default function PayrollInputsPage() {
   }, [employees]);
 
   const table = tab === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
+  // period_month is a Postgres date and is stored as the first day of the month.
+  // Keep the operator-facing value as YYYY-MM, but always query/write its canonical date.
+  const periodDate = `${period}-01`;
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["payroll_inputs", table, period],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from(table).select("*").eq("period_month", period).order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).from(table).select("*").eq("period_month", periodDate).order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -111,7 +114,7 @@ export default function PayrollInputsPage() {
       const row: any = {
         hr_employee_id: form.hr_employee_id,
         razorpay_employee_id: emp.razorpay_employee_id,
-        period_month: period,
+        period_month: periodDate,
         label: form.label.trim(),
         amount: amt,
       };
@@ -150,7 +153,7 @@ export default function PayrollInputsPage() {
     const data: any = {
       "employee-id": Number(first.razorpay_employee_id),
       "employee-type": "employee",
-      "payroll-month": first.period_month,
+      "payroll-month": String(first.period_month).slice(0, 7),
       ...(tab === "addition" ? { additions: items } : { deductions: items }),
     };
     const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {

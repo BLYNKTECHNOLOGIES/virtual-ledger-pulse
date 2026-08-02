@@ -18,22 +18,35 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 
+type DepositType = "security" | "error_recovery";
+
+const TYPE_LABEL: Record<DepositType, string> = {
+  security: "Security Deposit",
+  error_recovery: "Error Recovery",
+};
+
 export default function DepositManagementPage() {
   const qc = useQueryClient();
+  const [tab, setTab] = useState<DepositType>("security");
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showTransactions, setShowTransactions] = useState<string | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<any>(null);
-  const [form, setForm] = useState({
+  const emptyForm = {
     employee_id: "",
+    deposit_type: "security" as DepositType,
     total_deposit_amount: "",
     deduction_mode: "fixed_installment",
     deduction_value: "",
     deduction_start_month: format(new Date(), "yyyy-MM"),
-  });
+    incident_date: "",
+    incident_reference: "",
+    recovery_reason: "",
+  };
+  const [form, setForm] = useState(emptyForm);
 
   // Fetch deposits with employee info
-  const { data: deposits = [], isLoading } = useQuery({
+  const { data: allDeposits = [], isLoading } = useQuery({
     queryKey: ["hr_employee_deposits"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -44,6 +57,9 @@ export default function DepositManagementPage() {
       return data || [];
     },
   });
+
+  const deposits = allDeposits.filter((d: any) => (d.deposit_type || "security") === tab);
+
 
   // Fetch employees
   const { data: employees = [] } = useQuery({

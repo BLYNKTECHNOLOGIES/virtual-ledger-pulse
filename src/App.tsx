@@ -870,6 +870,8 @@ function App() {
           <RouterProvider router={router} />
         </Suspense>
         <Toaster />
+        <SonnerToaster position="top-right" richColors closeButton />
+
       </AuthProvider>
     </React.StrictMode>
   );

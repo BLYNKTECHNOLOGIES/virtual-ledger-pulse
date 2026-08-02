@@ -1555,10 +1555,9 @@ Deno.serve(async (req) => {
     }
 
     // ---------- read_person_by_id: read-only fetch for reconciliation UI ----------
-    // Returns the raw RazorpayX people:view snapshot for an employee-id. Does NOT
-    // touch hr_razorpay_employee_map or require a linked hr_employees row. Used by
-    // the Stage 5 reconciliation panel to show a field-by-field diff BEFORE the
-    // operator commits to linking. Refuses dismissed employees.
+    // Returns the raw RazorpayX people:view snapshot for an employee-id. When the
+    // id is already mapped, persist this authoritative live read so the drift
+    // scanner cannot reopen a verified push from its previous cached snapshot.
     if (action === "read_person_by_id") {
       // Accept both the flat body and a nested {payload:{...}} envelope —
       // callers historically used both and the nested form silently 400'd.
@@ -1608,6 +1607,9 @@ Deno.serve(async (req) => {
       } catch (e) {
         (r.body as any).__salary_probe_error = (e as Error).message;
       }
+      await svc.from("hr_razorpay_employee_map")
+        .update({ last_pull_snapshot: r.body, last_pulled_at: new Date().toISOString() })
+        .eq("razorpay_employee_id", String(rpId));
       return json(200, { ok: true, razorpay_employee_id: String(rpId), snapshot: r.body, http_status: r.status });
     }
 

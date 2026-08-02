@@ -1,3 +1,4 @@
+- 2026-08-02: Data Health Razorpay push closure hardened — live read-backs now persist mapped snapshots and cards resolve only after a forced employee-scoped drift rescan confirms parity.
 # STATE LOG
 
 Living cross-agent log. **Newest entry at top.** One dated line per event. Prune entries older than 30 days.

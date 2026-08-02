@@ -263,8 +263,10 @@ export default function PayrollInputsPage() {
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
-        title="Payroll Inputs"
-        description="Stage one-off additions, deductions, do-not-pay and reset-modifications, then push to RazorpayX. RazorpayX computes payroll; HRMS is the input feeder."
+        title={lopFocus ? "LOP Deductions — push to RazorpayX" : "Payroll Inputs"}
+        description={lopFocus
+          ? "Cockpit step 3: stage loss-of-pay deductions for the period and push them to RazorpayX. This view handles LOP only."
+          : "Stage one-off additions, deductions, do-not-pay and reset-modifications, then push to RazorpayX. RazorpayX computes payroll; HRMS is the input feeder."}
         actions={<DashboardLink />}
       />
 

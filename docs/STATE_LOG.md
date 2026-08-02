@@ -1,3 +1,4 @@
+- 2026-08-02: Fixed LOP push contract — Opfin add-deduction requires a label-keyed deductions map (unlike add-additions array); code 41 “Please specify the deduction” root cause corrected and UI now surfaces function error details.
 - 2026-08-02: Data Health lifecycle cleanup shipped — live RazorpayX inactive/dismissed state now auto-closes stale employment/dismissal push-failure bundles; only Active / dismissed remains when HRMS is still active.
 - 2026-08-02: RazorpayX designation push root cause fixed — Data Health used linked positions.title while push/read-back verification used legacy work_info.job_role, producing false green verification without changing the displayed designation; all paths now use position title first and legacy role only as fallback.
 # STATE LOG

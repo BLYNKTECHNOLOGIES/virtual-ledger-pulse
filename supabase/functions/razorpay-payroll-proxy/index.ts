@@ -7199,11 +7199,14 @@ Deno.serve(async (req) => {
       }
       const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
         ? directPayload.data : {};
-      // ---- payroll modifications: Opfin's add-additions / add-deduction
-      // endpoint expects an ARRAY of objects keyed by `label` (not the keyed
-      // map). Sending the map returns HTTP 500 UNKNOWN_EXCEPTION; sending an
-      // array without `label` returns "Undefined property: stdClass::$label".
-      // Verified live 2026-08-02. Amounts are RUPEES, never paise.
+      // ---- payroll modifications
+      // Opfin's two modification endpoints are unfortunately asymmetric:
+      //   add-additions -> ARRAY of objects carrying `label`
+      //   add-deduction -> label-keyed MAP whose value carries the deduction
+      //                    fields (documented/tenant response shape)
+      // Sending the additions array to add-deduction is acknowledged as HTTP
+      // 200 but fails with code 41, "Please specify the deduction". Amounts
+      // are RUPEES, never paise.
       let modExpect: Array<{ label: string; amount: number }> = [];
       if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
         const kind = action === "payroll_add_additions" ? "additions" : "deductions";
@@ -7213,7 +7216,9 @@ Deno.serve(async (req) => {
         const { map, expect } = normalizePayrollModifications(data[kind], kind as any);
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
-        data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
+        data[kind] = action === "payroll_add_additions"
+          ? Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }))
+          : map;
         modExpect = expect;
 
         data["employee-id"] = Number(data["employee-id"]);

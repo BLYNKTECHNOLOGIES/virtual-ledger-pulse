@@ -166,7 +166,18 @@ export default function PayrollInputsPage() {
         },
       },
     });
-    if (error) throw error;
+    if (error) {
+      let detail = "";
+      try {
+        if (typeof error.context?.json === "function") {
+          const body = await error.context.json();
+          detail = body?.error || body?.body?.message || "";
+        } else if (typeof error.context?.text === "function") {
+          detail = await error.context.text();
+        }
+      } catch { /* retain the SDK error below */ }
+      throw new Error(detail || error.message || "RazorpayX rejected the payroll input");
+    }
     if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
     const { error: uErr } = await (supabase as any).from(table)
       .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })

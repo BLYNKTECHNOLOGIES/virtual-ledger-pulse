@@ -7801,6 +7801,106 @@ export type Database = {
           },
         ]
       }
+      hr_employee_statutory_profiles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          esi_enabled: boolean
+          esic_number: string | null
+          hr_employee_id: string
+          id: string
+          pf_enabled: boolean
+          pf_wage_basis: string
+          pt_enabled: boolean
+          reason: string | null
+          source: string
+          uan: string | null
+          updated_at: string
+          vpf_mode: string
+          vpf_value: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          esi_enabled?: boolean
+          esic_number?: string | null
+          hr_employee_id: string
+          id?: string
+          pf_enabled?: boolean
+          pf_wage_basis?: string
+          pt_enabled?: boolean
+          reason?: string | null
+          source?: string
+          uan?: string | null
+          updated_at?: string
+          vpf_mode?: string
+          vpf_value?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          esi_enabled?: boolean
+          esic_number?: string | null
+          hr_employee_id?: string
+          id?: string
+          pf_enabled?: boolean
+          pf_wage_basis?: string
+          pt_enabled?: boolean
+          reason?: string | null
+          source?: string
+          uan?: string | null
+          updated_at?: string
+          vpf_mode?: string
+          vpf_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_employee_tags: {
         Row: {
           color: string | null
@@ -24766,6 +24866,21 @@ export type Database = {
       hr_stale_session_held: {
         Args: { p_date: string; p_employee_id: string }
         Returns: boolean
+      }
+      hr_statutory_profile: {
+        Args: { p_employee: string; p_month: string }
+        Returns: {
+          effective_from: string
+          esi_enabled: boolean
+          esic_number: string
+          hr_employee_id: string
+          pf_enabled: boolean
+          pf_wage_basis: string
+          pt_enabled: boolean
+          uan: string
+          vpf_mode: string
+          vpf_value: number
+        }[]
       }
       hr_system_pulse: { Args: never; Returns: Json }
       hr_unlock_attendance_period: {

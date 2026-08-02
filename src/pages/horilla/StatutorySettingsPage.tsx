@@ -1,0 +1,525 @@
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
+import { toast } from "sonner";
+import { Search, ShieldCheck, History, Users, Info } from "lucide-react";
+
+type Profile = {
+  id: string;
+  hr_employee_id: string;
+  effective_from: string;
+  pf_enabled: boolean;
+  pf_wage_basis: "capped" | "actual";
+  vpf_mode: "none" | "percent" | "fixed";
+  vpf_value: number;
+  esi_enabled: boolean;
+  pt_enabled: boolean;
+  uan: string | null;
+  esic_number: string | null;
+  reason: string | null;
+  created_at: string;
+};
+
+const monthStart = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+
+const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+export default function StatutorySettingsPage() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "no_pf" | "vpf" | "esi_eligible" | "no_uan">("all");
+  const [editing, setEditing] = useState<any | null>(null);
+  const [historyFor, setHistoryFor] = useState<any | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulk, setBulk] = useState({ field: "pf" as "pf" | "esi" | "pt", value: true, effective_from: monthStart(), reason: "" });
+
+  const [form, setForm] = useState({
+    pf_enabled: false,
+    pf_wage_basis: "capped" as "capped" | "actual",
+    vpf_mode: "none" as "none" | "percent" | "fixed",
+    vpf_value: "0",
+    esi_enabled: false,
+    pt_enabled: true,
+    uan: "",
+    esic_number: "",
+    effective_from: monthStart(),
+    reason: "",
+  });
+
+  const { data: employees = [], isLoading } = useQuery({
+    queryKey: ["hr_employees_statutory"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_employees")
+        .select("id, badge_id, first_name, last_name, basic_salary, total_salary, is_active")
+        .eq("is_active", true)
+        .order("first_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["hr_employee_statutory_profiles"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_employee_statutory_profiles")
+        .select("*")
+        .order("effective_from", { ascending: false });
+      if (error) throw error;
+      return (data || []) as Profile[];
+    },
+  });
+
+  // Active profile for the current month, per employee
+  const activeByEmp = useMemo(() => {
+    const today = monthStart();
+    const map = new Map<string, Profile>();
+    for (const p of profiles) {
+      if (p.effective_from > today) continue;
+      if (!map.has(p.hr_employee_id)) map.set(p.hr_employee_id, p); // list is desc ⇒ first = latest
+    }
+    return map;
+  }, [profiles]);
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return employees
+      .map((e: any) => ({ emp: e, p: activeByEmp.get(e.id) }))
+      .filter(({ emp, p }: any) => {
+        if (q) {
+          const hay = `${emp.first_name} ${emp.last_name} ${emp.badge_id ?? ""}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        const monthlyGross = Number(emp.total_salary || 0) / 12;
+        if (filter === "no_pf") return !p?.pf_enabled;
+        if (filter === "vpf") return (p?.vpf_mode ?? "none") !== "none";
+        if (filter === "esi_eligible") return monthlyGross > 0 && monthlyGross <= 21000 && !p?.esi_enabled;
+        if (filter === "no_uan") return !!p?.pf_enabled && !p?.uan;
+        return true;
+      });
+  }, [employees, activeByEmp, search, filter]);
+
+  const openEdit = (emp: any) => {
+    const p = activeByEmp.get(emp.id);
+    setForm({
+      pf_enabled: p?.pf_enabled ?? false,
+      pf_wage_basis: (p?.pf_wage_basis as any) ?? "capped",
+      vpf_mode: (p?.vpf_mode as any) ?? "none",
+      vpf_value: String(p?.vpf_value ?? 0),
+      esi_enabled: p?.esi_enabled ?? false,
+      pt_enabled: p?.pt_enabled ?? true,
+      uan: p?.uan ?? "",
+      esic_number: p?.esic_number ?? "",
+      effective_from: monthStart(),
+      reason: "",
+    });
+    setEditing(emp);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!editing) return;
+      if (!form.reason.trim()) throw new Error("A reason is required for every statutory change");
+      const val = Number(form.vpf_value || 0);
+      if (form.vpf_mode === "percent" && (val <= 0 || val > 88)) throw new Error("VPF percentage must be between 0 and 88");
+      if (form.vpf_mode === "fixed" && val <= 0) throw new Error("VPF amount must be greater than zero");
+
+      // Closed-month guard
+      const { data: lock } = await (supabase as any)
+        .from("hr_payroll_runs")
+        .select("id,status,period_month")
+        .eq("period_month", form.effective_from)
+        .in("status", ["closed", "completed", "locked"])
+        .maybeSingle();
+      if (lock) throw new Error("That payroll month is already closed — pick a later effective month");
+
+      const { data: auth } = await supabase.auth.getUser();
+      const payload = {
+        hr_employee_id: editing.id,
+        effective_from: form.effective_from,
+        pf_enabled: form.pf_enabled,
+        pf_wage_basis: form.pf_wage_basis,
+        vpf_mode: form.pf_enabled ? form.vpf_mode : "none",
+        vpf_value: form.pf_enabled && form.vpf_mode !== "none" ? val : 0,
+        esi_enabled: form.esi_enabled,
+        pt_enabled: form.pt_enabled,
+        uan: form.uan.trim() || null,
+        esic_number: form.esic_number.trim() || null,
+        reason: form.reason.trim(),
+        source: "hrms_profile",
+        created_by: auth?.user?.id ?? null,
+      };
+      const { error } = await (supabase as any)
+        .from("hr_employee_statutory_profiles")
+        .upsert(payload, { onConflict: "hr_employee_id,effective_from" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });
+      setEditing(null);
+      toast.success("Statutory settings saved");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const bulkMutation = useMutation({
+    mutationFn: async () => {
+      if (!selected.length) throw new Error("Select at least one employee");
+      if (!bulk.reason.trim()) throw new Error("A reason is required");
+      const { data: auth } = await supabase.auth.getUser();
+      const rowsToWrite = selected.map((id) => {
+        const p = activeByEmp.get(id);
+        return {
+          hr_employee_id: id,
+          effective_from: bulk.effective_from,
+          pf_enabled: bulk.field === "pf" ? bulk.value : (p?.pf_enabled ?? false),
+          pf_wage_basis: p?.pf_wage_basis ?? "capped",
+          vpf_mode: p?.vpf_mode ?? "none",
+          vpf_value: p?.vpf_value ?? 0,
+          esi_enabled: bulk.field === "esi" ? bulk.value : (p?.esi_enabled ?? false),
+          pt_enabled: bulk.field === "pt" ? bulk.value : (p?.pt_enabled ?? true),
+          uan: p?.uan ?? null,
+          esic_number: p?.esic_number ?? null,
+          reason: bulk.reason.trim(),
+          source: "hrms_profile",
+          created_by: auth?.user?.id ?? null,
+        };
+      });
+      const { error } = await (supabase as any)
+        .from("hr_employee_statutory_profiles")
+        .upsert(rowsToWrite, { onConflict: "hr_employee_id,effective_from" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });
+      setBulkOpen(false);
+      setSelected([]);
+      toast.success("Bulk statutory update applied");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const toggleSelect = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const renderBadges = (r: any) => {
+    const { emp, p } = r;
+    const monthlyGross = Number(emp.total_salary || 0) / 12;
+    const esiIneligible = monthlyGross > 21000;
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        <Badge variant={p?.pf_enabled ? "default" : "secondary"}>PF {p?.pf_enabled ? "on" : "off"}</Badge>
+        {p?.pf_enabled && (
+          <Badge variant="outline">
+            {p.pf_wage_basis === "actual" ? "PF on actual Basic" : "PF capped ₹15,000"}
+          </Badge>
+        )}
+        {p?.vpf_mode && p.vpf_mode !== "none" && (
+          <Badge variant="outline">
+            VPF {p.vpf_mode === "percent" ? `${p.vpf_value}%` : inr(p.vpf_value)}
+          </Badge>
+        )}
+        <Badge variant={p?.esi_enabled ? "default" : "secondary"}>ESI {p?.esi_enabled ? "on" : "off"}</Badge>
+        {esiIneligible && <Badge variant="outline">gross &gt; ₹21,000 — auto-ineligible</Badge>}
+        <Badge variant={p?.pt_enabled ? "default" : "secondary"}>PT {p?.pt_enabled ? "on" : "off"}</Badge>
+        {p?.pf_enabled && !p?.uan && <Badge variant="destructive">UAN missing</Badge>}
+        {p?.esi_enabled && !p?.esic_number && <Badge variant="destructive">ESIC no. missing</Badge>}
+      </div>
+    );
+  };
+
+  return (
+
+    <div className="space-y-4">
+      <PageHeader
+        title="Statutory Settings"
+        description="Per-employee PF / ESI / Professional Tax enrolment and voluntary PF — effective-dated, with full history."
+      />
+
+      <Card>
+        <CardContent className="p-3 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8 text-foreground"
+                placeholder="Search employee or ID"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select value={filter} onValueChange={(v) => setFilter(v as any)}>
+              <SelectTrigger className="w-full sm:w-[220px] text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-[50vh] overflow-y-auto z-50 bg-popover">
+                <SelectItem value="all">All employees</SelectItem>
+                <SelectItem value="no_pf">Not enrolled in PF</SelectItem>
+                <SelectItem value="esi_eligible">ESI-eligible, not enrolled</SelectItem>
+                <SelectItem value="vpf">VPF active</SelectItem>
+                <SelectItem value="no_uan">PF enrolled, UAN missing</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              disabled={!selected.length}
+              onClick={() => setBulkOpen(true)}
+              className="w-full sm:w-auto"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Bulk ({selected.length})
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            CTC stays fixed: enrolling moves money inside the same CTC (employer PF/ESI is carved out of it).
+            VPF is an employee-side deduction only — it reduces take-home, never the CTC.
+            RazorpayX publishes no API field for VPF, so VPF must be mirrored manually in the RazorpayX dashboard.
+          </p>
+        </CardContent>
+      </Card>
+
+
+      {isLoading ? null : rows.length === 0 ? (
+        <EmptyState icon={ShieldCheck} title="No employees match" description="Adjust the search or filter." />
+      ) : (
+        <ResponsiveList
+          items={rows}
+          isLoading={isLoading}
+          keyFor={(r: any) => r.emp.id}
+          tableMinWidth="min-w-[820px]"
+          columns={[
+            { key: "sel", label: "" },
+            { key: "emp", label: "Employee" },
+            { key: "ctc", label: "Monthly CTC" },
+            { key: "status", label: "Statutory" },
+            { key: "actions", label: "", className: "text-right" },
+          ]}
+          renderRow={(r: any) => (
+            <>
+              <td className="p-2">
+                <Checkbox checked={selected.includes(r.emp.id)} onCheckedChange={() => toggleSelect(r.emp.id)} />
+              </td>
+              <td className="p-2">
+                <div className="font-medium">{r.emp.first_name} {r.emp.last_name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {r.emp.badge_id}{r.p?.effective_from ? ` · effective ${r.p.effective_from}` : " · no profile"}
+                </div>
+              </td>
+              <td className="p-2 text-sm">{inr(Math.round(Number(r.emp.total_salary || 0) / 12))}</td>
+              <td className="p-2">{renderBadges(r)}</td>
+              <td className="p-2 text-right whitespace-nowrap">
+                <Button size="sm" variant="outline" onClick={() => openEdit(r.emp)}>Edit</Button>
+                <Button size="sm" variant="ghost" onClick={() => setHistoryFor(r.emp)}>
+                  <History className="h-4 w-4" />
+                </Button>
+              </td>
+            </>
+          )}
+          renderCard={(r: any) => (
+            <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+              <Checkbox
+                checked={selected.includes(r.emp.id)}
+                onCheckedChange={() => toggleSelect(r.emp.id)}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium truncate">{r.emp.first_name} {r.emp.last_name}</span>
+                  <span className="text-xs text-muted-foreground">{r.emp.badge_id}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Monthly CTC {inr(Math.round(Number(r.emp.total_salary || 0) / 12))}
+                  {r.p?.effective_from ? ` · effective ${r.p.effective_from}` : " · no profile"}
+                </div>
+                <div className="mt-2">{renderBadges(r)}</div>
+              </div>
+              <div className="flex flex-col gap-1 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => openEdit(r.emp)}>Edit</Button>
+                <Button size="sm" variant="ghost" onClick={() => setHistoryFor(r.emp)}>
+                  <History className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        />
+      )}
+
+
+      {/* Edit dialog */}
+      <ResponsiveDialog
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+        title={editing ? `Statutory — ${editing.first_name} ${editing.last_name}` : ""}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Provident Fund (PF)</Label>
+            <Switch checked={form.pf_enabled} onCheckedChange={(v) => setForm({ ...form, pf_enabled: v })} />
+          </div>
+
+          {form.pf_enabled && (
+            <>
+              <div className="space-y-1.5">
+                <Label>PF wage base</Label>
+                <Select value={form.pf_wage_basis} onValueChange={(v) => setForm({ ...form, pf_wage_basis: v as any })}>
+                  <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                  <SelectContent className="z-50 bg-popover">
+                    <SelectItem value="capped">Capped at ₹15,000 (default)</SelectItem>
+                    <SelectItem value="actual">Actual Basic (uncapped)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  If a future salary revision pushes Basic above ₹15,000, this auto-reverts to capped.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Voluntary PF (VPF)</Label>
+                <div className="flex gap-2">
+                  <Select value={form.vpf_mode} onValueChange={(v) => setForm({ ...form, vpf_mode: v as any })}>
+                    <SelectTrigger className="w-[150px] text-foreground"><SelectValue /></SelectTrigger>
+                    <SelectContent className="z-50 bg-popover">
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="percent">% of PF wages</SelectItem>
+                      <SelectItem value="fixed">Fixed ₹ / month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {form.vpf_mode !== "none" && (
+                    <Input
+                      className="text-foreground"
+                      inputMode="decimal"
+                      value={form.vpf_value}
+                      onChange={(e) => setForm({ ...form, vpf_value: e.target.value })}
+                      placeholder={form.vpf_mode === "percent" ? "e.g. 5" : "e.g. 2000"}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>UAN</Label>
+                <Input className="text-foreground" value={form.uan} onChange={(e) => setForm({ ...form, uan: e.target.value })} />
+              </div>
+            </>
+          )}
+
+          <div className="flex items-center justify-between">
+            <Label>ESI</Label>
+            <Switch checked={form.esi_enabled} onCheckedChange={(v) => setForm({ ...form, esi_enabled: v })} />
+          </div>
+          {form.esi_enabled && (
+            <div className="space-y-1.5">
+              <Label>ESIC number</Label>
+              <Input className="text-foreground" value={form.esic_number} onChange={(e) => setForm({ ...form, esic_number: e.target.value })} />
+              <p className="text-xs text-muted-foreground">
+                ESI still stops automatically once regular gross crosses ₹21,000, at the contribution-period boundary.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <Label>Professional Tax</Label>
+            <Switch checked={form.pt_enabled} onCheckedChange={(v) => setForm({ ...form, pt_enabled: v })} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Effective from (payroll month)</Label>
+            <Input
+              type="month"
+              className="text-foreground"
+              value={form.effective_from.slice(0, 7)}
+              onChange={(e) => setForm({ ...form, effective_from: `${e.target.value}-01` })}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Reason (required)</Label>
+            <Input className="text-foreground" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+          </div>
+
+          <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? "Saving…" : "Save statutory settings"}
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
+      {/* Bulk dialog */}
+      <ResponsiveDialog open={bulkOpen} onOpenChange={setBulkOpen} title={`Bulk update — ${selected.length} employees`}>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Setting</Label>
+            <Select value={bulk.field} onValueChange={(v) => setBulk({ ...bulk, field: v as any })}>
+              <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+              <SelectContent className="z-50 bg-popover">
+                <SelectItem value="pf">Provident Fund</SelectItem>
+                <SelectItem value="esi">ESI</SelectItem>
+                <SelectItem value="pt">Professional Tax</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Enrol</Label>
+            <Switch checked={bulk.value} onCheckedChange={(v) => setBulk({ ...bulk, value: v })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Effective from</Label>
+            <Input
+              type="month"
+              className="text-foreground"
+              value={bulk.effective_from.slice(0, 7)}
+              onChange={(e) => setBulk({ ...bulk, effective_from: `${e.target.value}-01` })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reason (required)</Label>
+            <Input className="text-foreground" value={bulk.reason} onChange={(e) => setBulk({ ...bulk, reason: e.target.value })} />
+          </div>
+          <Button className="w-full" onClick={() => bulkMutation.mutate()} disabled={bulkMutation.isPending}>
+            {bulkMutation.isPending ? "Applying…" : "Apply to selected"}
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
+      {/* History drawer */}
+      <ResponsiveDialog
+        open={!!historyFor}
+        onOpenChange={(o) => !o && setHistoryFor(null)}
+        title={historyFor ? `History — ${historyFor.first_name} ${historyFor.last_name}` : ""}
+      >
+        <div className="space-y-2">
+          {profiles.filter((p) => p.hr_employee_id === historyFor?.id).map((p) => (
+            <div key={p.id} className="rounded-md border p-2 text-sm">
+              <div className="font-medium">From {p.effective_from}</div>
+              <div className="text-xs text-muted-foreground">
+                PF {p.pf_enabled ? `on (${p.pf_wage_basis === "actual" ? "actual Basic" : "capped"})` : "off"} ·
+                {" "}VPF {p.vpf_mode === "none" ? "none" : p.vpf_mode === "percent" ? `${p.vpf_value}%` : inr(p.vpf_value)} ·
+                {" "}ESI {p.esi_enabled ? "on" : "off"} · PT {p.pt_enabled ? "on" : "off"}
+              </div>
+              {p.reason && <div className="text-xs mt-1">{p.reason}</div>}
+            </div>
+          ))}
+          {!profiles.some((p) => p.hr_employee_id === historyFor?.id) && (
+            <p className="text-sm text-muted-foreground">No history yet.</p>
+          )}
+        </div>
+      </ResponsiveDialog>
+    </div>
+  );
+}

@@ -35,20 +35,34 @@ const corsHeaders = {
 };
 
 // ---- inline statutory helpers (mirror of src/lib/hrms/statutoryCalculator.ts) ----
-function pfWageBase(basic: number, da: number, s: any): number {
-  if (!s) return Math.min(basic || 0, 15000);
-  const raw = s.pf_wages_basic_only ? (basic || 0) : (basic || 0) + (da || 0);
+function pfWageBase(basic: number, da: number, s: any, basisOverride?: string): number {
+  const raw = s?.pf_wages_basic_only === false ? (basic || 0) + (da || 0) : (basic || 0);
+  // Per-employee basis wins: 'actual' = uncapped Basic, 'capped' = ₹15 000 ceiling.
+  if (basisOverride === "actual") return raw;
+  if (basisOverride === "capped") return Math.min(raw, 15000);
+  if (!s) return Math.min(raw, 15000);
   return s.pf_wage_cap_15000 ? Math.min(raw, 15000) : raw;
 }
-function computeEpf(basic: number, da: number, s: any, enrolled: boolean) {
-  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0 };
-  const base = pfWageBase(basic, da, s);
+function computeEpf(
+  basic: number,
+  da: number,
+  s: any,
+  enrolled: boolean,
+  opts?: { basis?: string; vpfMode?: string; vpfValue?: number },
+) {
+  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0, vpf: 0 };
+  const base = pfWageBase(basic, da, s, opts?.basis);
   const employee = Math.round(base * 0.12);
   const employer = Math.round(base * 0.12);
   const admin_edli = Math.round(base * 0.01);
   const employer_earnings_side = employer + admin_edli;
-  return { employee, employer, admin_edli, employer_earnings_side, base };
+  // VPF — employee-side only. No employer match, no EDLI/admin on VPF.
+  let vpf = 0;
+  if (opts?.vpfMode === "percent") vpf = Math.round(base * (Number(opts.vpfValue || 0) / 100));
+  else if (opts?.vpfMode === "fixed") vpf = Math.round(Number(opts.vpfValue || 0));
+  return { employee, employer, admin_edli, employer_earnings_side, base, vpf: Math.max(0, vpf) };
 }
+
 function computeEsi(fullGross: number, regularGross: number, s: any, enrolled: boolean) {
   if (!enrolled || regularGross > 21000) return { employee: 0, employer: 0, base: 0 };
   const base = s?.esi_include_additions_in_wages ? fullGross : regularGross;
@@ -158,6 +172,21 @@ Deno.serve(async (req) => {
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
     const { data: employees, error: empErr } = await empQ;
     if (empErr) throw empErr;
+
+    // 2b. Effective-dated statutory profiles active for THIS period month.
+    //     Latest row with effective_from <= period start wins (history preserved).
+    const statutoryProfiles = new Map<string, any>();
+    {
+      const { data: profRows, error: profErr } = await supabase
+        .from("hr_employee_statutory_profiles")
+        .select("hr_employee_id,effective_from,pf_enabled,pf_wage_basis,vpf_mode,vpf_value,esi_enabled,pt_enabled")
+        .lte("effective_from", periodStr)
+        .order("effective_from", { ascending: true });
+      if (profErr) console.error("statutory profile fetch err", profErr);
+      for (const r of profRows ?? []) statutoryProfiles.set(r.hr_employee_id, r); // ascending ⇒ last write = latest
+    }
+
+
 
     // 3. Input readiness
     const monthEnd = new Date(period);
@@ -415,32 +444,39 @@ Deno.serve(async (req) => {
       }
       const additions = (adds ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
-      // Per-employee statutory enrollment (falls back to global compliance toggle)
-      const pfEnrolled = emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
-      const esiEnrolled = emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
-      const ptEnrolled = emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
-      const flagsSource = emp.statutory_flags_source
-        ?? ((emp.pf_enabled === null && emp.esi_enabled === null && emp.pt_enabled === null)
-            ? "assumed_from_global" : "assumed_from_global");
+      // Per-employee statutory enrollment.
+      // Priority: effective-dated statutory profile → hr_employees cache → global toggle.
+      const prof = statutoryProfiles.get(emp.id);
+      const pfEnrolled = prof?.pf_enabled ?? emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
+      const esiEnrolled = prof?.esi_enabled ?? emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
+      const ptEnrolled = prof?.pt_enabled ?? emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
+      const pfBasis = prof?.pf_wage_basis ?? undefined;
+      const vpfMode = prof?.vpf_mode ?? "none";
+      const vpfValue = Number(prof?.vpf_value ?? 0);
+      const pfOpts = { basis: pfBasis, vpfMode, vpfValue };
+      const flagsSource = prof ? "hrms_profile" : (emp.statutory_flags_source ?? "assumed_from_global");
 
       // ---- CTC-INCLUSIVE DOCTRINE (owner directive 2026-08-02) ----
       // CTC is all-inclusive: employer PF/EDLI/ESI are CARVED OUT of the CTC,
       // never added on top. Gross earnings = post-LOP CTC − employer contributions.
+      // VPF is employee-side only: it never changes CTC or gross, only net pay.
       // Only bonuses / one-off additions sit outside the CTC.
       const addPositive = Math.max(0, additions);
       const addNegative = Math.max(0, -additions); // treated as a net-side recovery
       const ctcPost = regularPost;
 
       let grossEarnings = ctcPost;
-      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
       let esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       for (let i = 0; i < 4; i++) {
         const next = Math.max(0, ctcPost - epf.employer_earnings_side - esi.employer);
         if (next === grossEarnings) break;
         grossEarnings = next;
-        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
         esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       }
+      const vpfAmount = Math.min(epf.vpf, Math.max(0, grossEarnings - epf.employee)); // never push net below zero
+
 
       // Re-split the (carved) gross into components
       const gBasic = Math.round(grossEarnings * (pct.basic / 100));
@@ -478,7 +514,7 @@ Deno.serve(async (req) => {
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
       const earningsTotal = grossEarnings + addPositive;
-      const deductions = epf.employee + esi.employee + pt + tds + addNegative;
+      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative;
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
@@ -519,6 +555,9 @@ Deno.serve(async (req) => {
           compute_notes: {
             regime, monthsRemaining, annualBasePreLop, ytdTdsPaid, annualTax,
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
+            pf_wage_basis: pfBasis ?? "settings_default",
+            pf_wage_base: epf.base,
+            vpf_mode: vpfMode, vpf_value: vpfValue, vpf_amount: vpfAmount,
             statutory_flags_source: flagsSource,
             tds_fy: "FY26-27",
             ctc_model: "all_inclusive",
@@ -545,6 +584,7 @@ Deno.serve(async (req) => {
         { key: "pf_employer_ctc", label: "Employer PF + EDLI (within CTC)", type: "info_deduction", amount: epf.employer_earnings_side },
         { key: "esi_employer_ctc", label: "Employer ESI (within CTC)", type: "info_deduction", amount: esi.employer },
         { key: "pf_employee", label: "PF (Employee)", type: "deduction", amount: epf.employee },
+        { key: "vpf", label: "Voluntary PF (VPF)", type: "deduction", amount: vpfAmount },
         { key: "esi_employee", label: "ESI (Employee)", type: "deduction", amount: esi.employee },
         { key: "other_recovery", label: "Other recovery", type: "deduction", amount: addNegative },
         { key: "pt", label: "Professional Tax", type: "deduction", amount: pt },

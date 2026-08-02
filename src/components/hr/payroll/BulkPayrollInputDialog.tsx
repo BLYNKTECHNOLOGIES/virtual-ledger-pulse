@@ -100,7 +100,8 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
       const row: any = {
         hr_employee_id: empRow.hr_employee_id,
         razorpay_employee_id: empRow.razorpay_employee_id,
-        period_month: period,
+        // DB column is a date — always normalise YYYY-MM → YYYY-MM-01
+        period_month: /^\d{4}-\d{2}$/.test(period) ? `${period}-01` : period,
         label: lbl,
         amount: amt,
       };

@@ -465,9 +465,6 @@ export default function StatutorySettingsPage() {
                     <SelectItem value="actual">Actual Basic (uncapped)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  If a future salary revision pushes Basic above ₹15,000, this auto-reverts to capped.
-                </p>
               </div>
 
               <div className="space-y-1.5">

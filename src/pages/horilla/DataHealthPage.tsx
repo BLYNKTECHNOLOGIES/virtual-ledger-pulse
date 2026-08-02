@@ -404,6 +404,11 @@ export default function DataHealthPage() {
         <RosterCompletenessTile />
       </div>
 
+      {/* Roster drift — people in RazorpayX with no HRMS employee record */}
+      <RazorpayOrphanPanel />
+
+
+
       {/* Statutory drift rollup — Razorpay filing toggles vs actual payslip amounts */}
       {statutoryDrift.count > 0 && (
         <div className="rounded-xl border border-warning/40 bg-warning/5 p-4">

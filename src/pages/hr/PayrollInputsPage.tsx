@@ -18,6 +18,7 @@ import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calc
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
+import { AutoRecoveriesCard } from "@/components/hr/payroll/AutoRecoveriesCard";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 

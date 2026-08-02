@@ -26,9 +26,21 @@ interface Props {
 
 const fullName = (e: any) => `${e?.first_name || ""} ${e?.last_name || ""}`.trim();
 
+type RowDraft = { key: string; hr_employee_id: string; label: string; amount: string; addition_type: string; taxable: boolean };
+
+const newDraft = (defaults?: Partial<RowDraft>): RowDraft => ({
+  key: Math.random().toString(36).slice(2),
+  hr_employee_id: "",
+  label: "",
+  amount: "",
+  addition_type: "bonus",
+  taxable: true,
+  ...defaults,
+});
+
 export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, employees, onDone }: Props) {
   const table = kind === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
-  const [mode, setMode] = useState<"select" | "paste">("select");
+  const [mode, setMode] = useState<"rows" | "select" | "paste">("rows");
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [label, setLabel] = useState("");
@@ -36,6 +48,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
   const [additionType, setAdditionType] = useState("bonus");
   const [taxable, setTaxable] = useState(true);
   const [paste, setPaste] = useState("");
+  const [drafts, setDrafts] = useState<RowDraft[]>([newDraft()]);
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
@@ -50,6 +63,12 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
 
   const pickedCount = Object.values(picked).filter(Boolean).length;
 
+  const empById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const r of employees) if (r.hr_employees) m.set(r.hr_employee_id, r);
+    return m;
+  }, [employees]);
+
   // badge_id -> map row, for the paste path
   const byBadge = useMemo(() => {
     const m = new Map<string, any>();
@@ -60,9 +79,18 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
     return m;
   }, [employees]);
 
+  const draftsTotal = useMemo(
+    () => drafts.reduce((s, d) => s + (Number.isFinite(parseFloat(d.amount)) ? parseFloat(d.amount) : 0), 0),
+    [drafts],
+  );
+
+  function patchDraft(key: string, patch: Partial<RowDraft>) {
+    setDrafts((ds) => ds.map((d) => (d.key === key ? { ...d, ...patch } : d)));
+  }
+
   function buildRows(): { rows: any[]; skipped: string[] } {
     const skipped: string[] = [];
-    const base = (empRow: any, amt: number, lbl: string) => {
+    const base = (empRow: any, amt: number, lbl: string, type?: string, tax?: boolean) => {
       const row: any = {
         hr_employee_id: empRow.hr_employee_id,
         razorpay_employee_id: empRow.razorpay_employee_id,
@@ -70,9 +98,32 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
         label: lbl,
         amount: amt,
       };
-      if (kind === "addition") { row.addition_type = additionType; row.taxable = taxable; }
+      if (kind === "addition") { row.addition_type = type ?? additionType; row.taxable = tax ?? taxable; }
       return row;
     };
+
+    // rows mode: one line per employee, each with its own amount
+    if (mode === "rows") {
+      const rows: any[] = [];
+      const seen = new Set<string>();
+      drafts.forEach((d, i) => {
+        const empRow = empById.get(d.hr_employee_id);
+        const lbl = (d.label.trim() || label.trim());
+        const amt = parseFloat(String(d.amount).replace(/[₹,\s]/g, ""));
+        if (!empRow && !d.label && !d.amount) return; // untouched blank row
+        if (!empRow) { skipped.push(`Row ${i + 1} — no employee picked`); return; }
+        if (!lbl) { skipped.push(`Row ${i + 1} — label missing`); return; }
+        if (!Number.isFinite(amt) || amt <= 0) { skipped.push(`Row ${i + 1} — amount must be > 0`); return; }
+        // RazorpayX keys modifications by label per employee/month — the same
+        // label twice would collapse into one entry on the run.
+        const dupKey = `${d.hr_employee_id}::${lbl.toLowerCase()}`;
+        if (seen.has(dupKey)) { skipped.push(`Row ${i + 1} — duplicate label "${lbl}" for the same employee`); return; }
+        seen.add(dupKey);
+        rows.push(base(empRow, amt, lbl, d.addition_type, d.taxable));
+      });
+      if (!rows.length) throw new Error("Add at least one complete row (employee + label + amount)");
+      return { rows, skipped };
+    }
 
     if (mode === "select") {
       const lbl = label.trim();
@@ -102,6 +153,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
     if (!rows.length) throw new Error("No valid lines — check badge IDs and amounts");
     return { rows, skipped };
   }
+
 
   async function submit() {
     let built: { rows: any[]; skipped: string[] };

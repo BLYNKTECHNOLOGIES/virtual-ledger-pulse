@@ -521,6 +521,8 @@ export default function PayrollInputsPage() {
           </table>
         </CardContent>
       </Card>
+      )}
+
 
       <AlertDialog open={!!pushConfirm} onOpenChange={(o) => !o && setPushConfirm(null)}>
         <AlertDialogContent>

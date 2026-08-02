@@ -60,7 +60,8 @@ export function PayrollAdjustmentDialog({
 
   const commonData = {
     "employee-id": Number(razorpayEmployeeId),
-    month: monthKey(periodMonth),
+    "employee-type": "employee",
+    "payroll-month": monthKey(periodMonth),
   };
 
   const runAction = async (action: string, extra: Record<string, unknown>, successMsg: string) => {

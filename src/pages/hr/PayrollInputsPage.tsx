@@ -288,7 +288,7 @@ export default function PayrollInputsPage() {
       if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
       return res;
     },
-    onSuccess: () => { toast.success("Marked Do-Not-Pay on RazorpayX for this month"); setDnpConfirm(null); },
+    onSuccess: () => { toast.success("Marked Do-Not-Pay on RazorpayX for this month"); setDnpConfirm(null); qc.invalidateQueries({ queryKey: ["payroll_dnp_marks", period] }); },
     onError: (e: any) => { toast.error(e.message); setDnpConfirm(null); },
   });
 

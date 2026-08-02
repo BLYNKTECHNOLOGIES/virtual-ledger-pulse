@@ -567,6 +567,8 @@ export default function PayrollInputsPage() {
         employees={employees as any[]}
         onDone={() => qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] })}
       />
+
+      <AutoLopDialog open={autoLopOpen} onOpenChange={setAutoLopOpen} period={period} />
     </div>
   );
 }

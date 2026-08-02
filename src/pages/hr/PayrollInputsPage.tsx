@@ -40,6 +40,7 @@ export default function PayrollInputsPage() {
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [autoLopOpen, setAutoLopOpen] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);

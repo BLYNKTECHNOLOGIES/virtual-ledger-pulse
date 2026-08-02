@@ -167,10 +167,17 @@ export default function StatutorySettingsPage() {
       return Array.isArray(res) ? res[0] : res;
 
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_statutory"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees"] });
       setEditing(null);
-      toast.success("Statutory settings saved");
+      const fwd = Number(res?.forward_rows_updated ?? 0);
+      toast.success(
+        fwd > 0
+          ? `Statutory settings saved — also applied to ${fwd} later month${fwd > 1 ? "s" : ""}`
+          : "Statutory settings saved",
+      );
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -179,30 +186,29 @@ export default function StatutorySettingsPage() {
     mutationFn: async () => {
       if (!selected.length) throw new Error("Select at least one employee");
       if (!bulk.reason.trim()) throw new Error("A reason is required");
-      const { data: auth } = await supabase.auth.getUser();
-      const rowsToWrite = selected.map((id) => {
+      let forward = 0;
+      for (const id of selected) {
         const p = activeByEmp.get(id);
-        return {
-          hr_employee_id: id,
-          effective_from: bulk.effective_from,
-          pf_enabled: bulk.field === "pf" ? bulk.value : (p?.pf_enabled ?? false),
-          pf_wage_basis: p?.pf_wage_basis ?? "capped",
-          vpf_mode: p?.vpf_mode ?? "none",
-          vpf_value: p?.vpf_value ?? 0,
-          esi_enabled: bulk.field === "esi" ? bulk.value : (p?.esi_enabled ?? false),
-          pt_enabled: bulk.field === "pt" ? bulk.value : (p?.pt_enabled ?? false),
-          uan: p?.uan ?? null,
-          esic_number: p?.esic_number ?? null,
-          reason: bulk.reason.trim(),
-          source: "hrms_profile",
-          created_by: auth?.user?.id ?? null,
-        };
-      });
-      const { error } = await (supabase as any)
-        .from("hr_employee_statutory_profiles")
-        .upsert(rowsToWrite, { onConflict: "hr_employee_id,effective_from" });
-      if (error) throw error;
+        const { data: res, error } = await (supabase as any).rpc("hr_apply_statutory_change", {
+          p_employee: id,
+          p_effective_from: bulk.effective_from,
+          p_pf_enabled: bulk.field === "pf" ? bulk.value : (p?.pf_enabled ?? false),
+          p_pf_wage_basis: p?.pf_wage_basis ?? "capped",
+          p_vpf_mode: p?.vpf_mode ?? "none",
+          p_vpf_value: p?.vpf_value ?? 0,
+          p_esi_enabled: bulk.field === "esi" ? bulk.value : (p?.esi_enabled ?? false),
+          p_pt_enabled: bulk.field === "pt" ? bulk.value : (p?.pt_enabled ?? false),
+          p_uan: p?.uan ?? null,
+          p_esic_number: p?.esic_number ?? null,
+          p_reason: bulk.reason.trim(),
+        });
+        if (error) throw error;
+        const row = Array.isArray(res) ? res[0] : res;
+        forward += Number(row?.forward_rows_updated ?? 0);
+      }
+      return forward;
     },
+
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });
       setBulkOpen(false);

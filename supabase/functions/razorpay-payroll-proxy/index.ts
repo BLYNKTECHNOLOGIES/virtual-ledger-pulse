@@ -7120,7 +7120,10 @@ Deno.serve(async (req) => {
         // dismissal must be done by an admin in the RazorpayX dashboard.
         try {
           const pre = await opfinView(Number(rpEid), String(data["employee-type"] || "employee"));
-          const preErr = pre.ok ? "" : String(pre.errText || "").toLowerCase();
+          const preErrRaw = pre.ok
+            ? ""
+            : (typeof pre.errText === "string" ? pre.errText : JSON.stringify(pre.errText ?? "")) + " " + String(pre.raw || "");
+          const preErr = preErrRaw.toLowerCase();
           if (preErr.includes("locate employee")) {
             return json(200, {
               ok: true,

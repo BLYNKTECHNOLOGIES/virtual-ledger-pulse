@@ -7125,13 +7125,22 @@ Deno.serve(async (req) => {
       }
       const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
         ? directPayload.data : {};
-      if (action === "payroll_add_additions") {
+      // ---- payroll modifications: enforce the documented map wire shape.
+      let modExpect: Array<{ label: string; amount: number }> = [];
+      if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
+        const kind = action === "payroll_add_additions" ? "additions" : "deductions";
         const missing: string[] = [];
         if (!data["employee-id"]) missing.push("employee-id");
         if (!data["payroll-month"]) missing.push("payroll-month");
-        if (!Array.isArray(data.additions) || data.additions.length === 0) missing.push("additions");
-        if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll addition field(s): ${missing.join(", ")}` });
+        const { map, expect } = normalizePayrollModifications(data[kind], kind as any);
+        if (Object.keys(map).length === 0) missing.push(kind);
+        if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
+        data[kind] = map;
+        modExpect = expect;
+        data["employee-id"] = Number(data["employee-id"]);
+        if (!data["employee-type"]) data["employee-type"] = "employee";
       }
+
       // ---- people:dismiss requires the employee's email in the data block
       // (opfin returns {"message":"Invalid email address","code":4} otherwise,
       // silently no-oping the dismissal). Auto-hydrate email + name from the

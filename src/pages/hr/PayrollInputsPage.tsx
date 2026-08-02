@@ -136,34 +136,66 @@ export default function PayrollInputsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Single push primitive — reused by the row action and the bulk push.
-  async function pushOne(row: any) {
+  // Single push primitive. RazorpayX takes a label-keyed MAP of modifications in
+  // plain rupees, and acknowledges with an opaque 200 — so every push asks the
+  // proxy for a view-payroll read-back that proves the amount is on the run.
+  async function pushGroup(rowsIn: any[]) {
+    const group = Array.isArray(rowsIn) ? rowsIn : [rowsIn];
+    if (!group.length) return null;
+    const first = group[0];
     const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
-    const data: any = tab === "addition"
-      ? { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, additions: [{ label: row.label, amount: Math.round(row.amount * 100), taxable: !!row.taxable, type: row.addition_type || "bonus" }] }
-      : { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, deductions: [{ label: row.label, amount: Math.round(row.amount * 100) }] };
-    const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", { body: { action, payload: { data } } });
+    const items = group.map((r) => (tab === "addition"
+      ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: r.addition_type || "bonus" }
+      : { label: r.label, amount: Number(r.amount) }));
+    const data: any = {
+      "employee-id": Number(first.razorpay_employee_id),
+      "employee-type": "employee",
+      "payroll-month": first.period_month,
+      ...(tab === "addition" ? { additions: items } : { deductions: items }),
+    };
+    const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
+      body: {
+        action,
+        payload: {
+          data,
+          readback_ids: group.map((r) => r.id),
+          readback_table: tab === "addition" ? "additions" : "deductions",
+        },
+      },
+    });
     if (error) throw error;
     if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
-    const { error: uErr } = await (supabase as any).from(table).update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} }).eq("id", row.id);
+    const { error: uErr } = await (supabase as any).from(table)
+      .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })
+      .in("id", group.map((r) => r.id));
     if (uErr) throw uErr;
+    if (res?.readback && res.readback.verified_on_run === false) {
+      throw new Error(res.readback.error || "Pushed, but not visible on the RazorpayX run — verify in the dashboard.");
+    }
     return res;
   }
+  const pushOne = (row: any) => pushGroup([row]);
 
   const pushRow = useMutation({
     mutationFn: pushOne,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed to RazorpayX"); setPushConfirm(null); },
-    onError: (e: any) => { toast.error(e.message); setPushConfirm(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed and verified on the RazorpayX run"); setPushConfirm(null); },
+    onError: (e: any) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.error(e.message); setPushConfirm(null); },
   });
 
-  // Bulk push — sequential so RazorpayX rate limits stay happy and failures are attributable.
+  // Bulk push — one call per employee (all their rows merged into a single
+  // modifications map), sequential so RazorpayX rate limits stay happy.
   const bulkPush = useMutation({
-    mutationFn: async (rows: any[]) => {
+    mutationFn: async (rowsToPush: any[]) => {
+      const byEmp = new Map<string, any[]>();
+      for (const r of rowsToPush) {
+        const k = String(r.razorpay_employee_id);
+        byEmp.set(k, [...(byEmp.get(k) || []), r]);
+      }
       const failures: string[] = [];
       let ok = 0;
-      for (const r of rows) {
-        try { await pushOne(r); ok += 1; }
-        catch (e: any) { failures.push(`${empLabel(r)} · ${r.label}: ${e.message}`); }
+      for (const group of byEmp.values()) {
+        try { await pushGroup(group); ok += group.length; }
+        catch (e: any) { failures.push(`${empLabel(group[0])}: ${e.message}`); }
       }
       return { ok, failures };
     },
@@ -174,10 +206,11 @@ export default function PayrollInputsPage() {
       if (failures.length) {
         toast.error(`${ok} pushed, ${failures.length} failed`, { description: failures.slice(0, 3).join(" | ") });
         console.warn("Bulk push failures:", failures);
-      } else toast.success(`Pushed ${ok} row${ok === 1 ? "" : "s"} to RazorpayX`);
+      } else toast.success(`Pushed ${ok} row${ok === 1 ? "" : "s"} — verified on the RazorpayX run`);
     },
     onError: (e: any) => { toast.error(e.message); setBulkPushConfirm(false); },
   });
+
 
   const bulkDelete = useMutation({
     mutationFn: async (ids: string[]) => {

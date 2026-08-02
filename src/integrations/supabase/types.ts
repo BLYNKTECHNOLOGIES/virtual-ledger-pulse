@@ -24472,6 +24472,25 @@ export type Database = {
         }
         Returns: undefined
       }
+      hr_apply_statutory_change: {
+        Args: {
+          p_effective_from: string
+          p_employee: string
+          p_esi_enabled: boolean
+          p_esic_number: string
+          p_pf_enabled: boolean
+          p_pf_wage_basis: string
+          p_pt_enabled: boolean
+          p_reason: string
+          p_uan: string
+          p_vpf_mode: string
+          p_vpf_value: number
+        }
+        Returns: {
+          forward_rows_updated: number
+          profile_id: string
+        }[]
+      }
       hr_attendance_day_detail: {
         Args: { p_date: string; p_employee_id: string }
         Returns: Json

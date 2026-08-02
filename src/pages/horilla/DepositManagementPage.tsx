@@ -232,12 +232,16 @@ export default function DepositManagementPage() {
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: deposit.employee_id,
         deposit_id: deposit.id,
+        deposit_type: deposit.deposit_type || "security",
         transaction_type: isPausing ? "paused" : "resumed",
         amount: 0,
         balance_after: Number(deposit.current_balance),
         description: isPausing ? "Deposit deductions paused by admin" : "Deposit deductions resumed by admin",
         transaction_date: new Date().toISOString().slice(0, 10),
       });
+
+      // Pausing wipes pending installments; resuming rebuilds them
+      await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: deposit.id });
     },
     onSuccess: (_, { action }) => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
@@ -247,15 +251,71 @@ export default function DepositManagementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Error recovery: money recovered externally → refund the employee via payroll
+  const refundMutation = useMutation({
+    mutationFn: async (deposit: any) => {
+      const amount = Number(deposit.collected_amount || 0);
+      if (amount <= 0) throw new Error("Nothing collected yet — nothing to refund");
+
+      const period = format(new Date(), "yyyy-MM-01");
+      const { error: addErr } = await (supabase as any).from("hr_payroll_input_additions").insert({
+        employee_id: deposit.employee_id,
+        period_month: period,
+        amount,
+        label: "Error recovery refund",
+        addition_type: 0,
+        taxable: false,
+        notes: `Refund of error recovery ${deposit.incident_reference || ""}`.trim(),
+      });
+      if (addErr) throw addErr;
+
+      await (supabase as any).from("hr_deposit_transactions").insert({
+        employee_id: deposit.employee_id,
+        deposit_id: deposit.id,
+        deposit_type: "error_recovery",
+        transaction_type: "ff_refund",
+        amount: -amount,
+        balance_after: 0,
+        description: `Recovered externally — ₹${amount.toLocaleString('en-IN')} refunded to employee via payroll addition (${period})`,
+        transaction_date: new Date().toISOString().slice(0, 10),
+        period_month: period,
+      });
+
+      const { error } = await (supabase as any).from("hr_employee_deposits").update({
+        is_recovered: true,
+        recovered_at: new Date().toISOString(),
+        is_settled: true,
+        settled_at: new Date().toISOString(),
+        current_balance: 0,
+        settlement_notes: "Error recovery refunded to employee",
+        updated_at: new Date().toISOString(),
+      }).eq("id", deposit.id);
+      if (error) throw error;
+
+      await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: deposit.id });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
+      toast.success("Refund staged as a payroll addition and record closed");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const openEdit = (d: any) => {
     setEditingDeposit(d);
     setForm({
       employee_id: d.employee_id,
+      deposit_type: (d.deposit_type || "security") as DepositType,
       total_deposit_amount: String(d.total_deposit_amount),
       deduction_mode: d.deduction_mode,
       deduction_value: String(d.deduction_value),
       deduction_start_month: d.deduction_start_month || "",
+      incident_date: d.incident_date || "",
+      incident_reference: d.incident_reference || "",
+      recovery_reason: d.recovery_reason || "",
     });
+
     setShowEdit(true);
   };
 

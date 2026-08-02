@@ -247,7 +247,7 @@ serve(async (req) => {
       supa.from("hr_employee_work_info").select("*").in("employee_id", empIds),
       supa.from("hr_employee_bank_details").select("*").in("employee_id", empIds),
       supa.from("hr_employee_salary_structures").select("*").in("employee_id", empIds).order("effective_from", { ascending: false }),
-      supa.from("hr_razorpay_employee_map").select("hr_employee_id, razorpay_employee_id, last_pull_snapshot").in("hr_employee_id", empIds),
+      supa.from("hr_razorpay_employee_map").select("hr_employee_id, razorpay_employee_id, last_pull_snapshot, last_pulled_at").in("hr_employee_id", empIds),
       supa.from("hr_biometric_device_users").select("id, name, pin, department, title, enabled"),
     ]);
 

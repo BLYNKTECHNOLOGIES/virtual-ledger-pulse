@@ -34,8 +34,8 @@ export default function PayrollInputsPage() {
   const paramPeriod = searchParams.get("period");
   const lopFocus = searchParams.get("focus") === "lop";
   const [period, setPeriod] = useState(paramPeriod && /^\d{4}-\d{2}$/.test(paramPeriod) ? paramPeriod : currentPeriod());
-  const [tab, setTab] = useState<Kind>((paramTab as Kind) ?? (lopFocus ? "deduction" : "addition"));
-  const [form, setForm] = useState({ hr_employee_id: "", label: "", amount: "", addition_type: "bonus", taxable: true });
+  const [tab, setTab] = useState<Kind>(lopFocus ? "deduction" : ((paramTab as Kind) ?? "addition"));
+  const [form, setForm] = useState({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
@@ -263,8 +263,10 @@ export default function PayrollInputsPage() {
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
-        title="Payroll Inputs"
-        description="Stage one-off additions, deductions, do-not-pay and reset-modifications, then push to RazorpayX. RazorpayX computes payroll; HRMS is the input feeder."
+        title={lopFocus ? "LOP Deductions — push to RazorpayX" : "Payroll Inputs"}
+        description={lopFocus
+          ? "Cockpit step 3: stage loss-of-pay deductions for the period and push them to RazorpayX. This view handles LOP only."
+          : "Stage one-off additions, deductions, do-not-pay and reset-modifications, then push to RazorpayX. RazorpayX computes payroll; HRMS is the input feeder."}
         actions={<DashboardLink />}
       />
 
@@ -300,25 +302,26 @@ export default function PayrollInputsPage() {
         </CardHeader>
       </Card>
 
-      {lopFocus && tab === "deduction" && (
+      {lopFocus && (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
-          <div className="font-medium">LOP push view</div>
+          <div className="font-medium">LOP-only view</div>
           <div className="text-muted-foreground mt-1">
-            Showing only loss-of-pay deductions staged for {period} (Cockpit step 3). Switch tabs to see all inputs.
+            Only loss-of-pay deductions for {period} are staged, listed and pushed here. Additions, bonuses and other deductions are intentionally hidden — open Payroll Inputs from the cockpit tools to manage those.
           </div>
         </div>
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
-        <TabsList>
-          <TabsTrigger value="addition">Additions</TabsTrigger>
-          <TabsTrigger value="deduction">Deductions</TabsTrigger>
-        </TabsList>
-
+        {!lopFocus && (
+          <TabsList>
+            <TabsTrigger value="addition">Additions</TabsTrigger>
+            <TabsTrigger value="deduction">Deductions</TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value={tab} className="space-y-4 mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-sm">Stage a new {tab}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm">{lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                 <div className="md:col-span-2">
@@ -336,7 +339,8 @@ export default function PayrollInputsPage() {
                 </div>
                 <div>
                   <Label className="text-xs">Label</Label>
-                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} />
+                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
+                  {lopFocus && <p className="text-[10px] text-muted-foreground mt-1">Locked to the LOP head so the row stays inside this view.</p>}
                 </div>
                 <div>
                   <Label className="text-xs">Amount (₹)</Label>
@@ -387,7 +391,7 @@ export default function PayrollInputsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-              <CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
+              <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
               <div className="flex items-center gap-2">
                 {selectedPending.length > 0 && (
                   <>
@@ -405,9 +409,11 @@ export default function PayrollInputsPage() {
                     <Calculator className="h-3 w-3 mr-1" /> Auto-calculate LOP from attendance
                   </Button>
                 )}
-                <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
-                  <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
-                </Button>
+                {!lopFocus && (
+                  <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
+                    <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
@@ -484,6 +490,7 @@ export default function PayrollInputsPage() {
       </Tabs>
 
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
+      {!lopFocus && (
       <Card>
         <CardHeader><CardTitle className="text-sm">Per-employee actions for {period}</CardTitle></CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -514,6 +521,8 @@ export default function PayrollInputsPage() {
           </table>
         </CardContent>
       </Card>
+      )}
+
 
       <AlertDialog open={!!pushConfirm} onOpenChange={(o) => !o && setPushConfirm(null)}>
         <AlertDialogContent>

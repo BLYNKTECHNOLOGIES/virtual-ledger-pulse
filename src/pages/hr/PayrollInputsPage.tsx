@@ -10,10 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
+import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
@@ -36,6 +38,10 @@ export default function PayrollInputsPage() {
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   // Mirror of Razorpay bonus catalogue — filters the Bonus subtype dropdown.
   const { data: complianceSettings } = useComplianceSettings();
@@ -128,21 +134,61 @@ export default function PayrollInputsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Single push primitive — reused by the row action and the bulk push.
+  async function pushOne(row: any) {
+    const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
+    const data: any = tab === "addition"
+      ? { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, additions: [{ label: row.label, amount: Math.round(row.amount * 100), taxable: !!row.taxable, type: row.addition_type || "bonus" }] }
+      : { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, deductions: [{ label: row.label, amount: Math.round(row.amount * 100) }] };
+    const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", { body: { action, payload: { data } } });
+    if (error) throw error;
+    if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+    const { error: uErr } = await (supabase as any).from(table).update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} }).eq("id", row.id);
+    if (uErr) throw uErr;
+    return res;
+  }
+
   const pushRow = useMutation({
-    mutationFn: async (row: any) => {
-      const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
-      const data: any = tab === "addition"
-        ? { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, additions: [{ label: row.label, amount: Math.round(row.amount * 100), taxable: !!row.taxable, type: row.addition_type || "bonus" }] }
-        : { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, deductions: [{ label: row.label, amount: Math.round(row.amount * 100) }] };
-      const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", { body: { action, payload: { data } } });
-      if (error) throw error;
-      if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
-      const { error: uErr } = await (supabase as any).from(table).update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} }).eq("id", row.id);
-      if (uErr) throw uErr;
-      return res;
-    },
+    mutationFn: pushOne,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed to RazorpayX"); setPushConfirm(null); },
     onError: (e: any) => { toast.error(e.message); setPushConfirm(null); },
+  });
+
+  // Bulk push — sequential so RazorpayX rate limits stay happy and failures are attributable.
+  const bulkPush = useMutation({
+    mutationFn: async (rows: any[]) => {
+      const failures: string[] = [];
+      let ok = 0;
+      for (const r of rows) {
+        try { await pushOne(r); ok += 1; }
+        catch (e: any) { failures.push(`${empLabel(r)} · ${r.label}: ${e.message}`); }
+      }
+      return { ok, failures };
+    },
+    onSuccess: ({ ok, failures }) => {
+      qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
+      setBulkPushConfirm(false);
+      setSelected({});
+      if (failures.length) {
+        toast.error(`${ok} pushed, ${failures.length} failed`, { description: failures.slice(0, 3).join(" | ") });
+        console.warn("Bulk push failures:", failures);
+      } else toast.success(`Pushed ${ok} row${ok === 1 ? "" : "s"} to RazorpayX`);
+    },
+    onError: (e: any) => { toast.error(e.message); setBulkPushConfirm(false); },
+  });
+
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await (supabase as any).from(table).delete().in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
+      setSelected({}); setBulkDeleteConfirm(false);
+      toast.success(`Deleted ${n} staged row${n === 1 ? "" : "s"}`);
+    },
+    onError: (e: any) => { toast.error(e.message); setBulkDeleteConfirm(false); },
   });
 
   const doNotPay = useMutation({
@@ -170,6 +216,9 @@ export default function PayrollInputsPage() {
     onSuccess: () => { toast.success("Reset all modifications on RazorpayX for this month"); setResetConfirm(null); },
     onError: (e: any) => { toast.error(e.message); setResetConfirm(null); },
   });
+
+  const pendingRows = useMemo(() => (visibleRows as any[]).filter((r) => !r.pushed_at), [visibleRows]);
+  const selectedPending = useMemo(() => pendingRows.filter((r: any) => selected[r.id]), [pendingRows, selected]);
 
   const empLabel = (r: any) => {
     const e = empById.get(r.hr_employee_id)?.hr_employees;
@@ -302,11 +351,39 @@ export default function PayrollInputsPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+              <CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
+              <div className="flex items-center gap-2">
+                {selectedPending.length > 0 && (
+                  <>
+                    <span className="text-xs text-muted-foreground">{selectedPending.length} selected</span>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => setBulkPushConfirm(true)} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                      {bulkPush.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />} Push selected
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => setBulkDeleteConfirm(true)}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Delete selected
+                    </Button>
+                  </>
+                )}
+                <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
+                  <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
+                </Button>
+              </div>
+            </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>
+                    <th className="px-3 py-2 w-8">
+                      <Checkbox
+                        checked={pendingRows.length > 0 && selectedPending.length === pendingRows.length}
+                        onCheckedChange={(c) => {
+                          if (c) { const next: Record<string, boolean> = {}; pendingRows.forEach((r: any) => { next[r.id] = true; }); setSelected(next); }
+                          else setSelected({});
+                        }}
+                        aria-label="Select all pending"
+                      />
+                    </th>
                     {["Employee", "Label", tab === "addition" ? "Type" : "", "Amount", "Status", "Actions"].filter(Boolean).map((h) => (
                       <th key={h as string} className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground text-left">{h}</th>
                     ))}
@@ -314,11 +391,20 @@ export default function PayrollInputsPage() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
+                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
                   ) : visibleRows.length === 0 ? (
-                    <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
+                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
                   ) : visibleRows.map((r) => (
                     <tr key={r.id} className="border-b hover:bg-muted/30">
+                      <td className="px-3 py-2">
+                        {!r.pushed_at && (
+                          <Checkbox
+                            checked={!!selected[r.id]}
+                            onCheckedChange={(c) => setSelected((p) => ({ ...p, [r.id]: !!c }))}
+                            aria-label="Select row"
+                          />
+                        )}
+                      </td>
                       <td className="px-3 py-2">{empLabel(r)}</td>
                       <td className="px-3 py-2">{r.label}</td>
                       {tab === "addition" && <td className="px-3 py-2">{r.addition_type}{r.taxable === false ? " · non-tax" : ""}</td>}
@@ -434,6 +520,46 @@ export default function PayrollInputsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={bulkPushConfirm} onOpenChange={setBulkPushConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Push {selectedPending.length} row{selectedPending.length === 1 ? "" : "s"} to RazorpayX?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Total ₹{selectedPending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0).toLocaleString("en-IN")} for period <strong>{period}</strong>. Rows are pushed one by one; any failures are reported and stay pending.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkPush.mutate(selectedPending)} disabled={bulkPush.isPending}>
+              {bulkPush.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Push all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedPending.length} staged row{selectedPending.length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>Only rows that have not been pushed are deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => bulkDelete.mutate(selectedPending.map((r: any) => r.id))} disabled={bulkDelete.isPending}>
+              {bulkDelete.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BulkPayrollInputDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        kind={tab}
+        period={period}
+        employees={employees as any[]}
+        onDone={() => qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] })}
+      />
     </div>
   );
 }

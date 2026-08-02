@@ -43,12 +43,21 @@ type Drift = {
   severity: "low" | "medium" | "high" | "critical";
   first_seen_at: string;
   last_seen_at: string;
+  resolution_note?: string | null;
   employee_name: string;
   badge_id: string | null;
   is_active: boolean;
   auto_status?: "open" | "auto_dismissed" | "auto_labeled" | null;
   auto_reason?: string | null;
 };
+
+// Alerts raised by a FAILED push (not by the 3-way scanner) carry no
+// hrms/razorpay/essl values — the failure detail lives in resolution_note.
+// Rendering three empty boxes for these makes them look like phantom drifts.
+const isPushFailureAlert = (d: Drift) =>
+  !d.hrms_value && !d.razorpay_value && !d.essl_value;
+
+
 
 const SEVERITY_STYLE: Record<Drift["severity"], string> = {
   low: "bg-muted text-muted-foreground",
@@ -72,7 +81,10 @@ const FIELD_LABEL: Record<string, string> = {
   bank_account: "Bank account #",
   bank_ifsc: "Bank IFSC",
   annual_ctc: "Annual CTC",
+  employment_bundle: "Employment details — push failure",
+  dismissal_state: "Dismissal — push failure",
 };
+
 
 // Field → which Razorpay push to use when adopting the HRMS value.
 const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
@@ -605,11 +617,27 @@ export default function DataHealthPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                    <ValueCol label="HRMS" value={d.hrms_value} highlight />
-                    <ValueCol label="Razorpay" value={d.razorpay_value} />
-                    <ValueCol label="eSSL" value={d.essl_value} />
-                  </div>
+                  {isPushFailureAlert(d) ? (
+                    <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs space-y-1">
+                      <div className="font-medium text-warning">
+                        Push failure — not a value comparison
+                      </div>
+                      <div className="text-foreground">
+                        {d.resolution_note ||
+                          "The last ERP → RazorpayX push for this employee did not verify. No side-by-side values were captured."}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Raised {new Date(d.first_seen_at).toLocaleString("en-IN")} · retry the push, or mark resolved if it is already correct in RazorpayX.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <ValueCol label="HRMS" value={d.hrms_value} highlight />
+                      <ValueCol label="Razorpay" value={d.razorpay_value} />
+                      <ValueCol label="eSSL" value={d.essl_value} />
+                    </div>
+                  )}
+
                 </div>
                 <div className="flex flex-wrap md:flex-col gap-2 md:justify-center">
                   <button

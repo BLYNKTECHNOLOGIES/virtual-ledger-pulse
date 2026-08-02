@@ -431,34 +431,6 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 </Popover>
               </div>
 
-              {isBackDated && (
-                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-2">
-                  <p>
-                    Effective date is back-dated by <strong>{backdatedMonths} month(s)</strong>. The RazorpayX API
-                    (<code>people:set-salary</code>) has <strong>no salary-effective-date field</strong> — only the dashboard
-                    offers that. The API push will therefore apply the new CTC from the <strong>current</strong> payroll month.
-                  </p>
-                  {totalDelta > 0 ? (
-                    <>
-                      <label className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
-                        <Switch checked={stageArrears} onCheckedChange={setStageArrears} />
-                        <span className="text-foreground">
-                          Stage arrears ₹{Math.round(arrearsAmount).toLocaleString("en-IN")} as a one-time addition on {format(new Date(), "MMM yyyy")}
-                        </span>
-                      </label>
-                      <p className="opacity-80">
-                        ({backdatedMonths} × ₹{Math.round(totalDelta / 12).toLocaleString("en-IN")} monthly difference.)
-                        Alternatively set the effective date directly on the{" "}
-                        <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer" className="underline">RazorpayX dashboard ↗</a>{" "}
-                        and let it auto-compute arrears.
-                      </p>
-                    </>
-                  ) : (
-                    <p>Enter the new CTC to see the arrears amount, or apply the back-date on the RazorpayX dashboard.</p>
-                  )}
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>New Total (CTC) ₹</Label>

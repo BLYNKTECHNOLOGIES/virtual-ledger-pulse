@@ -53,7 +53,6 @@ Deno.serve(async (req) => {
           readback_table: "deductions",
         },
       },
-    },
     });
     results.push({ id: row.id, employee_id: row.razorpay_employee_id, amount: row.amount, ok: !error && data?.ok === true && data?.readback?.ok === true, response: data, invoke_error: error?.message || null });
   }

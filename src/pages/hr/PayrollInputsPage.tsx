@@ -146,7 +146,7 @@ export default function PayrollInputsPage() {
         label: form.label.trim(),
         amount: amt,
       };
-      if (tab === "addition") { row.addition_type = form.addition_type; row.taxable = form.taxable; }
+      if (tab === "addition") { row.addition_type = additionTypeCode(form.addition_type); row.taxable = form.taxable; }
       const { error } = await (supabase as any).from(table).insert(row);
       if (error) throw error;
     },

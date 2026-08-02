@@ -7292,6 +7292,16 @@ Deno.serve(async (req) => {
         if (!email) {
           return json(400, { ok: false, error: "RazorpayX do-not-pay requires the employee email, but no mapped email is available." });
         }
+        // Opfin can only pause payroll for a currently active employee. Its
+        // `do-not-pay` endpoint otherwise returns code 8 (user not locatable),
+        // which is a terminal RazorpayX state rather than a retryable failure.
+        if (snap.is_active === false) {
+          return json(409, {
+            ok: false,
+            code: "RZP_INACTIVE_EMPLOYEE",
+            error: "This employee is inactive in RazorpayX, so their monthly payroll cannot be paused. Select an active employee or verify their RazorpayX status.",
+          });
+        }
         data.email = String(email).trim();
         data.value = doNotPayExpected;
         delete data["employee-id"];

@@ -249,14 +249,22 @@ export default function PayrollInputsPage() {
       throw new Error(detail || error.message || "RazorpayX rejected the payroll input");
     }
     if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+    // A push counts as done ONLY when the view-payroll read-back proves the
+    // modification is on the live RazorpayX run. Unverified writes stay
+    // pending here so they can be retried, never silently marked pushed.
+    const verified = res?.readback ? res.readback.verified_on_run !== false : true;
+    if (!verified) {
+      await (supabase as any).from(table)
+        .update({ push_response: res.body ?? {} })
+        .in("id", group.map((r) => r.id));
+      throw new Error(res.readback?.error || "Pushed, but not visible on the RazorpayX run — retry or verify in the dashboard.");
+    }
     const { error: uErr } = await (supabase as any).from(table)
       .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })
       .in("id", group.map((r) => r.id));
     if (uErr) throw uErr;
-    if (res?.readback && res.readback.verified_on_run === false) {
-      throw new Error(res.readback.error || "Pushed, but not visible on the RazorpayX run — verify in the dashboard.");
-    }
     return res;
+
   }
   const pushOne = (row: any) => pushGroup([row]);
 

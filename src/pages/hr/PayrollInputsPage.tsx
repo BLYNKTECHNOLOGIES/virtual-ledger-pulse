@@ -728,7 +728,7 @@ export default function PayrollInputsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Push {selectedPending.length} row{selectedPending.length === 1 ? "" : "s"} to RazorpayX?</AlertDialogTitle>
             <AlertDialogDescription>
-              Total ₹{selectedPending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0).toLocaleString("en-IN")} for period <strong>{period}</strong>. Rows are pushed one by one; any failures are reported and stay pending.
+              Total ₹{selectedPending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0).toLocaleString("en-IN")} for period <strong>{period}</strong>. Rows are pushed one employee at a time and each one is read back from the RazorpayX payroll run — a row is marked Pushed only after that verification succeeds; anything unverified stays pending for retry.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -296,13 +296,31 @@ export default function DataHealthPage() {
     try {
       const res = await push(drift.hr_employee_id);
       if (res?.ok) {
-        toast.success(`${FIELD_LABEL[drift.field] || drift.field} pushed to Razorpay`);
-        await (supabase as any)
+        // Never hide a card merely because the write helper returned success.
+        // Force a live, employee-scoped scan; it alone resolves the alert after
+        // comparing HRMS with the newly persisted RazorpayX read-back snapshot.
+        const { data: scan, error: scanError } = await supabase.functions.invoke("hr-drift-scan", {
+          body: { employee_id: drift.hr_employee_id, max_age_hours: 0 },
+        });
+        if (scanError || scan?.ok === false) {
+          throw new Error(scan?.error || scanError?.message || "Post-push verification scan failed");
+        }
+        await qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+        const { data: stillOpen, error: checkError } = await (supabase as any)
           .from("hr_drift_alerts")
-          .update({ resolved_at: new Date().toISOString(), resolution_note: "Adopted HRMS value" })
-          .eq("id", drift.id);
-        qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+          .select("id")
+          .eq("id", drift.id)
+          .is("resolved_at", null)
+          .maybeSingle();
+        if (checkError) throw checkError;
+        if (stillOpen) {
+          toast.error(`${FIELD_LABEL[drift.field] || drift.field} is still different in RazorpayX`);
+        } else {
+          toast.success(`${FIELD_LABEL[drift.field] || drift.field} verified in RazorpayX`);
+        }
       }
+    } catch (e: any) {
+      toast.error(`Push verification failed: ${e?.message || e}`);
     } finally {
       setResolvingId(null);
     }

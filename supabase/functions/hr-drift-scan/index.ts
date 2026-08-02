@@ -225,8 +225,10 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const url = new URL(req.url);
-  const employeeIdFilter = url.searchParams.get("employee_id");
+    const url = new URL(req.url);
+    const requestBody = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    const employeeIdFilter = url.searchParams.get("employee_id") ||
+      (typeof requestBody?.employee_id === "string" ? requestBody.employee_id : null);
 
   try {
     let empQuery: any = supa
@@ -287,7 +289,9 @@ serve(async (req) => {
     // the re-pull fails we suppress the active_state verdict instead of
     // asserting a stale "active".
     // ------------------------------------------------------------------
-    const maxAgeHours = Math.max(0, Number(url.searchParams.get("max_age_hours") ?? "12"));
+    const maxAgeHours = Math.max(0, Number(
+      url.searchParams.get("max_age_hours") ?? requestBody?.max_age_hours ?? "12",
+    ));
     const refreshLimit = Math.max(0, Math.min(200, Number(url.searchParams.get("refresh_limit") ?? "120")));
     const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const proxyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/razorpay-payroll-proxy`;

@@ -322,7 +322,35 @@ Deno.serve(async (req) => {
             .limit(1);
           const r: any = reg?.[0];
           monthlyGross = Number(r?.reg_gross_salary ?? r?.gross_earnings ?? 0);
+
+          // Fallback 3: annual CTC captured during onboarding (local estimate).
+          // Preferred over an older payslip because prior-period payslips are
+          // often partial months (mid-month joiners / training stints).
+          if (!(monthlyGross > 0)) {
+            const { data: onb } = await supabase
+              .from("hr_employee_onboarding")
+              .select("ctc")
+              .eq("employee_id", emp.id)
+              .limit(1);
+            const annual = Number((onb?.[0] as any)?.ctc ?? 0);
+            if (annual > 0) monthlyGross = annual > 100000 ? annual / 12 : annual;
+          }
+
+          // Fallback 4: most recent imported payslip on or before this period.
+          if (!(monthlyGross > 0)) {
+            const { data: prev } = await supabase
+              .from("hr_razorpay_payslip_records")
+              .select("gross_earnings, reg_gross_salary, period_month")
+              .eq("hr_employee_id", emp.id)
+              .lte("period_month", periodStr)
+              .order("period_month", { ascending: false })
+              .limit(1);
+            const p: any = prev?.[0];
+            monthlyGross = Number(p?.reg_gross_salary ?? p?.gross_earnings ?? 0);
+          }
+
         }
+
       }
 
       monthlyGross = Math.round(monthlyGross);

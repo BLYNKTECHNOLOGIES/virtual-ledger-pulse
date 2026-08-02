@@ -126,10 +126,12 @@ const FIELDS: FieldSpec[] = [
   {
     field: "pan",
     severity: "high",
-    extract: ({ workInfo, rzp }) => ({
-      hrms: (workInfo?.pan_number || "").toString().toUpperCase().trim() || null,
+    // PAN lives on hr_employees, not hr_employee_work_info.
+    extract: ({ emp, workInfo, rzp }) => ({
+      hrms: ((emp as any)?.pan_number || (workInfo as any)?.pan_number || "").toString().toUpperCase().trim() || null,
       razorpay: (rzpVal(rzp, "pan", "pan-number") || "").toString().toUpperCase().trim() || null,
     }),
+
   },
   {
     field: "date_of_joining",
@@ -228,7 +230,7 @@ serve(async (req) => {
   try {
     let empQuery: any = supa
       .from("hr_employees")
-      .select("id, first_name, last_name, email, phone, dob, gender, badge_id, is_active");
+      .select("id, first_name, last_name, email, phone, dob, gender, pan_number, badge_id, is_active");
     if (employeeIdFilter) empQuery = empQuery.eq("id", employeeIdFilter);
     const { data: employees, error: empErr } = await empQuery;
     if (empErr) throw empErr;

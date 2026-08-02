@@ -22,6 +22,15 @@ import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/u
 import { Link } from "react-router-dom";
 import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";
 import { RazorpayOrphanPanel } from "@/components/hrms/health/RazorpayOrphanPanel";
+import { PullFromRazorpayDialog, type PullTarget } from "@/components/hr/governance/PullFromRazorpayDialog";
+
+// Fields we can write back into HRMS from RazorpayX. Mirrors PULLABLE_FIELDS
+// in the hr-razorpay-pull-apply edge function.
+const PULLABLE_FIELDS = new Set([
+  "full_name", "email", "phone", "dob", "gender", "pan", "date_of_joining",
+  "department", "designation", "bank_account", "bank_ifsc", "annual_ctc", "active_state",
+]);
+
 
 type Drift = {
   id: string;
@@ -96,6 +105,9 @@ export default function DataHealthPage() {
   );
   const [scanning, setScanning] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [pullTarget, setPullTarget] = useState<PullTarget | null>(null);
+  const [pulling, setPulling] = useState(false);
+
 
   const { data: ghostResidual } = useQuery({
     queryKey: ["data_health_ghost_residual"],
@@ -322,7 +334,37 @@ export default function DataHealthPage() {
     }
   }
 
+  // Reverse direction: adopt the RazorpayX value into HRMS.
+  async function runPull(target: PullTarget, confirmSensitive: boolean) {
+    setPulling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("hr-razorpay-pull-apply", {
+        body: {
+          hr_employee_id: target.hrEmployeeId,
+          fields: [target.field],
+          confirm_sensitive: confirmSensitive,
+        },
+      });
+      if (error) throw error;
+      const result = data?.results?.[0];
+      if (data?.ok && result?.applied) {
+        toast.success(
+          `${target.fieldLabel} adopted into HRMS${result.reason ? ` — ${result.reason}` : ""}`,
+        );
+        setPullTarget(null);
+        qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+      } else {
+        toast.error(result?.reason || data?.error || "Nothing was applied");
+      }
+    } catch (e: any) {
+      toast.error(`Pull failed: ${e?.message || e}`);
+    } finally {
+      setPulling(false);
+    }
+  }
+
   return (
+
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -572,7 +614,28 @@ export default function DataHealthPage() {
                     {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                     Push → Razorpay
                   </button>
+                  {PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay") && (
+                    <button
+                      disabled={pulling}
+                      onClick={() =>
+                        setPullTarget({
+                          driftId: d.id,
+                          hrEmployeeId: d.hr_employee_id,
+                          employeeName: d.employee_name || "Unknown employee",
+                          field: d.field,
+                          fieldLabel: FIELD_LABEL[d.field] || d.field,
+                          hrmsValue: d.hrms_value,
+                          razorpayValue: d.razorpay_value,
+                        })
+                      }
+                      title="Overwrite the HRMS value with the value RazorpayX holds (re-read live on confirm)."
+                      className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
+                    >
+                      Pull ← Razorpay
+                    </button>
+                  )}
                   {ESSL_PUSHABLE_FIELDS.has(d.field) && (
+
                     <button
                       disabled={resolvingId === d.id}
                       onClick={() => adoptEssl(d)}
@@ -601,8 +664,18 @@ export default function DataHealthPage() {
         Only intersecting fields that exist in at least two systems are compared. Bank
         account and IFSC pushes to Razorpay require the salary/bank-push endpoint gate to
         be enabled in Razorpay settings — otherwise the drift will re-appear at the next scan.
+        "Pull ← Razorpay" writes the RazorpayX value into HRMS instead, re-reading it live
+        from RazorpayX at confirm time and logging the adoption for audit.
       </p>
+
+      <PullFromRazorpayDialog
+        target={pullTarget}
+        busy={pulling}
+        onCancel={() => setPullTarget(null)}
+        onConfirm={({ confirmSensitive }) => pullTarget && runPull(pullTarget, confirmSensitive)}
+      />
     </div>
+
   );
 }
 

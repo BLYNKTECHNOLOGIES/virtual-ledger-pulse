@@ -273,61 +273,66 @@ export default function StatutorySettingsPage() {
       ) : (
         <ResponsiveList
           items={rows}
-          keyExtractor={(r: any) => r.emp.id}
-          renderItem={(r: any) => {
-            const { emp, p } = r;
-            const monthlyGross = Number(emp.total_salary || 0) / 12;
-            const esiIneligible = monthlyGross > 21000;
-            return (
-              <div className="flex items-start gap-3 p-3">
-                <Checkbox
-                  checked={selected.includes(emp.id)}
-                  onCheckedChange={() => toggleSelect(emp.id)}
-                  className="mt-1"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium truncate">{emp.first_name} {emp.last_name}</span>
-                    <span className="text-xs text-muted-foreground">{emp.badge_id}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Monthly CTC {inr(Math.round(monthlyGross))}
-                    {p?.effective_from ? ` · effective ${p.effective_from}` : " · no profile"}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    <Badge variant={p?.pf_enabled ? "default" : "secondary"}>
-                      PF {p?.pf_enabled ? "on" : "off"}
-                    </Badge>
-                    {p?.pf_enabled && (
-                      <Badge variant="outline">
-                        {p.pf_wage_basis === "actual" ? "PF on actual Basic" : "PF capped ₹15,000"}
-                      </Badge>
-                    )}
-                    {p?.vpf_mode && p.vpf_mode !== "none" && (
-                      <Badge variant="outline">
-                        VPF {p.vpf_mode === "percent" ? `${p.vpf_value}%` : inr(p.vpf_value)}
-                      </Badge>
-                    )}
-                    <Badge variant={p?.esi_enabled ? "default" : "secondary"}>
-                      ESI {p?.esi_enabled ? "on" : "off"}
-                    </Badge>
-                    {esiIneligible && <Badge variant="outline">gross &gt; ₹21,000 — auto-ineligible</Badge>}
-                    <Badge variant={p?.pt_enabled ? "default" : "secondary"}>PT {p?.pt_enabled ? "on" : "off"}</Badge>
-                    {p?.pf_enabled && !p?.uan && <Badge variant="destructive">UAN missing</Badge>}
-                    {p?.esi_enabled && !p?.esic_number && <Badge variant="destructive">ESIC no. missing</Badge>}
-                  </div>
+          isLoading={isLoading}
+          keyFor={(r: any) => r.emp.id}
+          tableMinWidth="min-w-[820px]"
+          columns={[
+            { key: "sel", label: "" },
+            { key: "emp", label: "Employee" },
+            { key: "ctc", label: "Monthly CTC" },
+            { key: "status", label: "Statutory" },
+            { key: "actions", label: "", className: "text-right" },
+          ]}
+          renderRow={(r: any) => (
+            <>
+              <td className="p-2">
+                <Checkbox checked={selected.includes(r.emp.id)} onCheckedChange={() => toggleSelect(r.emp.id)} />
+              </td>
+              <td className="p-2">
+                <div className="font-medium">{r.emp.first_name} {r.emp.last_name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {r.emp.badge_id}{r.p?.effective_from ? ` · effective ${r.p.effective_from}` : " · no profile"}
                 </div>
-                <div className="flex flex-col gap-1 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => openEdit(emp)}>Edit</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setHistoryFor(emp)}>
-                    <History className="h-4 w-4" />
-                  </Button>
+              </td>
+              <td className="p-2 text-sm">{inr(Math.round(Number(r.emp.total_salary || 0) / 12))}</td>
+              <td className="p-2">{renderBadges(r)}</td>
+              <td className="p-2 text-right whitespace-nowrap">
+                <Button size="sm" variant="outline" onClick={() => openEdit(r.emp)}>Edit</Button>
+                <Button size="sm" variant="ghost" onClick={() => setHistoryFor(r.emp)}>
+                  <History className="h-4 w-4" />
+                </Button>
+              </td>
+            </>
+          )}
+          renderCard={(r: any) => (
+            <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+              <Checkbox
+                checked={selected.includes(r.emp.id)}
+                onCheckedChange={() => toggleSelect(r.emp.id)}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium truncate">{r.emp.first_name} {r.emp.last_name}</span>
+                  <span className="text-xs text-muted-foreground">{r.emp.badge_id}</span>
                 </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Monthly CTC {inr(Math.round(Number(r.emp.total_salary || 0) / 12))}
+                  {r.p?.effective_from ? ` · effective ${r.p.effective_from}` : " · no profile"}
+                </div>
+                <div className="mt-2">{renderBadges(r)}</div>
               </div>
-            );
-          }}
+              <div className="flex flex-col gap-1 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => openEdit(r.emp)}>Edit</Button>
+                <Button size="sm" variant="ghost" onClick={() => setHistoryFor(r.emp)}>
+                  <History className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         />
       )}
+
 
       {/* Edit dialog */}
       <ResponsiveDialog

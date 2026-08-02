@@ -339,8 +339,7 @@ function extractPayrollViewFigures(body: any) {
 }
 
 // ---------------------------------------------------------------------------
-// RazorpayX payroll modification wire shape (verified against the Postman
-// collection / docs/RAZORPAY_API_FIELD_AUDIT.md §3–4):
+// RazorpayX payroll modification input normalisation.
 //   data.additions  = { "<label>": { name, amount, type: 0|1|2, taxable: 0|1 } }
 //   data.deductions = { "<label>": { name, amount, type, taxable, deductFrom } }
 // Amounts are plain rupees (integers), NOT paise. It is a label-keyed MAP, not
@@ -7200,13 +7199,13 @@ Deno.serve(async (req) => {
       const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
         ? directPayload.data : {};
       // ---- payroll modifications
-      // Opfin's two modification endpoints are unfortunately asymmetric:
-      //   add-additions -> ARRAY of objects carrying `label`
-      //   add-deduction -> label-keyed MAP whose value carries the deduction
-      //                    fields (documented/tenant response shape)
-      // Sending the additions array to add-deduction is acknowledged as HTTP
-      // 200 but fails with code 41, "Please specify the deduction". Amounts
-      // are RUPEES, never paise.
+      // Opfin's official Postman collection defines asymmetric contracts:
+      //   add-additions -> additions ARRAY carrying `label`
+      //   add-deduction -> email + singular `deduction-amount` (or
+      //                    `deduction-days`) + remarks. It does NOT accept a
+      //                    `deductions` collection; that returns code 41,
+      //                    "Please specify the deduction".
+      // Amounts are RUPEES, never paise.
       let modExpect: Array<{ label: string; amount: number }> = [];
       if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
         const kind = action === "payroll_add_additions" ? "additions" : "deductions";
@@ -7216,13 +7215,45 @@ Deno.serve(async (req) => {
         const { map, expect } = normalizePayrollModifications(data[kind], kind as any);
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
-        data[kind] = action === "payroll_add_additions"
-          ? Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }))
-          : map;
+        if (action === "payroll_add_additions") {
+          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
+        } else {
+          data["deduction-amount"] = expect.reduce((sum, item) => sum + item.amount, 0);
+          data.remarks = expect.map((item) => item.label).join("; ").slice(0, 250) || "Payroll deduction";
+          delete data.deductions;
+        }
         modExpect = expect;
 
         data["employee-id"] = Number(data["employee-id"]);
         if (!data["employee-type"]) data["employee-type"] = "employee";
+      }
+
+      // payroll:add-deduction identifies the person by email, not employee-id.
+      // Resolve it from the canonical Razorpay mapping so callers remain keyed
+      // by the stable Razorpay employee id used throughout HRMS.
+      if (action === "payroll_add_deduction" && !data.email) {
+        const rpEid = String(data["employee-id"] || "");
+        const { data: mapRow } = await svc
+          .from("hr_razorpay_employee_map")
+          .select("hr_employee_id, last_pull_snapshot")
+          .eq("razorpay_employee_id", rpEid)
+          .maybeSingle();
+        const snap: any = mapRow?.last_pull_snapshot || {};
+        let email = snap.email || snap.work_email || snap.personal_email || snap["work-email"] || snap["personal-email"] || "";
+        if (!email && mapRow?.hr_employee_id) {
+          const { data: employee } = await svc
+            .from("hr_employees")
+            .select("email")
+            .eq("id", mapRow.hr_employee_id)
+            .maybeSingle();
+          email = employee?.email || "";
+        }
+        if (!email) {
+          return json(400, { ok: false, error: "RazorpayX add-deduction requires the employee email, but no mapped email is available." });
+        }
+        data.email = String(email).trim();
+        delete data["employee-id"];
+        delete data["employee-type"];
       }
 
       // ---- people:dismiss requires the employee's email in the data block

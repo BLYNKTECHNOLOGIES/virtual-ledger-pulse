@@ -126,10 +126,12 @@ const FIELDS: FieldSpec[] = [
   {
     field: "pan",
     severity: "high",
-    extract: ({ workInfo, rzp }) => ({
-      hrms: (workInfo?.pan_number || "").toString().toUpperCase().trim() || null,
+    // PAN lives on hr_employees, not hr_employee_work_info.
+    extract: ({ emp, workInfo, rzp }) => ({
+      hrms: ((emp as any)?.pan_number || (workInfo as any)?.pan_number || "").toString().toUpperCase().trim() || null,
       razorpay: (rzpVal(rzp, "pan", "pan-number") || "").toString().toUpperCase().trim() || null,
     }),
+
   },
   {
     field: "date_of_joining",

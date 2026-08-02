@@ -256,8 +256,11 @@ call to a specific addition — subsequent removal must use `payroll:reset-modif
 
 **Called from:** direct dispatch `payroll_add_deduction` — proxy line 4915.
 
-**Request wire shape:** identical to `add-additions` but body key is
-`deductions` and the map value is `{ name, amount, type, taxable, deductFrom }`.
+**Request wire shape (official Postman collection, live-verified):**
+`{ "email", "payroll-month", "deduction-amount", "remarks" }`. Alternatively,
+`deduction-days` may replace `deduction-amount`; Opfin then calculates the amount.
+The endpoint does **not** accept a `deductions` collection—sending one returns
+code 41, `Please specify the deduction`.
 
 **Response:** same as `add-additions` — HTTP 200 opaque body; failure body carries
 `error`/`message`. Nothing surfaces to the UI beyond a success toast.

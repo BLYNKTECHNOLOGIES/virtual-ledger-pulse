@@ -139,9 +139,9 @@ export default function PayrollInputsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Single push primitive. RazorpayX takes a label-keyed MAP of modifications in
-  // plain rupees, and acknowledges with an opaque 200 — so every push asks the
-  // proxy for a view-payroll read-back that proves the amount is on the run.
+  // Single push primitive. The proxy converts additions to RazorpayX's array
+  // contract and deductions to its email + aggregate deduction-amount contract.
+  // Amounts stay in rupees, and view-payroll read-back proves each live write.
   async function pushGroup(rowsIn: any[]) {
     const group = Array.isArray(rowsIn) ? rowsIn : [rowsIn];
     if (!group.length) return null;
@@ -166,7 +166,18 @@ export default function PayrollInputsPage() {
         },
       },
     });
-    if (error) throw error;
+    if (error) {
+      let detail = "";
+      try {
+        if (typeof error.context?.json === "function") {
+          const body = await error.context.json();
+          detail = body?.error || body?.body?.message || "";
+        } else if (typeof error.context?.text === "function") {
+          detail = await error.context.text();
+        }
+      } catch { /* retain the SDK error below */ }
+      throw new Error(detail || error.message || "RazorpayX rejected the payroll input");
+    }
     if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
     const { error: uErr } = await (supabase as any).from(table)
       .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })

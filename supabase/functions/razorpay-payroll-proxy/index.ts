@@ -339,14 +339,10 @@ function extractPayrollViewFigures(body: any) {
 }
 
 // ---------------------------------------------------------------------------
-// RazorpayX payroll modification wire shape (verified against the Postman
-// collection / docs/RAZORPAY_API_FIELD_AUDIT.md §3–4):
-//   data.additions  = { "<label>": { name, amount, type: 0|1|2, taxable: 0|1 } }
-//   data.deductions = { "<label>": { name, amount, type, taxable, deductFrom } }
-// Amounts are plain rupees (integers), NOT paise. It is a label-keyed MAP, not
-// an array — an array is silently ignored by Opfin, which is why staged bonuses
-// never showed up on the run. Callers may pass either an array of
-// { label, amount, taxable, type } or an already-shaped map; both normalise here.
+// RazorpayX payroll modification input normalisation. Callers may pass an
+// array of { label, amount, taxable, type } or an already-shaped map; both
+// normalise here before each endpoint's official wire contract is applied.
+// Amounts are plain rupees (integers), never paise.
 // ---------------------------------------------------------------------------
 function additionTypeCode(t: unknown): number {
   const s = String(t ?? "bonus").toLowerCase();
@@ -7199,11 +7195,16 @@ Deno.serve(async (req) => {
       }
       const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
         ? directPayload.data : {};
-      // ---- payroll modifications: Opfin's add-additions / add-deduction
-      // endpoint expects an ARRAY of objects keyed by `label` (not the keyed
-      // map). Sending the map returns HTTP 500 UNKNOWN_EXCEPTION; sending an
-      // array without `label` returns "Undefined property: stdClass::$label".
-      // Verified live 2026-08-02. Amounts are RUPEES, never paise.
+      let payrollEmployeeId = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
+        ? String(data["employee-id"]) : "";
+      // ---- payroll modifications
+      // Opfin's official Postman collection defines asymmetric contracts:
+      //   add-additions -> additions ARRAY carrying `label`
+      //   add-deduction -> email + singular `deduction-amount` (or
+      //                    `deduction-days`) + remarks. It does NOT accept a
+      //                    `deductions` collection; that returns code 41,
+      //                    "Please specify the deduction".
+      // Amounts are RUPEES, never paise.
       let modExpect: Array<{ label: string; amount: number }> = [];
       if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
         const kind = action === "payroll_add_additions" ? "additions" : "deductions";
@@ -7213,11 +7214,45 @@ Deno.serve(async (req) => {
         const { map, expect } = normalizePayrollModifications(data[kind], kind as any);
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
-        data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
+        if (action === "payroll_add_additions") {
+          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
+        } else {
+          data["deduction-amount"] = expect.reduce((sum, item) => sum + item.amount, 0);
+          data.remarks = expect.map((item) => item.label).join("; ").slice(0, 250) || "Payroll deduction";
+          delete data.deductions;
+        }
         modExpect = expect;
 
         data["employee-id"] = Number(data["employee-id"]);
         if (!data["employee-type"]) data["employee-type"] = "employee";
+      }
+
+      // payroll:add-deduction identifies the person by email, not employee-id.
+      // Resolve it from the canonical Razorpay mapping so callers remain keyed
+      // by the stable Razorpay employee id used throughout HRMS.
+      if (action === "payroll_add_deduction" && !data.email) {
+        const rpEid = String(data["employee-id"] || "");
+        const { data: mapRow } = await svc
+          .from("hr_razorpay_employee_map")
+          .select("hr_employee_id, last_pull_snapshot")
+          .eq("razorpay_employee_id", rpEid)
+          .maybeSingle();
+        const snap: any = mapRow?.last_pull_snapshot || {};
+        let email = snap.email || snap.work_email || snap.personal_email || snap["work-email"] || snap["personal-email"] || "";
+        if (!email && mapRow?.hr_employee_id) {
+          const { data: employee } = await svc
+            .from("hr_employees")
+            .select("email")
+            .eq("id", mapRow.hr_employee_id)
+            .maybeSingle();
+          email = employee?.email || "";
+        }
+        if (!email) {
+          return json(400, { ok: false, error: "RazorpayX add-deduction requires the employee email, but no mapped email is available." });
+        }
+        data.email = String(email).trim();
+        delete data["employee-id"];
+        delete data["employee-type"];
       }
 
       // ---- people:dismiss requires the employee's email in the data block
@@ -7319,8 +7354,7 @@ Deno.serve(async (req) => {
         errText = `NETWORK: ${(e as Error).message}`;
       } finally { clearTimeout(t); }
 
-      const rpEid = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
-        ? String(data["employee-id"]) : "";
+      const rpEid = payrollEmployeeId;
       await logSync(svc, {
         action: spec.logAs as any,
         http_status: httpStatus,
@@ -7340,9 +7374,10 @@ Deno.serve(async (req) => {
       if (!errText && (action === "payroll_add_additions" || action === "payroll_add_deduction")) {
         const rbId = String(directPayload?.readback_id || "").trim();
         const rbTable = String(directPayload?.readback_table || "").trim();
-        const rbEid = data["employee-id"];
+        const rbEid = payrollEmployeeId;
         const rbMonth = data["payroll-month"];
-        if (rbEid && rbMonth) {
+        const rbEmail = String(data.email || "").trim();
+        if ((rbEid || rbEmail) && rbMonth) {
           const rbCtrl = new AbortController();
           const rbT = setTimeout(() => rbCtrl.abort(), 15000);
           try {
@@ -7352,7 +7387,9 @@ Deno.serve(async (req) => {
               body: JSON.stringify({
                 auth: authBlock(),
                 request: { type: "payroll", "sub-type": "view-payroll" },
-                data: { "employee-id": Number(rbEid), "payroll-month": rbMonth, "employee-type": "employee" },
+                data: rbEmail
+                  ? { email: rbEmail, "payroll-month": rbMonth }
+                  : { "employee-id": Number(rbEid), "payroll-month": rbMonth, "employee-type": "employee" },
               }),
               signal: rbCtrl.signal,
             });
@@ -7375,9 +7412,20 @@ Deno.serve(async (req) => {
                 if (k && Number.isFinite(amt)) flat.push({ label: String(k), amount: amt });
               }
             }
+            const expectedDeductionTotal = modExpect.reduce((sum, item) => sum + item.amount, 0);
+            const echoedDeductionTotal = Number(rbBody?.["deduction-amount"]);
+            const aggregateDeductionMatch = action === "payroll_add_deduction"
+              && Number.isFinite(echoedDeductionTotal)
+              && (Math.abs(echoedDeductionTotal - expectedDeductionTotal) < 1
+                || Math.abs(echoedDeductionTotal - expectedDeductionTotal * 100) < 1);
             const matched = modExpect.map((e) => {
+              // add-deduction is aggregate-only: Opfin canonicalizes any remarks
+              // into "Gross pay deduction", so verify its documented
+              // deduction-amount rather than expecting our remark as a label.
+              if (action === "payroll_add_deduction") {
+                return { label: e.label, expected: e.amount, found: echoedDeductionTotal, ok: aggregateDeductionMatch };
+              }
               const hit = flat.find((f) => f.label.trim().toLowerCase() === e.label.trim().toLowerCase());
-              // Opfin may echo rupees or paise depending on tenant config.
               const okAmt = !!hit && (Math.abs(hit.amount - e.amount) < 1 || Math.abs(hit.amount - e.amount * 100) < 1);
               return { label: e.label, expected: e.amount, found: hit ? hit.amount : null, ok: okAmt };
             });

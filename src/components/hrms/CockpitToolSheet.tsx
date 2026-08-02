@@ -1,7 +1,7 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 // Every payroll sub-tool now lives INSIDE the cockpit instead of the sidebar.
 const PayrollInputsPage = lazy(() => import("@/pages/hr/PayrollInputsPage"));

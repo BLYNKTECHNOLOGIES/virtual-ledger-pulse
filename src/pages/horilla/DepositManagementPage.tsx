@@ -460,10 +460,11 @@ export default function DepositManagementPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Deposits", value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-info", bg: "bg-info/10" },
+          { label: `Total ${TYPE_LABEL[tab]}`, value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-info", bg: "bg-info/10" },
           { label: "Collected", value: `₹${totalCollected.toLocaleString('en-IN')}`, icon: BadgeIndianRupee, color: "text-success", bg: "bg-success/10" },
-          { label: "Current Balance", value: `₹${totalBalance.toLocaleString('en-IN')}`, icon: Shield, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Outstanding", value: `₹${Math.max(totalDeposits - totalCollected, 0).toLocaleString('en-IN')}`, icon: Shield, color: "text-primary", bg: "bg-primary/10" },
           { label: "Fully Collected", value: `${fullyCollected}/${deposits.length}`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">

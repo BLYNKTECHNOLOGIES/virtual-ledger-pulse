@@ -122,25 +122,8 @@ export default function AttendanceSummaryPage() {
       <div className="p-4 md:p-6 space-y-6 page-mount">
         <PageHeader
           title="Attendance Summary"
-          description="Monthly attendance from biometric evidence — the same source payroll loss-of-pay uses"
+          description="Maintained monthly attendance — the exact source payroll loss-of-pay uses"
         />
-
-        {totals.legacyGap > 0 && (
-          <Card className="border-warning/40 bg-warning/5">
-            <CardContent className="p-4 flex items-start gap-3 text-sm">
-              <ShieldAlert className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-              <div>
-                <p className="font-medium">
-                  {totals.legacyGap} employee{totals.legacyGap === 1 ? "" : "s"} have manually marked attendance that the device data does not support.
-                </p>
-                <p className="text-muted-foreground mt-0.5">
-                  These figures are computed from eSSL punches and sessions, not from the legacy manually-marked day rows. Days with no
-                  roster-wide device signal are held harmless and never charged as loss of pay.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[

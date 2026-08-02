@@ -1,8 +1,8 @@
 // generate-lop-deductions
 //
 // Derives Loss-of-Pay deduction rows for a payroll month straight from
-// attendance (public.hr_compute_lop_days — the same function the shadow
-// payroll engine uses) so operators never have to type LOP per employee.
+// the maintained Attendance Summary (public.hr_attendance_month_summary),
+// so payroll always uses the exact figures operators review in HRMS.
 //
 // Body: { period: "YYYY-MM", dry_run?: boolean, employee_ids?: string[] }
 //  - dry_run true (default): returns the preview only, writes nothing
@@ -75,8 +75,9 @@ Deno.serve(async (req) => {
       return json({ period, dry_run: dryRun, rows: [], summary: { employees: 0, with_lop: 0, staged: 0, removed: 0, skipped: 0 } });
     }
 
-    // Attendance-derived LOP for the whole roster in one batch call.
-    const { data: lopRows, error: lopErr } = await supabase.rpc("hr_compute_lop_days", {
+    // Attendance Summary is the payroll source of truth. Do not bypass this
+    // RPC with raw punches, sessions, or the lower-level LOP helper.
+    const { data: lopRows, error: lopErr } = await supabase.rpc("hr_attendance_month_summary", {
       p_employee_ids: roster.map((r: any) => r.hr_employee_id),
       p_period_month: periodStr,
     });

@@ -269,34 +269,6 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 `Verified in RazorpayX: annual CTC = ₹${push.verifiedTotal.toLocaleString("en-IN")}`,
                 { id: toastId },
               );
-              if (stageArrears && arrearsAmount > 0) {
-                const aId = toast.loading("Staging arrears on the current RazorpayX payroll month…");
-                try {
-                  const { data: ins, error: insErr } = await (supabase as any)
-                    .from("hr_salary_revisions")
-                    .insert({
-                      employee_id: employeeId,
-                      revision_type: "ad_hoc",
-                      one_time_amount: Math.round(arrearsAmount),
-                      payout_month: format(new Date(), "yyyy-MM-01"),
-                      effective_from: format(new Date(), "yyyy-MM-01"),
-                      revision_reason: `Arrears for ${backdatedMonths} month(s) from ${format(effectiveFrom, "MMM yyyy")}`,
-                      notes: "Auto-staged arrears — RazorpayX API has no salary-effective-date field.",
-                      approved_by: approvedByLabel,
-                      status: "APPLIED",
-                    })
-                    .select("id")
-                    .single();
-                  if (insErr) throw insErr;
-                  const mod2 = await import("@/lib/oneTimePayoutPush");
-                  const p2 = await mod2.pushOneTimePayoutToRazorpay(ins.id);
-                  if (p2.ok) toast.success(`Arrears ₹${Math.round(arrearsAmount).toLocaleString("en-IN")} queued on RazorpayX`, { id: aId });
-                  else toast.error("Arrears not queued — retry from the revision history page.", { id: aId, description: (p2.error || "").slice(0, 200) });
-                } catch (e: any) {
-                  toast.error(`Arrears staging failed: ${e?.message || e}`, { id: aId });
-                }
-                qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
-              }
               onOpenChange(false);
             } else if (push.skipped) {
               toast.warning(

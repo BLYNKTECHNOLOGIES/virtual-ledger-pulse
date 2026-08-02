@@ -18,22 +18,35 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 
+type DepositType = "security" | "error_recovery";
+
+const TYPE_LABEL: Record<DepositType, string> = {
+  security: "Security Deposit",
+  error_recovery: "Error Recovery",
+};
+
 export default function DepositManagementPage() {
   const qc = useQueryClient();
+  const [tab, setTab] = useState<DepositType>("security");
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showTransactions, setShowTransactions] = useState<string | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<any>(null);
-  const [form, setForm] = useState({
+  const emptyForm = {
     employee_id: "",
+    deposit_type: "security" as DepositType,
     total_deposit_amount: "",
     deduction_mode: "fixed_installment",
     deduction_value: "",
     deduction_start_month: format(new Date(), "yyyy-MM"),
-  });
+    incident_date: "",
+    incident_reference: "",
+    recovery_reason: "",
+  };
+  const [form, setForm] = useState(emptyForm);
 
   // Fetch deposits with employee info
-  const { data: deposits = [], isLoading } = useQuery({
+  const { data: allDeposits = [], isLoading } = useQuery({
     queryKey: ["hr_employee_deposits"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -44,6 +57,9 @@ export default function DepositManagementPage() {
       return data || [];
     },
   });
+
+  const deposits = allDeposits.filter((d: any) => (d.deposit_type || "security") === tab);
+
 
   // Fetch employees
   const { data: employees = [] } = useQuery({
@@ -74,8 +90,10 @@ export default function DepositManagementPage() {
     mutationFn: async () => {
       const totalAmt = Number(form.total_deposit_amount);
       const isAlreadyDeducted = form.deduction_mode === "already_deducted";
+      const isRecovery = form.deposit_type === "error_recovery";
       const { data: inserted, error } = await (supabase as any).from("hr_employee_deposits").insert({
         employee_id: form.employee_id,
+        deposit_type: form.deposit_type,
         total_deposit_amount: totalAmt,
         deduction_mode: form.deduction_mode,
         deduction_value: isAlreadyDeducted ? totalAmt : Number(form.deduction_value),
@@ -83,6 +101,9 @@ export default function DepositManagementPage() {
         collected_amount: isAlreadyDeducted ? totalAmt : 0,
         current_balance: isAlreadyDeducted ? totalAmt : 0,
         is_fully_collected: isAlreadyDeducted,
+        incident_date: isRecovery && form.incident_date ? form.incident_date : null,
+        incident_reference: isRecovery ? form.incident_reference || null : null,
+        recovery_reason: isRecovery ? form.recovery_reason || null : null,
       }).select("id").single();
       if (error) throw error;
 
@@ -90,21 +111,27 @@ export default function DepositManagementPage() {
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: form.employee_id,
         deposit_id: inserted.id,
+        deposit_type: form.deposit_type,
         transaction_type: "initiated",
         amount: isAlreadyDeducted ? totalAmt : 0,
         balance_after: isAlreadyDeducted ? totalAmt : 0,
-        description: `Salary Hold Initiated — Target: ₹${totalAmt.toLocaleString('en-IN')}${isAlreadyDeducted ? ' (pre-collected)' : ''}`,
+        description: `${TYPE_LABEL[form.deposit_type]} initiated — Target: ₹${totalAmt.toLocaleString('en-IN')}${isAlreadyDeducted ? ' (pre-collected)' : ''}`,
         transaction_date: new Date().toISOString().slice(0, 10),
       });
+
+      // Build the month-by-month payroll installment plan
+      const { error: schedErr } = await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: inserted.id });
+      if (schedErr) throw new Error(`Deposit saved but schedule failed: ${schedErr.message}`);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       setShowAdd(false);
-      setForm({ employee_id: "", total_deposit_amount: "", deduction_mode: "fixed_installment", deduction_value: "", deduction_start_month: format(new Date(), "yyyy-MM") });
-      toast.success("Deposit configuration added");
+      setForm({ ...emptyForm, deposit_type: tab });
+      toast.success("Deposit added and monthly deductions scheduled");
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const editMutation = useMutation({
     mutationFn: async () => {
@@ -115,11 +142,15 @@ export default function DepositManagementPage() {
       const oldValue = Number(editingDeposit.deduction_value);
       const newValue = Number(form.deduction_value);
 
+      const isRecovery = (editingDeposit.deposit_type || "security") === "error_recovery";
       const { error } = await (supabase as any).from("hr_employee_deposits").update({
         total_deposit_amount: newAmount,
         deduction_mode: newMode,
         deduction_value: newValue,
         deduction_start_month: form.deduction_start_month,
+        incident_date: isRecovery && form.incident_date ? form.incident_date : null,
+        incident_reference: isRecovery ? form.incident_reference || null : null,
+        recovery_reason: isRecovery ? form.recovery_reason || null : null,
         updated_at: new Date().toISOString(),
       }).eq("id", editingDeposit.id);
       if (error) throw error;
@@ -133,6 +164,7 @@ export default function DepositManagementPage() {
         await (supabase as any).from("hr_deposit_transactions").insert({
           employee_id: editingDeposit.employee_id,
           deposit_id: editingDeposit.id,
+          deposit_type: editingDeposit.deposit_type || "security",
           transaction_type: "modified",
           amount: 0,
           balance_after: Number(editingDeposit.current_balance),
@@ -140,14 +172,18 @@ export default function DepositManagementPage() {
           transaction_date: new Date().toISOString().slice(0, 10),
         });
       }
+
+      const { error: schedErr } = await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: editingDeposit.id });
+      if (schedErr) throw new Error(`Deposit updated but schedule failed: ${schedErr.message}`);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
       setShowEdit(false);
       setEditingDeposit(null);
-      toast.success("Deposit updated");
+      toast.success("Deposit updated and schedule rebuilt");
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -196,12 +232,16 @@ export default function DepositManagementPage() {
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: deposit.employee_id,
         deposit_id: deposit.id,
+        deposit_type: deposit.deposit_type || "security",
         transaction_type: isPausing ? "paused" : "resumed",
         amount: 0,
         balance_after: Number(deposit.current_balance),
         description: isPausing ? "Deposit deductions paused by admin" : "Deposit deductions resumed by admin",
         transaction_date: new Date().toISOString().slice(0, 10),
       });
+
+      // Pausing wipes pending installments; resuming rebuilds them
+      await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: deposit.id });
     },
     onSuccess: (_, { action }) => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
@@ -211,15 +251,71 @@ export default function DepositManagementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Error recovery: money recovered externally → refund the employee via payroll
+  const refundMutation = useMutation({
+    mutationFn: async (deposit: any) => {
+      const amount = Number(deposit.collected_amount || 0);
+      if (amount <= 0) throw new Error("Nothing collected yet — nothing to refund");
+
+      const period = format(new Date(), "yyyy-MM-01");
+      const { error: addErr } = await (supabase as any).from("hr_payroll_input_additions").insert({
+        hr_employee_id: deposit.employee_id,
+        period_month: period,
+        amount,
+        label: `Error recovery refund${deposit.incident_reference ? ` (${deposit.incident_reference})` : ""}`,
+        addition_type: 0,
+        taxable: false,
+      });
+
+      if (addErr) throw addErr;
+
+      await (supabase as any).from("hr_deposit_transactions").insert({
+        employee_id: deposit.employee_id,
+        deposit_id: deposit.id,
+        deposit_type: "error_recovery",
+        transaction_type: "ff_refund",
+        amount: -amount,
+        balance_after: 0,
+        description: `Recovered externally — ₹${amount.toLocaleString('en-IN')} refunded to employee via payroll addition (${period})`,
+        transaction_date: new Date().toISOString().slice(0, 10),
+        period_month: period,
+      });
+
+      const { error } = await (supabase as any).from("hr_employee_deposits").update({
+        is_recovered: true,
+        recovered_at: new Date().toISOString(),
+        is_settled: true,
+        settled_at: new Date().toISOString(),
+        current_balance: 0,
+        settlement_notes: "Error recovery refunded to employee",
+        updated_at: new Date().toISOString(),
+      }).eq("id", deposit.id);
+      if (error) throw error;
+
+      await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: deposit.id });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
+      toast.success("Refund staged as a payroll addition and record closed");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const openEdit = (d: any) => {
     setEditingDeposit(d);
     setForm({
       employee_id: d.employee_id,
+      deposit_type: (d.deposit_type || "security") as DepositType,
       total_deposit_amount: String(d.total_deposit_amount),
       deduction_mode: d.deduction_mode,
       deduction_value: String(d.deduction_value),
       deduction_start_month: d.deduction_start_month || "",
+      incident_date: d.incident_date || "",
+      incident_reference: d.incident_reference || "",
+      recovery_reason: d.recovery_reason || "",
     });
+
     setShowEdit(true);
   };
 
@@ -314,6 +410,25 @@ export default function DepositManagementPage() {
           </div>
         </>
       )}
+      {form.deposit_type === "error_recovery" && (
+        <div className="space-y-4 rounded-md border border-border p-3">
+          <p className="text-xs text-muted-foreground">Error recovery context — refundable to the employee once the funds are recovered from the counterparty.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Incident Date</Label>
+              <Input type="date" value={form.incident_date} onChange={(e) => setForm({ ...form, incident_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>Reference (order / txn no.)</Label>
+              <Input value={form.incident_reference} onChange={(e) => setForm({ ...form, incident_reference: e.target.value })} placeholder="e.g. SO-2041 / UTR" />
+            </div>
+          </div>
+          <div>
+            <Label>Recovery Reason</Label>
+            <Textarea rows={2} value={form.recovery_reason} onChange={(e) => setForm({ ...form, recovery_reason: e.target.value })} placeholder="What went wrong and why it is being recovered" />
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -321,17 +436,35 @@ export default function DepositManagementPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Deposit Management"
-        description="Track employee security deposits, collections, and settlements"
-        actions={<Button onClick={() => { setForm({ employee_id: "", total_deposit_amount: "", deduction_mode: "fixed_installment", deduction_value: "", deduction_start_month: format(new Date(), "yyyy-MM") }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add Deposit</Button>}
+        description="Security deposits and error recoveries — both auto-deducted from monthly payroll"
+        actions={<Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>}
       />
+
+      {/* Category tabs */}
+      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+        {(["security", "error_recovery"] as DepositType[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${tab === t ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {TYPE_LABEL[t]}
+            <span className="ml-2 text-xs text-muted-foreground">
+              {allDeposits.filter((d: any) => (d.deposit_type || "security") === t).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Deposits", value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-info", bg: "bg-info/10" },
+          { label: `Total ${TYPE_LABEL[tab]}`, value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-info", bg: "bg-info/10" },
           { label: "Collected", value: `₹${totalCollected.toLocaleString('en-IN')}`, icon: BadgeIndianRupee, color: "text-success", bg: "bg-success/10" },
-          { label: "Current Balance", value: `₹${totalBalance.toLocaleString('en-IN')}`, icon: Shield, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Outstanding", value: `₹${Math.max(totalDeposits - totalCollected, 0).toLocaleString('en-IN')}`, icon: Shield, color: "text-primary", bg: "bg-primary/10" },
           { label: "Fully Collected", value: `${fullyCollected}/${deposits.length}`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -344,28 +477,30 @@ export default function DepositManagementPage() {
 
       {/* Deposits Table */}
       <Card>
-        <CardHeader><CardTitle className="text-sm">Employee Deposits</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">{TYPE_LABEL[tab]} — Employees</CardTitle></CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
-                <TableHead>Total Deposit</TableHead>
+                <TableHead>Total</TableHead>
                 <TableHead>Collected</TableHead>
                 <TableHead>Balance</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Mode</TableHead>
                 <TableHead>Value</TableHead>
+                {tab === "error_recovery" && <TableHead>Incident</TableHead>}
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="p-0"><TableSkeleton rows={4} columns={9} /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="p-0"><TableSkeleton rows={4} columns={10} /></TableCell></TableRow>
               ) : deposits.length === 0 ? (
-                <TableRow><TableCell colSpan={9}><EmptyState icon={Wallet} title="No deposits configured" description="Add a security deposit for an employee." /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={10}><EmptyState icon={Wallet} title={`No ${TYPE_LABEL[tab].toLowerCase()} records`} description={tab === "security" ? "Add a security deposit for an employee." : "Add a recovery for a wrong payment made by an employee."} /></TableCell></TableRow>
               ) : (
+
                 deposits.map((d: any) => {
                   const progress = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
                   return (
@@ -387,9 +522,15 @@ export default function DepositManagementPage() {
                       <TableCell className="text-sm">
                         {d.deduction_mode === "percentage" ? `${d.deduction_value}%` : `₹${Number(d.deduction_value).toLocaleString('en-IN')}`}
                       </TableCell>
+                      {tab === "error_recovery" && (
+                        <TableCell className="text-xs text-muted-foreground max-w-[180px]">
+                          <div className="truncate">{d.incident_reference || "—"}</div>
+                          <div>{d.incident_date || ""}</div>
+                        </TableCell>
+                      )}
                       <TableCell>
                         {d.is_settled ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">Settled</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">{d.is_recovered ? "Refunded" : "Settled"}</span>
                         ) : d.is_fully_collected ? (
                           <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Fully Collected</span>
                         ) : d.is_paused ? (
@@ -419,7 +560,12 @@ export default function DepositManagementPage() {
                                   </Button>
                                 )
                               )}
-                              {d.is_fully_collected && d.current_balance > 0 && (
+                              {tab === "error_recovery" && Number(d.collected_amount) > 0 && (
+                                <Button size="sm" variant="ghost" className="h-7 text-primary px-2 text-xs" onClick={() => refundMutation.mutate(d)} title="Funds recovered externally — refund the employee via payroll">
+                                  Refund
+                                </Button>
+                              )}
+                              {tab === "security" && d.is_fully_collected && d.current_balance > 0 && (
                                 <Button size="sm" variant="ghost" className="h-7 text-primary" onClick={() => settleMutation.mutate(d)} title="F&F Settle">
                                   <CheckCircle className="h-3 w-3" />
                                 </Button>
@@ -428,6 +574,7 @@ export default function DepositManagementPage() {
                           )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   );
                 })
@@ -439,17 +586,18 @@ export default function DepositManagementPage() {
 
       {/* Add Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Employee Deposit</DialogTitle>
-            <DialogDescription>Configure deposit amount and deduction schedule for an employee</DialogDescription>
+            <DialogTitle>Add {TYPE_LABEL[form.deposit_type]}</DialogTitle>
+            <DialogDescription>Configure the amount and monthly payroll deduction plan for an employee</DialogDescription>
           </DialogHeader>
           <DepositForm isEdit={false} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.total_deposit_amount || (form.deduction_mode !== "already_deducted" && !form.deduction_value)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-              Add Deposit
+            <Button onClick={() => addMutation.mutate()} disabled={addMutation.isPending || !form.employee_id || !form.total_deposit_amount || (form.deduction_mode !== "already_deducted" && !form.deduction_value)} className="bg-[#E8604C] hover:bg-[#d4553f]">
+              {addMutation.isPending ? "Saving…" : `Add ${TYPE_LABEL[form.deposit_type]}`}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

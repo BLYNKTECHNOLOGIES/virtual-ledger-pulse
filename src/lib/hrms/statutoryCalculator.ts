@@ -21,6 +21,11 @@ export interface EmployeeStatutoryEnrollment {
   pf_enabled?: boolean;
   esi_enabled?: boolean;
   pt_enabled?: boolean;
+  /** 'capped' = PF on min(Basic, ₹15 000); 'actual' = PF on full Basic. */
+  pf_wage_basis?: "capped" | "actual" | null;
+  /** Voluntary PF — employee-side only, no employer match. */
+  vpf_mode?: "none" | "percent" | "fixed" | null;
+  vpf_value?: number | null;
 }
 
 // -----------------------------

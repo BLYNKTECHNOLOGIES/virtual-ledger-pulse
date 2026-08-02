@@ -172,7 +172,8 @@ const FIELDS: FieldSpec[] = [
     field: "active_state",
     severity: "critical",
     extract: ({ emp, rzp, esslUser }) => {
-      const rzpDismissed = !!rzpVal(rzp, "date-of-dismissal");
+      const rzpDismissed = !!rzpVal(rzp, "date-of-dismissal") ||
+        rzp?.["is-active"] === false || rzp?.is_active === false;
       const hrmsActive = emp.is_active !== false;
       return {
         hrms: hrmsActive ? "active" : "inactive",
@@ -298,7 +299,9 @@ serve(async (req) => {
       // dismissal signal when HRMS still marks them active.
       const rzpDismissed = !!rzpVal(rzp, "date-of-dismissal") ||
         norm(rzpVal(rzp, "status")) === "dismissed" ||
-        rzpVal(rzp, "is-active") === false;
+        rzpVal(rzp, "status") === "inactive" ||
+        rzp?.["is-active"] === false || rzp?.is_active === false ||
+        rzp?.["is-dismissed"] === true || rzp?.dismissed === true;
       const hrmsActive = emp.is_active !== false;
       const suppressAllButActiveState = rzpDismissed;
 

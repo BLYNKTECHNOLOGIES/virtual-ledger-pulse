@@ -67,6 +67,10 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   // change right now instead of scheduling it for the future date.
   const [applyNow, setApplyNow] = useState<boolean>(false);
 
+  // Back-dated revisions: RazorpayX API has no salary-effective-date field, so
+  // arrears must be staged as a one-time addition on the current payroll month.
+  const [stageArrears, setStageArrears] = useState<boolean>(true);
+
   useEffect(() => {
     if (open) {
       setMode("recurring");
@@ -136,6 +140,20 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const rawFutureDated = effectiveFrom > new Date(new Date().setHours(23, 59, 59, 999));
   const isFutureDated = rawFutureDated && !applyNow;
   const effectiveDateForRpc = applyNow && rawFutureDated ? new Date() : effectiveFrom;
+
+  // ---- Back-dated arrears (RazorpayX has no effective-date field on set-salary) ----
+  const approvedByLabel = useMemo(() => {
+    const u = user as any;
+    return [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "System";
+  }, [user]);
+  const now = new Date();
+  const curMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const effMonthStart = new Date(effectiveFrom.getFullYear(), effectiveFrom.getMonth(), 1);
+  const isBackDated = mode === "recurring" && effMonthStart < curMonthStart;
+  const backdatedMonths = isBackDated
+    ? (curMonthStart.getFullYear() - effMonthStart.getFullYear()) * 12 + (curMonthStart.getMonth() - effMonthStart.getMonth())
+    : 0;
+  const arrearsAmount = isBackDated && totalDelta > 0 ? (totalDelta / 12) * backdatedMonths : 0;
 
 
   const mutation = useMutation({
@@ -251,6 +269,34 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 `Verified in RazorpayX: annual CTC = ₹${push.verifiedTotal.toLocaleString("en-IN")}`,
                 { id: toastId },
               );
+              if (stageArrears && arrearsAmount > 0) {
+                const aId = toast.loading("Staging arrears on the current RazorpayX payroll month…");
+                try {
+                  const { data: ins, error: insErr } = await (supabase as any)
+                    .from("hr_salary_revisions")
+                    .insert({
+                      employee_id: employeeId,
+                      revision_type: "ad_hoc",
+                      one_time_amount: Math.round(arrearsAmount),
+                      payout_month: format(new Date(), "yyyy-MM-01"),
+                      effective_from: format(new Date(), "yyyy-MM-01"),
+                      revision_reason: `Arrears for ${backdatedMonths} month(s) from ${format(effectiveFrom, "MMM yyyy")}`,
+                      notes: "Auto-staged arrears — RazorpayX API has no salary-effective-date field.",
+                      approved_by: approvedByLabel,
+                      status: "APPLIED",
+                    })
+                    .select("id")
+                    .single();
+                  if (insErr) throw insErr;
+                  const mod2 = await import("@/lib/oneTimePayoutPush");
+                  const p2 = await mod2.pushOneTimePayoutToRazorpay(ins.id);
+                  if (p2.ok) toast.success(`Arrears ₹${Math.round(arrearsAmount).toLocaleString("en-IN")} queued on RazorpayX`, { id: aId });
+                  else toast.error("Arrears not queued — retry from the revision history page.", { id: aId, description: (p2.error || "").slice(0, 200) });
+                } catch (e: any) {
+                  toast.error(`Arrears staging failed: ${e?.message || e}`, { id: aId });
+                }
+                qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
+              }
               onOpenChange(false);
             } else if (push.skipped) {
               toast.warning(
@@ -426,6 +472,34 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {isBackDated && (
+                <div className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded p-2 space-y-2">
+                  <p>
+                    Effective date is back-dated by <strong>{backdatedMonths} month(s)</strong>. The RazorpayX API
+                    (<code>people:set-salary</code>) has <strong>no salary-effective-date field</strong> — only the dashboard
+                    offers that. The API push will therefore apply the new CTC from the <strong>current</strong> payroll month.
+                  </p>
+                  {totalDelta > 0 ? (
+                    <>
+                      <label className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
+                        <Switch checked={stageArrears} onCheckedChange={setStageArrears} />
+                        <span className="text-foreground">
+                          Stage arrears ₹{Math.round(arrearsAmount).toLocaleString("en-IN")} as a one-time addition on {format(new Date(), "MMM yyyy")}
+                        </span>
+                      </label>
+                      <p className="opacity-80">
+                        ({backdatedMonths} × ₹{Math.round(totalDelta / 12).toLocaleString("en-IN")} monthly difference.)
+                        Alternatively set the effective date directly on the{" "}
+                        <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer" className="underline">RazorpayX dashboard ↗</a>{" "}
+                        and let it auto-compute arrears.
+                      </p>
+                    </>
+                  ) : (
+                    <p>Enter the new CTC to see the arrears amount, or apply the back-date on the RazorpayX dashboard.</p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

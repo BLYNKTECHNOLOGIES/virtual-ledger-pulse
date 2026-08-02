@@ -384,8 +384,32 @@ export default function DepositManagementPage() {
       )}
       <div>
         <Label>Total Deposit Amount (₹)</Label>
-        <Input type="number" min="0" value={form.total_deposit_amount} onChange={(e) => setForm({ ...form, total_deposit_amount: e.target.value })} placeholder="e.g. 15000" />
+        <div className="flex gap-2">
+          <Input className="flex-1" type="number" min="0" value={form.total_deposit_amount} onChange={(e) => setForm({ ...form, total_deposit_amount: e.target.value })} placeholder="e.g. 15000" />
+          <Select
+            value=""
+            onValueChange={(v) => {
+              const monthly = monthlyCtcFor(isEdit ? editingDeposit?.employee_id : form.employee_id);
+              if (!monthly) { toast.error("No CTC on record for this employee"); return; }
+              const mult = Number(v);
+              setForm({ ...form, total_deposit_amount: String(Math.round(monthly * mult)) });
+            }}
+          >
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Use CTC" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1× Monthly CTC</SelectItem>
+              <SelectItem value="2">2× Monthly CTC</SelectItem>
+              <SelectItem value="3">3× Monthly CTC</SelectItem>
+              <SelectItem value="0.5">½× Monthly CTC</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {(() => {
+          const monthly = monthlyCtcFor(isEdit ? editingDeposit?.employee_id : form.employee_id);
+          return monthly ? <p className="text-xs text-muted-foreground mt-1">Monthly CTC: ₹{Math.round(monthly).toLocaleString("en-IN")}</p> : null;
+        })()}
       </div>
+
       <div>
         <Label>Deduction Mode</Label>
         <Select value={form.deduction_mode} onValueChange={(v) => setForm({ ...form, deduction_mode: v })}>

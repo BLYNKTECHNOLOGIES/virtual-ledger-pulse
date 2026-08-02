@@ -16,6 +16,11 @@ type SystemKey = "hrms" | "razorpay" | "essl";
 interface FieldSpec {
   field: string;
   severity: "low" | "medium" | "high" | "critical";
+  // When true, a value present in one system and MISSING in the other is
+  // itself reported as drift (instead of being skipped for lack of a second
+  // value). Used for payout-critical bank fields: a blank account number on
+  // either side must never pass silently.
+  missingIsDrift?: boolean;
   // Extracts a normalized string from each system's raw record; return null if
   // the system doesn't hold this field for this employee.
   extract: (ctx: {
@@ -185,6 +190,7 @@ const FIELDS: FieldSpec[] = [
   {
     field: "bank_account",
     severity: "critical",
+    missingIsDrift: true,
     extract: ({ bank, rzp }) => ({
       hrms: normDigits(bank?.account_number),
       razorpay: normDigits(rzpVal(rzp, "bank-account-number") || rzp?.bank_account?.account_number),
@@ -193,6 +199,7 @@ const FIELDS: FieldSpec[] = [
   {
     field: "bank_ifsc",
     severity: "critical",
+    missingIsDrift: true,
     extract: ({ bank, rzp }) => ({
       hrms: normIfsc(bank?.ifsc_code),
       razorpay: normIfsc(rzpVal(rzp, "bank-ifsc") || rzp?.bank_account?.ifsc),
@@ -247,7 +254,8 @@ serve(async (req) => {
 
     const [workInfoRes, bankRes, salaryRes, rzpMapRes, esslRes] = await Promise.all([
       supa.from("hr_employee_work_info").select("*").in("employee_id", empIds),
-      supa.from("hr_employee_bank_details").select("*").in("employee_id", empIds),
+      supa.from("hr_employee_bank_details").select("*").in("employee_id", empIds)
+        .order("updated_at", { ascending: false }).order("created_at", { ascending: false }),
       supa.from("hr_employee_salary_structures").select("*").in("employee_id", empIds).order("effective_from", { ascending: false }),
       supa.from("hr_razorpay_employee_map").select("hr_employee_id, razorpay_employee_id, last_pull_snapshot, last_pulled_at").in("hr_employee_id", empIds),
       supa.from("hr_biometric_device_users").select("id, name, pin, department, title, enabled"),
@@ -436,16 +444,29 @@ serve(async (req) => {
         const present: SystemKey[] = (Object.keys(values) as SystemKey[]).filter(
           (k) => values[k] !== null && values[k] !== undefined,
         );
-        if (present.length < 2) continue; // need at least 2 systems to compare
 
-        const distinct = new Set(present.map((k) => values[k]));
-        const hasDrift = distinct.size > 1;
+        // Payout-critical fields: an employee mapped to RazorpayX must hold the
+        // value on BOTH sides. A missing side is reported as drift with an
+        // explicit "(missing)" marker rather than being skipped.
+        let hasDrift: boolean;
+        let compared: SystemKey[] = present;
+        if (spec.missingIsDrift && rzp) {
+          const sides: SystemKey[] = ["hrms", "razorpay"];
+          const shaped = sides.map((k) => values[k] ?? "(missing)");
+          if (shaped.every((v) => v === "(missing)")) continue; // neither system holds it
+          for (const k of sides) values[k] = values[k] ?? "(missing)";
+          compared = sides;
+          hasDrift = new Set(shaped).size > 1;
+        } else {
+          if (present.length < 2) continue; // need at least 2 systems to compare
+          hasDrift = new Set(present.map((k) => values[k])).size > 1;
+        }
 
         if (hasDrift) {
           const payload = {
             hr_employee_id: emp.id,
             field: spec.field,
-            systems_involved: present,
+            systems_involved: compared,
             hrms_value: values.hrms ?? null,
             razorpay_value: values.razorpay ?? null,
             essl_value: values.essl ?? null,

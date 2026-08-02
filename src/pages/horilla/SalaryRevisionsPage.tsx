@@ -497,5 +497,7 @@ export default function SalaryRevisionsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
+
 }

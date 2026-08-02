@@ -6,6 +6,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-08-02: RazorpayX joining-date write repaired — people:edit now sends live-validated `hiring-date` in DD/MM/YYYY instead of ignored aliases; Himanshu Rajak ID 20 live read-back confirmed 11/03/2026.
 - 2026-08-01: Owner-directed July attendance normalization completed — all 38 active employees marked Present for all 27 non-Sundays in both `hr_attendance` (Calendar source) and `hr_attendance_daily`; owner will manually mark actual absences.
 - 2026-07-29: RazorpayX onboarding CTC tally repaired — Stage 5 no longer treats stale payroll:view-payroll amounts as live master CTC after a successful people:set-salary push.
 - 2026-07-27: ERP user deletion cleanup RPC repaired — stale hard-coded token/table/column references replaced with typed schema-aware cleanup; historical records preserved while deleted user links are unlinked/anonymized.

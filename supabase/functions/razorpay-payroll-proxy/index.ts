@@ -1624,11 +1624,13 @@ Deno.serve(async (req) => {
       if (!fields || typeof fields !== "object" || !Object.keys(fields).length) {
         return json(400, { error: "fields payload required" });
       }
-      const isoToRp = (v: any): string | null => {
+      const toOpfinDate = (v: any): string | null => {
         const s = v == null ? "" : String(v).trim();
         if (!s) return null;
-        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+        const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+        const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        return m ? s : null;
       };
       // RazorpayX people:edit identifies the target person by EMAIL (see
       // opfinEditPerson doc). Without email in the payload the API returns
@@ -1659,9 +1661,13 @@ Deno.serve(async (req) => {
           case "email": data["email"] = String(raw).trim().toLowerCase(); applied.push(k); expectedReadBack[k] = raw; break;
           case "phone": data["phone-number"] = String(raw).replace(/\D/g, "").slice(-10); applied.push(k); expectedReadBack[k] = raw; break;
           case "gender": data["gender"] = String(raw).toLowerCase(); applied.push(k); expectedReadBack[k] = raw; break;
-          case "date_of_birth": { const d = isoToRp(raw); if (d) { data["date-of-birth"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
-          case "date_of_joining": { const d = isoToRp(raw); if (d) { data["date-of-hiring"] = d; data["hire_date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
-          case "probation_end_date": { const d = isoToRp(raw); if (d) { data["probation-end-date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
+          case "date_of_birth": { const d = toOpfinDate(raw); if (d) { data["date-of-birth"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
+          // Official RazorpayX Payroll people:edit contract uses `hiring-date`
+          // with DD/MM/YYYY on the live tenant (error code 43 confirms this).
+          // The similarly named `date-of-hiring` and `hire_date` keys are
+          // ignored on edit even when Opfin returns 200.
+          case "date_of_joining": { const d = toOpfinDate(raw); if (d) { data["hiring-date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
+          case "probation_end_date": { const d = toOpfinDate(raw); if (d) { data["probation-end-date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
           case "employee_type": data["employment-type"] = employeeKind(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "job_role": data["title"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "tax_regime": data["tax-regime"] = String(raw).toLowerCase().replace(/[^a-z]/g, ""); applied.push(k); break;
@@ -2592,7 +2598,11 @@ Deno.serve(async (req) => {
           switch (k) {
             case "phone_number": out["phone-number"] = String(v).replace(/\D/g, "").slice(-10); break;
             case "employee_type": out["employment-type"] = employeeKind(v); break;
-            case "date-of-hiring": out["date-of-hiring"] = v; out["hire_date"] = v; break;
+            case "date-of-hiring": {
+              const iso = isoToRpSafeDate(v);
+              if (iso) out["hiring-date"] = `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+              break;
+            }
             case "name": {
               const parts = String(v).trim().split(/\s+/);
               out["first-name"] = parts.shift() || String(v);

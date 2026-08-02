@@ -14,24 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _tmp_drift_probe: {
-        Row: {
-          created_at: string | null
-          id: number
-          note: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id: number
-          note?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: number
-          note?: string | null
-        }
-        Relationships: []
-      }
       account_investigations: {
         Row: {
           assigned_to: string | null

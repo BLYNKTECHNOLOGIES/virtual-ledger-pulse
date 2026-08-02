@@ -146,7 +146,10 @@ export default function SalaryRevisionsPage() {
     revisionCreatedAt: string,
   ): { state: "verified" | "failed" | "none"; log?: any } {
     if (!logs || logs.length === 0 || !Number.isFinite(expectedTotal) || expectedTotal <= 0) return { state: "none" };
-    // 1) Verified success whose read-back matches THIS revision's CTC (any time).
+    // 1) Verified success for THIS revision's CTC (any time).
+    //    RazorpayX does NOT expose annual CTC via its read API until the first
+    //    payroll run, so `actual` is legitimately null on a verified push. In
+    //    that case we match on the `expected` value instead of `actual`.
     for (const l of logs) {
       if (l.status !== "success") continue;
       const snapshot = l.response_snapshot || {};
@@ -154,11 +157,19 @@ export default function SalaryRevisionsPage() {
       if (!Array.isArray(verify?.fields)) continue;
       if (verify?.overall !== "verified") continue;
       const ctcField = verify.fields.find((f: any) => f?.key === "annual_ctc");
+      if (ctcField?.match !== true) continue;
       const actual = Number(ctcField?.actual);
-      if (ctcField?.match === true && Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1) {
+      const expected = Number(ctcField?.expected);
+      const actualMatches = Number.isFinite(actual) && Math.abs(actual - expectedTotal) <= 1;
+      const expectedMatches =
+        (ctcField?.actual === null || ctcField?.actual === undefined) &&
+        Number.isFinite(expected) &&
+        Math.abs(expected - expectedTotal) <= 1;
+      if (actualMatches || expectedMatches) {
         return { state: "verified", log: l };
       }
     }
+
     // 2) Failure that specifically targeted THIS CTC (expected matches new_total) AFTER the revision.
     for (const l of logs) {
       if (l.status !== "failure") continue;

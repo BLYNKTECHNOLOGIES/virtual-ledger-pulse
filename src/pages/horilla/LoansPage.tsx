@@ -90,17 +90,30 @@ export default function LoansPage() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: "approved" | "rejected" }) => {
-      const update: any = { status: action === "approved" ? "active" : "rejected", [`${action === "approved" ? "approved" : "rejection_reason"}_at`]: new Date().toISOString() };
-      if (action === "approved") update.approved_at = new Date().toISOString();
-      const { error } = await (supabase as any).from("hr_loans").update({ status: action === "approved" ? "active" : "rejected" }).eq("id", id);
-      if (error) throw error;
+      if (action === "rejected") {
+        const { error } = await (supabase as any).from("hr_loans").update({ status: "rejected" }).eq("id", id);
+        if (error) throw error;
+        return;
+      }
+      // State machine: pending -> approved -> active (the DB trigger rejects a direct jump)
+      const { error: e1 } = await (supabase as any)
+        .from("hr_loans")
+        .update({ status: "approved", approved_at: new Date().toISOString() })
+        .eq("id", id);
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any).from("hr_loans").update({ status: "active" }).eq("id", id);
+      if (e2) throw e2;
+      // Build the month-by-month EMI plan so the daily scheduler can push it to RazorpayX
+      const { error: e3 } = await (supabase as any).rpc("hr_rebuild_loan_schedule", { p_loan_id: id });
+      if (e3) throw e3;
     },
-    onSuccess: () => {
+    onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
-      toast.success("Loan status updated");
+      toast.success(vars.action === "approved" ? "Loan approved — EMI schedule generated" : "Loan rejected");
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const filtered = loans.filter((l: any) => {
     const q = search.toLowerCase();

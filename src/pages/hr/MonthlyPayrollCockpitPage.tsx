@@ -52,6 +52,7 @@ import {
 const STEP_ICONS: Record<string, any> = {
   lock_attendance: Lock,
   watchdog_zero: Activity,
+  salary_revisions: Scale,
   lop_push: TrendingUp,
   inputs_push: Upload,
   run_on_razorpay: ExternalLink,
@@ -68,6 +69,7 @@ type StepTarget =
 const STEP_TARGET: Record<string, StepTarget> = {
   lock_attendance: { tool: "period_locks", label: "Open Period Locks" },
   watchdog_zero: { tool: "stale_sessions", label: "Open Stale Sessions" },
+  salary_revisions: { href: "/hrms/payroll/salary-revisions", label: "Open Salary Revisions" },
   lop_push: { tool: "inputs", label: "Open LOP deductions", params: { tab: "deduction", focus: "lop" } },
   inputs_push: { tool: "inputs", label: "Open additions / deductions", params: { tab: "addition" } },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
@@ -75,6 +77,7 @@ const STEP_TARGET: Record<string, StepTarget> = {
   shadow_compare: { tool: "shadow", label: "Run Shadow Payroll" },
   drift_review: { tool: "data_health", label: "Open Data Health" },
 };
+
 
 const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
   { tool: "inputs", label: "Payroll Inputs" },
@@ -134,6 +137,19 @@ function DetailLine({ step }: { step: CockpitStep }) {
       return <span>{d.locked_ranges ?? 0} attendance period(s) locked overlapping this month.</span>;
     case "watchdog_zero":
       return <span>{d.stale_open ?? 0} stale sessions open for this month.</span>;
+    case "salary_revisions":
+      return (
+        <span>
+          {d.rev_rows ?? 0} revision(s) effective / payable this month
+          {(d.rev_pending ?? 0) > 0
+            ? ` · ${d.rev_pending} still pending or scheduled — finalise before LOP is calculated`
+            : " · none pending"}
+          {Number(d.one_time_total ?? 0) > 0
+            ? ` · one-time arrears ₹${Number(d.one_time_total).toLocaleString("en-IN")}`
+            : ""}
+          .
+        </span>
+      );
     case "lop_push":
       return (
         <span>
@@ -143,7 +159,16 @@ function DetailLine({ step }: { step: CockpitStep }) {
         </span>
       );
     case "inputs_push":
-      return <span>{d.input_rows ?? 0} additions/deductions staged.</span>;
+      return (
+        <span>
+          {d.input_rows ?? 0} additions/deductions staged
+          {(d.rec_rows ?? 0) > 0
+            ? ` · ${d.rec_rows} automatic recovery installment(s) (loan EMI / deposit / error recovery) worth ₹${Number(d.rec_amount ?? 0).toLocaleString("en-IN")} — ${d.rec_pushed ?? 0} pushed${(d.rec_failed ?? 0) > 0 ? `, ${d.rec_failed} failed` : ""}`
+            : " · no automatic recoveries due this month"}
+          .
+        </span>
+      );
+
     case "run_on_razorpay":
       return (
         <span className="text-amber-500">
@@ -208,13 +233,13 @@ export default function MonthlyPayrollCockpitPage() {
   const close = useCloseMonth(month);
 
   const doneCount = steps.filter(
-    (s) => s.ack_status === "done" || (s.live_status === "complete" && s.auto && s.step_no !== 9)
+    (s) => s.ack_status === "done" || (s.live_status === "complete" && s.auto && s.step_no !== 10)
   ).length;
   const blockers = steps
     .filter((s) => s.step_no <= 8 && s.ack_status !== "done" && s.ack_status !== "skipped" && s.live_status !== "complete")
     .map((s) => `Step ${s.step_no}: ${s.step_label}`);
 
-  const closed = steps.find((s) => s.step_no === 9)?.ack_status === "done";
+  const closed = steps.find((s) => s.step_no === 10)?.ack_status === "done";
 
   return (
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
@@ -297,7 +322,7 @@ export default function MonthlyPayrollCockpitPage() {
           {steps.map((step) => {
             const Icon = STEP_ICONS[step.step_key] ?? Circle;
             const target = STEP_TARGET[step.step_key];
-            const canAck = step.step_no !== 9 && (step.live_status === "complete" || step.step_key === "run_on_razorpay");
+            const canAck = step.step_no !== 10 && (step.live_status === "complete" || step.step_key === "run_on_razorpay");
 
             return (
               <Card
@@ -379,7 +404,7 @@ export default function MonthlyPayrollCockpitPage() {
                           <CheckCircle2 className="h-3.5 w-3.5" /> Mark done
                         </Button>
                       )}
-                      {step.ack_status === "done" && !closed && step.step_no !== 9 && (
+                      {step.ack_status === "done" && !closed && step.step_no !== 10 && (
                         <Button
                           size="sm"
                           variant="ghost"

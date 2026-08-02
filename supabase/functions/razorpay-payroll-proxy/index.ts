@@ -354,13 +354,18 @@ function additionTypeCode(t: unknown): number {
 function normalizePayrollModifications(
   input: unknown,
   kind: "additions" | "deductions",
+  allowZero = false,
 ): { map: Record<string, any>; expect: Array<{ label: string; amount: number }> } {
   const map: Record<string, any> = {};
   const expect: Array<{ label: string; amount: number }> = [];
   const add = (rawLabel: unknown, rawAmount: unknown, taxable: unknown, type: unknown, deductFrom?: unknown) => {
     const label = String(rawLabel ?? "").trim();
     const amount = Math.round(Number(rawAmount));
-    if (!label || !Number.isFinite(amount) || amount <= 0) return;
+    // Zero is normally meaningless and is dropped, but an explicit
+    // { allow_zero: true } payload uses it to wipe a previously pushed
+    // addition/deduction for the month (Opfin upserts by label; there is no
+    // delete endpoint).
+    if (!label || !Number.isFinite(amount) || amount < 0 || (amount === 0 && !allowZero)) return;
     // Same label twice for one employee/month collapses in Opfin's map — sum it
     // here so the operator's intent (two ₹500 rows) is not silently halved.
     const prev = map[label]?.amount ?? 0;
@@ -7224,7 +7229,8 @@ Deno.serve(async (req) => {
         const missing: string[] = [];
         if (!data["employee-id"]) missing.push("employee-id");
         if (!data["payroll-month"]) missing.push("payroll-month");
-        const { map, expect } = normalizePayrollModifications(data[kind], kind as any);
+        const allowZero = directPayload?.allow_zero === true;
+        const { map, expect } = normalizePayrollModifications(data[kind], kind as any, allowZero);
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
         if (action === "payroll_add_additions") {

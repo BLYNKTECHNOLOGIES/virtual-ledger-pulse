@@ -34,12 +34,38 @@ export function AutoRecoveriesCard({ period }: Props) {
     [rows],
   );
 
-  const statusBadge = (s: string) => {
-    if (s === "collected") return <Badge variant="default">Collected (payroll processed)</Badge>;
-    if (s === "pushed" || s === "paid") return <Badge variant="secondary">Pushed — awaiting payroll</Badge>;
-    if (s === "failed") return <Badge variant="destructive">Failed</Badge>;
-    if (s === "cancelled") return <Badge variant="muted">Cancelled</Badge>;
-    return <Badge variant="outline">Scheduled</Badge>;
+  const currentPeriod = new Date().toISOString().slice(0, 7);
+  const periodLabel = new Date(`${period}-01T00:00:00`).toLocaleDateString("en-IN", {
+    month: "short",
+    year: "numeric",
+  });
+  const timing =
+    period === currentPeriod
+      ? `this payroll (${periodLabel})`
+      : period > currentPeriod
+        ? `a future payroll (${periodLabel})`
+        : `the ${periodLabel} payroll (not yet processed)`;
+
+  const statusCell = (r: any) => {
+    const s = r.status;
+    if (s === "collected")
+      return {
+        badge: <Badge variant="default">Collected</Badge>,
+        note: `Deducted and settled in the ${periodLabel} payroll`,
+      };
+    if (s === "pushed" || s === "paid")
+      return {
+        badge: <Badge variant="secondary">Pushed to RazorpayX</Badge>,
+        note: `On the ${periodLabel} run — settles when payroll is locked`,
+      };
+    if (s === "failed")
+      return { badge: <Badge variant="destructive">Failed</Badge>, note: "Push failed — will retry" };
+    if (s === "cancelled")
+      return { badge: <Badge variant="muted">Cancelled</Badge>, note: "No longer recovered" };
+    return {
+      badge: <Badge variant="outline">Scheduled</Badge>,
+      note: `Will be deducted in ${timing}`,
+    };
   };
 
   return (
@@ -63,7 +89,7 @@ export function AutoRecoveriesCard({ period }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b">
             <tr>
-              {["Employee", "Recovery", "Installment", "Amount", "RazorpayX code", "Status"].map((h) => (
+              {["Employee", "Recovery", "Installment", "Amount", "Recovery progress", "RazorpayX code", "Status"].map((h) => (
                 <th key={h} className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   {h}
                 </th>
@@ -72,21 +98,39 @@ export function AutoRecoveriesCard({ period }: Props) {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
+              <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
             ) : (rows as any[]).length === 0 ? (
-              <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No automatic recoveries scheduled for {period}.</td></tr>
+              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No automatic recoveries scheduled for {period}.</td></tr>
             ) : (rows as any[]).map((r) => (
               <tr key={`${r.source_kind}-${r.id}`} className="border-b hover:bg-muted/30">
                 <td className="px-3 py-2">
                   {r.employee_name || "—"}{r.badge_id ? ` · ${r.badge_id}` : ""}
                 </td>
                 <td className="px-3 py-2">{r.label}</td>
-                <td className="px-3 py-2 text-muted-foreground">#{r.installment_no}</td>
-                <td className="px-3 py-2 tabular-nums">₹{Number(r.amount || 0).toLocaleString("en-IN")}</td>
+                <td className="px-3 py-2 text-muted-foreground">
+                  #{r.installment_no}
+                  {r.total_installments ? ` of ${r.total_installments}` : ""}
+                </td>
+                <td className="px-3 py-2 tabular-nums">
+                  ₹{Number(r.amount || 0).toLocaleString("en-IN")}
+                  {Number(r.remaining_after || 0) <= 0.01 && (
+                    <span className="ml-2 text-[11px] text-muted-foreground">final</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">
+                  ₹{Number(r.collected_amount || 0).toLocaleString("en-IN")} of ₹
+                  {Number(r.total_amount || 0).toLocaleString("en-IN")} recovered
+                  <div>
+                    {Number(r.remaining_after || 0) > 0.01
+                      ? `₹${Number(r.remaining_after).toLocaleString("en-IN")} left after this`
+                      : "Completes the recovery"}
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{r.razorpay_code}</td>
                 <td className="px-3 py-2">
                   <div className="flex flex-col gap-1">
-                    {statusBadge(r.status)}
+                    {statusCell(r).badge}
+                    <span className="text-[11px] text-muted-foreground">{statusCell(r).note}</span>
                     {r.failure_reason && (
                       <span className="text-[11px] text-destructive">{r.failure_reason}</span>
                     )}

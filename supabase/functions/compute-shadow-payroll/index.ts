@@ -555,6 +555,9 @@ Deno.serve(async (req) => {
           compute_notes: {
             regime, monthsRemaining, annualBasePreLop, ytdTdsPaid, annualTax,
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
+            pf_wage_basis: pfBasis ?? "settings_default",
+            pf_wage_base: epf.base,
+            vpf_mode: vpfMode, vpf_value: vpfValue, vpf_amount: vpfAmount,
             statutory_flags_source: flagsSource,
             tds_fy: "FY26-27",
             ctc_model: "all_inclusive",

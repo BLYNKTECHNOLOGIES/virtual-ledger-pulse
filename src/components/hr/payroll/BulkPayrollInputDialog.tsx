@@ -318,7 +318,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
           <div className="md:col-span-1">
-            <Label className="text-xs">Label{mode === "paste" ? " (fallback)" : ""}</Label>
+            <Label className="text-xs">Label{mode === "select" ? "" : " (default for blank rows)"}</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "addition" ? "Performance bonus" : "Advance recovery"} />
           </div>
           {mode === "select" && (
@@ -327,7 +327,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
               <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
             </div>
           )}
-          {kind === "addition" && (
+          {kind === "addition" && mode !== "rows" && (
             <div>
               <Label className="text-xs">Type</Label>
               <Select value={additionType} onValueChange={setAdditionType}>
@@ -350,8 +350,12 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-            Stage {mode === "select" && pickedCount ? `${pickedCount} row${pickedCount === 1 ? "" : "s"}` : "rows"}
+            Stage {mode === "rows"
+              ? `${drafts.filter((d) => d.hr_employee_id && parseFloat(d.amount) > 0).length || ""} row${drafts.filter((d) => d.hr_employee_id && parseFloat(d.amount) > 0).length === 1 ? "" : "s"}`.trim()
+              : mode === "select" && pickedCount ? `${pickedCount} row${pickedCount === 1 ? "" : "s"}` : "rows"}
           </Button>
+        </DialogFooter>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>

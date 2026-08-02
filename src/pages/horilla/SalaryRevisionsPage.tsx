@@ -400,19 +400,8 @@ export default function SalaryRevisionsPage() {
                       {r.revision_reason && (
                         <p className="text-xs text-muted-foreground italic mt-0.5 truncate max-w-md">{r.revision_reason}</p>
                       )}
-                      {pushFailedAfterRevision && pushInfo?.error_message && (
-                        <p className="text-[11px] text-destructive mt-0.5 truncate max-w-md" title={pushInfo.error_message}>
-                          Last RazorpayX error: {pushInfo.error_message}
-                        </p>
-                      )}
-                      {isOneTime && r.razorpay_push_error && (
-                        <p className={cn(
-                          "text-[11px] mt-0.5 truncate max-w-md",
-                          isPayrollGateError(r.razorpay_push_error) && payrollGateVerified ? "text-amber-700" : "text-destructive"
-                        )} title={r.razorpay_push_error}>
-                          {isPayrollGateError(r.razorpay_push_error) && payrollGateVerified ? "Ready to retry" : "RazorpayX rejected"}: {r.razorpay_push_error}
-                        </p>
-                      )}
+
+
 
                     </div>
                   </div>

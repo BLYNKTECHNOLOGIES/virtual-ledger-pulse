@@ -268,6 +268,7 @@ export default function StatutorySettingsPage() {
         </CardContent>
       </Card>
 
+
       {isLoading ? null : rows.length === 0 ? (
         <EmptyState icon={ShieldCheck} title="No employees match" description="Adjust the search or filter." />
       ) : (

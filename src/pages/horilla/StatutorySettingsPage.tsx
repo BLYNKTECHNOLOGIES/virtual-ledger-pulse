@@ -578,9 +578,6 @@ export default function StatutorySettingsPage() {
               value={bulk.reason}
               onChange={(e) => setBulk({ ...bulk, reason: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">
-              Required — recorded in the statutory change history.
-            </p>
           </div>
           <Button
             className="w-full"

@@ -90,8 +90,10 @@ export default function DepositManagementPage() {
     mutationFn: async () => {
       const totalAmt = Number(form.total_deposit_amount);
       const isAlreadyDeducted = form.deduction_mode === "already_deducted";
+      const isRecovery = form.deposit_type === "error_recovery";
       const { data: inserted, error } = await (supabase as any).from("hr_employee_deposits").insert({
         employee_id: form.employee_id,
+        deposit_type: form.deposit_type,
         total_deposit_amount: totalAmt,
         deduction_mode: form.deduction_mode,
         deduction_value: isAlreadyDeducted ? totalAmt : Number(form.deduction_value),
@@ -99,6 +101,9 @@ export default function DepositManagementPage() {
         collected_amount: isAlreadyDeducted ? totalAmt : 0,
         current_balance: isAlreadyDeducted ? totalAmt : 0,
         is_fully_collected: isAlreadyDeducted,
+        incident_date: isRecovery && form.incident_date ? form.incident_date : null,
+        incident_reference: isRecovery ? form.incident_reference || null : null,
+        recovery_reason: isRecovery ? form.recovery_reason || null : null,
       }).select("id").single();
       if (error) throw error;
 
@@ -106,21 +111,27 @@ export default function DepositManagementPage() {
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: form.employee_id,
         deposit_id: inserted.id,
+        deposit_type: form.deposit_type,
         transaction_type: "initiated",
         amount: isAlreadyDeducted ? totalAmt : 0,
         balance_after: isAlreadyDeducted ? totalAmt : 0,
-        description: `Salary Hold Initiated — Target: ₹${totalAmt.toLocaleString('en-IN')}${isAlreadyDeducted ? ' (pre-collected)' : ''}`,
+        description: `${TYPE_LABEL[form.deposit_type]} initiated — Target: ₹${totalAmt.toLocaleString('en-IN')}${isAlreadyDeducted ? ' (pre-collected)' : ''}`,
         transaction_date: new Date().toISOString().slice(0, 10),
       });
+
+      // Build the month-by-month payroll installment plan
+      const { error: schedErr } = await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: inserted.id });
+      if (schedErr) throw new Error(`Deposit saved but schedule failed: ${schedErr.message}`);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       setShowAdd(false);
-      setForm({ employee_id: "", total_deposit_amount: "", deduction_mode: "fixed_installment", deduction_value: "", deduction_start_month: format(new Date(), "yyyy-MM") });
-      toast.success("Deposit configuration added");
+      setForm({ ...emptyForm, deposit_type: tab });
+      toast.success("Deposit added and monthly deductions scheduled");
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const editMutation = useMutation({
     mutationFn: async () => {

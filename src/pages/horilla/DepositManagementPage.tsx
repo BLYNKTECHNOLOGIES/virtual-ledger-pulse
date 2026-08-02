@@ -477,28 +477,30 @@ export default function DepositManagementPage() {
 
       {/* Deposits Table */}
       <Card>
-        <CardHeader><CardTitle className="text-sm">Employee Deposits</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">{TYPE_LABEL[tab]} — Employees</CardTitle></CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
-                <TableHead>Total Deposit</TableHead>
+                <TableHead>Total</TableHead>
                 <TableHead>Collected</TableHead>
                 <TableHead>Balance</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Mode</TableHead>
                 <TableHead>Value</TableHead>
+                {tab === "error_recovery" && <TableHead>Incident</TableHead>}
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="p-0"><TableSkeleton rows={4} columns={9} /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="p-0"><TableSkeleton rows={4} columns={10} /></TableCell></TableRow>
               ) : deposits.length === 0 ? (
-                <TableRow><TableCell colSpan={9}><EmptyState icon={Wallet} title="No deposits configured" description="Add a security deposit for an employee." /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={10}><EmptyState icon={Wallet} title={`No ${TYPE_LABEL[tab].toLowerCase()} records`} description={tab === "security" ? "Add a security deposit for an employee." : "Add a recovery for a wrong payment made by an employee."} /></TableCell></TableRow>
               ) : (
+
                 deposits.map((d: any) => {
                   const progress = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
                   return (

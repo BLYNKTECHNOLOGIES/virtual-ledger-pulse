@@ -365,6 +365,11 @@ export default function PayrollInputsPage() {
                     </Button>
                   </>
                 )}
+                {tab === "deduction" && (
+                  <Button size="sm" className="h-7 text-xs" onClick={() => setAutoLopOpen(true)}>
+                    <Calculator className="h-3 w-3 mr-1" /> Auto-calculate LOP from attendance
+                  </Button>
+                )}
                 <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
                   <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
                 </Button>

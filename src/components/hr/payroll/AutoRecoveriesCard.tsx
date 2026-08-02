@@ -35,7 +35,8 @@ export function AutoRecoveriesCard({ period }: Props) {
   );
 
   const statusBadge = (s: string) => {
-    if (s === "pushed" || s === "paid") return <Badge variant="secondary">Pushed to RazorpayX</Badge>;
+    if (s === "collected") return <Badge variant="default">Collected (payroll processed)</Badge>;
+    if (s === "pushed" || s === "paid") return <Badge variant="secondary">Pushed — awaiting payroll</Badge>;
     if (s === "failed") return <Badge variant="destructive">Failed</Badge>;
     if (s === "cancelled") return <Badge variant="muted">Cancelled</Badge>;
     return <Badge variant="outline">Scheduled</Badge>;

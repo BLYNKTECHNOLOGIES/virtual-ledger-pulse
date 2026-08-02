@@ -257,6 +257,26 @@ export default function MonthlyPayrollCockpitPage() {
         </CardContent>
       </Card>
 
+      {/* Payroll toolbox — every sub-tool opens inside the cockpit, not the sidebar. */}
+      <Card>
+        <CardContent className="p-3 md:p-4">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Payroll toolbox</div>
+          <div className="flex flex-wrap gap-2">
+            {EXTRA_TOOLS.map((t) => (
+              <Button
+                key={t.tool + t.label}
+                variant="secondary"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => openTool(t.tool)}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {error ? (
         <Card className="border-destructive/40">
           <CardContent className="p-6 text-sm text-destructive">

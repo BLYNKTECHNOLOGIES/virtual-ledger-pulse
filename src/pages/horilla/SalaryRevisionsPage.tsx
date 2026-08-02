@@ -429,11 +429,14 @@ export default function SalaryRevisionsPage() {
                       )}
                       <div className="flex items-center gap-1.5 justify-end mt-1 flex-wrap">
                         <Badge variant={isScheduled ? "outline" : isCancelled ? "secondary" : isIncrease ? "default" : "destructive"} className="text-xs">
-                          {isScheduled ? "SCHEDULED" : isCancelled ? "CANCELLED" : (ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) ? `+₹${Number(r.one_time_amount || 0).toLocaleString("en-IN")}` : `${diff >= 0 ? "+" : ""}₹${diff.toLocaleString("en-IN")}`}
+                          {isScheduled ? "Scheduled" : isCancelled ? "Cancelled" : (ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) ? `+₹${Number(r.one_time_amount || 0).toLocaleString("en-IN")}` : `${diff >= 0 ? "+" : ""}₹${diff.toLocaleString("en-IN")}`}
                         </Badge>
-                        <Badge variant="secondary" className="text-xs capitalize">{String(r.revision_type).replace(/_/g, " ")}</Badge>
+                        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {String(r.revision_type).replace(/_/g, " ")}
+                        </span>
                         {syncBadge}
                       </div>
+
                     </div>
                     {isApplied && !isOneTime && canManage && !pushSyncedAfterRevision && (
                       <Button

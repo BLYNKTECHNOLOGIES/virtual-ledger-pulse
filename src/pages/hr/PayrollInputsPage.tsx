@@ -391,7 +391,7 @@ export default function PayrollInputsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-              <CardTitle className="text-sm">Staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
+              <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
               <div className="flex items-center gap-2">
                 {selectedPending.length > 0 && (
                   <>
@@ -409,9 +409,12 @@ export default function PayrollInputsPage() {
                     <Calculator className="h-3 w-3 mr-1" /> Auto-calculate LOP from attendance
                   </Button>
                 )}
-                <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
-                  <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
-                </Button>
+                {!lopFocus && (
+                  <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
+                    <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
+                  </Button>
+                )}
+              </div>
               </div>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">

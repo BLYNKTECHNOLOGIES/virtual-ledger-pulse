@@ -209,12 +209,19 @@ export default function StatutorySettingsPage() {
       return forward;
     },
 
-    onSuccess: () => {
+    onSuccess: (forward: number) => {
       qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_statutory"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees"] });
       setBulkOpen(false);
       setSelected([]);
-      toast.success("Bulk statutory update applied");
+      toast.success(
+        forward > 0
+          ? `Bulk statutory update applied — also carried into ${forward} later month row(s)`
+          : "Bulk statutory update applied",
+      );
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 

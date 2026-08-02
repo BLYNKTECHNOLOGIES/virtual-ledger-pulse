@@ -456,6 +456,8 @@ export default function MonthlyPayrollCockpitPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CockpitToolSheet tool={tool} onClose={closeTool} />
     </div>
   );
 }

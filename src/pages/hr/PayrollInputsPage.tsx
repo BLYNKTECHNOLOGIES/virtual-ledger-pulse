@@ -161,7 +161,8 @@ export default function PayrollInputsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
-      setForm({ hr_employee_id: "", label: "", amount: "", addition_type: "bonus", taxable: true });
+      clearFormDraftState();
+      setForm({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
       toast.success("Staged. Push to RazorpayX when ready.");
     },
     onError: (e: any) => toast.error(e.message),

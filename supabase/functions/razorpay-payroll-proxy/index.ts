@@ -2657,6 +2657,12 @@ Deno.serve(async (req) => {
         }
 
         // Live push
+        const snapEmail = (() => {
+          const s: any = m.last_pull_snapshot;
+          const v = s && typeof s === "object" ? (s.email ?? s["work-email"] ?? null) : null;
+          return v ? String(v).trim().toLowerCase() : null;
+        })();
+        const wirePatch = toWirePayload(diff.patch, snapEmail);
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
@@ -2667,10 +2673,11 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               auth: authBlock(),
               request: { type: "people", "sub-type": "edit" },
-              data: { "employee-id": eid, "employee-type": "employee", ...diff.patch },
+              data: { "employee-id": eid, "employee-type": "employee", ...wirePatch },
             }),
             signal: ctrl.signal,
           });
+
           httpStatus = res.status;
           const raw = await res.text();
           let body: any = null; try { body = JSON.parse(raw); } catch { /* ignore */ }

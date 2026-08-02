@@ -51,7 +51,7 @@ export function RazorpayOrphanPanel() {
     setScanning(true);
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-        body: { action: "scan_orphans", payload: { start_id: 1, max_id: 300 } },
+        body: { action: "scan_orphans", start_id: 1, max_id: 300 },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);

@@ -34,7 +34,7 @@ serve(async (req) => {
         Authorization: `Bearer ${svcKey}`,
         apikey: svcKey,
       },
-      body: JSON.stringify({ action: "scan_orphans", payload: { start_id, max_id } }),
+      body: JSON.stringify({ action: "scan_orphans", start_id, max_id }),
     });
     const out = await r.json().catch(() => ({}));
     return new Response(JSON.stringify(out), {

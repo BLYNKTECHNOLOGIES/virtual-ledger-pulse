@@ -66,14 +66,18 @@ export async function resolveMonthlyGross(
   }
 
   if (!(monthlyGross > 0)) {
+    // ONLY the 42-column Salary Register import is a monthly base. Rows pulled
+    // from payroll:view-payroll carry the run's *prorated* salary (mid-month
+    // joiners show figures like 387) — those must never become an LOP base.
     const { data: reg } = await supabase
       .from("hr_razorpay_payslip_records")
-      .select("gross_earnings, reg_gross_salary")
+      .select("reg_gross_salary")
       .eq("hr_employee_id", employeeId)
       .eq("period_month", periodStr)
+      .not("reg_gross_salary", "is", null)
       .limit(1);
     const r: any = reg?.[0];
-    monthlyGross = Number(r?.reg_gross_salary ?? r?.gross_earnings ?? 0);
+    monthlyGross = Number(r?.reg_gross_salary ?? 0);
     if (monthlyGross > 0) source = "salary_register";
   }
 

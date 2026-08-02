@@ -17,6 +17,7 @@ import { Plus, Wallet, Eye, Edit2, CheckCircle, Clock, ArrowUpDown, BadgeIndianR
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { SeedDepositsDialog } from "@/components/hr/payroll/SeedDepositsDialog";
 
 type DepositType = "security" | "error_recovery";
 
@@ -29,6 +30,7 @@ export default function DepositManagementPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<DepositType>("security");
   const [showAdd, setShowAdd] = useState(false);
+  const [showSeed, setShowSeed] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showTransactions, setShowTransactions] = useState<string | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<any>(null);
@@ -476,7 +478,14 @@ export default function DepositManagementPage() {
       <PageHeader
         title="Deposit Management"
         description="Security deposits and error recoveries — both auto-deducted from monthly payroll"
-        actions={<Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowSeed(true)} className="h-9">
+              <Wallet className="h-4 w-4 mr-1" /> Seed existing {TYPE_LABEL[tab].toLowerCase()}
+            </Button>
+            <Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>
+          </div>
+        }
       />
 
       {/* Category tabs */}
@@ -622,6 +631,14 @@ export default function DepositManagementPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <SeedDepositsDialog
+        open={showSeed}
+        onOpenChange={setShowSeed}
+        depositType={tab}
+        typeLabel={TYPE_LABEL[tab]}
+        employees={employees}
+      />
 
       {/* Add Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>

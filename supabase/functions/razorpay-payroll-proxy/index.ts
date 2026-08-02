@@ -7108,6 +7108,37 @@ Deno.serve(async (req) => {
             error: "RazorpayX people:dismiss requires the employee email. No email is stored for this RazorpayX employee in HRMS or in the last pull snapshot — set email on the employee record and retry.",
           });
         }
+        // ---- Pre-flight state classification (people:view).
+        // RazorpayX people:dismiss resolves the target through the employee's
+        // *user account* (login), not the employee record. Two states make the
+        // call impossible and must NOT be reported as a generic failure:
+        //   a) already dismissed  -> people:view returns "Unable to locate employee"
+        //   b) never activated    -> people:view returns is_active = false, and
+        //      people:dismiss then returns "Unable to locate the user" (code 8)
+        // (b) is a documented RazorpayX limitation: an employee who never
+        // activated their RazorpayX account has no user to dismiss, so the
+        // dismissal must be done by an admin in the RazorpayX dashboard.
+        try {
+          const pre = await opfinView(Number(rpEid), String(data["employee-type"] || "employee"));
+          const preErr = pre.ok ? "" : String(pre.errText || "").toLowerCase();
+          if (preErr.includes("locate employee")) {
+            return json(200, {
+              ok: true,
+              already_dismissed: true,
+              verified: true,
+              code: "RZP_ALREADY_DISMISSED",
+              message: "Employee is already dismissed in RazorpayX (no longer resolvable via people:view).",
+            });
+          }
+          if (pre.ok && (pre.body as any)?.is_active === false) {
+            return json(200, {
+              ok: false,
+              manual_required: true,
+              code: "RZP_NOT_ACTIVATED",
+              error: "This employee never activated their RazorpayX account (is_active = false). RazorpayX's people:dismiss API resolves the person through their user login, so API dismissal is not possible for non-activated employees — dismiss them from the RazorpayX dashboard, then re-verify from HRMS.",
+            });
+          }
+        } catch (_) { /* pre-flight is advisory; fall through to the live call */ }
       }
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);

@@ -339,7 +339,8 @@ export default function PayrollInputsPage() {
                 </div>
                 <div>
                   <Label className="text-xs">Label</Label>
-                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} />
+                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
+                  {lopFocus && <p className="text-[10px] text-muted-foreground mt-1">Locked to the LOP head so the row stays inside this view.</p>}
                 </div>
                 <div>
                   <Label className="text-xs">Amount (₹)</Label>

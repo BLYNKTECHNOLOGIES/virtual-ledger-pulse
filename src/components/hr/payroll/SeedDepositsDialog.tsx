@@ -84,7 +84,8 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
             current_balance: amt,
             is_fully_collected: true,
             recovery_reason: depositType === "error_recovery" ? r.note || null : null,
-            notes: r.note || "Seeded — collected before HRMS migration",
+            incident_reference: depositType === "error_recovery" ? r.note || null : null,
+            settlement_notes: r.note || "Seeded — collected before HRMS migration",
           })
           .select("id")
           .single();

@@ -142,11 +142,15 @@ export default function DepositManagementPage() {
       const oldValue = Number(editingDeposit.deduction_value);
       const newValue = Number(form.deduction_value);
 
+      const isRecovery = (editingDeposit.deposit_type || "security") === "error_recovery";
       const { error } = await (supabase as any).from("hr_employee_deposits").update({
         total_deposit_amount: newAmount,
         deduction_mode: newMode,
         deduction_value: newValue,
         deduction_start_month: form.deduction_start_month,
+        incident_date: isRecovery && form.incident_date ? form.incident_date : null,
+        incident_reference: isRecovery ? form.incident_reference || null : null,
+        recovery_reason: isRecovery ? form.recovery_reason || null : null,
         updated_at: new Date().toISOString(),
       }).eq("id", editingDeposit.id);
       if (error) throw error;
@@ -160,6 +164,7 @@ export default function DepositManagementPage() {
         await (supabase as any).from("hr_deposit_transactions").insert({
           employee_id: editingDeposit.employee_id,
           deposit_id: editingDeposit.id,
+          deposit_type: editingDeposit.deposit_type || "security",
           transaction_type: "modified",
           amount: 0,
           balance_after: Number(editingDeposit.current_balance),
@@ -167,14 +172,18 @@ export default function DepositManagementPage() {
           transaction_date: new Date().toISOString().slice(0, 10),
         });
       }
+
+      const { error: schedErr } = await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: editingDeposit.id });
+      if (schedErr) throw new Error(`Deposit updated but schedule failed: ${schedErr.message}`);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
       setShowEdit(false);
       setEditingDeposit(null);
-      toast.success("Deposit updated");
+      toast.success("Deposit updated and schedule rebuilt");
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 

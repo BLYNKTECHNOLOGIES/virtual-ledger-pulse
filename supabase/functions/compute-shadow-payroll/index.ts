@@ -477,9 +477,10 @@ Deno.serve(async (req) => {
       const annualTax = projectAnnualTax(annualBasePreLop, regime);
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
-      const earningsTotal = regularPost + additions + epf.employer_earnings_side;
-      const deductions = epf.employee + epf.employer + epf.admin_edli + esi.employee + pt + tds;
+      const earningsTotal = grossEarnings + addPositive;
+      const deductions = epf.employee + esi.employee + pt + tds + addNegative;
       const net = earningsTotal - deductions;
+      const employerCost = epf.employer_earnings_side + esi.employer;
 
       const { data: rzArr } = await supabase
         .from("hr_razorpay_payslip_records")

@@ -62,17 +62,33 @@ Deno.serve(async (req) => {
   }
 
   // Recovery path: rows already deleted locally in an earlier attempt, but the
-  // amount is still live in RazorpayX — zero those employees explicitly.
+  // amount is still live in RazorpayX. Opfin's add-deduction refuses a zero
+  // amount ("Please specify the deduction", code 41) and has no delete verb,
+  // so the only supported way to remove a pushed deduction is
+  // payroll:reset-modifications for that employee/month. It also clears that
+  // employee's additions, which is safe here because every addition has been
+  // zeroed and flipped back to un-pushed for re-push.
   for (const rpId of extraZeroRpIds) {
-    if (byEmp.has(rpId)) continue;
-    if (dryRun) { out.lop.push({ rp: rpId, wouldPush: 0, via: "explicit" }); continue; }
-    const res = await proxy("payroll_add_deduction", {
+    const { data: mapRow } = await svc
+      .from("hr_razorpay_employee_map")
+      .select("hr_employee_id, last_pull_snapshot")
+      .eq("razorpay_employee_id", rpId)
+      .maybeSingle();
+    const snap: any = mapRow?.last_pull_snapshot || {};
+    let email = snap.email || snap.work_email || snap["work-email"] || snap.personal_email || "";
+    if (!email && mapRow?.hr_employee_id) {
+      const { data: emp } = await svc.from("hr_employees").select("email").eq("id", mapRow.hr_employee_id).maybeSingle();
+      email = emp?.email || "";
+    }
+    if (!email) { out.lop.push({ rp: rpId, ok: false, error: "no mapped email" }); continue; }
+    if (dryRun) { out.lop.push({ rp: rpId, wouldReset: true }); continue; }
+    const res = await proxy("payroll_reset_modifications", {
+      email,
       "employee-id": Number(rpId),
       "employee-type": "employee",
       "payroll-month": PERIOD_MONTH,
-      deductions: [{ label: "LOP reset", amount: 0 }],
     });
-    out.lop.push({ rp: rpId, pushed: 0, via: "explicit", ok: res.ok, http: res.http, error: res.ok ? null : res.body?.error });
+    out.lop.push({ rp: rpId, reset: true, ok: res.ok, http: res.http, error: res.ok ? null : (res.body?.error ?? res.body) });
   }
 
   const lopIds: string[] = [];

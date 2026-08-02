@@ -328,6 +328,7 @@ export default function DepositManagementPage() {
     switch (mode) {
       case "one_time": return "One-Time";
       case "percentage": return "% of Salary";
+      case "percentage_ctc": return "% of Monthly CTC";
       case "fixed_installment": return "Fixed/Month";
       case "already_deducted": return "Already Deducted";
       default: return mode;
@@ -364,7 +365,9 @@ export default function DepositManagementPage() {
     }
   };
 
-  const DepositForm = ({ isEdit }: { isEdit: boolean }) => (
+  const isPct = (m: string) => m === "percentage" || m === "percentage_ctc";
+
+  const renderDepositForm = (isEdit: boolean) => (
     <div className="space-y-4">
       {!isEdit && (
         <div>
@@ -389,6 +392,7 @@ export default function DepositManagementPage() {
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="one_time">One-Time (Full deduction at once)</SelectItem>
+            <SelectItem value="percentage_ctc">Percentage of Monthly CTC</SelectItem>
             <SelectItem value="percentage">Percentage of Monthly Salary</SelectItem>
             <SelectItem value="fixed_installment">Fixed Amount per Month</SelectItem>
             <SelectItem value="already_deducted">Already Deducted (Pre-collected)</SelectItem>
@@ -399,8 +403,9 @@ export default function DepositManagementPage() {
       {form.deduction_mode !== "already_deducted" && (
         <>
           <div>
-            <Label>{form.deduction_mode === "percentage" ? "Percentage (%)" : "Amount (₹)"}</Label>
-            <Input type="number" min="0" step={form.deduction_mode === "percentage" ? "1" : "100"} value={form.deduction_value} onChange={(e) => setForm({ ...form, deduction_value: e.target.value })} placeholder={form.deduction_mode === "percentage" ? "e.g. 50" : "e.g. 5000"} />
+            <Label>{isPct(form.deduction_mode) ? "Percentage (%)" : "Amount (₹)"}</Label>
+            <Input type="number" min="0" step={isPct(form.deduction_mode) ? "1" : "100"} value={form.deduction_value} onChange={(e) => setForm({ ...form, deduction_value: e.target.value })} placeholder={isPct(form.deduction_mode) ? "e.g. 10" : "e.g. 5000"} />
+            {form.deduction_mode === "percentage_ctc" && <p className="text-xs text-muted-foreground mt-1">% of the employee's monthly CTC deducted each month</p>}
             {form.deduction_mode === "percentage" && <p className="text-xs text-muted-foreground mt-1">% of gross salary deducted each month</p>}
             {form.deduction_mode === "one_time" && <p className="text-xs text-muted-foreground mt-1">Full amount deducted in the first payroll</p>}
           </div>
@@ -520,7 +525,7 @@ export default function DepositManagementPage() {
                       </TableCell>
                       <TableCell><span className="text-xs">{modeLabel(d.deduction_mode)}</span></TableCell>
                       <TableCell className="text-sm">
-                        {d.deduction_mode === "percentage" ? `${d.deduction_value}%` : `₹${Number(d.deduction_value).toLocaleString('en-IN')}`}
+                        {(d.deduction_mode === "percentage" || d.deduction_mode === "percentage_ctc") ? `${d.deduction_value}%` : `₹${Number(d.deduction_value).toLocaleString('en-IN')}`}
                       </TableCell>
                       {tab === "error_recovery" && (
                         <TableCell className="text-xs text-muted-foreground max-w-[180px]">
@@ -591,7 +596,7 @@ export default function DepositManagementPage() {
             <DialogTitle>Add {TYPE_LABEL[form.deposit_type]}</DialogTitle>
             <DialogDescription>Configure the amount and monthly payroll deduction plan for an employee</DialogDescription>
           </DialogHeader>
-          <DepositForm isEdit={false} />
+          {renderDepositForm(false)}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button onClick={() => addMutation.mutate()} disabled={addMutation.isPending || !form.employee_id || !form.total_deposit_amount || (form.deduction_mode !== "already_deducted" && !form.deduction_value)} className="bg-[#E8604C] hover:bg-[#d4553f]">
@@ -609,7 +614,7 @@ export default function DepositManagementPage() {
             <DialogTitle>Edit Deposit Configuration</DialogTitle>
             <DialogDescription>Update deposit amount or deduction schedule</DialogDescription>
           </DialogHeader>
-          <DepositForm isEdit={true} />
+          {renderDepositForm(true)}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEdit(false)}>Cancel</Button>
             <Button onClick={() => editMutation.mutate()} disabled={!form.total_deposit_amount || !form.deduction_value} className="bg-[#E8604C] hover:bg-[#d4553f]">

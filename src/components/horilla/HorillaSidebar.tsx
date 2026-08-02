@@ -247,8 +247,10 @@ export function HorillaSidebar({
   }, [location.pathname]);
 
   const isActive = (path: string) => {
-    if (path === "/hrms") return location.pathname === "/hrms";
-    return location.pathname.startsWith(path);
+    // Entries may carry query strings (e.g. LOP focus view) — match on pathname only.
+    const base = path.split("?")[0];
+    if (base === "/hrms") return location.pathname === "/hrms";
+    return location.pathname.startsWith(base);
   };
 
   const toggleExpand = (label: string) => {

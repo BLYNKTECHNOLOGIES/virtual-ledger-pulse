@@ -24,35 +24,42 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(url, serviceKey);
-  const { data: row, error: rowError } = await admin
+  const { data: rows, error: rowError } = await admin
     .from("hr_payroll_input_deductions")
     .select("id, razorpay_employee_id, period_month, label, amount")
-    .eq("id", "d6fee162-dd41-40ef-bbf8-8d0580c1e87f")
-    .maybeSingle();
-  if (rowError || !row) {
-    return new Response(JSON.stringify({ error: rowError?.message || "Probe row not found" }), {
+    .eq("period_month", "2026-07-01")
+    .is("readback_verified_at", null)
+    .order("created_at");
+  if (rowError || !rows?.length) {
+    return new Response(JSON.stringify({ error: rowError?.message || "No unverified probe rows found" }), {
       status: 404,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const { data, error } = await admin.functions.invoke("razorpay-payroll-proxy", {
-    body: {
-      action: "payroll_add_deduction",
-      payload: {
-        data: {
-          "employee-id": Number(row.razorpay_employee_id),
-          "employee-type": "employee",
-          "payroll-month": String(row.period_month).slice(0, 7),
-          deductions: [{ label: row.label, amount: Number(row.amount) }],
+  const results = [];
+  for (const row of rows) {
+    const { data, error } = await admin.functions.invoke("razorpay-payroll-proxy", {
+      body: {
+        action: "payroll_add_deduction",
+        payload: {
+          data: {
+            "employee-id": Number(row.razorpay_employee_id),
+            "employee-type": "employee",
+            "payroll-month": String(row.period_month).slice(0, 7),
+            deductions: [{ label: row.label, amount: Number(row.amount) }],
+          },
+          readback_ids: [row.id],
+          readback_table: "deductions",
         },
-        readback_ids: [row.id],
-        readback_table: "deductions",
       },
     },
-  });
-  return new Response(JSON.stringify({ ok: !error && data?.ok === true, response: data, invoke_error: error?.message || null }), {
-    status: error ? 502 : 200,
+    });
+    results.push({ id: row.id, employee_id: row.razorpay_employee_id, amount: row.amount, ok: !error && data?.ok === true && data?.readback?.ok === true, response: data, invoke_error: error?.message || null });
+  }
+  const ok = results.every((result) => result.ok);
+  return new Response(JSON.stringify({ ok, count: results.length, results }), {
+    status: ok ? 200 : 502,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

@@ -507,7 +507,7 @@ export default function PayrollInputsPage() {
                       </td>
                       <td className="px-3 py-2">{empLabel(r)}</td>
                       <td className="px-3 py-2">{r.label}</td>
-                      {tab === "addition" && <td className="px-3 py-2">{r.addition_type}{r.taxable === false ? " · non-tax" : ""}</td>}
+                      {tab === "addition" && <td className="px-3 py-2 capitalize">{additionTypeSlug(r.addition_type)}{r.taxable === false ? " · non-tax" : ""}</td>}
                       <td className="px-3 py-2 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
                       <td className="px-3 py-2">
                         {r.readback_verified_at ? (

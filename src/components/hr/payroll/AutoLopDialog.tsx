@@ -14,7 +14,7 @@ import { Loader2, Calculator, RefreshCw } from "lucide-react";
  * Auto-LOP generator.
  *
  * Calls the generate-lop-deductions edge function in dry-run mode to preview
- * attendance-derived loss of pay for every RazorpayX-mapped active employee,
+ * Attendance Summary loss of pay for every RazorpayX-mapped active employee,
  * then stages the selected rows. Nothing is written until "Stage selected".
  */
 
@@ -130,15 +130,15 @@ export function AutoLopDialog({
             <Calculator className="h-4 w-4" /> Auto-calculate LOP from attendance — {period}
           </DialogTitle>
           <DialogDescription>
-            Loss of pay is derived from attendance (working days minus present, paid leave and held-harmless
-            incomplete days) and priced off the same monthly base the shadow payroll uses. Nothing is saved
+            Loss of pay uses the exact maintained figures shown in Attendance Summary (working days minus
+            present, half-day credit and paid leave) and the same monthly base the shadow payroll uses. Nothing is saved
             until you stage it. Rows already pushed to RazorpayX are never overwritten.
           </DialogDescription>
         </DialogHeader>
 
         {preview.isPending && (
           <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Reading attendance and salary bases…
+            <Loader2 className="h-4 w-4 animate-spin" /> Reading Attendance Summary and salary bases…
           </div>
         )}
 

@@ -150,26 +150,22 @@ export default function StatutorySettingsPage() {
         .maybeSingle();
       if (lock) throw new Error("That payroll month is already closed — pick a later effective month");
 
-      const { data: auth } = await supabase.auth.getUser();
-      const payload = {
-        hr_employee_id: editing.id,
-        effective_from: form.effective_from,
-        pf_enabled: form.pf_enabled,
-        pf_wage_basis: form.pf_wage_basis,
-        vpf_mode: form.pf_enabled ? form.vpf_mode : "none",
-        vpf_value: form.pf_enabled && form.vpf_mode !== "none" ? val : 0,
-        esi_enabled: form.esi_enabled,
-        pt_enabled: form.pt_enabled,
-        uan: form.uan.trim() || null,
-        esic_number: form.esic_number.trim() || null,
-        reason: form.reason.trim(),
-        source: "hrms_profile",
-        created_by: auth?.user?.id ?? null,
-      };
-      const { error } = await (supabase as any)
-        .from("hr_employee_statutory_profiles")
-        .upsert(payload, { onConflict: "hr_employee_id,effective_from" });
+      const { data: res, error } = await (supabase as any).rpc("hr_apply_statutory_change", {
+        p_employee: editing.id,
+        p_effective_from: form.effective_from,
+        p_pf_enabled: form.pf_enabled,
+        p_pf_wage_basis: form.pf_wage_basis,
+        p_vpf_mode: form.pf_enabled ? form.vpf_mode : "none",
+        p_vpf_value: form.pf_enabled && form.vpf_mode !== "none" ? val : 0,
+        p_esi_enabled: form.esi_enabled,
+        p_pt_enabled: form.pt_enabled,
+        p_uan: form.uan.trim() || null,
+        p_esic_number: form.esic_number.trim() || null,
+        p_reason: form.reason.trim(),
+      });
       if (error) throw error;
+      return Array.isArray(res) ? res[0] : res;
+
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });

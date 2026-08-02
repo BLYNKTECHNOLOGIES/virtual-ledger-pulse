@@ -423,9 +423,33 @@ Deno.serve(async (req) => {
         ?? ((emp.pf_enabled === null && emp.esi_enabled === null && emp.pt_enabled === null)
             ? "assumed_from_global" : "assumed_from_global");
 
-      const epf = computeEpf(basic, 0, settings, pfEnrolled);
-      const esi = computeEsi(regularPost + additions, regularPost, settings, esiEnrolled);
-      const pt = computePt(regularPost, emp.state ?? "", ptSlabs ?? [], ptEnrolled, period);
+      // ---- CTC-INCLUSIVE DOCTRINE (owner directive 2026-08-02) ----
+      // CTC is all-inclusive: employer PF/EDLI/ESI are CARVED OUT of the CTC,
+      // never added on top. Gross earnings = post-LOP CTC − employer contributions.
+      // Only bonuses / one-off additions sit outside the CTC.
+      const addPositive = Math.max(0, additions);
+      const addNegative = Math.max(0, -additions); // treated as a net-side recovery
+      const ctcPost = regularPost;
+
+      let grossEarnings = ctcPost;
+      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+      let esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
+      for (let i = 0; i < 4; i++) {
+        const next = Math.max(0, ctcPost - epf.employer_earnings_side - esi.employer);
+        if (next === grossEarnings) break;
+        grossEarnings = next;
+        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+        esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
+      }
+
+      // Re-split the (carved) gross into components
+      const gBasic = Math.round(grossEarnings * (pct.basic / 100));
+      const gHra = Math.round(grossEarnings * (pct.hra / 100));
+      const gLta = Math.round(grossEarnings * (pct.lta / 100));
+      const gSpecial = grossEarnings - gBasic - gHra - gLta;
+
+      const pt = computePt(grossEarnings, emp.state ?? "", ptSlabs ?? [], ptEnrolled, period);
+
 
       // TDS — projected on PRE-LOP annual base (owner directive P2).
       let regime = "new";
@@ -453,9 +477,10 @@ Deno.serve(async (req) => {
       const annualTax = projectAnnualTax(annualBasePreLop, regime);
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
-      const earningsTotal = regularPost + additions + epf.employer_earnings_side;
-      const deductions = epf.employee + epf.employer + epf.admin_edli + esi.employee + pt + tds;
+      const earningsTotal = grossEarnings + addPositive;
+      const deductions = epf.employee + esi.employee + pt + tds + addNegative;
       const net = earningsTotal - deductions;
+      const employerCost = epf.employer_earnings_side + esi.employer;
 
       const { data: rzArr } = await supabase
         .from("hr_razorpay_payslip_records")
@@ -496,6 +521,10 @@ Deno.serve(async (req) => {
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
             statutory_flags_source: flagsSource,
             tds_fy: "FY26-27",
+            ctc_model: "all_inclusive",
+            ctc_post_lop: ctcPost,
+            employer_cost_within_ctc: employerCost,
+            bonus_outside_ctc: addPositive,
           },
         }, { onConflict: "run_id,hr_employee_id" })
         .select()
@@ -506,23 +535,22 @@ Deno.serve(async (req) => {
       }
 
       const comps = [
-        { key: "basic", label: "Basic", type: "earning", amount: basic },
-        { key: "hra", label: "HRA", type: "earning", amount: hra },
-        { key: "special_allowance", label: "Special Allowance", type: "earning", amount: special },
-        { key: "lta", label: "LTA", type: "earning", amount: lta },
-        { key: "pf_employer_earnings", label: "Employer PF (Earnings)", type: "earning", amount: epf.employer_earnings_side },
-        { key: "esi_employer_earnings", label: "Employer ESI (Earnings)", type: "earning", amount: esi.employer },
-        { key: "additions", label: "Additions (OT / PLI / Bonus)", type: "earning", amount: additions },
+        { key: "basic", label: "Basic", type: "earning", amount: gBasic },
+        { key: "hra", label: "HRA", type: "earning", amount: gHra },
+        { key: "special_allowance", label: "Special Allowance", type: "earning", amount: gSpecial },
+        { key: "lta", label: "LTA", type: "earning", amount: gLta },
+        { key: "additions", label: "Bonus / OT / PLI (outside CTC)", type: "earning", amount: addPositive },
         { key: "lop", label: "Loss of Pay (informational)", type: "info_deduction", amount: lopAmount },
         { key: "kpi_loss", label: "KPI Loss (informational)", type: "info_deduction", amount: kpiLossAmount },
+        { key: "pf_employer_ctc", label: "Employer PF + EDLI (within CTC)", type: "info_deduction", amount: epf.employer_earnings_side },
+        { key: "esi_employer_ctc", label: "Employer ESI (within CTC)", type: "info_deduction", amount: esi.employer },
         { key: "pf_employee", label: "PF (Employee)", type: "deduction", amount: epf.employee },
-        { key: "pf_employer_contra", label: "PF (Employer contra)", type: "deduction", amount: epf.employer },
-        { key: "pf_admin_edli", label: "EDLI + Admin (1%)", type: "deduction", amount: epf.admin_edli },
         { key: "esi_employee", label: "ESI (Employee)", type: "deduction", amount: esi.employee },
-        { key: "esi_employer_contra", label: "ESI (Employer contra)", type: "deduction", amount: esi.employer },
+        { key: "other_recovery", label: "Other recovery", type: "deduction", amount: addNegative },
         { key: "pt", label: "Professional Tax", type: "deduction", amount: pt },
         { key: "tds", label: "TDS", type: "deduction", amount: tds },
       ].filter((c) => c.amount !== 0);
+
       await supabase.from("hr_shadow_component_breakdown").delete().eq("line_id", line.id);
       await supabase.from("hr_shadow_component_breakdown").insert(comps.map((c) => ({
         line_id: line.id,

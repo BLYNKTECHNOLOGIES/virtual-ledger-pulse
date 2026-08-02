@@ -58,6 +58,30 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
   const [drafts, setDrafts] = useState<RowDraft[]>([newDraft()]);
   const [saving, setSaving] = useState(false);
 
+  // Persist in-progress work so a refresh / accidental close never loses rows.
+  const snapshot = { mode, picked, label, amount, additionType, taxable, paste, drafts };
+  const { clearDraft } = useFormDraftPersistence(
+    open ? `payroll-bulk:${kind}:${period}` : null,
+    snapshot,
+    (saved: any) => {
+      if (!saved) return;
+      if (saved.mode) setMode(saved.mode);
+      if (saved.picked) setPicked(saved.picked);
+      if (typeof saved.label === "string") setLabel(saved.label);
+      if (typeof saved.amount === "string") setAmount(saved.amount);
+      if (saved.additionType) setAdditionType(saved.additionType);
+      if (typeof saved.taxable === "boolean") setTaxable(saved.taxable);
+      if (typeof saved.paste === "string") setPaste(saved.paste);
+      if (Array.isArray(saved.drafts) && saved.drafts.length) setDrafts(saved.drafts);
+    },
+    {
+      isEmpty: (v: any) =>
+        !v?.label && !v?.amount && !v?.paste &&
+        !Object.values(v?.picked || {}).some(Boolean) &&
+        !(v?.drafts || []).some((d: RowDraft) => d.hr_employee_id || d.label || d.amount),
+    },
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = employees.filter((r) => r.hr_employees);

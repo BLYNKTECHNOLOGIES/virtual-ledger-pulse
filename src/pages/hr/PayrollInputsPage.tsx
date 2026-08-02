@@ -508,6 +508,24 @@ export default function PayrollInputsPage() {
                     </Button>
                   </>
                 )}
+                {selectedPending.length === 0 && pendingRows.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    disabled={!gateOpen || bulkPush.isPending}
+                    title={gateOpen ? "" : "Payroll-write gate locked"}
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      pendingRows.forEach((r: any) => { next[r.id] = true; });
+                      setSelected(next);
+                      setBulkPushConfirm(true);
+                    }}
+                  >
+                    <Send className="h-3 w-3 mr-1" /> Push all pending ({pendingRows.length})
+                  </Button>
+                )}
+
                 {tab === "deduction" && (
                   <Button size="sm" className="h-7 text-xs" onClick={() => setAutoLopOpen(true)}>
                     <Calculator className="h-3 w-3 mr-1" /> Auto-calculate LOP from attendance

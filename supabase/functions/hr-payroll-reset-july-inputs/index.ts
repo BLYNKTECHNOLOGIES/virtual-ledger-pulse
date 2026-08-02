@@ -48,8 +48,24 @@ Deno.serve(async (req) => {
   // ?verify=1 — read July payroll back from RazorpayX and report each
   // employee's live additions/deductions so the wipe can be confirmed.
   if (new URL(req.url).searchParams.get("verify") === "1") {
-    const res = await proxy("payroll_view_payroll", { "payroll-month": PERIOD_MONTH });
-    return json({ ok: res.ok, http: res.http, body: res.body });
+    const rows: any[] = [];
+    for (const rpId of extraZeroRpIds) {
+      const { data: mapRow } = await svc
+        .from("hr_razorpay_employee_map")
+        .select("hr_employee_id, last_pull_snapshot")
+        .eq("razorpay_employee_id", rpId)
+        .maybeSingle();
+      const snap: any = mapRow?.last_pull_snapshot || {};
+      let email = snap.email || snap.work_email || snap["work-email"] || snap.personal_email || "";
+      if (!email && mapRow?.hr_employee_id) {
+        const { data: emp } = await svc.from("hr_employees").select("email").eq("id", mapRow.hr_employee_id).maybeSingle();
+        email = emp?.email || "";
+      }
+      const res = await proxy("payroll_view_payroll", { email, "payroll-month": PERIOD_MONTH });
+      const d: any = res.body?.body?.data ?? res.body?.body ?? res.body;
+      rows.push({ rp: rpId, ok: res.ok, additions: d?.additions ?? d?.modifications?.additions ?? null, deductions: d?.deductions ?? d?.["deduction-amount"] ?? d?.modifications?.deductions ?? null });
+    }
+    return json({ ok: true, rows });
   }
 
   // ---------------------------------------------------------------- LOP wipe

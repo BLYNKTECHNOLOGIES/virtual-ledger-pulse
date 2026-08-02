@@ -14,6 +14,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Search, ShieldCheck, History, Users, Info, AlertTriangle } from "lucide-react";
 
 type Profile = {

@@ -172,26 +172,106 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
       (built.skipped.length ? ` · ${built.skipped.length} line(s) skipped` : ""),
     );
     if (built.skipped.length) console.warn("Bulk payroll input skipped lines:", built.skipped);
-    setPicked({}); setLabel(""); setAmount(""); setPaste("");
+    setPicked({}); setLabel(""); setAmount(""); setPaste(""); setDrafts([newDraft()]);
     onDone();
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bulk stage {kind}s · {period}</DialogTitle>
           <DialogDescription>
-            Stage the same {kind} for many employees at once, or paste per-employee amounts. Rows are staged only — push to RazorpayX from the list.
+            Add one row per employee with its own amount, apply the same {kind} to many employees, or paste amounts. Rows are staged only — push to RazorpayX from the list.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
           <TabsList className="w-full">
-            <TabsTrigger value="select" className="flex-1">Pick employees</TabsTrigger>
+            <TabsTrigger value="rows" className="flex-1">Row by row</TabsTrigger>
+            <TabsTrigger value="select" className="flex-1">Same amount</TabsTrigger>
             <TabsTrigger value="paste" className="flex-1">Paste amounts</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="rows" className="space-y-2 mt-3">
+            <div className="space-y-2">
+              {drafts.map((d, i) => (
+                <div key={d.key} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-12 md:col-span-4">
+                    <Select value={d.hr_employee_id} onValueChange={(v) => patchDraft(d.key, { hr_employee_id: v })}>
+                      <SelectTrigger className="h-9 text-foreground"><SelectValue placeholder="Employee" /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {employees.filter((r) => r.hr_employees).map((r) => (
+                          <SelectItem key={r.hr_employee_id} value={r.hr_employee_id}>
+                            {fullName(r.hr_employees)}{r.hr_employees.badge_id ? ` · ${r.hr_employees.badge_id}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-6 md:col-span-3">
+                    <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
+                  </div>
+                  <div className="col-span-6 md:col-span-2">
+                    <Input className="h-9 tabular-nums" inputMode="decimal" value={d.amount} onChange={(e) => patchDraft(d.key, { amount: e.target.value })} placeholder="Amount ₹" />
+                  </div>
+                  {kind === "addition" ? (
+                    <div className="col-span-9 md:col-span-2">
+                      <Select value={d.addition_type} onValueChange={(v) => patchDraft(d.key, { addition_type: v })}>
+                        <SelectTrigger className="h-9 text-foreground"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bonus">Bonus</SelectItem>
+                          <SelectItem value="arrears">Arrears</SelectItem>
+                          <SelectItem value="reimbursement">Reimbursement</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : <div className="hidden md:block md:col-span-2" />}
+                  <div className="col-span-3 md:col-span-1 flex justify-end">
+                    <Button
+                      size="icon" variant="ghost" className="h-8 w-8 text-destructive"
+                      aria-label={`Remove row ${i + 1}`}
+                      onClick={() => setDrafts((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDraft()]))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-8" onClick={() => setDrafts((ds) => [...ds, newDraft({ label: label.trim(), addition_type: additionType, taxable })])}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add row
+                </Button>
+                <Button
+                  size="sm" variant="ghost" className="h-8"
+                  onClick={() => {
+                    const used = new Set(drafts.map((d) => d.hr_employee_id).filter(Boolean));
+                    const rest = employees.filter((r) => r.hr_employees && !used.has(r.hr_employee_id));
+                    if (!rest.length) { toast.message("Every mapped employee already has a row"); return; }
+                    setDrafts((ds) => [
+                      ...ds.filter((d) => d.hr_employee_id || d.label || d.amount),
+                      ...rest.map((r) => newDraft({ hr_employee_id: r.hr_employee_id, label: label.trim(), addition_type: additionType, taxable })),
+                    ]);
+                  }}
+                >
+                  Add all employees
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground tabular-nums">
+                {drafts.filter((d) => d.hr_employee_id && parseFloat(d.amount) > 0).length} row(s) · total ₹{draftsTotal.toLocaleString("en-IN")}
+              </div>
+            </div>
+            {kind === "addition" && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                <Checkbox checked={taxable} onCheckedChange={(c) => { setTaxable(!!c); setDrafts((ds) => ds.map((d) => ({ ...d, taxable: !!c }))); }} /> Taxable (applies to all rows)
+              </label>
+            )}
+          </TabsContent>
+
 
           <TabsContent value="select" className="space-y-3 mt-3">
             <div className="flex items-center gap-2">

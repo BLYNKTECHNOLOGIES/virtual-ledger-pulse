@@ -7295,9 +7295,13 @@ Deno.serve(async (req) => {
         // Opfin can only pause payroll for a currently active employee. Its
         // `do-not-pay` endpoint otherwise returns code 8 (user not locatable),
         // which is a terminal RazorpayX state rather than a retryable failure.
+        // Return this expected business limitation as HTTP 200 so the Supabase
+        // client does not promote it to an Edge Function runtime failure. The
+        // caller still receives ok:false and must not report the write as done.
         if (snap.is_active === false) {
-          return json(409, {
+          return json(200, {
             ok: false,
+            manual_required: true,
             code: "RZP_INACTIVE_EMPLOYEE",
             error: "This employee is inactive in RazorpayX, so their monthly payroll cannot be paused. Select an active employee or verify their RazorpayX status.",
           });

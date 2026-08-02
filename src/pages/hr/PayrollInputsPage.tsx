@@ -68,7 +68,7 @@ export default function PayrollInputsPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_razorpay_employee_map")
-        .select("razorpay_employee_id, hr_employee_id, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
+        .select("razorpay_employee_id, hr_employee_id, last_pull_snapshot, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
         .not("hr_employee_id", "is", null)
         .not("razorpay_employee_id", "is", null);
       if (error) throw error;
@@ -242,10 +242,22 @@ export default function PayrollInputsPage() {
 
   const doNotPay = useMutation({
     mutationFn: async (empRow: any) => {
+      if (empRow?.last_pull_snapshot?.is_active === false) {
+        throw new Error("This employee is inactive in RazorpayX. Do-Not-Pay is unavailable because RazorpayX cannot locate inactive employees in a monthly payroll run.");
+      }
       const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
         body: { action: "payroll_do_not_pay", payload: { data: { "employee-id": Number(empRow.razorpay_employee_id), "employee-type": "employee", "payroll-month": period, "do-not-pay": true } } },
       });
-      if (error) throw error;
+      if (error) {
+        let detail = "";
+        try {
+          if (typeof error.context?.json === "function") {
+            const body = await error.context.json();
+            detail = body?.error || body?.message || "";
+          }
+        } catch { /* keep SDK fallback */ }
+        throw new Error(detail || error.message || "RazorpayX rejected the Do-Not-Pay request");
+      }
       if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
       return res;
     },
@@ -518,10 +530,22 @@ export default function PayrollInputsPage() {
             <tbody>
               {(employees as any[]).slice(0, 200).map((r) => (
                 <tr key={r.hr_employee_id} className="border-b hover:bg-muted/30">
-                  <td className="px-3 py-2">{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
+                      {r.last_pull_snapshot?.is_active === false && <Badge variant="muted">Inactive in RazorpayX</Badge>}
+                    </div>
+                  </td>
                   <td className="px-3 py-2">
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setDnpConfirm(r)} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={!gateOpen || r.last_pull_snapshot?.is_active === false}
+                        onClick={() => setDnpConfirm(r)}
+                        title={!gateOpen ? "Payroll-write gate locked" : r.last_pull_snapshot?.is_active === false ? "Unavailable: employee is inactive in RazorpayX" : ""}
+                      >
                         <Ban className="h-3 w-3 mr-1" /> Do-Not-Pay this month
                       </Button>
                       <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setResetConfirm(r)} title={gateOpen ? "" : "Payroll-write gate locked"}>

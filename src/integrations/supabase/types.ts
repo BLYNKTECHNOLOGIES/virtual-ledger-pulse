@@ -6464,10 +6464,12 @@ export type Database = {
           balance_after: number
           created_at: string
           deposit_id: string
+          deposit_type: string
           description: string | null
           employee_id: string
           id: string
           payroll_run_id: string | null
+          period_month: string | null
           reference_id: string | null
           transaction_date: string
           transaction_type: string
@@ -6477,10 +6479,12 @@ export type Database = {
           balance_after?: number
           created_at?: string
           deposit_id: string
+          deposit_type?: string
           description?: string | null
           employee_id: string
           id?: string
           payroll_run_id?: string | null
+          period_month?: string | null
           reference_id?: string | null
           transaction_date?: string
           transaction_type: string
@@ -6490,10 +6494,12 @@ export type Database = {
           balance_after?: number
           created_at?: string
           deposit_id?: string
+          deposit_type?: string
           description?: string | null
           employee_id?: string
           id?: string
           payroll_run_id?: string | null
+          period_month?: string | null
           reference_id?: string | null
           transaction_date?: string
           transaction_type?: string
@@ -6920,6 +6926,7 @@ export type Database = {
           amount: number
           created_at: string
           deposit_id: string | null
+          deposit_type: string
           employee_id: string
           failure_reason: string | null
           id: string
@@ -6934,6 +6941,7 @@ export type Database = {
           amount: number
           created_at?: string
           deposit_id?: string | null
+          deposit_type?: string
           employee_id: string
           failure_reason?: string | null
           id?: string
@@ -6948,6 +6956,7 @@ export type Database = {
           amount?: number
           created_at?: string
           deposit_id?: string | null
+          deposit_type?: string
           employee_id?: string
           failure_reason?: string | null
           id?: string
@@ -6976,13 +6985,19 @@ export type Database = {
           deduction_mode: string
           deduction_start_month: string | null
           deduction_value: number
+          deposit_type: string
           employee_id: string
           id: string
+          incident_date: string | null
+          incident_reference: string | null
           is_fully_collected: boolean
           is_paused: boolean | null
+          is_recovered: boolean
           is_settled: boolean
           paused_at: string | null
           paused_reason: string | null
+          recovered_at: string | null
+          recovery_reason: string | null
           settled_at: string | null
           settlement_notes: string | null
           total_deposit_amount: number
@@ -6995,13 +7010,19 @@ export type Database = {
           deduction_mode?: string
           deduction_start_month?: string | null
           deduction_value?: number
+          deposit_type?: string
           employee_id: string
           id?: string
+          incident_date?: string | null
+          incident_reference?: string | null
           is_fully_collected?: boolean
           is_paused?: boolean | null
+          is_recovered?: boolean
           is_settled?: boolean
           paused_at?: string | null
           paused_reason?: string | null
+          recovered_at?: string | null
+          recovery_reason?: string | null
           settled_at?: string | null
           settlement_notes?: string | null
           total_deposit_amount?: number
@@ -7014,13 +7035,19 @@ export type Database = {
           deduction_mode?: string
           deduction_start_month?: string | null
           deduction_value?: number
+          deposit_type?: string
           employee_id?: string
           id?: string
+          incident_date?: string | null
+          incident_reference?: string | null
           is_fully_collected?: boolean
           is_paused?: boolean | null
+          is_recovered?: boolean
           is_settled?: boolean
           paused_at?: string | null
           paused_reason?: string | null
+          recovered_at?: string | null
+          recovery_reason?: string | null
           settled_at?: string | null
           settlement_notes?: string | null
           total_deposit_amount?: number
@@ -9880,36 +9907,54 @@ export type Database = {
           balance_after: number
           created_at: string | null
           employee_id: string
+          failure_reason: string | null
           id: string
+          installment_no: number | null
           loan_id: string
           notes: string | null
           payroll_run_id: string | null
+          period_month: string | null
+          razorpay_input_id: string | null
+          razorpay_pushed_at: string | null
           repayment_date: string
           repayment_type: string
+          status: string
         }
         Insert: {
           amount: number
           balance_after?: number
           created_at?: string | null
           employee_id: string
+          failure_reason?: string | null
           id?: string
+          installment_no?: number | null
           loan_id: string
           notes?: string | null
           payroll_run_id?: string | null
+          period_month?: string | null
+          razorpay_input_id?: string | null
+          razorpay_pushed_at?: string | null
           repayment_date?: string
           repayment_type?: string
+          status?: string
         }
         Update: {
           amount?: number
           balance_after?: number
           created_at?: string | null
           employee_id?: string
+          failure_reason?: string | null
           id?: string
+          installment_no?: number | null
           loan_id?: string
           notes?: string | null
           payroll_run_id?: string | null
+          period_month?: string | null
+          razorpay_input_id?: string | null
+          razorpay_pushed_at?: string | null
           repayment_date?: string
           repayment_type?: string
+          status?: string
         }
         Relationships: [
           {
@@ -24470,6 +24515,14 @@ export type Database = {
           scope: string
         }[]
       }
+      hr_apply_deposit_collection: {
+        Args: { p_razorpay_input_id?: string; p_schedule_id: string }
+        Returns: undefined
+      }
+      hr_apply_loan_repayment: {
+        Args: { p_razorpay_input_id?: string; p_repayment_id: string }
+        Returns: undefined
+      }
       hr_apply_razorpay_advance_ack: {
         Args: {
           p_loan_id: string
@@ -24893,6 +24946,11 @@ export type Database = {
         Args: { p_date_from: string; p_date_to: string; p_employee_id: string }
         Returns: number
       }
+      hr_rebuild_deposit_schedule: {
+        Args: { p_deposit_id: string }
+        Returns: number
+      }
+      hr_rebuild_loan_schedule: { Args: { p_loan_id: string }; Returns: number }
       hr_resolve_employee_by_pin: {
         Args: { _device_serial: string; _pin: string; _punch_time?: string }
         Returns: string

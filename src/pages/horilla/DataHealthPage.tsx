@@ -81,7 +81,10 @@ const FIELD_LABEL: Record<string, string> = {
   bank_account: "Bank account #",
   bank_ifsc: "Bank IFSC",
   annual_ctc: "Annual CTC",
+  employment_bundle: "Employment details — push failure",
+  dismissal_state: "Dismissal — push failure",
 };
+
 
 // Field → which Razorpay push to use when adopting the HRMS value.
 const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {

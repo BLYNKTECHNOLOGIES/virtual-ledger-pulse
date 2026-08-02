@@ -521,6 +521,10 @@ Deno.serve(async (req) => {
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
             statutory_flags_source: flagsSource,
             tds_fy: "FY26-27",
+            ctc_model: "all_inclusive",
+            ctc_post_lop: ctcPost,
+            employer_cost_within_ctc: employerCost,
+            bonus_outside_ctc: addPositive,
           },
         }, { onConflict: "run_id,hr_employee_id" })
         .select()
@@ -531,23 +535,22 @@ Deno.serve(async (req) => {
       }
 
       const comps = [
-        { key: "basic", label: "Basic", type: "earning", amount: basic },
-        { key: "hra", label: "HRA", type: "earning", amount: hra },
-        { key: "special_allowance", label: "Special Allowance", type: "earning", amount: special },
-        { key: "lta", label: "LTA", type: "earning", amount: lta },
-        { key: "pf_employer_earnings", label: "Employer PF (Earnings)", type: "earning", amount: epf.employer_earnings_side },
-        { key: "esi_employer_earnings", label: "Employer ESI (Earnings)", type: "earning", amount: esi.employer },
-        { key: "additions", label: "Additions (OT / PLI / Bonus)", type: "earning", amount: additions },
+        { key: "basic", label: "Basic", type: "earning", amount: gBasic },
+        { key: "hra", label: "HRA", type: "earning", amount: gHra },
+        { key: "special_allowance", label: "Special Allowance", type: "earning", amount: gSpecial },
+        { key: "lta", label: "LTA", type: "earning", amount: gLta },
+        { key: "additions", label: "Bonus / OT / PLI (outside CTC)", type: "earning", amount: addPositive },
         { key: "lop", label: "Loss of Pay (informational)", type: "info_deduction", amount: lopAmount },
         { key: "kpi_loss", label: "KPI Loss (informational)", type: "info_deduction", amount: kpiLossAmount },
+        { key: "pf_employer_ctc", label: "Employer PF + EDLI (within CTC)", type: "info_deduction", amount: epf.employer_earnings_side },
+        { key: "esi_employer_ctc", label: "Employer ESI (within CTC)", type: "info_deduction", amount: esi.employer },
         { key: "pf_employee", label: "PF (Employee)", type: "deduction", amount: epf.employee },
-        { key: "pf_employer_contra", label: "PF (Employer contra)", type: "deduction", amount: epf.employer },
-        { key: "pf_admin_edli", label: "EDLI + Admin (1%)", type: "deduction", amount: epf.admin_edli },
         { key: "esi_employee", label: "ESI (Employee)", type: "deduction", amount: esi.employee },
-        { key: "esi_employer_contra", label: "ESI (Employer contra)", type: "deduction", amount: esi.employer },
+        { key: "other_recovery", label: "Other recovery", type: "deduction", amount: addNegative },
         { key: "pt", label: "Professional Tax", type: "deduction", amount: pt },
         { key: "tds", label: "TDS", type: "deduction", amount: tds },
       ].filter((c) => c.amount !== 0);
+
       await supabase.from("hr_shadow_component_breakdown").delete().eq("line_id", line.id);
       await supabase.from("hr_shadow_component_breakdown").insert(comps.map((c) => ({
         line_id: line.id,

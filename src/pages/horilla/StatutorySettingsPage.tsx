@@ -291,18 +291,54 @@ export default function StatutorySettingsPage() {
     );
   };
 
-
+  const stats = useMemo(() => {
+    let pf = 0, esi = 0, pt = 0, flags = 0;
+    for (const e of employees as any[]) {
+      const p = activeByEmp.get(e.id);
+      if (p?.pf_enabled) pf++;
+      if (p?.esi_enabled) esi++;
+      if (p?.pt_enabled) pt++;
+      if ((p?.pf_enabled && !p?.uan) || (p?.esi_enabled && !p?.esic_number)) flags++;
+    }
+    return { total: employees.length, pf, esi, pt, flags };
+  }, [employees, activeByEmp]);
 
   return (
-
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-4">
-      <PageHeader
-        title="Statutory Settings"
-        description="Per-employee PF / ESI / Professional Tax enrolment and voluntary PF — effective-dated, with full history."
-      />
+      <div className="flex items-start justify-between gap-3">
+        <PageHeader title="Statutory Settings" description="PF · ESI · PT enrolment" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="About statutory settings">
+              <Info className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 text-xs text-muted-foreground z-50 bg-popover">
+            CTC stays fixed — enrolling moves money inside the same CTC. VPF is an employee-side deduction
+            only and must be mirrored manually in the RazorpayX dashboard.
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[
+          { label: "Employees", value: stats.total },
+          { label: "PF", value: `${stats.pf}/${stats.total}` },
+          { label: "ESI", value: `${stats.esi}/${stats.total}` },
+          { label: "Flagged", value: stats.flags, alert: stats.flags > 0 },
+        ].map((s) => (
+          <Card key={s.label}>
+            <CardContent className="p-3">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</div>
+              <div className={`text-lg font-semibold ${s.alert ? "text-destructive" : ""}`}>{s.value}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <Card>
-        <CardContent className="p-3 space-y-3">
+        <CardContent className="p-3">
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -335,15 +371,9 @@ export default function StatutorySettingsPage() {
               Bulk ({selected.length})
             </Button>
           </div>
-
-          <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            CTC stays fixed: enrolling moves money inside the same CTC (employer PF/ESI is carved out of it).
-            VPF is an employee-side deduction only — it reduces take-home, never the CTC.
-            RazorpayX publishes no API field for VPF, so VPF must be mirrored manually in the RazorpayX dashboard.
-          </p>
         </CardContent>
       </Card>
+
 
 
       {isLoading ? null : rows.length === 0 ? (

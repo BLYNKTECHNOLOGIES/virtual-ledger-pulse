@@ -11710,6 +11710,66 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_razorpay_orphans: {
+        Row: {
+          created_at: string
+          date_of_joining: string | null
+          department: string | null
+          designation: string | null
+          email: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          name: string | null
+          pan: string | null
+          phone: string | null
+          raw_snapshot: Json | null
+          razorpay_employee_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_joining?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          name?: string | null
+          pan?: string | null
+          phone?: string | null
+          raw_snapshot?: Json | null
+          razorpay_employee_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_of_joining?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          name?: string | null
+          pan?: string | null
+          phone?: string | null
+          raw_snapshot?: Json | null
+          razorpay_employee_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_razorpay_payout_records: {
         Row: {
           created_at: string

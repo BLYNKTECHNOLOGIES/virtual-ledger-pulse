@@ -761,6 +761,17 @@ async function attachReservedEmployeeIdByPeopleId(
   return await opfinEditPerson(payload);
 }
 
+/** Normalize a Razorpay date (YYYY-MM-DD or DD/MM/YYYY) to an ISO date or null. */
+function isoToRpSafeDate(v: any): string | null {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return null;
+}
+
+
 function isDismissedRazorpayPerson(rp: any): boolean {
   if (!rp || typeof rp !== "object") return false;
   const rpStatus = String(rp.status || "").toLowerCase();
@@ -1211,6 +1222,86 @@ Deno.serve(async (req) => {
         match,
       });
     }
+
+    // ---------- scan_orphans: RazorpayX-only people (roster drift) ----------
+    // Walks a Razorpay employee-id range read-only. Any ACTIVE (non-dismissed)
+    // person that resolves to no HRMS employee is a roster drift: the three
+    // systems (HRMS / RazorpayX / eSSL) must hold the same people. Results are
+    // persisted into public.hr_razorpay_orphans; rows that no longer orphan are
+    // auto-resolved.
+    if (action === "scan_orphans") {
+      const start = Math.max(1, Number(payload?.start_id ?? 1));
+      const end = Math.max(start, Number(payload?.max_id ?? start + 99));
+      if (end - start + 1 > 500) return json(400, { error: "Range too wide (max 500)" });
+      const stopAfter = Math.max(5, Number(payload?.stop_after_misses ?? 30));
+
+      const seenOrphans: string[] = [];
+      const checked: string[] = [];
+      let scanned = 0, misses = 0, consecutiveMisses = 0, dismissed = 0, matched = 0;
+
+      for (let i = start; i <= end; i++) {
+        const r = await opfinView(i);
+        if (!r.ok) {
+          misses++; consecutiveMisses++;
+          if (consecutiveMisses >= stopAfter) break;
+          continue;
+        }
+        consecutiveMisses = 0;
+        scanned++;
+        const rp = r.body || {};
+        checked.push(String(i));
+        if (isDismissedRazorpayPerson(rp)) { dismissed++; continue; }
+
+        const match = await matchEmployee(svc, rp, i);
+        let hrId = match.hr_employee_id;
+        if (hrId) {
+          // A mapped-but-deleted HRMS employee is still an orphan.
+          const { data: existsEmp } = await svc
+            .from("hr_employees").select("id").eq("id", hrId).maybeSingle();
+          if (!existsEmp) hrId = null;
+        }
+        if (hrId) { matched++; continue; }
+
+        seenOrphans.push(String(i));
+        await svc.from("hr_razorpay_orphans").upsert({
+          razorpay_employee_id: String(i),
+          name: rp.name ?? [rp["first-name"], rp["last-name"]].filter(Boolean).join(" ") ?? null,
+          email: rp.email ?? rp["work-email"] ?? rp["personal-email"] ?? null,
+          phone: rp["phone-number"] ?? rp.phone ?? rp.contact_number ?? null,
+          pan: rp.pan ?? rp["pan-number"] ?? null,
+          department: rp.department ?? null,
+          designation: rp.title ?? rp.designation ?? null,
+          date_of_joining: isoToRpSafeDate(rp["date-of-hiring"] ?? rp["date-of-joining"] ?? rp.hire_date),
+          raw_snapshot: rp,
+          status: "open",
+          last_seen_at: new Date().toISOString(),
+        }, { onConflict: "razorpay_employee_id" });
+      }
+
+      // Auto-resolve rows in the scanned window that are no longer orphans.
+      if (checked.length) {
+        const noLonger = checked.filter((id) => !seenOrphans.includes(id));
+        if (noLonger.length) {
+          await svc.from("hr_razorpay_orphans")
+            .update({
+              status: "resolved",
+              resolved_at: new Date().toISOString(),
+              resolution_note: "Auto-resolved: now linked to an HRMS employee or dismissed in RazorpayX",
+            })
+            .in("razorpay_employee_id", noLonger)
+            .eq("status", "open");
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        range: { start, end },
+        scanned, matched, dismissed, misses,
+        orphans: seenOrphans.length,
+        orphan_ids: seenOrphans,
+      });
+    }
+
 
     // ---------- reset_onboarding_razorpay_reservation ----------
     // Operator recovery for failed/deleted Razorpay creates. Clears the local

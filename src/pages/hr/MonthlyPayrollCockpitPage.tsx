@@ -178,6 +178,20 @@ export default function MonthlyPayrollCockpitPage() {
   const [ackStep, setAckStep] = useState<CockpitStep | null>(null);
   const [ackNotes, setAckNotes] = useState("");
   const [closeOpen, setCloseOpen] = useState(false);
+  const [tool, setTool] = useState<CockpitToolKey | null>(null);
+  const [, setSearchParams] = useSearchParams();
+
+  // Embedded tools read the URL (tab / focus / period), so the cockpit sets them before opening.
+  function openTool(key: CockpitToolKey, params?: Record<string, string>) {
+    const next = new URLSearchParams(params ?? {});
+    next.set("period", month.slice(0, 7));
+    setSearchParams(next, { replace: true });
+    setTool(key);
+  }
+  function closeTool() {
+    setTool(null);
+    setSearchParams(new URLSearchParams(), { replace: true });
+  }
 
   const monthDate = useMemo(() => new Date(month + "T00:00:00Z"), [month]);
   const monthLabel = monthDate.toLocaleString("en-IN", { month: "long", year: "numeric" });

@@ -522,9 +522,15 @@ export default function DepositManagementPage() {
                       <TableCell className="text-sm">
                         {d.deduction_mode === "percentage" ? `${d.deduction_value}%` : `₹${Number(d.deduction_value).toLocaleString('en-IN')}`}
                       </TableCell>
+                      {tab === "error_recovery" && (
+                        <TableCell className="text-xs text-muted-foreground max-w-[180px]">
+                          <div className="truncate">{d.incident_reference || "—"}</div>
+                          <div>{d.incident_date || ""}</div>
+                        </TableCell>
+                      )}
                       <TableCell>
                         {d.is_settled ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">Settled</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">{d.is_recovered ? "Refunded" : "Settled"}</span>
                         ) : d.is_fully_collected ? (
                           <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Fully Collected</span>
                         ) : d.is_paused ? (
@@ -554,7 +560,12 @@ export default function DepositManagementPage() {
                                   </Button>
                                 )
                               )}
-                              {d.is_fully_collected && d.current_balance > 0 && (
+                              {tab === "error_recovery" && Number(d.collected_amount) > 0 && (
+                                <Button size="sm" variant="ghost" className="h-7 text-primary px-2 text-xs" onClick={() => refundMutation.mutate(d)} title="Funds recovered externally — refund the employee via payroll">
+                                  Refund
+                                </Button>
+                              )}
+                              {tab === "security" && d.is_fully_collected && d.current_balance > 0 && (
                                 <Button size="sm" variant="ghost" className="h-7 text-primary" onClick={() => settleMutation.mutate(d)} title="F&F Settle">
                                   <CheckCircle className="h-3 w-3" />
                                 </Button>
@@ -563,6 +574,7 @@ export default function DepositManagementPage() {
                           )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   );
                 })

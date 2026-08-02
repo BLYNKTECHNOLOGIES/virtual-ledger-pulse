@@ -181,7 +181,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[97vw] md:max-w-[1400px] w-[97vw] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bulk stage {kind}s · {period}</DialogTitle>
           <DialogDescription>

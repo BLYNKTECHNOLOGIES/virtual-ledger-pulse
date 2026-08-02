@@ -423,9 +423,33 @@ Deno.serve(async (req) => {
         ?? ((emp.pf_enabled === null && emp.esi_enabled === null && emp.pt_enabled === null)
             ? "assumed_from_global" : "assumed_from_global");
 
-      const epf = computeEpf(basic, 0, settings, pfEnrolled);
-      const esi = computeEsi(regularPost + additions, regularPost, settings, esiEnrolled);
-      const pt = computePt(regularPost, emp.state ?? "", ptSlabs ?? [], ptEnrolled, period);
+      // ---- CTC-INCLUSIVE DOCTRINE (owner directive 2026-08-02) ----
+      // CTC is all-inclusive: employer PF/EDLI/ESI are CARVED OUT of the CTC,
+      // never added on top. Gross earnings = post-LOP CTC − employer contributions.
+      // Only bonuses / one-off additions sit outside the CTC.
+      const addPositive = Math.max(0, additions);
+      const addNegative = Math.max(0, -additions); // treated as a net-side recovery
+      const ctcPost = regularPost;
+
+      let grossEarnings = ctcPost;
+      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+      let esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
+      for (let i = 0; i < 4; i++) {
+        const next = Math.max(0, ctcPost - epf.employer_earnings_side - esi.employer);
+        if (next === grossEarnings) break;
+        grossEarnings = next;
+        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+        esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
+      }
+
+      // Re-split the (carved) gross into components
+      const gBasic = Math.round(grossEarnings * (pct.basic / 100));
+      const gHra = Math.round(grossEarnings * (pct.hra / 100));
+      const gLta = Math.round(grossEarnings * (pct.lta / 100));
+      const gSpecial = grossEarnings - gBasic - gHra - gLta;
+
+      const pt = computePt(grossEarnings, emp.state ?? "", ptSlabs ?? [], ptEnrolled, period);
+
 
       // TDS — projected on PRE-LOP annual base (owner directive P2).
       let regime = "new";

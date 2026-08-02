@@ -232,7 +232,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
                   </div>
                   {kind === "addition" ? (
                     <div className="col-span-9 md:col-span-2">
-                      <Select value={d.addition_type} onValueChange={(v) => patchDraft(d.key, { addition_type: v })}>
+                      <Select value={d.addition_type} onValueChange={(v) => patchDraft(d.key, { addition_type: v, ...(v === "bonus" && !BONUS_LABELS.includes(d.label) ? { label: "" } : {}) })}>
                         <SelectTrigger className="h-9 text-foreground"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="bonus">Bonus</SelectItem>

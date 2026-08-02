@@ -139,9 +139,9 @@ export default function PayrollInputsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Single push primitive. RazorpayX takes a label-keyed MAP of modifications in
-  // plain rupees, and acknowledges with an opaque 200 — so every push asks the
-  // proxy for a view-payroll read-back that proves the amount is on the run.
+  // Single push primitive. The proxy converts additions to RazorpayX's array
+  // contract and deductions to its email + aggregate deduction-amount contract.
+  // Amounts stay in rupees, and view-payroll read-back proves each live write.
   async function pushGroup(rowsIn: any[]) {
     const group = Array.isArray(rowsIn) ? rowsIn : [rowsIn];
     if (!group.length) return null;

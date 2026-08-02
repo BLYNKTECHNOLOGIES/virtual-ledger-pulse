@@ -60,26 +60,36 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
     return { ok: false, skipped: true, error: errMsg };
   }
 
-  // 3) Build RazorpayX addition payload — amounts in paise, month as YYYY-MM
+  // 3) Build RazorpayX addition payload.
+  //
+  // AMOUNTS ARE IN RUPEES — NOT PAISE.
+  // Opfin's payroll:add-additions envelope is rupee-denominated (the same
+  // response echoes `salary: 76000` for a ₹76,000/month employee). This helper
+  // previously sent `amount * 100`, which pushed a ₹5,000 bonus to RazorpayX as
+  // ₹5,00,000. Every other caller (Payroll Inputs, bulk staging) already sends
+  // rupees — keep it that way. Do not reintroduce a paise conversion.
   const periodMonth = String(rev.payout_month).slice(0, 7); // "YYYY-MM-01" → "YYYY-MM"
   const label =
     (rev.revision_reason && String(rev.revision_reason).trim()) ||
     (rev.notes && String(rev.notes).trim()) ||
     (rev.revision_type ? String(rev.revision_type).replace(/_/g, " ") : "Bonus");
   const additionType = ADDITION_TYPE_MAP[rev.revision_type] || "bonus";
+  const amountRupees = Math.round(amount);
+  const pushLabel = label.slice(0, 80);
 
   const data = {
     "employee-id": razorpayId,
     "payroll-month": periodMonth,
     additions: [
       {
-        label: label.slice(0, 80),
-        amount: Math.round(amount * 100),
+        label: pushLabel,
+        amount: amountRupees,
         taxable: true,
         type: additionType,
       },
     ],
   };
+
 
   // 4) Call proxy
   let response: any = null;

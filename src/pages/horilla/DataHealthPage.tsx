@@ -105,6 +105,9 @@ export default function DataHealthPage() {
   );
   const [scanning, setScanning] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [pullTarget, setPullTarget] = useState<PullTarget | null>(null);
+  const [pulling, setPulling] = useState(false);
+
 
   const { data: ghostResidual } = useQuery({
     queryKey: ["data_health_ghost_residual"],

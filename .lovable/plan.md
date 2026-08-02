@@ -1,63 +1,82 @@
-# ESSL Clock Offset Correction (+30 min)
+# Statutory Enrollment & Voluntary PF (VPF) — HRMS + RazorpayX
 
-## Problem
-Both ESSL devices (ZHM2255300863 "IN", QJT3242100429 "OUT") are running at UTC+5 instead of UTC+5:30. Every timestamp they hand us (via ADMS/webhook) is 30 minutes behind reality. Our ingester (`parseESSLTimestamp`) blindly stamps the string with `+05:30`, so every punch, session, daily row, LOP calc, late/early flag, and stale-session detection is shifted 30 min early. Setting the device clock has not held (nightly `SET TIME` push isn't sticking), so we treat the device offset as data, not as an assumed truth.
+## What exists today (verified)
 
-## Approach
-Introduce a **per-device timezone-offset correction** applied at the single ingestion chokepoint, plus a one-time backfill of already-stored punches from the affected devices. Everything downstream (sessions, daily, watchdog, payslip LOP) recomputes from the corrected `hr_attendance_punches` rows — no other math needs to change.
+- `hr_employees` already has `pf_enabled`, `esi_enabled`, `pt_enabled`, `statutory_flags_source` — but of 37 active employees, 33 are NULL for all three (only 3 PF-true, 1 ESI-true). The flags are effectively unused.
+- **There is no UI anywhere to set them.** Code comments point at `/hrms/payroll/compliance-settings`, but no such route exists in `App.tsx`.
+- The shadow payroll engine already reads the flags (`statutoryCalculator.ts`: `enrollment?.pf_enabled ?? global toggle`), falling back to the org-level `hr_razorpay_settings.compliance_files_pf/_esi/_pt`.
+- The Razorpay proxy has `push_statutory_apply_one` which pushes `pf-enabled` / `esi-enabled` / `professional-tax-enabled`, but it is **blocked** until an operator records a verified envelope key (`STATUTORY_ENVELOPE_UNVERIFIED`).
+- **No VPF field exists anywhere** — not in employees, structures, shadow lines, payslips, or the register import.
 
-## Changes
+## Decisions locked
 
-### 1. Per-device offset config (schema)
-Add to `hr_biometric_devices`:
-- `clock_offset_minutes int not null default 0` — minutes to ADD to every raw punch string from this device before storing.
-- `clock_offset_reason text` — audit note ("device stuck at UTC+5, +30 correction").
-- `clock_offset_updated_at timestamptz`.
+- VPF entered as **either a percentage of PF wages or a fixed monthly ₹**.
+- PF wage base is **capped at ₹15,000 by default**; an uncapped ("actual Basic") option exists per employee, and any salary revision that pushes Basic above ₹15,000 **auto-reverts that employee to capped** (logged, with an HR-visible note).
+- All statutory settings are **effective-dated with full history** — a change applies from a chosen payroll month; closed/past months keep their old settings.
+- **CTC stays fixed.** Enrolling or de-enrolling moves money *inside* the CTC (employer PF/ESI carved out of, not added to, CTC) — consistent with the all-inclusive CTC rule already implemented in the shadow engine.
 
-Seed both current ESSL devices with `clock_offset_minutes = 30`.
+## What gets built
 
-### 2. Ingestion correction (single chokepoint)
-`supabase/functions/biometric-webhook/index.ts`:
-- Change `parseESSLTimestamp(timeStr)` → `parseESSLTimestamp(timeStr, offsetMinutes)`: still parse as IST, then add `offsetMinutes * 60_000` before returning ISO.
-- Change `getPunchDateFromESSLTimestamp` the same way (so the attendance-date bucket uses the corrected time — critical for punches near midnight).
-- At the top of each request, look up the device by `serialNumber` once and cache `clock_offset_minutes` (default 0). Thread it into every call site: AttLog parse (line 224/226), operlog parse (1216), single-punch JSON path (1312), and the `lastStamp` echo back to the device (line 119 / 383) so ADMS `?INFO=` uses the corrected clock and doesn't re-download the last 30 min of punches every poll.
-- Log the applied offset per batch so the fix is visible in edge logs.
+### 1. Effective-dated statutory profile per employee
 
-Other ingest callers (`biometric-refresh-scheduler`, any pull path): route through the same helper with the same per-device lookup — no other timestamp sources exist for ESSL punches.
+New table `hr_employee_statutory_profiles` holding, per employee and effective month:
 
-### 3. Backfill existing punches
-Migration to shift already-stored rows that came in under the broken clock. Bounded to devices with `clock_offset_minutes > 0` and to punches after the known drift start.
-- `hr_attendance_punches`: `punch_time = punch_time + interval '30 minutes'` for rows whose `device_serial` matches an offset device and whose `punch_time >= '2026-07-01'` (safe lower bound — we can widen after checking the earliest drift entry in `hr_biometric_device_info.clock_drift_seconds` history).
-- Same shift for `hr_attendance_punches_archive`, `hr_attendance_quarantine`, and `hr_biometric_device_operlog.occurred_at` for the same serials/window.
-- Recompute `attendance_date` from the shifted `punch_time` (IST date) in the same migration so midnight-boundary rows land on the right day.
-- Write an audit row per shifted table into `hr_employee_id_rekey_log`-style log (or a fresh `hr_attendance_offset_backfill_log`) capturing serial, rows touched, offset applied, window.
+- PF enrolled (yes/no), PF wage basis (capped ₹15,000 / actual Basic)
+- VPF mode (none / percent / fixed) + value
+- ESI enrolled (yes/no) — with the ₹21,000 gross eligibility still enforced automatically
+- PT enrolled (yes/no)
+- UAN / ESIC number carried alongside, reason for change, who changed it, when
 
-### 4. Downstream recompute
-After backfill, trigger for each affected `(employee_id, attendance_date)` in the window:
-- v4 session rebuild (existing `rebuild_attendance_sessions_for_employee_date` / equivalent used by the Watchdog "Mark full day" flow).
-- `hr_attendance_daily` recompute (existing daily rebuild function used post-cutover).
-- Re-run late/early classifier and LOP for the window (uses corrected first-in/last-out automatically).
-- Invalidate the current payroll cockpit period so LOP tiles refresh; do not auto-push to RazorpayX (owner controls that).
+The current `hr_employees.pf_enabled/esi_enabled/pt_enabled` columns become a **derived cache of today's active row**, kept in sync by a trigger, so all existing readers (shadow engine, Razorpay push, drift scans, F&F) keep working unchanged.
 
-### 5. Watchdog + drift auto-heal
-`hr-drift-scan`:
-- Continue flagging `|clock_drift_seconds| > 300`, but when a device has a configured `clock_offset_minutes`, subtract that from the raw drift before alerting (so a device that is *intentionally* +30 doesn't spam drift alerts). Raise a distinct alert if drift moves off the expected offset (e.g. device suddenly matches server → offset should be cleared).
-- Add a one-click "Clear correction" action on the device page for the day the device clock is actually fixed — clearing it disables the +30 add for future punches only (no retroactive shift).
+A one-time backfill seeds every active employee from what RazorpayX/the salary register actually shows for them (PF/ESI amounts present in the latest imported register month ⇒ enrolled), rather than guessing — anyone with no evidence is seeded from the org-level toggles and flagged for HR review.
 
-### 6. Verification (fix-then-verify loop)
-Before declaring done:
-- `psql` check: pick 5 punches from today per device, confirm stored `punch_time` = raw device stamp + 30 min.
-- Recomputed `hr_attendance_daily` for today shows first-in/last-out advanced by 30 min and Late count drops for employees who were being wrongly flagged.
-- Edge logs on next ADMS poll show `applied_offset_minutes=30` and no duplicate punch inserts (dedupe key still holds because the shift is uniform).
-- Watchdog no longer opens new stale sessions caused by the 30-min gap.
+### 2. Statutory Settings page — `/hrms/payroll/statutory-settings`
+
+- One row per employee: name, ID, Basic, PF chip, PF base chip (capped/actual), VPF chip, ESI chip (with "gross above ₹21,000 — auto-ineligible" state), PT chip, UAN/ESIC presence.
+- Inline edit dialog per employee: enrol toggles, PF base choice, VPF mode + value, effective month, mandatory reason.
+- **Bulk actions**: select many employees → enrol/de-enrol PF, ESI or PT from a chosen month.
+- Filters: not enrolled in PF, ESI-eligible but not enrolled, VPF active, missing UAN/ESIC, out of sync with RazorpayX.
+- History drawer per employee showing every past change with dates and actor.
+- Mobile-first layout using the existing HRMS `ResponsiveList` primitives.
+- Gated behind the existing HR/payroll permission, same as other payroll pages.
+
+### 3. Payroll maths
+
+`statutoryCalculator.ts` and `compute-shadow-payroll`:
+
+- PF wage base = `min(Basic, 15000)` or actual Basic per the employee's basis; existing DA/basic-only org rules preserved.
+- VPF = percent × PF wage base, or the fixed amount — **employee-side deduction only, no employer match, no EDLI/admin on VPF**. It reduces net pay and never changes CTC or gross.
+- ESI stays gated by both enrollment and the ₹21,000 regular-gross ceiling; **mid-year ESI contribution-period rule** honoured via the existing `hr_esi_contribution_periods` table (an employee crossing ₹21,000 mid-period continues contributing until the period ends).
+- De-enrolled employees produce zero PF/ESI/PT lines and, because CTC is fixed, the freed employer share flows to take-home — the CTC-inclusive carve-out logic already added is reused so gross never exceeds CTC.
+- LOP interaction: PF/ESI/VPF are computed on post-LOP wages, matching the register.
+- New joiners / leavers: statutory applies only to the months inside their employment span (already clamped by `hr_lop_days`).
+
+### 4. RazorpayX handling — honest about API limits
+
+- PF/ESI/PT toggles: reuse `push_statutory_apply_one`, extended to bulk ("push all changed"), still behind the operator-verified envelope gate. If the envelope isn't verified, the UI shows a clear "Razorpay write path locked — verify envelope first" banner instead of silently failing.
+- **VPF: RazorpayX Payroll's public API publishes no documented VPF field.** It will be marked *Out of RazorpayX API Scope* in the UI: HRMS stores and computes it, the page shows a "set manually in the RazorpayX dashboard" task with a Mark-as-done acknowledgement, and a drift alert stays open until acknowledged. No fabricated success, no invented endpoint.
+- **Verification back:** after each push, re-read the employee from Razorpay and compare — mismatch raises a Data Health drift alert (same `pushWithVerification` pattern already used).
+- **Reverse drift:** the register/payslip import compares imported PF/ESI/PT/VPF amounts against the HRMS profile; if Razorpay deducted PF for someone HRMS says is not enrolled (or vice-versa), a drift alert is raised on `/hrms/data-health` with employee name and ID.
+
+### 5. Salary revision interlock
+
+- `ReviseSalaryDialog` shows the statutory impact preview: new Basic, new PF wage base, PF/ESI/VPF change, net effect — before confirming.
+- If the revision pushes Basic above ₹15,000 while the employee is on "actual Basic", the profile **auto-switches to capped** from the revision's effective month, with a logged reason and a note in the revision record.
+- If a revision pushes regular gross above ₹21,000, ESI is auto-ended at the correct contribution-period boundary rather than immediately.
+
+### 6. Visibility & guardrails
+
+- Employee self-service (ERP profile → Salary & PF): read-only display of PF enrolment, PF base, VPF amount and ESI status. No edit.
+- Payslip/`hr_payslips_v`: VPF surfaced as its own deduction line so imported and shadow payslips reconcile.
+- Closed payroll months are locked — statutory edits cannot be back-dated into a locked month.
+- Every change written to the HR audit log; Data Health gains three checks: missing UAN for PF-enrolled, missing ESIC number for ESI-enrolled, and HRMS-vs-Razorpay statutory mismatch.
 
 ## Technical notes
 
-- **Why offset at ingest, not at read:** every downstream table (sessions, daily, LOP, payslip register) is materialized from `hr_attendance_punches`. Correcting once at write keeps a single source of truth and avoids sprinkling `+ interval '30 minutes'` across dozens of views/RPCs.
-- **Idempotency:** the backfill migration writes a marker row (`hr_attendance_offset_backfill_log(device_serial, applied_at, offset_minutes, window_start, window_end)`) and refuses to run again for the same window/serial — safe to re-deploy.
-- **Dedupe safety:** unique index is `(employee_id, punch_time, punch_type)`. A uniform +30 shift preserves uniqueness within the affected window; the only collision risk is with any legacy manual punches inserted at the corrected time, which the migration handles with `ON CONFLICT DO NOTHING` + a report row.
-- **Not touched:** RazorpayX payroll figures, salary structures, non-ESSL attendance sources (manual regularizations, self-service punches) — those already store true IST.
-- **Future-proof:** when the physical device clock is fixed, set `clock_offset_minutes = 0` in one row; no code change needed.
-
-## Out of scope (call out, don't build)
-- Re-pushing already-finalized payroll periods to RazorpayX. If any locked period overlaps the backfill window, surface it in the Payroll Cockpit as "recomputed after clock correction — review before next push" and let the owner decide.
+- New table + trigger-maintained cache columns via one migration; `statutory_flags_source` set to `hrms_profile` for managed rows.
+- Resolver function `hr_statutory_profile(employee, month)` used by both SQL (LOP/payslip views) and the edge function so there is exactly one source of truth.
+- `compute-shadow-payroll` and `statutoryCalculator.ts` gain a VPF and PF-basis input; existing signatures stay backward-compatible.
+- `razorpay-payroll-proxy`: extend `push_statutory_apply_one` with a bulk variant and add read-back verification; no new Razorpay endpoints are invented.
+- Re-run the August 2026 shadow payroll after the change and verify totals, zero negatives, and per-employee PF/ESI/VPF against the imported register before declaring it done.
+- Append a dated line to `docs/STATE_LOG.md` when the profiles are backfilled.

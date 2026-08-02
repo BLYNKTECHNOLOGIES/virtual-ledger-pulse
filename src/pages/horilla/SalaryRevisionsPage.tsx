@@ -235,45 +235,47 @@ export default function SalaryRevisionsPage() {
 
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Salary Revision History"
-        description="Every applied revision is auto-pushed to RazorpayX on submit. Retry any that didn't sync directly on the row."
         actions={
-          canManage ? (
-            <Button onClick={() => setShowDialog(true)}>
-              <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+                      envelopeVerified
+                        ? "border-emerald-500/40 text-emerald-600"
+                        : "border-destructive/40 text-destructive",
+                    )}
+                  >
+                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-emerald-500" : "bg-destructive")} />
+                    RazorpayX
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  {envelopeVerified
+                    ? `Salary push live${envelope?.push_salary_envelope_verified_at ? ` · verified ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}`
+                    : "Salary push disabled — verify the envelope in Payroll Sync · Step E"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {canManage && !envelopeVerified && (
+              <Button asChild size="sm" variant="secondary">
+                <Link to="/hrms/payroll/razorpay-sync">Fix sync</Link>
+              </Button>
+            )}
+            {canManage && (
+              <Button onClick={() => setShowDialog(true)}>
+                <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
+              </Button>
+            )}
+          </div>
         }
       />
-
-      {canManage && !envelopeVerified && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>RazorpayX salary push is disabled</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <p className="text-sm">
-              Revisions are saved locally but <b>cannot be mirrored to RazorpayX</b> until the salary API envelope is
-              verified. Every payroll run after a revision will use the old CTC until this is fixed.
-            </p>
-              <Button asChild size="sm" variant="secondary">
-                <Link to="/hrms/payroll/razorpay-sync">Open Payroll Sync · Step E →</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {canManage && envelopeVerified && (
-        <Alert className="border-emerald-500/40">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <AlertTitle>RazorpayX salary push is live</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground">
-            Envelope <code className="px-1 rounded bg-muted">{envelope?.push_salary_envelope_key}</code> verified
-            {envelope?.push_salary_envelope_verified_at ? ` on ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
@@ -289,6 +291,7 @@ export default function SalaryRevisionsPage() {
           <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </div>
+
 
       {isLoading ? (
         <TableSkeleton rows={4} columns={4} />

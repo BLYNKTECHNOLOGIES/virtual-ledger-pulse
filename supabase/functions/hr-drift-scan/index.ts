@@ -274,8 +274,78 @@ serve(async (req) => {
     for (const b of bankRes.data ?? []) if (!bankByEmp.has(b.employee_id)) bankByEmp.set(b.employee_id, b);
     const salaryByEmp = new Map<string, any>();
     for (const s of salaryRes.data ?? []) if (!salaryByEmp.has(s.employee_id)) salaryByEmp.set(s.employee_id, s);
+    // ------------------------------------------------------------------
+    // Snapshot freshness gate.
+    //
+    // ROOT CAUSE (2026-08-02): the scanner compared HRMS against
+    // hr_razorpay_employee_map.last_pull_snapshot with NO freshness check. A
+    // dismissal performed in the RazorpayX dashboard never touches HRMS, so
+    // the cached snapshot (e.g. employee-id 9, pulled 29-Jul) kept saying
+    // is_active:true and the card reported "RAZORPAY: active" for someone who
+    // is not active there. We now re-pull any snapshot older than
+    // max_age_hours (default 12) straight from Opfin before comparing, and if
+    // the re-pull fails we suppress the active_state verdict instead of
+    // asserting a stale "active".
+    // ------------------------------------------------------------------
+    const maxAgeHours = Math.max(0, Number(url.searchParams.get("max_age_hours") ?? "12"));
+    const refreshLimit = Math.max(0, Math.min(200, Number(url.searchParams.get("refresh_limit") ?? "120")));
+    const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const proxyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/razorpay-payroll-proxy`;
+    const staleCutoff = Date.now() - maxAgeHours * 3600_000;
+
     const rzpByEmp = new Map<string, any>();
-    for (const r of rzpMapRes.data ?? []) rzpByEmp.set(r.hr_employee_id, r.last_pull_snapshot ?? null);
+    const rzpStale = new Set<string>();
+    const mapRows = rzpMapRes.data ?? [];
+    let refreshed = 0;
+    let refreshFailed = 0;
+
+    const needsRefresh = mapRows.filter((r: any) => {
+      if (!r.razorpay_employee_id) return false;
+      const pulled = r.last_pulled_at ? Date.parse(r.last_pulled_at) : 0;
+      return !r.last_pull_snapshot || !pulled || pulled < staleCutoff;
+    }).slice(0, refreshLimit);
+
+    const freshSnapshots = new Map<string, any>();
+    for (const row of needsRefresh) {
+      try {
+        const r = await fetch(proxyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${svcKey}` },
+          body: JSON.stringify({
+            action: "read_person_by_id",
+            payload: { razorpay_employee_id: row.razorpay_employee_id, allow_dismissed: true },
+          }),
+        });
+        const body = await r.json().catch(() => null);
+        if (body?.ok && body?.snapshot) {
+          freshSnapshots.set(row.hr_employee_id, body.snapshot);
+          await supa.from("hr_razorpay_employee_map")
+            .update({ last_pull_snapshot: body.snapshot, last_pulled_at: new Date().toISOString() })
+            .eq("hr_employee_id", row.hr_employee_id);
+          refreshed++;
+        } else if (body?.code === "RAZORPAY_ID_NOT_FOUND") {
+          // The person is no longer resolvable in RazorpayX — that IS an
+          // authoritative "not active there" signal, not a stale read.
+          const snap = { ...(row.last_pull_snapshot ?? {}), is_active: false, __not_found_in_razorpay: true };
+          freshSnapshots.set(row.hr_employee_id, snap);
+          await supa.from("hr_razorpay_employee_map")
+            .update({ last_pull_snapshot: snap, last_pulled_at: new Date().toISOString() })
+            .eq("hr_employee_id", row.hr_employee_id);
+          refreshed++;
+        } else {
+          refreshFailed++;
+          rzpStale.add(row.hr_employee_id);
+        }
+      } catch (_e) {
+        refreshFailed++;
+        rzpStale.add(row.hr_employee_id);
+      }
+    }
+
+    for (const r of mapRows) {
+      rzpByEmp.set(r.hr_employee_id, freshSnapshots.get(r.hr_employee_id) ?? r.last_pull_snapshot ?? null);
+    }
+
 
     // eSSL match by pin ↔ badge_id.
     const esslByPin = new Map<string, any>();

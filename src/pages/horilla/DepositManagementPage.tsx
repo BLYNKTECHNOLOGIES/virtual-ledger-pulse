@@ -410,6 +410,25 @@ export default function DepositManagementPage() {
           </div>
         </>
       )}
+      {form.deposit_type === "error_recovery" && (
+        <div className="space-y-4 rounded-md border border-border p-3">
+          <p className="text-xs text-muted-foreground">Error recovery context — refundable to the employee once the funds are recovered from the counterparty.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Incident Date</Label>
+              <Input type="date" value={form.incident_date} onChange={(e) => setForm({ ...form, incident_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>Reference (order / txn no.)</Label>
+              <Input value={form.incident_reference} onChange={(e) => setForm({ ...form, incident_reference: e.target.value })} placeholder="e.g. SO-2041 / UTR" />
+            </div>
+          </div>
+          <div>
+            <Label>Recovery Reason</Label>
+            <Textarea rows={2} value={form.recovery_reason} onChange={(e) => setForm({ ...form, recovery_reason: e.target.value })} placeholder="What went wrong and why it is being recovered" />
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -417,9 +436,26 @@ export default function DepositManagementPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Deposit Management"
-        description="Track employee security deposits, collections, and settlements"
-        actions={<Button onClick={() => { setForm({ employee_id: "", total_deposit_amount: "", deduction_mode: "fixed_installment", deduction_value: "", deduction_start_month: format(new Date(), "yyyy-MM") }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add Deposit</Button>}
+        description="Security deposits and error recoveries — both auto-deducted from monthly payroll"
+        actions={<Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>}
       />
+
+      {/* Category tabs */}
+      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+        {(["security", "error_recovery"] as DepositType[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${tab === t ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {TYPE_LABEL[t]}
+            <span className="ml-2 text-xs text-muted-foreground">
+              {allDeposits.filter((d: any) => (d.deposit_type || "security") === t).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

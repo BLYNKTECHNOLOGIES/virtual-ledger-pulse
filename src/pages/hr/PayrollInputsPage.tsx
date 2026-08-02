@@ -450,7 +450,12 @@ export default function PayrollInputsPage() {
                       {tab === "addition" && <td className="px-3 py-2">{r.addition_type}{r.taxable === false ? " · non-tax" : ""}</td>}
                       <td className="px-3 py-2 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
                       <td className="px-3 py-2">
-                        {r.pushed_at ? <Badge className="bg-success/10 text-success">Pushed</Badge> : <Badge variant="outline">Pending</Badge>}
+                        {r.readback_verified_at ? (
+                          <Badge className="bg-success/10 text-success" title={`Verified on the RazorpayX run at ${new Date(r.readback_verified_at).toLocaleString("en-IN")}`}>Verified on run</Badge>
+                        ) : r.pushed_at ? (
+                          <Badge className="bg-warning/10 text-warning" title={String(r.readback_diff?.error || "Pushed, but not confirmed on the run read-back")}>Pushed · unverified</Badge>
+                        ) : <Badge variant="outline">Pending</Badge>}
+
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex gap-1">

@@ -521,9 +521,6 @@ export default function StatutorySettingsPage() {
               value={form.effective_from.slice(0, 7)}
               onChange={(e) => setForm({ ...form, effective_from: `${e.target.value}-01` })}
             />
-            <p className="text-xs text-muted-foreground">
-              Applies from this month onward — any later months already on record inherit the change.
-            </p>
           </div>
 
 

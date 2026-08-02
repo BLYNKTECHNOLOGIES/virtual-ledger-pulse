@@ -228,31 +228,61 @@ export default function StatutorySettingsPage() {
   const toggleSelect = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
+  const StatChip = ({ label, on, note }: { label: string; on: boolean; note?: string }) => (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs leading-none ${
+        on
+          ? "border-primary/30 bg-primary/10 text-foreground"
+          : "border-border bg-muted/50 text-muted-foreground"
+      }`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${on ? "bg-primary" : "bg-muted-foreground/40"}`} />
+      <span className="font-medium">{label}</span>
+      {note && <span className="text-muted-foreground font-normal">{note}</span>}
+    </span>
+  );
+
   const renderBadges = (r: any) => {
     const { emp, p } = r;
     const monthlyGross = Number(emp.total_salary || 0) / 12;
     const esiIneligible = monthlyGross > 21000;
+    const pfNote = p?.pf_enabled
+      ? [
+          p.pf_wage_basis === "actual" ? "actual" : "₹15k cap",
+          p.vpf_mode && p.vpf_mode !== "none"
+            ? `VPF ${p.vpf_mode === "percent" ? `${p.vpf_value}%` : inr(p.vpf_value)}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : undefined;
+
+    const issues: string[] = [];
+    if (p?.pf_enabled && !p?.uan) issues.push("UAN missing");
+    if (p?.esi_enabled && !p?.esic_number) issues.push("ESIC no. missing");
+    if (esiIneligible && p?.esi_enabled) issues.push("gross above ₹21,000 ceiling");
+
     return (
-      <div className="flex flex-wrap gap-1.5">
-        <Badge variant={p?.pf_enabled ? "default" : "secondary"}>PF {p?.pf_enabled ? "on" : "off"}</Badge>
-        {p?.pf_enabled && (
-          <Badge variant="outline">
-            {p.pf_wage_basis === "actual" ? "PF on actual Basic" : "PF capped ₹15,000"}
-          </Badge>
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatChip label="PF" on={!!p?.pf_enabled} note={pfNote} />
+          <StatChip
+            label="ESI"
+            on={!!p?.esi_enabled}
+            note={!p?.esi_enabled && esiIneligible ? "over ceiling" : undefined}
+          />
+          <StatChip label="PT" on={!!p?.pt_enabled} />
+        </div>
+        {issues.length > 0 && (
+          <div className="flex items-start gap-1.5 text-xs text-destructive">
+            <AlertTriangle className="h-3.5 w-3.5 mt-px shrink-0" />
+            <span>{issues.join(" · ")}</span>
+          </div>
         )}
-        {p?.vpf_mode && p.vpf_mode !== "none" && (
-          <Badge variant="outline">
-            VPF {p.vpf_mode === "percent" ? `${p.vpf_value}%` : inr(p.vpf_value)}
-          </Badge>
-        )}
-        <Badge variant={p?.esi_enabled ? "default" : "secondary"}>ESI {p?.esi_enabled ? "on" : "off"}</Badge>
-        {esiIneligible && <Badge variant="outline">gross &gt; ₹21,000 — auto-ineligible</Badge>}
-        <Badge variant={p?.pt_enabled ? "default" : "secondary"}>PT {p?.pt_enabled ? "on" : "off"}</Badge>
-        {p?.pf_enabled && !p?.uan && <Badge variant="destructive">UAN missing</Badge>}
-        {p?.esi_enabled && !p?.esic_number && <Badge variant="destructive">ESIC no. missing</Badge>}
       </div>
     );
   };
+
 
   return (
 

@@ -376,7 +376,11 @@ serve(async (req) => {
       const suppressAllButActiveState = rzpDismissed;
 
       for (const spec of FIELDS) {
+        // Never assert an active/dismissed verdict from a snapshot we could not
+        // refresh — a stale cached "active" is exactly the false alarm we hit.
+        if (spec.field === "active_state" && rzpStale.has(emp.id)) continue;
         if (suppressAllButActiveState && !(spec.field === "active_state" && hrmsActive)) {
+
           const { data: existing } = await supa
             .from("hr_drift_alerts")
             .select("id")

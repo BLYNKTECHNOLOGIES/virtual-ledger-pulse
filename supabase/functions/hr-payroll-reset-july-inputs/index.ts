@@ -28,7 +28,7 @@ async function proxy(action: string, data: Record<string, unknown>) {
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/razorpay-payroll-proxy`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
-    body: JSON.stringify({ action, payload: { data } }),
+    body: JSON.stringify({ action, payload: { data, allow_zero: true } }),
   });
   const body = await resp.json().catch(() => ({}));
   return { ok: resp.ok && body?.ok !== false, http: resp.status, body };

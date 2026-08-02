@@ -249,14 +249,22 @@ export default function PayrollInputsPage() {
       throw new Error(detail || error.message || "RazorpayX rejected the payroll input");
     }
     if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+    // A push counts as done ONLY when the view-payroll read-back proves the
+    // modification is on the live RazorpayX run. Unverified writes stay
+    // pending here so they can be retried, never silently marked pushed.
+    const verified = res?.readback ? res.readback.verified_on_run !== false : true;
+    if (!verified) {
+      await (supabase as any).from(table)
+        .update({ push_response: res.body ?? {} })
+        .in("id", group.map((r) => r.id));
+      throw new Error(res.readback?.error || "Pushed, but not visible on the RazorpayX run — retry or verify in the dashboard.");
+    }
     const { error: uErr } = await (supabase as any).from(table)
       .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })
       .in("id", group.map((r) => r.id));
     if (uErr) throw uErr;
-    if (res?.readback && res.readback.verified_on_run === false) {
-      throw new Error(res.readback.error || "Pushed, but not visible on the RazorpayX run — verify in the dashboard.");
-    }
     return res;
+
   }
   const pushOne = (row: any) => pushGroup([row]);
 
@@ -500,6 +508,24 @@ export default function PayrollInputsPage() {
                     </Button>
                   </>
                 )}
+                {selectedPending.length === 0 && pendingRows.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    disabled={!gateOpen || bulkPush.isPending}
+                    title={gateOpen ? "" : "Payroll-write gate locked"}
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      pendingRows.forEach((r: any) => { next[r.id] = true; });
+                      setSelected(next);
+                      setBulkPushConfirm(true);
+                    }}
+                  >
+                    <Send className="h-3 w-3 mr-1" /> Push all pending ({pendingRows.length})
+                  </Button>
+                )}
+
                 {tab === "deduction" && (
                   <Button size="sm" className="h-7 text-xs" onClick={() => setAutoLopOpen(true)}>
                     <Calculator className="h-3 w-3 mr-1" /> Auto-calculate LOP from attendance
@@ -702,7 +728,7 @@ export default function PayrollInputsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Push {selectedPending.length} row{selectedPending.length === 1 ? "" : "s"} to RazorpayX?</AlertDialogTitle>
             <AlertDialogDescription>
-              Total ₹{selectedPending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0).toLocaleString("en-IN")} for period <strong>{period}</strong>. Rows are pushed one by one; any failures are reported and stay pending.
+              Total ₹{selectedPending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0).toLocaleString("en-IN")} for period <strong>{period}</strong>. Rows are pushed one employee at a time and each one is read back from the RazorpayX payroll run — a row is marked Pushed only after that verification succeeds; anything unverified stays pending for retry.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -505,9 +505,6 @@ export default function StatutorySettingsPage() {
             <div className="space-y-1.5">
               <Label>ESIC number</Label>
               <Input className="text-foreground" value={form.esic_number} onChange={(e) => setForm({ ...form, esic_number: e.target.value })} />
-              <p className="text-xs text-muted-foreground">
-                ESI still stops automatically once regular gross crosses ₹21,000, at the contribution-period boundary.
-              </p>
             </div>
           )}
 

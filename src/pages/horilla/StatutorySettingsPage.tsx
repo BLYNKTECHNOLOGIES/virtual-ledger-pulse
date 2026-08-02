@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { toast } from "sonner";
-import { Search, ShieldCheck, History, Users, Info } from "lucide-react";
+import { Search, ShieldCheck, History, Users, Info, AlertTriangle } from "lucide-react";
 
 type Profile = {
   id: string;

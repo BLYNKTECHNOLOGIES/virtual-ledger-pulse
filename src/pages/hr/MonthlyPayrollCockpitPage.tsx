@@ -135,7 +135,13 @@ function DetailLine({ step }: { step: CockpitStep }) {
     case "watchdog_zero":
       return <span>{d.stale_open ?? 0} stale sessions open for this month.</span>;
     case "lop_push":
-      return <span>{d.lop_rows ?? 0} LOP row(s) staged in payroll inputs.</span>;
+      return (
+        <span>
+          {d.lop_rows ?? 0} LOP row(s) staged
+          {(d.auto_rows ?? 0) > 0 ? ` · ${d.auto_rows} auto-calculated from attendance (${Number(d.auto_lop_days ?? 0)} LOP days)` : " · none auto-calculated yet"}
+          {(d.pushed_rows ?? 0) > 0 ? ` · ${d.pushed_rows} pushed to RazorpayX` : ""}.
+        </span>
+      );
     case "inputs_push":
       return <span>{d.input_rows ?? 0} additions/deductions staged.</span>;
     case "run_on_razorpay":

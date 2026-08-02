@@ -7,13 +7,19 @@
 //
 // Order:
 //   1. Salary structure assignment (annual CTC / 12)
-//   2. RazorpayX-mirrored structure cache (component rows, annual amounts)
+//   2. RazorpayX annual CTC cached on hr_employees.total_salary (authority)
+//   3. RazorpayX-mirrored structure cache (component rows, annual amounts) —
+//      only when no CTC exists, and never when it contradicts the CTC. The
+//      mirrored components are a *derived* breakup (they carry employer-side
+//      loading) and summing them overstates the monthly base, which silently
+//      inflated LOP deductions. CTC always wins.
 //   3. Imported Salary Register gross for the period
 //   4. Onboarding annual CTC (local estimate)
 //   5. Most recent imported payslip on or before this period
 
 export type SalaryBaseSource =
   | "structure_assignment"
+  | "razorpay_ctc"
   | "razorpay_mirror"
   | "salary_register"
   | "onboarding_ctc"
@@ -49,6 +55,20 @@ export async function resolveMonthlyGross(
   if (salaryAssignArr?.length) {
     monthlyGross = Number(salaryAssignArr[0]?.annual_ctc ?? 0) / 12;
     if (monthlyGross > 0) source = "structure_assignment";
+  }
+
+  // RazorpayX CTC cached on the employee record is the payroll authority.
+  if (!(monthlyGross > 0)) {
+    const { data: empRow } = await supabase
+      .from("hr_employees")
+      .select("total_salary")
+      .eq("id", employeeId)
+      .limit(1);
+    const ctc = Number((empRow?.[0] as any)?.total_salary ?? 0);
+    if (ctc > 0) {
+      monthlyGross = ctc > 100000 ? ctc / 12 : ctc;
+      source = "razorpay_ctc";
+    }
   }
 
   if (!(monthlyGross > 0)) {
@@ -116,6 +136,7 @@ export async function resolveMonthlyGross(
 
 export const SALARY_BASE_LABELS: Record<SalaryBaseSource, string> = {
   structure_assignment: "Salary structure assignment",
+  razorpay_ctc: "RazorpayX annual CTC",
   razorpay_mirror: "RazorpayX mirrored structure",
   salary_register: "Imported Salary Register",
   onboarding_ctc: "Onboarding CTC (estimate)",

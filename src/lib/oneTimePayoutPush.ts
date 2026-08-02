@@ -125,6 +125,27 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
       "RazorpayX payroll-write gate is locked. Verify the Payroll-run envelope in HRMS → Payroll → RazorpayX Sync, then retry this push.";
   }
 
+  // 4b) ECHO VERIFICATION — RazorpayX returns the resulting additions map for
+  // the employee/month. Compare the echoed rupee amount against what we meant
+  // to stage. A unit mismatch (paise vs rupees) or an Opfin-side label collapse
+  // shows up here instead of silently landing a 100x bonus on the payroll run.
+  if (!errorMessage) {
+    const echoed = response?.body?.additions;
+    const row = echoed && typeof echoed === "object"
+      ? (echoed[pushLabel] ?? Object.values(echoed as Record<string, any>).find(
+          (v: any) => String(v?.name ?? "").trim() === pushLabel,
+        ))
+      : null;
+    if (row) {
+      const echoedAmount = Number((row as any).amount);
+      if (Number.isFinite(echoedAmount) && Math.abs(echoedAmount - amountRupees) > 1) {
+        errorMessage =
+          `RazorpayX recorded ₹${echoedAmount.toLocaleString("en-IN")} for "${pushLabel}" but ₹${amountRupees.toLocaleString("en-IN")} was intended. ` +
+          `The addition was NOT accepted as staged — correct it in RazorpayX (Payroll → this employee → modifications) before the run is executed.`;
+      }
+    }
+  }
+
 
   // 5) Stamp result back on the revision
   const patch: any = errorMessage

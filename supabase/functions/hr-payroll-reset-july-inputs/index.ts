@@ -38,6 +38,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const svc = createClient(SUPABASE_URL, SERVICE_ROLE);
   const dryRun = new URL(req.url).searchParams.get("dry") === "1";
+  let extraZeroRpIds: string[] = [];
+  try {
+    const b = await req.json();
+    extraZeroRpIds = Array.isArray(b?.zeroDeductionsFor) ? b.zeroDeductionsFor.map(String) : [];
+  } catch (_) { /* no body */ }
   const out: any = { period: PERIOD, dryRun, lop: [], additions: [] };
 
   // ---------------------------------------------------------------- LOP wipe
@@ -54,6 +59,20 @@ Deno.serve(async (req) => {
     if (!r.razorpay_employee_id) continue;
     const k = String(r.razorpay_employee_id);
     byEmp.set(k, [...(byEmp.get(k) ?? []), r]);
+  }
+
+  // Recovery path: rows already deleted locally in an earlier attempt, but the
+  // amount is still live in RazorpayX — zero those employees explicitly.
+  for (const rpId of extraZeroRpIds) {
+    if (byEmp.has(rpId)) continue;
+    if (dryRun) { out.lop.push({ rp: rpId, wouldPush: 0, via: "explicit" }); continue; }
+    const res = await proxy("payroll_add_deduction", {
+      "employee-id": Number(rpId),
+      "employee-type": "employee",
+      "payroll-month": PERIOD_MONTH,
+      deductions: [{ label: "LOP reset", amount: 0 }],
+    });
+    out.lop.push({ rp: rpId, pushed: 0, via: "explicit", ok: res.ok, http: res.http, error: res.ok ? null : res.body?.error });
   }
 
   const lopIds: string[] = [];

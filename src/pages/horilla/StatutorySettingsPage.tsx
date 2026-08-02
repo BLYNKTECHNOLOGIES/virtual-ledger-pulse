@@ -503,11 +503,23 @@ export default function StatutorySettingsPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Reason (required)</Label>
-            <Input className="text-foreground" value={bulk.reason} onChange={(e) => setBulk({ ...bulk, reason: e.target.value })} />
+            <Input
+              className={`text-foreground ${!bulk.reason.trim() ? "border-destructive/60" : ""}`}
+              value={bulk.reason}
+              onChange={(e) => setBulk({ ...bulk, reason: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required — recorded in the statutory change history.
+            </p>
           </div>
-          <Button className="w-full" onClick={() => bulkMutation.mutate()} disabled={bulkMutation.isPending}>
+          <Button
+            className="w-full"
+            onClick={() => bulkMutation.mutate()}
+            disabled={bulkMutation.isPending || !bulk.reason.trim()}
+          >
             {bulkMutation.isPending ? "Applying…" : "Apply to selected"}
           </Button>
+
         </div>
       </ResponsiveDialog>
 

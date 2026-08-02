@@ -339,13 +339,10 @@ function extractPayrollViewFigures(body: any) {
 }
 
 // ---------------------------------------------------------------------------
-// RazorpayX payroll modification input normalisation.
-//   data.additions  = { "<label>": { name, amount, type: 0|1|2, taxable: 0|1 } }
-//   data.deductions = { "<label>": { name, amount, type, taxable, deductFrom } }
-// Amounts are plain rupees (integers), NOT paise. It is a label-keyed MAP, not
-// an array — an array is silently ignored by Opfin, which is why staged bonuses
-// never showed up on the run. Callers may pass either an array of
-// { label, amount, taxable, type } or an already-shaped map; both normalise here.
+// RazorpayX payroll modification input normalisation. Callers may pass an
+// array of { label, amount, taxable, type } or an already-shaped map; both
+// normalise here before each endpoint's official wire contract is applied.
+// Amounts are plain rupees (integers), never paise.
 // ---------------------------------------------------------------------------
 function additionTypeCode(t: unknown): number {
   const s = String(t ?? "bonus").toLowerCase();

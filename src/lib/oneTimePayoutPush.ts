@@ -69,13 +69,31 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
   // ₹5,00,000. Every other caller (Payroll Inputs, bulk staging) already sends
   // rupees — keep it that way. Do not reintroduce a paise conversion.
   const periodMonth = String(rev.payout_month).slice(0, 7); // "YYYY-MM-01" → "YYYY-MM"
-  const label =
-    (rev.revision_reason && String(rev.revision_reason).trim()) ||
-    (rev.notes && String(rev.notes).trim()) ||
+  // LABEL SAFETY: the label becomes the *addition head* shown on the RazorpayX
+  // payroll run and on the payslip. A short/garbage free-text reason (a real
+  // case: revision_reason = "Ad") lands as an unreadable head that operators
+  // cannot find on the run. Always anchor the label on the payout type and only
+  // append the operator's reason when it is meaningful (>= 3 chars).
+  const TYPE_LABEL: Record<string, string> = {
+    bonus: "Bonus",
+    performance_incentive: "Performance Incentive",
+    retention_bonus: "Retention Bonus",
+    special_allowance: "Special Allowance",
+    ad_hoc: "Ad Hoc Payout",
+    reimbursement: "Reimbursement",
+    arrears: "Arrears",
+  };
+  const baseLabel =
+    TYPE_LABEL[String(rev.revision_type)] ||
     (rev.revision_type ? String(rev.revision_type).replace(/_/g, " ") : "Bonus");
+  const rawReason = String(rev.revision_reason || "").trim();
+  const label = rawReason.length >= 3 && rawReason.toLowerCase() !== baseLabel.toLowerCase()
+    ? `${baseLabel} — ${rawReason}`
+    : baseLabel;
   const additionType = ADDITION_TYPE_MAP[rev.revision_type] || "bonus";
   const amountRupees = Math.round(amount);
   const pushLabel = label.slice(0, 80);
+
 
   const data = {
     "employee-id": razorpayId,

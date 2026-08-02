@@ -18,6 +18,7 @@ import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calc
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
+import { AutoRecoveriesCard } from "@/components/hr/payroll/AutoRecoveriesCard";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 
@@ -583,6 +584,10 @@ export default function PayrollInputsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {tab === "deduction" && <AutoRecoveriesCard period={period} />}
+
+
 
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (

@@ -23051,6 +23051,26 @@ export type Database = {
           },
         ]
       }
+      hr_payroll_auto_recoveries: {
+        Row: {
+          amount: number | null
+          badge_id: string | null
+          employee_id: string | null
+          employee_name: string | null
+          failure_reason: string | null
+          id: string | null
+          installment_no: number | null
+          label: string | null
+          parent_id: string | null
+          period_month: string | null
+          razorpay_code: string | null
+          razorpay_input_id: string | null
+          razorpay_pushed_at: string | null
+          source_kind: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
       hr_payslip_last_coverage_v: {
         Row: {
           coverage: Json | null
@@ -24659,6 +24679,10 @@ export type Database = {
           tolerance_used: number
         }[]
       }
+      hr_close_loan: {
+        Args: { p_loan_id: string; p_mode?: string; p_reason?: string }
+        Returns: undefined
+      }
       hr_close_payroll_month: { Args: { _month: string }; Returns: Json }
       hr_cockpit_ack_step: {
         Args: {
@@ -24951,6 +24975,15 @@ export type Database = {
         Returns: number
       }
       hr_rebuild_loan_schedule: { Args: { p_loan_id: string }; Returns: number }
+      hr_record_manual_loan_repayment: {
+        Args: {
+          p_amount: number
+          p_loan_id: string
+          p_notes?: string
+          p_repayment_date?: string
+        }
+        Returns: string
+      }
       hr_resolve_employee_by_pin: {
         Args: { _device_serial: string; _pin: string; _punch_time?: string }
         Returns: string

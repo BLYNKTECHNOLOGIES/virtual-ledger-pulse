@@ -1,0 +1,1 @@
+ALTER VIEW public.hr_payroll_auto_recoveries SET (security_invoker = on);

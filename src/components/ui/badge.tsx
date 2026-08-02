@@ -53,9 +53,9 @@ export interface BadgeProps
   dot?: boolean
 }
 
-function Badge({ className, variant, dot, children, ...props }: BadgeProps) {
-  return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props}>
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, dot, children, ...props }, ref) => (
+    <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props}>
       {dot && (
         <span
           className={cn(
@@ -67,6 +67,7 @@ function Badge({ className, variant, dot, children, ...props }: BadgeProps) {
       {children}
     </div>
   )
-}
+)
+Badge.displayName = "Badge"
 
 export { Badge, badgeVariants }

@@ -23055,6 +23055,7 @@ export type Database = {
         Row: {
           amount: number | null
           badge_id: string | null
+          collected_amount: number | null
           employee_id: string | null
           employee_name: string | null
           failure_reason: string | null
@@ -23066,8 +23067,11 @@ export type Database = {
           razorpay_code: string | null
           razorpay_input_id: string | null
           razorpay_pushed_at: string | null
+          remaining_after: number | null
           source_kind: string | null
           status: string | null
+          total_amount: number | null
+          total_installments: number | null
         }
         Relationships: []
       }

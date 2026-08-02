@@ -617,11 +617,27 @@ export default function DataHealthPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                    <ValueCol label="HRMS" value={d.hrms_value} highlight />
-                    <ValueCol label="Razorpay" value={d.razorpay_value} />
-                    <ValueCol label="eSSL" value={d.essl_value} />
-                  </div>
+                  {isPushFailureAlert(d) ? (
+                    <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs space-y-1">
+                      <div className="font-medium text-warning">
+                        Push failure — not a value comparison
+                      </div>
+                      <div className="text-foreground">
+                        {d.resolution_note ||
+                          "The last ERP → RazorpayX push for this employee did not verify. No side-by-side values were captured."}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Raised {new Date(d.first_seen_at).toLocaleString("en-IN")} · retry the push, or mark resolved if it is already correct in RazorpayX.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <ValueCol label="HRMS" value={d.hrms_value} highlight />
+                      <ValueCol label="Razorpay" value={d.razorpay_value} />
+                      <ValueCol label="eSSL" value={d.essl_value} />
+                    </div>
+                  )}
+
                 </div>
                 <div className="flex flex-wrap md:flex-col gap-2 md:justify-center">
                   <button

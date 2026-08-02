@@ -24842,6 +24842,10 @@ export type Database = {
         Args: { p_employee_id: string; p_on?: string }
         Returns: boolean
       }
+      hr_is_payroll_period_processed: {
+        Args: { p_period: string }
+        Returns: boolean
+      }
       hr_is_sick_leave_code: {
         Args: { _code: string; _name?: string }
         Returns: boolean
@@ -25006,6 +25010,11 @@ export type Database = {
           period_month: string
         }[]
       }
+      hr_settle_deposit_installment: {
+        Args: { p_schedule_id: string }
+        Returns: undefined
+      }
+      hr_settle_deposit_period: { Args: { p_period: string }; Returns: number }
       hr_stale_session_held: {
         Args: { p_date: string; p_employee_id: string }
         Returns: boolean

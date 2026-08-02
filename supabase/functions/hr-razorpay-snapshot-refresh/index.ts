@@ -35,6 +35,29 @@ serve(async (req) => {
   const svc = createClient(supaUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
+    // One-shot operator repair hook; removed immediately after the verified run.
+    const repairRpId = url.searchParams.get("repair_rp_id");
+    if (repairRpId) {
+      const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const proxyUrl = `${supaUrl}/functions/v1/razorpay-payroll-proxy`;
+      const push = await fetch(proxyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${svcKey}` },
+        body: JSON.stringify({ action: "push_person_apply_one", razorpay_employee_id: repairRpId }),
+      });
+      const pushBody = await push.json().catch(() => null);
+      const read = await fetch(proxyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${svcKey}` },
+        body: JSON.stringify({ action: "read_person_by_id", razorpay_employee_id: repairRpId, allow_dismissed: true }),
+      });
+      const readBody = await read.json().catch(() => null);
+      return new Response(JSON.stringify({ ok: push.ok && read.ok, push: pushBody, read: readBody }), {
+        status: push.ok && read.ok ? 200 : 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Candidate set: EVERY linked employee, stalest snapshot first. The old
     // "touched in HRMS recently" filter meant a dismissal done in the RazorpayX
     // dashboard (which never touches HRMS) was never re-pulled, so the cached

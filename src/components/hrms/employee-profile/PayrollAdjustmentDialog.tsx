@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -57,6 +58,21 @@ export function PayrollAdjustmentDialog({
 
   // Do-not-pay
   const [doNotPay, setDoNotPay] = useState(currentDoNotPay);
+
+  const { data: razorpayState } = useQuery({
+    queryKey: ["razorpay_employee_action_state", razorpayEmployeeId],
+    enabled: open && Boolean(razorpayEmployeeId),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("last_pull_snapshot")
+        .eq("razorpay_employee_id", razorpayEmployeeId)
+        .maybeSingle();
+      if (error) throw error;
+      return { isActive: data?.last_pull_snapshot?.is_active !== false };
+    },
+  });
+  const canPause = razorpayState?.isActive !== false;
 
   const commonData = {
     "employee-id": Number(razorpayEmployeeId),
@@ -139,17 +155,22 @@ export function PayrollAdjustmentDialog({
           </TabsContent>
 
           <TabsContent value="pause" className="space-y-3 pt-3">
+            {!canPause && (
+              <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                This employee is inactive in RazorpayX. Monthly payroll pause and resume actions are unavailable.
+              </p>
+            )}
             <div className="flex items-center justify-between border border-border rounded-lg px-3 py-2">
               <div>
                 <p className="text-sm font-medium">Skip this month's payroll</p>
                 <p className="text-xs text-muted-foreground">RazorpayX marks the run "do-not-pay" and skips disbursal.</p>
               </div>
-              <Switch checked={doNotPay} onCheckedChange={setDoNotPay} />
+              <Switch checked={doNotPay} onCheckedChange={setDoNotPay} disabled={!canPause} />
             </div>
             <Button
               className="w-full"
               variant={doNotPay ? "destructive" : "default"}
-              disabled={busy !== null}
+              disabled={busy !== null || !canPause}
               onClick={() => runAction("payroll_do_not_pay", {
                 "do-not-pay": doNotPay,
               }, doNotPay ? "Month paused in RazorpayX" : "Month resumed in RazorpayX")}

@@ -453,12 +453,24 @@ export default function StatutorySettingsPage() {
 
           <div className="space-y-1.5">
             <Label>Reason (required)</Label>
-            <Input className="text-foreground" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+            <Input
+              className={`text-foreground ${!form.reason.trim() ? "border-destructive/60" : ""}`}
+              value={form.reason}
+              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required — recorded in the statutory change history.
+            </p>
           </div>
 
-          <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button
+            className="w-full"
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending || !form.reason.trim()}
+          >
             {saveMutation.isPending ? "Saving…" : "Save statutory settings"}
           </Button>
+
         </div>
       </ResponsiveDialog>
 

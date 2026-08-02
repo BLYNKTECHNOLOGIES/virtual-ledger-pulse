@@ -353,7 +353,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
           {kind === "addition" && mode !== "rows" && (
             <div>
               <Label className="text-xs">Type</Label>
-              <Select value={additionType} onValueChange={setAdditionType}>
+              <Select value={additionType} onValueChange={(v) => { setAdditionType(v); if (v === "bonus" && !BONUS_LABELS.includes(label)) setLabel(""); }}>
                 <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bonus">Bonus</SelectItem>

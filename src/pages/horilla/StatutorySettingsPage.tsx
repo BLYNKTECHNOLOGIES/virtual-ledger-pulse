@@ -259,29 +259,36 @@ export default function StatutorySettingsPage() {
 
     const issues: string[] = [];
     if (p?.pf_enabled && !p?.uan) issues.push("UAN missing");
-    if (p?.esi_enabled && !p?.esic_number) issues.push("ESIC no. missing");
-    if (esiIneligible && p?.esi_enabled) issues.push("gross above ₹21,000 ceiling");
+    if (p?.esi_enabled && !p?.esic_number) issues.push("ESIC number missing");
+    if (esiIneligible && p?.esi_enabled) issues.push("Gross above ₹21,000 ceiling");
 
     return (
-      <div className="space-y-1.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <StatChip label="PF" on={!!p?.pf_enabled} note={pfNote} />
-          <StatChip
-            label="ESI"
-            on={!!p?.esi_enabled}
-            note={!p?.esi_enabled && esiIneligible ? "over ceiling" : undefined}
-          />
-          <StatChip label="PT" on={!!p?.pt_enabled} />
-        </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <StatChip label="PF" on={!!p?.pf_enabled} note={pfNote} />
+        <StatChip
+          label="ESI"
+          on={!!p?.esi_enabled}
+          note={!p?.esi_enabled && esiIneligible ? "over ceiling" : undefined}
+        />
+        <StatChip label="PT" on={!!p?.pt_enabled} />
         {issues.length > 0 && (
-          <div className="flex items-start gap-1.5 text-xs text-destructive">
-            <AlertTriangle className="h-3.5 w-3.5 mt-px shrink-0" />
-            <span>{issues.join(" · ")}</span>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <ul className="text-xs space-y-0.5">
+                {issues.map((i) => <li key={i}>{i}</li>)}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     );
   };
+
 
 
   return (

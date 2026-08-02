@@ -28,6 +28,7 @@
  *    so drift alerts don't churn on the still-simplified projection.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { resolveMonthlyGross } from "../_shared/salaryBase.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -315,74 +316,14 @@ Deno.serve(async (req) => {
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
 
-      // Salary snapshot — schema-correct columns (no effective_from; latest row by created_at).
-      const { data: salaryAssignArr, error: saErr } = await supabase
-        .from("hr_employee_salary_structure_assignments")
-        .select("*")
-        .eq("employee_id", emp.id)
-        .lte("created_at", `${monthEndStr}T23:59:59Z`)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (saErr) {
-        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `salary_assignment: ${saErr.message}` });
+      // Salary snapshot — resolved through the SHARED ladder so the auto-LOP
+      // generator and this engine can never disagree on the monthly base.
+      const salaryBase = await resolveMonthlyGross(supabase, emp.id, periodStr, monthEndStr);
+      if (salaryBase.error) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: salaryBase.error });
         continue;
       }
-      let monthlyGross = 0;
-      if (salaryAssignArr?.length) {
-        monthlyGross = Number(salaryAssignArr[0]?.annual_ctc ?? 0) / 12;
-      } else {
-        // Fallback 1: Razorpay-mirrored structure cache (component rows, annual amounts)
-        const { data: mirror } = await supabase
-          .from("hr_employee_salary_structures")
-          .select("amount")
-          .eq("employee_id", emp.id)
-          .eq("is_active", true);
-        const mirrorTotal = (mirror ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-        if (mirrorTotal > 0) {
-          // Mirror stores annual figures; anything below a month-scale threshold is already monthly.
-          monthlyGross = mirrorTotal > 100000 ? mirrorTotal / 12 : mirrorTotal;
-        } else {
-          // Fallback 2: imported Salary Register gross for the period
-          const { data: reg } = await supabase
-            .from("hr_razorpay_payslip_records")
-            .select("gross_earnings, reg_gross_salary")
-            .eq("hr_employee_id", emp.id)
-            .eq("period_month", periodStr)
-            .limit(1);
-          const r: any = reg?.[0];
-          monthlyGross = Number(r?.reg_gross_salary ?? r?.gross_earnings ?? 0);
-
-          // Fallback 3: annual CTC captured during onboarding (local estimate).
-          // Preferred over an older payslip because prior-period payslips are
-          // often partial months (mid-month joiners / training stints).
-          if (!(monthlyGross > 0)) {
-            const { data: onb } = await supabase
-              .from("hr_employee_onboarding")
-              .select("ctc")
-              .eq("employee_id", emp.id)
-              .limit(1);
-            const annual = Number((onb?.[0] as any)?.ctc ?? 0);
-            if (annual > 0) monthlyGross = annual > 100000 ? annual / 12 : annual;
-          }
-
-          // Fallback 4: most recent imported payslip on or before this period.
-          if (!(monthlyGross > 0)) {
-            const { data: prev } = await supabase
-              .from("hr_razorpay_payslip_records")
-              .select("gross_earnings, reg_gross_salary, period_month")
-              .eq("hr_employee_id", emp.id)
-              .lte("period_month", periodStr)
-              .order("period_month", { ascending: false })
-              .limit(1);
-            const p: any = prev?.[0];
-            monthlyGross = Number(p?.reg_gross_salary ?? p?.gross_earnings ?? 0);
-          }
-
-        }
-
-      }
-
-      monthlyGross = Math.round(monthlyGross);
+      const monthlyGross = salaryBase.monthlyGross;
       if (!(monthlyGross > 0)) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "no_salary_assignment" });
         continue;

@@ -10880,12 +10880,14 @@ export type Database = {
           hr_employee_id: string | null
           id: string
           label: string
+          lop_days: number | null
           period_month: string
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
           readback_diff: Json | null
           readback_verified_at: string | null
+          source: string
           updated_at: string
         }
         Insert: {
@@ -10895,12 +10897,14 @@ export type Database = {
           hr_employee_id?: string | null
           id?: string
           label: string
+          lop_days?: number | null
           period_month: string
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
           readback_diff?: Json | null
           readback_verified_at?: string | null
+          source?: string
           updated_at?: string
         }
         Update: {
@@ -10910,12 +10914,14 @@ export type Database = {
           hr_employee_id?: string | null
           id?: string
           label?: string
+          lop_days?: number | null
           period_month?: string
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
           readback_diff?: Json | null
           readback_verified_at?: string | null
+          source?: string
           updated_at?: string
         }
         Relationships: [

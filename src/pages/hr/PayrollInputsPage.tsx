@@ -13,9 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
+import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
@@ -39,6 +40,7 @@ export default function PayrollInputsPage() {
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [autoLopOpen, setAutoLopOpen] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
@@ -365,6 +367,11 @@ export default function PayrollInputsPage() {
                     </Button>
                   </>
                 )}
+                {tab === "deduction" && (
+                  <Button size="sm" className="h-7 text-xs" onClick={() => setAutoLopOpen(true)}>
+                    <Calculator className="h-3 w-3 mr-1" /> Auto-calculate LOP from attendance
+                  </Button>
+                )}
                 <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setBulkOpen(true)}>
                   <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
                 </Button>
@@ -560,6 +567,8 @@ export default function PayrollInputsPage() {
         employees={employees as any[]}
         onDone={() => qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] })}
       />
+
+      <AutoLopDialog open={autoLopOpen} onOpenChange={setAutoLopOpen} period={period} />
     </div>
   );
 }

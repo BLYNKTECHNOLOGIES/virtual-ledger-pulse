@@ -584,6 +584,7 @@ Deno.serve(async (req) => {
         { key: "pf_employer_ctc", label: "Employer PF + EDLI (within CTC)", type: "info_deduction", amount: epf.employer_earnings_side },
         { key: "esi_employer_ctc", label: "Employer ESI (within CTC)", type: "info_deduction", amount: esi.employer },
         { key: "pf_employee", label: "PF (Employee)", type: "deduction", amount: epf.employee },
+        { key: "vpf", label: "Voluntary PF (VPF)", type: "deduction", amount: vpfAmount },
         { key: "esi_employee", label: "ESI (Employee)", type: "deduction", amount: esi.employee },
         { key: "other_recovery", label: "Other recovery", type: "deduction", amount: addNegative },
         { key: "pt", label: "Professional Tax", type: "deduction", amount: pt },

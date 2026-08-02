@@ -36,3 +36,25 @@ Fix:
 - Amounts stay in rupees end-to-end (RazorpayX/Opfin rupee rule); push uses the existing `razorpay-payroll-proxy` `payroll_add_deduction` action with its read-back verification.
 - UI: `DepositManagementPage.tsx` gets a Tabs shell + type-aware form/summaries; `EmployeeProfilePage.tsx` `DepositInfoSection` switches from `maybeSingle()` to a list rendering both categories.
 - Verification before reporting done: create one deposit of each type, confirm schedule rows are generated, run the scheduler for the current period, and confirm both deductions appear in RazorpayX read-back with the correct distinct codes and ledger balances.
+
+---
+
+# Loans & Advances — same gap, same fix
+
+Verified in the database: `hr_loans` has only two triggers (`trg_validate_loan_status`, `trg_sync_loan_balance`) and no function anywhere generates `hr_loan_repayments` rows. So an approved loan today has an EMI amount and a start date but **no monthly schedule and no push to RazorpayX** — the EMI is only used inside the advisory shadow-payroll estimate. Nothing is actually deducted from the payroll.
+
+## What changes
+
+- Approving a loan (and editing amount / EMI / tenure / start date) builds its full repayment schedule in `hr_loan_repayments` — one row per month, last installment absorbing the rounding remainder so the sum equals the principal exactly.
+- The daily scheduler (extended from `hr-schedule-deposits`, or a sibling job sharing the same code path) picks up every due, unpushed repayment for the current period and pushes it to RazorpayX as a deduction with code `LOAN_EMI_M{n}` and label "Loan EMI" / "Salary Advance recovery" depending on `loan_type` — with the same read-back verification used elsewhere.
+- On a confirmed push the repayment row moves to `paid`, `trg_sync_loan_balance` reduces `outstanding_balance`, and the loan auto-closes (`status='closed'`) when the balance reaches zero.
+- Loans that are `pending`, `rejected`, `on_hold` or `closed` are skipped; a month already pushed is never pushed twice.
+- Monthly-coverage check on the Payroll Cockpit also covers loans: any active loan without a pushed EMI for the current period is flagged before payroll is finalised.
+- F&F settlement recovers the full remaining outstanding balance as a final deduction and closes the loan.
+- Loans page gains the schedule view (per-month status: scheduled / pushed / paid / failed) alongside the existing repayment history, plus a manual "Push this month" fallback and pause/resume for a loan.
+
+## Technical notes
+
+- Add `period_month date`, `status` (`scheduled|pushed|paid|failed`), `razorpay_input_id`, `razorpay_pushed_at`, `failure_reason`, `installment_no` to `hr_loan_repayments` (currently free-form manual rows) and a partial unique index on `(loan_id, period_month)` to make pushes idempotent.
+- New `hr_rebuild_loan_schedule(p_loan_id uuid)` mirroring `hr_rebuild_deposit_schedule` from the deposit work above; called on approval and on edit.
+- Push uses `razorpay-payroll-proxy` `payroll_add_deduction`, rupees only, with the echo-verify read-back — identical contract to the deposit push, so both live in one shared helper inside the edge function.

@@ -230,7 +230,7 @@ serve(async (req) => {
   try {
     let empQuery: any = supa
       .from("hr_employees")
-      .select("id, first_name, last_name, email, phone, dob, gender, badge_id, is_active");
+      .select("id, first_name, last_name, email, phone, dob, gender, pan_number, badge_id, is_active");
     if (employeeIdFilter) empQuery = empQuery.eq("id", employeeIdFilter);
     const { data: employees, error: empErr } = await empQuery;
     if (empErr) throw empErr;

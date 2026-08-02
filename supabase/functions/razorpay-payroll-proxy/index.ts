@@ -7197,17 +7197,17 @@ Deno.serve(async (req) => {
         ? directPayload.data : {};
       let payrollEmployeeId = typeof data["employee-id"] === "number" || typeof data["employee-id"] === "string"
         ? String(data["employee-id"]) : "";
-      // Opfin's do-not-pay handler dereferences the boolean field internally;
-      // omitting it produces HTTP 200 with "Undefined property: stdClass::$value".
-      // Normalize the complete documented contract here so every UI caller is
-      // safe, including older clients that only sent employee + month.
+      // Official RazorpayX Postman contract for payroll:do-not-pay is:
+      //   { email, payroll-month, value }
+      // It does NOT accept employee-id / employee-type / do-not-pay. Sending
+      // those keys makes Opfin's PHP handler dereference a missing `$value` and
+      // return HTTP 200 with "Undefined property: stdClass::$value".
+      let doNotPayExpected: boolean | null = null;
       if (action === "payroll_do_not_pay") {
         if (!data["employee-id"]) return json(400, { ok: false, error: "Missing required payroll do-not-pay field: employee-id" });
         if (!data["payroll-month"] && data.month) data["payroll-month"] = String(data.month).slice(0, 7);
         if (!data["payroll-month"]) return json(400, { ok: false, error: "Missing required payroll do-not-pay field: payroll-month" });
-        data["employee-id"] = Number(data["employee-id"]);
-        data["employee-type"] = String(data["employee-type"] || "employee");
-        data["do-not-pay"] = data["do-not-pay"] !== false;
+        doNotPayExpected = data["do-not-pay"] !== false;
         delete data.month;
       }
       // ---- payroll modifications
@@ -7266,6 +7266,47 @@ Deno.serve(async (req) => {
         data.email = String(email).trim();
         delete data["employee-id"];
         delete data["employee-type"];
+      }
+
+      // payroll:do-not-pay identifies the person by email, exactly like the
+      // other official payroll-modification endpoints. Resolve the email from
+      // the canonical map, replace the UI-friendly boolean key with `value`,
+      // and remove unsupported identity keys before sending to Opfin.
+      if (action === "payroll_do_not_pay") {
+        const rpEid = String(data["employee-id"] || "");
+        const { data: mapRow } = await svc
+          .from("hr_razorpay_employee_map")
+          .select("hr_employee_id, last_pull_snapshot")
+          .eq("razorpay_employee_id", rpEid)
+          .maybeSingle();
+        const snap: any = mapRow?.last_pull_snapshot || {};
+        let email = snap.email || snap.work_email || snap.personal_email || snap["work-email"] || snap["personal-email"] || "";
+        if (!email && mapRow?.hr_employee_id) {
+          const { data: employee } = await svc
+            .from("hr_employees")
+            .select("email")
+            .eq("id", mapRow.hr_employee_id)
+            .maybeSingle();
+          email = employee?.email || "";
+        }
+        if (!email) {
+          return json(400, { ok: false, error: "RazorpayX do-not-pay requires the employee email, but no mapped email is available." });
+        }
+        // Opfin can only pause payroll for a currently active employee. Its
+        // `do-not-pay` endpoint otherwise returns code 8 (user not locatable),
+        // which is a terminal RazorpayX state rather than a retryable failure.
+        if (snap.is_active === false) {
+          return json(409, {
+            ok: false,
+            code: "RZP_INACTIVE_EMPLOYEE",
+            error: "This employee is inactive in RazorpayX, so their monthly payroll cannot be paused. Select an active employee or verify their RazorpayX status.",
+          });
+        }
+        data.email = String(email).trim();
+        data.value = doNotPayExpected;
+        delete data["employee-id"];
+        delete data["employee-type"];
+        delete data["do-not-pay"];
       }
 
       // ---- people:dismiss requires the employee's email in the data block
@@ -7384,7 +7425,7 @@ Deno.serve(async (req) => {
       // the same employee/month and stamp readback_verified_at + readback_diff
       // on the corresponding staged row. Best-effort — non-fatal on failure.
       let readbackReceipt: any = null;
-      if (!errText && (action === "payroll_add_additions" || action === "payroll_add_deduction")) {
+      if (!errText && (action === "payroll_add_additions" || action === "payroll_add_deduction" || action === "payroll_do_not_pay")) {
         const rbId = String(directPayload?.readback_id || "").trim();
         const rbTable = String(directPayload?.readback_table || "").trim();
         const rbEid = payrollEmployeeId;
@@ -7442,7 +7483,13 @@ Deno.serve(async (req) => {
               const okAmt = !!hit && (Math.abs(hit.amount - e.amount) < 1 || Math.abs(hit.amount - e.amount * 100) < 1);
               return { label: e.label, expected: e.amount, found: hit ? hit.amount : null, ok: okAmt };
             });
-            const allMatched = matched.length > 0 && matched.every((m) => m.ok);
+            const readbackDoNotPay = rbBody?.["do-not-pay"] === true || rbBody?.do_not_pay === true;
+            const doNotPayMatched = action === "payroll_do_not_pay"
+              ? readbackDoNotPay === doNotPayExpected
+              : false;
+            const allMatched = action === "payroll_do_not_pay"
+              ? doNotPayMatched
+              : matched.length > 0 && matched.every((m) => m.ok);
             readbackReceipt = {
               endpoint: "payroll:view-payroll",
               employee_id: String(rbEid),
@@ -7451,9 +7498,11 @@ Deno.serve(async (req) => {
               read_ok: rbRes.ok && !rbErr,
               ok: rbRes.ok && !rbErr && allMatched,
               verified_on_run: allMatched,
-              expected: modExpect,
+              expected: action === "payroll_do_not_pay" ? { do_not_pay: doNotPayExpected } : modExpect,
               found_on_run: flat.slice(0, 25),
-              matched,
+              matched: action === "payroll_do_not_pay"
+                ? [{ field: "do-not-pay", expected: doNotPayExpected, found: readbackDoNotPay, ok: doNotPayMatched }]
+                : matched,
               error: rbErr ? String(rbErr).slice(0, 200) : (allMatched ? null : "Pushed, but the modification was not visible on the RazorpayX run read-back."),
               snapshot_keys: rbBody && typeof rbBody === "object" ? Object.keys(rbBody).slice(0, 20) : [],
             };

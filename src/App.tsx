@@ -13,6 +13,7 @@ import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
+import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { RouteFallback } from './components/shared/RouteFallback';
 
 // --- Lazy: all route page modules (all default exports) ---

@@ -584,6 +584,10 @@ export default function PayrollInputsPage() {
         </TabsContent>
       </Tabs>
 
+      {tab === "deduction" && <AutoRecoveriesCard period={period} />}
+
+
+
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (
       <Card>

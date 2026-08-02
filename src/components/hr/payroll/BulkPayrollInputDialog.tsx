@@ -199,17 +199,17 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
               {drafts.map((d, i) => (
                 <div key={d.key} className="grid grid-cols-12 gap-2 items-center">
                   <div className="col-span-12 md:col-span-4">
-                    <Select value={d.hr_employee_id} onValueChange={(v) => patchDraft(d.key, { hr_employee_id: v })}>
-                      <SelectTrigger className="h-9 text-foreground"><SelectValue placeholder="Employee" /></SelectTrigger>
-                      <SelectContent className="max-h-64">
-                        {employees.filter((r) => r.hr_employees).map((r) => (
-                          <SelectItem key={r.hr_employee_id} value={r.hr_employee_id}>
-                            {fullName(r.hr_employees)}{r.hr_employees.badge_id ? ` · ${r.hr_employees.badge_id}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <EmployeeCombobox
+                      value={d.hr_employee_id}
+                      onChange={(v) => patchDraft(d.key, { hr_employee_id: v })}
+                      options={employees.filter((r) => r.hr_employees).map((r) => ({
+                        value: r.hr_employee_id,
+                        label: `${fullName(r.hr_employees)}${r.hr_employees.badge_id ? ` · ${r.hr_employees.badge_id}` : ""}`,
+                        keywords: String(r.hr_employees.badge_id ?? ""),
+                      }))}
+                    />
                   </div>
+
                   <div className="col-span-6 md:col-span-3">
                     <Input className="h-9" value={d.label} onChange={(e) => patchDraft(d.key, { label: e.target.value })} placeholder={label.trim() || (kind === "addition" ? "Performance bonus" : "Advance recovery")} />
                   </div>

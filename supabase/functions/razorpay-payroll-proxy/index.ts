@@ -761,6 +761,17 @@ async function attachReservedEmployeeIdByPeopleId(
   return await opfinEditPerson(payload);
 }
 
+/** Normalize a Razorpay date (YYYY-MM-DD or DD/MM/YYYY) to an ISO date or null. */
+function isoToRpSafeDate(v: any): string | null {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return null;
+}
+
+
 function isDismissedRazorpayPerson(rp: any): boolean {
   if (!rp || typeof rp !== "object") return false;
   const rpStatus = String(rp.status || "").toLowerCase();

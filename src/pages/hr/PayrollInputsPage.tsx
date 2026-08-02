@@ -520,6 +520,46 @@ export default function PayrollInputsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={bulkPushConfirm} onOpenChange={setBulkPushConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Push {selectedPending.length} row{selectedPending.length === 1 ? "" : "s"} to RazorpayX?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Total ₹{selectedPending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0).toLocaleString("en-IN")} for period <strong>{period}</strong>. Rows are pushed one by one; any failures are reported and stay pending.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkPush.mutate(selectedPending)} disabled={bulkPush.isPending}>
+              {bulkPush.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Push all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedPending.length} staged row{selectedPending.length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>Only rows that have not been pushed are deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => bulkDelete.mutate(selectedPending.map((r: any) => r.id))} disabled={bulkDelete.isPending}>
+              {bulkDelete.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BulkPayrollInputDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        kind={tab}
+        period={period}
+        employees={employees as any[]}
+        onDone={() => qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] })}
+      />
     </div>
   );
 }

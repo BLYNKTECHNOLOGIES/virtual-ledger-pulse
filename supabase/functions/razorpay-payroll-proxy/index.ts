@@ -7412,9 +7412,20 @@ Deno.serve(async (req) => {
                 if (k && Number.isFinite(amt)) flat.push({ label: String(k), amount: amt });
               }
             }
+            const expectedDeductionTotal = modExpect.reduce((sum, item) => sum + item.amount, 0);
+            const echoedDeductionTotal = Number(rbBody?.["deduction-amount"]);
+            const aggregateDeductionMatch = action === "payroll_add_deduction"
+              && Number.isFinite(echoedDeductionTotal)
+              && (Math.abs(echoedDeductionTotal - expectedDeductionTotal) < 1
+                || Math.abs(echoedDeductionTotal - expectedDeductionTotal * 100) < 1);
             const matched = modExpect.map((e) => {
+              // add-deduction is aggregate-only: Opfin canonicalizes any remarks
+              // into "Gross pay deduction", so verify its documented
+              // deduction-amount rather than expecting our remark as a label.
+              if (action === "payroll_add_deduction") {
+                return { label: e.label, expected: e.amount, found: echoedDeductionTotal, ok: aggregateDeductionMatch };
+              }
               const hit = flat.find((f) => f.label.trim().toLowerCase() === e.label.trim().toLowerCase());
-              // Opfin may echo rupees or paise depending on tenant config.
               const okAmt = !!hit && (Math.abs(hit.amount - e.amount) < 1 || Math.abs(hit.amount - e.amount * 100) < 1);
               return { label: e.label, expected: e.amount, found: hit ? hit.amount : null, ok: okAmt };
             });

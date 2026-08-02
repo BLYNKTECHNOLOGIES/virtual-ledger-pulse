@@ -131,25 +131,16 @@ const navGroups: NavGroup[] = [
         icon: Wallet,
         path: "/hrms/payroll",
         children: [
+          // Month-end tooling (inputs, LOP, imports, shadow run, drift, pulse) lives INSIDE the cockpit.
           { label: "🎯 Monthly Cockpit", path: "/hrms/payroll/cockpit" },
           { label: "Dashboard", path: "/hrms/payroll" },
-          { label: "Payroll Inputs (Additions / Deductions)", path: "/hrms/payroll/inputs" },
-          { label: "LOP Deductions", path: "/hrms/payroll/inputs?tab=deduction&focus=lop" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
-          { label: "Import Payslip History", path: "/hrms/payroll/payslip-history-import" },
-          { label: "Import Salary Register (CSV)", path: "/hrms/payroll/salary-register-import" },
-          // Salary Structure entry retired — Razorpay is authority; view per-employee mirror inside the employee profile.
           { label: "Salary Revisions", path: "/hrms/payroll/salary-revisions" },
           { label: "Statutory Settings", path: "/hrms/payroll/statutory-settings" },
-
           { label: "Salary Components", path: "/hrms/payroll/salary-components" },
           { label: "Penalties", path: "/hrms/payroll/penalties" },
           { label: "Loans & Advances", path: "/hrms/payroll/loans" },
           { label: "Deposits", path: "/hrms/payroll/deposits" },
-          { label: "Razorpay Diagnostics", path: "/hrms/payroll/razorpay-sync" },
-          { label: "Payroll Calculation (Building)", path: "/hrms/payroll/shadow-calculator" },
-          { label: "System Pulse", path: "/hrms/system-pulse" },
-          { label: "Data Health", path: "/hrms/data-health" },
         ],
       },
     ],

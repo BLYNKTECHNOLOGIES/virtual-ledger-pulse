@@ -217,6 +217,9 @@ export default function PayrollInputsPage() {
     onError: (e: any) => { toast.error(e.message); setResetConfirm(null); },
   });
 
+  const pendingRows = useMemo(() => (visibleRows as any[]).filter((r) => !r.pushed_at), [visibleRows]);
+  const selectedPending = useMemo(() => pendingRows.filter((r: any) => selected[r.id]), [pendingRows, selected]);
+
   const empLabel = (r: any) => {
     const e = empById.get(r.hr_employee_id)?.hr_employees;
     return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : r.razorpay_employee_id;

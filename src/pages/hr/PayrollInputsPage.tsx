@@ -38,6 +38,10 @@ export default function PayrollInputsPage() {
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   // Mirror of Razorpay bonus catalogue — filters the Bonus subtype dropdown.
   const { data: complianceSettings } = useComplianceSettings();

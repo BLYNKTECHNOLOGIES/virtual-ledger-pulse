@@ -310,22 +310,19 @@ export default function MonthlyPayrollCockpitPage() {
                     </div>
 
                     <div className="flex flex-col gap-2 md:min-w-[200px] md:items-end">
-                      {target && "path" in target && step.step_key !== "close_month" && (
-                        <Button variant="outline" size="sm" asChild className="gap-1.5">
-                          <Link
-                            to={
-                              target.path.includes("/payroll/inputs")
-                                ? `${target.path}&period=${month.slice(0, 7)}`
-                                : target.path
-                            }
-                          >
-                            {target.label} <ChevronRight className="h-3.5 w-3.5" />
-                          </Link>
+                      {target && "tool" in target && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => openTool(target.tool, target.params)}
+                        >
+                          {target.label} <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                       )}
                       {target && "href" in target && (
                         <Button variant="outline" size="sm" asChild className="gap-1.5">
-                          <a href={(target as any).href} target="_blank" rel="noreferrer">
+                          <a href={target.href} target="_blank" rel="noreferrer">
                             {target.label} <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         </Button>

@@ -86,6 +86,33 @@ export default function PayrollInputsPage() {
   // Keep the operator-facing value as YYYY-MM, but always query/write its canonical date.
   const periodDate = `${period}-01`;
 
+  // Applied Do-Not-Pay marks for this period — read from the RazorpayX sync log so
+  // the button reflects the real state after a reload, not just the toast.
+  const { data: dnpMarks = {} } = useQuery({
+    queryKey: ["payroll_dnp_marks", period],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_sync_log")
+        .select("razorpay_employee_id, created_at, error_text, field_diff_summary, action")
+        .in("action", ["payroll_do_not_pay", "payroll_reset_modifications"])
+        .order("created_at", { ascending: true })
+        .limit(1000);
+      if (error) return {};
+      const map: Record<string, string> = {};
+      for (const r of data || []) {
+        const fds = r.field_diff_summary || {};
+        if (String(fds.payroll_month || "") !== period) continue;
+        const key = String(r.razorpay_employee_id ?? "");
+        if (!key) continue;
+        if (r.error_text) continue;
+        if (r.action === "payroll_reset_modifications") delete map[key];
+        else if (fds.do_not_pay !== false) map[key] = r.created_at;
+      }
+      return map;
+    },
+  });
+
+
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["payroll_inputs", table, period],
     queryFn: async () => {
@@ -261,7 +288,7 @@ export default function PayrollInputsPage() {
       if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
       return res;
     },
-    onSuccess: () => { toast.success("Marked Do-Not-Pay on RazorpayX for this month"); setDnpConfirm(null); },
+    onSuccess: () => { toast.success("Marked Do-Not-Pay on RazorpayX for this month"); setDnpConfirm(null); qc.invalidateQueries({ queryKey: ["payroll_dnp_marks", period] }); },
     onError: (e: any) => { toast.error(e.message); setDnpConfirm(null); },
   });
 
@@ -274,7 +301,7 @@ export default function PayrollInputsPage() {
       if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
       return res;
     },
-    onSuccess: () => { toast.success("Reset all modifications on RazorpayX for this month"); setResetConfirm(null); },
+    onSuccess: () => { toast.success("Reset all modifications on RazorpayX for this month"); setResetConfirm(null); qc.invalidateQueries({ queryKey: ["payroll_dnp_marks", period] }); },
     onError: (e: any) => { toast.error(e.message); setResetConfirm(null); },
   });
 
@@ -528,25 +555,29 @@ export default function PayrollInputsPage() {
               </tr>
             </thead>
             <tbody>
-              {(employees as any[]).slice(0, 200).map((r) => (
-                <tr key={r.hr_employee_id} className="border-b hover:bg-muted/30">
+              {(employees as any[]).slice(0, 200).map((r) => {
+                const dnpAt = (dnpMarks as Record<string, string>)[String(r.razorpay_employee_id)];
+                const inactive = r.last_pull_snapshot?.is_active === false;
+                return (
+                <tr key={r.hr_employee_id} className={`border-b hover:bg-muted/30 ${dnpAt ? "bg-muted/40" : ""}`}>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
-                      {r.last_pull_snapshot?.is_active === false && <Badge variant="muted">Inactive in RazorpayX</Badge>}
+                      <span className={dnpAt ? "text-muted-foreground" : ""}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
+                      {inactive && <Badge variant="muted">Inactive in RazorpayX</Badge>}
+                      {dnpAt && <Badge variant="muted">Do-Not-Pay applied · {new Date(dnpAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</Badge>}
                     </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        disabled={!gateOpen || r.last_pull_snapshot?.is_active === false}
+                        variant={dnpAt ? "secondary" : "outline"}
+                        className={`h-7 text-xs ${dnpAt ? "text-muted-foreground" : ""}`}
+                        disabled={!gateOpen || inactive || !!dnpAt}
                         onClick={() => setDnpConfirm(r)}
-                        title={!gateOpen ? "Payroll-write gate locked" : r.last_pull_snapshot?.is_active === false ? "Unavailable: employee is inactive in RazorpayX" : ""}
+                        title={!gateOpen ? "Payroll-write gate locked" : inactive ? "Unavailable: employee is inactive in RazorpayX" : dnpAt ? `Already marked Do-Not-Pay for ${period} — use Reset modifications to undo` : ""}
                       >
-                        <Ban className="h-3 w-3 mr-1" /> Do-Not-Pay this month
+                        <Ban className="h-3 w-3 mr-1" /> {dnpAt ? `Do-Not-Pay set for ${period}` : "Do-Not-Pay this month"}
                       </Button>
                       <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setResetConfirm(r)} title={gateOpen ? "" : "Payroll-write gate locked"}>
                         <RotateCcw className="h-3 w-3 mr-1" /> Reset modifications
@@ -554,8 +585,10 @@ export default function PayrollInputsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
+
           </table>
         </CardContent>
       </Card>

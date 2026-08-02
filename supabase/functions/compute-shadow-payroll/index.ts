@@ -35,20 +35,34 @@ const corsHeaders = {
 };
 
 // ---- inline statutory helpers (mirror of src/lib/hrms/statutoryCalculator.ts) ----
-function pfWageBase(basic: number, da: number, s: any): number {
-  if (!s) return Math.min(basic || 0, 15000);
-  const raw = s.pf_wages_basic_only ? (basic || 0) : (basic || 0) + (da || 0);
+function pfWageBase(basic: number, da: number, s: any, basisOverride?: string): number {
+  const raw = s?.pf_wages_basic_only === false ? (basic || 0) + (da || 0) : (basic || 0);
+  // Per-employee basis wins: 'actual' = uncapped Basic, 'capped' = ₹15 000 ceiling.
+  if (basisOverride === "actual") return raw;
+  if (basisOverride === "capped") return Math.min(raw, 15000);
+  if (!s) return Math.min(raw, 15000);
   return s.pf_wage_cap_15000 ? Math.min(raw, 15000) : raw;
 }
-function computeEpf(basic: number, da: number, s: any, enrolled: boolean) {
-  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0 };
-  const base = pfWageBase(basic, da, s);
+function computeEpf(
+  basic: number,
+  da: number,
+  s: any,
+  enrolled: boolean,
+  opts?: { basis?: string; vpfMode?: string; vpfValue?: number },
+) {
+  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0, vpf: 0 };
+  const base = pfWageBase(basic, da, s, opts?.basis);
   const employee = Math.round(base * 0.12);
   const employer = Math.round(base * 0.12);
   const admin_edli = Math.round(base * 0.01);
   const employer_earnings_side = employer + admin_edli;
-  return { employee, employer, admin_edli, employer_earnings_side, base };
+  // VPF — employee-side only. No employer match, no EDLI/admin on VPF.
+  let vpf = 0;
+  if (opts?.vpfMode === "percent") vpf = Math.round(base * (Number(opts.vpfValue || 0) / 100));
+  else if (opts?.vpfMode === "fixed") vpf = Math.round(Number(opts.vpfValue || 0));
+  return { employee, employer, admin_edli, employer_earnings_side, base, vpf: Math.max(0, vpf) };
 }
+
 function computeEsi(fullGross: number, regularGross: number, s: any, enrolled: boolean) {
   if (!enrolled || regularGross > 21000) return { employee: 0, employer: 0, base: 0 };
   const base = s?.esi_include_additions_in_wages ? fullGross : regularGross;

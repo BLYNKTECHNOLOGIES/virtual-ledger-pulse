@@ -444,32 +444,39 @@ Deno.serve(async (req) => {
       }
       const additions = (adds ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
-      // Per-employee statutory enrollment (falls back to global compliance toggle)
-      const pfEnrolled = emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
-      const esiEnrolled = emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
-      const ptEnrolled = emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
-      const flagsSource = emp.statutory_flags_source
-        ?? ((emp.pf_enabled === null && emp.esi_enabled === null && emp.pt_enabled === null)
-            ? "assumed_from_global" : "assumed_from_global");
+      // Per-employee statutory enrollment.
+      // Priority: effective-dated statutory profile → hr_employees cache → global toggle.
+      const prof = statutoryProfiles.get(emp.id);
+      const pfEnrolled = prof?.pf_enabled ?? emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
+      const esiEnrolled = prof?.esi_enabled ?? emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
+      const ptEnrolled = prof?.pt_enabled ?? emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
+      const pfBasis = prof?.pf_wage_basis ?? undefined;
+      const vpfMode = prof?.vpf_mode ?? "none";
+      const vpfValue = Number(prof?.vpf_value ?? 0);
+      const pfOpts = { basis: pfBasis, vpfMode, vpfValue };
+      const flagsSource = prof ? "hrms_profile" : (emp.statutory_flags_source ?? "assumed_from_global");
 
       // ---- CTC-INCLUSIVE DOCTRINE (owner directive 2026-08-02) ----
       // CTC is all-inclusive: employer PF/EDLI/ESI are CARVED OUT of the CTC,
       // never added on top. Gross earnings = post-LOP CTC − employer contributions.
+      // VPF is employee-side only: it never changes CTC or gross, only net pay.
       // Only bonuses / one-off additions sit outside the CTC.
       const addPositive = Math.max(0, additions);
       const addNegative = Math.max(0, -additions); // treated as a net-side recovery
       const ctcPost = regularPost;
 
       let grossEarnings = ctcPost;
-      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
       let esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       for (let i = 0; i < 4; i++) {
         const next = Math.max(0, ctcPost - epf.employer_earnings_side - esi.employer);
         if (next === grossEarnings) break;
         grossEarnings = next;
-        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled);
+        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
         esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       }
+      const vpfAmount = Math.min(epf.vpf, Math.max(0, grossEarnings - epf.employee)); // never push net below zero
+
 
       // Re-split the (carved) gross into components
       const gBasic = Math.round(grossEarnings * (pct.basic / 100));

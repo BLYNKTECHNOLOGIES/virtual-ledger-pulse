@@ -284,7 +284,9 @@ Zeroes every operator-injected addition/deduction for one (employee, month).
 Also toggled by the "Paused" UI in `RazorpayPayslipsSection.tsx` when HR
 requests a skip for one month.
 
-**Request data:** `{ "employee-id", "employee-type", "payroll-month", "do-not-pay": true|false }`.
+**Official request data:** `{ "email", "payroll-month", "value": true|false }`.
+The HRMS caller remains keyed by the Razorpay employee id; the proxy resolves the
+mapped employee email and translates `do-not-pay` to the required `value` key.
 
 **Response fields:** opaque acknowledgement. On the very next `view-payroll`
 call the `do-not-pay` boolean flips server-side, which is how we surface the

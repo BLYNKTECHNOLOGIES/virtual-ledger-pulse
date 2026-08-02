@@ -35,55 +35,81 @@ serve(async (req) => {
   const svc = createClient(supaUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
-    // Candidate set: linked employees whose HRMS record was touched OR who
-    // had a pushback attempted recently.
+    // Candidate set: EVERY linked employee, stalest snapshot first. The old
+    // "touched in HRMS recently" filter meant a dismissal done in the RazorpayX
+    // dashboard (which never touches HRMS) was never re-pulled, so the cached
+    // snapshot kept reporting the person as active indefinitely.
     const since = new Date(Date.now() - lookbackDays * 86400 * 1000).toISOString();
     const [{ data: touched }, { data: pushed }] = await Promise.all([
       svc.from("hr_employees").select("id, updated_at").gte("updated_at", since).limit(limit),
       svc.from("hr_razorpay_pushback_log").select("hr_employee_id, created_at")
         .gte("created_at", since).order("created_at", { ascending: false }).limit(limit),
     ]);
-
-    const candidateIds = Array.from(new Set<string>([
+    const prioritized = new Set<string>([
       ...(touched ?? []).map((r: any) => r.id),
       ...(pushed ?? []).map((r: any) => r.hr_employee_id).filter(Boolean),
-    ]));
+    ]);
 
-    if (candidateIds.length === 0) {
-      return new Response(JSON.stringify({ ok: true, refreshed: 0, scanned_after: 0, reason: "no candidates" }),
+    const { data: allMapRows } = await svc.from("hr_razorpay_employee_map")
+      .select("hr_employee_id, razorpay_employee_id, last_pulled_at")
+      .not("razorpay_employee_id", "is", null)
+      .order("last_pulled_at", { ascending: true, nullsFirst: true });
+
+    const mapRows = (allMapRows ?? [])
+      .sort((a: any, b: any) => {
+        const pa = prioritized.has(a.hr_employee_id) ? 0 : 1;
+        const pb = prioritized.has(b.hr_employee_id) ? 0 : 1;
+        return pa - pb;
+      })
+      .slice(0, limit);
+
+    if (mapRows.length === 0) {
+      return new Response(JSON.stringify({ ok: true, refreshed: 0, scanned_after: 0, reason: "no linked employees" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Only refresh those with a linked razorpay_employee_id
-    const { data: mapRows } = await svc.from("hr_razorpay_employee_map")
-      .select("hr_employee_id, razorpay_employee_id")
-      .in("hr_employee_id", candidateIds);
-
     const proxyUrl = `${supaUrl}/functions/v1/razorpay-payroll-proxy`;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    // The proxy authenticates the caller: the anon key is NOT a valid caller
+    // token there (it resolves to no user → 401), which silently broke every
+    // refresh. Use the service-role key, which the proxy accepts directly.
+    const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    let refreshed = 0; let errors = 0;
+    let refreshed = 0; let errors = 0; let markedInactive = 0;
     for (const row of mapRows ?? []) {
       const rpId = row.razorpay_employee_id;
       if (!rpId) continue;
       try {
         const r = await fetch(proxyUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}`, apikey: anonKey },
-          body: JSON.stringify({ action: "read_person_by_id", payload: { razorpay_employee_id: rpId } }),
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${svcKey}` },
+          // allow_dismissed: dismissed people must still be snapshotted, that's
+          // precisely the state we need mirrored into HRMS.
+          body: JSON.stringify({ action: "read_person_by_id", payload: { razorpay_employee_id: rpId, allow_dismissed: true } }),
         });
         if (!r.ok) { errors++; continue; }
         const body = await r.json();
-        if (!body?.ok || !body?.snapshot) { errors++; continue; }
-        await svc.from("hr_razorpay_employee_map")
-          .update({ last_pull_snapshot: body.snapshot, last_pulled_at: new Date().toISOString() })
-          .eq("hr_employee_id", row.hr_employee_id);
-        refreshed++;
+        if (body?.ok && body?.snapshot) {
+          await svc.from("hr_razorpay_employee_map")
+            .update({ last_pull_snapshot: body.snapshot, last_pulled_at: new Date().toISOString() })
+            .eq("hr_employee_id", row.hr_employee_id);
+          refreshed++;
+        } else if (body?.code === "RAZORPAY_ID_NOT_FOUND") {
+          const { data: existing } = await svc.from("hr_razorpay_employee_map")
+            .select("last_pull_snapshot").eq("hr_employee_id", row.hr_employee_id).maybeSingle();
+          const snap = { ...((existing?.last_pull_snapshot as any) ?? {}), is_active: false, __not_found_in_razorpay: true };
+          await svc.from("hr_razorpay_employee_map")
+            .update({ last_pull_snapshot: snap, last_pulled_at: new Date().toISOString() })
+            .eq("hr_employee_id", row.hr_employee_id);
+          refreshed++; markedInactive++;
+        } else {
+          errors++;
+        }
       } catch (e) {
         console.warn("snapshot refresh failed for", row.hr_employee_id, (e as Error).message);
         errors++;
       }
     }
+
 
     // Chain the drift-scan so drift alerts open in the same cron tick
     let scanResult: any = null;

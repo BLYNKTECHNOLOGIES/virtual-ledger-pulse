@@ -333,7 +333,16 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
           <div className="md:col-span-1">
             <Label className="text-xs">Label{mode === "select" ? "" : " (default for blank rows)"}</Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "addition" ? "Performance bonus" : "Advance recovery"} />
+            {kind === "addition" && additionType === "bonus" && mode !== "rows" ? (
+              <Select value={BONUS_LABELS.includes(label) ? label : ""} onValueChange={setLabel}>
+                <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bonus label" /></SelectTrigger>
+                <SelectContent>
+                  {BONUS_LABELS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "addition" ? "Performance bonus" : "Advance recovery"} />
+            )}
           </div>
           {mode === "select" && (
             <div>

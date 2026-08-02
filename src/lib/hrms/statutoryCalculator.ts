@@ -42,9 +42,12 @@ export function computePfWageBase(
   basic: number,
   da: number,
   s: ComplianceSettings | null | undefined,
+  basisOverride?: "capped" | "actual" | null,
 ): number {
-  if (!s) return Math.min(basic || 0, 15000);
-  const raw = s.pf_wages_basic_only ? (basic || 0) : (basic || 0) + (da || 0);
+  const raw = (s as any)?.pf_wages_basic_only === false ? (basic || 0) + (da || 0) : (basic || 0);
+  if (basisOverride === "actual") return raw;
+  if (basisOverride === "capped") return Math.min(raw, 15000);
+  if (!s) return Math.min(raw, 15000);
   return s.pf_wage_cap_15000 ? Math.min(raw, 15000) : raw;
 }
 
@@ -55,8 +58,8 @@ export function computeEpf(
   enrollment?: EmployeeStatutoryEnrollment,
 ) {
   const enrolled = enrollment?.pf_enabled ?? s?.compliance_files_pf ?? false;
-  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0 };
-  const base = computePfWageBase(basic, da, s);
+  if (!enrolled) return { employee: 0, employer: 0, admin_edli: 0, employer_earnings_side: 0, base: 0, vpf: 0 };
+  const base = computePfWageBase(basic, da, s, enrollment?.pf_wage_basis ?? undefined);
   const employee = Math.round(base * 0.12);
   const employer = Math.round(base * 0.12);
   // Combined admin + EDLI + inspection — RazorpayX prints as flat 1%
@@ -64,7 +67,11 @@ export function computeEpf(
   const admin_edli = Math.round(base * 0.01);
   // Employer PF EARNINGS-side line = 12% + 1% (Priya May 1 950; Jun 1 851).
   const employer_earnings_side = employer + admin_edli;
-  return { employee, employer, admin_edli, employer_earnings_side, base };
+  // Voluntary PF — employee-side only. No employer match, no EDLI/admin on VPF.
+  let vpf = 0;
+  if (enrollment?.vpf_mode === "percent") vpf = Math.round(base * (Number(enrollment.vpf_value || 0) / 100));
+  else if (enrollment?.vpf_mode === "fixed") vpf = Math.round(Number(enrollment.vpf_value || 0));
+  return { employee, employer, admin_edli, employer_earnings_side, base, vpf: Math.max(0, vpf) };
 }
 
 // -----------------------------

@@ -179,7 +179,7 @@ export async function buildExpected(
     wantsWork
       ? (supabase as any)
           .from("hr_employee_work_info")
-          .select("joining_date,employee_type,job_role,department_id,probation_end_date")
+          .select("joining_date,employee_type,job_role,job_position_id,department_id,probation_end_date")
           .eq("employee_id", hrEmployeeId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -197,10 +197,18 @@ export async function buildExpected(
   const bank = bankRes?.data || {};
 
   let departmentName: string | null = null;
-  if (wantsWork && work?.department_id) {
-    const { data: d } = await (supabase as any)
-      .from("departments").select("name").eq("id", work.department_id).maybeSingle();
-    departmentName = d?.name || null;
+  let positionTitle: string | null = null;
+  if (wantsWork) {
+    const [departmentRes, positionRes] = await Promise.all([
+      work?.department_id
+        ? (supabase as any).from("departments").select("name").eq("id", work.department_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      work?.job_position_id
+        ? (supabase as any).from("positions").select("title").eq("id", work.job_position_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    departmentName = departmentRes?.data?.name || null;
+    positionTitle = positionRes?.data?.title || null;
   }
 
   const map: Record<string, any> = {
@@ -214,7 +222,7 @@ export async function buildExpected(
     date_of_joining: work.joining_date,
     probation_end_date: work.probation_end_date,
     employee_type: work.employee_type,
-    designation: work.job_role,
+    designation: positionTitle || work.job_role,
     department: departmentName,
     bank_account_number: bank.account_number,
     ifsc: bank.ifsc_code,

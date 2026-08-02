@@ -2550,16 +2550,22 @@ Deno.serve(async (req) => {
           .select("id,first_name,last_name,email,phone,gender,dob")
           .in("id", hrIds),
         svc.from("hr_employee_work_info")
-          .select("employee_id,department_id,job_role,joining_date,employee_type")
+          .select("employee_id,department_id,job_position_id,job_role,joining_date,employee_type")
           .in("employee_id", hrIds),
       ]);
       const empById = new Map((emps || []).map((r: any) => [r.id, r]));
       const wiById = new Map((wis || []).map((r: any) => [r.employee_id, r]));
       const deptIds = Array.from(new Set((wis || []).map((r: any) => r.department_id).filter(Boolean)));
+      const positionIds = Array.from(new Set((wis || []).map((r: any) => r.job_position_id).filter(Boolean)));
       const deptById = new Map<string, string>();
+      const positionById = new Map<string, string>();
       if (deptIds.length) {
         const { data: depts } = await svc.from("departments").select("id,name").in("id", deptIds);
         for (const d of depts || []) deptById.set(d.id, d.name);
+      }
+      if (positionIds.length) {
+        const { data: positions } = await svc.from("positions").select("id,title").in("id", positionIds);
+        for (const p of positions || []) positionById.set(p.id, p.title);
       }
 
       function buildIncoming(hrId: string): Record<string, any> {
@@ -2580,7 +2586,11 @@ Deno.serve(async (req) => {
           gender: e.gender ? String(e.gender).toLowerCase() : null,
           "date-of-birth": dobRp,
           department: deptById.get(w.department_id) || null,
-          title: w.job_role || null,
+          // The linked position is the designation shown throughout HRMS and
+          // used by Data Health. `job_role` is retained only as a legacy
+          // fallback; pushing it first caused false verification while the
+          // operator-facing designation remained different.
+          title: positionById.get(w.job_position_id) || w.job_role || null,
           // Canonical snapshot key — MUST match people:view output so the diff
           // is meaningful, and it is also the key Opfin people:edit accepts.
           // (The old "date-of-joining" key was never in the snapshot and is not

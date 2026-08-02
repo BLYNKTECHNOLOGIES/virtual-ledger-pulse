@@ -104,7 +104,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
         label: lbl,
         amount: amt,
       };
-      if (kind === "addition") { row.addition_type = type ?? additionType; row.taxable = tax ?? taxable; }
+      if (kind === "addition") { row.addition_type = additionTypeCode(type ?? additionType); row.taxable = tax ?? taxable; }
       return row;
     };
 

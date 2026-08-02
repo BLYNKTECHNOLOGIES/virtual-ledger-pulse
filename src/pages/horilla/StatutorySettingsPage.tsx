@@ -531,9 +531,6 @@ export default function StatutorySettingsPage() {
               value={form.reason}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
             />
-            <p className="text-xs text-muted-foreground">
-              Required — recorded in the statutory change history.
-            </p>
           </div>
 
           <Button

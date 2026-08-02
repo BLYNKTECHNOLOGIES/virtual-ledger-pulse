@@ -45,6 +45,13 @@ Deno.serve(async (req) => {
   } catch (_) { /* no body */ }
   const out: any = { period: PERIOD, dryRun, lop: [], additions: [] };
 
+  // ?verify=1 — read July payroll back from RazorpayX and report each
+  // employee's live additions/deductions so the wipe can be confirmed.
+  if (new URL(req.url).searchParams.get("verify") === "1") {
+    const res = await proxy("payroll_view_payroll", { "payroll-month": PERIOD_MONTH });
+    return json({ ok: res.ok, http: res.http, body: res.body });
+  }
+
   // ---------------------------------------------------------------- LOP wipe
   const { data: deds, error: dErr } = await svc
     .from("hr_payroll_input_deductions")

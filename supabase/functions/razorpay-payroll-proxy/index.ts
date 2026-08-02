@@ -2559,10 +2559,41 @@ Deno.serve(async (req) => {
           "date-of-birth": dobRp,
           department: deptById.get(w.department_id) || null,
           title: w.job_role || null,
-          "date-of-joining": joinRp,
+          // Canonical snapshot key — MUST match people:view output so the diff
+          // is meaningful, and it is also the key Opfin people:edit accepts.
+          // (The old "date-of-joining" key was never in the snapshot and is not
+          // in the edit contract: every run re-pushed it and Opfin dropped it.)
+          "date-of-hiring": joinRp,
           employee_type: w.employee_type || null,
         };
       }
+
+      // Snapshot/diff keys → Opfin people:edit wire keys. Any key not listed
+      // here is passed through unchanged. Unknown keys are silently ignored by
+      // Opfin (HTTP 200, no write), so this map is the only thing standing
+      // between "pushed" and "actually applied".
+      function toWirePayload(patch: Record<string, any>, fallbackEmail: string | null): Record<string, any> {
+        const out: Record<string, any> = {};
+        for (const [k, v] of Object.entries(patch)) {
+          switch (k) {
+            case "phone_number": out["phone-number"] = String(v).replace(/\D/g, "").slice(-10); break;
+            case "employee_type": out["employment-type"] = employeeKind(v); break;
+            case "date-of-hiring": out["date-of-hiring"] = v; out["hire_date"] = v; break;
+            case "name": {
+              const parts = String(v).trim().split(/\s+/);
+              out["first-name"] = parts.shift() || String(v);
+              if (parts.length) out["last-name"] = parts.join(" ");
+              break;
+            }
+            default: out[k] = v;
+          }
+        }
+        // people:edit resolves the person by email; without it the API can
+        // return 200 while no-oping the write.
+        if (!out["email"] && fallbackEmail) out["email"] = fallbackEmail;
+        return out;
+      }
+
 
       // Diff incoming vs last snapshot; only include keys where the value
       // actually differs (case/whitespace normalised).

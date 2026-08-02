@@ -150,31 +150,34 @@ export default function StatutorySettingsPage() {
         .maybeSingle();
       if (lock) throw new Error("That payroll month is already closed — pick a later effective month");
 
-      const { data: auth } = await supabase.auth.getUser();
-      const payload = {
-        hr_employee_id: editing.id,
-        effective_from: form.effective_from,
-        pf_enabled: form.pf_enabled,
-        pf_wage_basis: form.pf_wage_basis,
-        vpf_mode: form.pf_enabled ? form.vpf_mode : "none",
-        vpf_value: form.pf_enabled && form.vpf_mode !== "none" ? val : 0,
-        esi_enabled: form.esi_enabled,
-        pt_enabled: form.pt_enabled,
-        uan: form.uan.trim() || null,
-        esic_number: form.esic_number.trim() || null,
-        reason: form.reason.trim(),
-        source: "hrms_profile",
-        created_by: auth?.user?.id ?? null,
-      };
-      const { error } = await (supabase as any)
-        .from("hr_employee_statutory_profiles")
-        .upsert(payload, { onConflict: "hr_employee_id,effective_from" });
+      const { data: res, error } = await (supabase as any).rpc("hr_apply_statutory_change", {
+        p_employee: editing.id,
+        p_effective_from: form.effective_from,
+        p_pf_enabled: form.pf_enabled,
+        p_pf_wage_basis: form.pf_wage_basis,
+        p_vpf_mode: form.pf_enabled ? form.vpf_mode : "none",
+        p_vpf_value: form.pf_enabled && form.vpf_mode !== "none" ? val : 0,
+        p_esi_enabled: form.esi_enabled,
+        p_pt_enabled: form.pt_enabled,
+        p_uan: form.uan.trim() || null,
+        p_esic_number: form.esic_number.trim() || null,
+        p_reason: form.reason.trim(),
+      });
       if (error) throw error;
+      return Array.isArray(res) ? res[0] : res;
+
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_statutory"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees"] });
       setEditing(null);
-      toast.success("Statutory settings saved");
+      const fwd = Number(res?.forward_rows_updated ?? 0);
+      toast.success(
+        fwd > 0
+          ? `Statutory settings saved — also applied to ${fwd} later month${fwd > 1 ? "s" : ""}`
+          : "Statutory settings saved",
+      );
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -183,36 +186,42 @@ export default function StatutorySettingsPage() {
     mutationFn: async () => {
       if (!selected.length) throw new Error("Select at least one employee");
       if (!bulk.reason.trim()) throw new Error("A reason is required");
-      const { data: auth } = await supabase.auth.getUser();
-      const rowsToWrite = selected.map((id) => {
+      let forward = 0;
+      for (const id of selected) {
         const p = activeByEmp.get(id);
-        return {
-          hr_employee_id: id,
-          effective_from: bulk.effective_from,
-          pf_enabled: bulk.field === "pf" ? bulk.value : (p?.pf_enabled ?? false),
-          pf_wage_basis: p?.pf_wage_basis ?? "capped",
-          vpf_mode: p?.vpf_mode ?? "none",
-          vpf_value: p?.vpf_value ?? 0,
-          esi_enabled: bulk.field === "esi" ? bulk.value : (p?.esi_enabled ?? false),
-          pt_enabled: bulk.field === "pt" ? bulk.value : (p?.pt_enabled ?? false),
-          uan: p?.uan ?? null,
-          esic_number: p?.esic_number ?? null,
-          reason: bulk.reason.trim(),
-          source: "hrms_profile",
-          created_by: auth?.user?.id ?? null,
-        };
-      });
-      const { error } = await (supabase as any)
-        .from("hr_employee_statutory_profiles")
-        .upsert(rowsToWrite, { onConflict: "hr_employee_id,effective_from" });
-      if (error) throw error;
+        const { data: res, error } = await (supabase as any).rpc("hr_apply_statutory_change", {
+          p_employee: id,
+          p_effective_from: bulk.effective_from,
+          p_pf_enabled: bulk.field === "pf" ? bulk.value : (p?.pf_enabled ?? false),
+          p_pf_wage_basis: p?.pf_wage_basis ?? "capped",
+          p_vpf_mode: p?.vpf_mode ?? "none",
+          p_vpf_value: p?.vpf_value ?? 0,
+          p_esi_enabled: bulk.field === "esi" ? bulk.value : (p?.esi_enabled ?? false),
+          p_pt_enabled: bulk.field === "pt" ? bulk.value : (p?.pt_enabled ?? false),
+          p_uan: p?.uan ?? null,
+          p_esic_number: p?.esic_number ?? null,
+          p_reason: bulk.reason.trim(),
+        });
+        if (error) throw error;
+        const row = Array.isArray(res) ? res[0] : res;
+        forward += Number(row?.forward_rows_updated ?? 0);
+      }
+      return forward;
     },
-    onSuccess: () => {
+
+    onSuccess: (forward: number) => {
       qc.invalidateQueries({ queryKey: ["hr_employee_statutory_profiles"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_statutory"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees"] });
       setBulkOpen(false);
       setSelected([]);
-      toast.success("Bulk statutory update applied");
+      toast.success(
+        forward > 0
+          ? `Bulk statutory update applied — also carried into ${forward} later month row(s)`
+          : "Bulk statutory update applied",
+      );
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -449,7 +458,11 @@ export default function StatutorySettingsPage() {
               value={form.effective_from.slice(0, 7)}
               onChange={(e) => setForm({ ...form, effective_from: `${e.target.value}-01` })}
             />
+            <p className="text-xs text-muted-foreground">
+              Applies from this month onward — any later months already on record inherit the change.
+            </p>
           </div>
+
 
           <div className="space-y-1.5">
             <Label>Reason (required)</Label>

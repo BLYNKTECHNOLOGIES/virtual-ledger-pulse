@@ -259,14 +259,14 @@ export default function DepositManagementPage() {
 
       const period = format(new Date(), "yyyy-MM-01");
       const { error: addErr } = await (supabase as any).from("hr_payroll_input_additions").insert({
-        employee_id: deposit.employee_id,
+        hr_employee_id: deposit.employee_id,
         period_month: period,
         amount,
-        label: "Error recovery refund",
+        label: `Error recovery refund${deposit.incident_reference ? ` (${deposit.incident_reference})` : ""}`,
         addition_type: 0,
         taxable: false,
-        notes: `Refund of error recovery ${deposit.incident_reference || ""}`.trim(),
       });
+
       if (addErr) throw addErr;
 
       await (supabase as any).from("hr_deposit_transactions").insert({

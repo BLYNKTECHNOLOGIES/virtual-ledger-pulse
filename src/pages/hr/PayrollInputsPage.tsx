@@ -134,21 +134,61 @@ export default function PayrollInputsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Single push primitive — reused by the row action and the bulk push.
+  async function pushOne(row: any) {
+    const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
+    const data: any = tab === "addition"
+      ? { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, additions: [{ label: row.label, amount: Math.round(row.amount * 100), taxable: !!row.taxable, type: row.addition_type || "bonus" }] }
+      : { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, deductions: [{ label: row.label, amount: Math.round(row.amount * 100) }] };
+    const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", { body: { action, payload: { data } } });
+    if (error) throw error;
+    if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+    const { error: uErr } = await (supabase as any).from(table).update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} }).eq("id", row.id);
+    if (uErr) throw uErr;
+    return res;
+  }
+
   const pushRow = useMutation({
-    mutationFn: async (row: any) => {
-      const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
-      const data: any = tab === "addition"
-        ? { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, additions: [{ label: row.label, amount: Math.round(row.amount * 100), taxable: !!row.taxable, type: row.addition_type || "bonus" }] }
-        : { "employee-id": row.razorpay_employee_id, "payroll-month": row.period_month, deductions: [{ label: row.label, amount: Math.round(row.amount * 100) }] };
-      const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", { body: { action, payload: { data } } });
-      if (error) throw error;
-      if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
-      const { error: uErr } = await (supabase as any).from(table).update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} }).eq("id", row.id);
-      if (uErr) throw uErr;
-      return res;
-    },
+    mutationFn: pushOne,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed to RazorpayX"); setPushConfirm(null); },
     onError: (e: any) => { toast.error(e.message); setPushConfirm(null); },
+  });
+
+  // Bulk push — sequential so RazorpayX rate limits stay happy and failures are attributable.
+  const bulkPush = useMutation({
+    mutationFn: async (rows: any[]) => {
+      const failures: string[] = [];
+      let ok = 0;
+      for (const r of rows) {
+        try { await pushOne(r); ok += 1; }
+        catch (e: any) { failures.push(`${empLabel(r)} · ${r.label}: ${e.message}`); }
+      }
+      return { ok, failures };
+    },
+    onSuccess: ({ ok, failures }) => {
+      qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
+      setBulkPushConfirm(false);
+      setSelected({});
+      if (failures.length) {
+        toast.error(`${ok} pushed, ${failures.length} failed`, { description: failures.slice(0, 3).join(" | ") });
+        console.warn("Bulk push failures:", failures);
+      } else toast.success(`Pushed ${ok} row${ok === 1 ? "" : "s"} to RazorpayX`);
+    },
+    onError: (e: any) => { toast.error(e.message); setBulkPushConfirm(false); },
+  });
+
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await (supabase as any).from(table).delete().in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
+      setSelected({}); setBulkDeleteConfirm(false);
+      toast.success(`Deleted ${n} staged row${n === 1 ? "" : "s"}`);
+    },
+    onError: (e: any) => { toast.error(e.message); setBulkDeleteConfirm(false); },
   });
 
   const doNotPay = useMutation({

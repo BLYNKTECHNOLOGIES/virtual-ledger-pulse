@@ -7125,7 +7125,11 @@ Deno.serve(async (req) => {
       }
       const data = (directPayload && typeof directPayload === "object" && directPayload.data && typeof directPayload.data === "object")
         ? directPayload.data : {};
-      // ---- payroll modifications: enforce the documented map wire shape.
+      // ---- payroll modifications: Opfin's add-additions / add-deduction
+      // endpoint expects an ARRAY of objects keyed by `label` (not the keyed
+      // map). Sending the map returns HTTP 500 UNKNOWN_EXCEPTION; sending an
+      // array without `label` returns "Undefined property: stdClass::$label".
+      // Verified live 2026-08-02. Amounts are RUPEES, never paise.
       let modExpect: Array<{ label: string; amount: number }> = [];
       if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
         const kind = action === "payroll_add_additions" ? "additions" : "deductions";
@@ -7135,8 +7139,9 @@ Deno.serve(async (req) => {
         const { map, expect } = normalizePayrollModifications(data[kind], kind as any);
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
-        data[kind] = map;
+        data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
         modExpect = expect;
+
         data["employee-id"] = Number(data["employee-id"]);
         if (!data["employee-type"]) data["employee-type"] = "employee";
       }

@@ -355,8 +355,6 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
               : mode === "select" && pickedCount ? `${pickedCount} row${pickedCount === 1 ? "" : "s"}` : "rows"}
           </Button>
         </DialogFooter>
-
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

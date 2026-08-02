@@ -102,7 +102,7 @@ async function logPushback(row: {
   razorpay_employee_id: string | null;
   kind: PushKind;
   action: string;
-  status: "success" | "failure" | "skipped";
+  status: "success" | "failure" | "skipped" | "manual_required";
   request_snapshot?: unknown;
   response_snapshot?: unknown;
   error_message?: string | null;
@@ -469,7 +469,7 @@ export const pushEmploymentToRazorpay = (id: string, opts?: { triggeredFrom?: st
 export async function dismissInRazorpay(
   hrEmployeeId: string,
   opts: { dateOfDismissal: string; reason?: string | null; triggeredFrom?: string },
-): Promise<{ ok: boolean; skipped?: boolean; error?: string; razorpay_employee_id?: string }> {
+): Promise<{ ok: boolean; skipped?: boolean; manualRequired?: boolean; error?: string; razorpay_employee_id?: string }> {
   const razorpayId = await resolveRazorpayEmployeeId(hrEmployeeId);
   if (!razorpayId) {
     await logPushback({
@@ -502,7 +502,53 @@ export async function dismissInRazorpay(
     };
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body: payload });
     if (error) throw error;
-    if (data && (data as any).ok === false) throw new Error((data as any).error || "Razorpay rejected the dismissal");
+    const res: any = data || {};
+
+    // Already dismissed in RazorpayX (people:view can no longer resolve them) —
+    // treat as verified success, not a failure.
+    if (res.already_dismissed) {
+      await logPushback({
+        hr_employee_id: hrEmployeeId,
+        razorpay_employee_id: razorpayId,
+        kind: "dismissal",
+        action: "people_dismiss",
+        status: "success",
+        request_snapshot: payload,
+        response_snapshot: res,
+        error_message: "Already dismissed in RazorpayX",
+        triggered_from: opts.triggeredFrom,
+      });
+      toast.success("Already dismissed in RazorpayX — separation is in sync.");
+      return { ok: true, razorpay_employee_id: String(razorpayId) };
+    }
+
+    // Non-activated RazorpayX account: API dismissal is impossible (RazorpayX
+    // limitation — people:dismiss resolves by user login). Flag for manual action.
+    if (res.manual_required || res.code === "RZP_NOT_ACTIVATED") {
+      const msg = res.error || "RazorpayX cannot dismiss this employee via API (account never activated).";
+      await logPushback({
+        hr_employee_id: hrEmployeeId,
+        razorpay_employee_id: razorpayId,
+        kind: "dismissal",
+        action: "people_dismiss",
+        status: "manual_required",
+        request_snapshot: payload,
+        response_snapshot: res,
+        error_message: msg,
+        triggered_from: opts.triggeredFrom,
+      });
+      await upsertDrift(
+        hrEmployeeId,
+        "dismissal_state",
+        "Manual RazorpayX dismissal required — employee never activated their RazorpayX account, so the dismiss API cannot resolve them.",
+      );
+      toast.warning("Dismiss this employee manually in RazorpayX", {
+        description: msg.length > 200 ? msg.slice(0, 200) + "…" : msg,
+      });
+      return { ok: false, manualRequired: true, error: msg, razorpay_employee_id: String(razorpayId) };
+    }
+
+    if (res.ok === false) throw new Error(res.error || "Razorpay rejected the dismissal");
 
     await logPushback({
       hr_employee_id: hrEmployeeId,

@@ -586,17 +586,18 @@ export default function DepositManagementPage() {
 
       {/* Add Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Employee Deposit</DialogTitle>
-            <DialogDescription>Configure deposit amount and deduction schedule for an employee</DialogDescription>
+            <DialogTitle>Add {TYPE_LABEL[form.deposit_type]}</DialogTitle>
+            <DialogDescription>Configure the amount and monthly payroll deduction plan for an employee</DialogDescription>
           </DialogHeader>
           <DepositForm isEdit={false} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.total_deposit_amount || (form.deduction_mode !== "already_deducted" && !form.deduction_value)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-              Add Deposit
+            <Button onClick={() => addMutation.mutate()} disabled={addMutation.isPending || !form.employee_id || !form.total_deposit_amount || (form.deduction_mode !== "already_deducted" && !form.deduction_value)} className="bg-[#E8604C] hover:bg-[#d4553f]">
+              {addMutation.isPending ? "Saving…" : `Add ${TYPE_LABEL[form.deposit_type]}`}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

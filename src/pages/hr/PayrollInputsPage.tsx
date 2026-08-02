@@ -555,25 +555,29 @@ export default function PayrollInputsPage() {
               </tr>
             </thead>
             <tbody>
-              {(employees as any[]).slice(0, 200).map((r) => (
-                <tr key={r.hr_employee_id} className="border-b hover:bg-muted/30">
+              {(employees as any[]).slice(0, 200).map((r) => {
+                const dnpAt = (dnpMarks as Record<string, string>)[String(r.razorpay_employee_id)];
+                const inactive = r.last_pull_snapshot?.is_active === false;
+                return (
+                <tr key={r.hr_employee_id} className={`border-b hover:bg-muted/30 ${dnpAt ? "bg-muted/40" : ""}`}>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
-                      {r.last_pull_snapshot?.is_active === false && <Badge variant="muted">Inactive in RazorpayX</Badge>}
+                      <span className={dnpAt ? "text-muted-foreground" : ""}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
+                      {inactive && <Badge variant="muted">Inactive in RazorpayX</Badge>}
+                      {dnpAt && <Badge variant="muted">Do-Not-Pay applied · {new Date(dnpAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</Badge>}
                     </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        disabled={!gateOpen || r.last_pull_snapshot?.is_active === false}
+                        variant={dnpAt ? "secondary" : "outline"}
+                        className={`h-7 text-xs ${dnpAt ? "text-muted-foreground" : ""}`}
+                        disabled={!gateOpen || inactive || !!dnpAt}
                         onClick={() => setDnpConfirm(r)}
-                        title={!gateOpen ? "Payroll-write gate locked" : r.last_pull_snapshot?.is_active === false ? "Unavailable: employee is inactive in RazorpayX" : ""}
+                        title={!gateOpen ? "Payroll-write gate locked" : inactive ? "Unavailable: employee is inactive in RazorpayX" : dnpAt ? `Already marked Do-Not-Pay for ${period} — use Reset modifications to undo` : ""}
                       >
-                        <Ban className="h-3 w-3 mr-1" /> Do-Not-Pay this month
+                        <Ban className="h-3 w-3 mr-1" /> {dnpAt ? `Do-Not-Pay set for ${period}` : "Do-Not-Pay this month"}
                       </Button>
                       <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setResetConfirm(r)} title={gateOpen ? "" : "Payroll-write gate locked"}>
                         <RotateCcw className="h-3 w-3 mr-1" /> Reset modifications
@@ -581,8 +585,10 @@ export default function PayrollInputsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
+
           </table>
         </CardContent>
       </Card>

@@ -176,7 +176,7 @@ export default function PayrollInputsPage() {
     const first = group[0];
     const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
     const items = group.map((r) => (tab === "addition"
-      ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: r.addition_type || "bonus" }
+      ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
       : { label: r.label, amount: Number(r.amount) }));
     const data: any = {
       "employee-id": Number(first.razorpay_employee_id),

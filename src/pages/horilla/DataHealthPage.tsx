@@ -43,12 +43,21 @@ type Drift = {
   severity: "low" | "medium" | "high" | "critical";
   first_seen_at: string;
   last_seen_at: string;
+  resolution_note?: string | null;
   employee_name: string;
   badge_id: string | null;
   is_active: boolean;
   auto_status?: "open" | "auto_dismissed" | "auto_labeled" | null;
   auto_reason?: string | null;
 };
+
+// Alerts raised by a FAILED push (not by the 3-way scanner) carry no
+// hrms/razorpay/essl values — the failure detail lives in resolution_note.
+// Rendering three empty boxes for these makes them look like phantom drifts.
+const PUSH_FAILURE_FIELDS = new Set(["employment_bundle", "dismissal_state"]);
+const isPushFailureAlert = (d: Drift) =>
+  !d.hrms_value && !d.razorpay_value && !d.essl_value;
+
 
 const SEVERITY_STYLE: Record<Drift["severity"], string> = {
   low: "bg-muted text-muted-foreground",

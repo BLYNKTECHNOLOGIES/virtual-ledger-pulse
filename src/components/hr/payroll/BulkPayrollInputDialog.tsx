@@ -204,6 +204,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
       (built.skipped.length ? ` · ${built.skipped.length} line(s) skipped` : ""),
     );
     if (built.skipped.length) console.warn("Bulk payroll input skipped lines:", built.skipped);
+    clearDraft();
     setPicked({}); setLabel(""); setAmount(""); setPaste(""); setDrafts([newDraft()]);
     onDone();
     onOpenChange(false);

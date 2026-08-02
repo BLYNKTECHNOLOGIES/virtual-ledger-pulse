@@ -50,14 +50,10 @@ export function EmployeeCombobox({ options, value, onChange, placeholder = "Empl
           filter={(val, search) => {
             const q = search.trim().toLowerCase();
             if (!q) return 1;
-            const v = val.toLowerCase();
-            if (v.includes(q)) return 1;
-            // Lenient match for common Indian-name spelling variants
-            // (Shubham/Subham, Kumaar/Kumar): drop 'h' and duplicate letters.
-            const loose = (s: string) => s.replace(/h/g, "").replace(/(.)\1+/g, "$1");
-            return loose(v).includes(loose(q)) ? 1 : 0;
+            return val.toLowerCase().includes(q) ? 1 : 0;
           }}
         >
+
 
           <CommandInput placeholder="Search name or badge…" />
           <CommandList className="max-h-64">

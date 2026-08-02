@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { EmployeeCombobox } from "./EmployeeCombobox";
+import { additionTypeCode } from "@/lib/hrms/additionType";
 
 
 type Kind = "addition" | "deduction";

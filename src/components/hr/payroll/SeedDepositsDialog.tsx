@@ -42,12 +42,13 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
   const qc = useQueryClient();
   const [rows, setRows] = useState<Row[]>([newRow()]);
 
-  useFormDraftPersistence({
-    key: `hr-seed-deposits-${depositType}`,
-    value: rows,
-    setValue: setRows,
-    enabled: open,
-  });
+  useFormDraftPersistence<Row[]>(
+    open ? `seed-deposits:${depositType}` : null,
+    rows,
+    (saved) => { if (Array.isArray(saved) && saved.length) setRows(saved); },
+    { isEmpty: (v) => !(v as Row[])?.some((r) => r.employee_id || r.amount) },
+  );
+
 
   const options: EmployeeOption[] = useMemo(
     () =>

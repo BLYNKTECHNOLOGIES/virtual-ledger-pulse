@@ -435,7 +435,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     <TooltipProvider delayDuration={150}>
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
-        title="Salary Revision History"
+        title={month ? `Salary Revisions — ${monthLabel}` : "Salary Revision History"}
         actions={
           <div className="flex items-center gap-2">
             {canManage && (

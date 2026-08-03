@@ -12,7 +12,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Upload, Mail, RefreshCw, CheckCircle2, AlertTriangle, FileText, Send, CalendarDays } from "lucide-react";
+import { Upload, Mail, RefreshCw, CheckCircle2, AlertTriangle, FileText, Send, CalendarDays, FileArchive } from "lucide-react";
+import { readPayslipArchive, readEmployeeCodeFromPdf } from "@/lib/payslipZip";
+
 
 interface DispatchRow {
   employee_id: string;
@@ -64,14 +66,28 @@ function matchRow(filename: string, rows: DispatchRow[]): DispatchRow | null {
   return byTokens.length === 1 ? byTokens[0] : null;
 }
 
+interface ZipReport {
+  fileName: string;
+  total: number;
+  matched: { code: string; name: string; group: string; verified: boolean }[];
+  unmapped: { code: string; name: string; group: string }[];
+  conflicts: { file: string; reason: string }[];
+  failures: { file: string; reason: string }[];
+  missingInZip: string[];
+}
+
 export default function PayslipEmailDispatchPanel({ month }: { month: string }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const zipRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
+  const [zipBusy, setZipBusy] = useState<string | null>(null);
+  const [zipReport, setZipReport] = useState<ZipReport | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [processedOnDraft, setProcessedOnDraft] = useState<string>("");
   const [unmatched, setUnmatched] = useState<string[]>([]);
+
 
   const rosterQ = useQuery({
     queryKey: ["payslip_email_roster", month],
@@ -163,6 +179,116 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
     }
   }
 
+  async function handleZip(file: File | null | undefined) {
+    if (!file) return;
+    setZipReport(null);
+    setZipBusy("Reading archive…");
+    try {
+      const entries = await readPayslipArchive(file);
+      if (entries.length === 0) {
+        toast.error("No payslip PDFs found inside this archive");
+        return;
+      }
+
+      // Period guard — every file must belong to the cockpit month.
+      const wrong = entries.filter((e) => e.period && e.period !== month);
+      if (wrong.length > 0) {
+        const labels = Array.from(new Set(wrong.map((e) => e.periodLabel))).join(", ");
+        toast.error(
+          `Archive is for ${labels}, but you are on ${month.slice(0, 7)}. Import blocked — switch the cycle month or upload the right archive.`,
+        );
+        return;
+      }
+
+      const report: ZipReport = {
+        fileName: file.name,
+        total: entries.length,
+        matched: [],
+        unmapped: [],
+        conflicts: [],
+        failures: [],
+        missingInZip: [],
+      };
+
+      let done = 0;
+      for (const e of entries) {
+        done++;
+        setZipBusy(`Matching & uploading ${done}/${entries.length}…`);
+
+        const code = e.folderCode ?? e.fileCode;
+        if (!code) {
+          report.conflicts.push({ file: e.path, reason: "No employee code in folder or file name" });
+          continue;
+        }
+        if (e.folderCode && e.fileCode && e.folderCode !== e.fileCode) {
+          report.conflicts.push({
+            file: e.path,
+            reason: `Folder code ${e.folderCode} does not match file-name code ${e.fileCode}`,
+          });
+          continue;
+        }
+
+        const pdfCode = await readEmployeeCodeFromPdf(e.bytes);
+        if (pdfCode && pdfCode !== code) {
+          report.conflicts.push({
+            file: e.path,
+            reason: `PDF says employee code ${pdfCode} but path says ${code}`,
+          });
+          continue;
+        }
+
+        const row = rows.find((r) => String(r.razorpay_employee_id ?? "") === code);
+        if (!row) {
+          report.unmapped.push({ code, name: e.folderName ?? e.fileName, group: e.group });
+          continue;
+        }
+
+        const path = `${month}/${row.employee_id}.pdf`;
+        const blob = new Blob([e.bytes.slice().buffer as ArrayBuffer], { type: "application/pdf" });
+        const up = await supabase.storage.from("payslips").upload(path, blob, {
+          upsert: true, contentType: "application/pdf",
+        });
+        if (up.error) {
+          report.failures.push({ file: e.path, reason: up.error.message });
+          continue;
+        }
+        const { error } = await supabase
+          .from("hr_razorpay_payslip_records")
+          .update({ pdf_storage_path: path })
+          .eq("period_month", month)
+          .eq("hr_employee_id", row.employee_id);
+        if (error) {
+          report.failures.push({ file: e.path, reason: error.message });
+          continue;
+        }
+        report.matched.push({ code, name: row.name, group: e.group, verified: !!pdfCode });
+      }
+
+      const codesInZip = new Set(entries.map((e) => e.folderCode ?? e.fileCode).filter(Boolean) as string[]);
+      report.missingInZip = rows
+        .filter((r) => !r.pdf_path && !codesInZip.has(String(r.razorpay_employee_id ?? "")))
+        .map((r) => r.name);
+
+      setZipReport(report);
+      setUnmatched([]);
+      if (report.matched.length) toast.success(`${report.matched.length} payslip(s) linked from the archive`);
+      if (report.unmapped.length || report.conflicts.length || report.failures.length) {
+        toast.warning(
+          `${report.unmapped.length + report.conflicts.length + report.failures.length} file(s) need attention`,
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
+      qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", month] });
+    } catch (err: any) {
+      toast.error(err?.message || "Could not read the archive");
+    } finally {
+      setZipBusy(null);
+      if (zipRef.current) zipRef.current.value = "";
+    }
+  }
+
+
+
   async function assignFile(employeeId: string, file: File) {
     const path = `${month}/${employeeId}.pdf`;
     const up = await supabase.storage.from("payslips").upload(path, file, { upsert: true, contentType: "application/pdf" });
@@ -229,7 +355,26 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
 
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1.5">
-                <Upload className="h-3.5 w-3.5" /> Upload payslip PDFs (yours, not generated)
+                <FileArchive className="h-3.5 w-3.5" /> RazorpayX payslip archive (.zip)
+              </Label>
+              <input
+                ref={zipRef}
+                type="file"
+                accept=".zip,application/zip"
+                className="hidden"
+                onChange={(e) => handleZip(e.target.files?.[0])}
+              />
+              <Button size="sm" disabled={!!zipBusy} onClick={() => zipRef.current?.click()}>
+                {zipBusy ?? "Import ZIP"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                Upload the monthly export as-is — matched by employee code, not by name.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1.5">
+                <Upload className="h-3.5 w-3.5" /> Individual PDFs (manual fix)
               </Label>
               <input
                 ref={fileRef}
@@ -244,6 +389,55 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
               </Button>
             </div>
           </div>
+
+          {zipReport && (
+            <div className="rounded-md border p-3 text-xs space-y-2">
+              <div className="font-medium text-foreground">
+                Import report — {zipReport.fileName} ({zipReport.total} PDF(s))
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-emerald-500 border-emerald-500/40">
+                  {zipReport.matched.length} linked
+                </Badge>
+                {zipReport.unmapped.length > 0 && (
+                  <Badge variant="outline" className="text-amber-500 border-amber-500/40">
+                    {zipReport.unmapped.length} not in HRMS
+                  </Badge>
+                )}
+                {zipReport.conflicts.length > 0 && (
+                  <Badge variant="destructive">{zipReport.conflicts.length} conflicts</Badge>
+                )}
+                {zipReport.failures.length > 0 && (
+                  <Badge variant="destructive">{zipReport.failures.length} upload failures</Badge>
+                )}
+                {zipReport.matched.some((m) => !m.verified) && (
+                  <Badge variant="outline">
+                    {zipReport.matched.filter((m) => !m.verified).length} code not verified inside PDF
+                  </Badge>
+                )}
+              </div>
+              {zipReport.unmapped.length > 0 && (
+                <div className="text-amber-600 dark:text-amber-400">
+                  <div className="font-medium">No HRMS employee for these RazorpayX codes:</div>
+                  {zipReport.unmapped.map((u) => (
+                    <div key={u.code}>• {u.code} — {u.name} ({u.group})</div>
+                  ))}
+                </div>
+              )}
+              {zipReport.conflicts.map((c) => (
+                <div key={c.file} className="text-destructive">• {c.file}: {c.reason}</div>
+              ))}
+              {zipReport.failures.map((f) => (
+                <div key={f.file} className="text-destructive">• {f.file}: {f.reason}</div>
+              ))}
+              {zipReport.missingInZip.length > 0 && (
+                <div className="text-muted-foreground">
+                  <span className="font-medium">Still without a PDF:</span> {zipReport.missingInZip.join(", ")}
+                </div>
+              )}
+            </div>
+          )}
+
 
           {unmatched.length > 0 && (
             <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive space-y-1">

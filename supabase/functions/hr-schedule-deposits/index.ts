@@ -196,10 +196,13 @@ Deno.serve(async (req) => {
       });
 
       if (push.ok) {
-        const { error: rpcErr } = await svc.rpc("hr_apply_loan_repayment", {
+        // Two-stage life: 'pushed' now (money is on the RazorpayX run), 'paid'
+        // only when that payroll month is actually locked/processed.
+        const { error: rpcErr } = await svc.rpc("hr_apply_loan_push", {
           p_repayment_id: r.id,
           p_razorpay_input_id: push.inputId,
         });
+
         if (rpcErr) {
           await svc.from("hr_loan_repayments")
             .update({ status: "failed", failure_reason: `ledger: ${rpcErr.message}` })

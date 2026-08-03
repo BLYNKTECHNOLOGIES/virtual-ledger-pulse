@@ -216,26 +216,36 @@ export default function AttendanceStaleSessionsPage() {
                   <div className="text-xs text-muted-foreground border-l-2 pl-2">{r.resolution_note}</div>
                 )}
                 {r.status === "open" && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Button size="sm" onClick={() => openDialog(r, "set_out_time")}>
-                      Set out-time
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => markFullDay.mutate(r)}
-                      disabled={markFullDay.isPending}
-                      title="Close session at the employee's shift end for this date"
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> Mark full day
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => openDialog(r, "confirm_long_shift")}>
-                      Confirm long shift
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => openDialog(r, "void")}>
-                      <XCircle className="h-4 w-4 mr-1" /> Void
-                    </Button>
-                  </div>
+                  <>
+                    <div className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2 space-y-0.5">
+                      <div>This day is currently <b>held harmless from LOP</b> while the session stays open.</div>
+                      <div>
+                        <b>Present — shift-standard out</b>: present, zero OT, no LOP ·{" "}
+                        <b>Set out-time</b>: uses your time, OT capped ·{" "}
+                        <b>Confirm long shift</b>: capped at the long-shift cap, no OT ·{" "}
+                        <b>Void</b>: day becomes unpaid unless regularized.
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        onClick={() => markShiftEnd.mutate(r)}
+                        disabled={markShiftEnd.isPending}
+                        title="Close the session at the employee's scheduled shift end — present, no overtime, no LOP"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> Present — shift-standard out
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openDialog(r, "set_out_time")}>
+                        Set out-time
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => openDialog(r, "confirm_long_shift")}>
+                        Confirm long shift
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => openDialog(r, "void")}>
+                        <XCircle className="h-4 w-4 mr-1" /> Void
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

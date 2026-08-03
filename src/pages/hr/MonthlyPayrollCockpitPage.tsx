@@ -239,6 +239,7 @@ export default function MonthlyPayrollCockpitPage() {
   const opts = useMemo(() => monthOptions(), []);
 
   const { data: steps = [], isLoading, error } = useCockpitMonth(month);
+  const stepGate = usePayrollStepGate(month);
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 

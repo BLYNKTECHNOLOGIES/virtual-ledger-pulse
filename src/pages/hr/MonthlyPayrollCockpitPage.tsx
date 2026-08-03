@@ -246,7 +246,7 @@ export default function MonthlyPayrollCockpitPage() {
     (s) => s.ack_status === "done" || (s.live_status === "complete" && s.auto && s.step_no !== 10)
   ).length;
   const blockers = steps
-    .filter((s) => s.step_no <= 8 && s.ack_status !== "done" && s.ack_status !== "skipped" && s.live_status !== "complete")
+    .filter((s) => s.step_no <= 9 && s.ack_status !== "done" && s.ack_status !== "skipped" && s.live_status !== "complete")
     .map((s) => `Step ${s.step_no}: ${s.step_label}`);
 
   const closed = steps.find((s) => s.step_no === 10)?.ack_status === "done";

@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.hr_cockpit_month_state(date) TO anon, authenticated, service_role, postgres;

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { CockpitToolSheet, type CockpitToolKey } from "@/components/hrms/CockpitToolSheet";
 import {
@@ -147,6 +148,9 @@ function DetailLine({ step }: { step: CockpitStep }) {
           {(d.rev_pending ?? 0) > 0
             ? ` · ${d.rev_pending} still pending or scheduled — finalise before LOP is calculated`
             : " · none pending"}
+          {(d.rev_unsynced ?? 0) > 0
+            ? ` · ${d.rev_unsynced} not yet confirmed on RazorpayX — push before moving on`
+            : " · all synced to RazorpayX"}
           {Number(d.one_time_total ?? 0) > 0
             ? ` · one-time arrears ₹${Number(d.one_time_total).toLocaleString("en-IN")}`
             : ""}
@@ -223,6 +227,8 @@ export default function MonthlyPayrollCockpitPage() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [tool, setTool] = useState<CockpitToolKey | null>(null);
   const [, setSearchParams] = useSearchParams();
+  const qc = useQueryClient();
+
 
   // Embedded tools read the URL (tab / focus / period), so the cockpit sets them before opening.
   function openTool(key: CockpitToolKey, params?: Record<string, string>) {
@@ -234,6 +240,11 @@ export default function MonthlyPayrollCockpitPage() {
   function closeTool() {
     setTool(null);
     setSearchParams(new URLSearchParams(), { replace: true });
+    // A tool may have changed revisions / inputs / recoveries — re-evaluate the
+    // live step status and the step-5 gate instead of serving the 30s cache.
+    qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
+    qc.invalidateQueries({ queryKey: ["gate_lop"] });
+    qc.invalidateQueries({ queryKey: ["gate_auto_recoveries"] });
   }
 
   const monthDate = useMemo(() => new Date(month + "T00:00:00Z"), [month]);

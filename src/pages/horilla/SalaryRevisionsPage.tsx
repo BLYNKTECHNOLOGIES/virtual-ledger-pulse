@@ -549,31 +549,37 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       )}
 
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <TabsList>
-            <TabsTrigger value="APPLIED">Applied</TabsTrigger>
-            <TabsTrigger value="SCHEDULED">Scheduled</TabsTrigger>
-            <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
-            <TabsTrigger value="ALL">All</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-        </div>
-      </div>
+      {/* Full history + filters are only meaningful outside the cockpit. Inside a
+          payroll month, showing unrelated months' revisions is noise. */}
+      {!month && (
+        <>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <TabsList>
+                <TabsTrigger value="APPLIED">Applied</TabsTrigger>
+                <TabsTrigger value="SCHEDULED">Scheduled</TabsTrigger>
+                <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
+                <TabsTrigger value="ALL">All</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+            </div>
+          </div>
 
-
-      {isLoading ? (
-        <TableSkeleton rows={4} columns={4} />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((r: any) => renderRevisionCard(r))}
-        </div>
+          {isLoading ? (
+            <TableSkeleton rows={4} columns={4} />
+          ) : filtered.length === 0 ? (
+            <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
+          ) : (
+            <div className="space-y-3">
+              {filtered.map((r: any) => renderRevisionCard(r))}
+            </div>
+          )}
+        </>
       )}
+
 
       <ReviseSalaryDialog open={showDialog} onOpenChange={setShowDialog} />
 

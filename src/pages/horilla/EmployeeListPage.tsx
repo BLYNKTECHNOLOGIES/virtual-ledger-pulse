@@ -375,6 +375,14 @@ export default function EmployeeListPage() {
   };
 
   // ─── Export logic ───
+  // RazorpayX caches annual CTC on hr_employees.total_salary (values below the
+  // month-scale threshold are already monthly).
+  const monthlyCtc = (emp: any): number | "" => {
+    const v = Number((emp as any)?.total_salary ?? 0);
+    if (!(v > 0)) return "";
+    return Math.round(v > 100000 ? v / 12 : v);
+  };
+
   const buildExportRows = () => {
     const source = selectedIds.size > 0 ? sorted.filter(e => selectedIds.has(e.id)) : sorted;
     return source.map(emp => {
@@ -391,10 +399,12 @@ export default function EmployeeListPage() {
         "Work Type": wi?.work_type || "",
         "Employee Type": employeeTypeLabel(wi?.employee_type),
         "Date of Joining": (wi as any)?.joining_date || (wi as any)?.date_joining || "",
+        "Monthly CTC": monthlyCtc(emp),
         "Status": emp.is_active ? "Active" : "Inactive",
       };
     });
   };
+
 
   const handleExport = () => {
     const rows = buildExportRows();
@@ -1163,6 +1173,8 @@ export default function EmployeeListPage() {
       "Work Type": wi?.work_type || "",
       "Employee Type": employeeTypeLabel(wi?.employee_type),
       "Date of Joining": (wi as any)?.joining_date || "",
+      "Monthly CTC": monthlyCtc(emp),
+
       "Status": emp.is_active ? "Active" : "Inactive",
     }];
     const ws = XLSX.utils.json_to_sheet(rows);

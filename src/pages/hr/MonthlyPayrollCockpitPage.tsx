@@ -48,6 +48,7 @@ import {
   firstOfMonth,
   type CockpitStep,
 } from "@/hooks/hrms/useCockpit";
+import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
 
 const STEP_ICONS: Record<string, any> = {
   lock_attendance: Lock,

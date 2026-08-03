@@ -155,13 +155,18 @@ function DetailLine({ step }: { step: CockpitStep }) {
         <span>
           {d.lop_rows ?? 0} LOP row(s) staged
           {(d.auto_rows ?? 0) > 0 ? ` · ${d.auto_rows} auto-calculated from attendance (${Number(d.auto_lop_days ?? 0)} LOP days)` : " · none auto-calculated yet"}
-          {(d.pushed_rows ?? 0) > 0 ? ` · ${d.pushed_rows} pushed to RazorpayX` : ""}.
+          {" · "}
+          <strong>{d.verified_rows ?? 0}/{d.lop_rows ?? 0} verified in RazorpayX</strong>
+          {(d.pushed_rows ?? 0) > (d.verified_rows ?? 0)
+            ? ` (${(d.pushed_rows ?? 0) - (d.verified_rows ?? 0)} pushed but not read back)`
+            : ""}
+          .
         </span>
       );
     case "inputs_push":
       return (
         <span>
-          {d.input_rows ?? 0} additions/deductions staged
+          {d.input_rows ?? 0} additions/deductions staged · <strong>{d.input_verified ?? 0}/{d.input_rows ?? 0} verified in RazorpayX</strong>
           {(d.rec_rows ?? 0) > 0
             ? ` · ${d.rec_rows} automatic recovery installment(s) (loan EMI / deposit / error recovery) worth ₹${Number(d.rec_amount ?? 0).toLocaleString("en-IN")} — ${d.rec_pushed ?? 0} pushed${(d.rec_failed ?? 0) > 0 ? `, ${d.rec_failed} failed` : ""}`
             : " · no automatic recoveries due this month"}
@@ -173,12 +178,16 @@ function DetailLine({ step }: { step: CockpitStep }) {
       return (
         <span className="text-amber-500">
           RazorpayX API cannot confirm a payroll run — mark done here after running it on the dashboard.
+          {d.processed_on ? ` Credit date recorded: ${new Date(String(d.processed_on)).toLocaleDateString("en-IN")}.` : ""}
         </span>
       );
     case "import_payslips":
       return (
         <span>
-          {d.imported ?? 0} payslip(s) imported · {d.register_rows ?? 0} register row(s) uploaded.
+          {d.imported ?? 0} payslip(s) imported · {d.register_rows ?? 0} register row(s) uploaded ·{" "}
+          {d.with_pdf ?? 0} payslip PDF(s) attached ·{" "}
+          <strong>{d.emails_sent ?? 0}/{d.payable ?? 0} payslip emails sent</strong>
+          {(d.register_rows ?? 0) === 0 ? " — register CSV required before emails can be sent" : ""}.
         </span>
       );
     case "shadow_compare":

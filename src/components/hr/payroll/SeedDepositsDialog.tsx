@@ -115,7 +115,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[min(96vw,60rem)] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl w-[min(98vw,80rem)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Seed existing {typeLabel.toLowerCase()}s</DialogTitle>
           <DialogDescription>

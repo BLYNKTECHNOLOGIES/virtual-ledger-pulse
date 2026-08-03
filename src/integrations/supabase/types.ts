@@ -11014,6 +11014,33 @@ export type Database = {
           },
         ]
       }
+      hr_payroll_month_meta: {
+        Row: {
+          created_at: string
+          notes: string | null
+          period_month: string
+          processed_on: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          notes?: string | null
+          period_month: string
+          processed_on?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          notes?: string | null
+          period_month?: string
+          processed_on?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       hr_payroll_runs: {
         Row: {
           created_at: string
@@ -25013,6 +25040,23 @@ export type Database = {
           installment_no: number
           period_month: string
         }[]
+      }
+      hr_set_payroll_processed_on: {
+        Args: { _month: string; _notes?: string; _processed_on: string }
+        Returns: {
+          created_at: string
+          notes: string | null
+          period_month: string
+          processed_on: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "hr_payroll_month_meta"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       hr_settle_deposit_installment: {
         Args: { p_schedule_id: string }

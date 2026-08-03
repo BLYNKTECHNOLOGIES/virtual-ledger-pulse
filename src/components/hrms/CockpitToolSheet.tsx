@@ -87,7 +87,13 @@ export function CockpitToolSheet({
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading tool…</div>}>
-          <entry.Component />
+          {tool === "payslip_emails" ? (
+            <div className="p-3 md:p-6">
+              <entry.Component month={month} />
+            </div>
+          ) : (
+            <entry.Component />
+          )}
         </Suspense>
       </div>
     </div>,

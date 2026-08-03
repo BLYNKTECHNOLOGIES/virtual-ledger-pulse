@@ -120,6 +120,27 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     return name.includes(search.toLowerCase());
   }), [revisions, statusFilter, search]);
 
+  // Revisions that land in THIS payroll month for the first time:
+  //  · CTC revisions whose effective_from falls inside the month
+  //  · one-time payouts targeted at this payroll month
+  const monthScoped = useMemo(() => {
+    if (!month) return [] as any[];
+    const start = new Date(`${month.slice(0, 7)}-01T00:00:00Z`);
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    const inMonth = (v?: string | null) => {
+      if (!v) return false;
+      const d = new Date(v);
+      return !isNaN(d.getTime()) && d >= start && d < end;
+    };
+    return revisions.filter((r: any) => {
+      if (r.status === "CANCELLED") return false;
+      const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+      return isOneTime ? inMonth(r.payout_month) : inMonth(r.effective_from);
+    });
+  }, [revisions, month]);
+
+  const monthLabel = month ? format(new Date(`${month.slice(0, 7)}-01T00:00:00Z`), "MMMM yyyy") : "";
+
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
   const payrollGateVerified = !!envelope?.push_payroll_endpoint_verified;
 

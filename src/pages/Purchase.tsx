@@ -410,11 +410,21 @@ export default function Purchase() {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    toast({
-      title: "Export successful",
-      description: `Exported ${allPurchaseOrders.length} purchase orders.`
-    });
+      toast({
+        title: "Export successful",
+        description: `Exported ${allPurchaseOrders.length} purchase orders.`
+      });
+    } catch (e: any) {
+      toast({
+        title: "Export failed",
+        description: e?.message || "Could not build the CSV.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
+
 
   const clearFilters = () => {
     setFilterDateFrom(undefined);

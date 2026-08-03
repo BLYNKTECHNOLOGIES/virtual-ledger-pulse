@@ -24570,6 +24570,10 @@ export type Database = {
         Args: { p_razorpay_input_id?: string; p_schedule_id: string }
         Returns: undefined
       }
+      hr_apply_loan_push: {
+        Args: { p_razorpay_input_id?: string; p_repayment_id: string }
+        Returns: undefined
+      }
       hr_apply_loan_repayment: {
         Args: { p_razorpay_input_id?: string; p_repayment_id: string }
         Returns: undefined
@@ -25063,6 +25067,11 @@ export type Database = {
         Returns: undefined
       }
       hr_settle_deposit_period: { Args: { p_period: string }; Returns: number }
+      hr_settle_loan_installment: {
+        Args: { p_repayment_id: string }
+        Returns: undefined
+      }
+      hr_settle_loan_period: { Args: { p_period: string }; Returns: number }
       hr_stale_session_held: {
         Args: { p_date: string; p_employee_id: string }
         Returns: boolean

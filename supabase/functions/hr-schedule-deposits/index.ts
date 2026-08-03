@@ -21,6 +21,12 @@ const json = (body: unknown, status = 200) =>
 //            "payroll-month": "YYYY-MM", deductions: [{ label, amount }] }
 // Sending hr_employee_id/period_month/code/amount is rejected with
 // "Missing required payroll deductions field(s): ...".
+//
+// Opfin's add-deduction is aggregate-only: it returns no per-input id and
+// canonicalises our label into "Gross pay deduction". The proxy therefore
+// performs a payroll:view-payroll read-back and reports whether the amount is
+// actually visible on the live run. We treat "pushed" as true only when that
+// read-back verifies — no fabricated ids, no optimistic success.
 async function pushDeduction(
   svc: any,
   input: {
@@ -60,10 +66,17 @@ async function pushDeduction(
     }),
   });
   const body = await resp.json().catch(() => ({}));
-  const ok = resp.ok && body?.ok !== false;
+  const httpOk = resp.ok && body?.ok !== false;
+  const rb = body?.readback ?? null;
+  // Verified only when RazorpayX itself echoes the deduction back on the run.
+  const verified = httpOk && rb?.ok === true;
   const inputId = body?.razorpay_input_id ?? body?.response?.data?.id ?? null;
-  return { ok, http: resp.status, inputId, error: body?.error ?? (ok ? null : `HTTP ${resp.status}`) };
+  const error = !httpOk
+    ? (body?.error ?? `HTTP ${resp.status}`)
+    : (verified ? null : (rb?.error ?? "Pushed, but not visible on the RazorpayX read-back"));
+  return { ok: verified, http: resp.status, inputId, error, readback: rb };
 }
+
 
 
 Deno.serve(async (req) => {
@@ -183,10 +196,13 @@ Deno.serve(async (req) => {
       });
 
       if (push.ok) {
-        const { error: rpcErr } = await svc.rpc("hr_apply_loan_repayment", {
+        // Two-stage life: 'pushed' now (money is on the RazorpayX run), 'paid'
+        // only when that payroll month is actually locked/processed.
+        const { error: rpcErr } = await svc.rpc("hr_apply_loan_push", {
           p_repayment_id: r.id,
           p_razorpay_input_id: push.inputId,
         });
+
         if (rpcErr) {
           await svc.from("hr_loan_repayments")
             .update({ status: "failed", failure_reason: `ledger: ${rpcErr.message}` })

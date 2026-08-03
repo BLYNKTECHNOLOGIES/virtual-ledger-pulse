@@ -90,13 +90,18 @@ export function CockpitToolSheet({
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading tool…</div>}>
-          {tool === "payslip_emails" || tool === "salary_revisions" ? (
+          {tool === "payslip_emails" ? (
             <div className="p-3 md:p-6">
               {(() => {
                 const C = entry.Component as unknown as React.ComponentType<{ month?: string }>;
                 return <C month={month} />;
               })()}
             </div>
+          ) : tool === "salary_revisions" ? (
+            (() => {
+              const C = entry.Component as unknown as React.ComponentType<{ month?: string }>;
+              return <C month={month} />;
+            })()
           ) : (
             <entry.Component />
           )}

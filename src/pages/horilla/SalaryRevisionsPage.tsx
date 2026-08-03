@@ -340,12 +340,9 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
 
-            // --- Scannable summary line: what actually happened, in words ---
             const typeLabel = isOneTime
-              ? String(r.revision_type || "bonus").replace(/_/g, " ").toUpperCase()
-              : isScheduled
-                ? "SCHEDULED CTC CHANGE"
-                : diff >= 0 ? "CTC INCREMENT" : "CTC CORRECTION";
+              ? String(r.revision_type || "bonus").replace(/_/g, " ")
+              : isScheduled ? "Scheduled" : diff >= 0 ? "Increment" : "Correction";
 
             const typeTone = isCancelled
               ? "border-muted-foreground/30 text-muted-foreground bg-muted"
@@ -358,126 +355,107 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                     : "border-destructive/40 text-destructive bg-destructive/10";
 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+            const pushBtn =
+              isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
+                <Button
+                  size="sm" variant={pushFailedAfterRevision ? "default" : "outline"} className="h-7 px-2 text-xs"
+                  onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}
+                  disabled={pushing || !envelopeVerified}
+                  title={!envelopeVerified ? "Verify the salary envelope first" : "Push this CTC to RazorpayX"}
+                >
+                  {pushing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  <span className="ml-1">{pushFailedAfterRevision ? "Retry" : "Push"}</span>
+                </Button>
+              ) : isApplied && isOneTime && canManage && (!r.razorpay_pushed_at || r.razorpay_push_error) ? (
+                <Button
+                  size="sm" variant={r.razorpay_push_error ? "default" : "outline"} className="h-7 px-2 text-xs"
+                  onClick={() => pushOneTime(r.id)}
+                  disabled={pushing || !payrollGateVerified}
+                  title={!payrollGateVerified
+                    ? "RazorpayX payroll-write gate is locked. Verify the Payroll-run envelope in HRMS → Payroll → RazorpayX Sync."
+                    : "Stage this payout on the target RazorpayX payroll month"}
+                >
+                  {pushing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  <span className="ml-1">{r.razorpay_push_error ? "Retry" : "Push"}</span>
+                </Button>
+              ) : isScheduled && canManage ? (
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setCancelId(r.id)} title="Cancel scheduled revision">
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              ) : null;
 
             return (
-              <Card key={r.id} className={isCancelled ? "opacity-60" : ""}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    {/* LEFT — who + what happened */}
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          "mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
-                          typeTone,
-                        )}
-                      >
-                        {isScheduled ? <Clock className="h-4 w-4" />
-                          : isOneTime ? <Plus className="h-4 w-4" />
-                          : isIncrease ? <TrendingUp className="h-4 w-4" />
-                          : <TrendingDown className="h-4 w-4" />}
+              <div
+                key={r.id}
+                className={cn(
+                  "grid items-center gap-x-4 gap-y-1 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-muted/40 transition-colors",
+                  "grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_96px_minmax(0,1.6fr)_120px_minmax(0,1fr)]",
+                  isCancelled && "opacity-50",
+                )}
+              >
+                {/* Employee */}
+                <div className="min-w-0 flex items-baseline gap-1.5">
+                  <span className="font-medium text-foreground text-sm truncate">
+                    {r.hr_employees?.first_name} {r.hr_employees?.last_name}
+                  </span>
+                  {r.hr_employees?.badge_id && (
+                    <span className="text-[10px] text-muted-foreground shrink-0">#{r.hr_employees.badge_id}</span>
+                  )}
+                </div>
+
+                {/* Type */}
+                <div className="md:justify-self-start">
+                  <span className={cn("inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize", typeTone)}>
+                    {typeLabel}
+                  </span>
+                </div>
+
+                {/* What changed */}
+                <div className="text-sm tabular-nums flex items-baseline gap-1.5 min-w-0">
+                  {isOneTime ? (
+                    <>
+                      <span className="font-semibold text-emerald-600">+{money(r.one_time_amount)}</span>
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        one-time{r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
                       </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-muted-foreground text-xs">{money(r.previous_total)}</span>
+                      <span className="text-muted-foreground text-xs">→</span>
+                      <span className="font-semibold text-foreground">{money(r.new_total)}</span>
+                      <span className={cn("text-[11px] font-medium shrink-0", diff >= 0 ? "text-emerald-600" : "text-destructive")}>
+                        {diff >= 0 ? "+" : "−"}{money(Math.abs(diff))}
+                      </span>
+                    </>
+                  )}
+                </div>
 
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-foreground truncate">
-                            {r.hr_employees?.first_name} {r.hr_employees?.last_name}
-                          </p>
-                          {r.hr_employees?.badge_id && (
-                            <span className="text-[11px] text-muted-foreground">#{r.hr_employees.badge_id}</span>
-                          )}
-                          <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide", typeTone)}>
-                            {typeLabel}
-                          </span>
-                          {isCancelled && (
-                            <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide border-muted-foreground/30 text-muted-foreground">
-                              CANCELLED
-                            </span>
-                          )}
-                        </div>
+                {/* Effective */}
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  {isOneTime
+                    ? (r.payout_month ? format(new Date(r.payout_month), "MMM yyyy") : "—")
+                    : (r.effective_from ? format(new Date(r.effective_from), "dd MMM yyyy") : "—")}
+                </div>
 
-                        {/* The one line that says everything */}
-                        {isOneTime ? (
-                          <p className="text-sm text-foreground">
-                            <span className="font-semibold tabular-nums text-emerald-600">
-                              {money(r.one_time_amount)}
-                            </span>{" "}
-                            one-time payout
-                            {r.payout_month && (
-                              <> · paid with <span className="font-medium">{format(new Date(r.payout_month), "MMM yyyy")}</span> payroll</>
-                            )}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-foreground flex items-center gap-1.5 flex-wrap">
-                            <span className="text-muted-foreground">Annual CTC</span>
-                            <span className="text-muted-foreground line-through tabular-nums">{money(r.previous_total)}</span>
-                            <span className="text-muted-foreground">→</span>
-                            <span className="font-semibold tabular-nums">{money(r.new_total)}</span>
-                            <span
-                              className={cn(
-                                "rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
-                                diff >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive",
-                              )}
-                            >
-                              {diff >= 0 ? "+" : "−"}{money(Math.abs(diff))}/yr
-                            </span>
-                            <span className="text-[11px] text-muted-foreground tabular-nums">
-                              ({diff >= 0 ? "+" : "−"}{money(Math.round(Math.abs(diff) / 12))}/mo)
-                            </span>
-                          </p>
-                        )}
-
-                        <p className="text-[11px] text-muted-foreground">
-                          {isOneTime
-                            ? <>Raised {format(new Date(r.created_at), "dd MMM yyyy")}</>
-                            : <>Effective <span className="text-foreground font-medium">{r.effective_from}</span> · raised {format(new Date(r.created_at), "dd MMM yyyy")}</>}
-                          {r.approved_by && <> · by {r.approved_by}</>}
-                          {r.revision_reason && <> · <span className="italic">{r.revision_reason}</span></>}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* RIGHT — RazorpayX state + action */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      {syncBadge}
-                      {isApplied && !isOneTime && canManage && !pushSyncedAfterRevision && (
-                        <Button
-                          size="sm"
-                          variant={pushFailedAfterRevision ? "default" : "outline"}
-                          onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}
-                          disabled={pushing || !envelopeVerified}
-                          title={!envelopeVerified ? "Verify the salary envelope first" : "Push this CTC to RazorpayX"}
-                        >
-                          {pushing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}
-                          {pushFailedAfterRevision ? "Retry push" : "Push"}
-                        </Button>
-                      )}
-                      {isApplied && isOneTime && canManage && (!r.razorpay_pushed_at || r.razorpay_push_error) && (
-                        <Button
-                          size="sm"
-                          variant={r.razorpay_push_error ? "default" : "outline"}
-                          onClick={() => pushOneTime(r.id)}
-                          disabled={pushing || !payrollGateVerified}
-                          title={
-                            !payrollGateVerified
-                              ? "RazorpayX payroll-write gate is locked. Verify the Payroll-run envelope in HRMS → Payroll → RazorpayX Sync."
-                              : "Stage this payout on the target RazorpayX payroll month"
-                          }
-                        >
-                          {pushing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}
-                          {r.razorpay_push_error ? "Retry push" : "Push"}
-                        </Button>
-                      )}
-                      {isScheduled && canManage && (
-                        <Button size="sm" variant="ghost" onClick={() => setCancelId(r.id)} title="Cancel scheduled revision">
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Status + action */}
+                <div className="flex items-center gap-2 md:justify-end">
+                  {syncBadge}
+                  {pushBtn}
+                </div>
+              </div>
             );
   };
+
+  const listHeader = (
+    <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_96px_minmax(0,1.6fr)_120px_minmax(0,1fr)] gap-x-4 px-3 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <span>Employee</span>
+      <span>Type</span>
+      <span>Annual CTC change</span>
+      <span>Effective</span>
+      <span className="text-right">RazorpayX</span>
+    </div>
+  );
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -542,7 +520,10 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 No salary revision becomes effective in {monthLabel}. Nothing to reconcile for this step.
               </p>
             ) : (
-              <div className="space-y-3">{monthScoped.map((r: any) => renderRevisionCard(r))}</div>
+              <div className="rounded-md border">
+                <div className="pt-2">{listHeader}</div>
+                <div>{monthScoped.map((r: any) => renderRevisionCard(r))}</div>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -573,9 +554,12 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
           ) : filtered.length === 0 ? (
             <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
           ) : (
-            <div className="space-y-3">
-              {filtered.map((r: any) => renderRevisionCard(r))}
-            </div>
+            <Card>
+              <CardContent className="p-3">
+                {listHeader}
+                <div>{filtered.map((r: any) => renderRevisionCard(r))}</div>
+              </CardContent>
+            </Card>
           )}
         </>
       )}

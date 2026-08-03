@@ -66,14 +66,28 @@ function matchRow(filename: string, rows: DispatchRow[]): DispatchRow | null {
   return byTokens.length === 1 ? byTokens[0] : null;
 }
 
+interface ZipReport {
+  fileName: string;
+  total: number;
+  matched: { code: string; name: string; group: string; verified: boolean }[];
+  unmapped: { code: string; name: string; group: string }[];
+  conflicts: { file: string; reason: string }[];
+  failures: { file: string; reason: string }[];
+  missingInZip: string[];
+}
+
 export default function PayslipEmailDispatchPanel({ month }: { month: string }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const zipRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
+  const [zipBusy, setZipBusy] = useState<string | null>(null);
+  const [zipReport, setZipReport] = useState<ZipReport | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [processedOnDraft, setProcessedOnDraft] = useState<string>("");
   const [unmatched, setUnmatched] = useState<string[]>([]);
+
 
   const rosterQ = useQuery({
     queryKey: ["payslip_email_roster", month],

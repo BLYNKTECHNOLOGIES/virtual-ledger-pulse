@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 
 type StatusFilter = "APPLIED" | "SCHEDULED" | "CANCELLED" | "ALL";
 
-export default function SalaryRevisionsPage() {
+export default function SalaryRevisionsPage({ month }: { month?: string } = {}) {
   const qc = useQueryClient();
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("hrms_manage");

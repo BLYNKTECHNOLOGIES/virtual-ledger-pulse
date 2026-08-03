@@ -111,39 +111,34 @@ export default function Purchase() {
   });
 
   // Fetch all purchase orders for export (paginated to bypass Supabase 1000-row default cap)
-  const { data: allPurchaseOrders } = useQuery({
-    queryKey: ['purchase_orders_export'],
-    queryFn: async () => {
-      const PAGE = 1000;
-      let from = 0;
-      const all: any[] = [];
-      // Loop until a page returns fewer rows than requested
-      // (handles unbounded growth without hardcoding a ceiling)
-      while (true) {
-        const { data, error } = await supabase
-          .from('purchase_orders')
-          .select(`
-            *,
-            purchase_order_items (
-              products (
-                code
-              )
-            ),
-            wallet:wallets!wallet_id(wallet_name),
-            created_by_user:users!created_by(username, first_name, last_name),
-            terminal_sync:terminal_purchase_sync!terminal_sync_id(binance_order_number)
-          `)
-          .order('created_at', { ascending: false })
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const batch = data || [];
-        all.push(...batch);
-        if (batch.length < PAGE) break;
-        from += PAGE;
-      }
-      return all;
-    },
-  });
+  const fetchAllPurchaseOrders = async () => {
+    const PAGE = 1000;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          purchase_order_items (
+            products (
+              code
+            )
+          ),
+          wallet:wallets!wallet_id(wallet_name),
+          created_by_user:users!created_by(username, first_name, last_name),
+          terminal_sync:terminal_purchase_sync!terminal_sync_id(binance_order_number)
+        `)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const batch = data || [];
+      all.push(...batch);
+      if (batch.length < PAGE) break;
+      from += PAGE;
+    }
+    return all;
+  };
 
   const { data: assetOptions = DEFAULT_ASSET_CODES } = useQuery({
     queryKey: ['purchase_asset_filter_options'],
@@ -167,7 +162,24 @@ export default function Purchase() {
   });
 
   const handleExportCSV = async () => {
-    if (!allPurchaseOrders || allPurchaseOrders.length === 0) {
+    if (isExporting) return;
+    setIsExporting(true);
+    let allPurchaseOrders: any[] = [];
+    try {
+      toast({ title: "Preparing export", description: "Fetching purchase orders…" });
+      allPurchaseOrders = await fetchAllPurchaseOrders();
+    } catch (e: any) {
+      setIsExporting(false);
+      toast({
+        title: "Export failed",
+        description: e?.message || "Could not fetch purchase orders.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (allPurchaseOrders.length === 0) {
+      setIsExporting(false);
       toast({
         title: "No data to export",
         description: "There are no purchase orders to export.",
@@ -175,6 +187,9 @@ export default function Purchase() {
       });
       return;
     }
+
+    try {
+
 
     // Fetch all payment splits with bank details (batch in chunks to avoid URL limits)
     const orderIds = allPurchaseOrders.map(o => o.id);

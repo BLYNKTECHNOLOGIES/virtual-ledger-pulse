@@ -355,7 +355,26 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
 
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1.5">
-                <Upload className="h-3.5 w-3.5" /> Upload payslip PDFs (yours, not generated)
+                <FileArchive className="h-3.5 w-3.5" /> RazorpayX payslip archive (.zip)
+              </Label>
+              <input
+                ref={zipRef}
+                type="file"
+                accept=".zip,application/zip"
+                className="hidden"
+                onChange={(e) => handleZip(e.target.files?.[0])}
+              />
+              <Button size="sm" disabled={!!zipBusy} onClick={() => zipRef.current?.click()}>
+                {zipBusy ?? "Import ZIP"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                Upload the monthly export as-is — matched by employee code, not by name.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1.5">
+                <Upload className="h-3.5 w-3.5" /> Individual PDFs (manual fix)
               </Label>
               <input
                 ref={fileRef}
@@ -370,6 +389,55 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
               </Button>
             </div>
           </div>
+
+          {zipReport && (
+            <div className="rounded-md border p-3 text-xs space-y-2">
+              <div className="font-medium text-foreground">
+                Import report — {zipReport.fileName} ({zipReport.total} PDF(s))
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-emerald-500 border-emerald-500/40">
+                  {zipReport.matched.length} linked
+                </Badge>
+                {zipReport.unmapped.length > 0 && (
+                  <Badge variant="outline" className="text-amber-500 border-amber-500/40">
+                    {zipReport.unmapped.length} not in HRMS
+                  </Badge>
+                )}
+                {zipReport.conflicts.length > 0 && (
+                  <Badge variant="destructive">{zipReport.conflicts.length} conflicts</Badge>
+                )}
+                {zipReport.failures.length > 0 && (
+                  <Badge variant="destructive">{zipReport.failures.length} upload failures</Badge>
+                )}
+                {zipReport.matched.some((m) => !m.verified) && (
+                  <Badge variant="outline">
+                    {zipReport.matched.filter((m) => !m.verified).length} code not verified inside PDF
+                  </Badge>
+                )}
+              </div>
+              {zipReport.unmapped.length > 0 && (
+                <div className="text-amber-600 dark:text-amber-400">
+                  <div className="font-medium">No HRMS employee for these RazorpayX codes:</div>
+                  {zipReport.unmapped.map((u) => (
+                    <div key={u.code}>• {u.code} — {u.name} ({u.group})</div>
+                  ))}
+                </div>
+              )}
+              {zipReport.conflicts.map((c) => (
+                <div key={c.file} className="text-destructive">• {c.file}: {c.reason}</div>
+              ))}
+              {zipReport.failures.map((f) => (
+                <div key={f.file} className="text-destructive">• {f.file}: {f.reason}</div>
+              ))}
+              {zipReport.missingInZip.length > 0 && (
+                <div className="text-muted-foreground">
+                  <span className="font-medium">Still without a PDF:</span> {zipReport.missingInZip.join(", ")}
+                </div>
+              )}
+            </div>
+          )}
+
 
           {unmatched.length > 0 && (
             <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive space-y-1">

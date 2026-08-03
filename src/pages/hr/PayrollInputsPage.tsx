@@ -611,7 +611,7 @@ export default function PayrollInputsPage() {
         </TabsContent>
       </Tabs>
 
-      {tab === "deduction" && <AutoRecoveriesCard period={period} />}
+      {!lopFocus && tab === "deduction" && <AutoRecoveriesCard period={period} />}
 
 
 

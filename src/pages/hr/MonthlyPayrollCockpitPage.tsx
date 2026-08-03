@@ -48,6 +48,7 @@ import {
   firstOfMonth,
   type CockpitStep,
 } from "@/hooks/hrms/useCockpit";
+import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
 
 const STEP_ICONS: Record<string, any> = {
   lock_attendance: Lock,
@@ -239,6 +240,7 @@ export default function MonthlyPayrollCockpitPage() {
   const opts = useMemo(() => monthOptions(), []);
 
   const { data: steps = [], isLoading, error } = useCockpitMonth(month);
+  const stepGate = usePayrollStepGate(month);
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 
@@ -332,7 +334,12 @@ export default function MonthlyPayrollCockpitPage() {
           {steps.map((step) => {
             const Icon = STEP_ICONS[step.step_key] ?? Circle;
             const target = STEP_TARGET[step.step_key];
-            const canAck = step.step_no !== 10 && (step.live_status === "complete" || step.step_key === "run_on_razorpay");
+            // Step 5 stays sealed until step 4 is genuinely finished.
+            const gated = step.step_key === "inputs_push" && stepGate.blocked && step.ack_status !== "done";
+            const canAck =
+              step.step_no !== 10 &&
+              !gated &&
+              (step.live_status === "complete" || step.step_key === "run_on_razorpay");
 
             return (
               <Card
@@ -382,6 +389,14 @@ export default function MonthlyPayrollCockpitPage() {
                           Acknowledged {new Date(step.ack_at).toLocaleString("en-IN")}
                         </div>
                       )}
+                      {gated && (
+                        <div className="text-xs text-destructive flex items-start gap-1.5 border-l-2 border-destructive/40 pl-2">
+                          <Lock className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span>
+                            Locked until Step 4 completes — {stepGate.reasons.join("; ")}.
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-2 md:min-w-[200px] md:items-end">
@@ -390,6 +405,8 @@ export default function MonthlyPayrollCockpitPage() {
                           variant="outline"
                           size="sm"
                           className="gap-1.5"
+                          disabled={gated}
+                          title={gated ? `Locked until Step 4 completes — ${stepGate.reasons.join("; ")}` : undefined}
                           onClick={() => openTool(target.tool, target.params)}
                         >
                           {target.label} <ChevronRight className="h-3.5 w-3.5" />

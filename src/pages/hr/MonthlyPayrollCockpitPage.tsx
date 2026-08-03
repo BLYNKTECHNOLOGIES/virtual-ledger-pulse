@@ -255,7 +255,7 @@ export default function MonthlyPayrollCockpitPage() {
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Monthly Payroll Cockpit"
-        description="The month-end ritual as a machine. Nine deterministic steps."
+        description="The month-end ritual as a machine. Ten deterministic steps."
       />
 
       <Card className="border-primary/30">

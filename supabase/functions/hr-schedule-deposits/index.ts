@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
         continue;
       }
       const isRecovery = inst.deposit_type === "error_recovery";
-      const push = await pushDeduction({
+      const push = await pushDeduction(svc, {
         hr_employee_id: inst.employee_id,
         period_month: inst.period_month,
         code: `${isRecovery ? "ERROR_RECOVERY" : "SECURITY_DEPOSIT"}_M${inst.installment_no}`,
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
         continue;
       }
       const isAdvance = (loan.loan_type || "").includes("advance");
-      const push = await pushDeduction({
+      const push = await pushDeduction(svc, {
         hr_employee_id: r.employee_id,
         period_month: r.period_month,
         code: `LOAN_EMI_M${r.installment_no}`,

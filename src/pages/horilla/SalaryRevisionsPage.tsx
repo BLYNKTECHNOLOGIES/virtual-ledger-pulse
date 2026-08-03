@@ -551,9 +551,12 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
           ) : filtered.length === 0 ? (
             <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
           ) : (
-            <div className="space-y-3">
-              {filtered.map((r: any) => renderRevisionCard(r))}
-            </div>
+            <Card>
+              <CardContent className="p-3">
+                {listHeader}
+                <div>{filtered.map((r: any) => renderRevisionCard(r))}</div>
+              </CardContent>
+            </Card>
           )}
         </>
       )}

@@ -89,7 +89,10 @@ export function CockpitToolSheet({
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading tool…</div>}>
           {tool === "payslip_emails" ? (
             <div className="p-3 md:p-6">
-              <entry.Component month={month} />
+              {(() => {
+                const C = entry.Component as unknown as React.ComponentType<{ month?: string }>;
+                return <C month={month} />;
+              })()}
             </div>
           ) : (
             <entry.Component />

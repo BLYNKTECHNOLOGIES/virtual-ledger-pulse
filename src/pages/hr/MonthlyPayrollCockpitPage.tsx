@@ -389,6 +389,14 @@ export default function MonthlyPayrollCockpitPage() {
                           Acknowledged {new Date(step.ack_at).toLocaleString("en-IN")}
                         </div>
                       )}
+                      {gated && (
+                        <div className="text-xs text-destructive flex items-start gap-1.5 border-l-2 border-destructive/40 pl-2">
+                          <Lock className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span>
+                            Locked until Step 4 completes — {stepGate.reasons.join("; ")}.
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-2 md:min-w-[200px] md:items-end">
@@ -397,6 +405,8 @@ export default function MonthlyPayrollCockpitPage() {
                           variant="outline"
                           size="sm"
                           className="gap-1.5"
+                          disabled={gated}
+                          title={gated ? `Locked until Step 4 completes — ${stepGate.reasons.join("; ")}` : undefined}
                           onClick={() => openTool(target.tool, target.params)}
                         >
                           {target.label} <ChevronRight className="h-3.5 w-3.5" />

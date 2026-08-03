@@ -179,6 +179,116 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
     }
   }
 
+  async function handleZip(file: File | null | undefined) {
+    if (!file) return;
+    setZipReport(null);
+    setZipBusy("Reading archive…");
+    try {
+      const entries = await readPayslipArchive(file);
+      if (entries.length === 0) {
+        toast.error("No payslip PDFs found inside this archive");
+        return;
+      }
+
+      // Period guard — every file must belong to the cockpit month.
+      const wrong = entries.filter((e) => e.period && e.period !== month);
+      if (wrong.length > 0) {
+        const labels = Array.from(new Set(wrong.map((e) => e.periodLabel))).join(", ");
+        toast.error(
+          `Archive is for ${labels}, but you are on ${month.slice(0, 7)}. Import blocked — switch the cycle month or upload the right archive.`,
+        );
+        return;
+      }
+
+      const report: ZipReport = {
+        fileName: file.name,
+        total: entries.length,
+        matched: [],
+        unmapped: [],
+        conflicts: [],
+        failures: [],
+        missingInZip: [],
+      };
+
+      let done = 0;
+      for (const e of entries) {
+        done++;
+        setZipBusy(`Matching & uploading ${done}/${entries.length}…`);
+
+        const code = e.folderCode ?? e.fileCode;
+        if (!code) {
+          report.conflicts.push({ file: e.path, reason: "No employee code in folder or file name" });
+          continue;
+        }
+        if (e.folderCode && e.fileCode && e.folderCode !== e.fileCode) {
+          report.conflicts.push({
+            file: e.path,
+            reason: `Folder code ${e.folderCode} does not match file-name code ${e.fileCode}`,
+          });
+          continue;
+        }
+
+        const pdfCode = await readEmployeeCodeFromPdf(e.bytes);
+        if (pdfCode && pdfCode !== code) {
+          report.conflicts.push({
+            file: e.path,
+            reason: `PDF says employee code ${pdfCode} but path says ${code}`,
+          });
+          continue;
+        }
+
+        const row = rows.find((r) => String(r.razorpay_employee_id ?? "") === code);
+        if (!row) {
+          report.unmapped.push({ code, name: e.folderName ?? e.fileName, group: e.group });
+          continue;
+        }
+
+        const path = `${month}/${row.employee_id}.pdf`;
+        const blob = new Blob([e.bytes.slice().buffer as ArrayBuffer], { type: "application/pdf" });
+        const up = await supabase.storage.from("payslips").upload(path, blob, {
+          upsert: true, contentType: "application/pdf",
+        });
+        if (up.error) {
+          report.failures.push({ file: e.path, reason: up.error.message });
+          continue;
+        }
+        const { error } = await supabase
+          .from("hr_razorpay_payslip_records")
+          .update({ pdf_storage_path: path })
+          .eq("period_month", month)
+          .eq("hr_employee_id", row.employee_id);
+        if (error) {
+          report.failures.push({ file: e.path, reason: error.message });
+          continue;
+        }
+        report.matched.push({ code, name: row.name, group: e.group, verified: !!pdfCode });
+      }
+
+      const codesInZip = new Set(entries.map((e) => e.folderCode ?? e.fileCode).filter(Boolean) as string[]);
+      report.missingInZip = rows
+        .filter((r) => !r.pdf_path && !codesInZip.has(String(r.razorpay_employee_id ?? "")))
+        .map((r) => r.name);
+
+      setZipReport(report);
+      setUnmatched([]);
+      if (report.matched.length) toast.success(`${report.matched.length} payslip(s) linked from the archive`);
+      if (report.unmapped.length || report.conflicts.length || report.failures.length) {
+        toast.warning(
+          `${report.unmapped.length + report.conflicts.length + report.failures.length} file(s) need attention`,
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
+      qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", month] });
+    } catch (err: any) {
+      toast.error(err?.message || "Could not read the archive");
+    } finally {
+      setZipBusy(null);
+      if (zipRef.current) zipRef.current.value = "";
+    }
+  }
+
+
+
   async function assignFile(employeeId: string, file: File) {
     const path = `${month}/${employeeId}.pdf`;
     const up = await supabase.storage.from("payslips").upload(path, file, { upsert: true, contentType: "application/pdf" });

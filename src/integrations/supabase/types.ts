@@ -25014,6 +25014,13 @@ export type Database = {
         Returns: number
       }
       hr_rebuild_loan_schedule: { Args: { p_loan_id: string }; Returns: number }
+      hr_reconcile_late_early: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          deleted_count: number
+          inserted_count: number
+        }[]
+      }
       hr_record_manual_loan_repayment: {
         Args: {
           p_amount: number

@@ -104,6 +104,10 @@ export function HRSetupChecklistCard() {
   const done = rows.length - open.length;
   const allDone = open.length === 0;
 
+  // Hide the card when nothing is pending so it doesn't consume dashboard space
+  if (allDone) return null;
+
+
   return (
     <Card>
       <CardContent className="p-5 space-y-4">

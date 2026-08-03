@@ -161,7 +161,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
                 </TableCell>
                 <TableCell>
                   <Input
-                    className="h-9 text-foreground"
+                    className="h-9 text-foreground min-w-[12rem]"
                     value={r.note}
                     onChange={(e) => patch(r.key, { note: e.target.value })}
                     placeholder={depositType === "error_recovery" ? "Incident / reference" : "Optional remark"}

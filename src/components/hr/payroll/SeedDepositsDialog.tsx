@@ -145,7 +145,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
                     type="number"
                     min="0"
                     step="100"
-                    className="h-9 text-foreground"
+                    className="h-9 text-foreground min-w-[9rem]"
                     value={r.amount}
                     onChange={(e) => patch(r.key, { amount: e.target.value })}
                     placeholder="e.g. 25000"
@@ -154,7 +154,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
                 <TableCell>
                   <Input
                     type="date"
-                    className="h-9 text-foreground"
+                    className="h-9 text-foreground min-w-[9rem]"
                     value={r.collected_on}
                     onChange={(e) => patch(r.key, { collected_on: e.target.value })}
                   />

@@ -28,7 +28,7 @@ type StaleRow = {
   employee?: { badge_id: string; first_name: string; last_name: string };
 };
 
-type Resolution = "set_out_time" | "confirm_long_shift" | "void";
+type Resolution = "set_out_time" | "confirm_long_shift" | "void" | "mark_shift_end";
 
 export default function AttendanceStaleSessionsPage() {
   const qc = useQueryClient();

@@ -235,72 +235,7 @@ export default function SalaryRevisionsPage() {
   }
 
 
-  return (
-    <TooltipProvider delayDuration={150}>
-    <div className="p-4 md:p-6 space-y-4 page-mount">
-      <PageHeader
-        title="Salary Revision History"
-        actions={
-          <div className="flex items-center gap-2">
-            {canManage && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
-                      envelopeVerified
-                        ? "border-emerald-500/40 text-emerald-600"
-                        : "border-destructive/40 text-destructive",
-                    )}
-                  >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-emerald-500" : "bg-destructive")} />
-                    RazorpayX
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs text-xs">
-                  {envelopeVerified
-                    ? `Salary push live${envelope?.push_salary_envelope_verified_at ? ` · verified ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}`
-                    : "Salary push disabled — verify the envelope in Payroll Sync · Step E"}
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {canManage && !envelopeVerified && (
-              <Button asChild size="sm" variant="secondary">
-                <Link to="/hrms/payroll/razorpay-sync">Fix sync</Link>
-              </Button>
-            )}
-            {canManage && (
-              <Button onClick={() => setShowDialog(true)}>
-                <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
-              </Button>
-            )}
-          </div>
-        }
-      />
-
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <TabsList>
-            <TabsTrigger value="APPLIED">Applied</TabsTrigger>
-            <TabsTrigger value="SCHEDULED">Scheduled</TabsTrigger>
-            <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
-            <TabsTrigger value="ALL">All</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-        </div>
-      </div>
-
-
-      {isLoading ? (
-        <TableSkeleton rows={4} columns={4} />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((r: any) => {
+  const renderRevisionCard = (r: any) => {
             const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
             const isIncrease = Number(r.new_total || 0) > Number(r.previous_total || 0);
             const diff = Number(r.new_total || 0) - Number(r.previous_total || 0);
@@ -473,7 +408,74 @@ export default function SalaryRevisionsPage() {
                 </CardContent>
               </Card>
             );
-          })}
+  };
+
+  return (
+    <TooltipProvider delayDuration={150}>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Salary Revision History"
+        actions={
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+                      envelopeVerified
+                        ? "border-emerald-500/40 text-emerald-600"
+                        : "border-destructive/40 text-destructive",
+                    )}
+                  >
+                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-emerald-500" : "bg-destructive")} />
+                    RazorpayX
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  {envelopeVerified
+                    ? `Salary push live${envelope?.push_salary_envelope_verified_at ? ` · verified ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}`
+                    : "Salary push disabled — verify the envelope in Payroll Sync · Step E"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {canManage && !envelopeVerified && (
+              <Button asChild size="sm" variant="secondary">
+                <Link to="/hrms/payroll/razorpay-sync">Fix sync</Link>
+              </Button>
+            )}
+            {canManage && (
+              <Button onClick={() => setShowDialog(true)}>
+                <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <TabsList>
+            <TabsTrigger value="APPLIED">Applied</TabsTrigger>
+            <TabsTrigger value="SCHEDULED">Scheduled</TabsTrigger>
+            <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
+            <TabsTrigger value="ALL">All</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+        </div>
+      </div>
+
+
+      {isLoading ? (
+        <TableSkeleton rows={4} columns={4} />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((r: any) => renderRevisionCard(r))}
         </div>
       )}
 

@@ -147,6 +147,9 @@ function DetailLine({ step }: { step: CockpitStep }) {
           {(d.rev_pending ?? 0) > 0
             ? ` · ${d.rev_pending} still pending or scheduled — finalise before LOP is calculated`
             : " · none pending"}
+          {(d.rev_unsynced ?? 0) > 0
+            ? ` · ${d.rev_unsynced} not yet confirmed on RazorpayX — push before moving on`
+            : " · all synced to RazorpayX"}
           {Number(d.one_time_total ?? 0) > 0
             ? ` · one-time arrears ₹${Number(d.one_time_total).toLocaleString("en-IN")}`
             : ""}

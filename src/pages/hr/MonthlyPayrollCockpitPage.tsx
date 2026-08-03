@@ -237,6 +237,11 @@ export default function MonthlyPayrollCockpitPage() {
   function closeTool() {
     setTool(null);
     setSearchParams(new URLSearchParams(), { replace: true });
+    // A tool may have changed revisions / inputs / recoveries — re-evaluate the
+    // live step status and the step-5 gate instead of serving the 30s cache.
+    qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
+    qc.invalidateQueries({ queryKey: ["gate_lop"] });
+    qc.invalidateQueries({ queryKey: ["gate_auto_recoveries"] });
   }
 
   const monthDate = useMemo(() => new Date(month + "T00:00:00Z"), [month]);

@@ -24,6 +24,12 @@ export default function LateComeEarlyOutPage() {
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["hr_late_come_early_out", monthFilter, typeFilter],
     queryFn: async () => {
+      // Self-heal: rebuild the register for this month from attendance truth
+      // before reading, so trigger gaps never leave the page blank.
+      await (supabase as any).rpc("hr_reconcile_late_early", {
+        _from: monthStart,
+        _to: monthEnd,
+      });
       return await fetchAllPaginated<any>(() => {
         let query = (supabase as any)
           .from("hr_late_come_early_out")
@@ -36,6 +42,7 @@ export default function LateComeEarlyOutPage() {
       });
     },
   });
+
 
   const filtered = records.filter((r: any) => {
     if (!search) return true;

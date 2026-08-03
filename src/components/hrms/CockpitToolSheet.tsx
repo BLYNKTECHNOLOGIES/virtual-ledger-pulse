@@ -13,12 +13,14 @@ const ShadowPayrollPage = lazy(() => import("@/pages/hr/ShadowPayrollPage"));
 const DataHealthPage = lazy(() => import("@/pages/horilla/DataHealthPage"));
 const SystemPulsePage = lazy(() => import("@/pages/hr/SystemPulsePage"));
 const RazorpaySyncPage = lazy(() => import("@/pages/hr/RazorpaySyncPage"));
+const PayslipEmailDispatchPanel = lazy(() => import("@/components/hrms/PayslipEmailDispatchPanel"));
 
 export type CockpitToolKey =
   | "inputs"
   | "period_locks"
   | "stale_sessions"
   | "payslip_import"
+  | "payslip_emails"
   | "salary_register"
   | "shadow"
   | "data_health"
@@ -30,6 +32,7 @@ const TOOLS: Record<CockpitToolKey, { title: string; Component: React.LazyExotic
   period_locks: { title: "Attendance Period Locks", Component: AttendancePeriodLockPage },
   stale_sessions: { title: "Stale Attendance Sessions", Component: AttendanceStaleSessionsPage },
   payslip_import: { title: "Import Payslips", Component: PayslipHistoryImportPage },
+  payslip_emails: { title: "Payslip Email Dispatch", Component: PayslipEmailDispatchPanel },
   salary_register: { title: "Import Salary Register (CSV)", Component: SalaryRegisterImportPage },
   shadow: { title: "Shadow Payroll Calculation", Component: ShadowPayrollPage },
   data_health: { title: "Data Health & Drift", Component: DataHealthPage },

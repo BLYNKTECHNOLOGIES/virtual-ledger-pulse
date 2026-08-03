@@ -25108,6 +25108,10 @@ export type Database = {
           unlocked_ids: string[]
         }[]
       }
+      hr_v4_is_repaired_day: {
+        Args: { p_date: string; p_employee_id: string }
+        Returns: boolean
+      }
       hr_v4_is_window_locked: { Args: { p_date: string }; Returns: boolean }
       hr_v4_recompute_range: {
         Args: { p_employee_id: string; p_from: string; p_to: string }

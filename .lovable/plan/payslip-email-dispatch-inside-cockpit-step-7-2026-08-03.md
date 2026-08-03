@@ -36,9 +36,11 @@ Per employee, for the selected month:
 Verified from the code and the current July data:
 
 1. **Step 9 (drift review) does not block month close.** The blockers list filters `step_no <= 8`, so a month can be closed with unexplained drift alerts open. Step-count also reads "x/9" while ten steps exist.
-2. **July has no Salary Register uploaded** (0 register rows against 39 payslip records), so July currently has no PF/ESI/PT/TDS split available — payslip emails for July would carry only API totals until the register CSV is imported. The dispatcher should therefore require the register before sending, or send totals-only by explicit choice.
+2. **The payslip email should not be sent until the salary register has been uploaded. Also, the payslip PDF is not supposed to be generated. The payslips PDF will be provided by me and that are supports to be mailed not any generated PDF by the HRS itself. July has no Salary Register uploaded** (0 register rows against 39 payslip records), so July currently has no PF/ESI/PT/TDS split available — payslip emails for July would carry only API totals until the register CSV is imported. The dispatcher should therefore require the register before sending, or send totals-only by explicit choice.
 3. **LOP and additions are counted as "staged", not "verified pushed"** in the Step 5/6 detail lines, so the cockpit can look complete while RazorpayX never received a row. Suggest switching those counters to the read-back-verified count.
 4. **39 payslip records vs 36 active employees** for July — three records belong to inactive/left staff; any per-employee fan-out must be driven by the payslip records joined to active roster, not by the roster alone.
 5. **No month-level "payroll processed" fact** exists other than a manual acknowledgement of Step 6; email dispatch inherits that trust. Worth adding a stored processed-on date so payslip emails can state the credit date factually instead of assuming.
+
+yes, proceed with fix fixes of 1 to 5. Also focus on second number I have provided my inputs.
 
 Tell me if you want items 1–5 fixed in this same pass or tracked separately; the dispatch feature above does not depend on them except for the register requirement in item 2.

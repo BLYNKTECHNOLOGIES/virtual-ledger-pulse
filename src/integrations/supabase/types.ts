@@ -4782,6 +4782,7 @@ export type Database = {
           grace_late_minutes: number
           half_day_net_hours: number
           id: boolean
+          long_shift_cap_hours: number
           lunch_window_end_ist: string
           lunch_window_start_ist: string
           ot_daily_hours: number
@@ -4800,6 +4801,7 @@ export type Database = {
           grace_late_minutes?: number
           half_day_net_hours?: number
           id?: boolean
+          long_shift_cap_hours?: number
           lunch_window_end_ist?: string
           lunch_window_start_ist?: string
           ot_daily_hours?: number
@@ -4818,6 +4820,7 @@ export type Database = {
           grace_late_minutes?: number
           half_day_net_hours?: number
           id?: boolean
+          long_shift_cap_hours?: number
           lunch_window_end_ist?: string
           lunch_window_start_ist?: string
           ot_daily_hours?: number

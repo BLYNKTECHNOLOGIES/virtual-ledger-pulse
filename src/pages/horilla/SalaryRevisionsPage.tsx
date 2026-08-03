@@ -474,6 +474,33 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
         }
       />
 
+      {month && (
+        <Card className="border-primary/30">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Effective in this payroll ({monthLabel})
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  CTC revisions effective inside {monthLabel} and one-time payouts targeted at this payroll month.
+                  Everything here must be pushed and verified in RazorpayX before LOP is calculated.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs">{monthScoped.length} entr{monthScoped.length === 1 ? "y" : "ies"}</Badge>
+            </div>
+            {monthScoped.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No salary revision becomes effective in {monthLabel}. Nothing to reconcile for this step.
+              </p>
+            ) : (
+              <div className="space-y-3">{monthScoped.map((r: any) => renderRevisionCard(r))}</div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
           <TabsList>

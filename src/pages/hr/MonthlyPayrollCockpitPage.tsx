@@ -334,7 +334,12 @@ export default function MonthlyPayrollCockpitPage() {
           {steps.map((step) => {
             const Icon = STEP_ICONS[step.step_key] ?? Circle;
             const target = STEP_TARGET[step.step_key];
-            const canAck = step.step_no !== 10 && (step.live_status === "complete" || step.step_key === "run_on_razorpay");
+            // Step 5 stays sealed until step 4 is genuinely finished.
+            const gated = step.step_key === "inputs_push" && stepGate.blocked && step.ack_status !== "done";
+            const canAck =
+              step.step_no !== 10 &&
+              !gated &&
+              (step.live_status === "complete" || step.step_key === "run_on_razorpay");
 
             return (
               <Card

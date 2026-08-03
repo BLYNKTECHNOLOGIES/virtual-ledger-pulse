@@ -227,6 +227,8 @@ export default function MonthlyPayrollCockpitPage() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [tool, setTool] = useState<CockpitToolKey | null>(null);
   const [, setSearchParams] = useSearchParams();
+  const qc = useQueryClient();
+
 
   // Embedded tools read the URL (tab / focus / period), so the cockpit sets them before opening.
   function openTool(key: CockpitToolKey, params?: Record<string, string>) {

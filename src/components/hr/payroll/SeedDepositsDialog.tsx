@@ -115,7 +115,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[min(96vw,60rem)] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl w-[min(98vw,80rem)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Seed existing {typeLabel.toLowerCase()}s</DialogTitle>
           <DialogDescription>
@@ -124,13 +124,13 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
           </DialogDescription>
         </DialogHeader>
 
-        <Table>
+        <Table className="min-w-[44rem]">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[34%]">Employee</TableHead>
-              <TableHead className="w-[18%]">Amount (₹)</TableHead>
-              <TableHead className="w-[18%]">Collected on</TableHead>
-              <TableHead>Note</TableHead>
+              <TableHead className="w-[38%] min-w-[16rem]">Employee</TableHead>
+              <TableHead className="w-[18%] min-w-[9rem]">Amount (₹)</TableHead>
+              <TableHead className="w-[18%] min-w-[9rem]">Collected on</TableHead>
+              <TableHead className="min-w-[12rem]">Note</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -145,7 +145,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
                     type="number"
                     min="0"
                     step="100"
-                    className="h-9 text-foreground"
+                    className="h-9 text-foreground min-w-[9rem]"
                     value={r.amount}
                     onChange={(e) => patch(r.key, { amount: e.target.value })}
                     placeholder="e.g. 25000"
@@ -154,14 +154,14 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
                 <TableCell>
                   <Input
                     type="date"
-                    className="h-9 text-foreground"
+                    className="h-9 text-foreground min-w-[9rem]"
                     value={r.collected_on}
                     onChange={(e) => patch(r.key, { collected_on: e.target.value })}
                   />
                 </TableCell>
                 <TableCell>
                   <Input
-                    className="h-9 text-foreground"
+                    className="h-9 text-foreground min-w-[12rem]"
                     value={r.note}
                     onChange={(e) => patch(r.key, { note: e.target.value })}
                     placeholder={depositType === "error_recovery" ? "Incident / reference" : "Optional remark"}

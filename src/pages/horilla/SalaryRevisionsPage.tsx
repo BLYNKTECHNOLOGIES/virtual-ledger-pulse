@@ -272,22 +272,23 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             const pushing = pushingIds.has(r.id);
 
 
-            const StatusPill = ({ tone, icon: Icon, label }: { tone: "ok" | "warn" | "bad" | "info"; icon: any; label: string }) => (
+            const StatusPill = ({ tone, icon: Icon, label, detail }: { tone: "ok" | "warn" | "bad" | "info"; icon: any; label: string; detail?: string }) => (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
                     className={cn(
-                      "inline-flex h-6 w-6 items-center justify-center rounded-full border",
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap",
                       tone === "ok" && "border-emerald-500/40 text-emerald-600 bg-emerald-500/10",
                       tone === "info" && "border-sky-500/40 text-sky-600 bg-sky-500/10",
                       tone === "warn" && "border-amber-500/40 text-amber-600 bg-amber-500/10",
                       tone === "bad" && "border-destructive/40 text-destructive bg-destructive/10",
                     )}
                   >
-                    <Icon className="h-3.5 w-3.5" />
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    {label}
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-xs text-xs">{label}</TooltipContent>
+                <TooltipContent side="left" className="max-w-xs text-xs">{detail || label}</TooltipContent>
               </Tooltip>
             );
 
@@ -295,13 +296,14 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             if (isOneTime) {
               const gateOnlyError = isPayrollGateError(r.razorpay_push_error);
               if (gateOnlyError && payrollGateVerified) {
-                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Ready to retry the RazorpayX push" />;
+                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Retry push" detail="Ready to retry the RazorpayX push" />;
               } else if (r.razorpay_push_error) {
                 syncBadge = (
                   <StatusPill
                     tone="bad"
                     icon={XCircle}
-                    label={`${gateOnlyError ? "Payroll gate locked" : "RazorpayX rejected"}: ${r.razorpay_push_error}`}
+                    label="Rejected"
+                    detail={`${gateOnlyError ? "Payroll gate locked" : "RazorpayX rejected"}: ${r.razorpay_push_error}`}
                   />
                 );
               } else if (r.razorpay_pushed_at) {
@@ -309,26 +311,30 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   <StatusPill
                     tone="info"
                     icon={CheckCircle2}
-                    label={`Queued in RazorpayX${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}`}
+                    label={`Queued${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM")}` : ""}`}
+                    detail={`Queued in RazorpayX${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}`}
                   />
                 );
               } else {
-                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not sent to RazorpayX" />;
+                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not sent" detail="Not sent to RazorpayX" />;
               }
             } else if (isApplied) {
               if (pushSyncedAfterRevision) {
-                syncBadge = <StatusPill tone="ok" icon={CheckCircle2} label="Synced to RazorpayX" />;
+                syncBadge = <StatusPill tone="ok" icon={CheckCircle2} label="Synced" detail="Synced to RazorpayX" />;
               } else if (pushFailedAfterRevision) {
                 syncBadge = (
                   <StatusPill
                     tone="bad"
                     icon={XCircle}
-                    label={`Not synced${pushInfo?.error_message ? ` · ${pushInfo.error_message}` : ""}`}
+                    label="Not synced"
+                    detail={`Not synced${pushInfo?.error_message ? ` · ${pushInfo.error_message}` : ""}`}
                   />
                 );
               } else {
-                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not synced to RazorpayX yet" />;
+                syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not pushed" detail="Not synced to RazorpayX yet" />;
               }
+            } else if (isScheduled) {
+              syncBadge = <StatusPill tone="warn" icon={Clock} label={`Applies ${r.effective_from}`} detail="Scheduled — will apply automatically on the effective date" />;
             }
 
 

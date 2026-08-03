@@ -273,12 +273,15 @@ export default function AttendanceStaleSessionsPage() {
           )}
           {dlg?.resolution === "confirm_long_shift" && (
             <div className="text-sm text-muted-foreground">
-              Confirms a genuine long shift. Out-time will be capped at <b>watchdog + 2h</b> from the in-time.
+              Confirms a genuine long shift. Out-time is capped at the configured{" "}
+              <b>long-shift cap</b> (default 14h) from the in-time, and the day earns <b>no overtime</b>.
             </div>
           )}
           {dlg?.resolution === "void" && (
             <div className="text-sm text-destructive">
-              This deletes the offending in-punch and rebuilds the day. Use only for forgotten punches.
+              This deletes the offending in-punch and rebuilds the day. The day will become{" "}
+              <b>unpaid (LOP)</b> unless an approved regularization exists. For a genuine forgotten
+              punch-out, use <b>Present — shift-standard out</b> instead.
             </div>
           )}
           <div className="space-y-1">

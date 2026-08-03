@@ -274,7 +274,7 @@ export default function MonthlyPayrollCockpitPage() {
             </Select>
           </div>
           <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{doneCount}/9</span> steps complete for{" "}
+            <span className="font-medium text-foreground">{doneCount}/10</span> steps complete for{" "}
             <span className="font-medium text-foreground">{monthLabel}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">

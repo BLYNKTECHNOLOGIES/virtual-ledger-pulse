@@ -34,6 +34,8 @@ export default function Purchase() {
     return params.get('tab') || 'completed';
   });
   const [showFilterDialog, setShowFilterDialog] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();

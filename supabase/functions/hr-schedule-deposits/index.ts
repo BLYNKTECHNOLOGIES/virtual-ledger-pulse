@@ -16,26 +16,55 @@ const json = (body: unknown, status = 200) =>
     status,
   });
 
-async function pushDeduction(input: {
-  hr_employee_id: string;
-  period_month: string;
-  code: string;
-  amount: number;
-  description: string;
-}) {
+// RazorpayX payroll:add-deduction contract (via proxy):
+//   data = { "employee-id": <razorpay numeric id>, "employee-type": "employee",
+//            "payroll-month": "YYYY-MM", deductions: [{ label, amount }] }
+// Sending hr_employee_id/period_month/code/amount is rejected with
+// "Missing required payroll deductions field(s): ...".
+async function pushDeduction(
+  svc: any,
+  input: {
+    hr_employee_id: string;
+    period_month: string;
+    code: string;
+    amount: number;
+    description: string;
+  },
+) {
+  const { data: mapRow } = await svc
+    .from("hr_razorpay_employee_map")
+    .select("razorpay_employee_id")
+    .eq("hr_employee_id", input.hr_employee_id)
+    .maybeSingle();
+  const rpEid = mapRow?.razorpay_employee_id;
+  if (!rpEid) {
+    return { ok: false, http: 0, inputId: null, error: "No RazorpayX employee mapping" };
+  }
+
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/razorpay-payroll-proxy`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${SERVICE_ROLE}`,
     },
-    body: JSON.stringify({ action: "payroll_add_deduction", ...input }),
+    body: JSON.stringify({
+      action: "payroll_add_deduction",
+      payload: {
+        data: {
+          "employee-id": Number(rpEid),
+          "employee-type": "employee",
+          "payroll-month": String(input.period_month).slice(0, 7),
+          deductions: [{ label: input.description, amount: Number(input.amount) }],
+        },
+      },
+    }),
   });
   const body = await resp.json().catch(() => ({}));
   const ok = resp.ok && body?.ok !== false;
   const inputId = body?.razorpay_input_id ?? body?.response?.data?.id ?? null;
   return { ok, http: resp.status, inputId, error: body?.error ?? (ok ? null : `HTTP ${resp.status}`) };
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -85,7 +114,7 @@ Deno.serve(async (req) => {
         continue;
       }
       const isRecovery = inst.deposit_type === "error_recovery";
-      const push = await pushDeduction({
+      const push = await pushDeduction(svc, {
         hr_employee_id: inst.employee_id,
         period_month: inst.period_month,
         code: `${isRecovery ? "ERROR_RECOVERY" : "SECURITY_DEPOSIT"}_M${inst.installment_no}`,
@@ -143,7 +172,7 @@ Deno.serve(async (req) => {
         continue;
       }
       const isAdvance = (loan.loan_type || "").includes("advance");
-      const push = await pushDeduction({
+      const push = await pushDeduction(svc, {
         hr_employee_id: r.employee_id,
         period_month: r.period_month,
         code: `LOAN_EMI_M${r.installment_no}`,

@@ -124,13 +124,13 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
           </DialogDescription>
         </DialogHeader>
 
-        <Table>
+        <Table className="min-w-[44rem]">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[34%]">Employee</TableHead>
-              <TableHead className="w-[18%]">Amount (₹)</TableHead>
-              <TableHead className="w-[18%]">Collected on</TableHead>
-              <TableHead>Note</TableHead>
+              <TableHead className="w-[38%] min-w-[16rem]">Employee</TableHead>
+              <TableHead className="w-[18%] min-w-[9rem]">Amount (₹)</TableHead>
+              <TableHead className="w-[18%] min-w-[9rem]">Collected on</TableHead>
+              <TableHead className="min-w-[12rem]">Note</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>

@@ -73,7 +73,7 @@ const STEP_TARGET: Record<string, StepTarget> = {
   lop_push: { tool: "inputs", label: "Open LOP deductions", params: { tab: "deduction", focus: "lop" } },
   inputs_push: { tool: "inputs", label: "Open additions / deductions", params: { tab: "addition" } },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
-  import_payslips: { tool: "payslip_import", label: "Import Payslips" },
+  import_payslips: { tool: "payslip_emails", label: "Import & email payslips" },
   shadow_compare: { tool: "shadow", label: "Run Shadow Payroll" },
   drift_review: { tool: "data_health", label: "Open Data Health" },
 };
@@ -83,6 +83,7 @@ const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
   { tool: "inputs", label: "Payroll Inputs" },
   { tool: "salary_register", label: "Import Salary Register" },
   { tool: "payslip_import", label: "Import Payslips" },
+  { tool: "payslip_emails", label: "Payslip Email Dispatch" },
   { tool: "shadow", label: "Shadow Payroll" },
   { tool: "razorpay_sync", label: "RazorpayX Diagnostics" },
   { tool: "system_pulse", label: "System Pulse" },
@@ -155,13 +156,18 @@ function DetailLine({ step }: { step: CockpitStep }) {
         <span>
           {d.lop_rows ?? 0} LOP row(s) staged
           {(d.auto_rows ?? 0) > 0 ? ` · ${d.auto_rows} auto-calculated from attendance (${Number(d.auto_lop_days ?? 0)} LOP days)` : " · none auto-calculated yet"}
-          {(d.pushed_rows ?? 0) > 0 ? ` · ${d.pushed_rows} pushed to RazorpayX` : ""}.
+          {" · "}
+          <strong>{d.verified_rows ?? 0}/{d.lop_rows ?? 0} verified in RazorpayX</strong>
+          {(d.pushed_rows ?? 0) > (d.verified_rows ?? 0)
+            ? ` (${(d.pushed_rows ?? 0) - (d.verified_rows ?? 0)} pushed but not read back)`
+            : ""}
+          .
         </span>
       );
     case "inputs_push":
       return (
         <span>
-          {d.input_rows ?? 0} additions/deductions staged
+          {d.input_rows ?? 0} additions/deductions staged · <strong>{d.input_verified ?? 0}/{d.input_rows ?? 0} verified in RazorpayX</strong>
           {(d.rec_rows ?? 0) > 0
             ? ` · ${d.rec_rows} automatic recovery installment(s) (loan EMI / deposit / error recovery) worth ₹${Number(d.rec_amount ?? 0).toLocaleString("en-IN")} — ${d.rec_pushed ?? 0} pushed${(d.rec_failed ?? 0) > 0 ? `, ${d.rec_failed} failed` : ""}`
             : " · no automatic recoveries due this month"}
@@ -173,12 +179,16 @@ function DetailLine({ step }: { step: CockpitStep }) {
       return (
         <span className="text-amber-500">
           RazorpayX API cannot confirm a payroll run — mark done here after running it on the dashboard.
+          {d.processed_on ? ` Credit date recorded: ${new Date(String(d.processed_on)).toLocaleDateString("en-IN")}.` : ""}
         </span>
       );
     case "import_payslips":
       return (
         <span>
-          {d.imported ?? 0} payslip(s) imported · {d.register_rows ?? 0} register row(s) uploaded.
+          {d.imported ?? 0} payslip(s) imported · {d.register_rows ?? 0} register row(s) uploaded ·{" "}
+          {d.with_pdf ?? 0} payslip PDF(s) attached ·{" "}
+          <strong>{d.emails_sent ?? 0}/{d.payable ?? 0} payslip emails sent</strong>
+          {(d.register_rows ?? 0) === 0 ? " — register CSV required before emails can be sent" : ""}.
         </span>
       );
     case "shadow_compare":
@@ -236,7 +246,7 @@ export default function MonthlyPayrollCockpitPage() {
     (s) => s.ack_status === "done" || (s.live_status === "complete" && s.auto && s.step_no !== 10)
   ).length;
   const blockers = steps
-    .filter((s) => s.step_no <= 8 && s.ack_status !== "done" && s.ack_status !== "skipped" && s.live_status !== "complete")
+    .filter((s) => s.step_no <= 9 && s.ack_status !== "done" && s.ack_status !== "skipped" && s.live_status !== "complete")
     .map((s) => `Step ${s.step_no}: ${s.step_label}`);
 
   const closed = steps.find((s) => s.step_no === 10)?.ack_status === "done";
@@ -245,7 +255,7 @@ export default function MonthlyPayrollCockpitPage() {
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Monthly Payroll Cockpit"
-        description="The month-end ritual as a machine. Nine deterministic steps."
+        description="The month-end ritual as a machine. Ten deterministic steps."
       />
 
       <Card className="border-primary/30">
@@ -264,7 +274,7 @@ export default function MonthlyPayrollCockpitPage() {
             </Select>
           </div>
           <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{doneCount}/9</span> steps complete for{" "}
+            <span className="font-medium text-foreground">{doneCount}/10</span> steps complete for{" "}
             <span className="font-medium text-foreground">{monthLabel}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -488,7 +498,7 @@ export default function MonthlyPayrollCockpitPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <CockpitToolSheet tool={tool} onClose={closeTool} />
+      <CockpitToolSheet tool={tool} month={month} onClose={closeTool} />
     </div>
   );
 }

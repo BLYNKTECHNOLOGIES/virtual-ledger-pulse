@@ -4782,6 +4782,7 @@ export type Database = {
           grace_late_minutes: number
           half_day_net_hours: number
           id: boolean
+          long_shift_cap_hours: number
           lunch_window_end_ist: string
           lunch_window_start_ist: string
           ot_daily_hours: number
@@ -4800,6 +4801,7 @@ export type Database = {
           grace_late_minutes?: number
           half_day_net_hours?: number
           id?: boolean
+          long_shift_cap_hours?: number
           lunch_window_end_ist?: string
           lunch_window_start_ist?: string
           ot_daily_hours?: number
@@ -4818,6 +4820,7 @@ export type Database = {
           grace_late_minutes?: number
           half_day_net_hours?: number
           id?: boolean
+          long_shift_cap_hours?: number
           lunch_window_end_ist?: string
           lunch_window_start_ist?: string
           ot_daily_hours?: number
@@ -25104,6 +25107,10 @@ export type Database = {
         Returns: {
           unlocked_ids: string[]
         }[]
+      }
+      hr_v4_is_repaired_day: {
+        Args: { p_date: string; p_employee_id: string }
+        Returns: boolean
       }
       hr_v4_is_window_locked: { Args: { p_date: string }; Returns: boolean }
       hr_v4_recompute_range: {

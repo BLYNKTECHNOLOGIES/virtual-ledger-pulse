@@ -28,7 +28,7 @@ type StaleRow = {
   employee?: { badge_id: string; first_name: string; last_name: string };
 };
 
-type Resolution = "set_out_time" | "confirm_long_shift" | "void";
+type Resolution = "set_out_time" | "confirm_long_shift" | "void" | "mark_shift_end";
 
 export default function AttendanceStaleSessionsPage() {
   const qc = useQueryClient();
@@ -87,55 +87,25 @@ export default function AttendanceStaleSessionsPage() {
     onError: (e: any) => toast.error(e?.message || "Resolution failed"),
   });
 
-  // Quick "Mark full day" — closes the session at the employee's shift end for
-  // the attendance date (fallback: in_time + shift duration, else +9h).
-  const markFullDay = useMutation({
+  // "Present — shift-standard out": server closes the session at the employee's
+  // scheduled shift end (never later), day = present, zero OT, no LOP.
+  const markShiftEnd = useMutation({
     mutationFn: async (row: StaleRow) => {
-      // Look up the employee's active shift on that attendance date.
-      const { data: sched } = await (supabase as any)
-        .from("hr_employee_shift_schedule")
-        .select("shift:hr_shifts(end_time, duration_hours, is_night_shift)")
-        .eq("employee_id", row.employee_id)
-        .lte("effective_from", row.attendance_date)
-        .or(`effective_to.is.null,effective_to.gte.${row.attendance_date}`)
-        .order("effective_from", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const shift = sched?.shift as { end_time?: string; duration_hours?: number; is_night_shift?: boolean } | null;
-      const inMs = new Date(row.in_time).getTime();
-
-      let outUtcIso: string;
-      if (shift?.end_time) {
-        // Build IST wall-clock = attendance_date + shift.end_time; add 1 day if night shift.
-        const [hh, mm, ss] = shift.end_time.split(":").map((n) => parseInt(n || "0", 10));
-        const [y, mo, d] = row.attendance_date.split("-").map((n) => parseInt(n, 10));
-        // Interpret as IST (UTC+5:30) → convert to UTC ms.
-        let outIstMs = Date.UTC(y, mo - 1, d, hh, mm, ss || 0) - 5.5 * 60 * 60 * 1000;
-        if (shift.is_night_shift) outIstMs += 24 * 60 * 60 * 1000;
-        // Guard: out must be after in; if not, push by 24h.
-        while (outIstMs <= inMs) outIstMs += 24 * 60 * 60 * 1000;
-        outUtcIso = new Date(outIstMs).toISOString();
-      } else {
-        const hours = Number(shift?.duration_hours) > 0 ? Number(shift?.duration_hours) : 9;
-        outUtcIso = new Date(inMs + hours * 60 * 60 * 1000).toISOString();
-      }
-
       const { data, error } = await (supabase as any).rpc("hr_resolve_stale_session", {
         p_session_id: row.session_id,
-        p_resolution: "set_out_time",
-        p_out_time: outUtcIso,
-        p_note: "Marked full day — out-time set to shift end",
+        p_resolution: "mark_shift_end",
+        p_out_time: null,
+        p_note: "Forgotten punch-out — closed at scheduled shift end (no overtime)",
       });
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      toast.success("Marked as full day");
+      toast.success("Marked present — closed at shift end");
       qc.invalidateQueries({ queryKey: ["hr_stale_sessions"] });
       qc.invalidateQueries({ queryKey: ["hr_attendance_unified"] });
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to mark full day"),
+    onError: (e: any) => toast.error(e?.message || "Failed to close at shift end"),
   });
 
   const openCount = useMemo(() => rows.filter((r) => r.status === "open").length, [rows]);
@@ -246,26 +216,36 @@ export default function AttendanceStaleSessionsPage() {
                   <div className="text-xs text-muted-foreground border-l-2 pl-2">{r.resolution_note}</div>
                 )}
                 {r.status === "open" && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Button size="sm" onClick={() => openDialog(r, "set_out_time")}>
-                      Set out-time
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => markFullDay.mutate(r)}
-                      disabled={markFullDay.isPending}
-                      title="Close session at the employee's shift end for this date"
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> Mark full day
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => openDialog(r, "confirm_long_shift")}>
-                      Confirm long shift
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => openDialog(r, "void")}>
-                      <XCircle className="h-4 w-4 mr-1" /> Void
-                    </Button>
-                  </div>
+                  <>
+                    <div className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2 space-y-0.5">
+                      <div>This day is currently <b>held harmless from LOP</b> while the session stays open.</div>
+                      <div>
+                        <b>Present — shift-standard out</b>: present, zero OT, no LOP ·{" "}
+                        <b>Set out-time</b>: uses your time, OT capped ·{" "}
+                        <b>Confirm long shift</b>: capped at the long-shift cap, no OT ·{" "}
+                        <b>Void</b>: day becomes unpaid unless regularized.
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        onClick={() => markShiftEnd.mutate(r)}
+                        disabled={markShiftEnd.isPending}
+                        title="Close the session at the employee's scheduled shift end — present, no overtime, no LOP"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> Present — shift-standard out
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openDialog(r, "set_out_time")}>
+                        Set out-time
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => openDialog(r, "confirm_long_shift")}>
+                        Confirm long shift
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => openDialog(r, "void")}>
+                        <XCircle className="h-4 w-4 mr-1" /> Void
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -293,12 +273,15 @@ export default function AttendanceStaleSessionsPage() {
           )}
           {dlg?.resolution === "confirm_long_shift" && (
             <div className="text-sm text-muted-foreground">
-              Confirms a genuine long shift. Out-time will be capped at <b>watchdog + 2h</b> from the in-time.
+              Confirms a genuine long shift. Out-time is capped at the configured{" "}
+              <b>long-shift cap</b> (default 14h) from the in-time, and the day earns <b>no overtime</b>.
             </div>
           )}
           {dlg?.resolution === "void" && (
             <div className="text-sm text-destructive">
-              This deletes the offending in-punch and rebuilds the day. Use only for forgotten punches.
+              This deletes the offending in-punch and rebuilds the day. The day will become{" "}
+              <b>unpaid (LOP)</b> unless an approved regularization exists. For a genuine forgotten
+              punch-out, use <b>Present — shift-standard out</b> instead.
             </div>
           )}
           <div className="space-y-1">

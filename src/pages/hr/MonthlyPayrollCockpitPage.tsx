@@ -83,6 +83,7 @@ const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
   { tool: "inputs", label: "Payroll Inputs" },
   { tool: "salary_register", label: "Import Salary Register" },
   { tool: "payslip_import", label: "Import Payslips" },
+  { tool: "payslip_emails", label: "Payslip Email Dispatch" },
   { tool: "shadow", label: "Shadow Payroll" },
   { tool: "razorpay_sync", label: "RazorpayX Diagnostics" },
   { tool: "system_pulse", label: "System Pulse" },

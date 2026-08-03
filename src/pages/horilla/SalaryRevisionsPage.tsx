@@ -520,7 +520,10 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 No salary revision becomes effective in {monthLabel}. Nothing to reconcile for this step.
               </p>
             ) : (
-              <div className="space-y-3">{monthScoped.map((r: any) => renderRevisionCard(r))}</div>
+              <div className="rounded-md border">
+                <div className="pt-2">{listHeader}</div>
+                <div>{monthScoped.map((r: any) => renderRevisionCard(r))}</div>
+              </div>
             )}
           </CardContent>
         </Card>

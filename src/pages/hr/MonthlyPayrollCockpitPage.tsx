@@ -73,7 +73,7 @@ const STEP_TARGET: Record<string, StepTarget> = {
   lop_push: { tool: "inputs", label: "Open LOP deductions", params: { tab: "deduction", focus: "lop" } },
   inputs_push: { tool: "inputs", label: "Open additions / deductions", params: { tab: "addition" } },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
-  import_payslips: { tool: "payslip_import", label: "Import Payslips" },
+  import_payslips: { tool: "payslip_emails", label: "Import & email payslips" },
   shadow_compare: { tool: "shadow", label: "Run Shadow Payroll" },
   drift_review: { tool: "data_health", label: "Open Data Health" },
 };

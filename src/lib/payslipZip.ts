@@ -27,7 +27,7 @@ const MONTHS: Record<string, string> = {
 };
 
 function toPeriod(label: string): string | null {
-  const m = label.trim().match(/^([A-Za-z]{3})[a-z]*\.?\s+(\d{4})$/);
+  const m = label.trim().match(/^([A-Za-z]{3})[a-z]*\.?[\s_]+(\d{4})$/);
   if (!m) return null;
   const mm = MONTHS[m[1].toLowerCase()];
   if (!mm) return null;
@@ -52,7 +52,7 @@ export async function readPayslipArchive(file: File): Promise<ParsedPayslipEntry
     const parent = segs[segs.length - 2] ?? "";
 
     const folderMatch = parent.match(/^(\d+)\s*-\s*(.+)$/);
-    const fileMatch = fileName.match(/^(.*?)-(\d+)-([A-Za-z]{3,}\.?\s+\d{4})-Payslip\.pdf$/i);
+    const fileMatch = fileName.match(/^(.*?)-(\d+)-([A-Za-z]{3,}\.?[\s_]+\d{4})-Payslip\.pdf$/i);
 
     const groupSeg = segs.find((s) => /dismissed/i.test(s))
       ? "dismissed"

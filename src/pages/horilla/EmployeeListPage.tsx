@@ -1173,6 +1173,8 @@ export default function EmployeeListPage() {
       "Work Type": wi?.work_type || "",
       "Employee Type": employeeTypeLabel(wi?.employee_type),
       "Date of Joining": (wi as any)?.joining_date || "",
+      "Monthly CTC": monthlyCtc(emp),
+
       "Status": emp.is_active ? "Active" : "Inactive",
     }];
     const ws = XLSX.utils.json_to_sheet(rows);

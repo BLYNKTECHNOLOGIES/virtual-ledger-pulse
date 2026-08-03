@@ -475,10 +475,11 @@ export default function Purchase() {
             description="Manage purchases and orders"
             actions={
               <>
-                <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0 whitespace-nowrap">
+                <Button variant="outline" onClick={handleExportCSV} disabled={isExporting} size="sm" className="flex-shrink-0 whitespace-nowrap">
                   <Download className="h-4 w-4 mr-1 md:mr-2" />
-                  <span className="hidden sm:inline">Export CSV</span>
+                  <span className="hidden sm:inline">{isExporting ? 'Exporting…' : 'Export CSV'}</span>
                 </Button>
+
                 <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
                   <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
                 </PermissionGate>

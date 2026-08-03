@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 
 type StatusFilter = "APPLIED" | "SCHEDULED" | "CANCELLED" | "ALL";
 
-export default function SalaryRevisionsPage() {
+export default function SalaryRevisionsPage({ month }: { month?: string } = {}) {
   const qc = useQueryClient();
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("hrms_manage");
@@ -119,6 +119,27 @@ export default function SalaryRevisionsPage() {
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());
   }), [revisions, statusFilter, search]);
+
+  // Revisions that land in THIS payroll month for the first time:
+  //  · CTC revisions whose effective_from falls inside the month
+  //  · one-time payouts targeted at this payroll month
+  const monthScoped = useMemo(() => {
+    if (!month) return [] as any[];
+    const start = new Date(`${month.slice(0, 7)}-01T00:00:00Z`);
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    const inMonth = (v?: string | null) => {
+      if (!v) return false;
+      const d = new Date(v);
+      return !isNaN(d.getTime()) && d >= start && d < end;
+    };
+    return revisions.filter((r: any) => {
+      if (r.status === "CANCELLED") return false;
+      const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+      return isOneTime ? inMonth(r.payout_month) : inMonth(r.effective_from);
+    });
+  }, [revisions, month]);
+
+  const monthLabel = month ? format(new Date(`${month.slice(0, 7)}-01T00:00:00Z`), "MMMM yyyy") : "";
 
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
   const payrollGateVerified = !!envelope?.push_payroll_endpoint_verified;
@@ -235,72 +256,7 @@ export default function SalaryRevisionsPage() {
   }
 
 
-  return (
-    <TooltipProvider delayDuration={150}>
-    <div className="p-4 md:p-6 space-y-4 page-mount">
-      <PageHeader
-        title="Salary Revision History"
-        actions={
-          <div className="flex items-center gap-2">
-            {canManage && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
-                      envelopeVerified
-                        ? "border-emerald-500/40 text-emerald-600"
-                        : "border-destructive/40 text-destructive",
-                    )}
-                  >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-emerald-500" : "bg-destructive")} />
-                    RazorpayX
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs text-xs">
-                  {envelopeVerified
-                    ? `Salary push live${envelope?.push_salary_envelope_verified_at ? ` · verified ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}`
-                    : "Salary push disabled — verify the envelope in Payroll Sync · Step E"}
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {canManage && !envelopeVerified && (
-              <Button asChild size="sm" variant="secondary">
-                <Link to="/hrms/payroll/razorpay-sync">Fix sync</Link>
-              </Button>
-            )}
-            {canManage && (
-              <Button onClick={() => setShowDialog(true)}>
-                <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
-              </Button>
-            )}
-          </div>
-        }
-      />
-
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <TabsList>
-            <TabsTrigger value="APPLIED">Applied</TabsTrigger>
-            <TabsTrigger value="SCHEDULED">Scheduled</TabsTrigger>
-            <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
-            <TabsTrigger value="ALL">All</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-        </div>
-      </div>
-
-
-      {isLoading ? (
-        <TableSkeleton rows={4} columns={4} />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((r: any) => {
+  const renderRevisionCard = (r: any) => {
             const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
             const isIncrease = Number(r.new_total || 0) > Number(r.previous_total || 0);
             const diff = Number(r.new_total || 0) - Number(r.previous_total || 0);
@@ -473,7 +429,101 @@ export default function SalaryRevisionsPage() {
                 </CardContent>
               </Card>
             );
-          })}
+  };
+
+  return (
+    <TooltipProvider delayDuration={150}>
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title={month ? `Salary Revisions — ${monthLabel}` : "Salary Revision History"}
+        actions={
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+                      envelopeVerified
+                        ? "border-emerald-500/40 text-emerald-600"
+                        : "border-destructive/40 text-destructive",
+                    )}
+                  >
+                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-emerald-500" : "bg-destructive")} />
+                    RazorpayX
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  {envelopeVerified
+                    ? `Salary push live${envelope?.push_salary_envelope_verified_at ? ` · verified ${format(new Date(envelope.push_salary_envelope_verified_at), "dd MMM yyyy")}` : ""}`
+                    : "Salary push disabled — verify the envelope in Payroll Sync · Step E"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {canManage && !envelopeVerified && (
+              <Button asChild size="sm" variant="secondary">
+                <Link to="/hrms/payroll/razorpay-sync">Fix sync</Link>
+              </Button>
+            )}
+            {canManage && (
+              <Button onClick={() => setShowDialog(true)}>
+                <Plus className="h-4 w-4 mr-1.5" /> Revise Salary
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      {month && (
+        <Card className="border-primary/30">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Effective in this payroll ({monthLabel})
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  CTC revisions effective inside {monthLabel} and one-time payouts targeted at this payroll month.
+                  Everything here must be pushed and verified in RazorpayX before LOP is calculated.
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs">{monthScoped.length} entr{monthScoped.length === 1 ? "y" : "ies"}</Badge>
+            </div>
+            {monthScoped.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No salary revision becomes effective in {monthLabel}. Nothing to reconcile for this step.
+              </p>
+            ) : (
+              <div className="space-y-3">{monthScoped.map((r: any) => renderRevisionCard(r))}</div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <TabsList>
+            <TabsTrigger value="APPLIED">Applied</TabsTrigger>
+            <TabsTrigger value="SCHEDULED">Scheduled</TabsTrigger>
+            <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
+            <TabsTrigger value="ALL">All</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+        </div>
+      </div>
+
+
+      {isLoading ? (
+        <TableSkeleton rows={4} columns={4} />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={TrendingUp} title="No salary revisions" description={canManage ? "Click 'Revise Salary' to create one." : "Revisions will appear here once created."} />
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((r: any) => renderRevisionCard(r))}
         </div>
       )}
 

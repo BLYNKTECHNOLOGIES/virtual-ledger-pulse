@@ -70,7 +70,7 @@ type StepTarget =
 const STEP_TARGET: Record<string, StepTarget> = {
   lock_attendance: { tool: "period_locks", label: "Open Period Locks" },
   watchdog_zero: { tool: "stale_sessions", label: "Open Stale Sessions" },
-  salary_revisions: { href: "/hrms/payroll/salary-revisions", label: "Open Salary Revisions" },
+  salary_revisions: { tool: "salary_revisions", label: "Open Salary Revisions" },
   lop_push: { tool: "inputs", label: "Open LOP deductions", params: { tab: "deduction", focus: "lop" } },
   inputs_push: { tool: "inputs", label: "Open additions / deductions", params: { tab: "addition" } },
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
@@ -82,6 +82,7 @@ const STEP_TARGET: Record<string, StepTarget> = {
 
 const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
   { tool: "inputs", label: "Payroll Inputs" },
+  { tool: "salary_revisions", label: "Salary Revisions" },
   { tool: "salary_register", label: "Import Salary Register" },
   { tool: "payslip_import", label: "Import Payslips" },
   { tool: "payslip_emails", label: "Payslip Email Dispatch" },

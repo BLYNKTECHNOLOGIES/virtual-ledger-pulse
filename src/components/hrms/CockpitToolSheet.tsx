@@ -13,10 +13,12 @@ const ShadowPayrollPage = lazy(() => import("@/pages/hr/ShadowPayrollPage"));
 const DataHealthPage = lazy(() => import("@/pages/horilla/DataHealthPage"));
 const SystemPulsePage = lazy(() => import("@/pages/hr/SystemPulsePage"));
 const RazorpaySyncPage = lazy(() => import("@/pages/hr/RazorpaySyncPage"));
+const SalaryRevisionsPage = lazy(() => import("@/pages/horilla/SalaryRevisionsPage"));
 const PayslipEmailDispatchPanel = lazy(() => import("@/components/hrms/PayslipEmailDispatchPanel"));
 
 export type CockpitToolKey =
   | "inputs"
+  | "salary_revisions"
   | "period_locks"
   | "stale_sessions"
   | "payslip_import"
@@ -29,6 +31,7 @@ export type CockpitToolKey =
 
 const TOOLS: Record<CockpitToolKey, { title: string; Component: React.LazyExoticComponent<any> }> = {
   inputs: { title: "Payroll Inputs — Additions / Deductions", Component: PayrollInputsPage },
+  salary_revisions: { title: "Salary Revisions — Compensation Changes", Component: SalaryRevisionsPage },
   period_locks: { title: "Attendance Period Locks", Component: AttendancePeriodLockPage },
   stale_sessions: { title: "Stale Attendance Sessions", Component: AttendanceStaleSessionsPage },
   payslip_import: { title: "Import Payslips", Component: PayslipHistoryImportPage },
@@ -94,6 +97,11 @@ export function CockpitToolSheet({
                 return <C month={month} />;
               })()}
             </div>
+          ) : tool === "salary_revisions" ? (
+            (() => {
+              const C = entry.Component as unknown as React.ComponentType<{ month?: string }>;
+              return <C month={month} />;
+            })()
           ) : (
             <entry.Component />
           )}

@@ -42,7 +42,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
   const qc = useQueryClient();
   const [rows, setRows] = useState<Row[]>([newRow()]);
 
-  useFormDraftPersistence<Row[]>(
+  const { clearDraft } = useFormDraftPersistence<Row[]>(
     open ? `seed-deposits:${depositType}` : null,
     rows,
     (saved) => { if (Array.isArray(saved) && saved.length) setRows(saved); },
@@ -106,6 +106,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       toast.success(`${valid.length} ${typeLabel.toLowerCase()} record(s) seeded — no payroll deduction scheduled`);
+      clearDraft();
       setRows([newRow()]);
       onOpenChange(false);
     },

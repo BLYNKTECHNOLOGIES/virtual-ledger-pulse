@@ -19,6 +19,7 @@ import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
 import { AutoRecoveriesCard } from "@/components/hr/payroll/AutoRecoveriesCard";
+import { OtherPayrollInputsCard } from "@/components/hr/payroll/OtherPayrollInputsCard";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 
@@ -612,6 +613,7 @@ export default function PayrollInputsPage() {
       </Tabs>
 
       {!lopFocus && tab === "deduction" && <AutoRecoveriesCard period={period} />}
+      {!lopFocus && tab === "addition" && <OtherPayrollInputsCard period={period} />}
 
 
 

@@ -106,6 +106,7 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       toast.success(`${valid.length} ${typeLabel.toLowerCase()} record(s) seeded — no payroll deduction scheduled`);
+      clearDraft();
       setRows([newRow()]);
       onOpenChange(false);
     },

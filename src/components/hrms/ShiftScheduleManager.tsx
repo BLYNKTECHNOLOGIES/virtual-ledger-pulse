@@ -224,7 +224,7 @@ export function ShiftScheduleAssigner() {
       qc.invalidateQueries({ queryKey: ["hr_employee_shift_schedule"] });
       setShowDialog(false);
       setForm({ employee_id: "", shift_id: "", effective_from: "" });
-      toast.success("Shift rotation assigned");
+      toast.success("Shift changed");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -233,15 +233,15 @@ export function ShiftScheduleAssigner() {
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <RotateCcw className="h-4 w-4" /> Shift Rotation Schedule
+          <RotateCcw className="h-4 w-4" /> Shift Schedule
         </CardTitle>
         <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowDialog(true)}>
-          <Plus className="h-3 w-3" /> Assign Rotation
+          <Plus className="h-3 w-3" /> Change Shift
         </Button>
       </CardHeader>
       <CardContent>
         {schedules.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">No shift rotations assigned</p>
+          <p className="text-sm text-muted-foreground text-center py-4">No shift schedules assigned</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[520px]">

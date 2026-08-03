@@ -1,50 +1,54 @@
-# Attendance Summary — August LOP / Sunday Clarification
+# Forgotten punch-out: how it behaves today, and how to harden it
 
-## What the user asked
+## Your questions, answered against the live engine
 
-1. For August 2026, the report shows **Working Days = 3** as of 4 Aug. Is Sunday excluded from those 3 days?
-2. Meenu Raja shows **LOP = 2**. Is Sunday absenteeism being counted as LOP?
+Settings in force: day cutoff 05:00 IST, debounce 15s, watchdog 12h, half-day 4.5h net, OT reference 9h/day.
 
-## Verified current state
+**1. If someone punches IN, forgets OUT, and punches IN again the next day — is the next day counted?**
+Yes. The session builder (`hr_v4_recompute_range`) keeps a "currently open IN". When a new IN arrives while one is open, it normally suppresses it as `redundant_in` — but there is a guard: if the open IN is older than the watchdog window (12h), the stale open is dropped and the next-day IN starts a **fresh session**. So the next day is not swallowed. The previous day stays as an open session → day status `incomplete`.
 
-- Employee `Meenu Raja` (`badge_id=52`, `id=f6f2966d-de27-4a5e-85b0-3c49186f0055`).
-- `hr_attendance_month_summary(..., '2026-08-01')` returns for her:
-  - `working_days = 3`
-  - `present_days = 1`
-  - `lop_days = 2`
-  - Formula: `LOP = elapsed working days 3 (of 25 in month) − (Attendance Summary present 1 + half-day credit 0.0 + paid leave 0) = 2.0`
-- The 3 elapsed working days are **1 Aug (Sat), 3 Aug (Mon), 4 Aug (Tue)**. **Sunday 2 Aug is excluded** by the weekly-off logic and is **not** counted as a working day.
-- Sunday absence therefore contributes **zero** LOP.
+**2. If he punches OUT the next day — is it a 48-hour shift?**
+No. An OUT arriving more than 12h after the open IN is suppressed as `orphan_out`. No monster session is created, no 48h of working minutes. The day stays `incomplete` and waits for HR.
 
-## Root cause of the displayed LOP
+**3. Does it credit extra overtime?**
+Not from the open session (open sessions contribute zero minutes). But there is a real exposure once it gets *closed*: OT is computed as `last_out − expected_shift_end` with **no upper cap**, so any pairing that lands a late OUT — for example the watchdog auto-pair, or HR "Set out-time" with a wrong value — can credit many hours of OT in one day. `ot_daily_hours = 9` exists in settings but is never applied.
 
-Meenu Raja was present only on **1 Aug**. The 2 LOP days are **3 Aug** and **4 Aug**.
+**4. What does it do to LOP / payroll?**
+While the stale row is `status = 'open'`, `hr_lop_days` treats the day as **held harmless** (`incomplete_held_days`) — no LOP. Once HR resolves it, that shield disappears: `void` removes the IN-punch entirely, so unless a regularization exists the day flips to no-evidence and becomes LOP.
 
-However, the current time in IST is **04:32 on 4 Aug**, and the v4 engine's `day_cutoff_ist` is **05:00:00**. Before 05:00 IST, the attendance day has not "closed" — the engine should still be treating 4 Aug as "not yet elapsed". The current `hr_attendance_month_summary` function uses `v_today = (now() AT TIME ZONE 'Asia/Kolkata')::date` directly, so it counts 4 Aug as elapsed even though the day cutoff has not passed.
+## Gaps found (root causes worth fixing)
 
-This is why the report shows **LOP = 2** instead of **LOP = 1** (only 3 Aug absent).
+1. **Watchdog window is inconsistent.** Settings say 12h, but the auto-pair query hardcodes 14h and `hr_resolve_stale_session` falls back to 14h. The engine suppresses an OUT past 12h while the watchdog re-pairs punches up to 14h — the two disagree.
+2. **Auto-pair can eat the next day's IN-punch.** The watchdog picks the *latest* unused punch within the window as the OUT. A next-morning IN that has not yet become a session's in-punch qualifies. Result: prior day gets an inflated session and OT, and the next day loses its IN → shows absent. This is the highest-risk defect.
+3. **No OT ceiling.** Any repaired/oversized session converts directly to overtime hours in `hr_attendance`.
+4. **Resolution has no "regularize as present" outcome.** `void` silently converts a genuine attended day into LOP.
+5. **`confirm_long_shift` caps at watchdog + 2h** (i.e. 14h today), which is a payable-hours decision buried in code, not a setting.
 
-## Proposed fix
+## Recommended handling (what I propose to implement)
 
-Update `public.hr_attendance_month_summary` so that `v_elapsed_end` respects `hr_attendance_engine_settings.day_cutoff_ist`:
+**A. Single source of truth for the window**
+Use `hr_attendance_engine_settings.watchdog_hours` everywhere: engine, watchdog auto-pair, and `hr_resolve_stale_session`. Remove the hardcoded 14h.
 
-```text
-- Read day_cutoff_ist from hr_attendance_engine_settings.
-- Compute current IST timestamp.
-- If current IST time is BEFORE day_cutoff_ist, treat "today" as yesterday for elapsed-working-day purposes.
-- Otherwise treat today as elapsed.
-```
+**B. Make auto-pair safe**
+Only pair a punch that is (a) `punch_type = 'out'`, or (b) an unclassified punch that is **not** the first punch of a later window date. Never consume a punch that starts a new attendance window. If the only candidate is a next-day first punch, leave the session open for HR.
 
-This aligns the summary's elapsed window with the v4 attendance engine's day boundary and prevents the current day from being prematurely counted as LOP before the cutoff.
+**C. Cap overtime**
+Clamp daily OT to `ot_daily_hours`, and set OT to 0 on any session flagged `auto_paired_by_watchdog` or `hr_long_shift_confirmed` — repaired time should be paid as attendance, not overtime, unless HR approves it.
 
-## Acceptance criteria
+**D. Add a fourth resolution: "Present — shift-standard out"**
+Closes the session at the employee's scheduled shift end (never later), marks the day `present` with zero OT and no early-out penalty. This becomes the default recommended action for a genuine forgotten punch-out, instead of `void`.
 
-1. Re-running `hr_attendance_month_summary` for Meenu Raja before 05:00 IST on 4 Aug returns `working_days = 2`, `lop_days = 1`.
-2. After 05:00 IST on 4 Aug, it returns `working_days = 3`, `lop_days = 2` (assuming no attendance is recorded).
-3. Sunday 2 Aug continues to be excluded from working days and LOP in both cases.
-4. No regression for other employees or months.
+**E. Make `void` LOP-explicit**
+When HR voids, show in the dialog that the day will become unpaid unless a regularization is approved, and offer a one-click "void + raise regularization" path.
 
-## Scope
+**F. Surface the payroll impact on the Stale Sessions page**
+Each card shows: window date, current day status, whether the day is currently held harmless from LOP, and what each button will do to LOP and OT before it is clicked.
 
-- One SQL migration updating `public.hr_attendance_month_summary`.
-- No UI changes required; the summary page already consumes this RPC.
+**G. Configurable long-shift cap**
+Move the `watchdog + 2h` cap into engine settings as `long_shift_cap_hours` (default 14).
+
+## Technical notes
+
+- Changes are SQL-side in `hr_watchdog_open_sessions`, `hr_v4_recompute_range`, `hr_v4_shift_metrics` (OT clamp) and `hr_resolve_stale_session` (new `mark_shift_end` resolution + settings-driven caps), plus one settings column.
+- UI changes in the Stale Attendance Sessions page for the new action and impact preview.
+- After deployment, re-run the watchdog and recompute affected windows, then verify: no session exceeds the watchdog window, no day carries OT above the cap, and no next-day IN was consumed as a previous-day OUT.

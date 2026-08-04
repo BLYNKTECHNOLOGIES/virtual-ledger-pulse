@@ -932,6 +932,29 @@ export default function EmployeeProfilePage() {
                 <div className="flex items-center gap-2">
                   <span className="bg-[#00bcd4] text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">1</span>
                   <h3 className="text-base font-semibold text-[#00bcd4]">Work Information</h3>
+                  {razorpaySync.state !== "idle" && (
+                    <span
+                      title={razorpaySync.message || ""}
+                      className={
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full border " +
+                        (razorpaySync.state === "verified"
+                          ? "bg-success/10 text-success border-success/30"
+                          : razorpaySync.state === "syncing"
+                          ? "bg-muted text-muted-foreground border-border"
+                          : razorpaySync.state === "skipped"
+                          ? "bg-warning/10 text-warning border-warning/30"
+                          : "bg-destructive/10 text-destructive border-destructive/30")
+                      }
+                    >
+                      {razorpaySync.state === "syncing"
+                        ? "RazorpayX: syncing…"
+                        : razorpaySync.state === "verified"
+                        ? `RazorpayX: verified${razorpaySync.at ? ` · ${razorpaySync.at}` : ""}`
+                        : razorpaySync.state === "skipped"
+                        ? "RazorpayX: not linked"
+                        : "RazorpayX: not confirmed"}
+                    </span>
+                  )}
                 </div>
                 {editingWorkInfo ? (
                   <div className="flex gap-2">

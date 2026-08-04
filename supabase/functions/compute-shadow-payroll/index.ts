@@ -328,6 +328,22 @@ Deno.serve(async (req) => {
       for (const r of dnpRows ?? []) if (r.hr_employee_id) doNotPayEmp.add(r.hr_employee_id);
     }
 
+    // RazorpayX comparison side, prefetched once for the whole period.
+    // hr_payslips_v is the reconciled payslip view (API pull + imported salary
+    // register), so it is populated for months that were only imported.
+    const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
+    const rzByEmp = new Map<string, any>();
+    {
+      const { data: rzRows, error: rzErr } = await supabase
+        .from("hr_payslips_v")
+        .select("employee_id, gross, regular_gross, net, pf_amount, esi_amount, professional_tax, tds_amount")
+        .eq("period_month", periodStr);
+      if (rzErr) console.error("razorpay payslip view fetch err", rzErr);
+      for (const r of rzRows ?? []) if (r.employee_id) rzByEmp.set(r.employee_id, r);
+      console.log(`[shadow] razorpay comparison rows for ${periodStr}: ${rzByEmp.size}`);
+    }
+
+
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
 

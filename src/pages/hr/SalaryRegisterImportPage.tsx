@@ -114,6 +114,9 @@ interface ParsedRow {
   reg_ifsc: string | null;
   reg_personal_phone: string | null;
   reg_personal_email: string | null;
+  reg_official_email: string | null;
+  reg_extra_earnings: { label: string; amount: number }[];
+  gross_tieout_diff: number | null;
   // demographics snapshots
   reg_department: string | null;
   reg_designation: string | null;
@@ -151,6 +154,12 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     "Employer PF Contr.": ["Employer PF Contribution", "Employer PF Contr"],
     "Employer ESI Contr.": ["Employer ESI Contribution", "Employer ESI Contr"],
   };
+  // Optional heads: RazorpayX only emits these when the company uses them.
+  const OPTIONAL_COLS = new Set([
+    "LWF(EE)", "LWF(ER)", "Overtime", "Refund Of Security Deposit",
+    "Performance Linked Incentive", "DA", "LTA", "Personal Phone Number",
+    "Personal Email Address", "Relieving Date", "One-time Payments",
+  ]);
   const missingCols: string[] = [];
   const idx = (label: string) => {
     const direct = normMap.get(norm(label));
@@ -164,55 +173,92 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
   const iEmp = idx("Employee ID");
   const iName = idx("Name");
   if (iEmp < 0 || iName < 0) return { header, rows: [], error: "Missing required column 'Employee ID' or 'Name'" };
-  const col = (label: string) => { const i = idx(label); if (i < 0 && !missingCols.includes(label)) missingCols.push(label); return i; };
+  const col = (label: string) => {
+    const i = idx(label);
+    if (i < 0 && !OPTIONAL_COLS.has(label) && !missingCols.includes(label)) missingCols.push(label);
+    return i;
+  };
+  // Every header we explicitly map; anything else numeric and non-zero is a custom
+  // pay head (Performance bonus, Fees, Legal fees, …) that must not be dropped.
+  const mapped = new Set<number>();
+  const colT = (label: string) => { const i = col(label); if (i >= 0) mapped.add(i); return i; };
   const rows: ParsedRow[] = grid.slice(1).map(r => ({
     razorpay_employee_id: (r[iEmp] ?? "").trim(),
     name: (r[iName] ?? "").replace(/\*$/, "").trim(),
-    reg_working_days: toNum(r[col("Working Days")] ?? ""),
-    reg_basic: toNum(r[col("Basic Salary")] ?? ""),
-    reg_da: toNum(r[col("DA")] ?? ""),
-    reg_hra: toNum(r[col("HRA")] ?? ""),
-    reg_sa: toNum(r[col("SA")] ?? ""),
-    reg_lta: toNum(r[col("LTA")] ?? ""),
-    reg_employer_esi_contr: toNum(r[col("Employer ESI Contr.")] ?? ""),
-    reg_employer_pf_contr: toNum(r[col("Employer PF Contr.")] ?? ""),
-    reg_overtime: toNum(r[col("Overtime")] ?? ""),
-    reg_refund_security_deposit: toNum(r[col("Refund Of Security Deposit")] ?? ""),
-    reg_performance_incentive: toNum(r[col("Performance Linked Incentive")] ?? ""),
-    reg_gross_salary: toNum(r[col("Gross Salary")] ?? ""),
-    reg_esi_ee: toNum(r[col("ESI(EE)")] ?? ""),
-    reg_esi_er: toNum(r[col("ESI(ER)")] ?? ""),
-    reg_pf_ee: toNum(r[col("PF(EE)")] ?? ""),
-    reg_pf_er: toNum(r[col("PF(ER)")] ?? ""),
-    reg_lwf_ee: toNum(r[col("LWF(EE)")] ?? ""),
-    reg_lwf_er: toNum(r[col("LWF(ER)")] ?? ""),
-    reg_pt: toNum(r[col("PT")] ?? ""),
-    reg_tds: toNum(r[col("TDS")] ?? ""),
-    reg_advance_salary: toNum(r[col("Advance Salary")] ?? ""),
-    reg_loan_emi: toNum(r[col("Loan Emi")] ?? ""),
-    reg_one_time_payments: toNum(r[col("One-time Payments")] ?? ""),
-    reg_net_pay: toNum(r[col("Net Pay")] ?? ""),
+    reg_working_days: toNum(r[colT("Working Days")] ?? ""),
+    reg_basic: toNum(r[colT("Basic Salary")] ?? ""),
+    reg_da: toNum(r[colT("DA")] ?? ""),
+    reg_hra: toNum(r[colT("HRA")] ?? ""),
+    reg_sa: toNum(r[colT("SA")] ?? ""),
+    reg_lta: toNum(r[colT("LTA")] ?? ""),
+    reg_employer_esi_contr: toNum(r[colT("Employer ESI Contr.")] ?? ""),
+    reg_employer_pf_contr: toNum(r[colT("Employer PF Contr.")] ?? ""),
+    reg_overtime: toNum(r[colT("Overtime")] ?? ""),
+    reg_refund_security_deposit: toNum(r[colT("Refund Of Security Deposit")] ?? ""),
+    reg_performance_incentive: toNum(r[colT("Performance Linked Incentive")] ?? ""),
+    reg_gross_salary: toNum(r[colT("Gross Salary")] ?? ""),
+    reg_esi_ee: toNum(r[colT("ESI(EE)")] ?? ""),
+    reg_esi_er: toNum(r[colT("ESI(ER)")] ?? ""),
+    reg_pf_ee: toNum(r[colT("PF(EE)")] ?? ""),
+    reg_pf_er: toNum(r[colT("PF(ER)")] ?? ""),
+    reg_lwf_ee: toNum(r[colT("LWF(EE)")] ?? ""),
+    reg_lwf_er: toNum(r[colT("LWF(ER)")] ?? ""),
+    reg_pt: toNum(r[colT("PT")] ?? ""),
+    reg_tds: toNum(r[colT("TDS")] ?? ""),
+    reg_advance_salary: toNum(r[colT("Advance Salary")] ?? ""),
+    reg_loan_emi: toNum(r[colT("Loan Emi")] ?? ""),
+    reg_one_time_payments: toNum(r[colT("One-time Payments")] ?? ""),
+    reg_net_pay: toNum(r[colT("Net Pay")] ?? ""),
     reg_has_left: (() => {
-      const v = toStr(r[col("Has Left The Organization")] ?? "");
+      const v = toStr(r[colT("Has Left The Organization")] ?? "");
       if (v == null) return null;
       return /^y(es)?$/i.test(v);
     })(),
-    reg_relieving_date: toIsoDate(r[col("Relieving Date")] ?? ""),
-    reg_pan: toStr(r[col("Pan")] ?? ""),
-    reg_pf_uan: toStr(r[col("PF UAN")] ?? ""),
-    reg_esi_number: toStr(r[col("ESI Number")] ?? ""),
-    reg_bank_acc_no: toStr(r[col("Bank Acc. No.")] ?? ""),
-    reg_ifsc: toStr(r[col("IFSC Code")] ?? ""),
-    reg_personal_phone: toStr(r[col("Personal Phone Number")] ?? ""),
-    reg_personal_email: toStr(r[col("Personal Email Address")] ?? ""),
-    reg_department: toStr(r[col("Department")] ?? ""),
-    reg_designation: toStr(r[col("Designation")] ?? ""),
-    reg_location: toStr(r[col("Location")] ?? ""),
-    reg_pt_location: toStr(r[col("PT Location")] ?? ""),
-    reg_gender: toStr(r[col("Gender")] ?? ""),
-    reg_dob: toIsoDate(r[col("Date Of Birth")] ?? ""),
-    reg_hire_date: toIsoDate(r[col("Hire Date")] ?? ""),
+    reg_relieving_date: toIsoDate(r[colT("Relieving Date")] ?? ""),
+    reg_pan: toStr(r[colT("Pan")] ?? ""),
+    reg_pf_uan: toStr(r[colT("PF UAN")] ?? ""),
+    reg_esi_number: toStr(r[colT("ESI Number")] ?? ""),
+    reg_bank_acc_no: toStr(r[colT("Bank Acc. No.")] ?? ""),
+    reg_ifsc: toStr(r[colT("IFSC Code")] ?? ""),
+    reg_personal_phone: toStr(r[colT("Personal Phone Number")] ?? ""),
+    reg_personal_email: toStr(r[colT("Personal Email Address")] ?? ""),
+    reg_department: toStr(r[colT("Department")] ?? ""),
+    reg_designation: toStr(r[colT("Designation")] ?? ""),
+    reg_location: toStr(r[colT("Location")] ?? ""),
+    reg_pt_location: toStr(r[colT("PT Location")] ?? ""),
+    reg_gender: toStr(r[colT("Gender")] ?? ""),
+    reg_dob: toIsoDate(r[colT("Date Of Birth")] ?? ""),
+    reg_hire_date: toIsoDate(r[colT("Hire Date")] ?? ""),
+    reg_official_email: toStr(r[colT("Email")] ?? ""),
+    reg_extra_earnings: [],
+    gross_tieout_diff: null,
   })).filter(r => r.razorpay_employee_id);
+
+  // Second pass: capture unmapped numeric heads and verify each row's earnings tie to Gross.
+  const iGross = idx("Gross Salary");
+  const dataRows = grid.slice(1).filter(r => (r[iEmp] ?? "").trim());
+  const EARNING_KEYS: (keyof ParsedRow)[] = [
+    "reg_basic", "reg_da", "reg_hra", "reg_sa", "reg_lta",
+    "reg_employer_esi_contr", "reg_employer_pf_contr",
+    "reg_overtime", "reg_performance_incentive", "reg_refund_security_deposit",
+  ];
+  rows.forEach((row, n) => {
+    const raw = dataRows[n] ?? [];
+    const extras: { label: string; amount: number }[] = [];
+    header.forEach((h, i) => {
+      if (mapped.has(i) || i === iGross) return;
+      const v = toNum(raw[i] ?? "");
+      if (v != null && v !== 0) extras.push({ label: h, amount: v });
+    });
+    row.reg_extra_earnings = extras;
+    if (row.reg_gross_salary != null) {
+      const sum =
+        EARNING_KEYS.reduce((a, k) => a + (Number(row[k] ?? 0) || 0), 0) +
+        extras.reduce((a, e) => a + (e.amount > 0 ? e.amount : 0), 0);
+      row.gross_tieout_diff = Math.round((sum - row.reg_gross_salary) * 100) / 100;
+    }
+  });
+
   return { header, rows, missingCols };
 }
 
@@ -369,6 +415,8 @@ export default function SalaryRegisterImportPage({
           reg_ifsc: row.reg_ifsc,
           reg_personal_phone: row.reg_personal_phone,
           reg_personal_email: row.reg_personal_email,
+          reg_official_email: row.reg_official_email,
+          reg_extra_earnings: row.reg_extra_earnings.length ? row.reg_extra_earnings : null,
           reg_department: row.reg_department,
           reg_designation: row.reg_designation,
           reg_location: row.reg_location,

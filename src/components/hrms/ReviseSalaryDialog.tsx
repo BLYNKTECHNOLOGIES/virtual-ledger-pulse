@@ -662,11 +662,12 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </div>
 
               <div className="text-xs bg-muted/50 border border-border rounded p-2 text-muted-foreground">
-                One-time payouts are logged against the employee's compensation history and do NOT change their CTC.
-                Pay it out through the next payroll run or Razorpay one-off ad-hoc payout.
+                Record-keeping only: the payout is treated as <strong>paid outside payroll</strong> on the date above.
+                Nothing is pushed to RazorpayX and the CTC is unchanged. If it should ride on a payroll run, use <strong>Addition</strong> instead.
               </div>
             </>
-          ) : (
+          ) : mode === "addition" || mode === "deduction" ? null : (
+
             <>
               <div>
                 <Label>Effective from</Label>

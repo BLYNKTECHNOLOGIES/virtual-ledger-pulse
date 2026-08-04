@@ -56,6 +56,7 @@ const COLUMNS: Col[] = [
   { key: "employer_pf", label: "Employer PF Contr.", kind: "num", group: "Earnings" },
   { key: "regular_additions", label: "Other Additions", kind: "num", group: "Earnings" },
   { key: "gross", label: "Gross Salary", kind: "num", group: "Earnings" },
+  { key: "payable_earnings", label: "Payable Earnings (excl. employer share)", kind: "num", group: "Earnings" },
   { key: "esi_ee", label: "ESI (EE)", kind: "num", group: "Deductions" },
   { key: "esi_er", label: "ESI (ER)", kind: "num", group: "Deductions" },
   { key: "pf_ee", label: "PF (EE)", kind: "num", group: "Deductions" },
@@ -76,7 +77,7 @@ const COLUMNS: Col[] = [
   { key: "salary_base_source", label: "Salary Base Source", group: "Provenance" },
 ];
 
-const DEFAULT_HIDDEN = new Set(["dob", "email", "pt_location", "relieving_date", "bank_account", "ifsc", "da"]);
+const DEFAULT_HIDDEN = new Set(["dob", "email", "pt_location", "relieving_date", "bank_account", "ifsc", "da", "payable_earnings"]);
 
 function monthOptions(): { value: string; label: string }[] {
   const out: { value: string; label: string }[] = [];
@@ -274,6 +275,7 @@ export default function SalaryRegisterProjectionPage() {
                   {filtered.map((r) => {
                     const a = r.actual;
                     const diff = compare && a ? Math.round(Number(a.net ?? 0) - Number(r.net_pay ?? 0)) : null;
+                    const grossDiff = compare && a ? Math.round(Number(a.gross ?? 0) - Number(r.gross ?? 0)) : null;
                     return (
                       <tr key={r.employee_id} className="border-t border-border hover:bg-muted/40">
                         {visibleCols.map((c) => (
@@ -284,6 +286,11 @@ export default function SalaryRegisterProjectionPage() {
                                 {r.do_not_pay && <Badge variant="destructive" className="text-[10px]">Do not pay</Badge>}
                                 {!!r.one_time_payments && <Badge variant="secondary" className="text-[10px]">One-time</Badge>}
                                 {!!r.off_payroll_payouts && <Badge variant="outline" className="text-[10px]">Off-payroll ₹{inr0(r.off_payroll_payouts)}</Badge>}
+                                {grossDiff !== null && grossDiff !== 0 && (
+                                  <Badge variant="outline" className="text-[10px] text-destructive">
+                                    Δ gross {grossDiff > 0 ? "+" : ""}{inr0(grossDiff)}
+                                  </Badge>
+                                )}
                                 {diff !== null && diff !== 0 && (
                                   <Badge variant="outline" className="text-[10px] text-destructive">
                                     Δ net {diff > 0 ? "+" : ""}{inr0(diff)}

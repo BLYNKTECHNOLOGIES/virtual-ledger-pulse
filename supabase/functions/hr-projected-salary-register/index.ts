@@ -316,8 +316,14 @@ Deno.serve(async (req) => {
       const otherRecovery = (otherRecoveryByEmp.get(emp.id) ?? 0) + addNegative
         + Math.max(0, (dedByEmp.get(emp.id) ?? 0) - kpiLoss);
 
-      const grossTotal = grossEarnings + addPositive;
-      const netPay = grossTotal - (epf.employee + vpf + esi.employee + pt + tds + loanEmi + depositRecovery + otherRecovery);
+      // RazorpayX's "Gross Salary" column = component earnings + employer ESI +
+      // employer PF/EDLI (verified against the July register: 6,000 basic +
+      // 2,646 HRA + 1,020 SA + 1,200 LTA + 354 ER-ESI + 780 ER-PF = 12,000).
+      // Mirror that definition so a tally is apples-to-apples; the payable
+      // earnings side (gross minus employer share) is kept separately.
+      const payableEarnings = grossEarnings + addPositive;
+      const grossTotal = payableEarnings + epf.employer_earnings_side + esi.employer;
+      const netPay = payableEarnings - (epf.employee + vpf + esi.employee + pt + tds + loanEmi + depositRecovery + otherRecovery);
 
       rows.push({
         ...base,
@@ -330,6 +336,7 @@ Deno.serve(async (req) => {
         one_time_labels: revisionPayoutByEmp.get(emp.id)?.labels ?? [],
         regular_additions: Math.max(0, regularAdds),
         gross: grossTotal,
+        payable_earnings: payableEarnings,
         regular_gross: grossEarnings,
         esi_ee: esi.employee, esi_er: esi.employer,
         pf_ee: epf.employee, pf_er: epf.employer,
@@ -365,7 +372,7 @@ Deno.serve(async (req) => {
       notes,
       totals: {
         employees: rows.length,
-        gross: sum("gross"), net_pay: sum("net_pay"), one_time_payments: sum("one_time_payments"),
+        gross: sum("gross"), payable_earnings: sum("payable_earnings"), net_pay: sum("net_pay"), one_time_payments: sum("one_time_payments"),
         pf_ee: sum("pf_ee"), pf_er: sum("pf_er"), esi_ee: sum("esi_ee"), esi_er: sum("esi_er"),
         pt: sum("pt"), tds: sum("tds"), loan_emi: sum("loan_emi"), deposit_recovery: sum("deposit_recovery"),
         off_payroll_payouts: sum("off_payroll_payouts"), lop_amount: sum("lop_amount"),

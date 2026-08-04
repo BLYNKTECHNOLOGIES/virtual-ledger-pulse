@@ -425,7 +425,8 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
             const pushBtn =
-              isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
+              isPayrollInput || isRecordOnlyPayout ? null
+              : isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
                 <Button
                   size="sm" variant={pushFailedAfterRevision ? "default" : "outline"} className="h-7 px-2 text-xs"
                   onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}
@@ -452,6 +453,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   <X className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               ) : null;
+
 
             return (
               <div

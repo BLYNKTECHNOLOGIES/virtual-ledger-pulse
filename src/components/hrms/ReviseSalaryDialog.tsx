@@ -472,7 +472,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
         {entryMode === "bulk" ? (
           <BulkCompensationPanel
+            key={mode}
             mode={mode}
+
             employees={employees as any}
             approvedBy={
               [(user as any)?.firstName, (user as any)?.lastName].filter(Boolean).join(" ") ||

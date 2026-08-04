@@ -95,7 +95,7 @@ export function CosmosSettingsDialog({ open, onOpenChange, client }: CosmosSetti
         </DialogHeader>
 
         <Tabs defaultValue="alerts" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="flex w-full flex-wrap">
             <TabsTrigger value="alerts">Alert Thresholds</TabsTrigger>
             <TabsTrigger value="risk">Risk Controls</TabsTrigger>
             <TabsTrigger value="monitoring">Monitoring</TabsTrigger>

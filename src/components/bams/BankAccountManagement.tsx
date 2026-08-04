@@ -725,7 +725,7 @@ export function BankAccountManagement() {
       </div>
 
       <Tabs defaultValue="working" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="flex w-full flex-wrap">
           <TabsTrigger value="working">Working ({bankAccounts?.filter(a => a.status !== 'DORMANT').length || 0})</TabsTrigger>
           <TabsTrigger value="dormant">Dormant ({dormantAccounts?.length || 0})</TabsTrigger>
           <TabsTrigger value="pending">Pending ({pendingAccounts?.length || 0})</TabsTrigger>

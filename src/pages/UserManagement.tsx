@@ -430,7 +430,7 @@ export default function UserManagement() {
     </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className={`grid w-full ${isHrRestricted ? "grid-cols-1" : isSuperAdmin ? "grid-cols-7" : "grid-cols-6"}`}>
+          <TabsList className="flex w-full flex-wrap">
             {isSuperAdmin && (
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4" />

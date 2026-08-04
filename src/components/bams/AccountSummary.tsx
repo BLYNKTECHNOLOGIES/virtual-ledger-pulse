@@ -447,7 +447,7 @@ export function AccountSummary() {
       </div>
 
       <Tabs value={activeReportTab} onValueChange={setActiveReportTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 print:hidden">
+        <TabsList className="flex w-full flex-wrap print:hidden">
           <TabsTrigger value="overview">System Overview</TabsTrigger>
           <TabsTrigger value="accounts">Account Details</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>

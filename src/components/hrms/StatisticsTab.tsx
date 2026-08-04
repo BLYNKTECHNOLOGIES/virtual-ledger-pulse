@@ -699,7 +699,7 @@ export function StatisticsTab() {
 
       {/* Tabs for Different Views */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex w-full overflow-x-auto gap-1 mb-6 md:grid md:grid-cols-5">
+        <TabsList className="flex w-full flex-wrap gap-1 mb-6">
           <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
           <TabsTrigger value="clients" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Clients & KYC</TabsTrigger>
           <TabsTrigger value="leads" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Leads</TabsTrigger>

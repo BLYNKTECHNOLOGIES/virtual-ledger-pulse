@@ -294,7 +294,7 @@ export function HorillaSidebar({
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 scrollbar-thin scrollbar-thumb-[#2a2a40]">
+      <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 sidebar-scroll">
         {navGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (

@@ -398,6 +398,14 @@ Deno.serve(async (req) => {
     if (mode === 'preview') targets = targets.slice(0, 1)
     if (targets.length === 0) return json({ error: 'No sendable recipients in the selection' }, 400)
 
+    // Chunked dispatch: attaching + base64-encoding PDFs is CPU heavy and a large
+    // batch trips the edge CPU limit mid-run, which used to leave sends unlogged
+    // (and therefore re-sendable). Process a small slice per invocation and let the
+    // client loop until `remaining` is 0.
+    const CHUNK = Math.max(1, Math.min(Number(body.chunk_size) || 4, 10))
+    const totalTargets = targets.length
+    if (mode === 'send') targets = targets.slice(0, CHUNK)
+
 
     const previewTo: string | null = mode === 'preview' ? (body.preview_to || userRes.user.email || null) : null
     if (mode === 'preview' && !previewTo) return json({ error: 'No preview recipient' }, 400)
@@ -477,6 +485,7 @@ Deno.serve(async (req) => {
       mode,
       sent: results.filter((r) => r.ok).length,
       failed: results.filter((r) => !r.ok).length,
+      remaining: mode === 'send' ? Math.max(0, totalTargets - targets.length) : 0,
       results,
     })
   } catch (err) {

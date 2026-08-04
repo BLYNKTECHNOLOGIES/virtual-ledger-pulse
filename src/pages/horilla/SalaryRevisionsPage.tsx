@@ -133,16 +133,32 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     onError: (e: any) => toast.error(e.message),
   });
 
-  const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction"]);
-  const filtered = useMemo(() => revisions.filter((r: any) => {
-    const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+  const ONE_TIME_KINDS = ONE_TIME_TYPE_SET;
+  const baseVisible = useMemo(() => revisions.filter((r: any) => {
+    const cat = revisionCategory(r);
     // Exclude initial onboarding entries (no prior salary → not a revision),
-    // but always keep one-time payouts (bonus/incentive/etc.) which have no previous_total.
-    if (!isOneTime && Number(r.previous_total || 0) <= 0) return false;
+    // but always keep payouts / additions / deductions which have no previous_total.
+    if (cat === "CTC" && Number(r.previous_total || 0) <= 0) return false;
+    return true;
+  }), [revisions]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<CategoryFilter, number> = { ALL: 0, CTC: 0, ADDITION: 0, DEDUCTION: 0, PAYOUT: 0, STATUTORY: 0 };
+    for (const r of baseVisible) {
+      if (statusFilter !== "ALL" && r.status !== statusFilter) continue;
+      counts.ALL += 1;
+      counts[revisionCategory(r)] += 1;
+    }
+    return counts;
+  }, [baseVisible, statusFilter]);
+
+  const filtered = useMemo(() => baseVisible.filter((r: any) => {
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+    if (categoryFilter !== "ALL" && revisionCategory(r) !== categoryFilter) return false;
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());
-  }), [revisions, statusFilter, search]);
+  }), [baseVisible, statusFilter, categoryFilter, search]);
+
 
   // Revisions that land in THIS payroll month for the first time:
   //  · CTC revisions whose effective_from falls inside the month

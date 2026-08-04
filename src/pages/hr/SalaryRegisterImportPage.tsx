@@ -526,10 +526,27 @@ export default function SalaryRegisterImportPage({
         if ((derived as any)?.status === "derived") derivedCount++;
       }
 
+      // Classify the register's dynamic pay heads, then reconcile one-time payouts
+      // against what HRMS recorded for the same month.
+      let reconNote = "";
+      try {
+        await (supabase as any).rpc("hr_sync_pay_head_lines", { p_period: periodMonth });
+        const { data: rc } = await (supabase as any).rpc("hr_reconcile_one_time_payouts", { p_period: periodMonth });
+        if (rc) {
+          setRecon(rc as any);
+          const ro = (rc as any).register_only?.length ?? 0;
+          const ho = (rc as any).hrms_only?.length ?? 0;
+          if (ro || ho) reconNote = ` · ${ro + ho} one-time payout exception${ro + ho > 1 ? "s" : ""}`;
+        }
+      } catch (e: any) {
+        console.error("pay head reconciliation failed", e);
+      }
+
       setResult({ updated, missing, mismatch });
       toast.success(
-        `Imported ${updated} rows${derivedCount ? ` · derived statutory enrollment for ${derivedCount} employees` : ""}. ${missing.length ? `${missing.length} not matched.` : "All matched."}`,
+        `Imported ${updated} rows${derivedCount ? ` · derived statutory enrollment for ${derivedCount} employees` : ""}${reconNote}. ${missing.length ? `${missing.length} not matched.` : "All matched."}`,
       );
+
       await qc.invalidateQueries({ queryKey: ["payslip_records_for_period", periodMonth] });
       await qc.invalidateQueries({ queryKey: ["payslip_email_roster", periodMonth] });
       await qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", periodMonth] });

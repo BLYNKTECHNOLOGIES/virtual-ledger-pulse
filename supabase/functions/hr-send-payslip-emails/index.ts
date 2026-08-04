@@ -25,6 +25,8 @@ type Row = {
   paid_days: number | null
   month_days: number
   bank_last4: string | null
+  employer_contrib: number
+  deduction_breakdown: { label: string; amount: number }[]
   pdf_path: string | null
   already_sent_at: string | null
   blockers: string[]
@@ -100,6 +102,28 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>
     </table>` : ''
 
+  const dedRowsHtml = row.deduction_breakdown.map((d) => `
+      <tr>
+        <td style="padding:8px 16px;color:#64748b;font-size:13px;">${esc(d.label)}</td>
+        <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
+      </tr>`).join('')
+
+  const dedBlock = row.deduction_breakdown.length > 0 ? `
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 24px;">
+      <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Deduction break-up</td></tr>
+      ${dedRowsHtml}
+      <tr>
+        <td style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">Total deductions</td>
+        <td align="right" style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${inr(row.deductions)}</td>
+      </tr>
+    </table>` : ''
+
+  const employerBlock = row.employer_contrib > 0 ? `
+    <p style="margin:0 0 24px;font-size:12.5px;color:#64748b;line-height:1.6;">
+      In addition, the company has contributed <strong style="color:#0f172a;">${inr(row.employer_contrib)}</strong> towards your
+      employer-side statutory benefits (PF / ESIC / LWF) for this month. This is paid by the company and is not deducted from your salary.
+    </p>` : ''
+
   const paidDaysRow = row.paid_days !== null ? `
       <tr>
         <td style="padding:12px 16px;color:#64748b;">Paid days</td>
@@ -142,6 +166,8 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>${paidDaysRow}
     </table>
 
+    ${dedBlock}
+    ${employerBlock}
     ${lopBlock}
     ${bonusBlock}
 
@@ -199,7 +225,7 @@ Deno.serve(async (req) => {
         admin.from('hr_employees').select('id, first_name, last_name, email, is_active, badge_id'),
         admin.from('hr_payroll_input_deductions').select('hr_employee_id, label, amount, lop_days, source, readback_verified_at, pushed_at').eq('period_month', month),
         admin.from('hr_payroll_input_additions').select('hr_employee_id, label, amount, readback_verified_at, pushed_at').eq('period_month', month),
-        admin.from('hr_email_send_log').select('metadata, created_at, status').eq('template_name', TEMPLATE),
+        admin.from('hr_email_send_log').select('metadata, created_at, status').eq('template_name', TEMPLATE).filter('metadata->>period_month', 'eq', month),
         admin.from('hr_payroll_month_meta').select('processed_on').eq('period_month', month).maybeSingle(),
       ])
     if (recErr) return json({ error: recErr.message }, 500)
@@ -215,6 +241,7 @@ Deno.serve(async (req) => {
     }
 
     const mDays = daysInMonth(month)
+    const processedOn = (meta as any)?.processed_on ?? null
 
     const rows: Row[] = (records ?? []).map((p: any) => {
       const emp = p.hr_employee_id ? empById.get(p.hr_employee_id) : null
@@ -222,9 +249,39 @@ Deno.serve(async (req) => {
       const email = emp?.email || p.reg_personal_email || null
 
       const hasReg = p.reg_gross_salary !== null && p.reg_gross_salary !== undefined
-      const gross = Number(hasReg ? p.reg_gross_salary : p.gross_earnings) || 0
+      const num = (v: any) => Math.abs(Number(v) || 0)
+
+      // The RazorpayX Salary Register is CTC-inclusive: reg_gross_salary carries the
+      // employer-side statutory cost, and reg_net_pay is net of BOTH employee and
+      // employer contributions. An employee-facing payslip must never show employer
+      // contributions as a deduction, so carve them out of gross first.
+      const employer_contrib = hasReg
+        ? Math.max(num(p.reg_pf_er), num(p.reg_employer_pf_contr)) +
+          Math.max(num(p.reg_esi_er), num(p.reg_employer_esi_contr)) +
+          num(p.reg_lwf_er)
+        : 0
+      const gross = hasReg
+        ? Number(p.reg_gross_salary) - employer_contrib
+        : Number(p.gross_earnings) || 0
       const net = Number(hasReg ? p.reg_net_pay : p.net_pay) || 0
-      const deductions = hasReg ? Math.max(0, gross - net) : Number(p.total_deductions) || 0
+      const deductions = hasReg ? gross - net : Number(p.total_deductions) || 0
+
+      const deduction_breakdown: { label: string; amount: number }[] = []
+      if (hasReg) {
+        const push = (label: string, v: any) => { const a = num(v); if (a > 0) deduction_breakdown.push({ label, amount: a }) }
+        push('Provident Fund (employee)', p.reg_pf_ee)
+        push('ESIC (employee)', p.reg_esi_ee)
+        push('Professional Tax', p.reg_pt)
+        push('Labour Welfare Fund', p.reg_lwf_ee)
+        push('TDS / Income Tax', p.reg_tds)
+        push('Salary advance recovery', p.reg_advance_salary)
+        push('Loan / EMI recovery', p.reg_loan_emi)
+        const listed = deduction_breakdown.reduce((s2, d) => s2 + d.amount, 0)
+        const residual = Math.round((deductions - listed) * 100) / 100
+        if (Math.abs(residual) > TIE_OUT_TOLERANCE) {
+          deduction_breakdown.push({ label: 'Other deductions', amount: residual })
+        }
+      }
 
       const empDeds = (dedRows ?? []).filter((d: any) => d.hr_employee_id === p.hr_employee_id)
       const lopRows = empDeds.filter((d: any) => String(d.label || '').toLowerCase().includes('lop') && d.readback_verified_at)
@@ -252,6 +309,8 @@ Deno.serve(async (req) => {
         blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
       }
       if (net <= 0) blockers.push('Net pay is zero or negative')
+      if (deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
+      if (!processedOn) blockers.push('Salary credit date not set for this month')
 
       return {
         employee_id: p.hr_employee_id,
@@ -269,14 +328,14 @@ Deno.serve(async (req) => {
         paid_days,
         month_days: mDays,
         bank_last4: p.reg_bank_acc_no ? String(p.reg_bank_acc_no).slice(-4) : null,
+        employer_contrib,
+        deduction_breakdown,
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,
         blockers,
         sendable: blockers.length === 0,
       }
     }).sort((a: Row, b: Row) => a.name.localeCompare(b.name))
-
-    const processedOn = (meta as any)?.processed_on ?? null
 
     if (mode === 'roster') {
       return json({ month, register_present: registerPresent, processed_on: processedOn, rows })

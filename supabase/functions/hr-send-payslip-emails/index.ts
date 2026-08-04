@@ -30,8 +30,10 @@ type Row = {
   deduction_breakdown: { label: string; amount: number }[]
   pdf_path: string | null
   already_sent_at: string | null
+  not_processed: boolean
   blockers: string[]
   sendable: boolean
+
 }
 
 const inr = (n: number) =>
@@ -334,20 +336,37 @@ Deno.serve(async (req) => {
         ? Number(p.reg_working_days)
         : (lop_days > 0 ? mDays - lop_days : null)
 
+      // --- "Was this person's salary actually processed this month?" -------
+      // A payslip email is a statement that money was credited. It must NEVER
+      // go out for someone who was not part of the disbursed run. Authoritative
+      // signals, in order: do-not-pay flag, absence from the processed Salary
+      // Register once it is imported, and zero/negative net pay.
+      const not_processed =
+        !!p.do_not_pay ||
+        (registerPresent && !hasReg) ||
+        (hasReg && !(Number(p.reg_net_pay) > 0)) ||
+        (!hasReg && !(Number(p.net_pay) > 0))
+
       const blockers: string[] = []
+      if (not_processed) {
+        blockers.push(
+          p.do_not_pay
+            ? 'Salary not processed this month — marked do-not-pay'
+            : 'Salary not processed this month — not part of the processed payroll run',
+        )
+      }
       if (!registerPresent) blockers.push('Salary Register CSV not imported for this month')
-      if (!hasReg) blockers.push('No Salary Register row for this employee')
-      if (p.do_not_pay) blockers.push('Marked do-not-pay')
+      if (registerPresent && !hasReg && !p.do_not_pay) blockers.push('No Salary Register row for this employee')
       if (p.reg_has_left) blockers.push('Employee has left / relieved')
       if (emp && emp.is_active === false) blockers.push('Employee inactive')
       if (!email) blockers.push('No email address on record')
       if (!p.pdf_storage_path) blockers.push('Payslip PDF not uploaded')
-      if (Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
+      if (!not_processed && Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
         blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
       }
-      if (net <= 0) blockers.push('Net pay is zero or negative')
-      if (deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
+      if (!not_processed && deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
       if (!processedOn) blockers.push('Salary credit date not set for this month')
+
 
       return {
         employee_id: p.hr_employee_id,
@@ -370,8 +389,10 @@ Deno.serve(async (req) => {
         deduction_breakdown,
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,
+        not_processed,
         blockers,
-        sendable: blockers.length === 0,
+        sendable: blockers.length === 0 && !not_processed,
+
       }
     }).sort((a: Row, b: Row) => a.name.localeCompare(b.name))
 
@@ -391,10 +412,23 @@ Deno.serve(async (req) => {
 
     const ids: string[] = Array.isArray(body.employee_ids) ? body.employee_ids : []
     const force = !!body.force_resend
-    let targets = rows.filter((r) => ids.includes(r.employee_id) && r.sendable)
+
+    // Hard stop: never email a payslip to somebody whose salary was not
+    // processed this month (do-not-pay, absent from the register, zero net).
+    // This is enforced even when force_resend is set.
+    const unprocessed = rows.filter((r) => ids.includes(r.employee_id) && r.not_processed)
+    if (unprocessed.length > 0) {
+      return json({
+        error: `Salary was not processed this month for: ${unprocessed.map((r) => r.name).join(', ')}. Payslip emails cannot be sent to them.`,
+        not_processed: unprocessed.map((r) => ({ employee_id: r.employee_id, name: r.name })),
+      }, 400)
+    }
+
+    let targets = rows.filter((r) => ids.includes(r.employee_id) && r.sendable && !r.not_processed)
     if (!force) targets = targets.filter((r) => !r.already_sent_at)
     if (mode === 'preview') targets = targets.slice(0, 1)
     if (targets.length === 0) return json({ error: 'No sendable recipients in the selection' }, 400)
+
 
     const previewTo: string | null = mode === 'preview' ? (body.preview_to || userRes.user.email || null) : null
     if (mode === 'preview' && !previewTo) return json({ error: 'No preview recipient' }, 400)

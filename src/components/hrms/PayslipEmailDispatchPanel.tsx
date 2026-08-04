@@ -40,8 +40,10 @@ interface DispatchRow {
   deduction_breakdown?: { label: string; amount: number }[];
   pdf_path: string | null;
   already_sent_at: string | null;
+  not_processed?: boolean;
   blockers: string[];
   sendable: boolean;
+
 }
 
 interface RosterResponse {
@@ -543,7 +545,13 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                       <Badge variant="outline" className="mt-1 text-[10px]">
                         {r.basis === "register_csv" ? "register CSV" : "razorpay API"}
                       </Badge>
+                      {r.not_processed && (
+                        <Badge variant="destructive" className="mt-1 ml-1 text-[10px]">
+                          not processed
+                        </Badge>
+                      )}
                     </td>
+
                     <td className="p-2 text-right align-top tabular-nums">{inr(r.gross)}</td>
                     <td
                       className="p-2 text-right align-top tabular-nums"

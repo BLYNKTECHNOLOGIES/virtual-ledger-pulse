@@ -20,6 +20,7 @@ import {
   Briefcase,
   AlertTriangle,
   
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

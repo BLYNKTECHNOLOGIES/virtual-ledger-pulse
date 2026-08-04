@@ -123,6 +123,7 @@ const OrganizationPage = lazy(() => import('./pages/horilla/OrganizationPage'));
 const DocumentsPage = lazy(() => import('./pages/horilla/DocumentsPage'));
 const AnnouncementsPage = lazy(() => import('./pages/horilla/AnnouncementsPage'));
 const ReportsPage = lazy(() => import('./pages/horilla/ReportsPage'));
+const RegistersPage = lazy(() => import('./pages/horilla/RegistersPage'));
 const SalaryRegisterProjectionPage = lazy(() => import('./pages/horilla/SalaryRegisterProjectionPage'));
 const PMSDashboardPage = lazy(() => import('./pages/horilla/PMSDashboardPage'));
 

@@ -415,42 +415,31 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         <DialogHeader>
           <DialogTitle>Compensation Change</DialogTitle>
           <DialogDescription>
-            Record a recurring salary revision (CTC change), a one-time payout (bonus, incentive), or a statutory enrollment toggle (PF / ESI / PT — used for training-period exemptions).
+            Record a CTC change, stage an addition or deduction on a payroll month, log a one-time payout paid outside payroll, or toggle statutory enrollment (PF / ESI / PT).
           </DialogDescription>
         </DialogHeader>
 
         {/* Mode toggle */}
         <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted rounded-lg">
-          <button
-            type="button"
-            onClick={() => setMode("recurring")}
-            className={cn(
-              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
-              mode === "recurring" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-            )}
-          >
-            CTC change
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("one_time")}
-            className={cn(
-              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
-              mode === "one_time" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-            )}
-          >
-            One-time payout
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("statutory")}
-            className={cn(
-              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
-              mode === "statutory" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-            )}
-          >
-            Statutory toggle
-          </button>
+          {([
+            { key: "recurring", label: "CTC change" },
+            { key: "addition", label: "Addition" },
+            { key: "deduction", label: "Deduction" },
+            { key: "one_time", label: "One-time payout" },
+            { key: "statutory", label: "Statutory toggle" },
+          ] as { key: Mode; label: string }[]).map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              onClick={() => setMode(m.key)}
+              className={cn(
+                "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
+                mode === m.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              )}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
 
 
@@ -476,7 +465,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             )}
           </div>
 
-          {mode !== "statutory" && (
+          {(mode === "recurring" || mode === "one_time") && (
             <div>
               <Label>Type</Label>
               <Select value={revisionType} onValueChange={setRevisionType}>
@@ -487,6 +476,92 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </Select>
             </div>
           )}
+
+          {(mode === "addition" || mode === "deduction") && (
+            <>
+              {employeeId && razorpayEmployeeId === null && (
+                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
+                  This employee is not linked to RazorpayX — link them from Data Health before staging payroll inputs.
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Amount ₹</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={inputAmount}
+                    onChange={(e) => setInputAmount(e.target.value)}
+                    className="text-foreground"
+                    placeholder="e.g. 5000"
+                  />
+                </div>
+                <div>
+                  <Label>Payroll month</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal text-foreground">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {format(inputPeriod, "MMM yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={inputPeriod}
+                        onSelect={(d) => d && setInputPeriod(startOfMonth(d))}
+                        disabled={(d) => startOfMonth(d) < startOfMonth(new Date())}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-[11px] text-muted-foreground mt-1">Current month onwards only — no backdating.</p>
+                </div>
+              </div>
+
+              <div>
+                <Label>Label <span className="text-destructive">*</span></Label>
+                <Input
+                  value={inputLabel}
+                  onChange={(e) => setInputLabel(e.target.value)}
+                  className="text-foreground"
+                  placeholder={mode === "addition" ? "e.g. Performance bonus" : "e.g. Asset damage recovery"}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">This becomes the head shown on the RazorpayX run and the payslip.</p>
+              </div>
+
+              {mode === "addition" && (
+                <div className="grid grid-cols-2 gap-3 items-end">
+                  <div>
+                    <Label>Addition kind</Label>
+                    <Select value={additionKind} onValueChange={setAdditionKind}>
+                      <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {ADDITION_KINDS.map(k => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <label className="flex items-center gap-2 pb-2">
+                    <Switch checked={taxable} onCheckedChange={setTaxable} />
+                    <span className="text-sm text-foreground">Taxable</span>
+                  </label>
+                </div>
+              )}
+
+              <div>
+                <Label>Notes</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="text-foreground" placeholder="Optional details" rows={2} />
+              </div>
+
+              <div className="text-xs bg-muted/50 border border-border rounded p-2 text-muted-foreground">
+                This is staged into that month's payroll inputs. Push it to RazorpayX from the Payroll Cockpit
+                (Step 5 · Additions & Deductions) — nothing is sent from here.
+              </div>
+            </>
+          )}
+
+
 
 
           {mode === "recurring" ? (

@@ -13596,6 +13596,69 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_salary_revision_deletions: {
+        Row: {
+          created_at: string
+          delete_reason: string | null
+          deleted_by: string | null
+          effective_from: string | null
+          employee_id: string | null
+          id: string
+          one_time_amount: number | null
+          payout_month: string | null
+          payroll_input_id: string | null
+          payroll_input_kind: string | null
+          payroll_input_removed: boolean
+          razorpay_pushed_at: string | null
+          razorpay_reversal_required: boolean
+          revision_id: string
+          revision_reason: string | null
+          revision_type: string | null
+          snapshot: Json
+          status: string | null
+        }
+        Insert: {
+          created_at?: string
+          delete_reason?: string | null
+          deleted_by?: string | null
+          effective_from?: string | null
+          employee_id?: string | null
+          id?: string
+          one_time_amount?: number | null
+          payout_month?: string | null
+          payroll_input_id?: string | null
+          payroll_input_kind?: string | null
+          payroll_input_removed?: boolean
+          razorpay_pushed_at?: string | null
+          razorpay_reversal_required?: boolean
+          revision_id: string
+          revision_reason?: string | null
+          revision_type?: string | null
+          snapshot: Json
+          status?: string | null
+        }
+        Update: {
+          created_at?: string
+          delete_reason?: string | null
+          deleted_by?: string | null
+          effective_from?: string | null
+          employee_id?: string | null
+          id?: string
+          one_time_amount?: number | null
+          payout_month?: string | null
+          payroll_input_id?: string | null
+          payroll_input_kind?: string | null
+          payroll_input_removed?: boolean
+          razorpay_pushed_at?: string | null
+          razorpay_reversal_required?: boolean
+          revision_id?: string
+          revision_reason?: string | null
+          revision_type?: string | null
+          snapshot?: Json
+          status?: string | null
+        }
+        Relationships: []
+      }
       hr_salary_revisions: {
         Row: {
           approved_by: string | null
@@ -24916,6 +24979,10 @@ export type Database = {
             }
             Returns: string
           }
+      hr_delete_salary_revision: {
+        Args: { p_reason?: string; p_revision_id: string }
+        Returns: Json
+      }
       hr_derive_all_statutory_enrollments: { Args: never; Returns: Json }
       hr_derive_statutory_enrollment_from_history: {
         Args: { p_employee_id: string }

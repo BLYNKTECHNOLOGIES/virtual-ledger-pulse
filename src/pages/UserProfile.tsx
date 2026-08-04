@@ -527,7 +527,7 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                         </div>
                       </div>
                     </div>
-                    {(Number(p.loan_emi) > 0 || Number(p.advance_salary) > 0 || Number(p.one_time_payments) > 0) && (
+                    {(Number(p.loan_emi) > 0 || Number(p.advance_salary) > 0 || oneTimeHeads.length > 0 || oneTimeRecovery > 0) && (
                       <div className="mt-3">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Other</p>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
@@ -537,10 +537,20 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                           {Number(p.advance_salary) > 0 && (
                             <div className="flex justify-between border-b border-border/50 py-1"><span className="text-muted-foreground">Advance</span><span className="font-medium tabular-nums">{fmt(p.advance_salary)}</span></div>
                           )}
-                          {Number(p.one_time_payments) > 0 && (
-                            <div className="flex justify-between border-b border-border/50 py-1"><span className="text-muted-foreground">One-time</span><span className="font-medium tabular-nums">{fmt(p.one_time_payments)}</span></div>
-                          )}
+                          {oneTimeHeads.map((l) => (
+                            <div key={l.label} className="flex justify-between border-b border-border/50 py-1">
+                              <span className="text-muted-foreground">{l.label} (paid separately)</span>
+                              <span className="font-medium tabular-nums">{fmt(l.amount)}</span>
+                            </div>
+                          ))}
                         </div>
+                        {oneTimeRecovery > 0 && (
+                          <p className="text-[11px] text-muted-foreground mt-2">
+                            One-time payments totalling {fmt(oneTimeRecovery)} were settled outside this month's salary,
+                            so they appear in the gross above and are subtracted again before net pay. Your regular salary for
+                            the month is {fmt(p.regular_gross)}.
+                          </p>
+                        )}
                       </div>
                     )}
                     {(Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
@@ -548,6 +558,7 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                         Employer contribution: PF {fmt(p.employer_pf)} · ESI {fmt(p.employer_esi)} (not deducted from net)
                       </div>
                     )}
+
                   </>
                 ) : (
                   <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">

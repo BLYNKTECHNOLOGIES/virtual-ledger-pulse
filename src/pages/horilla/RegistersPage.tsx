@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { FileSpreadsheet, ArrowRight, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { HorillaPageHeader } from "@/components/horilla/HorillaPageHeader";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 type RegisterEntry = {
   key: string;
@@ -44,7 +44,7 @@ const REGISTERS: RegisterEntry[] = [
 export default function RegistersPage() {
   return (
     <div className="space-y-4">
-      <HorillaPageHeader
+      <PageHeader
         title="Registers"
         description="Period-wise registers generated from HRMS data. Open a register to view, filter and export it."
       />

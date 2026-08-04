@@ -788,6 +788,7 @@ const router = createBrowserRouter([
         { path: "documents", element: <DocumentsPage /> },
         { path: "announcements", element: <AnnouncementsPage /> },
         { path: "reports", element: <ReportsPage /> },
+        { path: "registers", element: <RegistersPage /> },
         { path: "reports/salary-register-projection", element: <SalaryRegisterProjectionPage /> },
         { path: "onboarding-pipeline", element: <EmployeeOnboardingPipelinePage /> },
         { path: "disciplinary-actions", element: <DisciplinaryActionsPage /> },

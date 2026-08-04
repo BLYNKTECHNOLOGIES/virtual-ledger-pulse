@@ -312,9 +312,61 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Do-Not-Pay register for this period. When HR marks an employee do-not-pay
+    // (pushed to RazorpayX and mirrored back onto the payslip record), the ERP
+    // payroll engine must treat the month as NOT PAYABLE for that person:
+    // zero gross, zero statutory, zero net — and they must not contribute to
+    // any run total. Recoveries/LOP are meaningless on an unpaid month.
+    const doNotPayEmp = new Set<string>();
+    {
+      const { data: dnpRows, error: dnpErr } = await supabase
+        .from("hr_razorpay_payslip_records")
+        .select("hr_employee_id, do_not_pay")
+        .eq("period_month", periodStr)
+        .eq("do_not_pay", true);
+      if (dnpErr) console.error("do_not_pay fetch err", dnpErr);
+      for (const r of dnpRows ?? []) if (r.hr_employee_id) doNotPayEmp.add(r.hr_employee_id);
+    }
 
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
+
+      if (doNotPayEmp.has(emp.id)) {
+        const { error: dnpLineErr } = await supabase
+          .from("hr_shadow_payroll_lines")
+          .upsert({
+            run_id: newRun.id,
+            hr_employee_id: emp.id,
+            period_month: periodStr,
+            monthly_ctc: 0,
+            monthly_gross: 0,
+            earnings_total: 0,
+            additions_total: 0,
+            lop_days: 0,
+            lop_amount: 0,
+            pf_employee: 0,
+            pf_employer: 0,
+            esi_employee: 0,
+            esi_employer: 0,
+            pt_amount: 0,
+            tds_amount: 0,
+            deductions_total: 0,
+            net_pay: 0,
+            compute_notes: {
+              do_not_pay: true,
+              reason: "Marked do-not-pay for this period — month is not payable, so the engine books zero earnings, zero statutory and zero net.",
+              ctc_model: "all_inclusive",
+            },
+          }, { onConflict: "run_id,hr_employee_id" });
+        if (dnpLineErr) {
+          skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `dnp_line_upsert: ${dnpLineErr.message}` });
+        } else {
+          skipped.push({ employee_id: emp.id, name: empName, reason: "do_not_pay", detail: "Excluded from run totals: marked do-not-pay for this period." });
+        }
+        continue;
+      }
+
+
 
       // Salary snapshot — resolved through the SHARED ladder so the auto-LOP
       // generator and this engine can never disagree on the monthly base.

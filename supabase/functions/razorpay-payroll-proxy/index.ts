@@ -7527,6 +7527,46 @@ Deno.serve(async (req) => {
               }).in("id", rbIds);
             }
 
+            // Mirror the verified do-not-pay state onto the period's payslip
+            // record so the ERP payroll engine and the payslip-email gate see it
+            // immediately, without waiting for the next RazorpayX pull.
+            if (action === "payroll_do_not_pay" && readbackReceipt?.read_ok && rbEid) {
+              const dnpMonth = `${String(rbMonth).slice(0, 7)}-01`;
+              const rpIdStr = String(rbEid);
+              const { data: mapRow } = await svc
+                .from("hr_razorpay_employee_map")
+                .select("hr_employee_id")
+                .eq("razorpay_employee_id", rpIdStr)
+                .maybeSingle();
+              const { data: existingRec } = await svc
+                .from("hr_razorpay_payslip_records")
+                .select("id, hr_employee_id")
+                .eq("period_month", dnpMonth)
+                .eq("razorpay_employee_id", rpIdStr)
+                .maybeSingle();
+              if (existingRec?.id) {
+                await svc.from("hr_razorpay_payslip_records")
+                  .update({
+                    do_not_pay: readbackDoNotPay,
+                    hr_employee_id: existingRec.hr_employee_id ?? mapRow?.hr_employee_id ?? null,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", existingRec.id);
+              } else if (readbackDoNotPay) {
+                await svc.from("hr_razorpay_payslip_records").insert({
+                  period_month: dnpMonth,
+                  razorpay_employee_id: rpIdStr,
+                  hr_employee_id: mapRow?.hr_employee_id ?? null,
+                  do_not_pay: true,
+                  net_pay: 0,
+                  gross_earnings: 0,
+                  total_deductions: 0,
+                });
+              }
+            }
+
+
+
           } catch (e) {
             readbackReceipt = { ok: false, error: `NETWORK: ${(e as Error).message}` };
           } finally { clearTimeout(rbT); }

@@ -14,6 +14,7 @@ import {
 import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp, UserMinus } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { MonthlyPayrollBreakdownDialog } from "@/components/hrms/MonthlyPayrollBreakdownDialog";
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
 
@@ -32,6 +33,7 @@ export default function ReportsPage() {
     return d.toISOString().slice(0, 10);
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [drillMonth, setDrillMonth] = useState<string | null>(null);
 
   // ─── Sources of truth ───
   // Roster: hr_employees + hr_employee_work_info (joining_date lives on work info).
@@ -359,7 +361,14 @@ export default function ReportsPage() {
           <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Payroll Cost Trend</CardTitle></CardHeader>
           <CardContent>
             {payrollMonths.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}><LineChart data={payrollMonths}>
+              <ResponsiveContainer width="100%" height={220}><LineChart
+                data={payrollMonths}
+                style={{ cursor: "pointer" }}
+                onClick={(st: any) => {
+                  const k = st?.activePayload?.[0]?.payload?.key || payrollMonths[st?.activeTooltipIndex]?.key;
+                  if (k) setDrillMonth(k);
+                }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
                 <Tooltip formatter={(v: any) => inr(Number(v))} />
                 <Line type="monotone" dataKey="gross" name="Gross" stroke="#E8604C" strokeWidth={2} />
@@ -367,7 +376,7 @@ export default function ReportsPage() {
                 <Line type="monotone" dataKey="deductions" name="Deductions" stroke="#10B981" strokeWidth={1.5} strokeDasharray="5 5" />
               </LineChart></ResponsiveContainer>
             ) : <NoData reason="No payslips exist for the selected months." />}
-            <Source>RazorpayX payslip mirror (hr_payslips_v), grouped by pay period</Source>
+            <Source>RazorpayX payslip mirror (hr_payslips_v), grouped by pay period · click any month for the employee-by-employee breakdown</Source>
           </CardContent>
         </Card>
 
@@ -487,6 +496,15 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <MonthlyPayrollBreakdownDialog
+        monthKey={drillMonth}
+        monthLabel={drillMonth ? monthLabel(drillMonth) : ""}
+        onClose={() => setDrillMonth(null)}
+        empName={empName}
+        deptOf={deptOf}
+        empBadge={(id) => (empById.get(id) as any)?.badge_id || "—"}
+      />
     </div>
   );
 }

@@ -208,13 +208,18 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
                     <span className="text-muted-foreground">Gross</span>
-                    <span className="text-right text-foreground">{INR(r.gross_earnings)}</span>
+                    <span className="text-right text-foreground">{INR(d.gross)}</span>
                     <span className="text-muted-foreground">Deductions</span>
-                    <span className="text-right text-destructive">{INR(r.total_deductions)}</span>
+                    <span className="text-right text-destructive">{d.hasRegister ? INR(d.deductions) : <NotImported />}</span>
+                    <span className="text-muted-foreground">PF · ESI · PT</span>
+                    <span className="text-right text-foreground">
+                      {d.hasRegister ? `${INR(d.pf)} · ${INR(d.esi)} · ${INR(d.pt)}` : <NotImported />}
+                    </span>
                     <span className="text-muted-foreground">Net Pay</span>
-                    <span className="text-right font-semibold text-foreground">{INR(r.net_pay)}</span>
+                    <span className="text-right font-semibold text-foreground">{INR(d.net)}</span>
                   </div>
                 </div>
+
               );
             })}
           </div>

@@ -106,51 +106,14 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>
     </table>` : ''
 
-  const dedRowsHtml = row.deduction_breakdown.map((d) => `
-      <tr>
-        <td style="padding:8px 16px;color:#64748b;font-size:13px;">${esc(d.label)}</td>
-        <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
-      </tr>`).join('')
-
-  const earnRowsHtml = row.earning_breakdown.map((d) => `
-      <tr>
-        <td style="padding:8px 16px;color:#64748b;font-size:13px;">${esc(d.label)}</td>
-        <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
-      </tr>`).join('')
-
-  const earnBlock = row.earning_breakdown.length > 0 ? `
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 16px;">
-      <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Earnings break-up</td></tr>
-      ${earnRowsHtml}
-      <tr>
-        <td style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">Gross earnings</td>
-        <td align="right" style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${inr(row.gross)}</td>
-      </tr>
-    </table>` : ''
-
-  const dedBlock = row.deduction_breakdown.length > 0 ? `
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 24px;">
-      <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Deduction break-up</td></tr>
-      ${dedRowsHtml}
-      <tr>
-        <td style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">Total deductions</td>
-        <td align="right" style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${inr(row.deductions)}</td>
-      </tr>
-    </table>` : ''
-
-  const employerBlock = row.employer_contrib > 0 ? `
-    <p style="margin:0 0 24px;font-size:12.5px;color:#64748b;line-height:1.6;">
-      In addition, the company has contributed <strong style="color:#0f172a;">${inr(row.employer_contrib)}</strong> towards your
-      employer-side statutory benefits (PF / ESIC / LWF) for this month. This is paid by the company and is not deducted from your salary.
-    </p>` : ''
-
+  // Summary-only email — the attached payslip PDF carries the full break-up.
   const paidDaysRow = row.paid_days !== null ? `
       <tr>
         <td style="padding:12px 16px;color:#64748b;">Paid days</td>
         <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;">${row.paid_days.toFixed(1)} of ${row.month_days.toFixed(1)}</td>
       </tr>` : ''
 
-  return `<!DOCTYPE html>
+  return (`<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#eef1f5;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;padding:32px 12px;"><tr><td align="center">
 <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 14px rgba(15,23,42,.08);">
@@ -186,12 +149,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>${paidDaysRow}
     </table>
 
-    ${earnBlock}
-    ${dedBlock}
-    ${employerBlock}
-    ${lopBlock}
-    ${bonusBlock}
-
+${lopBlock}${bonusBlock}
     <p style="margin:0;font-size:13.5px;color:#64748b;line-height:1.65;">
       Please retain the attached payslip for your records. It contains the complete break-up of your earnings,
       deductions and statutory contributions (PF / ESIC / PT / TDS).
@@ -211,7 +169,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
     </div>
   </td></tr>
 
-</table></td></tr></table></body></html>`
+</table></td></tr></table></body></html>`).replace(/[ \t]+$/gm, '')
 }
 
 Deno.serve(async (req) => {

@@ -347,13 +347,21 @@ function computeInsights(rows: ParsedRow[]) {
     pli,
     employerCost,
     customPayHeads,
+    totalAdvance: sum("reg_advance_salary"),
+    totalLoanEmi: sum("reg_loan_emi"),
+    otpPayout: rows.reduce((a, r) => a + Math.max(Number(r.reg_one_time_payments ?? 0) || 0, 0), 0),
+    otpRecovery: rows.reduce((a, r) => a + Math.max(-(Number(r.reg_one_time_payments ?? 0) || 0), 0), 0),
     withUan: count(r => !!r.reg_pf_uan),
     withEsi: count(r => !!r.reg_esi_number),
     withPan: count(r => !!r.reg_pan),
-    withPt: count(r => Number(r.reg_pt ?? 0) > 0),
+    withPt: count(r => Math.abs(Number(r.reg_pt ?? 0)) > 0),
+    withAdvance: count(r => Math.abs(Number(r.reg_advance_salary ?? 0)) > 0),
+    withLoan: count(r => Math.abs(Number(r.reg_loan_emi ?? 0)) > 0),
+    withOtp: count(r => Math.abs(Number(r.reg_one_time_payments ?? 0)) > 0),
     separated: count(r => r.reg_has_left === true),
   };
 }
+
 
 export default function SalaryRegisterImportPage({
   initialMonth,

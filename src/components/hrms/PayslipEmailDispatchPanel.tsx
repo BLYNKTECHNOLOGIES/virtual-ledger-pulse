@@ -115,7 +115,13 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
   const processedOn = rosterQ.data?.processed_on ?? null;
 
   const sendable = useMemo(() => rows.filter((r) => r.sendable && !r.already_sent_at), [rows]);
+  // Employees whose salary was not processed this month are not payslip recipients
+  // at all — keep them out of the roster unless HR explicitly asks to see them.
+  const excludedRows = useMemo(() => rows.filter((r) => r.not_processed), [rows]);
+  const payrollRows = useMemo(() => rows.filter((r) => !r.not_processed), [rows]);
+  const visibleRows = showExcluded ? rows : payrollRows;
   const sentCount = rows.filter((r) => r.already_sent_at).length;
+
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
 
   const setProcessed = useMutation({

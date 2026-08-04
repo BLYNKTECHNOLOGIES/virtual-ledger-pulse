@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { Switch } from "@/components/ui/switch";
+import { additionTypeCode } from "@/lib/hrms/additionType";
 
 
 const RECURRING_TYPES = [
@@ -40,7 +41,16 @@ interface Props {
   presetEmployeeId?: string;
 }
 
-type Mode = "recurring" | "one_time" | "statutory";
+type Mode = "recurring" | "addition" | "deduction" | "one_time" | "statutory";
+
+const ADDITION_KINDS = [
+  { value: "bonus", label: "Bonus" },
+  { value: "arrears", label: "Arrears" },
+  { value: "reimbursement", label: "Reimbursement" },
+  { value: "other", label: "Other" },
+];
+
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 
 export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Props) {
   const qc = useQueryClient();
@@ -58,6 +68,16 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const [oneTimeAmount, setOneTimeAmount] = useState<string>("");
   const [payoutMonth, setPayoutMonth] = useState<Date>(new Date());
   const [notes, setNotes] = useState<string>("");
+
+  // Payroll input (addition / deduction) fields
+  const [inputAmount, setInputAmount] = useState<string>("");
+  const [inputLabel, setInputLabel] = useState<string>("");
+  const [inputPeriod, setInputPeriod] = useState<Date>(startOfMonth(new Date()));
+  const [additionKind, setAdditionKind] = useState<string>("bonus");
+  const [taxable, setTaxable] = useState<boolean>(true);
+
+  // One-time payout (record-only) payment date
+  const [paidOn, setPaidOn] = useState<Date>(new Date());
 
   // Statutory toggle fields (null = "use global default")
   const [pfEnabled, setPfEnabled] = useState<boolean | null>(null);
@@ -82,6 +102,12 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       setOneTimeAmount("");
       setPayoutMonth(new Date());
       setNotes("");
+      setInputAmount("");
+      setInputLabel("");
+      setInputPeriod(startOfMonth(new Date()));
+      setAdditionKind("bonus");
+      setTaxable(true);
+      setPaidOn(new Date());
       setPfEnabled(null);
       setEsiEnabled(null);
       setPtEnabled(null);
@@ -92,8 +118,11 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   useEffect(() => {
     if (mode === "recurring") setRevisionType("increment");
     else if (mode === "one_time") setRevisionType("bonus");
+    else if (mode === "addition") setRevisionType("payroll_addition");
+    else if (mode === "deduction") setRevisionType("payroll_deduction");
     else setRevisionType("statutory_toggle");
   }, [mode]);
+
 
 
   const { data: employees = [] } = useQuery({
@@ -114,6 +143,22 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
     () => employees.find((e: any) => e.id === employeeId),
     [employees, employeeId],
   );
+
+  // RazorpayX link — required to stage additions / deductions on a payroll month.
+  const { data: razorpayEmployeeId } = useQuery({
+    queryKey: ["hr_razorpay_map_for_revision", employeeId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", employeeId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.razorpay_employee_id as string | undefined) ?? null;
+    },
+    enabled: open && !!employeeId,
+  });
+
 
   // Seed statutory switches from the selected employee's current flags
   useEffect(() => {
@@ -169,28 +214,79 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         return { kind: "recurring", data };
       }
 
+      if (mode === "addition" || mode === "deduction") {
+        const amt = parseFloat(inputAmount);
+        if (!amt || amt <= 0) throw new Error("Enter a valid amount");
+        if (!inputLabel.trim()) throw new Error("Enter a label — it appears on the payroll run and payslip");
+        if (startOfMonth(inputPeriod) < startOfMonth(new Date()))
+          throw new Error("Backdated additions / deductions are not allowed — pick the current month or a future month");
+        if (!razorpayEmployeeId)
+          throw new Error("Employee is not linked to RazorpayX — link them from Data Health first.");
+
+        const period = format(startOfMonth(inputPeriod), "yyyy-MM-01");
+        const table = mode === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
+        const payload: any = {
+          hr_employee_id: employeeId,
+          razorpay_employee_id: razorpayEmployeeId,
+          period_month: period,
+          label: inputLabel.trim().slice(0, 80),
+          amount: Math.round(amt),
+          created_by: (user as any)?.id ?? null,
+        };
+        if (mode === "addition") {
+          payload.addition_type = additionTypeCode(additionKind);
+          payload.taxable = taxable;
+        }
+
+        const { data: input, error: inputErr } = await (supabase as any)
+          .from(table)
+          .insert(payload)
+          .select("id")
+          .single();
+        if (inputErr) throw inputErr;
+
+        const { error } = await (supabase as any)
+          .from("hr_salary_revisions")
+          .insert({
+            employee_id: employeeId,
+            revision_type: mode === "addition" ? "payroll_addition" : "payroll_deduction",
+            one_time_amount: Math.round(amt),
+            payout_month: period,
+            effective_from: period,
+            revision_reason: inputLabel.trim() || null,
+            notes: notes || null,
+            approved_by: approvedBy,
+            status: "APPLIED",
+            payroll_input_id: input?.id ?? null,
+            payroll_input_kind: mode,
+          });
+        if (error) throw error;
+        return { kind: "payroll_input", mode, period };
+      }
+
       if (mode === "one_time") {
         const amt = parseFloat(oneTimeAmount);
         if (!amt || amt <= 0) throw new Error("Enter a valid amount");
 
-        const { data: inserted, error } = await (supabase as any)
+        const { error } = await (supabase as any)
           .from("hr_salary_revisions")
           .insert({
             employee_id: employeeId,
             revision_type: revisionType,
             one_time_amount: amt,
-            payout_month: format(payoutMonth, "yyyy-MM-01"),
-            effective_from: format(payoutMonth, "yyyy-MM-01"),
+            payout_month: format(startOfMonth(paidOn), "yyyy-MM-01"),
+            effective_from: format(paidOn, "yyyy-MM-dd"),
+            payout_paid_on: format(paidOn, "yyyy-MM-dd"),
+            payout_channel: "outside_payroll",
             revision_reason: reason || null,
             notes: notes || null,
             approved_by: approvedBy,
             status: "APPLIED",
-          })
-          .select("id")
-          .single();
+          });
         if (error) throw error;
-        return { kind: "one_time", revisionId: inserted?.id as string | undefined };
+        return { kind: "one_time" };
       }
+
 
 
       // statutory toggle
@@ -287,43 +383,23 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           }
         }
         onOpenChange(false);
+      } else if (res?.kind === "payroll_input") {
+        qc.invalidateQueries({ queryKey: ["payroll_input_additions"] });
+        qc.invalidateQueries({ queryKey: ["payroll_input_deductions"] });
+        qc.invalidateQueries({ queryKey: ["gate_lop"] });
+        toast.success(
+          `${res.mode === "addition" ? "Addition" : "Deduction"} staged on the ${format(new Date(res.period), "MMM yyyy")} payroll month`,
+          { description: "Push it to RazorpayX from the Payroll Cockpit (Step 5 · Additions & Deductions)." },
+        );
+        onOpenChange(false);
       } else {
-        // one_time — stage the addition on the correct RazorpayX payroll month
-        // and stamp the outcome back on the revision row so the history page
-        // can show accurate "queued / rejected / paid" feedback.
-        const revisionId = res?.revisionId as string | undefined;
-        if (!revisionId) {
-          toast.success("One-time compensation recorded");
-          onOpenChange(false);
-          return;
-        }
-        const toastId = toast.loading("Staging payout on RazorpayX payroll month…");
-        try {
-          const mod = await import("@/lib/oneTimePayoutPush");
-          const push = await mod.pushOneTimePayoutToRazorpay(revisionId);
-          qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
-          if (push.ok) {
-            toast.success(
-              "Payout queued on RazorpayX for that payroll month. It will be paid when that month's payroll run is executed.",
-              { id: toastId },
-            );
-            onOpenChange(false);
-          } else if (push.skipped) {
-            toast.warning(
-              "HRMS payout is saved, but NOT queued on RazorpayX — employee is not linked. Link them from Data Health and retry from the history page.",
-              { id: toastId },
-            );
-            onOpenChange(false);
-          } else {
-            toast.error("RazorpayX rejected the payout — retry from the history page.", {
-              id: toastId,
-              description: (push.error || "Unknown error").slice(0, 220),
-            });
-          }
-        } catch (e: any) {
-          toast.error(`RazorpayX push failed: ${e?.message || e}`, { id: toastId });
-        }
+        // one_time — record-only. Paid outside payroll; nothing is pushed to RazorpayX.
+        toast.success("One-time payout recorded as paid outside payroll", {
+          description: "Nothing was sent to RazorpayX. Use Addition if it should ride on a payroll run.",
+        });
+        onOpenChange(false);
       }
+
 
     },
     onError: (e: any) => toast.error(e.message),
@@ -339,42 +415,31 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         <DialogHeader>
           <DialogTitle>Compensation Change</DialogTitle>
           <DialogDescription>
-            Record a recurring salary revision (CTC change), a one-time payout (bonus, incentive), or a statutory enrollment toggle (PF / ESI / PT — used for training-period exemptions).
+            Record a CTC change, stage an addition or deduction on a payroll month, log a one-time payout paid outside payroll, or toggle statutory enrollment (PF / ESI / PT).
           </DialogDescription>
         </DialogHeader>
 
         {/* Mode toggle */}
         <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted rounded-lg">
-          <button
-            type="button"
-            onClick={() => setMode("recurring")}
-            className={cn(
-              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
-              mode === "recurring" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-            )}
-          >
-            CTC change
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("one_time")}
-            className={cn(
-              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
-              mode === "one_time" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-            )}
-          >
-            One-time payout
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("statutory")}
-            className={cn(
-              "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
-              mode === "statutory" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-            )}
-          >
-            Statutory toggle
-          </button>
+          {([
+            { key: "recurring", label: "CTC change" },
+            { key: "addition", label: "Addition" },
+            { key: "deduction", label: "Deduction" },
+            { key: "one_time", label: "One-time payout" },
+            { key: "statutory", label: "Statutory toggle" },
+          ] as { key: Mode; label: string }[]).map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              onClick={() => setMode(m.key)}
+              className={cn(
+                "text-[11px] sm:text-xs font-medium py-2 rounded-md transition-colors",
+                mode === m.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              )}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
 
 
@@ -400,7 +465,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             )}
           </div>
 
-          {mode !== "statutory" && (
+          {(mode === "recurring" || mode === "one_time") && (
             <div>
               <Label>Type</Label>
               <Select value={revisionType} onValueChange={setRevisionType}>
@@ -411,6 +476,92 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </Select>
             </div>
           )}
+
+          {(mode === "addition" || mode === "deduction") && (
+            <>
+              {employeeId && razorpayEmployeeId === null && (
+                <div className="text-xs bg-destructive/10 text-destructive border border-destructive/30 rounded p-2">
+                  This employee is not linked to RazorpayX — link them from Data Health before staging payroll inputs.
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Amount ₹</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={inputAmount}
+                    onChange={(e) => setInputAmount(e.target.value)}
+                    className="text-foreground"
+                    placeholder="e.g. 5000"
+                  />
+                </div>
+                <div>
+                  <Label>Payroll month</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal text-foreground">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {format(inputPeriod, "MMM yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={inputPeriod}
+                        onSelect={(d) => d && setInputPeriod(startOfMonth(d))}
+                        disabled={(d) => startOfMonth(d) < startOfMonth(new Date())}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-[11px] text-muted-foreground mt-1">Current month onwards only — no backdating.</p>
+                </div>
+              </div>
+
+              <div>
+                <Label>Label <span className="text-destructive">*</span></Label>
+                <Input
+                  value={inputLabel}
+                  onChange={(e) => setInputLabel(e.target.value)}
+                  className="text-foreground"
+                  placeholder={mode === "addition" ? "e.g. Performance bonus" : "e.g. Asset damage recovery"}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">This becomes the head shown on the RazorpayX run and the payslip.</p>
+              </div>
+
+              {mode === "addition" && (
+                <div className="grid grid-cols-2 gap-3 items-end">
+                  <div>
+                    <Label>Addition kind</Label>
+                    <Select value={additionKind} onValueChange={setAdditionKind}>
+                      <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {ADDITION_KINDS.map(k => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <label className="flex items-center gap-2 pb-2">
+                    <Switch checked={taxable} onCheckedChange={setTaxable} />
+                    <span className="text-sm text-foreground">Taxable</span>
+                  </label>
+                </div>
+              )}
+
+              <div>
+                <Label>Notes</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="text-foreground" placeholder="Optional details" rows={2} />
+              </div>
+
+              <div className="text-xs bg-muted/50 border border-border rounded p-2 text-muted-foreground">
+                This is staged into that month's payroll inputs. Push it to RazorpayX from the Payroll Cockpit
+                (Step 5 · Additions & Deductions) — nothing is sent from here.
+              </div>
+            </>
+          )}
+
+
 
 
           {mode === "recurring" ? (
@@ -484,19 +635,20 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                   />
                 </div>
                 <div>
-                  <Label>Payout month</Label>
+                  <Label>Paid on</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal text-foreground">
                         <CalendarIcon className="h-4 w-4 mr-2" />
-                        {format(payoutMonth, "MMM yyyy")}
+                        {format(paidOn, "PPP")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={payoutMonth} onSelect={(d) => d && setPayoutMonth(d)} initialFocus className="p-3 pointer-events-auto" />
+                      <Calendar mode="single" selected={paidOn} onSelect={(d) => d && setPaidOn(d)} initialFocus className="p-3 pointer-events-auto" />
                     </PopoverContent>
                   </Popover>
                 </div>
+
               </div>
 
               <div>
@@ -510,11 +662,12 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </div>
 
               <div className="text-xs bg-muted/50 border border-border rounded p-2 text-muted-foreground">
-                One-time payouts are logged against the employee's compensation history and do NOT change their CTC.
-                Pay it out through the next payroll run or Razorpay one-off ad-hoc payout.
+                Record-keeping only: the payout is treated as <strong>paid outside payroll</strong> on the date above.
+                Nothing is pushed to RazorpayX and the CTC is unchanged. If it should ride on a payroll run, use <strong>Addition</strong> instead.
               </div>
             </>
-          ) : (
+          ) : mode === "addition" || mode === "deduction" ? null : (
+
             <>
               <div>
                 <Label>Effective from</Label>
@@ -611,15 +764,27 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             disabled={
               mutation.isPending ||
               !employeeId ||
-              (mode === "recurring" ? !newTotal : mode === "one_time" ? !oneTimeAmount : !reason.trim())
+              (mode === "recurring"
+                ? !newTotal
+                : mode === "one_time"
+                  ? !oneTimeAmount
+                  : mode === "addition" || mode === "deduction"
+                    ? !inputAmount || !inputLabel.trim() || !razorpayEmployeeId ||
+                      startOfMonth(inputPeriod) < startOfMonth(new Date())
+                    : !reason.trim())
             }
           >
             {mode === "recurring"
               ? (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply revision")
               : mode === "one_time"
                 ? "Record payout"
-                : (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply & push to Razorpay")}
+                : mode === "addition"
+                  ? `Stage addition · ${format(inputPeriod, "MMM yyyy")}`
+                  : mode === "deduction"
+                    ? `Stage deduction · ${format(inputPeriod, "MMM yyyy")}`
+                    : (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply & push to Razorpay")}
           </Button>
+
 
         </DialogFooter>
       </DialogContent>

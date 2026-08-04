@@ -25,6 +25,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "APPLIED" | "SCHEDULED" | "CANCELLED" | "ALL";
+type CategoryFilter = "ALL" | "CTC" | "ADDITION" | "DEDUCTION" | "PAYOUT" | "STATUTORY";
+
+const CATEGORY_TABS: { value: CategoryFilter; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "CTC", label: "CTC change" },
+  { value: "ADDITION", label: "Addition" },
+  { value: "DEDUCTION", label: "Deduction" },
+  { value: "PAYOUT", label: "One-time payout" },
+  { value: "STATUTORY", label: "Statutory" },
+];
+
+const ONE_TIME_TYPE_SET = new Set([
+  "bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction",
+]);
+
+function revisionCategory(r: any): CategoryFilter {
+  if (r.revision_type === "payroll_addition") return "ADDITION";
+  if (r.revision_type === "payroll_deduction") return "DEDUCTION";
+  if (r.revision_type === "statutory_toggle") return "STATUTORY";
+  if (ONE_TIME_TYPE_SET.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) return "PAYOUT";
+  return "CTC";
+}
 
 export default function SalaryRevisionsPage({ month }: { month?: string } = {}) {
   const qc = useQueryClient();
@@ -33,9 +55,11 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("APPLIED");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
   const [showDialog, setShowDialog] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [pushingIds, setPushingIds] = useState<Set<string>>(new Set());
+
 
   const { data: revisions = [], isLoading } = useQuery({
     queryKey: ["hr_salary_revisions"],
@@ -109,16 +133,32 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     onError: (e: any) => toast.error(e.message),
   });
 
-  const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction"]);
-  const filtered = useMemo(() => revisions.filter((r: any) => {
-    const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+  const ONE_TIME_KINDS = ONE_TIME_TYPE_SET;
+  const baseVisible = useMemo(() => revisions.filter((r: any) => {
+    const cat = revisionCategory(r);
     // Exclude initial onboarding entries (no prior salary → not a revision),
-    // but always keep one-time payouts (bonus/incentive/etc.) which have no previous_total.
-    if (!isOneTime && Number(r.previous_total || 0) <= 0) return false;
+    // but always keep payouts / additions / deductions which have no previous_total.
+    if (cat === "CTC" && Number(r.previous_total || 0) <= 0) return false;
+    return true;
+  }), [revisions]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<CategoryFilter, number> = { ALL: 0, CTC: 0, ADDITION: 0, DEDUCTION: 0, PAYOUT: 0, STATUTORY: 0 };
+    for (const r of baseVisible) {
+      if (statusFilter !== "ALL" && r.status !== statusFilter) continue;
+      counts.ALL += 1;
+      counts[revisionCategory(r)] += 1;
+    }
+    return counts;
+  }, [baseVisible, statusFilter]);
+
+  const filtered = useMemo(() => baseVisible.filter((r: any) => {
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+    if (categoryFilter !== "ALL" && revisionCategory(r) !== categoryFilter) return false;
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());
-  }), [revisions, statusFilter, search]);
+  }), [baseVisible, statusFilter, categoryFilter, search]);
+
 
   // Revisions that land in THIS payroll month for the first time:
   //  · CTC revisions whose effective_from falls inside the month
@@ -257,7 +297,11 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
   const renderRevisionCard = (r: any) => {
-            const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+            const category = revisionCategory(r);
+            const isPayrollInput = category === "ADDITION" || category === "DEDUCTION";
+            // Record-only payouts are paid outside payroll — nothing is ever pushed.
+            const isRecordOnlyPayout = category === "PAYOUT" && r.payout_channel === "outside_payroll";
+            const isOneTime = !isPayrollInput && (ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0);
             const isIncrease = Number(r.new_total || 0) > Number(r.previous_total || 0);
             const diff = Number(r.new_total || 0) - Number(r.previous_total || 0);
             const isScheduled = r.status === "SCHEDULED";
@@ -293,7 +337,25 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             );
 
             let syncBadge: React.ReactNode = null;
-            if (isOneTime) {
+            if (isPayrollInput) {
+              syncBadge = (
+                <StatusPill
+                  tone="info"
+                  icon={Clock}
+                  label={`Staged${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM")}` : ""}`}
+                  detail={`Staged in the ${r.payout_month ? format(new Date(r.payout_month), "MMMM yyyy") : ""} payroll inputs — push it from the Payroll Cockpit (Step 5).`}
+                />
+              );
+            } else if (isRecordOnlyPayout) {
+              syncBadge = (
+                <StatusPill
+                  tone="ok"
+                  icon={CheckCircle2}
+                  label={`Recorded${r.payout_paid_on ? ` · ${format(new Date(r.payout_paid_on), "dd MMM")}` : ""}`}
+                  detail={`Paid outside payroll${r.payout_paid_on ? ` on ${format(new Date(r.payout_paid_on), "dd MMM yyyy")}` : ""} — nothing pushed to RazorpayX.`}
+                />
+              );
+            } else if (isOneTime) {
               const gateOnlyError = isPayrollGateError(r.razorpay_push_error);
               if (gateOnlyError && payrollGateVerified) {
                 syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Retry push" detail="Ready to retry the RazorpayX push" />;
@@ -340,23 +402,31 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
 
-            const typeLabel = isOneTime
-              ? String(r.revision_type || "bonus").replace(/_/g, " ")
-              : isScheduled ? "Scheduled" : diff >= 0 ? "Increment" : "Correction";
+            const typeLabel = isPayrollInput
+              ? (category === "ADDITION" ? "Addition" : "Deduction")
+              : isOneTime
+                ? String(r.revision_type || "bonus").replace(/_/g, " ")
+                : isScheduled ? "Scheduled" : diff >= 0 ? "Increment" : "Correction";
 
             const typeTone = isCancelled
               ? "border-muted-foreground/30 text-muted-foreground bg-muted"
-              : isOneTime
-                ? "border-violet-500/40 text-violet-600 bg-violet-500/10"
-                : isScheduled
-                  ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
-                  : diff >= 0
-                    ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
-                    : "border-destructive/40 text-destructive bg-destructive/10";
+              : category === "DEDUCTION"
+                ? "border-destructive/40 text-destructive bg-destructive/10"
+                : category === "ADDITION"
+                  ? "border-sky-500/40 text-sky-600 bg-sky-500/10"
+                  : isOneTime
+                    ? "border-violet-500/40 text-violet-600 bg-violet-500/10"
+                    : isScheduled
+                      ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
+                      : diff >= 0
+                        ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
+                        : "border-destructive/40 text-destructive bg-destructive/10";
+
 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
             const pushBtn =
-              isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
+              isPayrollInput || isRecordOnlyPayout ? null
+              : isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
                 <Button
                   size="sm" variant={pushFailedAfterRevision ? "default" : "outline"} className="h-7 px-2 text-xs"
                   onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}
@@ -383,6 +453,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   <X className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               ) : null;
+
 
             return (
               <div
@@ -412,11 +483,23 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
                 {/* What changed */}
                 <div className="text-sm tabular-nums flex items-baseline gap-1.5 min-w-0">
-                  {isOneTime ? (
+                  {isPayrollInput ? (
+                    <>
+                      <span className={cn("font-semibold", category === "DEDUCTION" ? "text-destructive" : "text-sky-600")}>
+                        {category === "DEDUCTION" ? "−" : "+"}{money(r.one_time_amount)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        {r.revision_reason || (category === "DEDUCTION" ? "deduction" : "addition")}
+                        {r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
+                      </span>
+                    </>
+                  ) : isOneTime ? (
                     <>
                       <span className="font-semibold text-emerald-600">+{money(r.one_time_amount)}</span>
                       <span className="text-[11px] text-muted-foreground truncate">
-                        one-time{r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
+                        {isRecordOnlyPayout
+                          ? `outside payroll${r.payout_paid_on ? ` · ${format(new Date(r.payout_paid_on), "dd MMM yyyy")}` : ""}`
+                          : `one-time${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}`}
                       </span>
                     </>
                   ) : (
@@ -433,10 +516,13 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
                 {/* Effective */}
                 <div className="text-xs text-muted-foreground tabular-nums">
-                  {isOneTime
-                    ? (r.payout_month ? format(new Date(r.payout_month), "MMM yyyy") : "—")
-                    : (r.effective_from ? format(new Date(r.effective_from), "dd MMM yyyy") : "—")}
+                  {isRecordOnlyPayout && r.payout_paid_on
+                    ? format(new Date(r.payout_paid_on), "dd MMM yyyy")
+                    : isOneTime || isPayrollInput
+                      ? (r.payout_month ? format(new Date(r.payout_month), "MMM yyyy") : "—")
+                      : (r.effective_from ? format(new Date(r.effective_from), "dd MMM yyyy") : "—")}
                 </div>
+
 
                 {/* Status + action */}
                 <div className="flex items-center gap-2 md:justify-end">
@@ -548,6 +634,26 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
               <Input placeholder="Search by employee name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
             </div>
           </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORY_TABS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setCategoryFilter(c.value)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  categoryFilter === c.value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {c.label}
+                <span className="ml-1.5 opacity-70 tabular-nums">{categoryCounts[c.value]}</span>
+              </button>
+            ))}
+          </div>
+
 
           {isLoading ? (
             <TableSkeleton rows={4} columns={4} />

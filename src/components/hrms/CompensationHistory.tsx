@@ -32,9 +32,18 @@ const TYPE_META: Record<string, { label: string; icon: any; tone: string }> = {
   special_allowance: { label: "Special Allowance", icon: Wallet, tone: "text-primary" },
   ad_hoc: { label: "Ad-hoc", icon: Sparkles, tone: "text-muted-foreground" },
   one_time_correction: { label: "Correction (one-time)", icon: Sparkles, tone: "text-muted-foreground" },
+  payroll_addition: { label: "Payroll Addition", icon: TrendingUp, tone: "text-primary" },
+  payroll_deduction: { label: "Payroll Deduction", icon: TrendingDown, tone: "text-destructive" },
 };
 
-const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction"]);
+const ONE_TIME_KINDS = new Set([
+  "bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction",
+  "payroll_addition", "payroll_deduction",
+]);
+const BONUS_KINDS = new Set([
+  "bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction",
+]);
+
 
 export function CompensationHistory({ employeeId }: { employeeId: string }) {
   const { data, isLoading } = useQuery({
@@ -68,10 +77,11 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
 
   // Summary totals
   const totalBonuses = rows
-    .filter(r => ONE_TIME_KINDS.has(r.revision_type) && r.status === "APPLIED")
+    .filter(r => BONUS_KINDS.has(r.revision_type) && r.status === "APPLIED")
     .reduce((s, r) => s + Number(r.one_time_amount || 0), 0);
   const revisionCount = rows.filter(r => !ONE_TIME_KINDS.has(r.revision_type)).length;
-  const bonusCount = rows.filter(r => ONE_TIME_KINDS.has(r.revision_type)).length;
+  const bonusCount = rows.filter(r => BONUS_KINDS.has(r.revision_type)).length;
+
 
   return (
     <div className="space-y-3">
@@ -122,7 +132,7 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
               </div>
               <div className="text-sm">
                 {oneTime ? (
-                  <span className="font-semibold text-success">+₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</span>
+                  <span className={`font-semibold ${r.revision_type === "payroll_deduction" ? "text-destructive" : "text-success"}`}>{r.revision_type === "payroll_deduction" ? "−" : "+"}₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</span>
                 ) : (
                   <div>
                     <div className="text-foreground">
@@ -187,9 +197,10 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
                   </td>
                   <td className="py-2.5 px-3 whitespace-nowrap">
                     {oneTime ? (
-                      <span className="font-semibold text-success">
-                        +₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}
+                      <span className={`font-semibold ${r.revision_type === "payroll_deduction" ? "text-destructive" : "text-success"}`}>
+                        {r.revision_type === "payroll_deduction" ? "−" : "+"}₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}
                       </span>
+
                     ) : (
                       <div>
                         <div className="text-foreground">

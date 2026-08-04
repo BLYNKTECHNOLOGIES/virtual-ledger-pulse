@@ -146,10 +146,11 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
         <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.gross)}</td>
       </tr>
       <tr>
-        <td style="padding:12px 16px;color:#64748b;${row.paid_days !== null ? 'border-bottom:1px solid #e2e8f0;' : ''}">Total deductions</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;${row.paid_days !== null ? 'border-bottom:1px solid #e2e8f0;' : ''}">${inr(row.deductions)}</td>
-      </tr>${paidDaysRow}
+        <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Total deductions</td>
+        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.deductions)}</td>
+      </tr>${oneTimeRow}${paidDaysRow}
     </table>
+
 
 ${lopBlock}${bonusBlock}
     <p style="margin:0;font-size:13.5px;color:#64748b;line-height:1.65;">

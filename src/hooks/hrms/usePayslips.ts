@@ -31,6 +31,11 @@ export interface CanonicalPayslip {
   loan_emi: number | null;
   advance_salary: number | null;
   one_time_payments: number | null;
+  one_time_recovery: number | null;
+  one_time_total: number | null;
+  regular_gross: number | null;
+  pay_head_lines: Array<{ label: string; amount: number; classification: string }> | null;
+
   working_days: number | null;
   register_source: string | null;
   has_register: boolean;

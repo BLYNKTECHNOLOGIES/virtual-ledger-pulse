@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";

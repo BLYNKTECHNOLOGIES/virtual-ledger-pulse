@@ -223,10 +223,18 @@ function computeInsights(rows: ParsedRow[]) {
   };
 }
 
-export default function SalaryRegisterImportPage() {
+export default function SalaryRegisterImportPage({
+  initialMonth,
+  embedded = false,
+  onImported,
+}: {
+  initialMonth?: string;
+  embedded?: boolean;
+  onImported?: () => void;
+} = {}) {
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
-  const [periodMonth, setPeriodMonth] = useState<string>("");
+  const [periodMonth, setPeriodMonth] = useState<string>(initialMonth ?? "");
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

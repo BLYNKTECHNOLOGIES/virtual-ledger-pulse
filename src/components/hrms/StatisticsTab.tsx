@@ -1329,6 +1329,84 @@ export function StatisticsTab() {
               </CardContent>
             </Card>
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Income Breakdown */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileBarChart className="h-5 w-5 text-success" />
+                  Income Breakdown
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Total {formatCurrency(totalIncome)} (excludes settlements)
+                </p>
+              </CardHeader>
+              <CardContent>
+                {incomeBreakdown.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">%</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {incomeBreakdown.slice(0, 8).map((income) => (
+                        <TableRow key={income.category}>
+                          <TableCell className="font-medium">{income.category}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(income.amount)}</TableCell>
+                          <TableCell className="text-right">{income.percentage}%</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No income in selected period
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Income Distribution */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-success" />
+                  Income Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {incomeBreakdown.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <RechartsPieChart>
+                      <Pie
+                        data={incomeBreakdown.slice(0, 8).map((e, i) => ({ name: e.category, value: e.amount, fill: CHART_COLORS[i % CHART_COLORS.length] }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={100}
+                        dataKey="value"
+                        label={({ name, percent }) => `${(name as string).split('>').pop()?.trim().slice(0, 15)} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {incomeBreakdown.slice(0, 8).map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => formatCurrency(Number(v))} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No income in selected period
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

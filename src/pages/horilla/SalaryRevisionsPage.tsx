@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -58,6 +58,8 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
   const [showDialog, setShowDialog] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
   const [pushingIds, setPushingIds] = useState<Set<string>>(new Set());
 
 
@@ -132,6 +134,38 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Hard delete of a queued / one-time entry. The RPC removes the linked staged
+  // payroll input (so the payroll engine stops seeing it), keeps an audit copy
+  // in hr_salary_revision_deletions, and refuses on closed payroll months or
+  // already-applied CTC/statutory revisions.
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { data, error } = await (supabase as any).rpc("hr_delete_salary_revision", {
+        p_revision_id: id,
+        p_reason: reason || null,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
+      qc.invalidateQueries({ queryKey: ["hr_payroll_inputs"] });
+      if (res?.razorpay_reversal_required) {
+        toast.warning("Entry deleted in HRMS — reverse it in RazorpayX", {
+          description: "This amount was already pushed to RazorpayX. Open the payroll month there and remove the addition/deduction, otherwise it will still be paid.",
+          duration: 12000,
+        });
+      } else {
+        toast.success("Entry deleted — it will not affect payroll.");
+      }
+      setDeleteTarget(null);
+      setDeleteReason("");
+    },
+    onError: (e: any) => toast.error(e.message || "Delete failed"),
+  });
+
+
 
   const ONE_TIME_KINDS = ONE_TIME_TYPE_SET;
   const baseVisible = useMemo(() => revisions.filter((r: any) => {
@@ -424,6 +458,29 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+            // Deletable: anything still queued (scheduled), any staged payroll
+            // addition/deduction, and any one-time payout/correction. Applied
+            // CTC / statutory revisions are NOT deletable — they already mutated
+            // the salary structure and need a corrective revision instead.
+            const isDeletable = canManage && !r.register_confirmed_at &&
+              (isScheduled || isPayrollInput || isOneTime);
+            const deleteBtn = isDeletable ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm" variant="ghost" className="h-7 w-7 p-0"
+                    onClick={() => { setDeleteReason(""); setDeleteTarget(r); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs text-xs">
+                  Delete this entry so it no longer affects payroll
+                </TooltipContent>
+              </Tooltip>
+            ) : null;
+
             const pushBtn =
               isPayrollInput || isRecordOnlyPayout ? null
               : isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
@@ -528,6 +585,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 <div className="flex items-center gap-2 md:justify-end">
                   {syncBadge}
                   {pushBtn}
+                  {deleteBtn}
                 </div>
               </div>
             );
@@ -689,7 +747,63 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this entry permanently?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  {deleteTarget?.hr_employees?.first_name} {deleteTarget?.hr_employees?.last_name} ·{" "}
+                  <b>₹{Number(deleteTarget?.one_time_amount || 0).toLocaleString("en-IN")}</b>
+                  {deleteTarget?.payout_month ? ` · ${format(new Date(deleteTarget.payout_month), "MMM yyyy")} payroll` : ""}
+                </p>
+                <p>
+                  The entry is removed from HRMS along with its staged payroll input, so it will
+                  <b> no longer be picked up by the payroll engine, LOP or payslip generation</b> for that month.
+                  An audit copy is retained.
+                </p>
+                {(deleteTarget?.razorpay_pushed_at || deleteTarget?.razorpay_verified_at) && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+                    <p className="font-semibold flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" /> Already pushed to RazorpayX
+                    </p>
+                    <p className="mt-1 text-[13px]">
+                      This amount was staged on the RazorpayX payroll month
+                      {deleteTarget?.razorpay_pushed_at ? ` on ${format(new Date(deleteTarget.razorpay_pushed_at), "dd MMM yyyy")}` : ""}.
+                      Deleting it here does <b>not</b> remove it from RazorpayX — you must open the payroll month in
+                      RazorpayX (Payroll → this employee → modifications) and remove the addition/deduction yourself,
+                      otherwise the employee will still be paid.
+                    </p>
+                  </div>
+                )}
+                <Input
+                  placeholder="Reason (optional, kept in the audit trail)"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="text-foreground"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget) deleteMutation.mutate({ id: deleteTarget.id, reason: deleteReason });
+              }}
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete entry"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
     </TooltipProvider>
   );
 

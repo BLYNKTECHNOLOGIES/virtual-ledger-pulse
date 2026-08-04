@@ -124,15 +124,47 @@ interface ParsedRow {
   reg_hire_date: string | null;
 }
 
-function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?: string } {
+function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?: string; missingCols?: string[] } {
   const grid = parseCsv(text);
   if (grid.length < 2) return { header: [], rows: [], error: "CSV appears empty" };
   const header = grid[0].map(h => h.trim());
-  const idx = (label: string) => header.indexOf(label);
+  // Header matching is normalized (case, spacing and punctuation insensitive) with
+  // aliases, so a RazorpayX header rename never silently drops a column to NULL.
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const normMap = new Map<string, number>();
+  header.forEach((h, i) => { const k = norm(h); if (!normMap.has(k)) normMap.set(k, i); });
+  const ALIASES: Record<string, string[]> = {
+    "LWF(EE)": ["LWF (EE)", "LWF Employee", "Labour Welfare Fund(EE)", "Labour Welfare Fund (EE)", "LWF EE"],
+    "LWF(ER)": ["LWF (ER)", "LWF Employer", "Labour Welfare Fund(ER)", "Labour Welfare Fund (ER)", "LWF ER"],
+    "PF(EE)": ["PF (EE)", "PF Employee", "Provident Fund(EE)"],
+    "PF(ER)": ["PF (ER)", "PF Employer", "Provident Fund(ER)"],
+    "ESI(EE)": ["ESI (EE)", "ESIC(EE)", "ESI Employee"],
+    "ESI(ER)": ["ESI (ER)", "ESIC(ER)", "ESI Employer"],
+    "PT": ["Professional Tax", "P Tax"],
+    "TDS": ["Income Tax", "TDS Deducted"],
+    "Loan Emi": ["Loan EMI", "Loan Repayment"],
+    "Advance Salary": ["Salary Advance"],
+    "One-time Payments": ["One Time Payments", "Onetime Payments"],
+    "Net Pay": ["Net Salary", "Net Pay (INR)"],
+    "Gross Salary": ["Gross Pay", "Gross Earnings"],
+    "Working Days": ["Paid Days", "Payable Days"],
+    "Employer PF Contr.": ["Employer PF Contribution", "Employer PF Contr"],
+    "Employer ESI Contr.": ["Employer ESI Contribution", "Employer ESI Contr"],
+  };
+  const missingCols: string[] = [];
+  const idx = (label: string) => {
+    const direct = normMap.get(norm(label));
+    if (direct !== undefined) return direct;
+    for (const a of ALIASES[label] ?? []) {
+      const hit = normMap.get(norm(a));
+      if (hit !== undefined) return hit;
+    }
+    return -1;
+  };
   const iEmp = idx("Employee ID");
   const iName = idx("Name");
   if (iEmp < 0 || iName < 0) return { header, rows: [], error: "Missing required column 'Employee ID' or 'Name'" };
-  const col = (label: string) => idx(label);
+  const col = (label: string) => { const i = idx(label); if (i < 0 && !missingCols.includes(label)) missingCols.push(label); return i; };
   const rows: ParsedRow[] = grid.slice(1).map(r => ({
     razorpay_employee_id: (r[iEmp] ?? "").trim(),
     name: (r[iName] ?? "").replace(/\*$/, "").trim(),
@@ -181,7 +213,7 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     reg_dob: toIsoDate(r[col("Date Of Birth")] ?? ""),
     reg_hire_date: toIsoDate(r[col("Hire Date")] ?? ""),
   })).filter(r => r.razorpay_employee_id);
-  return { header, rows };
+  return { header, rows, missingCols };
 }
 
 const INR = (n: number | null | undefined) =>

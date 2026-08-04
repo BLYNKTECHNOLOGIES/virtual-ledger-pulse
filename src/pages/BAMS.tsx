@@ -78,7 +78,7 @@ export default function BAMS() {
           <Tabs defaultValue={canFullBams ? "bank-accounts" : "journal-entries"} className="h-full flex flex-col">
             {/* Single responsive tab bar: horizontal scroll on mobile, full width on desktop */}
             <div className="overflow-x-auto pb-1 mb-4 md:mb-6">
-              <TabsList className={`inline-flex w-max ${canFullBams ? "md:grid md:w-full md:grid-cols-8" : ""} bg-muted p-1 rounded-md gap-1`}>
+              <TabsList className="flex w-full flex-wrap bg-muted p-1 rounded-md gap-1">
                 {canFullBams && (
                   <TabsTrigger value="account-summary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                     <BarChart3 className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />

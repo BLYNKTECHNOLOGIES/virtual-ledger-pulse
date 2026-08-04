@@ -349,7 +349,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="all">
-          <TabsList className="grid grid-cols-4 w-full h-9">
+          <TabsList className="flex w-full flex-wrap min-h-9">
             <TabsTrigger value="all" className="text-xs">All · {counts.all}</TabsTrigger>
             <TabsTrigger value="pending" className="text-xs">Pending · {counts.pending}</TabsTrigger>
             <TabsTrigger value="approved" className="text-xs">Approved · {counts.approved}</TabsTrigger>

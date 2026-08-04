@@ -296,7 +296,7 @@ export default function Financials() {
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6 print:hidden">
+        <TabsList className="flex w-full flex-wrap gap-1 print:hidden">
           <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
           <TabsTrigger value="accounts" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <span className="hidden sm:inline">Bank Accounts</span>

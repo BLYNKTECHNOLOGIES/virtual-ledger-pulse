@@ -99,7 +99,7 @@ export default function StockManagement() {
       <div className="p-4 md:p-6">
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 md:grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+        <TabsList className="flex w-full flex-wrap gap-1">
           <TabsTrigger value="positions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <Grid className="h-4 w-4" />
             Positions

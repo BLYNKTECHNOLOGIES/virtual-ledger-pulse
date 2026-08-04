@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
+import { PayslipPdfDownloadButton } from '@/components/hrms/PayslipPdfDownloadButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
@@ -457,7 +458,10 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                       </p>
                     )}
                   </div>
-                  <RazorpayPayslipLink razorpayPayslipId={p.razorpay_payslip_id} />
+                  <div className="flex items-center gap-2">
+                    <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
+                    <RazorpayPayslipLink razorpayPayslipId={p.razorpay_payslip_id} />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">

@@ -135,6 +135,38 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Hard delete of a queued / one-time entry. The RPC removes the linked staged
+  // payroll input (so the payroll engine stops seeing it), keeps an audit copy
+  // in hr_salary_revision_deletions, and refuses on closed payroll months or
+  // already-applied CTC/statutory revisions.
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { data, error } = await (supabase as any).rpc("hr_delete_salary_revision", {
+        p_revision_id: id,
+        p_reason: reason || null,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
+      qc.invalidateQueries({ queryKey: ["hr_payroll_inputs"] });
+      if (res?.razorpay_reversal_required) {
+        toast.warning("Entry deleted in HRMS — reverse it in RazorpayX", {
+          description: "This amount was already pushed to RazorpayX. Open the payroll month there and remove the addition/deduction, otherwise it will still be paid.",
+          duration: 12000,
+        });
+      } else {
+        toast.success("Entry deleted — it will not affect payroll.");
+      }
+      setDeleteTarget(null);
+      setDeleteReason("");
+    },
+    onError: (e: any) => toast.error(e.message || "Delete failed"),
+  });
+
+
+
   const ONE_TIME_KINDS = ONE_TIME_TYPE_SET;
   const baseVisible = useMemo(() => revisions.filter((r: any) => {
     const cat = revisionCategory(r);

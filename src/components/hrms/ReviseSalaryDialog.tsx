@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { Switch } from "@/components/ui/switch";
 import { additionTypeCode } from "@/lib/hrms/additionType";
+import { BulkCompensationPanel } from "@/components/hrms/BulkCompensationPanel";
+
 
 
 const RECURRING_TYPES = [
@@ -57,6 +59,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const { user } = useAuth();
 
   const [mode, setMode] = useState<Mode>("recurring");
+  const [entryMode, setEntryMode] = useState<"single" | "bulk">("single");
+
   const [employeeId, setEmployeeId] = useState<string>("");
   const [revisionType, setRevisionType] = useState<string>("increment");
   const [newTotal, setNewTotal] = useState<string>("");
@@ -93,6 +97,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   useEffect(() => {
     if (open) {
       setMode("recurring");
+      setEntryMode("single");
+
       setEmployeeId(presetEmployeeId || "");
       setRevisionType("increment");
       setNewTotal("");
@@ -444,8 +450,43 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           ))}
         </div>
 
+        {/* Single vs bulk */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted rounded-lg">
+          {([
+            { key: "single", label: "Single entry" },
+            { key: "bulk", label: "Bulk (CSV)" },
+          ] as { key: "single" | "bulk"; label: string }[]).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setEntryMode(t.key)}
+              className={cn(
+                "text-[11px] sm:text-xs font-medium py-1.5 rounded-md transition-colors",
+                entryMode === t.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
+        {entryMode === "bulk" ? (
+          <BulkCompensationPanel
+            key={mode}
+            mode={mode}
+
+            employees={employees as any}
+            approvedBy={
+              [(user as any)?.firstName, (user as any)?.lastName].filter(Boolean).join(" ") ||
+              (user as any)?.email ||
+              "System"
+            }
+            userId={(user as any)?.id ?? null}
+            onDone={() => onOpenChange(false)}
+          />
+        ) : (
         <div className="space-y-3">
+
           <div>
             <Label>Employee</Label>
             <Select value={employeeId} onValueChange={setEmployeeId} disabled={!!presetEmployeeId}>
@@ -763,8 +804,11 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           )}
 
         </div>
+        )}
 
+        {entryMode === "single" && (
         <DialogFooter>
+
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => mutation.mutate()}
@@ -794,8 +838,10 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
 
         </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
+
   );
 }
 

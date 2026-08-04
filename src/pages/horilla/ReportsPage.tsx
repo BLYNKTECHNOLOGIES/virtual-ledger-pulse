@@ -74,8 +74,23 @@ export default function ReportsPage() {
     queryKey: ["rpt_attendance_daily", dateFrom, dateTo],
     queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
       .from("hr_attendance_daily")
-      .select("employee_id, attendance_date, status, is_late, total_hours")
+      .select("employee_id, attendance_date, status, is_late, late_by_minutes, early_departure, total_hours, net_work_minutes")
       .gte("attendance_date", dateFrom).lte("attendance_date", dateTo)),
+  });
+  // Same-length window immediately before the range, for period-over-period deltas.
+  const prevWindow = useMemo(() => {
+    const from = new Date(`${dateFrom}T00:00:00`), to = new Date(`${dateTo}T00:00:00`);
+    const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+    const pTo = new Date(from); pTo.setDate(from.getDate() - 1);
+    const pFrom = new Date(pTo); pFrom.setDate(pTo.getDate() - (days - 1));
+    return { from: pFrom.toISOString().slice(0, 10), to: pTo.toISOString().slice(0, 10) };
+  }, [dateFrom, dateTo]);
+  const { data: prevAttendance = [] } = useQuery({
+    queryKey: ["rpt_attendance_prev", prevWindow.from, prevWindow.to],
+    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
+      .from("hr_attendance_daily")
+      .select("employee_id, status, is_late")
+      .gte("attendance_date", prevWindow.from).lte("attendance_date", prevWindow.to)),
   });
 
   // ─── Lookups ───

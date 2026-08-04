@@ -192,6 +192,19 @@ export function StatisticsTab() {
           .order('id', { ascending: true })
       );
 
+      // Fetch non-core incomes (same shape as expenses; settlement / adjustment
+      // buckets excluded so they don't inflate the breakdown)
+      const incomes = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('bank_transactions')
+          .select('id, amount, category, description, transaction_date')
+          .eq('transaction_type', 'INCOME')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset","Settlement","Payment Gateway Settlement")')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr)
+          .order('id', { ascending: true })
+      );
+
       // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
       // Paginated + ordered: busy months exceed 1000 fee rows, and a silent cap
       // here would undercount fees and overstate Net Profit.
@@ -413,6 +426,22 @@ export function StatisticsTab() {
         }))
         .sort((a, b) => b.amount - a.amount);
 
+      // Income breakdown by category
+      const totalIncome = incomes?.reduce((sum, i) => sum + Number(i.amount || 0), 0) || 0;
+      const incomeByCategory = new Map<string, number>();
+      incomes?.forEach(inc => {
+        const cat = inc.category || 'Other';
+        if (excludeExpenseCategories.includes(cat)) return;
+        incomeByCategory.set(cat, (incomeByCategory.get(cat) || 0) + Number(inc.amount || 0));
+      });
+      const incomeBreakdown = Array.from(incomeByCategory.entries())
+        .map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: totalIncome > 0 ? Math.round((amount / totalIncome) * 100) : 0
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
       // Calculate USDT fees totals
       const totalUsdtFees = usdtFees?.reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
       const platformFees = usdtFees?.filter(f => f.reference_type === 'PLATFORM_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
@@ -486,6 +515,8 @@ export function StatisticsTab() {
         trendData,
         departmentData,
         expenseBreakdown,
+        incomeBreakdown,
+        totalIncome,
         topClients,
         totalExpenses,
         totalSalary: employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0,
@@ -536,8 +567,8 @@ export function StatisticsTab() {
 
   const { 
     kpi, clientStats, kycStats, leadStats, onboardingStats, 
-    employeePerformance, trendData, departmentData, expenseBreakdown, 
-    topClients, totalExpenses, totalSalary, usdtFees
+    employeePerformance, trendData, departmentData, expenseBreakdown, incomeBreakdown,
+    topClients, totalExpenses, totalIncome, totalSalary, usdtFees
   } = statsData || {
     kpi: { revenue: 0, revenueChange: 0, clients: 0, trades: 0, employees: 0, profit: 0 },
     clientStats: { total: 0, newInPeriod: 0, newInPrevPeriod: 0, buyers: 0, sellers: 0, newBuyers: 0, newSellers: 0 },
@@ -548,8 +579,10 @@ export function StatisticsTab() {
     trendData: [],
     departmentData: [],
     expenseBreakdown: [],
+    incomeBreakdown: [],
     topClients: [],
     totalExpenses: 0,
+    totalIncome: 0,
     totalSalary: 0,
     usdtFees: { total: 0, platform: 0, transfer: 0, salesOrder: 0, purchaseOrder: 0, transactions: [] }
   };
@@ -1291,6 +1324,84 @@ export function StatisticsTab() {
                 ) : (
                   <div className="py-8 text-center text-muted-foreground">
                     No expenses in selected period
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Income Breakdown */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileBarChart className="h-5 w-5 text-success" />
+                  Income Breakdown
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Total {formatCurrency(totalIncome)} (excludes settlements)
+                </p>
+              </CardHeader>
+              <CardContent>
+                {incomeBreakdown.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">%</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {incomeBreakdown.slice(0, 8).map((income) => (
+                        <TableRow key={income.category}>
+                          <TableCell className="font-medium">{income.category}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(income.amount)}</TableCell>
+                          <TableCell className="text-right">{income.percentage}%</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No income in selected period
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Income Distribution */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-success" />
+                  Income Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {incomeBreakdown.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <RechartsPieChart>
+                      <Pie
+                        data={incomeBreakdown.slice(0, 8).map((e, i) => ({ name: e.category, value: e.amount, fill: CHART_COLORS[i % CHART_COLORS.length] }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={100}
+                        dataKey="value"
+                        label={({ name, percent }) => `${(name as string).split('>').pop()?.trim().slice(0, 15)} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {incomeBreakdown.slice(0, 8).map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => formatCurrency(Number(v))} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No income in selected period
                   </div>
                 )}
               </CardContent>

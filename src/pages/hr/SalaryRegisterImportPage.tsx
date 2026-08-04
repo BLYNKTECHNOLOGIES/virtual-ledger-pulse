@@ -291,6 +291,20 @@ function computeInsights(rows: ParsedRow[]) {
   const overtime = positiveSum("reg_overtime");
   const pli = positiveSum("reg_performance_incentive");
   const employerCost = net + sum("reg_pf_er") + sum("reg_esi_er") + sum("reg_lwf_er") + totalTds + sum("reg_pf_ee") + sum("reg_esi_ee") + sum("reg_lwf_ee") + totalPt + sum("reg_advance_salary") + sum("reg_loan_emi");
+
+  // Aggregate detected custom pay heads so they appear alongside standard insights.
+  const customMap = new Map<string, number>();
+  rows.forEach(r => {
+    r.reg_extra_earnings.forEach(e => {
+      if (e.amount > 0) {
+        customMap.set(e.label, (customMap.get(e.label) ?? 0) + e.amount);
+      }
+    });
+  });
+  const customPayHeads = Array.from(customMap.entries())
+    .map(([label, total]) => ({ label, total }))
+    .sort((a, b) => b.total - a.total);
+
   return {
     headcount: rows.length,
     gross,
@@ -303,6 +317,7 @@ function computeInsights(rows: ParsedRow[]) {
     overtime,
     pli,
     employerCost,
+    customPayHeads,
     withUan: count(r => !!r.reg_pf_uan),
     withEsi: count(r => !!r.reg_esi_number),
     withPan: count(r => !!r.reg_pan),

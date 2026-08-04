@@ -15,7 +15,6 @@ import {
   downloadCsv,
   fetchRazorpayMap,
   MODE_LABEL,
-  parseCsv,
   validateRows,
   type BulkMode,
   type EmployeeLite,

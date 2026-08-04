@@ -134,13 +134,16 @@ export async function buildTemplateWorkbook(mode: BulkMode, employees: EmployeeL
     }
   }
 
+  const applyValidation = (colIndex: number, dv: any) => {
+    for (let r = first; r <= last; r++) ws.getCell(r, colIndex).dataValidation = dv;
+  };
+
   cols.forEach((col, idx) => {
     if (idx < 2) return;
-    const letter = colLetter(idx + 1);
-    const range = `${letter}${first}:${letter}${last}`;
+    const colIndex = idx + 1;
 
     if (LIST_OPTIONS[col]) {
-      ws.dataValidations.add(range, {
+      applyValidation(colIndex, {
         type: "list",
         allowBlank: true,
         formulae: [`"${LIST_OPTIONS[col].join(",")}"`],
@@ -152,7 +155,7 @@ export async function buildTemplateWorkbook(mode: BulkMode, employees: EmployeeL
         error: `Allowed values: ${LIST_OPTIONS[col].join(", ")}`,
       });
     } else if (col === "period_month") {
-      ws.dataValidations.add(range, {
+      applyValidation(colIndex, {
         type: "list",
         allowBlank: true,
         formulae: [`"${months.join(",")}"`],
@@ -164,8 +167,8 @@ export async function buildTemplateWorkbook(mode: BulkMode, employees: EmployeeL
         error: "Pick a month from the list (YYYY-MM)",
       });
     } else if (DATE_COLS.includes(col)) {
-      ws.getColumn(idx + 1).numFmt = "yyyy-mm-dd";
-      ws.dataValidations.add(range, {
+      ws.getColumn(colIndex).numFmt = "yyyy-mm-dd";
+      applyValidation(colIndex, {
         type: "date",
         operator: "between",
         allowBlank: true,
@@ -178,8 +181,8 @@ export async function buildTemplateWorkbook(mode: BulkMode, employees: EmployeeL
         error: "Enter a valid date, e.g. 2026-08-31",
       });
     } else if (NUMBER_COLS.includes(col)) {
-      ws.getColumn(idx + 1).numFmt = "#,##0.00";
-      ws.dataValidations.add(range, {
+      ws.getColumn(colIndex).numFmt = "#,##0.00";
+      applyValidation(colIndex, {
         type: "decimal",
         operator: "greaterThan",
         allowBlank: true,
@@ -193,6 +196,7 @@ export async function buildTemplateWorkbook(mode: BulkMode, employees: EmployeeL
       });
     }
   });
+
 
   // Instructions sheet
   const info = wb.addWorksheet("Instructions");

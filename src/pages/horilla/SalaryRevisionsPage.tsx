@@ -747,7 +747,63 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this entry permanently?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  {deleteTarget?.hr_employees?.first_name} {deleteTarget?.hr_employees?.last_name} ·{" "}
+                  <b>₹{Number(deleteTarget?.one_time_amount || 0).toLocaleString("en-IN")}</b>
+                  {deleteTarget?.payout_month ? ` · ${format(new Date(deleteTarget.payout_month), "MMM yyyy")} payroll` : ""}
+                </p>
+                <p>
+                  The entry is removed from HRMS along with its staged payroll input, so it will
+                  <b> no longer be picked up by the payroll engine, LOP or payslip generation</b> for that month.
+                  An audit copy is retained.
+                </p>
+                {(deleteTarget?.razorpay_pushed_at || deleteTarget?.razorpay_verified_at) && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+                    <p className="font-semibold flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" /> Already pushed to RazorpayX
+                    </p>
+                    <p className="mt-1 text-[13px]">
+                      This amount was staged on the RazorpayX payroll month
+                      {deleteTarget?.razorpay_pushed_at ? ` on ${format(new Date(deleteTarget.razorpay_pushed_at), "dd MMM yyyy")}` : ""}.
+                      Deleting it here does <b>not</b> remove it from RazorpayX — you must open the payroll month in
+                      RazorpayX (Payroll → this employee → modifications) and remove the addition/deduction yourself,
+                      otherwise the employee will still be paid.
+                    </p>
+                  </div>
+                )}
+                <Input
+                  placeholder="Reason (optional, kept in the audit trail)"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="text-foreground"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget) deleteMutation.mutate({ id: deleteTarget.id, reason: deleteReason });
+              }}
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete entry"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
     </TooltipProvider>
   );
 

@@ -605,6 +605,16 @@ export default function SalaryRegisterImportPage({
                 <InsightTile label="Performance Incentive" value={INR(insights.pli)} />
                 <InsightTile label="Separated this month" value={String(insights.separated)} tone={insights.separated ? "warn" : undefined} />
               </div>
+              {insights.customPayHeads.length > 0 && (
+                <>
+                  <div className="text-xs font-medium text-muted-foreground pt-1">Custom pay heads</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    {insights.customPayHeads.map((c, i) => (
+                      <InsightTile key={i} label={c.label} value={INR(c.total)} />
+                    ))}
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                 <CoverageTile label="With PAN" value={insights.withPan} total={insights.headcount} />
                 <CoverageTile label="With UAN (PF)" value={insights.withUan} total={insights.headcount} />

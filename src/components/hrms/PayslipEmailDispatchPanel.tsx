@@ -545,7 +545,15 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                       </Badge>
                     </td>
                     <td className="p-2 text-right align-top tabular-nums">{inr(r.gross)}</td>
-                    <td className="p-2 text-right align-top tabular-nums">{inr(r.deductions)}</td>
+                    <td
+                      className="p-2 text-right align-top tabular-nums"
+                      title={(r.deduction_breakdown ?? []).map((d) => `${d.label}: ${inr(d.amount)}`).join("\n") || undefined}
+                    >
+                      {inr(r.deductions)}
+                      {!!r.employer_contrib && (
+                        <div className="text-[10px] text-muted-foreground">+{inr(r.employer_contrib)} employer</div>
+                      )}
+                    </td>
                     <td className="p-2 text-right align-top tabular-nums font-semibold">{inr(r.net)}</td>
                     <td className="p-2 text-right align-top tabular-nums">
                       {r.lop_days > 0 ? `${r.lop_days.toFixed(1)}d · ${inr(r.lop_amount)}` : "—"}
@@ -619,7 +627,9 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
             <AlertDialogDescription>
               {selectedIds.length} employee(s) will receive their payslip email with the uploaded PDF attached.
               Employees already emailed for this month are skipped automatically.
-              {!processedOn && " No salary credit date is recorded — the email will omit the credit date."}
+              {processedOn
+                ? ` The email will state ${processedOn} as the salary credit date.`
+                : " No salary credit date is recorded — set it above; sending is blocked until then."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

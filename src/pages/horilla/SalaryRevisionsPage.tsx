@@ -585,6 +585,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 <div className="flex items-center gap-2 md:justify-end">
                   {syncBadge}
                   {pushBtn}
+                  {deleteBtn}
                 </div>
               </div>
             );

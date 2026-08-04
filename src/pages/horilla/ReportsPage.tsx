@@ -65,7 +65,7 @@ export default function ReportsPage() {
     queryKey: ["rpt_payslips", dateFrom, dateTo],
     queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
       .from("hr_payslips_v")
-      .select("employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib")
+      .select("employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib, register_source")
       .gte("period_month", dateFrom.slice(0, 8) + "01")
       .lte("period_month", dateTo)),
   });
@@ -132,15 +132,17 @@ export default function ReportsPage() {
 
   // ─── Payroll (RazorpayX mirror) ───
   const payrollMonths = useMemo(() => {
-    const m: Record<string, { gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number }> = {};
+    const m: Record<string, { gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number; withRegister: number; esiCovered: number }> = {};
     payslips.forEach((p: any) => {
       const k = String(p.period_month).slice(0, 7);
-      const r = m[k] || (m[k] = { gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0 });
+      const r = m[k] || (m[k] = { gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0, withRegister: 0, esiCovered: 0 });
       r.gross += Number(p.gross || 0); r.net += Number(p.net || 0);
       r.deductions += Math.abs(Number(p.total_deductions || 0));
       r.tds += Math.abs(Number(p.tds_amount || 0)); r.pf += Math.abs(Number(p.pf_amount || 0));
       r.esi += Math.abs(Number(p.esi_amount || 0)); r.pt += Math.abs(Number(p.professional_tax || 0));
       r.er += Number(p.employer_contrib || 0); r.count += 1;
+      if (p.register_source) r.withRegister += 1;
+      if (Math.abs(Number(p.esi_amount || 0)) > 0) r.esiCovered += 1;
     });
     return Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ key: k, month: monthLabel(k), ...v }));
   }, [payslips]);
@@ -151,6 +153,18 @@ export default function ReportsPage() {
     (s, r) => ({ pf: s.pf + r.pf, esi: s.esi + r.esi, pt: s.pt + r.pt, tds: s.tds + r.tds, er: s.er + r.er }),
     { pf: 0, esi: 0, pt: 0, tds: 0, er: 0 },
   );
+
+  // Statutory figures are only as complete as the imported salary registers.
+  // Dashboard-only payslips carry no PF/ESI/PT breakdown, so surface the gap instead of understating silently.
+  const statutoryCoverage = useMemo(() => {
+    const total = payrollMonths.reduce((s, r) => s + r.count, 0);
+    const withReg = payrollMonths.reduce((s, r) => s + r.withRegister, 0);
+    const esiCovered = payrollMonths.reduce((s, r) => s + r.esiCovered, 0);
+    const missingMonths = payrollMonths.filter((r) => r.withRegister === 0).map((r) => r.month);
+    const partialMonths = payrollMonths.filter((r) => r.withRegister > 0 && r.withRegister < r.count).map((r) => `${r.month} (${r.count - r.withRegister} missing)`);
+    return { total, withReg, esiCovered, missingMonths, partialMonths };
+  }, [payrollMonths]);
+
 
   // ─── Attendance (v4 daily rollup) ───
   const attStats = useMemo(() => {
@@ -384,23 +398,40 @@ export default function ReportsPage() {
           <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Statutory & Tax Cost</CardTitle></CardHeader>
           <CardContent>
             {payrollMonths.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { l: "Provident Fund (EE)", v: statutory.pf },
-                  { l: "ESI (EE)", v: statutory.esi },
-                  { l: "Professional Tax", v: statutory.pt },
-                  { l: "TDS", v: statutory.tds },
-                  { l: "Employer Contribution", v: statutory.er },
-                  { l: "Total Net Paid", v: payrollMonths.reduce((s, r) => s + r.net, 0) },
-                ].map(x => (
-                  <div key={x.l} className="rounded-lg border border-border p-2.5">
-                    <p className="text-base font-bold tabular-nums text-foreground">{inr(x.v)}</p>
-                    <p className="text-[11px] text-muted-foreground">{x.l}</p>
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { l: "Provident Fund (EE)", v: statutory.pf, s: undefined as string | undefined },
+                    { l: "ESI (EE)", v: statutory.esi, s: `${statutoryCoverage.esiCovered} of ${statutoryCoverage.total} payslips ESI-covered` },
+                    { l: "Professional Tax", v: statutory.pt, s: undefined },
+                    { l: "TDS", v: statutory.tds, s: undefined },
+                    { l: "Employer Contribution", v: statutory.er, s: undefined },
+                    { l: "Total Net Paid", v: payrollMonths.reduce((s, r) => s + r.net, 0), s: undefined },
+                  ].map(x => (
+                    <div key={x.l} className="rounded-lg border border-border p-2.5">
+                      <p className="text-base font-bold tabular-nums text-foreground">{inr(x.v)}</p>
+                      <p className="text-[11px] text-muted-foreground">{x.l}</p>
+                      {x.s && <p className="mt-0.5 text-[10px] text-muted-foreground/80">{x.s}</p>}
+                    </div>
+                  ))}
+                </div>
+                {(statutoryCoverage.missingMonths.length > 0 || statutoryCoverage.partialMonths.length > 0) && (
+                  <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+                    <p className="font-semibold">Statutory totals are under-stated for this range</p>
+                    <p className="mt-1">
+                      Only {statutoryCoverage.withReg} of {statutoryCoverage.total} payslips have an imported salary register. Dashboard-only payslips carry no PF / ESI / PT breakdown, so their statutory amounts count as zero here.
+                    </p>
+                    {statutoryCoverage.missingMonths.length > 0 && (
+                      <p className="mt-1">No register imported: {statutoryCoverage.missingMonths.join(", ")}</p>
+                    )}
+                    {statutoryCoverage.partialMonths.length > 0 && (
+                      <p className="mt-1">Partially imported: {statutoryCoverage.partialMonths.join(", ")}</p>
+                    )}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : <NoData reason="No payslips exist for the selected months." />}
-            <Source>RazorpayX payslip mirror (hr_payslips_v) for the selected range</Source>
+            <Source>RazorpayX payslip mirror (hr_payslips_v) for the selected range · statutory heads come only from imported salary registers</Source>
           </CardContent>
         </Card>
 

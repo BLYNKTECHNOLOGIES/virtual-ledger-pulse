@@ -653,7 +653,29 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
           <Send className="h-4 w-4" />
           {send.isPending ? "Sending…" : `Send payslip emails (${selectedIds.length})`}
         </Button>
+        {selectedIds.length === 0 && sendable.length > 0 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs"
+            onClick={() =>
+              setSelected(Object.fromEntries(sendable.map((r) => [r.employee_id, true])))
+            }
+          >
+            Select all {sendable.length} ready
+          </Button>
+        )}
+        {(selectedIds.length === 0 || !registerPresent) && (
+          <span className="text-xs text-muted-foreground">
+            {!registerPresent
+              ? "Import the Salary Register for this month to enable sending."
+              : sendable.length === 0
+                ? "No employees are ready to send (all sent, excluded, or blocked)."
+                : "Tick at least one employee row to enable sending."}
+          </span>
+        )}
       </div>
+
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

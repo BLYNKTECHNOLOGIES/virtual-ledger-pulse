@@ -764,15 +764,27 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             disabled={
               mutation.isPending ||
               !employeeId ||
-              (mode === "recurring" ? !newTotal : mode === "one_time" ? !oneTimeAmount : !reason.trim())
+              (mode === "recurring"
+                ? !newTotal
+                : mode === "one_time"
+                  ? !oneTimeAmount
+                  : mode === "addition" || mode === "deduction"
+                    ? !inputAmount || !inputLabel.trim() || !razorpayEmployeeId ||
+                      startOfMonth(inputPeriod) < startOfMonth(new Date())
+                    : !reason.trim())
             }
           >
             {mode === "recurring"
               ? (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply revision")
               : mode === "one_time"
                 ? "Record payout"
-                : (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply & push to Razorpay")}
+                : mode === "addition"
+                  ? `Stage addition · ${format(inputPeriod, "MMM yyyy")}`
+                  : mode === "deduction"
+                    ? `Stage deduction · ${format(inputPeriod, "MMM yyyy")}`
+                    : (isFutureDated ? `Schedule for ${format(effectiveFrom, "d MMM yyyy")}` : "Apply & push to Razorpay")}
           </Button>
+
 
         </DialogFooter>
       </DialogContent>

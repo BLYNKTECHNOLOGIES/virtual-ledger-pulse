@@ -483,11 +483,23 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
                 {/* What changed */}
                 <div className="text-sm tabular-nums flex items-baseline gap-1.5 min-w-0">
-                  {isOneTime ? (
+                  {isPayrollInput ? (
+                    <>
+                      <span className={cn("font-semibold", category === "DEDUCTION" ? "text-destructive" : "text-sky-600")}>
+                        {category === "DEDUCTION" ? "−" : "+"}{money(r.one_time_amount)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        {r.revision_reason || (category === "DEDUCTION" ? "deduction" : "addition")}
+                        {r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
+                      </span>
+                    </>
+                  ) : isOneTime ? (
                     <>
                       <span className="font-semibold text-emerald-600">+{money(r.one_time_amount)}</span>
                       <span className="text-[11px] text-muted-foreground truncate">
-                        one-time{r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}
+                        {isRecordOnlyPayout
+                          ? `outside payroll${r.payout_paid_on ? ` · ${format(new Date(r.payout_paid_on), "dd MMM yyyy")}` : ""}`
+                          : `one-time${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM yyyy")} payroll` : ""}`}
                       </span>
                     </>
                   ) : (
@@ -504,10 +516,13 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
                 {/* Effective */}
                 <div className="text-xs text-muted-foreground tabular-nums">
-                  {isOneTime
-                    ? (r.payout_month ? format(new Date(r.payout_month), "MMM yyyy") : "—")
-                    : (r.effective_from ? format(new Date(r.effective_from), "dd MMM yyyy") : "—")}
+                  {isRecordOnlyPayout && r.payout_paid_on
+                    ? format(new Date(r.payout_paid_on), "dd MMM yyyy")
+                    : isOneTime || isPayrollInput
+                      ? (r.payout_month ? format(new Date(r.payout_month), "MMM yyyy") : "—")
+                      : (r.effective_from ? format(new Date(r.effective_from), "dd MMM yyyy") : "—")}
                 </div>
+
 
                 {/* Status + action */}
                 <div className="flex items-center gap-2 md:justify-end">

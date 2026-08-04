@@ -24748,6 +24748,10 @@ export type Database = {
           scope: string
         }[]
       }
+      hr_align_salary_structures_to_razorpay: {
+        Args: { p_employee_id?: string }
+        Returns: Json
+      }
       hr_apply_deposit_collection: {
         Args: { p_razorpay_input_id?: string; p_schedule_id: string }
         Returns: undefined

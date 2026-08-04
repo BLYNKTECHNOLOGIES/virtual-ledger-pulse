@@ -48,6 +48,27 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
     enabled: !!employeeId,
   });
 
+  // RazorpayX is the payroll authority. Its API (payroll:view-payroll) exposes
+  // only the CTC / monthly salary — never the component split — so the rows
+  // below are a local derivation anchored to that CTC. Surface the anchor so a
+  // mismatch can never masquerade as "mirrored from Razorpay".
+  const { data: rzpCtc } = useQuery({
+    queryKey: ["hr_razorpay_snapshot_ctc", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("hr_razorpay_employee_map")
+        .select("last_pull_snapshot,last_pulled_at")
+        .eq("hr_employee_id", employeeId)
+        .order("last_pulled_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      const n = Number(data?.last_pull_snapshot?.__salary?.annual_ctc);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    },
+    enabled: !!employeeId,
+  });
+
+
+
   const { data: components = [] } = useQuery({
     queryKey: ["hr_salary_components_all"],
     queryFn: async () => {
@@ -123,9 +144,29 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
         </Button>
       </div>
 
+      {(() => {
+        if (!rzpCtc) return null;
+        const annualSum = structures.filter(isRupees).reduce((s: number, r: any) => s + toAnnual(Number(r.amount) || 0), 0);
+        const drift = Math.round(annualSum - rzpCtc);
+        if (Math.abs(drift) <= 1) {
+          return (
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+              Anchored to RazorpayX annual CTC <b>₹{rzpCtc.toLocaleString('en-IN')}</b> — components tie out exactly.
+            </div>
+          );
+        }
+        return (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            Component total ₹{annualSum.toLocaleString('en-IN')}/yr does not match the RazorpayX CTC ₹{rzpCtc.toLocaleString('en-IN')}/yr
+            (drift {drift > 0 ? '+' : ''}₹{drift.toLocaleString('en-IN')}). Run a RazorpayX pull to re-anchor.
+          </div>
+        );
+      })()}
+
       <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-        Read-only mirror of the RazorpayX salary structure. Stored amounts are auto-detected as <b>{unit}</b> based on total CTC; monthly and annual columns are derived. Edits happen on RazorpayX and re-sync on the next pull.
+        RazorpayX exposes only the total CTC through its payroll API — never the component split. The breakdown below is derived locally and rescaled to tie out exactly to that CTC. Stored amounts are auto-detected as <b>{unit}</b>; monthly and annual columns are derived. Edits happen on RazorpayX and re-sync on the next pull.
       </div>
+
 
       {structures.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">No mirrored structure yet — sync from RazorpayX to populate.</p>

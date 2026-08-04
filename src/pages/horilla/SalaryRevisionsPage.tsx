@@ -337,7 +337,25 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             );
 
             let syncBadge: React.ReactNode = null;
-            if (isOneTime) {
+            if (isPayrollInput) {
+              syncBadge = (
+                <StatusPill
+                  tone="info"
+                  icon={Clock}
+                  label={`Staged${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM")}` : ""}`}
+                  detail={`Staged in the ${r.payout_month ? format(new Date(r.payout_month), "MMMM yyyy") : ""} payroll inputs — push it from the Payroll Cockpit (Step 5).`}
+                />
+              );
+            } else if (isRecordOnlyPayout) {
+              syncBadge = (
+                <StatusPill
+                  tone="ok"
+                  icon={CheckCircle2}
+                  label={`Recorded${r.payout_paid_on ? ` · ${format(new Date(r.payout_paid_on), "dd MMM")}` : ""}`}
+                  detail={`Paid outside payroll${r.payout_paid_on ? ` on ${format(new Date(r.payout_paid_on), "dd MMM yyyy")}` : ""} — nothing pushed to RazorpayX.`}
+                />
+              );
+            } else if (isOneTime) {
               const gateOnlyError = isPayrollGateError(r.razorpay_push_error);
               if (gateOnlyError && payrollGateVerified) {
                 syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Retry push" detail="Ready to retry the RazorpayX push" />;
@@ -384,19 +402,26 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
 
-            const typeLabel = isOneTime
-              ? String(r.revision_type || "bonus").replace(/_/g, " ")
-              : isScheduled ? "Scheduled" : diff >= 0 ? "Increment" : "Correction";
+            const typeLabel = isPayrollInput
+              ? (category === "ADDITION" ? "Addition" : "Deduction")
+              : isOneTime
+                ? String(r.revision_type || "bonus").replace(/_/g, " ")
+                : isScheduled ? "Scheduled" : diff >= 0 ? "Increment" : "Correction";
 
             const typeTone = isCancelled
               ? "border-muted-foreground/30 text-muted-foreground bg-muted"
-              : isOneTime
-                ? "border-violet-500/40 text-violet-600 bg-violet-500/10"
-                : isScheduled
-                  ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
-                  : diff >= 0
-                    ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
-                    : "border-destructive/40 text-destructive bg-destructive/10";
+              : category === "DEDUCTION"
+                ? "border-destructive/40 text-destructive bg-destructive/10"
+                : category === "ADDITION"
+                  ? "border-sky-500/40 text-sky-600 bg-sky-500/10"
+                  : isOneTime
+                    ? "border-violet-500/40 text-violet-600 bg-violet-500/10"
+                    : isScheduled
+                      ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
+                      : diff >= 0
+                        ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
+                        : "border-destructive/40 text-destructive bg-destructive/10";
+
 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
             const pushBtn =

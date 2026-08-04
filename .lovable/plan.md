@@ -1,40 +1,31 @@
-# Absent vs Not Punched — what the two labels mean, and why they disagree
+# Fix "Absent" vs "Not Punched" inconsistency
 
-## The logic today
+## What the data actually shows (3 August 2026)
 
-The Attendance Overview reads one row per employee per day from `hr_attendance_daily` and maps the stored `status`:
-
-- `present` / `late` / `half_day` -> Present-type badges
-- `absent` -> **Absent**
-- `no_data` (and `incomplete`) -> **Not Punched**
-- no row at all -> a placeholder row is rendered as **Not Punched**
-
-So both groups in your screenshot have zero punches. The only difference is *which writer touched the row last*:
-
-- **Absent** = the nightly `auto-absent-marking` job (runs ~07:30 IST for the window that just closed) judged the day: no punches, no approved leave, no weekly off, no holiday -> it writes `status = 'absent'` with `flags.auto_absent = true`.
-- **Not Punched** = the v4 attendance engine (`hr_v4_recompute_range`) rebuilt that day from raw punches and, finding zero punches, wrote `status = 'no_data'` with shift-metric flags (`expected_start`, `expected_end`, `grace_minutes`).
-
-## Verified evidence (2026-08-03)
-
-| Group | Count | Last write | Flags |
+| Employee | Punches on 3 Aug | Stored status | Row last written |
 |---|---|---|---|
-| `absent` | 10 | 2026-08-04 02:00 UTC (marker run) | `auto_absent: true` |
-| `no_data` | 8 | 2026-08-04 03:50 – 07:02 UTC (engine rebuilds) | shift metrics, no `auto_absent` |
+| Aarti Pawaiya (26) | 1 punch: OUT 18:01, marked ineffective (`orphan_out` — an OUT with no matching IN) | `no_data` -> "Not Punched" | 4 Aug 04:51 (engine rebuild) |
+| Lavany Pradhan (15) | none at all | `no_data` -> "Not Punched" | 4 Aug 07:02 (engine rebuild) |
+| Himanshu Rajak (20) | none at all | `absent` -> "Absent" | 4 Aug 02:00 (absent marker) |
+| Jatan Chaidwal (23) | none at all | `absent` -> "Absent" | 4 Aug 02:00 (absent marker) |
 
-None of the 8 `no_data` employees were on approved leave or weekly off, and all are active. Their rows were rewritten *after* the absent marker ran. So this is not a policy difference between the two groups — it is a **last-writer-wins race**: any punch webhook, watchdog run, or manual recompute that rebuilds a zero-punch day silently downgrades a settled `absent` verdict back to `no_data` ("Not Punched").
+So Lavany and Himanshu have **identical** underlying data (zero punches) but different tags. The tag is not driven by any rule about the employee — it is driven by **which job wrote the row last**:
 
-This matters beyond cosmetics: LOP and payroll treat `absent` and `no_data` differently, so the same real-world day can be paid or unpaid depending on whether a rebuild happened to run after the marker.
+- The nightly absent marker runs at 02:00 and writes `absent` for zero-punch days (after excluding leave/weekly-off/holiday).
+- The v4 attendance engine rebuild (`hr_v4_recompute_range`) writes `no_data` whenever it finds no effective punches — and it overwrites the marker's verdict.
 
-## Proposed fix
+Aarti additionally shows that a lone unmatched OUT punch counts as "no effective punch", so she is treated the same as someone with no punches at all.
 
-1. **Make the rebuild absence-preserving.** In `hr_v4_recompute_range`, when a day resolves to zero punches, do not blindly write `no_data`: keep `absent` if the existing row was auto-marked absent (`flags.auto_absent = true`) or manually set absent, and only use `no_data` for days whose window has not yet closed.
-2. **Single absence verdict function.** Extract the marker's decision (no punches AND no leave AND no weekly-off AND no holiday AND window closed -> `absent`, else `no_data`) into one SQL function used by both the nightly marker and the rebuild, so both writers always agree.
-3. **Backfill.** Re-run the verdict for all days from the v4 cutover to yesterday so historical rows stop showing a mix of Absent / Not Punched for identical situations.
-4. **UI clarity.** Keep the two labels but make `no_data` explicitly mean "window still open / not yet judged", and show "Absent" for closed windows. Add a tooltip on each badge stating the reason (auto-marked, awaiting window close, device offline).
-5. **Verification.** After deploy: recompute a past date, confirm previously-absent rows stay `absent`; confirm counts for 2026-08-01..08-03 have no zero-punch `no_data` rows on closed windows.
+## What to change
+
+1. **Preserve the absent verdict on rebuild.** `hr_v4_recompute_range` must not downgrade an existing `absent` row to `no_data`. Zero effective punches on a past, unlocked, non-leave/non-holiday/non-weekly-off day resolves to `absent`.
+2. **Single source of truth for absence.** Move the leave/holiday/weekly-off/pending-session checks into one SQL helper used by both the nightly marker and the engine, so both always agree.
+3. **Reserve "Not Punched" for genuinely undecided days**: today (window still open), future dates, locked periods, and days with an unresolved stale session. Everything else past becomes Absent, On Leave, Weekly Off or Holiday.
+4. **Surface suppressed punches.** Where a day has punches that were all discarded (Aarti's `orphan_out`), show an "unmatched punch" marker on the row so HR can regularize instead of seeing a blank day.
+5. **Backfill history** for the current attendance period so past days stop showing mixed tags, skipping locked periods.
 
 ## Technical notes
 
-- Writers involved: `supabase/functions/auto-absent-marking/index.ts`, SQL `hr_v4_recompute_range`, watchdog paths that call recompute.
-- Readers affected: `AttendanceOverviewPage.tsx`, `EmployeeProfilePage.tsx`, monthly summary and LOP views that filter on `status = 'absent'`.
-- No schema change required; only the status-derivation logic plus a backfill migration.
+- Files/objects touched: `hr_v4_recompute_range`, new `hr_resolve_day_status(employee_id, date)` helper, `supabase/functions/auto-absent-marking/index.ts`, `src/pages/horilla/AttendanceOverviewPage.tsx`.
+- Backfill runs as a one-time SQL pass over `hr_attendance_daily`, respecting `hr_v4_is_window_locked`.
+- No change to punch ingestion or to LOP calculation logic in this step; LOP already keys off `absent`, so it becomes more accurate once the labels stop flipping.

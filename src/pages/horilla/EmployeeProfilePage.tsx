@@ -552,43 +552,52 @@ export default function EmployeeProfilePage() {
       setEditing(false);
       queryClient.invalidateQueries({ queryKey: ["hr_employee_detail"] });
       // ERP is source of truth → nudge Razorpay to match (About / identity fields).
-      if (activeTab === "About" && id) {
-        import("@/lib/razorpayPushback").then(m => m.pushIdentityToRazorpay(id));
-      }
+      if (activeTab === "About" && id) void syncToRazorpay("identity");
     },
-    onError: () => toast.error("Failed to save"),
+    onError: (e: any) => {
+      console.error("[EmployeeProfile] save failed:", e);
+      toast.error("Failed to save", { description: e?.message || e?.details || String(e) });
+    },
   });
 
-  // ─── Work Info Save Mutation ───
-  const saveWorkInfoMutation = useMutation({
-    mutationFn: async () => {
-      const updateData: any = {
-        reporting_manager_id: workInfoForm.reporting_manager_id || null,
-        shift_id: workInfoForm.shift_id || null,
-        department_id: workInfoForm.department_id || null,
-        job_position_id: workInfoForm.job_position_id || null,
-        job_role: workInfoForm.job_role || null,
-        work_type: workInfoForm.work_type || null,
-        employee_type: workInfoForm.employee_type || null,
-        location: workInfoForm.location || null,
-        company_name: workInfoForm.company_name || null,
-        work_email: workInfoForm.work_email || null,
-        work_phone: workInfoForm.work_phone || null,
-        basic_salary: workInfoForm.basic_salary ? parseFloat(workInfoForm.basic_salary) : null,
-        joining_date: workInfoForm.joining_date || null,
-        contract_end_date: workInfoForm.contract_end_date || null,
-        experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
-        level_band: workInfoForm.level_band || null,
-      };
+  // ─── ERP → RazorpayX sync with explicit, honest feedback ───
+  const [razorpaySync, setRazorpaySync] = useState<
+    { state: "idle" | "syncing" | "verified" | "failed" | "skipped"; message?: string; at?: string }
+  >({ state: "idle" });
 
-      if (workInfo?.id) {
-        const { error } = await supabase.from("hr_employee_work_info").update(updateData).eq("id", workInfo.id);
-        if (error) throw error;
+  const syncToRazorpay = async (kind: "identity" | "employment") => {
+    if (!id) return;
+    setRazorpaySync({ state: "syncing" });
+    const toastId = toast.loading("Syncing to RazorpayX…");
+    try {
+      const { pushToRazorpay } = await import("@/lib/razorpayPushback");
+      const res = await pushToRazorpay(kind, id, {
+        triggeredFrom: "employee_profile",
+        silent: true,
+      });
+      toast.dismiss(toastId);
+      const at = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+      if (res.skipped) {
+        setRazorpaySync({ state: "skipped", message: "Employee is not linked to a RazorpayX payroll record", at });
+        toast.warning("Saved in HRMS — NOT sent to RazorpayX", {
+          description: "This employee has no linked RazorpayX payroll record, so nothing was pushed.",
+        });
+      } else if (res.ok) {
+        setRazorpaySync({ state: "verified", message: "RazorpayX read-back matches HRMS", at });
+        toast.success("Updated in RazorpayX and verified");
       } else {
-        const { error } = await supabase.from("hr_employee_work_info").insert({ ...updateData, employee_id: id! });
-        if (error) throw error;
+        setRazorpaySync({ state: "failed", message: res.error || "RazorpayX did not confirm the update", at });
+        toast.error("Saved in HRMS, but RazorpayX did NOT confirm", {
+          description: res.error || "Open the diff dialog / Data Health page to retry.",
+        });
       }
-    },
+    } catch (e: any) {
+      toast.dismiss(toastId);
+      setRazorpaySync({ state: "failed", message: e?.message || String(e) });
+      toast.error("RazorpayX sync failed", { description: e?.message || String(e) });
+    }
+  };
+...
     onSuccess: () => {
       toast.success("Work information updated");
       setEditingWorkInfo(false);
@@ -597,8 +606,15 @@ export default function EmployeeProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["pos_for_emp"] });
       queryClient.invalidateQueries({ queryKey: ["shift_for_emp"] });
       queryClient.invalidateQueries({ queryKey: ["reporting_mgr"] });
+      // Work info drives designation / department / joining date / employee type in RazorpayX.
+      void syncToRazorpay("employment");
     },
-    onError: () => toast.error("Failed to update work info"),
+    onError: (e: any) => {
+      console.error("[EmployeeProfile] work info update failed:", e);
+      toast.error("Failed to update work info", {
+        description: e?.message || e?.details || e?.hint || String(e),
+      });
+    },
   });
 
   const addNoteMutation = useMutation({

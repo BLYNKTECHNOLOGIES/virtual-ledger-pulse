@@ -77,10 +77,11 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
 
   // Summary totals
   const totalBonuses = rows
-    .filter(r => ONE_TIME_KINDS.has(r.revision_type) && r.status === "APPLIED")
+    .filter(r => BONUS_KINDS.has(r.revision_type) && r.status === "APPLIED")
     .reduce((s, r) => s + Number(r.one_time_amount || 0), 0);
   const revisionCount = rows.filter(r => !ONE_TIME_KINDS.has(r.revision_type)).length;
-  const bonusCount = rows.filter(r => ONE_TIME_KINDS.has(r.revision_type)).length;
+  const bonusCount = rows.filter(r => BONUS_KINDS.has(r.revision_type)).length;
+
 
   return (
     <div className="space-y-3">

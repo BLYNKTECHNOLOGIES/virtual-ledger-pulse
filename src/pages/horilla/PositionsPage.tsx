@@ -45,8 +45,9 @@ export default function PositionsPage() {
         description: form.description || null,
       };
       if (editId) {
-        const { error } = await supabase.from("positions").update(payload).eq("id", editId);
+        const { data, error } = await supabase.from("positions").update(payload).eq("id", editId).select("id");
         if (error) throw error;
+        if (!data || data.length === 0) throw new Error("No row updated (permission denied or position missing)");
       } else {
         const { error } = await supabase.from("positions").insert(payload);
         if (error) throw error;
@@ -57,7 +58,7 @@ export default function PositionsPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
       closeDialog();
     },
-    onError: () => toast.error("Failed to save position"),
+    onError: (e: any) => toast.error(`Failed to save position: ${e?.message || "unknown error"}`),
   });
 
   const deleteMutation = useMutation({
@@ -69,7 +70,7 @@ export default function PositionsPage() {
       toast.success("Position deleted");
       queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
     },
-    onError: () => toast.error("Failed to delete position"),
+    onError: (e: any) => toast.error(`Failed to delete position: ${e?.message || "unknown error"}`),
   });
 
   const toggleActiveMutation = useMutation({

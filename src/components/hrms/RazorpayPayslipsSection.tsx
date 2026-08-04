@@ -25,6 +25,25 @@ const IN_MONTH = (iso: string) => {
 const INR = (n: any) =>
   n == null || n === "" ? "—" : `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
+/**
+ * Explicit gap marker. The RazorpayX (Opfin) payroll API returns only a single
+ * salary figure per month — never a PF/ESI/PT/TDS breakdown — so these values
+ * exist only once the monthly Salary Register CSV has been imported.
+ */
+const NotImported = () => (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="text-[10px] text-amber-600 underline decoration-dotted cursor-help">Not imported</span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[240px] text-xs">
+        The RazorpayX API does not expose statutory splits. Import the Salary Register CSV for this month to see PF, ESI, PT and TDS.
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
+
 /** Recursively pick numeric leaves from source_payload, ignoring known meta keys. */
 function flattenBreakdown(obj: any, prefix = ""): Array<{ key: string; value: number }> {
   if (!obj || typeof obj !== "object") return [];

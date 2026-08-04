@@ -251,6 +251,7 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     reg_official_email: toStr(r[colT("Email")] ?? ""),
     reg_extra_earnings: [],
     gross_tieout_diff: null,
+    net_tieout_diff: null,
   })).filter(r => r.razorpay_employee_id);
 
   // Second pass: capture unmapped numeric heads and verify each row's earnings tie to Gross.

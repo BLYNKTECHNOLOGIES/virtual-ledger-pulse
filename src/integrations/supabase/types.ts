@@ -13492,7 +13492,11 @@ export type Database = {
           new_total: number | null
           notes: string | null
           one_time_amount: number | null
+          payout_channel: string | null
           payout_month: string | null
+          payout_paid_on: string | null
+          payroll_input_id: string | null
+          payroll_input_kind: string | null
           previous_basic: number | null
           previous_total: number | null
           razorpay_push_error: string | null
@@ -13519,7 +13523,11 @@ export type Database = {
           new_total?: number | null
           notes?: string | null
           one_time_amount?: number | null
+          payout_channel?: string | null
           payout_month?: string | null
+          payout_paid_on?: string | null
+          payroll_input_id?: string | null
+          payroll_input_kind?: string | null
           previous_basic?: number | null
           previous_total?: number | null
           razorpay_push_error?: string | null
@@ -13546,7 +13554,11 @@ export type Database = {
           new_total?: number | null
           notes?: string | null
           one_time_amount?: number | null
+          payout_channel?: string | null
           payout_month?: string | null
+          payout_paid_on?: string | null
+          payroll_input_id?: string | null
+          payroll_input_kind?: string | null
           previous_basic?: number | null
           previous_total?: number | null
           razorpay_push_error?: string | null

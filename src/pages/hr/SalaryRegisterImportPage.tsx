@@ -517,6 +517,32 @@ export default function SalaryRegisterImportPage({
             </div>
           </div>
 
+          {parsed.some(r => (r.gross_tieout_diff ?? 0) !== 0 && Math.abs(r.gross_tieout_diff ?? 0) > 1) && (
+            <Alert variant="destructive">
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle>Gross does not tie out for some rows</AlertTitle>
+              <AlertDescription className="text-xs">
+                {parsed
+                  .filter(r => Math.abs(r.gross_tieout_diff ?? 0) > 1)
+                  .map(r => `${r.name}: components ${INR((r.reg_gross_salary ?? 0) + (r.gross_tieout_diff ?? 0))} vs Gross ${INR(r.reg_gross_salary)}`)
+                  .join(" · ")}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {parsed.some(r => r.reg_extra_earnings.length > 0) && (
+            <Alert>
+              <Info className="w-4 h-4" />
+              <AlertTitle>Custom pay heads detected</AlertTitle>
+              <AlertDescription className="text-xs">
+                These non-standard heads are included in Gross and are stored with the payslip record:{" "}
+                <strong>
+                  {Array.from(new Set(parsed.flatMap(r => r.reg_extra_earnings.map(e => e.label)))).join(", ")}
+                </strong>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {missingCols.length > 0 && (
             <Alert>
               <AlertTriangle className="w-4 h-4" />

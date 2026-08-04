@@ -279,6 +279,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             payout_paid_on: format(paidOn, "yyyy-MM-dd"),
             payout_channel: "outside_payroll",
             revision_reason: reason || null,
+            pay_head_label: reason?.trim() || null,
+
             notes: notes || null,
             approved_by: approvedBy,
             status: "APPLIED",

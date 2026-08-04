@@ -145,12 +145,26 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
 
   const send = useMutation({
     mutationFn: async (args: { ids: string[]; mode: "send" | "preview" }) => {
-      const { data, error } = await supabase.functions.invoke("hr-send-payslip-emails", {
-        body: { mode: args.mode, period_month: month, employee_ids: args.ids },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      return data as { sent: number; failed: number; results: { name: string; ok: boolean; error?: string }[] };
+      // Sends run in small server-side chunks (PDF attach is CPU heavy). Loop until
+      // the server reports nothing remaining; each chunk is logged, so a crash can
+      // never cause a duplicate send on retry.
+      const agg = { sent: 0, failed: 0, results: [] as { name: string; ok: boolean; error?: string }[] };
+      let guard = 0;
+      for (;;) {
+        const { data, error } = await supabase.functions.invoke("hr-send-payslip-emails", {
+          body: { mode: args.mode, period_month: month, employee_ids: args.ids },
+        });
+        if (error) throw error;
+        if ((data as any)?.error) throw new Error((data as any).error);
+        const d = data as { sent: number; failed: number; remaining?: number; results: any[] };
+        agg.sent += d.sent ?? 0;
+        agg.failed += d.failed ?? 0;
+        agg.results.push(...(d.results ?? []));
+        if (args.mode === "preview") break;
+        if (!d.remaining || d.remaining <= 0) break;
+        if (++guard > 60) break;
+      }
+      return agg;
     },
     onSuccess: (r, vars) => {
       if (vars.mode === "preview") toast.success("Preview sent to your email");
@@ -162,7 +176,11 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
       qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", month] });
     },
-    onError: (e: any) => toast.error(e.message || "Send failed"),
+    onError: (e: any) => {
+      toast.error(e.message || "Send failed");
+      setSelected({});
+      qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
+    },
   });
 
   /** After a step that can unblock recipients, re-read the roster and, if anyone is

@@ -52,6 +52,18 @@ function toNum(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * RazorpayX emits every deduction as a NEGATIVE amount in the register
+ * (PF/ESI/LWF/PT/TDS/Advance/Loan). We canonicalise them to positive
+ * magnitudes at parse time so the UI, tie-outs and the DB all agree.
+ * One-time Payments stays SIGNED (negative = recovery, positive = payout).
+ */
+function toDed(v: string): number | null {
+  const n = toNum(v);
+  return n == null ? null : Math.abs(n);
+}
+
+
 function toStr(v: string | undefined): string | null {
   if (v == null) return null;
   const s = String(v).trim().replace(/^'/, "");

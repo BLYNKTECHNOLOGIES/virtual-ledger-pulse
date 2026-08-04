@@ -197,28 +197,79 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         return { kind: "recurring", data };
       }
 
+      if (mode === "addition" || mode === "deduction") {
+        const amt = parseFloat(inputAmount);
+        if (!amt || amt <= 0) throw new Error("Enter a valid amount");
+        if (!inputLabel.trim()) throw new Error("Enter a label — it appears on the payroll run and payslip");
+        if (startOfMonth(inputPeriod) < startOfMonth(new Date()))
+          throw new Error("Backdated additions / deductions are not allowed — pick the current month or a future month");
+        if (!razorpayEmployeeId)
+          throw new Error("Employee is not linked to RazorpayX — link them from Data Health first.");
+
+        const period = format(startOfMonth(inputPeriod), "yyyy-MM-01");
+        const table = mode === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
+        const payload: any = {
+          hr_employee_id: employeeId,
+          razorpay_employee_id: razorpayEmployeeId,
+          period_month: period,
+          label: inputLabel.trim().slice(0, 80),
+          amount: Math.round(amt),
+          created_by: (user as any)?.id ?? null,
+        };
+        if (mode === "addition") {
+          payload.addition_type = additionTypeCode(additionKind);
+          payload.taxable = taxable;
+        }
+
+        const { data: input, error: inputErr } = await (supabase as any)
+          .from(table)
+          .insert(payload)
+          .select("id")
+          .single();
+        if (inputErr) throw inputErr;
+
+        const { error } = await (supabase as any)
+          .from("hr_salary_revisions")
+          .insert({
+            employee_id: employeeId,
+            revision_type: mode === "addition" ? "payroll_addition" : "payroll_deduction",
+            one_time_amount: Math.round(amt),
+            payout_month: period,
+            effective_from: period,
+            revision_reason: inputLabel.trim() || null,
+            notes: notes || null,
+            approved_by: approvedBy,
+            status: "APPLIED",
+            payroll_input_id: input?.id ?? null,
+            payroll_input_kind: mode,
+          });
+        if (error) throw error;
+        return { kind: "payroll_input", mode, period };
+      }
+
       if (mode === "one_time") {
         const amt = parseFloat(oneTimeAmount);
         if (!amt || amt <= 0) throw new Error("Enter a valid amount");
 
-        const { data: inserted, error } = await (supabase as any)
+        const { error } = await (supabase as any)
           .from("hr_salary_revisions")
           .insert({
             employee_id: employeeId,
             revision_type: revisionType,
             one_time_amount: amt,
-            payout_month: format(payoutMonth, "yyyy-MM-01"),
-            effective_from: format(payoutMonth, "yyyy-MM-01"),
+            payout_month: format(startOfMonth(paidOn), "yyyy-MM-01"),
+            effective_from: format(paidOn, "yyyy-MM-dd"),
+            payout_paid_on: format(paidOn, "yyyy-MM-dd"),
+            payout_channel: "outside_payroll",
             revision_reason: reason || null,
             notes: notes || null,
             approved_by: approvedBy,
             status: "APPLIED",
-          })
-          .select("id")
-          .single();
+          });
         if (error) throw error;
-        return { kind: "one_time", revisionId: inserted?.id as string | undefined };
+        return { kind: "one_time" };
       }
+
 
 
       // statutory toggle

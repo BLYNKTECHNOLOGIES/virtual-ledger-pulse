@@ -181,6 +181,11 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
   // Every header we explicitly map; anything else numeric and non-zero is a custom
   // pay head (Performance bonus, Fees, Legal fees, …) that must not be dropped.
   const mapped = new Set<number>();
+  // Match-key columns are read directly (not through colT) but are NOT pay heads.
+  // "Employee ID" is numeric, so leaving it unmapped made every employee's ID get
+  // added to their earnings and broke the per-row gross tie-out.
+  mapped.add(iEmp);
+  mapped.add(iName);
   const colT = (label: string) => { const i = col(label); if (i >= 0) mapped.add(i); return i; };
   const rows: ParsedRow[] = grid.slice(1).map(r => ({
     razorpay_employee_id: (r[iEmp] ?? "").trim(),

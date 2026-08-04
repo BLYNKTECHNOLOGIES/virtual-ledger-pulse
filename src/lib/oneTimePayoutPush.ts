@@ -81,6 +81,7 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
     retention_bonus: "Retention Bonus",
     special_allowance: "Special Allowance",
     ad_hoc: "Ad Hoc Payout",
+    one_time_correction: "Correction",
     reimbursement: "Reimbursement",
     arrears: "Arrears",
   };

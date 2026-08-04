@@ -15,7 +15,7 @@ import { Link } from "react-router-dom";
  * these are surfaced read-only here with their real push/verify state instead
  * of being invisible because they live in a different table.
  */
-const ONE_TIME_KINDS = ["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc"];
+const ONE_TIME_KINDS = ["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction"];
 
 export function OtherPayrollInputsCard({ period }: { period: string }) {
   const periodDate = `${period}-01`;

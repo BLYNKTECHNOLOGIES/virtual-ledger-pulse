@@ -223,10 +223,18 @@ function computeInsights(rows: ParsedRow[]) {
   };
 }
 
-export default function SalaryRegisterImportPage() {
+export default function SalaryRegisterImportPage({
+  initialMonth,
+  embedded = false,
+  onImported,
+}: {
+  initialMonth?: string;
+  embedded?: boolean;
+  onImported?: () => void;
+} = {}) {
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
-  const [periodMonth, setPeriodMonth] = useState<string>("");
+  const [periodMonth, setPeriodMonth] = useState<string>(initialMonth ?? "");
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -265,7 +273,12 @@ export default function SalaryRegisterImportPage() {
     setParseError(null);
     setParsed(rows);
     const auto = extractPeriodFromFilename(f.name);
-    if (auto) setPeriodMonth(auto);
+    if (auto && initialMonth && auto !== initialMonth) {
+      toast.warning(`Filename suggests ${auto} but this cockpit month is ${initialMonth} — importing into ${initialMonth}.`);
+      setPeriodMonth(initialMonth);
+    } else if (auto) {
+      setPeriodMonth(auto);
+    }
     toast.success(`Parsed ${rows.length} employee rows from ${f.name}`);
   };
 
@@ -367,6 +380,9 @@ export default function SalaryRegisterImportPage() {
         `Imported ${updated} rows${derivedCount ? ` · derived statutory enrollment for ${derivedCount} employees` : ""}. ${missing.length ? `${missing.length} not matched.` : "All matched."}`,
       );
       await qc.invalidateQueries({ queryKey: ["payslip_records_for_period", periodMonth] });
+      await qc.invalidateQueries({ queryKey: ["payslip_email_roster", periodMonth] });
+      await qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", periodMonth] });
+      onImported?.();
 
     } catch (e: any) {
       toast.error(e.message || "Import failed");
@@ -376,11 +392,13 @@ export default function SalaryRegisterImportPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
-      <PageHeader
-        title="Import Salary Register (CSV)"
-        description="Ingest statutory splits (PF/ESI/PT/TDS/LWF/employer contributions), variable pay (Overtime, PLI), separation and identity snapshots from the monthly RazorpayX dashboard CSV. The API does not expose these fields; this is the only source of parity."
-      />
+    <div className={embedded ? "space-y-4" : "p-4 md:p-6 space-y-4 page-mount"}>
+      {!embedded && (
+        <PageHeader
+          title="Import Salary Register (CSV)"
+          description="Ingest statutory splits (PF/ESI/PT/TDS/LWF/employer contributions), variable pay (Overtime, PLI), separation and identity snapshots from the monthly RazorpayX dashboard CSV. The API does not expose these fields; this is the only source of parity."
+        />
+      )}
 
       <Alert>
         <Info className="w-4 h-4" />

@@ -12,7 +12,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Upload, Mail, RefreshCw, CheckCircle2, AlertTriangle, FileText, Send, CalendarDays, FileArchive } from "lucide-react";
+import { Upload, Mail, RefreshCw, CheckCircle2, AlertTriangle, FileText, Send, CalendarDays, FileArchive, FileSpreadsheet } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { lazy, Suspense } from "react";
+
+const SalaryRegisterImportPage = lazy(() => import("@/pages/hr/SalaryRegisterImportPage"));
 import { readPayslipArchive, readEmployeeCodeFromPdf } from "@/lib/payslipZip";
 
 
@@ -87,6 +91,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [processedOnDraft, setProcessedOnDraft] = useState<string>("");
   const [unmatched, setUnmatched] = useState<string[]>([]);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
 
   const rosterQ = useQuery({
@@ -305,6 +310,24 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
 
   return (
     <div className="space-y-4">
+      <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
+        <DialogContent className="md:max-w-6xl md:w-[min(98vw,80rem)] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" /> Import Salary Register (CSV) — {month}
+            </DialogTitle>
+          </DialogHeader>
+          <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading importer…</div>}>
+            <SalaryRegisterImportPage
+              embedded
+              initialMonth={month}
+              onImported={() => {
+                rosterQ.refetch();
+              }}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
       <Card>
         <CardContent className="p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -314,18 +337,24 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
             <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => rosterQ.refetch()}>
               <RefreshCw className={`h-3.5 w-3.5 ${rosterQ.isFetching ? "animate-spin" : ""}`} /> Refresh
             </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setRegisterOpen(true)}>
+              <FileSpreadsheet className="h-3.5 w-3.5" /> {registerPresent ? "Re-import Salary Register" : "Import Salary Register"}
+            </Button>
             <div className="ml-auto text-xs text-muted-foreground">
               {sentCount}/{rows.length} sent · {sendable.length} ready
             </div>
           </div>
 
           {!registerPresent && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
+            <div className="flex flex-wrap items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>
+              <span className="flex-1 min-w-[240px]">
                 Salary Register CSV has not been imported for this month. Payslip emails are blocked until the register
                 is imported — statutory splits and register-based gross/net are required.
               </span>
+              <Button size="sm" className="gap-1.5" onClick={() => setRegisterOpen(true)}>
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Import Salary Register CSV
+              </Button>
             </div>
           )}
 

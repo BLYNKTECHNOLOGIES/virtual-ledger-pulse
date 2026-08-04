@@ -45,8 +45,9 @@ export default function PositionsPage() {
         description: form.description || null,
       };
       if (editId) {
-        const { error } = await supabase.from("positions").update(payload).eq("id", editId);
+        const { data, error } = await supabase.from("positions").update(payload).eq("id", editId).select("id");
         if (error) throw error;
+        if (!data || data.length === 0) throw new Error("No row updated (permission denied or position missing)");
       } else {
         const { error } = await supabase.from("positions").insert(payload);
         if (error) throw error;

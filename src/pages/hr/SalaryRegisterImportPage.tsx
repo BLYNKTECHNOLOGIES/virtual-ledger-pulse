@@ -772,6 +772,67 @@ export default function SalaryRegisterImportPage({
           </CardContent>
         </Card>
       )}
+
+      {recon && (recon.register_only.length > 0 || recon.hrms_only.length > 0) && (
+        <Card className="border-amber-500/40">
+          <CardHeader>
+            <CardTitle className="text-base">One-time payout reconciliation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="flex gap-2 flex-wrap">
+              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40">{recon.matched} matched</Badge>
+              {recon.register_only.length > 0 && <Badge variant="destructive">{recon.register_only.length} on RazorpayX only</Badge>}
+              {recon.hrms_only.length > 0 && <Badge variant="outline">{recon.hrms_only.length} in HRMS only</Badge>}
+            </div>
+
+            {recon.register_only.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium">Paid on RazorpayX but not recorded in HRMS — record them so the pay head names stay aligned.</p>
+                {recon.register_only.map((l) => (
+                  <div key={l.line_id} className="flex items-center justify-between gap-3 rounded border border-border p-2">
+                    <div>
+                      <p className="font-medium text-foreground">{empNames[l.hr_employee_id] ?? "Employee"}</p>
+                      <p className="text-xs text-muted-foreground">{l.label} · {INR(l.amount)}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={backfilling === l.line_id}
+                      onClick={async () => {
+                        setBackfilling(l.line_id);
+                        try {
+                          const { error } = await (supabase as any).rpc("hr_backfill_one_time_payout_from_register", { p_line_id: l.line_id });
+                          if (error) throw error;
+                          toast.success(`Recorded "${l.label}" in HRMS`);
+                          setRecon((r) => (r ? { ...r, matched: r.matched + 1, register_only: r.register_only.filter((x) => x.line_id !== l.line_id) } : r));
+                        } catch (e: any) {
+                          toast.error(e.message || "Could not record payout");
+                        } finally {
+                          setBackfilling(null);
+                        }
+                      }}
+                    >
+                      Record in HRMS
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {recon.hrms_only.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium">Recorded in HRMS but absent from the register — verify these were actually paid.</p>
+                {recon.hrms_only.map((r) => (
+                  <div key={r.revision_id} className="text-xs text-muted-foreground">
+                    {empNames[r.hr_employee_id] ?? "Employee"} — {r.label} · {INR(r.amount)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
     </div>
   );
 }

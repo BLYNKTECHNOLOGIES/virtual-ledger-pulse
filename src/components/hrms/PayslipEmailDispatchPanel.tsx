@@ -36,6 +36,8 @@ interface DispatchRow {
   paid_days: number | null;
   month_days: number;
   bank_last4: string | null;
+  employer_contrib?: number;
+  deduction_breakdown?: { label: string; amount: number }[];
   pdf_path: string | null;
   already_sent_at: string | null;
   blockers: string[];
@@ -151,6 +153,18 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
     onError: (e: any) => toast.error(e.message || "Send failed"),
   });
 
+  /** After a step that can unblock recipients, re-read the roster and, if anyone is
+   *  ready, pre-select everyone and open the send confirmation immediately. */
+  async function autoDispatchAfterStep() {
+    const res = await rosterQ.refetch();
+    const fresh = (res.data?.rows ?? []).filter((r) => r.sendable && !r.already_sent_at);
+    if (fresh.length === 0) return;
+    const next: Record<string, boolean> = {};
+    fresh.forEach((r) => (next[r.employee_id] = true));
+    setSelected(next);
+    setConfirmOpen(true);
+  }
+
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return;
     setUploading(true);
@@ -176,8 +190,8 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
       setUnmatched(missed);
       if (ok) toast.success(`${ok} payslip PDF(s) attached to employees`);
       if (missed.length) toast.warning(`${missed.length} file(s) could not be matched`);
-      qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", month] });
+      await autoDispatchAfterStep();
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -282,8 +296,8 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
           `${report.unmapped.length + report.conflicts.length + report.failures.length} file(s) need attention`,
         );
       }
-      qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", month] });
+      await autoDispatchAfterStep();
     } catch (err: any) {
       toast.error(err?.message || "Could not read the archive");
     } finally {
@@ -305,7 +319,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
       .eq("hr_employee_id", employeeId);
     if (error) return toast.error(error.message);
     toast.success("Payslip attached");
-    qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
+    await autoDispatchAfterStep();
   }
 
   return (
@@ -322,7 +336,8 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
               embedded
               initialMonth={month}
               onImported={() => {
-                rosterQ.refetch();
+                setRegisterOpen(false);
+                autoDispatchAfterStep();
               }}
             />
           </Suspense>

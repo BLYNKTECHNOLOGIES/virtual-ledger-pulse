@@ -27,6 +27,7 @@ const ADDITION_TYPE_MAP: Record<string, string> = {
   retention_bonus: "bonus",
   special_allowance: "bonus",
   ad_hoc: "bonus",
+  one_time_correction: "bonus",
   reimbursement: "reimbursement",
   arrears: "arrears",
 };
@@ -80,6 +81,7 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
     retention_bonus: "Retention Bonus",
     special_allowance: "Special Allowance",
     ad_hoc: "Ad Hoc Payout",
+    one_time_correction: "Correction",
     reimbursement: "Reimbursement",
     arrears: "Arrears",
   };

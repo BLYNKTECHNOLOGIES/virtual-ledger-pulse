@@ -109,7 +109,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     onError: (e: any) => toast.error(e.message),
   });
 
-  const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc"]);
+  const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction"]);
   const filtered = useMemo(() => revisions.filter((r: any) => {
     const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
     // Exclude initial onboarding entries (no prior salary → not a revision),

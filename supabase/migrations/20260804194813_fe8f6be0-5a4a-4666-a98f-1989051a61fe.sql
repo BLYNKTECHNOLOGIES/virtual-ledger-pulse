@@ -1,0 +1,2 @@
+ALTER TABLE public.hr_salary_revisions DROP CONSTRAINT hr_salary_revisions_type_check;
+ALTER TABLE public.hr_salary_revisions ADD CONSTRAINT hr_salary_revisions_type_check CHECK (revision_type = ANY (ARRAY['increment','promotion','correction','demotion','bonus','performance_incentive','special_allowance','retention_bonus','ad_hoc','one_time_correction','statutory_toggle']));

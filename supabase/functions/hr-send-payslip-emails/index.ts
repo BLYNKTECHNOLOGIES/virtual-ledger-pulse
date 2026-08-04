@@ -109,6 +109,22 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
         <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
       </tr>`).join('')
 
+  const earnRowsHtml = row.earning_breakdown.map((d) => `
+      <tr>
+        <td style="padding:8px 16px;color:#64748b;font-size:13px;">${esc(d.label)}</td>
+        <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
+      </tr>`).join('')
+
+  const earnBlock = row.earning_breakdown.length > 0 ? `
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 16px;">
+      <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Earnings break-up</td></tr>
+      ${earnRowsHtml}
+      <tr>
+        <td style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">Gross earnings</td>
+        <td align="right" style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${inr(row.gross)}</td>
+      </tr>
+    </table>` : ''
+
   const dedBlock = row.deduction_breakdown.length > 0 ? `
     <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 24px;">
       <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Deduction break-up</td></tr>
@@ -167,6 +183,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>${paidDaysRow}
     </table>
 
+    ${earnBlock}
     ${dedBlock}
     ${employerBlock}
     ${lopBlock}

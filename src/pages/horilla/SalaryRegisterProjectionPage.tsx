@@ -64,11 +64,13 @@ const COLUMNS: Col[] = [
   { key: "pt", label: "PT", kind: "num", group: "Deductions" },
   { key: "tds", label: "TDS", kind: "num", group: "Deductions" },
   { key: "loan_emi", label: "Loan Emi", kind: "num", group: "Deductions" },
+  { key: "deposit_recovery", label: "Deposit Recovery", kind: "num", group: "Deductions" },
   { key: "other_recovery", label: "Other Recovery", kind: "num", group: "Deductions" },
   { key: "lop_days", label: "LOP Days", kind: "num", group: "Deductions" },
   { key: "lop_amount", label: "LOP Amount", kind: "num", group: "Deductions" },
   { key: "one_time_payments", label: "One-time Payments", kind: "num", group: "Deductions" },
   { key: "net_pay", label: "Net Pay", kind: "num", group: "Deductions" },
+  { key: "off_payroll_payouts", label: "Off-payroll Payouts (not in net)", kind: "num", group: "Off-cycle" },
   { key: "bank_account", label: "Bank Acc. No", group: "Payout" },
   { key: "ifsc", label: "IFSC Code", group: "Payout" },
   { key: "salary_base_source", label: "Salary Base Source", group: "Provenance" },
@@ -225,9 +227,9 @@ export default function SalaryRegisterProjectionPage() {
           {[
             ["Employees", totals.employees, false],
             ["Projected Gross", totals.gross, true],
-            ["One-time Payments", totals.one_time_payments, true],
+            ["One-time (in payroll)", totals.one_time_payments, true],
+            ["Off-payroll Payouts", totals.off_payroll_payouts, true],
             ["PF (EE+ER)", totals.pf_ee + totals.pf_er, true],
-            ["PT + TDS", totals.pt + totals.tds, true],
             ["Projected Net", totals.net_pay, true],
           ].map(([label, value, money]: any) => (
             <Card key={label}>
@@ -281,6 +283,7 @@ export default function SalaryRegisterProjectionPage() {
                                 {r.name}
                                 {r.do_not_pay && <Badge variant="destructive" className="text-[10px]">Do not pay</Badge>}
                                 {!!r.one_time_payments && <Badge variant="secondary" className="text-[10px]">One-time</Badge>}
+                                {!!r.off_payroll_payouts && <Badge variant="outline" className="text-[10px]">Off-payroll ₹{inr0(r.off_payroll_payouts)}</Badge>}
                                 {diff !== null && diff !== 0 && (
                                   <Badge variant="outline" className="text-[10px] text-destructive">
                                     Δ net {diff > 0 ? "+" : ""}{inr0(diff)}

@@ -41,6 +41,8 @@ interface DispatchRow {
   pdf_path: string | null;
   already_sent_at: string | null;
   not_processed?: boolean;
+  not_processed_reason?: string | null;
+
   blockers: string[];
   sendable: boolean;
 

@@ -24810,6 +24810,10 @@ export type Database = {
         Args: { p_device_serial?: string }
         Returns: Json
       }
+      hr_backfill_one_time_payout_from_register: {
+        Args: { p_approved_by?: string; p_line_id: string }
+        Returns: string
+      }
       hr_broadcast_notification_to_hr: {
         Args: {
           p_link?: string
@@ -25141,6 +25145,10 @@ export type Database = {
           deleted_count: number
           inserted_count: number
         }[]
+      }
+      hr_reconcile_one_time_payouts: {
+        Args: { p_period: string }
+        Returns: Json
       }
       hr_record_manual_loan_repayment: {
         Args: {

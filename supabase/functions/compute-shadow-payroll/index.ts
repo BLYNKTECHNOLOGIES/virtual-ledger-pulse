@@ -511,13 +511,14 @@ Deno.serve(async (req) => {
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
-      const { data: rzArr } = await supabase
-        .from("hr_razorpay_payslip_records")
-        .select("gross_amount, net_pay, pf_amount, esi_amount, professional_tax, tds_amount")
-        .eq("hr_employee_id", emp.id)
-        .eq("period_month", periodStr)
-        .limit(1);
-      const rz = rzArr?.[0];
+      // RazorpayX side of the comparison. Read the reconciled payslip view
+      // (hr_payslips_v) — it already merges the API pull with the imported
+      // salary register and exposes regular_gross (gross with one-time payouts
+      // carved out), which is the only apples-to-apples counterpart to the
+      // shadow engine's earningsTotal. The raw record table has no
+      // gross_amount column and its pf/esi/pt/tds columns stay NULL for
+      // register-imported months.
+      const rz = rzByEmp.get(emp.id);
 
       const { data: line, error: lineErr } = await supabase
         .from("hr_shadow_payroll_lines")

@@ -1,31 +1,24 @@
-# Fix "Absent" vs "Not Punched" inconsistency
+# Unlock Step 5 — remove the circular lock on recoveries
 
-## What the data actually shows (3 August 2026)
+## The deadlock you spotted
 
-| Employee | Punches on 3 Aug | Stored status | Row last written |
-|---|---|---|---|
-| Aarti Pawaiya (26) | 1 punch: OUT 18:01, marked ineffective (`orphan_out` — an OUT with no matching IN) | `no_data` -> "Not Punched" | 4 Aug 04:51 (engine rebuild) |
-| Lavany Pradhan (15) | none at all | `no_data` -> "Not Punched" | 4 Aug 07:02 (engine rebuild) |
-| Himanshu Rajak (20) | none at all | `absent` -> "Absent" | 4 Aug 02:00 (absent marker) |
-| Jatan Chaidwal (23) | none at all | `absent` -> "Absent" | 4 Aug 02:00 (absent marker) |
+Step 5's gate blocks the step when any automatic recovery for the month is still `scheduled`. But the only place to push a recovery to RazorpayX is the Step 5 tool itself — which the gate disables. So a single unpushed recovery makes the step impossible to complete from the cockpit.
 
-So Lavany and Himanshu have **identical** underlying data (zero punches) but different tags. The tag is not driven by any rule about the employee — it is driven by **which job wrote the row last**:
+The gate was meant to guard **acknowledgement** (don't tick Step 5 as done while work is pending), not **access** to the work surface.
 
-- The nightly absent marker runs at 02:00 and writes `absent` for zero-punch days (after excluding leave/weekly-off/holiday).
-- The v4 attendance engine rebuild (`hr_v4_recompute_range`) writes `no_data` whenever it finds no effective punches — and it overwrites the marker's verdict.
+Current live data for August 2026: 13 recovery installments — 12 `pushed`, 1 `paid`, 0 `scheduled`. So the specific banner you're seeing is a stale/cached count; the underlying rule is still wrong and would trap you next month.
 
-Aarti additionally shows that a lone unmatched OUT punch counts as "no effective punch", so she is treated the same as someone with no punches at all.
+## What changes
 
-## What to change
-
-1. **Preserve the absent verdict on rebuild.** `hr_v4_recompute_range` must not downgrade an existing `absent` row to `no_data`. Zero effective punches on a past, unlocked, non-leave/non-holiday/non-weekly-off day resolves to `absent`.
-2. **Single source of truth for absence.** Move the leave/holiday/weekly-off/pending-session checks into one SQL helper used by both the nightly marker and the engine, so both always agree.
-3. **Reserve "Not Punched" for genuinely undecided days**: today (window still open), future dates, locked periods, and days with an unresolved stale session. Everything else past becomes Absent, On Leave, Weekly Off or Holiday.
-4. **Surface suppressed punches.** Where a day has punches that were all discarded (Aarti's `orphan_out`), show an "unmatched punch" marker on the row so HR can regularize instead of seeing a blank day.
-5. **Backfill history** for the current attendance period so past days stop showing mixed tags, skipping locked periods.
+1. **Open the door, keep the tick locked.** The "Open additions / deductions" button is never disabled by the gate. Only the "Mark done / Acknowledge" action stays blocked while items are pending.
+2. **Reword the banner** from a lock message to a to-do: "Cannot acknowledge yet — 1 automatic recovery still scheduled. Open the tool to push it." with the pending employee names listed so you know exactly what to act on.
+3. **Split the two gate reasons.** LOP verification (Step 4's own concern) and unpushed recoveries (Step 5's own work) are shown as separate lines, since only the first is genuinely an upstream dependency.
+4. **Refresh the count after a push.** Pushing a recovery from the Step 5 tool invalidates the gate query, so the cockpit banner clears immediately instead of showing a stale number.
+5. **Deep-link the pending rows.** The banner's action opens the additions/deductions tool filtered to the pending recoveries.
 
 ## Technical notes
 
-- Files/objects touched: `hr_v4_recompute_range`, new `hr_resolve_day_status(employee_id, date)` helper, `supabase/functions/auto-absent-marking/index.ts`, `src/pages/horilla/AttendanceOverviewPage.tsx`.
-- Backfill runs as a one-time SQL pass over `hr_attendance_daily`, respecting `hr_v4_is_window_locked`.
-- No change to punch ingestion or to LOP calculation logic in this step; LOP already keys off `absent`, so it becomes more accurate once the labels stop flipping.
+- `src/pages/hr/MonthlyPayrollCockpitPage.tsx`: `gated` stops driving the tool button's `disabled`; it continues to drive `canAck`. Banner copy and layout updated.
+- `src/hooks/hrms/usePayrollStepGate.ts`: return the pending rows (names + status), split `lopReasons` / `recoveryReasons`, and expose the query keys for invalidation.
+- Recovery push mutation invalidates `["gate_auto_recoveries", month]` and `["gate_lop", month]`.
+- No change to the push logic, RazorpayX verification, or the recoveries view itself.

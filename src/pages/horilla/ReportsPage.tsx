@@ -496,6 +496,15 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <MonthlyPayrollBreakdownDialog
+        monthKey={drillMonth}
+        monthLabel={drillMonth ? monthLabel(drillMonth) : ""}
+        onClose={() => setDrillMonth(null)}
+        empName={empName}
+        deptOf={deptOf}
+        empBadge={(id) => (empById.get(id) as any)?.badge_id || "—"}
+      />
     </div>
   );
 }

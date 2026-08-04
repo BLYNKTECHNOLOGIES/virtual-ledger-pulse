@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ExternalLink, FileText, AlertCircle, MoreHorizontal, SlidersHorizontal, AlertTriangle } from "lucide-react";
+import { PayslipPdfDownloadButton } from "@/components/hrms/PayslipPdfDownloadButton";
 import { PayrollAdjustmentDialog } from "@/components/hrms/employee-profile/PayrollAdjustmentDialog";
 import { SourceTag, DashboardLink, FreshnessStamp } from "@/components/hr/payroll/SourceTag";
 import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
@@ -133,7 +134,9 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       </div>
                     </button>
                     <div className="flex items-center gap-1">
-                      {r.pdf_url && <FileText className="w-4 h-4 text-primary shrink-0" />}
+                      {r.pdf_storage_path
+                        ? <PayslipPdfDownloadButton storagePath={r.pdf_storage_path} periodMonth={r.period_month} size="icon" />
+                        : r.pdf_url && <FileText className="w-4 h-4 text-primary shrink-0" />}
                       {razorpayEmployeeId && !f.isPaid && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -211,7 +214,9 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(r.net_pay)}</td>
                       <td className="py-2.5 px-3 text-center">
-                        {r.pdf_url ? <FileText className="w-4 h-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">—</span>}
+                        {r.pdf_storage_path ? (
+                          <PayslipPdfDownloadButton storagePath={r.pdf_storage_path} periodMonth={r.period_month} size="icon" />
+                        ) : r.pdf_url ? <FileText className="w-4 h-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">—</span>}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         {razorpayEmployeeId && !f.isPaid ? (
@@ -453,13 +458,16 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
               </div>
 
               {/* Razorpay dashboard note */}
-              {openRow.pdf_url ? (
+              {openRow.pdf_storage_path || openRow.pdf_url ? (
                 <div className="flex gap-2 flex-wrap">
-                  <Button asChild size="sm">
-                    <a href={openRow.pdf_url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4 mr-2" /> Open RazorpayX PDF
-                    </a>
-                  </Button>
+                  <PayslipPdfDownloadButton storagePath={openRow.pdf_storage_path} periodMonth={openRow.period_month} label="Download uploaded payslip" />
+                  {openRow.pdf_url && (
+                    <Button asChild size="sm">
+                      <a href={openRow.pdf_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 mr-2" /> Open RazorpayX PDF
+                      </a>
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground italic">

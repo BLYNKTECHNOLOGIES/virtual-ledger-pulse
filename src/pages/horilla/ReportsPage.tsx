@@ -181,11 +181,15 @@ export default function ReportsPage() {
   }, [payrollMonths]);
 
 
-  // ─── Attendance (v4 daily rollup) ───
+  // ─── Attendance (v4 daily rollup) — rate-based KPIs, the way HRIS suites report it ───
   const attStats = useMemo(() => {
     let present = 0, halfDay = 0, absent = 0, late = 0, noData = 0, incomplete = 0;
+    let lateMinutes = 0, earlyOuts = 0, workedMinutes = 0, workedDays = 0;
     attendance.forEach((a: any) => {
-      if (a.is_late) late++;
+      if (a.is_late) { late++; lateMinutes += Number(a.late_by_minutes || 0); }
+      if (a.early_departure) earlyOuts++;
+      const mins = a.net_work_minutes != null ? Number(a.net_work_minutes) : Number(a.total_hours || 0) * 60;
+      if (mins > 0) { workedMinutes += mins; workedDays++; }
       switch (a.status) {
         case "present": present++; break;
         case "half_day": halfDay++; break;
@@ -195,9 +199,52 @@ export default function ReportsPage() {
       }
     });
     const considered = present + halfDay + absent + incomplete;
+    const workedRows = present + halfDay + incomplete;
     const pct = considered ? ((present + halfDay * 0.5 + incomplete * 0.5) / considered) * 100 : 0;
-    return { present, halfDay, absent, late, noData, incomplete, considered, pct };
+    const absenteeism = considered ? ((absent + halfDay * 0.5) / considered) * 100 : 0;
+    const punctuality = workedRows ? ((workedRows - late) / workedRows) * 100 : 0;
+    const avgHours = workedDays ? workedMinutes / workedDays / 60 : 0;
+    const avgLateMin = late ? lateMinutes / late : 0;
+    const earlyOutRate = workedRows ? (earlyOuts / workedRows) * 100 : 0;
+    return { present, halfDay, absent, late, noData, incomplete, considered, pct, absenteeism, punctuality, avgHours, avgLateMin, earlyOutRate, workedRows };
   }, [attendance]);
+
+  const prevAttStats = useMemo(() => {
+    let present = 0, halfDay = 0, absent = 0, incomplete = 0, late = 0;
+    prevAttendance.forEach((a: any) => {
+      if (a.is_late) late++;
+      if (a.status === "present") present++;
+      else if (a.status === "half_day") halfDay++;
+      else if (a.status === "absent") absent++;
+      else if (a.status === "incomplete") incomplete++;
+    });
+    const considered = present + halfDay + absent + incomplete;
+    const workedRows = present + halfDay + incomplete;
+    return {
+      considered,
+      pct: considered ? ((present + halfDay * 0.5 + incomplete * 0.5) / considered) * 100 : 0,
+      absenteeism: considered ? ((absent + halfDay * 0.5) / considered) * 100 : 0,
+      punctuality: workedRows ? ((workedRows - late) / workedRows) * 100 : 0,
+    };
+  }, [prevAttendance]);
+
+  // Who actually needs a conversation — chronic absence / chronic lateness in this window.
+  const attentionList = useMemo(() => {
+    const m: Record<string, { marked: number; lost: number; late: number }> = {};
+    attendance.forEach((a: any) => {
+      if (!["present", "half_day", "absent", "incomplete"].includes(a.status)) return;
+      const r = m[a.employee_id] || (m[a.employee_id] = { marked: 0, lost: 0, late: 0 });
+      r.marked++;
+      if (a.status === "absent") r.lost += 1;
+      else if (a.status === "half_day") r.lost += 0.5;
+      if (a.is_late) r.late++;
+    });
+    return Object.entries(m)
+      .filter(([, r]) => r.marked >= 5 && (r.lost / r.marked >= 0.1 || r.late / r.marked >= 0.3))
+      .map(([id, r]) => ({ id, absentPct: (r.lost / r.marked) * 100, latePct: (r.late / r.marked) * 100, lost: r.lost, late: r.late }))
+      .sort((a, b) => (b.absentPct + b.latePct) - (a.absentPct + a.latePct));
+  }, [attendance]);
+
 
   const attendanceTrend = useMemo(() => {
     const wm: Record<string, { present: number; absent: number; late: number; half: number }> = {};

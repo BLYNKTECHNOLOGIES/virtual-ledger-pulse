@@ -102,6 +102,28 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>
     </table>` : ''
 
+  const dedRowsHtml = row.deduction_breakdown.map((d) => `
+      <tr>
+        <td style="padding:8px 16px;color:#64748b;font-size:13px;">${esc(d.label)}</td>
+        <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
+      </tr>`).join('')
+
+  const dedBlock = row.deduction_breakdown.length > 0 ? `
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 24px;">
+      <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Deduction break-up</td></tr>
+      ${dedRowsHtml}
+      <tr>
+        <td style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">Total deductions</td>
+        <td align="right" style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${inr(row.deductions)}</td>
+      </tr>
+    </table>` : ''
+
+  const employerBlock = row.employer_contrib > 0 ? `
+    <p style="margin:0 0 24px;font-size:12.5px;color:#64748b;line-height:1.6;">
+      In addition, the company has contributed <strong style="color:#0f172a;">${inr(row.employer_contrib)}</strong> towards your
+      employer-side statutory benefits (PF / ESIC / LWF) for this month. This is paid by the company and is not deducted from your salary.
+    </p>` : ''
+
   const paidDaysRow = row.paid_days !== null ? `
       <tr>
         <td style="padding:12px 16px;color:#64748b;">Paid days</td>
@@ -144,6 +166,8 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>${paidDaysRow}
     </table>
 
+    ${dedBlock}
+    ${employerBlock}
     ${lopBlock}
     ${bonusBlock}
 

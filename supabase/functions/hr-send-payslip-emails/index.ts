@@ -31,6 +31,7 @@ type Row = {
   pdf_path: string | null
   already_sent_at: string | null
   not_processed: boolean
+  not_processed_reason: string | null
   blockers: string[]
   sendable: boolean
 
@@ -399,6 +400,7 @@ Deno.serve(async (req) => {
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,
         not_processed,
+        not_processed_reason,
         blockers,
         sendable: blockers.length === 0 && !not_processed,
 

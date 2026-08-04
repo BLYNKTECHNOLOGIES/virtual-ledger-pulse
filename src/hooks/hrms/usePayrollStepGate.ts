@@ -50,25 +50,45 @@ export function usePayrollStepGate(month: string) {
     (r) => !["pushed", "paid", "collected", "cancelled"].includes(String(r.status)),
   );
 
-  const reasons: string[] = [];
+  const names = (rows: any[]) =>
+    [...new Set(rows.map((r) => String(r.employee_name || "").trim()).filter(Boolean))];
+
+  // Upstream dependency — step 4's own work.
+  const lopReasons: string[] = [];
   if (lopPending.length)
-    reasons.push(
+    lopReasons.push(
       `${lopPending.length} LOP deduction${lopPending.length === 1 ? "" : "s"} not yet verified on the RazorpayX run`,
     );
-  if (recPending.length)
-    reasons.push(
-      `${recPending.length} automatic recover${recPending.length === 1 ? "y is" : "ies are"} not pushed (${[
+
+  // Step 5's own work — pushed from inside the step 5 tool.
+  const recoveryReasons: string[] = [];
+  if (recPending.length) {
+    const who = names(recPending);
+    recoveryReasons.push(
+      `${recPending.length} automatic recover${recPending.length === 1 ? "y is" : "ies are"} still ${[
         ...new Set(recPending.map((r) => String(r.status))),
-      ].join(", ")})`,
+      ].join(" / ")}${who.length ? ` — ${who.slice(0, 4).join(", ")}${who.length > 4 ? ` +${who.length - 4} more` : ""}` : ""}`,
     );
+  }
+
+  const reasons = [...lopReasons, ...recoveryReasons];
 
   return {
     loading: lop.isLoading || rec.isLoading,
+    /** Acknowledgement gate only — never disables access to the step 5 tool. */
     blocked: reasons.length > 0,
     reasons,
+    lopReasons,
+    recoveryReasons,
     lopTotal: lopRows.length,
     lopPending: lopPending.length,
     recTotal: recRows.length,
     recPending: recPending.length,
+    recPendingRows: recPending,
+    queryKeys: {
+      lop: ["gate_lop", periodDate] as const,
+      recoveries: ["gate_auto_recoveries", periodDate] as const,
+    },
   };
+
 }

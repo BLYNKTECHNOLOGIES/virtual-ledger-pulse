@@ -367,9 +367,21 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setRegisterOpen(true)}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> {registerPresent ? "Re-import Salary Register" : "Import Salary Register"}
             </Button>
+            {excludedRows.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-xs"
+                onClick={() => setShowExcluded((v) => !v)}
+              >
+                {showExcluded ? "Hide" : "Show"} {excludedRows.length} not paid this month
+              </Button>
+            )}
             <div className="ml-auto text-xs text-muted-foreground">
-              {sentCount}/{rows.length} sent · {sendable.length} ready
+              {sentCount}/{payrollRows.length} sent · {sendable.length} ready
+              {excludedRows.length > 0 && ` · ${excludedRows.length} not in this month's payroll`}
             </div>
+
           </div>
 
           {!registerPresent && (

@@ -256,9 +256,20 @@ Deno.serve(async (req) => {
         ? Number(p.reg_gross_salary) - employer_contrib
         : Number(p.gross_earnings) || 0
       const net = Number(hasReg ? p.reg_net_pay : p.net_pay) || 0
-      const deductions = hasReg ? gross - net : Number(p.total_deductions) || 0
+      // One-time payouts are added to gross and reversed in the same run because
+      // they were already paid outside payroll. They belong in the net-pay
+      // arithmetic, NOT in the deduction list.
+      const one_time_recovery = hasReg ? Math.max(-(Number(p.reg_one_time_payments) || 0), 0) : 0
+      const deductions = hasReg ? gross - net - one_time_recovery : Number(p.total_deductions) || 0
 
-      const earning_breakdown: { label: string; amount: number }[] = []
+      const oneTimeLabels = new Set(
+        (lineByRecord.get(p.id) ?? [])
+          .filter((l: any) => l.classification === 'one_time')
+          .map((l: any) => l.normalized_label),
+      )
+      const norm = (s: string) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ')
+
+      const earning_breakdown: { label: string; amount: number; one_time?: boolean }[] = []
       if (hasReg) {
         const pushE = (label: string, v: any) => { const a = Number(v) || 0; if (a > 0) earning_breakdown.push({ label, amount: a }) }
         pushE('Basic', p.reg_basic)
@@ -271,7 +282,8 @@ Deno.serve(async (req) => {
         pushE('Refund of security deposit', p.reg_refund_security_deposit)
         for (const e of (Array.isArray(p.reg_extra_earnings) ? p.reg_extra_earnings : [])) {
           const a = Number((e as any)?.amount) || 0
-          if (a > 0) earning_breakdown.push({ label: String((e as any).label), amount: a })
+          const label = String((e as any).label)
+          if (a > 0) earning_breakdown.push({ label, amount: a, one_time: oneTimeLabels.has(norm(label)) })
         }
       }
 
@@ -285,14 +297,13 @@ Deno.serve(async (req) => {
         push('TDS / Income Tax', p.reg_tds)
         push('Salary advance recovery', p.reg_advance_salary)
         push('Loan / EMI recovery', p.reg_loan_emi)
-        // RazorpayX books one-time payment reversals/recoveries as a negative line.
-        if (Number(p.reg_one_time_payments ?? 0) < 0) push('One-time payment adjustment', p.reg_one_time_payments)
         const listed = deduction_breakdown.reduce((s2, d) => s2 + d.amount, 0)
         const residual = Math.round((deductions - listed) * 100) / 100
         if (Math.abs(residual) > TIE_OUT_TOLERANCE) {
           deduction_breakdown.push({ label: 'Other deductions', amount: residual })
         }
       }
+
 
       const empDeds = (dedRows ?? []).filter((d: any) => d.hr_employee_id === p.hr_employee_id)
       const lopRows = empDeds.filter((d: any) => String(d.label || '').toLowerCase().includes('lop') && d.readback_verified_at)

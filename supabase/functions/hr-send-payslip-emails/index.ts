@@ -26,6 +26,7 @@ type Row = {
   month_days: number
   bank_last4: string | null
   employer_contrib: number
+  earning_breakdown: { label: string; amount: number }[]
   deduction_breakdown: { label: string; amount: number }[]
   pdf_path: string | null
   already_sent_at: string | null
@@ -108,6 +109,22 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
         <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
       </tr>`).join('')
 
+  const earnRowsHtml = row.earning_breakdown.map((d) => `
+      <tr>
+        <td style="padding:8px 16px;color:#64748b;font-size:13px;">${esc(d.label)}</td>
+        <td align="right" style="padding:8px 16px;color:#0f172a;font-size:13px;">${inr(d.amount)}</td>
+      </tr>`).join('')
+
+  const earnBlock = row.earning_breakdown.length > 0 ? `
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 16px;">
+      <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Earnings break-up</td></tr>
+      ${earnRowsHtml}
+      <tr>
+        <td style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">Gross earnings</td>
+        <td align="right" style="padding:10px 16px;border-top:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${inr(row.gross)}</td>
+      </tr>
+    </table>` : ''
+
   const dedBlock = row.deduction_breakdown.length > 0 ? `
     <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 24px;">
       <tr><td colspan="2" style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#475569;">Deduction break-up</td></tr>
@@ -166,6 +183,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>${paidDaysRow}
     </table>
 
+    ${earnBlock}
     ${dedBlock}
     ${employerBlock}
     ${lopBlock}
@@ -266,6 +284,23 @@ Deno.serve(async (req) => {
       const net = Number(hasReg ? p.reg_net_pay : p.net_pay) || 0
       const deductions = hasReg ? gross - net : Number(p.total_deductions) || 0
 
+      const earning_breakdown: { label: string; amount: number }[] = []
+      if (hasReg) {
+        const pushE = (label: string, v: any) => { const a = Number(v) || 0; if (a > 0) earning_breakdown.push({ label, amount: a }) }
+        pushE('Basic', p.reg_basic)
+        pushE('Dearness Allowance', p.reg_da)
+        pushE('HRA', p.reg_hra)
+        pushE('Special Allowance', p.reg_sa)
+        pushE('LTA', p.reg_lta)
+        pushE('Overtime', p.reg_overtime)
+        pushE('Performance incentive', p.reg_performance_incentive)
+        pushE('Refund of security deposit', p.reg_refund_security_deposit)
+        for (const e of (Array.isArray(p.reg_extra_earnings) ? p.reg_extra_earnings : [])) {
+          const a = Number((e as any)?.amount) || 0
+          if (a > 0) earning_breakdown.push({ label: String((e as any).label), amount: a })
+        }
+      }
+
       const deduction_breakdown: { label: string; amount: number }[] = []
       if (hasReg) {
         const push = (label: string, v: any) => { const a = num(v); if (a > 0) deduction_breakdown.push({ label, amount: a }) }
@@ -276,6 +311,8 @@ Deno.serve(async (req) => {
         push('TDS / Income Tax', p.reg_tds)
         push('Salary advance recovery', p.reg_advance_salary)
         push('Loan / EMI recovery', p.reg_loan_emi)
+        // RazorpayX books one-time payment reversals/recoveries as a negative line.
+        if (Number(p.reg_one_time_payments ?? 0) < 0) push('One-time payment adjustment', p.reg_one_time_payments)
         const listed = deduction_breakdown.reduce((s2, d) => s2 + d.amount, 0)
         const residual = Math.round((deductions - listed) * 100) / 100
         if (Math.abs(residual) > TIE_OUT_TOLERANCE) {
@@ -329,6 +366,7 @@ Deno.serve(async (req) => {
         month_days: mDays,
         bank_last4: p.reg_bank_acc_no ? String(p.reg_bank_acc_no).slice(-4) : null,
         employer_contrib,
+        earning_breakdown,
         deduction_breakdown,
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,

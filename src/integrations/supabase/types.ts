@@ -12273,6 +12273,7 @@ export type Database = {
           reg_esi_ee: number | null
           reg_esi_er: number | null
           reg_esi_number: string | null
+          reg_extra_earnings: Json | null
           reg_gender: string | null
           reg_gross_salary: number | null
           reg_has_left: boolean | null
@@ -12285,6 +12286,7 @@ export type Database = {
           reg_lwf_ee: number | null
           reg_lwf_er: number | null
           reg_net_pay: number | null
+          reg_official_email: string | null
           reg_one_time_payments: number | null
           reg_overtime: number | null
           reg_pan: string | null
@@ -12344,6 +12346,7 @@ export type Database = {
           reg_esi_ee?: number | null
           reg_esi_er?: number | null
           reg_esi_number?: string | null
+          reg_extra_earnings?: Json | null
           reg_gender?: string | null
           reg_gross_salary?: number | null
           reg_has_left?: boolean | null
@@ -12356,6 +12359,7 @@ export type Database = {
           reg_lwf_ee?: number | null
           reg_lwf_er?: number | null
           reg_net_pay?: number | null
+          reg_official_email?: string | null
           reg_one_time_payments?: number | null
           reg_overtime?: number | null
           reg_pan?: string | null
@@ -12415,6 +12419,7 @@ export type Database = {
           reg_esi_ee?: number | null
           reg_esi_er?: number | null
           reg_esi_number?: string | null
+          reg_extra_earnings?: Json | null
           reg_gender?: string | null
           reg_gross_salary?: number | null
           reg_has_left?: boolean | null
@@ -12427,6 +12432,7 @@ export type Database = {
           reg_lwf_ee?: number | null
           reg_lwf_er?: number | null
           reg_net_pay?: number | null
+          reg_official_email?: string | null
           reg_one_time_payments?: number | null
           reg_overtime?: number | null
           reg_pan?: string | null

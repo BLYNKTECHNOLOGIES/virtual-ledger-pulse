@@ -59,6 +59,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const { user } = useAuth();
 
   const [mode, setMode] = useState<Mode>("recurring");
+  const [entryMode, setEntryMode] = useState<"single" | "bulk">("single");
+
   const [employeeId, setEmployeeId] = useState<string>("");
   const [revisionType, setRevisionType] = useState<string>("increment");
   const [newTotal, setNewTotal] = useState<string>("");

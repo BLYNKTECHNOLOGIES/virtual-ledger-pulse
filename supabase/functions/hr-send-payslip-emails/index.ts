@@ -378,7 +378,9 @@ Deno.serve(async (req) => {
         month_days: mDays,
         bank_last4: p.reg_bank_acc_no ? String(p.reg_bank_acc_no).slice(-4) : null,
         employer_contrib,
+        one_time_recovery,
         earning_breakdown,
+
         deduction_breakdown,
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,

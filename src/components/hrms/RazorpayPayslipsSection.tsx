@@ -175,17 +175,19 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
           <div className="md:hidden space-y-2">
             {rows.map((r: any) => {
               const f = flagsForRow(r);
+              const d = view(r);
               return (
                 <div key={r.id} className="border border-border rounded-lg p-3 bg-card hover:bg-muted/40 transition">
                   <div className="flex items-start justify-between gap-3">
                     <button className="text-left flex-1" onClick={() => setOpenRow(r)}>
                       <p className="font-semibold text-foreground">{IN_MONTH(r.period_month)}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">RazorpayX</span>
+                        <SourceTag source={d.hasRegister ? "register_csv" : "dashboard_only"} compact />
                         {f.dnp && <Badge variant="destructive" className="text-[9px] px-1.5 py-0">Paused</Badge>}
                         {f.isPaid && <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[9px] px-1.5 py-0">Paid{f.paidOn ? ` · ${f.paidOn}` : ""}</Badge>}
                       </div>
                     </button>
+
                     <div className="flex items-center gap-1">
                       {r.pdf_storage_path
                         ? <PayslipPdfDownloadButton storagePath={r.pdf_storage_path} periodMonth={r.period_month} size="icon" />

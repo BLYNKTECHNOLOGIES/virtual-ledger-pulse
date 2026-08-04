@@ -451,7 +451,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                 );
               })()}
 
-              )}
+
 
               {/* Register extras — LWF, Overtime, PLI, Refund of Security Deposit (Salary Register CSV only) */}
               {(openRow.reg_lwf_ee != null || openRow.reg_lwf_er != null || openRow.reg_overtime != null ||

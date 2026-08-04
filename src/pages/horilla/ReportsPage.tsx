@@ -387,22 +387,68 @@ export default function ReportsPage() {
         <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Attendance Health</CardTitle></CardHeader>
         <CardContent>
           {attendance.length ? (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {[
-                { l: "Attendance %", v: `${attStats.pct.toFixed(1)}%` },
-                { l: "Present days", v: attStats.present },
-                { l: "Half days", v: attStats.halfDay },
-                { l: "Absent days", v: attStats.absent },
-                { l: "Late instances", v: attStats.late },
-              ].map(x => (
-                <div key={x.l} className="rounded-lg border border-border p-2.5">
-                  <p className="text-lg font-bold tabular-nums text-foreground">{x.v}</p>
-                  <p className="text-[11px] text-muted-foreground">{x.l}</p>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {[
+                  {
+                    l: "Attendance rate", v: `${attStats.pct.toFixed(1)}%`,
+                    d: prevAttStats.considered ? attStats.pct - prevAttStats.pct : null, good: "up" as const,
+                    sub: "of scheduled days worked",
+                  },
+                  {
+                    l: "Absenteeism rate", v: `${attStats.absenteeism.toFixed(1)}%`,
+                    d: prevAttStats.considered ? attStats.absenteeism - prevAttStats.absenteeism : null, good: "down" as const,
+                    sub: `${attStats.absent} full + ${attStats.halfDay} half days lost`,
+                  },
+                  {
+                    l: "On-time rate", v: `${attStats.punctuality.toFixed(1)}%`,
+                    d: prevAttStats.considered ? attStats.punctuality - prevAttStats.punctuality : null, good: "up" as const,
+                    sub: attStats.late ? `avg ${Math.round(attStats.avgLateMin)} min late when late` : "no late arrivals",
+                  },
+                  {
+                    l: "Avg hours / worked day", v: `${attStats.avgHours.toFixed(1)} h`,
+                    d: null, good: "up" as const,
+                    sub: `${attStats.earlyOutRate.toFixed(0)}% days ended early`,
+                  },
+                  {
+                    l: "Employees to review", v: attentionList.length,
+                    d: null, good: "down" as const,
+                    sub: "≥10% days lost or ≥30% late",
+                  },
+                ].map(x => {
+                  const improving = x.d == null ? null : (x.good === "up" ? x.d > 0 : x.d < 0);
+                  return (
+                    <div key={x.l} className="rounded-lg border border-border p-2.5">
+                      <div className="flex items-baseline gap-1.5">
+                        <p className="text-lg font-bold tabular-nums text-foreground">{x.v}</p>
+                        {x.d != null && Math.abs(x.d) >= 0.1 && (
+                          <span className={`text-[10px] font-semibold tabular-nums ${improving ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                            {x.d > 0 ? "+" : ""}{x.d.toFixed(1)} pt
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{x.l}</p>
+                      <p className="text-[10px] text-muted-foreground/80">{x.sub}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {attentionList.length > 0 && (
+                <div className="mt-3 rounded-md border border-border bg-muted/40 p-2.5">
+                  <p className="text-[11px] font-semibold text-foreground">Needs attention</p>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                    {attentionList.slice(0, 5).map(a => (
+                      <span key={a.id} className="text-[11px] text-muted-foreground">
+                        <span className="text-foreground">{empName(a.id)}</span> · {a.absentPct.toFixed(0)}% days lost · {a.latePct.toFixed(0)}% late
+                      </span>
+                    ))}
+                    {attentionList.length > 5 && <span className="text-[11px] text-muted-foreground">+{attentionList.length - 5} more</span>}
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           ) : <NoData reason="No attendance rows recorded in the selected range." />}
-          <Source>attendance engine daily rollup (hr_attendance_daily); {attStats.noData} day-rows with no device data are excluded from the percentage</Source>
+          <Source>attendance engine daily rollup (hr_attendance_daily) · {attStats.considered} marked day-rows; {attStats.noData} rows with no device data excluded · deltas compare the same-length window before this range</Source>
         </CardContent>
       </Card>
 

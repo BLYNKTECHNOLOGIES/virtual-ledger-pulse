@@ -40,7 +40,16 @@ interface Props {
   presetEmployeeId?: string;
 }
 
-type Mode = "recurring" | "one_time" | "statutory";
+type Mode = "recurring" | "addition" | "deduction" | "one_time" | "statutory";
+
+const ADDITION_KINDS = [
+  { value: "bonus", label: "Bonus" },
+  { value: "arrears", label: "Arrears" },
+  { value: "reimbursement", label: "Reimbursement" },
+  { value: "other", label: "Other" },
+];
+
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 
 export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Props) {
   const qc = useQueryClient();
@@ -58,6 +67,16 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const [oneTimeAmount, setOneTimeAmount] = useState<string>("");
   const [payoutMonth, setPayoutMonth] = useState<Date>(new Date());
   const [notes, setNotes] = useState<string>("");
+
+  // Payroll input (addition / deduction) fields
+  const [inputAmount, setInputAmount] = useState<string>("");
+  const [inputLabel, setInputLabel] = useState<string>("");
+  const [inputPeriod, setInputPeriod] = useState<Date>(startOfMonth(new Date()));
+  const [additionKind, setAdditionKind] = useState<string>("bonus");
+  const [taxable, setTaxable] = useState<boolean>(true);
+
+  // One-time payout (record-only) payment date
+  const [paidOn, setPaidOn] = useState<Date>(new Date());
 
   // Statutory toggle fields (null = "use global default")
   const [pfEnabled, setPfEnabled] = useState<boolean | null>(null);
@@ -82,6 +101,12 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       setOneTimeAmount("");
       setPayoutMonth(new Date());
       setNotes("");
+      setInputAmount("");
+      setInputLabel("");
+      setInputPeriod(startOfMonth(new Date()));
+      setAdditionKind("bonus");
+      setTaxable(true);
+      setPaidOn(new Date());
       setPfEnabled(null);
       setEsiEnabled(null);
       setPtEnabled(null);
@@ -92,8 +117,11 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   useEffect(() => {
     if (mode === "recurring") setRevisionType("increment");
     else if (mode === "one_time") setRevisionType("bonus");
+    else if (mode === "addition") setRevisionType("payroll_addition");
+    else if (mode === "deduction") setRevisionType("payroll_deduction");
     else setRevisionType("statutory_toggle");
   }, [mode]);
+
 
 
   const { data: employees = [] } = useQuery({

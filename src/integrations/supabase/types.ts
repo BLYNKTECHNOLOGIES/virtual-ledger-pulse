@@ -11262,6 +11262,13 @@ export type Database = {
             foreignKeyName: "hr_payslip_pay_head_lines_payslip_record_id_fkey"
             columns: ["payslip_record_id"]
             isOneToOne: false
+            referencedRelation: "hr_payslip_gross_split_v"
+            referencedColumns: ["payslip_record_id"]
+          },
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_payslip_record_id_fkey"
+            columns: ["payslip_record_id"]
+            isOneToOne: false
             referencedRelation: "hr_payslips_v"
             referencedColumns: ["id"]
           },
@@ -23247,6 +23254,63 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_payslip_gross_split_v: {
+        Row: {
+          employer_contrib: number | null
+          extra_variable_total: number | null
+          hr_employee_id: string | null
+          net_pay: number | null
+          one_time_total: number | null
+          payslip_record_id: string | null
+          period_month: string | null
+          regular_gross: number | null
+          reported_gross: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_payslip_last_coverage_v: {
         Row: {
           coverage: Json | null
@@ -25091,6 +25155,7 @@ export type Database = {
       }
       hr_new_joiner_check_sweep: { Args: never; Returns: number }
       hr_next_razorpay_employee_id: { Args: never; Returns: string }
+      hr_normalize_pay_head: { Args: { p_label: string }; Returns: string }
       hr_notify: {
         Args: {
           _kind: string
@@ -25251,6 +25316,14 @@ export type Database = {
           uan: string
           vpf_mode: string
           vpf_value: number
+        }[]
+      }
+      hr_sync_pay_head_lines: {
+        Args: { p_period?: string }
+        Returns: {
+          heads_touched: number
+          lines_upserted: number
+          records_scanned: number
         }[]
       }
       hr_system_pulse: { Args: never; Returns: Json }

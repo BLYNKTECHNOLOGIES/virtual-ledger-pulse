@@ -273,7 +273,12 @@ export default function SalaryRegisterImportPage({
     setParseError(null);
     setParsed(rows);
     const auto = extractPeriodFromFilename(f.name);
-    if (auto) setPeriodMonth(auto);
+    if (auto && initialMonth && auto !== initialMonth) {
+      toast.warning(`Filename suggests ${auto} but this cockpit month is ${initialMonth} — importing into ${initialMonth}.`);
+      setPeriodMonth(initialMonth);
+    } else if (auto) {
+      setPeriodMonth(auto);
+    }
     toast.success(`Parsed ${rows.length} employee rows from ${f.name}`);
   };
 

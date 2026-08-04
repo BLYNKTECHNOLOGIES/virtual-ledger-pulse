@@ -5,14 +5,26 @@ import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
 } from "recharts";
-import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp } from "lucide-react";
+import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp, UserMinus } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
+
+const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const monthLabel = (iso: string) =>
+  new Date(`${iso.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+
+/** Small provenance footnote so every number on this page is traceable. */
+const Source = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-[10px] text-muted-foreground mt-2">Source: {children}</p>
+);
 
 export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState(() => {
@@ -21,36 +33,238 @@ export default function ReportsPage() {
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const { data: employees = [] } = useQuery({ queryKey: ["rpt_employees"], queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, is_active, created_at, total_salary")) });
-  const { data: leaveRequests = [] } = useQuery({ queryKey: ["rpt_leaves"], queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_leave_requests").select("id, status, total_days, leave_type_id, start_date, created_at")) });
-  const { data: leaveTypes = [] } = useQuery({ queryKey: ["rpt_leave_types"], queryFn: async () => { const { data } = await supabase.from("hr_leave_types").select("id, name"); return data || []; } });
-  const { data: payrollRuns = [] } = useQuery({ queryKey: ["rpt_payroll"], queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_payroll_runs").select("id, title, total_net, total_gross, total_deductions, run_date, employee_count").order("run_date")) });
-  const { data: workInfos = [] } = useQuery({ queryKey: ["rpt_work_infos"], queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employee_work_info").select("employee_id, employee_type, department_id")) });
-  const { data: departments = [] } = useQuery({ queryKey: ["rpt_departments"], queryFn: async () => { const { data } = await supabase.from("departments").select("id, name").eq("is_active", true); return data || []; } });
-  const { data: attendance = [] } = useQuery({ queryKey: ["rpt_attendance", dateFrom, dateTo], queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any).from("hr_attendance").select("id, employee_id, attendance_date, status").gte("attendance_date", dateFrom).lte("attendance_date", dateTo)) });
+  // ─── Sources of truth ───
+  // Roster: hr_employees + hr_employee_work_info (joining_date lives on work info).
+  const { data: employees = [] } = useQuery({
+    queryKey: ["rpt_employees"],
+    queryFn: async () => await fetchAllPaginated<any>(() =>
+      supabase.from("hr_employees").select("id, badge_id, first_name, last_name, is_active, created_at, total_salary, resignation_date, last_working_day")),
+  });
+  const { data: workInfos = [] } = useQuery({
+    queryKey: ["rpt_work_infos"],
+    queryFn: async () => await fetchAllPaginated<any>(() =>
+      supabase.from("hr_employee_work_info").select("employee_id, employee_type, department_id, joining_date, job_position_id")),
+  });
+  const { data: departments = [] } = useQuery({
+    queryKey: ["rpt_departments"],
+    queryFn: async () => { const { data } = await supabase.from("departments").select("id, name"); return data || []; },
+  });
+  const { data: leaveRequests = [] } = useQuery({
+    queryKey: ["rpt_leaves"],
+    queryFn: async () => await fetchAllPaginated<any>(() =>
+      supabase.from("hr_leave_requests").select("id, employee_id, status, total_days, leave_type_id, start_date, created_at")),
+  });
+  const { data: leaveTypes = [] } = useQuery({
+    queryKey: ["rpt_leave_types"],
+    queryFn: async () => { const { data } = await supabase.from("hr_leave_types").select("id, name"); return data || []; },
+  });
+  // Payroll truth = RazorpayX-mirrored payslips (hr_payslips_v), NOT hr_payroll_runs (empty).
+  const { data: payslips = [] } = useQuery({
+    queryKey: ["rpt_payslips", dateFrom, dateTo],
+    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
+      .from("hr_payslips_v")
+      .select("employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib, lop_days:working_days")
+      .gte("period_month", dateFrom.slice(0, 8) + "01")
+      .lte("period_month", dateTo)),
+  });
+  // Attendance truth = v4 engine daily rollup.
+  const { data: attendance = [] } = useQuery({
+    queryKey: ["rpt_attendance_daily", dateFrom, dateTo],
+    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
+      .from("hr_attendance_daily")
+      .select("employee_id, attendance_date, status, is_late, total_hours")
+      .gte("attendance_date", dateFrom).lte("attendance_date", dateTo)),
+  });
 
-  const filteredLeaves = useMemo(() => leaveRequests.filter((l: any) => { const d = l.start_date || l.created_at?.slice(0, 10); return d >= dateFrom && d <= dateTo; }), [leaveRequests, dateFrom, dateTo]);
-  const filteredPayroll = useMemo(() => payrollRuns.filter((r: any) => { const d = r.run_date; return d && d >= dateFrom && d <= dateTo; }), [payrollRuns, dateFrom, dateTo]);
-  const growthData = useMemo(() => { const m: Record<string, number> = {}; employees.forEach((e: any) => { const k = e.created_at?.slice(0, 7); if (k) m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort().slice(-12).map(([month, count]) => ({ month: month.slice(5), count })); }, [employees]);
-  const leaveByType = useMemo(() => leaveTypes.map((lt: any) => ({ name: lt.name, value: filteredLeaves.filter((r: any) => r.leave_type_id === lt.id).length })).filter((d: any) => d.value > 0), [leaveTypes, filteredLeaves]);
-  const typeData = useMemo(() => { const c: Record<string, number> = {}; workInfos.forEach((w: any) => { const t = w.employee_type || "Unknown"; c[t] = (c[t] || 0) + 1; }); return Object.entries(c).map(([name, value]) => ({ name, value })); }, [workInfos]);
-  const payrollData = useMemo(() => filteredPayroll.map((r: any) => ({ name: r.title?.slice(0, 15), gross: r.total_gross || 0, net: r.total_net || 0, deductions: r.total_deductions || 0 })), [filteredPayroll]);
-  const attendanceTrend = useMemo(() => { const wm: Record<string, { present: number; absent: number; late: number }> = {}; attendance.forEach((a: any) => { const d = new Date(a.attendance_date); const ws = new Date(d); ws.setDate(d.getDate() - d.getDay()); const k = ws.toISOString().slice(5, 10); if (!wm[k]) wm[k] = { present: 0, absent: 0, late: 0 }; if (a.status === "present") wm[k].present++; else if (a.status === "absent") wm[k].absent++; else if (a.status === "late") wm[k].late++; }); return Object.entries(wm).sort().map(([week, v]) => ({ week, ...v })); }, [attendance]);
-  const deptLeaveData = useMemo(() => { const dm: Record<string, number> = {}; filteredLeaves.forEach((l: any) => { const wi = workInfos.find((w: any) => w.employee_id === (l as any).employee_id); const dept = departments.find((d: any) => d.id === wi?.department_id); const name = dept?.name || "Unassigned"; dm[name] = (dm[name] || 0) + (l.total_days || 1); }); return Object.entries(dm).map(([name, days]) => ({ name, days })).sort((a, b) => b.days - a.days).slice(0, 8); }, [filteredLeaves, workInfos, departments]);
-  const headcountTrend = useMemo(() => { const sorted = [...employees].sort((a: any, b: any) => a.created_at.localeCompare(b.created_at)); let running = 0; const mm: Record<string, number> = {}; sorted.forEach((e: any) => { running++; const m = e.created_at?.slice(0, 7); if (m) mm[m] = running; }); return Object.entries(mm).slice(-12).map(([month, total]) => ({ month: month.slice(5), total })); }, [employees]);
-  const totalPayrollCost = filteredPayroll.reduce((s: number, r: any) => s + (r.total_gross || 0), 0);
-  const avgPayrollCost = filteredPayroll.length ? Math.round(totalPayrollCost / filteredPayroll.length) : 0;
+  // ─── Lookups ───
+  const empById = useMemo(() => new Map(employees.map((e: any) => [e.id, e])), [employees]);
+  const wiByEmp = useMemo(() => new Map(workInfos.map((w: any) => [w.employee_id, w])), [workInfos]);
+  const deptById = useMemo(() => new Map(departments.map((d: any) => [d.id, d.name])), [departments]);
+  const empName = (id: string) => {
+    const e: any = empById.get(id);
+    return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.badge_id || id : id;
+  };
+  const deptOf = (empId: string) => deptById.get(wiByEmp.get(empId)?.department_id) || "Unassigned";
 
+  const inRange = (d?: string | null) => !!d && d.slice(0, 10) >= dateFrom && d.slice(0, 10) <= dateTo;
+  const exitDateOf = (e: any) => e.last_working_day || e.resignation_date || null;
+
+  // ─── Roster / headcount ───
+  const activeCount = employees.filter((e: any) => e.is_active).length;
+  const exitsInRange = useMemo(() => employees.filter((e: any) => inRange(exitDateOf(e))), [employees, dateFrom, dateTo]);
+
+  const newHires = useMemo(() => {
+    const m: Record<string, number> = {};
+    workInfos.forEach((w: any) => { if (inRange(w.joining_date)) { const k = w.joining_date.slice(0, 7); m[k] = (m[k] || 0) + 1; } });
+    return Object.entries(m).sort().map(([k, count]) => ({ month: monthLabel(k), count }));
+  }, [workInfos, dateFrom, dateTo]);
+
+  const headcountTrend = useMemo(() => {
+    if (!employees.length) return [];
+    // Baseline: everyone who joined before the range and had not exited before it.
+    let running = employees.filter((e: any) => {
+      const j = wiByEmp.get(e.id)?.joining_date;
+      const x = exitDateOf(e);
+      return j && j < dateFrom && (!x || x >= dateFrom);
+    }).length;
+    const events: Record<string, number> = {};
+    workInfos.forEach((w: any) => { if (inRange(w.joining_date)) { const k = w.joining_date.slice(0, 7); events[k] = (events[k] || 0) + 1; } });
+    employees.forEach((e: any) => { const x = exitDateOf(e); if (inRange(x)) { const k = x.slice(0, 7); events[k] = (events[k] || 0) - 1; } });
+    return Object.keys(events).sort().map((k) => { running += events[k]; return { month: monthLabel(k), total: running }; });
+  }, [employees, workInfos, wiByEmp, dateFrom, dateTo]);
+
+  const deptHeadcount = useMemo(() => {
+    const m: Record<string, number> = {};
+    employees.filter((e: any) => e.is_active).forEach((e: any) => { const n = deptOf(e.id); m[n] = (m[n] || 0) + 1; });
+    return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [employees, wiByEmp, deptById]);
+
+  const typeData = useMemo(() => {
+    const c: Record<string, number> = {};
+    workInfos.forEach((w: any) => {
+      if (!empById.get(w.employee_id)?.is_active) return;
+      const t = w.employee_type || "Unspecified"; c[t] = (c[t] || 0) + 1;
+    });
+    return Object.entries(c).map(([name, value]) => ({ name, value }));
+  }, [workInfos, empById]);
+
+  // ─── Payroll (RazorpayX mirror) ───
+  const payrollMonths = useMemo(() => {
+    const m: Record<string, { gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number }> = {};
+    payslips.forEach((p: any) => {
+      const k = String(p.period_month).slice(0, 7);
+      const r = m[k] || (m[k] = { gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0 });
+      r.gross += Number(p.gross || 0); r.net += Number(p.net || 0);
+      r.deductions += Math.abs(Number(p.total_deductions || 0));
+      r.tds += Math.abs(Number(p.tds_amount || 0)); r.pf += Math.abs(Number(p.pf_amount || 0));
+      r.esi += Math.abs(Number(p.esi_amount || 0)); r.pt += Math.abs(Number(p.professional_tax || 0));
+      r.er += Number(p.employer_contrib || 0); r.count += 1;
+    });
+    return Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ key: k, month: monthLabel(k), ...v }));
+  }, [payslips]);
+
+  const totalPayrollCost = payrollMonths.reduce((s, r) => s + r.gross, 0);
+  const avgMonthlyCost = payrollMonths.length ? totalPayrollCost / payrollMonths.length : 0;
+  const statutory = payrollMonths.reduce(
+    (s, r) => ({ pf: s.pf + r.pf, esi: s.esi + r.esi, pt: s.pt + r.pt, tds: s.tds + r.tds, er: s.er + r.er }),
+    { pf: 0, esi: 0, pt: 0, tds: 0, er: 0 },
+  );
+
+  // ─── Attendance (v4 daily rollup) ───
+  const attStats = useMemo(() => {
+    let present = 0, halfDay = 0, absent = 0, late = 0, noData = 0, incomplete = 0;
+    attendance.forEach((a: any) => {
+      if (a.is_late) late++;
+      switch (a.status) {
+        case "present": present++; break;
+        case "half_day": halfDay++; break;
+        case "absent": absent++; break;
+        case "incomplete": incomplete++; break;
+        default: noData++;
+      }
+    });
+    const considered = present + halfDay + absent + incomplete;
+    const pct = considered ? ((present + halfDay * 0.5 + incomplete * 0.5) / considered) * 100 : 0;
+    return { present, halfDay, absent, late, noData, incomplete, considered, pct };
+  }, [attendance]);
+
+  const attendanceTrend = useMemo(() => {
+    const wm: Record<string, { present: number; absent: number; late: number; half: number }> = {};
+    attendance.forEach((a: any) => {
+      const d = new Date(`${a.attendance_date}T00:00:00`);
+      const ws = new Date(d); ws.setDate(d.getDate() - d.getDay());
+      const k = ws.toISOString().slice(0, 10);
+      const r = wm[k] || (wm[k] = { present: 0, absent: 0, late: 0, half: 0 });
+      if (a.status === "present") r.present++;
+      else if (a.status === "absent") r.absent++;
+      else if (a.status === "half_day") r.half++;
+      if (a.is_late) r.late++;
+    });
+    return Object.entries(wm).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ week: k.slice(5), ...v }));
+  }, [attendance]);
+
+  // ─── Leave ───
+  const filteredLeaves = useMemo(
+    () => leaveRequests.filter((l: any) => inRange(l.start_date || l.created_at?.slice(0, 10))),
+    [leaveRequests, dateFrom, dateTo],
+  );
+  const leaveByType = useMemo(
+    () => leaveTypes.map((lt: any) => ({ name: lt.name, value: filteredLeaves.filter((r: any) => r.leave_type_id === lt.id).length })).filter((d: any) => d.value > 0),
+    [leaveTypes, filteredLeaves],
+  );
+  const deptLeaveData = useMemo(() => {
+    const dm: Record<string, number> = {};
+    filteredLeaves.forEach((l: any) => { const n = deptOf(l.employee_id); dm[n] = (dm[n] || 0) + Number(l.total_days || 1); });
+    return Object.entries(dm).map(([name, days]) => ({ name, days })).sort((a, b) => b.days - a.days).slice(0, 8);
+  }, [filteredLeaves, wiByEmp, deptById]);
+
+  const attritionRate = activeCount + exitsInRange.length
+    ? (exitsInRange.length / (activeCount + exitsInRange.length)) * 100 : 0;
+
+  // ─── Export ───
   const handleExport = (type: string) => {
     let rows: any[] = []; let sheetName = "Report";
-    if (type === "employees") { rows = employees.map((e: any) => ({ ID: e.id, Active: e.is_active, Created: e.created_at?.slice(0, 10), CTC: e.total_salary || 0 })); sheetName = "Employees"; }
-    else if (type === "leaves") { rows = filteredLeaves.map((l: any) => ({ Status: l.status, Days: l.total_days, Date: l.start_date })); sheetName = "Leaves"; }
-    else if (type === "payroll") { rows = filteredPayroll.map((r: any) => ({ Title: r.title, Gross: r.total_gross, Net: r.total_net, Deductions: r.total_deductions, Date: r.run_date })); sheetName = "Payroll"; }
-    else if (type === "attendance") { rows = attendance.map((a: any) => ({ Date: a.attendance_date, Status: a.status })); sheetName = "Attendance"; }
-    const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sheetName); XLSX.writeFile(wb, `${sheetName.toLowerCase()}_report.xlsx`);
+    if (type === "employees") {
+      sheetName = "Employees";
+      rows = employees.map((e: any) => ({
+        "Badge ID": e.badge_id, Name: empName(e.id), Department: deptOf(e.id),
+        "Employee Type": wiByEmp.get(e.id)?.employee_type || "", "Joining Date": wiByEmp.get(e.id)?.joining_date || "",
+        Active: e.is_active ? "Yes" : "No", "Exit Date": exitDateOf(e) || "", CTC: Number(e.total_salary || 0),
+      }));
+    } else if (type === "leaves") {
+      sheetName = "Leaves";
+      rows = filteredLeaves.map((l: any) => ({
+        Employee: empName(l.employee_id), Department: deptOf(l.employee_id),
+        Type: leaveTypes.find((t: any) => t.id === l.leave_type_id)?.name || "", Status: l.status,
+        Days: l.total_days, "Start Date": l.start_date,
+      }));
+    } else if (type === "payroll_monthly") {
+      sheetName = "Payroll Monthly";
+      rows = payrollMonths.map((r) => ({
+        Month: r.month, Payslips: r.count, Gross: r.gross, Deductions: r.deductions, Net: r.net,
+        TDS: r.tds, PF: r.pf, ESI: r.esi, PT: r.pt, "Employer Contribution": r.er,
+      }));
+    } else if (type === "payroll_detail") {
+      sheetName = "Payslips";
+      rows = payslips.map((p: any) => ({
+        Month: String(p.period_month).slice(0, 7), "Badge ID": empById.get(p.employee_id)?.badge_id || "",
+        Employee: empName(p.employee_id), Department: deptOf(p.employee_id),
+        Gross: Number(p.gross || 0), "Regular Gross": Number(p.regular_gross || 0),
+        Deductions: Math.abs(Number(p.total_deductions || 0)), Net: Number(p.net || 0),
+        TDS: Math.abs(Number(p.tds_amount || 0)), PF: Math.abs(Number(p.pf_amount || 0)),
+        ESI: Math.abs(Number(p.esi_amount || 0)), PT: Math.abs(Number(p.professional_tax || 0)),
+      }));
+    } else if (type === "attendance") {
+      sheetName = "Attendance";
+      rows = attendance.map((a: any) => ({
+        Date: a.attendance_date, "Badge ID": empById.get(a.employee_id)?.badge_id || "",
+        Employee: empName(a.employee_id), Department: deptOf(a.employee_id),
+        Status: a.status, Late: a.is_late ? "Yes" : "No", Hours: a.total_hours ?? "",
+      }));
+    }
+    if (!rows.length) rows = [{ Note: "No data in the selected date range" }];
+    const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `${sheetName.toLowerCase().replace(/\s+/g, "_")}_${dateFrom}_to_${dateTo}.xlsx`);
   };
 
-  const NoData = () => <p className="text-center text-muted-foreground py-8 text-sm">No data available</p>;
+  const NoData = ({ reason }: { reason?: string }) => (
+    <div className="text-center py-8">
+      <p className="text-sm text-muted-foreground">No data available</p>
+      {reason && <p className="text-xs text-muted-foreground/70 mt-1">{reason}</p>}
+    </div>
+  );
+
+  const kpis = [
+    { label: "Total Employees", value: employees.length, icon: Users, fg: "text-primary", bg: "bg-primary/10" },
+    { label: "Active", value: activeCount, icon: Users, fg: "text-success", bg: "bg-success/10" },
+    { label: "Exited (range)", value: exitsInRange.length, icon: UserMinus, fg: "text-destructive", bg: "bg-destructive/10" },
+    { label: "Leave Requests", value: filteredLeaves.length, icon: CalendarDays, fg: "text-warning", bg: "bg-warning/10" },
+    { label: "Months Processed", value: payrollMonths.length, icon: Wallet, fg: "text-primary", bg: "bg-primary/10" },
+    { label: "Total Payroll Cost", value: inr(totalPayrollCost), icon: TrendingUp, fg: "text-info", bg: "bg-info/10" },
+    { label: "Avg Monthly Cost", value: inr(avgMonthlyCost), icon: Clock, fg: "text-info", bg: "bg-info/10" },
+    { label: "Attrition (range)", value: `${attritionRate.toFixed(1)}%`, icon: UserMinus, fg: "text-destructive", bg: "bg-destructive/10" },
+  ];
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -62,42 +276,215 @@ export default function ReportsPage() {
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 h-9 bg-background text-foreground" />
             <span className="text-muted-foreground text-sm">to</span>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 h-9 bg-background text-foreground" />
-            <div className="relative group">
-              <Button variant="outline" size="sm" className="h-9"><Download className="h-4 w-4 mr-1" /> Export</Button>
-              <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-sm py-1 min-w-[140px] hidden group-hover:block z-50">
-                {["employees", "leaves", "payroll", "attendance"].map(t => (
-                  <button key={t} onClick={() => handleExport(t)} className="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-muted capitalize">{t}</button>
-                ))}
-              </div>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9"><Download className="h-4 w-4 mr-1" /> Export</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-50 bg-popover">
+                <DropdownMenuLabel className="text-xs">Export (selected range)</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExport("employees")}>Employees</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("payroll_monthly")}>Payroll (monthly)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("payroll_detail")}>Payslips (per employee)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("attendance")}>Attendance (daily)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("leaves")}>Leaves</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-        {[
-          { label: "Total Employees", value: employees.length, icon: Users, color: "text-primary bg-primary/10" },
-          { label: "Active", value: employees.filter((e: any) => e.is_active).length, icon: Users, color: "text-success bg-success/10" },
-          { label: "Leave Requests", value: filteredLeaves.length, icon: CalendarDays, color: "text-warning bg-warning/10" },
-          { label: "Payroll Runs", value: filteredPayroll.length, icon: Wallet, color: "text-primary bg-primary/10" },
-          { label: "Total Payroll Cost", value: `₹${(totalPayrollCost / 100000).toFixed(1)}L`, icon: TrendingUp, color: "text-info bg-info/10" },
-          { label: "Avg Payroll/Run", value: `₹${(avgPayrollCost / 1000).toFixed(0)}K`, icon: Clock, color: "text-destructive bg-destructive/10" },
-        ].map(s => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8 gap-3">
+        {kpis.map(s => (
           <Card key={s.label}><CardContent className="p-3 flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg ${s.color.split(' ')[1]}`}><s.icon className={`h-4 w-4 ${s.color.split(' ')[0]}`} /></div>
-            <div><p className="text-lg font-bold text-foreground tabular-nums">{s.value}</p><p className="text-[10px] text-muted-foreground">{s.label}</p></div>
+            <div className={`p-1.5 rounded-lg ${s.bg}`}><s.icon className={`h-4 w-4 ${s.fg}`} /></div>
+            <div className="min-w-0"><p className="text-base font-bold text-foreground tabular-nums truncate">{s.value}</p><p className="text-[10px] text-muted-foreground">{s.label}</p></div>
           </CardContent></Card>
         ))}
       </div>
 
+      {/* Attendance health strip */}
+      <Card>
+        <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Attendance Health</CardTitle></CardHeader>
+        <CardContent>
+          {attendance.length ? (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {[
+                { l: "Attendance %", v: `${attStats.pct.toFixed(1)}%` },
+                { l: "Present days", v: attStats.present },
+                { l: "Half days", v: attStats.halfDay },
+                { l: "Absent days", v: attStats.absent },
+                { l: "Late instances", v: attStats.late },
+              ].map(x => (
+                <div key={x.l} className="rounded-lg border border-border p-2.5">
+                  <p className="text-lg font-bold tabular-nums text-foreground">{x.v}</p>
+                  <p className="text-[11px] text-muted-foreground">{x.l}</p>
+                </div>
+              ))}
+            </div>
+          ) : <NoData reason="No attendance rows recorded in the selected range." />}
+          <Source>attendance engine daily rollup (hr_attendance_daily); {attStats.noData} day-rows with no device data are excluded from the percentage</Source>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Headcount Trend</CardTitle></CardHeader><CardContent>{headcountTrend.length > 0 ? <ResponsiveContainer width="100%" height={220}><AreaChart data={headcountTrend}><CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} /><Tooltip /><Area type="monotone" dataKey="total" fill="#6C63FF" fillOpacity={0.15} stroke="#6C63FF" strokeWidth={2} /></AreaChart></ResponsiveContainer> : <NoData />}</CardContent></Card>
-        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Employee Growth (New Hires)</CardTitle></CardHeader><CardContent>{growthData.length > 0 ? <ResponsiveContainer width="100%" height={220}><BarChart data={growthData}><CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} /><Tooltip /><Bar dataKey="count" fill="#E8604C" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer> : <NoData />}</CardContent></Card>
-        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Leave by Type</CardTitle></CardHeader><CardContent>{leaveByType.length > 0 ? <div className="flex items-center gap-4"><ResponsiveContainer width="50%" height={200}><PieChart><Pie data={leaveByType} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">{leaveByType.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie></PieChart></ResponsiveContainer><div className="space-y-1.5">{leaveByType.map((d: any, i: number) => <div key={d.name} className="flex items-center gap-2 text-sm"><div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} /><span className="text-muted-foreground text-xs">{d.name}</span><span className="font-semibold text-xs tabular-nums">{d.value}</span></div>)}</div></div> : <NoData />}</CardContent></Card>
-        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Department-wise Leave Days</CardTitle></CardHeader><CardContent>{deptLeaveData.length > 0 ? <ResponsiveContainer width="100%" height={220}><BarChart data={deptLeaveData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis type="number" fontSize={11} /><YAxis dataKey="name" type="category" fontSize={10} width={80} /><Tooltip /><Bar dataKey="days" fill="#F59E0B" radius={[0,4,4,0]} /></BarChart></ResponsiveContainer> : <NoData />}</CardContent></Card>
-        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Payroll Cost Trend</CardTitle></CardHeader><CardContent>{payrollData.length > 0 ? <ResponsiveContainer width="100%" height={220}><LineChart data={payrollData}><CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={11} /><Tooltip /><Line type="monotone" dataKey="gross" stroke="#E8604C" strokeWidth={2} /><Line type="monotone" dataKey="net" stroke="#6C63FF" strokeWidth={2} /><Line type="monotone" dataKey="deductions" stroke="#10B981" strokeWidth={1.5} strokeDasharray="5 5" /></LineChart></ResponsiveContainer> : <NoData />}</CardContent></Card>
-        <Card><CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Employee Types</CardTitle></CardHeader><CardContent>{typeData.length > 0 ? <div className="flex items-center gap-4"><ResponsiveContainer width="50%" height={200}><PieChart><Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">{typeData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie></PieChart></ResponsiveContainer><div className="space-y-1.5">{typeData.map((d: any, i: number) => <div key={d.name} className="flex items-center gap-2 text-sm"><div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} /><span className="text-muted-foreground text-xs">{d.name}</span><span className="font-semibold text-xs tabular-nums">{d.value}</span></div>)}</div></div> : <NoData />}</CardContent></Card>
-        <Card className="lg:col-span-2"><CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Attendance Trend (Weekly)</CardTitle></CardHeader><CardContent>{attendanceTrend.length > 0 ? <ResponsiveContainer width="100%" height={220}><BarChart data={attendanceTrend}><CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="week" fontSize={11} /><YAxis fontSize={11} /><Tooltip /><Bar dataKey="present" fill="#10B981" stackId="a" /><Bar dataKey="late" fill="#F59E0B" stackId="a" /><Bar dataKey="absent" fill="#EF4444" stackId="a" /></BarChart></ResponsiveContainer> : <NoData />}</CardContent></Card>
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Headcount Trend</CardTitle></CardHeader>
+          <CardContent>
+            {headcountTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}><AreaChart data={headcountTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
+                <Area type="monotone" dataKey="total" name="Headcount" fill="#6C63FF" fillOpacity={0.15} stroke="#6C63FF" strokeWidth={2} />
+              </AreaChart></ResponsiveContainer>
+            ) : <NoData reason="No joinings or exits recorded in the selected range." />}
+            <Source>joining dates (work info) minus exits (resignation / last working day)</Source>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">New Hires</CardTitle></CardHeader>
+          <CardContent>
+            {newHires.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}><BarChart data={newHires}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
+                <Bar dataKey="count" name="Joined" fill="#E8604C" radius={[4, 4, 0, 0]} />
+              </BarChart></ResponsiveContainer>
+            ) : <NoData reason="No employee joined within the selected range." />}
+            <Source>hr_employee_work_info.joining_date (actual hiring date, not record import date)</Source>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Payroll Cost Trend</CardTitle></CardHeader>
+          <CardContent>
+            {payrollMonths.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}><LineChart data={payrollMonths}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
+                <Tooltip formatter={(v: any) => inr(Number(v))} />
+                <Line type="monotone" dataKey="gross" name="Gross" stroke="#E8604C" strokeWidth={2} />
+                <Line type="monotone" dataKey="net" name="Net" stroke="#6C63FF" strokeWidth={2} />
+                <Line type="monotone" dataKey="deductions" name="Deductions" stroke="#10B981" strokeWidth={1.5} strokeDasharray="5 5" />
+              </LineChart></ResponsiveContainer>
+            ) : <NoData reason="No payslips exist for the selected months." />}
+            <Source>RazorpayX payslip mirror (hr_payslips_v), grouped by pay period</Source>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Statutory & Tax Cost</CardTitle></CardHeader>
+          <CardContent>
+            {payrollMonths.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { l: "Provident Fund (EE)", v: statutory.pf },
+                  { l: "ESI (EE)", v: statutory.esi },
+                  { l: "Professional Tax", v: statutory.pt },
+                  { l: "TDS", v: statutory.tds },
+                  { l: "Employer Contribution", v: statutory.er },
+                  { l: "Total Net Paid", v: payrollMonths.reduce((s, r) => s + r.net, 0) },
+                ].map(x => (
+                  <div key={x.l} className="rounded-lg border border-border p-2.5">
+                    <p className="text-base font-bold tabular-nums text-foreground">{inr(x.v)}</p>
+                    <p className="text-[11px] text-muted-foreground">{x.l}</p>
+                  </div>
+                ))}
+              </div>
+            ) : <NoData reason="No payslips exist for the selected months." />}
+            <Source>RazorpayX payslip mirror (hr_payslips_v) for the selected range</Source>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Department-wise Headcount</CardTitle></CardHeader>
+          <CardContent>
+            {deptHeadcount.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}><BarChart data={deptHeadcount} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis type="number" fontSize={11} allowDecimals={false} /><YAxis dataKey="name" type="category" fontSize={10} width={110} /><Tooltip />
+                <Bar dataKey="value" name="Active employees" fill="#3B82F6" radius={[0, 4, 4, 0]} />
+              </BarChart></ResponsiveContainer>
+            ) : <NoData />}
+            <Source>active employees mapped through work info departments</Source>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Employee Types</CardTitle></CardHeader>
+          <CardContent>
+            {typeData.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <ResponsiveContainer width="50%" height={200}><PieChart>
+                  <Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
+                    {typeData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie><Tooltip />
+                </PieChart></ResponsiveContainer>
+                <div className="space-y-1.5">
+                  {typeData.map((d: any, i: number) => (
+                    <div key={d.name} className="flex items-center gap-2 text-sm">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-muted-foreground text-xs capitalize">{d.name}</span>
+                      <span className="font-semibold text-xs tabular-nums">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : <NoData />}
+            <Source>work info employee type (active employees only)</Source>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Leave by Type</CardTitle></CardHeader>
+          <CardContent>
+            {leaveByType.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <ResponsiveContainer width="50%" height={200}><PieChart>
+                  <Pie data={leaveByType} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
+                    {leaveByType.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie><Tooltip />
+                </PieChart></ResponsiveContainer>
+                <div className="space-y-1.5">
+                  {leaveByType.map((d: any, i: number) => (
+                    <div key={d.name} className="flex items-center gap-2 text-sm">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-muted-foreground text-xs">{d.name}</span>
+                      <span className="font-semibold text-xs tabular-nums">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : <NoData reason="No leave requests were raised in the selected range." />}
+            <Source>hr_leave_requests</Source>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Department-wise Leave Days</CardTitle></CardHeader>
+          <CardContent>
+            {deptLeaveData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}><BarChart data={deptLeaveData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis type="number" fontSize={11} /><YAxis dataKey="name" type="category" fontSize={10} width={110} /><Tooltip />
+                <Bar dataKey="days" name="Leave days" fill="#F59E0B" radius={[0, 4, 4, 0]} />
+              </BarChart></ResponsiveContainer>
+            ) : <NoData reason="No leave requests were raised in the selected range." />}
+            <Source>hr_leave_requests joined to work info departments</Source>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Attendance Trend (Weekly)</CardTitle></CardHeader>
+          <CardContent>
+            {attendanceTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}><BarChart data={attendanceTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="week" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
+                <Bar dataKey="present" name="Present" fill="#10B981" stackId="a" />
+                <Bar dataKey="half" name="Half day" fill="#F59E0B" stackId="a" />
+                <Bar dataKey="absent" name="Absent" fill="#EF4444" stackId="a" />
+                <Bar dataKey="late" name="Late (of present)" fill="#6C63FF" />
+              </BarChart></ResponsiveContainer>
+            ) : <NoData reason="No attendance rows recorded in the selected range." />}
+            <Source>attendance engine daily rollup (hr_attendance_daily), bucketed by week starting Sunday</Source>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -247,11 +247,16 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     "reg_employer_esi_contr", "reg_employer_pf_contr",
     "reg_overtime", "reg_performance_incentive", "reg_refund_security_deposit",
   ];
+  // Defensive guard: even if RazorpayX renames a header (so our mapping misses it),
+  // identity/metadata columns must never be treated as pay heads. Anything that looks
+  // like an identifier, date, count or bank/statutory reference is excluded outright.
+  const IDENTITY_HEAD = /(\bid\b|employee\s*id|name|date|dob|gender|department|designation|location|email|phone|mobile|pan\b|uan|esi\s*number|esic\s*number|account|acc\.?\s*no|ifsc|bank|working\s*days|days\b|has\s*left|relieving|hire|number$)/i;
   rows.forEach((row, n) => {
     const raw = dataRows[n] ?? [];
     const extras: { label: string; amount: number }[] = [];
     header.forEach((h, i) => {
       if (mapped.has(i) || i === iGross) return;
+      if (IDENTITY_HEAD.test(h)) return;
       const v = toNum(raw[i] ?? "");
       if (v != null && v !== 0) extras.push({ label: h, amount: v });
     });

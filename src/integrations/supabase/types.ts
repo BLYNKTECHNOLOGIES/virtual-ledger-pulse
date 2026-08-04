@@ -25017,6 +25017,7 @@ export type Database = {
           source: string
         }[]
       }
+      hr_queue_attlog_resweep: { Args: never; Returns: number }
       hr_razorpay_sandbox_auto_revoke: {
         Args: never
         Returns: {

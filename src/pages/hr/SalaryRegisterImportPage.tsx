@@ -282,7 +282,16 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
         extras.reduce((a, e) => a + (e.amount > 0 ? e.amount : 0), 0);
       row.gross_tieout_diff = Math.round((sum - row.reg_gross_salary) * 100) / 100;
     }
+    // Net tie-out: RazorpayX gross is CTC-inclusive, so Net = Gross − every
+    // deduction incl. employer PF/ESI (which sit inside gross) and any negative
+    // One-time Payment recovery. Employer LWF sits OUTSIDE gross and is excluded.
+    if (row.reg_gross_salary != null && row.reg_net_pay != null) {
+      const ded = DEDUCTION_KEYS.reduce((a, k) => a + Math.abs(Number(row[k] ?? 0) || 0), 0) +
+        Math.max(-(Number(row.reg_one_time_payments ?? 0) || 0), 0);
+      row.net_tieout_diff = Math.round((row.reg_gross_salary - ded - row.reg_net_pay) * 100) / 100;
+    }
   });
+
 
   return { header, rows, missingCols };
 }

@@ -398,23 +398,40 @@ export default function ReportsPage() {
           <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Statutory & Tax Cost</CardTitle></CardHeader>
           <CardContent>
             {payrollMonths.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { l: "Provident Fund (EE)", v: statutory.pf },
-                  { l: "ESI (EE)", v: statutory.esi },
-                  { l: "Professional Tax", v: statutory.pt },
-                  { l: "TDS", v: statutory.tds },
-                  { l: "Employer Contribution", v: statutory.er },
-                  { l: "Total Net Paid", v: payrollMonths.reduce((s, r) => s + r.net, 0) },
-                ].map(x => (
-                  <div key={x.l} className="rounded-lg border border-border p-2.5">
-                    <p className="text-base font-bold tabular-nums text-foreground">{inr(x.v)}</p>
-                    <p className="text-[11px] text-muted-foreground">{x.l}</p>
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { l: "Provident Fund (EE)", v: statutory.pf, s: undefined as string | undefined },
+                    { l: "ESI (EE)", v: statutory.esi, s: `${statutoryCoverage.esiCovered} of ${statutoryCoverage.total} payslips ESI-covered` },
+                    { l: "Professional Tax", v: statutory.pt, s: undefined },
+                    { l: "TDS", v: statutory.tds, s: undefined },
+                    { l: "Employer Contribution", v: statutory.er, s: undefined },
+                    { l: "Total Net Paid", v: payrollMonths.reduce((s, r) => s + r.net, 0), s: undefined },
+                  ].map(x => (
+                    <div key={x.l} className="rounded-lg border border-border p-2.5">
+                      <p className="text-base font-bold tabular-nums text-foreground">{inr(x.v)}</p>
+                      <p className="text-[11px] text-muted-foreground">{x.l}</p>
+                      {x.s && <p className="mt-0.5 text-[10px] text-muted-foreground/80">{x.s}</p>}
+                    </div>
+                  ))}
+                </div>
+                {(statutoryCoverage.missingMonths.length > 0 || statutoryCoverage.partialMonths.length > 0) && (
+                  <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+                    <p className="font-semibold">Statutory totals are under-stated for this range</p>
+                    <p className="mt-1">
+                      Only {statutoryCoverage.withReg} of {statutoryCoverage.total} payslips have an imported salary register. Dashboard-only payslips carry no PF / ESI / PT breakdown, so their statutory amounts count as zero here.
+                    </p>
+                    {statutoryCoverage.missingMonths.length > 0 && (
+                      <p className="mt-1">No register imported: {statutoryCoverage.missingMonths.join(", ")}</p>
+                    )}
+                    {statutoryCoverage.partialMonths.length > 0 && (
+                      <p className="mt-1">Partially imported: {statutoryCoverage.partialMonths.join(", ")}</p>
+                    )}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : <NoData reason="No payslips exist for the selected months." />}
-            <Source>RazorpayX payslip mirror (hr_payslips_v) for the selected range</Source>
+            <Source>RazorpayX payslip mirror (hr_payslips_v) for the selected range · statutory heads come only from imported salary registers</Source>
           </CardContent>
         </Card>
 

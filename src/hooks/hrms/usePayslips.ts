@@ -35,6 +35,7 @@ export interface CanonicalPayslip {
   register_source: string | null;
   has_register: boolean;
   pdf_url: string | null;
+  pdf_storage_path: string | null;
   razorpay_payslip_id: number | null;
   pulled_at: string | null;
   source: "razorpay" | "register_csv";

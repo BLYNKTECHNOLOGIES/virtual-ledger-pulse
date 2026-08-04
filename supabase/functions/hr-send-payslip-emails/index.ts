@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
         gross,
         deductions,
         net,
-        basis: hasReg ? 'register_csv' : 'razorpay',
+        basis: (hasReg ? 'register_csv' : 'razorpay') as Row['basis'],
         lop_days,
         lop_amount,
         bonuses,

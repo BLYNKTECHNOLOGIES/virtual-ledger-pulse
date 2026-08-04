@@ -478,9 +478,10 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                   <div className="bg-muted/30 rounded-lg p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
                     <p className="text-lg font-bold text-destructive">
-                      {hasReg ? fmt(p.total_deductions) : '—'}
+                      {hasReg ? fmt((Number(p.total_deductions) || 0) - oneTimeRecovery) : '—'}
                     </p>
                   </div>
+
                   <div className="bg-muted/30 rounded-lg p-3 text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
                     <p className="text-lg font-bold text-success">{fmt(p.net)}</p>

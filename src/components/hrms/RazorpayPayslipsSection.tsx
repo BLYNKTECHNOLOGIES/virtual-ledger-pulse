@@ -67,6 +67,58 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
     refetchInterval: 24 * 60 * 60 * 1000,
   });
 
+  // Reconciled figures. The Opfin payroll:view-payroll endpoint returns only a
+  // single `salary` number — never PF/ESI/PT/TDS — so the raw API columns are
+  // null for every employee/month. hr_payslips_v merges the imported Salary
+  // Register CSV over the API record and is the display source of truth.
+  const { data: reconciled } = useQuery({
+    queryKey: ["rzp_payslips_emp_v", hrEmployeeId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_payslips_v")
+        .select("*")
+        .eq("employee_id", hrEmployeeId)
+        .order("period_month", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!hrEmployeeId,
+    refetchInterval: 24 * 60 * 60 * 1000,
+  });
+
+  const vByMonth = new Map<string, any>();
+  for (const v of reconciled || []) vByMonth.set(String(v.period_month), v);
+
+  const ABS = (n: any) => (n == null || n === "" ? null : Math.abs(Number(n)));
+  /** Merge the reconciled view over the raw API record for display. */
+  const view = (r: any) => {
+    const v = vByMonth.get(String(r.period_month)) || {};
+    const hasRegister = Boolean(v.has_register ?? r.reg_source_filename);
+    return {
+      hasRegister,
+      registerSource: v.register_source ?? r.reg_source_filename ?? null,
+      gross: v.gross ?? r.reg_gross_salary ?? r.gross_earnings,
+      deductions: hasRegister ? ABS(v.employee_deductions ?? v.total_deductions) : ABS(r.total_deductions),
+      net: v.net ?? r.reg_net_pay ?? r.net_pay,
+      tds: ABS(v.tds_amount ?? r.reg_tds ?? r.tds_amount),
+      pf: ABS(v.pf_amount ?? r.reg_pf_ee ?? r.pf_amount),
+      esi: ABS(v.esi_amount ?? r.reg_esi_ee ?? r.esi_amount),
+      pt: ABS(v.professional_tax ?? r.reg_pt ?? r.professional_tax),
+      lwf: ABS(v.lwf_ee ?? r.reg_lwf_ee),
+      employerPf: v.employer_pf ?? r.reg_pf_er ?? null,
+      employerEsi: v.employer_esi ?? r.reg_esi_er ?? null,
+      loanEmi: ABS(v.loan_emi ?? r.reg_loan_emi),
+      advanceSalary: ABS(v.advance_salary ?? r.reg_advance_salary),
+      oneTimePayments: v.one_time_payments ?? r.reg_one_time_payments ?? null,
+      oneTimeRecovery: ABS(v.one_time_recovery),
+      workingDays: v.working_days ?? r.reg_working_days ?? null,
+    };
+  };
+
+  /** Statutory cell: real value when the register is in, explicit gap marker otherwise. */
+  const StatCell = ({ hasRegister, value, messages }: { hasRegister: boolean; value: any; messages: string[] }) =>
+    hasRegister ? <ComplianceCell value={value} messages={messages} /> : <NotImported />;
+
   const flagsForRow = (r: any) => {
     const p = r?.source_payload || {};
     const dnp = r?.do_not_pay ?? p["do-not-pay"] ?? p.do_not_pay ?? false;
@@ -75,6 +127,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
     const isPaid = paymentStatus === "paid" || !!paidOn;
     return { dnp: Boolean(dnp), paidOn, paymentStatus, isPaid };
   };
+
 
 
 

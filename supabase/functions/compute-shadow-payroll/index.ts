@@ -328,6 +328,22 @@ Deno.serve(async (req) => {
       for (const r of dnpRows ?? []) if (r.hr_employee_id) doNotPayEmp.add(r.hr_employee_id);
     }
 
+    // RazorpayX comparison side, prefetched once for the whole period.
+    // hr_payslips_v is the reconciled payslip view (API pull + imported salary
+    // register), so it is populated for months that were only imported.
+    const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
+    const rzByEmp = new Map<string, any>();
+    {
+      const { data: rzRows, error: rzErr } = await supabase
+        .from("hr_payslips_v")
+        .select("employee_id, gross, regular_gross, net, pf_amount, esi_amount, professional_tax, tds_amount")
+        .eq("period_month", periodStr);
+      if (rzErr) console.error("razorpay payslip view fetch err", rzErr);
+      for (const r of rzRows ?? []) if (r.employee_id) rzByEmp.set(r.employee_id, r);
+      console.log(`[shadow] razorpay comparison rows for ${periodStr}: ${rzByEmp.size}`);
+    }
+
+
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
 
@@ -497,9 +513,9 @@ Deno.serve(async (req) => {
       ));
       const annualBasePreLop = regularBase * 12;
       const { data: ytdTds } = await supabase
-        .from("hr_razorpay_payslip_records")
+        .from("hr_payslips_v")
         .select("tds_amount")
-        .eq("hr_employee_id", emp.id)
+        .eq("employee_id", emp.id)
         .gte("period_month", fyStart.toISOString().slice(0, 10))
         .lt("period_month", periodStr);
       const ytdTdsPaid = (ytdTds ?? []).reduce((s: number, r: any) => s + Number(r.tds_amount ?? 0), 0);
@@ -511,13 +527,14 @@ Deno.serve(async (req) => {
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
-      const { data: rzArr } = await supabase
-        .from("hr_razorpay_payslip_records")
-        .select("gross_amount, net_pay, pf_amount, esi_amount, professional_tax, tds_amount")
-        .eq("hr_employee_id", emp.id)
-        .eq("period_month", periodStr)
-        .limit(1);
-      const rz = rzArr?.[0];
+      // RazorpayX side of the comparison. Read the reconciled payslip view
+      // (hr_payslips_v) — it already merges the API pull with the imported
+      // salary register and exposes regular_gross (gross with one-time payouts
+      // carved out), which is the only apples-to-apples counterpart to the
+      // shadow engine's earningsTotal. The raw record table has no
+      // gross_amount column and its pf/esi/pt/tds columns stay NULL for
+      // register-imported months.
+      const rz = rzByEmp.get(emp.id);
 
       const { data: line, error: lineErr } = await supabase
         .from("hr_shadow_payroll_lines")
@@ -539,12 +556,12 @@ Deno.serve(async (req) => {
           tds_amount: tds,
           deductions_total: deductions,
           net_pay: net,
-          razorpay_gross: rz?.gross_amount ?? null,
-          razorpay_net: rz?.net_pay ?? null,
-          razorpay_pf: rz?.pf_amount ?? null,
-          razorpay_esi: rz?.esi_amount ?? null,
-          razorpay_pt: rz?.professional_tax ?? null,
-          razorpay_tds: rz?.tds_amount ?? null,
+          razorpay_gross: num(rz?.regular_gross ?? rz?.gross),
+          razorpay_net: num(rz?.net),
+          razorpay_pf: num(rz?.pf_amount),
+          razorpay_esi: num(rz?.esi_amount),
+          razorpay_pt: num(rz?.professional_tax),
+          razorpay_tds: num(rz?.tds_amount),
           compute_notes: {
             regime, monthsRemaining, annualBasePreLop, ytdTdsPaid, annualTax,
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,

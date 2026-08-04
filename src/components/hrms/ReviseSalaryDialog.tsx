@@ -383,43 +383,23 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           }
         }
         onOpenChange(false);
+      } else if (res?.kind === "payroll_input") {
+        qc.invalidateQueries({ queryKey: ["payroll_input_additions"] });
+        qc.invalidateQueries({ queryKey: ["payroll_input_deductions"] });
+        qc.invalidateQueries({ queryKey: ["gate_lop"] });
+        toast.success(
+          `${res.mode === "addition" ? "Addition" : "Deduction"} staged on the ${format(new Date(res.period), "MMM yyyy")} payroll month`,
+          { description: "Push it to RazorpayX from the Payroll Cockpit (Step 5 · Additions & Deductions)." },
+        );
+        onOpenChange(false);
       } else {
-        // one_time — stage the addition on the correct RazorpayX payroll month
-        // and stamp the outcome back on the revision row so the history page
-        // can show accurate "queued / rejected / paid" feedback.
-        const revisionId = res?.revisionId as string | undefined;
-        if (!revisionId) {
-          toast.success("One-time compensation recorded");
-          onOpenChange(false);
-          return;
-        }
-        const toastId = toast.loading("Staging payout on RazorpayX payroll month…");
-        try {
-          const mod = await import("@/lib/oneTimePayoutPush");
-          const push = await mod.pushOneTimePayoutToRazorpay(revisionId);
-          qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
-          if (push.ok) {
-            toast.success(
-              "Payout queued on RazorpayX for that payroll month. It will be paid when that month's payroll run is executed.",
-              { id: toastId },
-            );
-            onOpenChange(false);
-          } else if (push.skipped) {
-            toast.warning(
-              "HRMS payout is saved, but NOT queued on RazorpayX — employee is not linked. Link them from Data Health and retry from the history page.",
-              { id: toastId },
-            );
-            onOpenChange(false);
-          } else {
-            toast.error("RazorpayX rejected the payout — retry from the history page.", {
-              id: toastId,
-              description: (push.error || "Unknown error").slice(0, 220),
-            });
-          }
-        } catch (e: any) {
-          toast.error(`RazorpayX push failed: ${e?.message || e}`, { id: toastId });
-        }
+        // one_time — record-only. Paid outside payroll; nothing is pushed to RazorpayX.
+        toast.success("One-time payout recorded as paid outside payroll", {
+          description: "Nothing was sent to RazorpayX. Use Addition if it should ride on a payroll run.",
+        });
+        onOpenChange(false);
       }
+
 
     },
     onError: (e: any) => toast.error(e.message),

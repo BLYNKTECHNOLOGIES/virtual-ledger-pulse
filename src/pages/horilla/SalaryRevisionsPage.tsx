@@ -58,6 +58,8 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
   const [showDialog, setShowDialog] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
   const [pushingIds, setPushingIds] = useState<Set<string>>(new Set());
 
 

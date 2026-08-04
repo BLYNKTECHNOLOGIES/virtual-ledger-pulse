@@ -109,11 +109,21 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
     </table>` : ''
 
   // Summary-only email — the attached payslip PDF carries the full break-up.
+  // One-time payouts are added to gross by RazorpayX and then recovered in the
+  // same run because the money was already paid outside payroll. Show that as
+  // its own line in the net-pay arithmetic, never as a statutory deduction.
+  const oneTimeRow = row.one_time_recovery > 0 ? `
+      <tr>
+        <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Less: one-time payments already paid to you<br/><span style="font-size:12px;color:#94a3b8;">Paid outside this payroll run &mdash; recovered here so it is not paid twice</span></td>
+        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.one_time_recovery)}</td>
+      </tr>` : ''
+
   const paidDaysRow = row.paid_days !== null ? `
       <tr>
         <td style="padding:12px 16px;color:#64748b;">Paid days</td>
         <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;">${row.paid_days.toFixed(1)} of ${row.month_days.toFixed(1)}</td>
       </tr>` : ''
+
 
   return (`<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#eef1f5;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">

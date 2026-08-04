@@ -380,6 +380,13 @@ export default function SalaryRegisterImportPage({
   const [missingCols, setMissingCols] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ updated: number; missing: string[]; mismatch: { name: string; api: number | null; csv: number | null }[] } | null>(null);
+  const [recon, setRecon] = useState<{
+    matched: number;
+    register_only: { line_id: string; hr_employee_id: string; label: string; amount: number }[];
+    hrms_only: { revision_id: string; hr_employee_id: string; label: string; amount: number }[];
+  } | null>(null);
+  const [backfilling, setBackfilling] = useState<string | null>(null);
+
 
   const { data: existingPayslips } = useQuery({
     queryKey: ["payslip_records_for_period", periodMonth],
@@ -396,6 +403,26 @@ export default function SalaryRegisterImportPage({
   });
 
   const insights = useMemo(() => (parsed.length ? computeInsights(parsed) : null), [parsed]);
+
+  const reconEmpIds = useMemo(
+    () =>
+      recon
+        ? Array.from(new Set([...recon.register_only.map((l) => l.hr_employee_id), ...recon.hrms_only.map((l) => l.hr_employee_id)].filter(Boolean)))
+        : [],
+    [recon],
+  );
+  const { data: empNames = {} } = useQuery({
+    queryKey: ["recon_emp_names", reconEmpIds],
+    enabled: reconEmpIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name").in("id", reconEmpIds);
+      if (error) throw error;
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((e: any) => { m[e.id] = [e.first_name, e.last_name].filter(Boolean).join(" "); });
+      return m;
+    },
+  });
+
 
   const preview = useMemo(() => {
     if (!parsed.length || !existingPayslips) return { matched: 0, missing: [] as string[] };
@@ -519,10 +546,27 @@ export default function SalaryRegisterImportPage({
         if ((derived as any)?.status === "derived") derivedCount++;
       }
 
+      // Classify the register's dynamic pay heads, then reconcile one-time payouts
+      // against what HRMS recorded for the same month.
+      let reconNote = "";
+      try {
+        await (supabase as any).rpc("hr_sync_pay_head_lines", { p_period: periodMonth });
+        const { data: rc } = await (supabase as any).rpc("hr_reconcile_one_time_payouts", { p_period: periodMonth });
+        if (rc) {
+          setRecon(rc as any);
+          const ro = (rc as any).register_only?.length ?? 0;
+          const ho = (rc as any).hrms_only?.length ?? 0;
+          if (ro || ho) reconNote = ` · ${ro + ho} one-time payout exception${ro + ho > 1 ? "s" : ""}`;
+        }
+      } catch (e: any) {
+        console.error("pay head reconciliation failed", e);
+      }
+
       setResult({ updated, missing, mismatch });
       toast.success(
-        `Imported ${updated} rows${derivedCount ? ` · derived statutory enrollment for ${derivedCount} employees` : ""}. ${missing.length ? `${missing.length} not matched.` : "All matched."}`,
+        `Imported ${updated} rows${derivedCount ? ` · derived statutory enrollment for ${derivedCount} employees` : ""}${reconNote}. ${missing.length ? `${missing.length} not matched.` : "All matched."}`,
       );
+
       await qc.invalidateQueries({ queryKey: ["payslip_records_for_period", periodMonth] });
       await qc.invalidateQueries({ queryKey: ["payslip_email_roster", periodMonth] });
       await qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", periodMonth] });
@@ -748,6 +792,67 @@ export default function SalaryRegisterImportPage({
           </CardContent>
         </Card>
       )}
+
+      {recon && (recon.register_only.length > 0 || recon.hrms_only.length > 0) && (
+        <Card className="border-amber-500/40">
+          <CardHeader>
+            <CardTitle className="text-base">One-time payout reconciliation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="flex gap-2 flex-wrap">
+              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40">{recon.matched} matched</Badge>
+              {recon.register_only.length > 0 && <Badge variant="destructive">{recon.register_only.length} on RazorpayX only</Badge>}
+              {recon.hrms_only.length > 0 && <Badge variant="outline">{recon.hrms_only.length} in HRMS only</Badge>}
+            </div>
+
+            {recon.register_only.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium">Paid on RazorpayX but not recorded in HRMS — record them so the pay head names stay aligned.</p>
+                {recon.register_only.map((l) => (
+                  <div key={l.line_id} className="flex items-center justify-between gap-3 rounded border border-border p-2">
+                    <div>
+                      <p className="font-medium text-foreground">{empNames[l.hr_employee_id] ?? "Employee"}</p>
+                      <p className="text-xs text-muted-foreground">{l.label} · {INR(l.amount)}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={backfilling === l.line_id}
+                      onClick={async () => {
+                        setBackfilling(l.line_id);
+                        try {
+                          const { error } = await (supabase as any).rpc("hr_backfill_one_time_payout_from_register", { p_line_id: l.line_id });
+                          if (error) throw error;
+                          toast.success(`Recorded "${l.label}" in HRMS`);
+                          setRecon((r) => (r ? { ...r, matched: r.matched + 1, register_only: r.register_only.filter((x) => x.line_id !== l.line_id) } : r));
+                        } catch (e: any) {
+                          toast.error(e.message || "Could not record payout");
+                        } finally {
+                          setBackfilling(null);
+                        }
+                      }}
+                    >
+                      Record in HRMS
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {recon.hrms_only.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium">Recorded in HRMS but absent from the register — verify these were actually paid.</p>
+                {recon.hrms_only.map((r) => (
+                  <div key={r.revision_id} className="text-xs text-muted-foreground">
+                    {empNames[r.hr_employee_id] ?? "Employee"} — {r.label} · {INR(r.amount)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
     </div>
   );
 }

@@ -26,8 +26,10 @@ type Row = {
   month_days: number
   bank_last4: string | null
   employer_contrib: number
-  earning_breakdown: { label: string; amount: number }[]
+  one_time_recovery: number
+  earning_breakdown: { label: string; amount: number; one_time?: boolean }[]
   deduction_breakdown: { label: string; amount: number }[]
+
   pdf_path: string | null
   already_sent_at: string | null
   not_processed: boolean
@@ -107,11 +109,21 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
     </table>` : ''
 
   // Summary-only email — the attached payslip PDF carries the full break-up.
+  // One-time payouts are added to gross by RazorpayX and then recovered in the
+  // same run because the money was already paid outside payroll. Show that as
+  // its own line in the net-pay arithmetic, never as a statutory deduction.
+  const oneTimeRow = row.one_time_recovery > 0 ? `
+      <tr>
+        <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Less: one-time payments already paid to you<br/><span style="font-size:12px;color:#94a3b8;">Paid outside this payroll run &mdash; recovered here so it is not paid twice</span></td>
+        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.one_time_recovery)}</td>
+      </tr>` : ''
+
   const paidDaysRow = row.paid_days !== null ? `
       <tr>
         <td style="padding:12px 16px;color:#64748b;">Paid days</td>
         <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;">${row.paid_days.toFixed(1)} of ${row.month_days.toFixed(1)}</td>
       </tr>` : ''
+
 
   return (`<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#eef1f5;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -144,10 +156,11 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
         <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.gross)}</td>
       </tr>
       <tr>
-        <td style="padding:12px 16px;color:#64748b;${row.paid_days !== null ? 'border-bottom:1px solid #e2e8f0;' : ''}">Total deductions</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;${row.paid_days !== null ? 'border-bottom:1px solid #e2e8f0;' : ''}">${inr(row.deductions)}</td>
-      </tr>${paidDaysRow}
+        <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Total deductions</td>
+        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.deductions)}</td>
+      </tr>${oneTimeRow}${paidDaysRow}
     </table>
+
 
 ${lopBlock}${bonusBlock}
     <p style="margin:0;font-size:13.5px;color:#64748b;line-height:1.65;">
@@ -222,6 +235,19 @@ Deno.serve(async (req) => {
     const mDays = daysInMonth(month)
     const processedOn = (meta as any)?.processed_on ?? null
 
+    // Classified custom pay heads for this month (one-time vs variable).
+    const { data: headLines } = await admin
+      .from('hr_payslip_pay_head_lines')
+      .select('payslip_record_id, normalized_label, classification')
+      .eq('period_month', month)
+    const lineByRecord = new Map<string, any[]>()
+    for (const l of headLines ?? []) {
+      const k = (l as any).payslip_record_id
+      if (!lineByRecord.has(k)) lineByRecord.set(k, [])
+      lineByRecord.get(k)!.push(l)
+    }
+
+
     const rows: Row[] = (records ?? []).map((p: any) => {
       const emp = p.hr_employee_id ? empById.get(p.hr_employee_id) : null
       const name = [emp?.first_name, emp?.last_name].filter(Boolean).join(' ') || p.employee_name_snapshot || 'Employee'
@@ -243,9 +269,20 @@ Deno.serve(async (req) => {
         ? Number(p.reg_gross_salary) - employer_contrib
         : Number(p.gross_earnings) || 0
       const net = Number(hasReg ? p.reg_net_pay : p.net_pay) || 0
-      const deductions = hasReg ? gross - net : Number(p.total_deductions) || 0
+      // One-time payouts are added to gross and reversed in the same run because
+      // they were already paid outside payroll. They belong in the net-pay
+      // arithmetic, NOT in the deduction list.
+      const one_time_recovery = hasReg ? Math.max(-(Number(p.reg_one_time_payments) || 0), 0) : 0
+      const deductions = hasReg ? gross - net - one_time_recovery : Number(p.total_deductions) || 0
 
-      const earning_breakdown: { label: string; amount: number }[] = []
+      const oneTimeLabels = new Set(
+        (lineByRecord.get(p.id) ?? [])
+          .filter((l: any) => l.classification === 'one_time')
+          .map((l: any) => l.normalized_label),
+      )
+      const norm = (s: string) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ')
+
+      const earning_breakdown: { label: string; amount: number; one_time?: boolean }[] = []
       if (hasReg) {
         const pushE = (label: string, v: any) => { const a = Number(v) || 0; if (a > 0) earning_breakdown.push({ label, amount: a }) }
         pushE('Basic', p.reg_basic)
@@ -258,7 +295,8 @@ Deno.serve(async (req) => {
         pushE('Refund of security deposit', p.reg_refund_security_deposit)
         for (const e of (Array.isArray(p.reg_extra_earnings) ? p.reg_extra_earnings : [])) {
           const a = Number((e as any)?.amount) || 0
-          if (a > 0) earning_breakdown.push({ label: String((e as any).label), amount: a })
+          const label = String((e as any).label)
+          if (a > 0) earning_breakdown.push({ label, amount: a, one_time: oneTimeLabels.has(norm(label)) })
         }
       }
 
@@ -272,14 +310,13 @@ Deno.serve(async (req) => {
         push('TDS / Income Tax', p.reg_tds)
         push('Salary advance recovery', p.reg_advance_salary)
         push('Loan / EMI recovery', p.reg_loan_emi)
-        // RazorpayX books one-time payment reversals/recoveries as a negative line.
-        if (Number(p.reg_one_time_payments ?? 0) < 0) push('One-time payment adjustment', p.reg_one_time_payments)
         const listed = deduction_breakdown.reduce((s2, d) => s2 + d.amount, 0)
         const residual = Math.round((deductions - listed) * 100) / 100
         if (Math.abs(residual) > TIE_OUT_TOLERANCE) {
           deduction_breakdown.push({ label: 'Other deductions', amount: residual })
         }
       }
+
 
       const empDeds = (dedRows ?? []).filter((d: any) => d.hr_employee_id === p.hr_employee_id)
       const lopRows = empDeds.filter((d: any) => String(d.label || '').toLowerCase().includes('lop') && d.readback_verified_at)
@@ -327,9 +364,10 @@ Deno.serve(async (req) => {
         if (!registerPresent) blockers.push('Salary Register CSV not imported for this month')
         if (!email) blockers.push('No email address on record')
         if (!p.pdf_storage_path) blockers.push('Payslip PDF not uploaded')
-        if (Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
-          blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
+        if (Math.abs(gross - deductions - one_time_recovery - net) > TIE_OUT_TOLERANCE) {
+          blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} - one-time ${one_time_recovery} != net ${net}`)
         }
+
         if (deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
         if (!processedOn) blockers.push('Salary credit date not set for this month')
       }
@@ -353,7 +391,9 @@ Deno.serve(async (req) => {
         month_days: mDays,
         bank_last4: p.reg_bank_acc_no ? String(p.reg_bank_acc_no).slice(-4) : null,
         employer_contrib,
+        one_time_recovery,
         earning_breakdown,
+
         deduction_breakdown,
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,

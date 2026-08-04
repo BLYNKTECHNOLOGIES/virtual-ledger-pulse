@@ -279,6 +279,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             payout_paid_on: format(paidOn, "yyyy-MM-dd"),
             payout_channel: "outside_payroll",
             revision_reason: reason || null,
+            pay_head_label: reason?.trim() || null,
+
             notes: notes || null,
             approved_by: approvedBy,
             status: "APPLIED",
@@ -652,8 +654,12 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </div>
 
               <div>
-                <Label>Reason</Label>
+                <Label>Reason (becomes the pay-head name)</Label>
                 <Input value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" placeholder="e.g. Q4 performance, Diwali bonus" />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Use the exact wording you will type on RazorpayX — the salary register turns this remark into its own column,
+                  and HRMS matches the two by this name during the monthly reconciliation.
+                </p>
               </div>
 
               <div>
@@ -665,6 +671,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                 Record-keeping only: the payout is treated as <strong>paid outside payroll</strong> on the date above.
                 Nothing is pushed to RazorpayX and the CTC is unchanged. If it should ride on a payroll run, use <strong>Addition</strong> instead.
               </div>
+
             </>
           ) : mode === "addition" || mode === "deduction" ? null : (
 

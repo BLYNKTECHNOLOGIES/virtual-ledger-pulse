@@ -10787,6 +10787,51 @@ export type Database = {
           },
         ]
       }
+      hr_pay_heads: {
+        Row: {
+          classification: string
+          created_at: string
+          first_seen_month: string | null
+          id: string
+          is_taxable: boolean
+          label: string
+          last_seen_month: string | null
+          needs_review: boolean
+          normalized_label: string
+          notes: string | null
+          occurrences: number
+          updated_at: string
+        }
+        Insert: {
+          classification?: string
+          created_at?: string
+          first_seen_month?: string | null
+          id?: string
+          is_taxable?: boolean
+          label: string
+          last_seen_month?: string | null
+          needs_review?: boolean
+          normalized_label: string
+          notes?: string | null
+          occurrences?: number
+          updated_at?: string
+        }
+        Update: {
+          classification?: string
+          created_at?: string
+          first_seen_month?: string | null
+          id?: string
+          is_taxable?: boolean
+          label?: string
+          last_seen_month?: string | null
+          needs_review?: boolean
+          normalized_label?: string
+          notes?: string | null
+          occurrences?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_payroll_cockpit_state: {
         Row: {
           acknowledged_at: string | null
@@ -11159,6 +11204,80 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_razorpay_payroll_freshness"
             referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
+      hr_payslip_pay_head_lines: {
+        Row: {
+          amount: number
+          classification: string
+          created_at: string
+          hr_employee_id: string | null
+          id: string
+          is_taxable: boolean
+          label: string
+          normalized_label: string
+          pay_head_id: string | null
+          payslip_record_id: string
+          period_month: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          classification?: string
+          created_at?: string
+          hr_employee_id?: string | null
+          id?: string
+          is_taxable?: boolean
+          label: string
+          normalized_label: string
+          pay_head_id?: string | null
+          payslip_record_id: string
+          period_month: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          classification?: string
+          created_at?: string
+          hr_employee_id?: string | null
+          id?: string
+          is_taxable?: boolean
+          label?: string
+          normalized_label?: string
+          pay_head_id?: string | null
+          payslip_record_id?: string
+          period_month?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_pay_head_id_fkey"
+            columns: ["pay_head_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_heads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_payslip_record_id_fkey"
+            columns: ["payslip_record_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payslip_gross_split_v"
+            referencedColumns: ["payslip_record_id"]
+          },
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_payslip_record_id_fkey"
+            columns: ["payslip_record_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payslips_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_payslip_record_id_fkey"
+            columns: ["payslip_record_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payslip_records"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -13488,10 +13607,12 @@ export type Database = {
           effective_from: string
           employee_id: string
           id: string
+          is_taxable: boolean
           new_basic: number | null
           new_total: number | null
           notes: string | null
           one_time_amount: number | null
+          pay_head_label: string | null
           payout_channel: string | null
           payout_month: string | null
           payout_paid_on: string | null
@@ -13503,6 +13624,8 @@ export type Database = {
           razorpay_push_response: Json | null
           razorpay_pushed_at: string | null
           razorpay_verified_at: string | null
+          register_confirmed_at: string | null
+          register_match_note: string | null
           revision_reason: string | null
           revision_type: string
           status: string
@@ -13519,10 +13642,12 @@ export type Database = {
           effective_from?: string
           employee_id: string
           id?: string
+          is_taxable?: boolean
           new_basic?: number | null
           new_total?: number | null
           notes?: string | null
           one_time_amount?: number | null
+          pay_head_label?: string | null
           payout_channel?: string | null
           payout_month?: string | null
           payout_paid_on?: string | null
@@ -13534,6 +13659,8 @@ export type Database = {
           razorpay_push_response?: Json | null
           razorpay_pushed_at?: string | null
           razorpay_verified_at?: string | null
+          register_confirmed_at?: string | null
+          register_match_note?: string | null
           revision_reason?: string | null
           revision_type?: string
           status?: string
@@ -13550,10 +13677,12 @@ export type Database = {
           effective_from?: string
           employee_id?: string
           id?: string
+          is_taxable?: boolean
           new_basic?: number | null
           new_total?: number | null
           notes?: string | null
           one_time_amount?: number | null
+          pay_head_label?: string | null
           payout_channel?: string | null
           payout_month?: string | null
           payout_paid_on?: string | null
@@ -13565,6 +13694,8 @@ export type Database = {
           razorpay_push_response?: Json | null
           razorpay_pushed_at?: string | null
           razorpay_verified_at?: string | null
+          register_confirmed_at?: string | null
+          register_match_note?: string | null
           revision_reason?: string | null
           revision_type?: string
           status?: string
@@ -23123,6 +23254,63 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_payslip_gross_split_v: {
+        Row: {
+          employer_contrib: number | null
+          extra_variable_total: number | null
+          hr_employee_id: string | null
+          net_pay: number | null
+          one_time_total: number | null
+          payslip_record_id: string | null
+          period_month: string | null
+          regular_gross: number | null
+          reported_gross: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_payslip_last_coverage_v: {
         Row: {
           coverage: Json | null
@@ -23142,9 +23330,13 @@ export type Database = {
           dearness_allowance: number | null
           employee_deductions: number | null
           employee_id: string | null
+          employer_contrib: number | null
           employer_esi: number | null
           employer_pf: number | null
+          employer_pf_ac1: number | null
+          employer_pf_edli_admin: number | null
           esi_amount: number | null
+          extra_variable_total: number | null
           gross: number | null
           has_left: boolean | null
           has_register: boolean | null
@@ -23157,7 +23349,9 @@ export type Database = {
           net: number | null
           one_time_payments: number | null
           one_time_recovery: number | null
+          one_time_total: number | null
           overtime: number | null
+          pay_head_lines: Json | null
           pdf_storage_path: string | null
           pdf_url: string | null
           performance_incentive: number | null
@@ -23182,118 +23376,13 @@ export type Database = {
           reg_pf_uan: string | null
           reg_pt_location: string | null
           register_source: string | null
+          regular_gross: number | null
           relieving_date: string | null
           source: string | null
           special_allowance: number | null
           tds_amount: number | null
           total_deductions: number | null
           working_days: number | null
-        }
-        Insert: {
-          advance_salary?: number | null
-          basic?: number | null
-          dearness_allowance?: number | null
-          employee_deductions?: never
-          employee_id?: string | null
-          employer_esi?: number | null
-          employer_pf?: number | null
-          esi_amount?: never
-          gross?: never
-          has_left?: boolean | null
-          has_register?: never
-          hra?: number | null
-          id?: string | null
-          loan_emi?: number | null
-          lta?: number | null
-          lwf_ee?: never
-          lwf_er?: never
-          net?: never
-          one_time_payments?: number | null
-          one_time_recovery?: never
-          overtime?: number | null
-          pdf_storage_path?: string | null
-          pdf_url?: string | null
-          performance_incentive?: number | null
-          period_month?: string | null
-          pf_amount?: never
-          professional_tax?: never
-          pulled_at?: string | null
-          razorpay_payslip_id?: never
-          refund_security_deposit?: number | null
-          reg_bank_acc_no?: string | null
-          reg_department?: string | null
-          reg_designation?: string | null
-          reg_dob?: string | null
-          reg_esi_number?: string | null
-          reg_gender?: string | null
-          reg_hire_date?: string | null
-          reg_ifsc?: string | null
-          reg_location?: string | null
-          reg_pan?: string | null
-          reg_personal_email?: string | null
-          reg_personal_phone?: string | null
-          reg_pf_uan?: string | null
-          reg_pt_location?: string | null
-          register_source?: string | null
-          relieving_date?: string | null
-          source?: never
-          special_allowance?: number | null
-          tds_amount?: never
-          total_deductions?: never
-          working_days?: number | null
-        }
-        Update: {
-          advance_salary?: number | null
-          basic?: number | null
-          dearness_allowance?: number | null
-          employee_deductions?: never
-          employee_id?: string | null
-          employer_esi?: number | null
-          employer_pf?: number | null
-          esi_amount?: never
-          gross?: never
-          has_left?: boolean | null
-          has_register?: never
-          hra?: number | null
-          id?: string | null
-          loan_emi?: number | null
-          lta?: number | null
-          lwf_ee?: never
-          lwf_er?: never
-          net?: never
-          one_time_payments?: number | null
-          one_time_recovery?: never
-          overtime?: number | null
-          pdf_storage_path?: string | null
-          pdf_url?: string | null
-          performance_incentive?: number | null
-          period_month?: string | null
-          pf_amount?: never
-          professional_tax?: never
-          pulled_at?: string | null
-          razorpay_payslip_id?: never
-          refund_security_deposit?: number | null
-          reg_bank_acc_no?: string | null
-          reg_department?: string | null
-          reg_designation?: string | null
-          reg_dob?: string | null
-          reg_esi_number?: string | null
-          reg_gender?: string | null
-          reg_hire_date?: string | null
-          reg_ifsc?: string | null
-          reg_location?: string | null
-          reg_pan?: string | null
-          reg_personal_email?: string | null
-          reg_personal_phone?: string | null
-          reg_pf_uan?: string | null
-          reg_pt_location?: string | null
-          register_source?: string | null
-          relieving_date?: string | null
-          source?: never
-          special_allowance?: number | null
-          tds_amount?: never
-          total_deductions?: never
-          working_days?: number | null
         }
         Relationships: [
           {
@@ -24721,6 +24810,10 @@ export type Database = {
         Args: { p_device_serial?: string }
         Returns: Json
       }
+      hr_backfill_one_time_payout_from_register: {
+        Args: { p_approved_by?: string; p_line_id: string }
+        Returns: string
+      }
       hr_broadcast_notification_to_hr: {
         Args: {
           p_link?: string
@@ -24967,6 +25060,7 @@ export type Database = {
       }
       hr_new_joiner_check_sweep: { Args: never; Returns: number }
       hr_next_razorpay_employee_id: { Args: never; Returns: string }
+      hr_normalize_pay_head: { Args: { p_label: string }; Returns: string }
       hr_notify: {
         Args: {
           _kind: string
@@ -25052,6 +25146,10 @@ export type Database = {
           inserted_count: number
         }[]
       }
+      hr_reconcile_one_time_payouts: {
+        Args: { p_period: string }
+        Returns: Json
+      }
       hr_record_manual_loan_repayment: {
         Args: {
           p_amount: number
@@ -25127,6 +25225,14 @@ export type Database = {
           uan: string
           vpf_mode: string
           vpf_value: number
+        }[]
+      }
+      hr_sync_pay_head_lines: {
+        Args: { p_period?: string }
+        Returns: {
+          heads_touched: number
+          lines_upserted: number
+          records_scanned: number
         }[]
       }
       hr_system_pulse: { Args: never; Returns: Json }

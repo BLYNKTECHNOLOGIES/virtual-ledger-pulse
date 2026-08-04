@@ -552,12 +552,51 @@ export default function EmployeeProfilePage() {
       setEditing(false);
       queryClient.invalidateQueries({ queryKey: ["hr_employee_detail"] });
       // ERP is source of truth → nudge Razorpay to match (About / identity fields).
-      if (activeTab === "About" && id) {
-        import("@/lib/razorpayPushback").then(m => m.pushIdentityToRazorpay(id));
-      }
+      if (activeTab === "About" && id) void syncToRazorpay("identity");
     },
-    onError: () => toast.error("Failed to save"),
+    onError: (e: any) => {
+      console.error("[EmployeeProfile] save failed:", e);
+      toast.error("Failed to save", { description: e?.message || e?.details || String(e) });
+    },
   });
+
+  // ─── ERP → RazorpayX sync with explicit, honest feedback ───
+  const [razorpaySync, setRazorpaySync] = useState<
+    { state: "idle" | "syncing" | "verified" | "failed" | "skipped"; message?: string; at?: string }
+  >({ state: "idle" });
+
+  const syncToRazorpay = async (kind: "identity" | "employment") => {
+    if (!id) return;
+    setRazorpaySync({ state: "syncing" });
+    const toastId = toast.loading("Syncing to RazorpayX…");
+    try {
+      const { pushToRazorpay } = await import("@/lib/razorpayPushback");
+      const res = await pushToRazorpay(kind, id, {
+        triggeredFrom: "employee_profile",
+        silent: true,
+      });
+      toast.dismiss(toastId);
+      const at = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+      if (res.skipped) {
+        setRazorpaySync({ state: "skipped", message: "Employee is not linked to a RazorpayX payroll record", at });
+        toast.warning("Saved in HRMS — NOT sent to RazorpayX", {
+          description: "This employee has no linked RazorpayX payroll record, so nothing was pushed.",
+        });
+      } else if (res.ok) {
+        setRazorpaySync({ state: "verified", message: "RazorpayX read-back matches HRMS", at });
+        toast.success("Updated in RazorpayX and verified");
+      } else {
+        setRazorpaySync({ state: "failed", message: res.error || "RazorpayX did not confirm the update", at });
+        toast.error("Saved in HRMS, but RazorpayX did NOT confirm", {
+          description: res.error || "Open the diff dialog / Data Health page to retry.",
+        });
+      }
+    } catch (e: any) {
+      toast.dismiss(toastId);
+      setRazorpaySync({ state: "failed", message: e?.message || String(e) });
+      toast.error("RazorpayX sync failed", { description: e?.message || String(e) });
+    }
+  };
 
   // ─── Work Info Save Mutation ───
   const saveWorkInfoMutation = useMutation({
@@ -597,8 +636,15 @@ export default function EmployeeProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["pos_for_emp"] });
       queryClient.invalidateQueries({ queryKey: ["shift_for_emp"] });
       queryClient.invalidateQueries({ queryKey: ["reporting_mgr"] });
+      // Work info drives designation / department / joining date / employee type in RazorpayX.
+      void syncToRazorpay("employment");
     },
-    onError: () => toast.error("Failed to update work info"),
+    onError: (e: any) => {
+      console.error("[EmployeeProfile] work info update failed:", e);
+      toast.error("Failed to update work info", {
+        description: e?.message || e?.details || e?.hint || String(e),
+      });
+    },
   });
 
   const addNoteMutation = useMutation({
@@ -886,6 +932,29 @@ export default function EmployeeProfilePage() {
                 <div className="flex items-center gap-2">
                   <span className="bg-[#00bcd4] text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">1</span>
                   <h3 className="text-base font-semibold text-[#00bcd4]">Work Information</h3>
+                  {razorpaySync.state !== "idle" && (
+                    <span
+                      title={razorpaySync.message || ""}
+                      className={
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full border " +
+                        (razorpaySync.state === "verified"
+                          ? "bg-success/10 text-success border-success/30"
+                          : razorpaySync.state === "syncing"
+                          ? "bg-muted text-muted-foreground border-border"
+                          : razorpaySync.state === "skipped"
+                          ? "bg-warning/10 text-warning border-warning/30"
+                          : "bg-destructive/10 text-destructive border-destructive/30")
+                      }
+                    >
+                      {razorpaySync.state === "syncing"
+                        ? "RazorpayX: syncing…"
+                        : razorpaySync.state === "verified"
+                        ? `RazorpayX: verified${razorpaySync.at ? ` · ${razorpaySync.at}` : ""}`
+                        : razorpaySync.state === "skipped"
+                        ? "RazorpayX: not linked"
+                        : "RazorpayX: not confirmed"}
+                    </span>
+                  )}
                 </div>
                 {editingWorkInfo ? (
                   <div className="flex gap-2">

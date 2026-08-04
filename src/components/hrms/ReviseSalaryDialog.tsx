@@ -831,8 +831,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
         </DialogFooter>
         )}
-
+      </DialogContent>
     </Dialog>
+
   );
 }
 

@@ -52,6 +52,18 @@ function toNum(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * RazorpayX emits every deduction as a NEGATIVE amount in the register
+ * (PF/ESI/LWF/PT/TDS/Advance/Loan). We canonicalise them to positive
+ * magnitudes at parse time so the UI, tie-outs and the DB all agree.
+ * One-time Payments stays SIGNED (negative = recovery, positive = payout).
+ */
+function toDed(v: string): number | null {
+  const n = toNum(v);
+  return n == null ? null : Math.abs(n);
+}
+
+
 function toStr(v: string | undefined): string | null {
   if (v == null) return null;
   const s = String(v).trim().replace(/^'/, "");
@@ -117,6 +129,8 @@ interface ParsedRow {
   reg_official_email: string | null;
   reg_extra_earnings: { label: string; amount: number }[];
   gross_tieout_diff: number | null;
+  net_tieout_diff: number | null;
+
   // demographics snapshots
   reg_department: string | null;
   reg_designation: string | null;
@@ -202,16 +216,16 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     reg_refund_security_deposit: toNum(r[colT("Refund Of Security Deposit")] ?? ""),
     reg_performance_incentive: toNum(r[colT("Performance Linked Incentive")] ?? ""),
     reg_gross_salary: toNum(r[colT("Gross Salary")] ?? ""),
-    reg_esi_ee: toNum(r[colT("ESI(EE)")] ?? ""),
-    reg_esi_er: toNum(r[colT("ESI(ER)")] ?? ""),
-    reg_pf_ee: toNum(r[colT("PF(EE)")] ?? ""),
-    reg_pf_er: toNum(r[colT("PF(ER)")] ?? ""),
-    reg_lwf_ee: toNum(r[colT("LWF(EE)")] ?? ""),
-    reg_lwf_er: toNum(r[colT("LWF(ER)")] ?? ""),
-    reg_pt: toNum(r[colT("PT")] ?? ""),
-    reg_tds: toNum(r[colT("TDS")] ?? ""),
-    reg_advance_salary: toNum(r[colT("Advance Salary")] ?? ""),
-    reg_loan_emi: toNum(r[colT("Loan Emi")] ?? ""),
+    reg_esi_ee: toDed(r[colT("ESI(EE)")] ?? ""),
+    reg_esi_er: toDed(r[colT("ESI(ER)")] ?? ""),
+    reg_pf_ee: toDed(r[colT("PF(EE)")] ?? ""),
+    reg_pf_er: toDed(r[colT("PF(ER)")] ?? ""),
+    reg_lwf_ee: toDed(r[colT("LWF(EE)")] ?? ""),
+    reg_lwf_er: toDed(r[colT("LWF(ER)")] ?? ""),
+    reg_pt: toDed(r[colT("PT")] ?? ""),
+    reg_tds: toDed(r[colT("TDS")] ?? ""),
+    reg_advance_salary: toDed(r[colT("Advance Salary")] ?? ""),
+    reg_loan_emi: toDed(r[colT("Loan Emi")] ?? ""),
     reg_one_time_payments: toNum(r[colT("One-time Payments")] ?? ""),
     reg_net_pay: toNum(r[colT("Net Pay")] ?? ""),
     reg_has_left: (() => {
@@ -237,6 +251,7 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     reg_official_email: toStr(r[colT("Email")] ?? ""),
     reg_extra_earnings: [],
     gross_tieout_diff: null,
+    net_tieout_diff: null,
   })).filter(r => r.razorpay_employee_id);
 
   // Second pass: capture unmapped numeric heads and verify each row's earnings tie to Gross.
@@ -247,6 +262,11 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     "reg_employer_esi_contr", "reg_employer_pf_contr",
     "reg_overtime", "reg_performance_incentive", "reg_refund_security_deposit",
   ];
+  const DEDUCTION_KEYS: (keyof ParsedRow)[] = [
+    "reg_pf_ee", "reg_pf_er", "reg_esi_ee", "reg_esi_er", "reg_lwf_ee",
+    "reg_pt", "reg_tds", "reg_advance_salary", "reg_loan_emi",
+  ];
+
   // Defensive guard: even if RazorpayX renames a header (so our mapping misses it),
   // identity/metadata columns must never be treated as pay heads. Anything that looks
   // like an identifier, date, count or bank/statutory reference is excluded outright.
@@ -267,7 +287,16 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
         extras.reduce((a, e) => a + (e.amount > 0 ? e.amount : 0), 0);
       row.gross_tieout_diff = Math.round((sum - row.reg_gross_salary) * 100) / 100;
     }
+    // Net tie-out: RazorpayX gross is CTC-inclusive, so Net = Gross − every
+    // deduction incl. employer PF/ESI (which sit inside gross) and any negative
+    // One-time Payment recovery. Employer LWF sits OUTSIDE gross and is excluded.
+    if (row.reg_gross_salary != null && row.reg_net_pay != null) {
+      const ded = DEDUCTION_KEYS.reduce((a, k) => a + Math.abs(Number(row[k] ?? 0) || 0), 0) +
+        Math.max(-(Number(row.reg_one_time_payments ?? 0) || 0), 0);
+      row.net_tieout_diff = Math.round((row.reg_gross_salary - ded - row.reg_net_pay) * 100) / 100;
+    }
   });
+
 
   return { header, rows, missingCols };
 }
@@ -318,13 +347,21 @@ function computeInsights(rows: ParsedRow[]) {
     pli,
     employerCost,
     customPayHeads,
+    totalAdvance: sum("reg_advance_salary"),
+    totalLoanEmi: sum("reg_loan_emi"),
+    otpPayout: rows.reduce((a, r) => a + Math.max(Number(r.reg_one_time_payments ?? 0) || 0, 0), 0),
+    otpRecovery: rows.reduce((a, r) => a + Math.max(-(Number(r.reg_one_time_payments ?? 0) || 0), 0), 0),
     withUan: count(r => !!r.reg_pf_uan),
     withEsi: count(r => !!r.reg_esi_number),
     withPan: count(r => !!r.reg_pan),
-    withPt: count(r => Number(r.reg_pt ?? 0) > 0),
+    withPt: count(r => Math.abs(Number(r.reg_pt ?? 0)) > 0),
+    withAdvance: count(r => Math.abs(Number(r.reg_advance_salary ?? 0)) > 0),
+    withLoan: count(r => Math.abs(Number(r.reg_loan_emi ?? 0)) > 0),
+    withOtp: count(r => Math.abs(Number(r.reg_one_time_payments ?? 0)) > 0),
     separated: count(r => r.reg_has_left === true),
   };
 }
+
 
 export default function SalaryRegisterImportPage({
   initialMonth,
@@ -555,6 +592,21 @@ export default function SalaryRegisterImportPage({
             </Alert>
           )}
 
+          {parsed.some(r => Math.abs(r.net_tieout_diff ?? 0) > 1) && (
+            <Alert variant="destructive">
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle>Net Pay does not tie out for some rows</AlertTitle>
+              <AlertDescription className="text-xs">
+                Net must equal Gross − (PF EE+ER, ESI EE+ER, LWF EE, PT, TDS, Advance, Loan EMI, one-time recovery).{" "}
+                {parsed
+                  .filter(r => Math.abs(r.net_tieout_diff ?? 0) > 1)
+                  .map(r => `${r.name}: off by ${INR(r.net_tieout_diff)}`)
+                  .join(" · ")}
+              </AlertDescription>
+            </Alert>
+          )}
+
+
           {parsed.some(r => r.reg_extra_earnings.length > 0) && (
             <Alert>
               <Info className="w-4 h-4" />
@@ -601,8 +653,13 @@ export default function SalaryRegisterImportPage({
                 <InsightTile label="LWF (EE+ER)" value={INR(insights.totalLwf)} />
                 <InsightTile label="PT" value={INR(insights.totalPt)} />
                 <InsightTile label="TDS" value={INR(insights.totalTds)} />
+                <InsightTile label="Advance Salary recovered" value={INR(insights.totalAdvance)} tone={insights.totalAdvance ? "warn" : undefined} />
+                <InsightTile label="Loan EMI recovered" value={INR(insights.totalLoanEmi)} tone={insights.totalLoanEmi ? "warn" : undefined} />
+                <InsightTile label="One-time payouts" value={INR(insights.otpPayout)} />
+                <InsightTile label="One-time recoveries" value={INR(insights.otpRecovery)} tone={insights.otpRecovery ? "warn" : undefined} />
                 <InsightTile label="Overtime" value={INR(insights.overtime)} />
                 <InsightTile label="Performance Incentive" value={INR(insights.pli)} />
+
                 <InsightTile label="Separated this month" value={String(insights.separated)} tone={insights.separated ? "warn" : undefined} />
               </div>
               {insights.customPayHeads.length > 0 && (
@@ -620,6 +677,9 @@ export default function SalaryRegisterImportPage({
                 <CoverageTile label="With UAN (PF)" value={insights.withUan} total={insights.headcount} />
                 <CoverageTile label="With ESI Number" value={insights.withEsi} total={insights.headcount} />
                 <CoverageTile label="With PT" value={insights.withPt} total={insights.headcount} />
+                <CoverageTile label="With Advance recovery" value={insights.withAdvance} total={insights.headcount} />
+                <CoverageTile label="With Loan EMI" value={insights.withLoan} total={insights.headcount} />
+                <CoverageTile label="With One-time entry" value={insights.withOtp} total={insights.headcount} />
               </div>
             </div>
           )}

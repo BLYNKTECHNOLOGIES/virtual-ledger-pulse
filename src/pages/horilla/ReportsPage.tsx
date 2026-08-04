@@ -132,15 +132,17 @@ export default function ReportsPage() {
 
   // ─── Payroll (RazorpayX mirror) ───
   const payrollMonths = useMemo(() => {
-    const m: Record<string, { gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number }> = {};
+    const m: Record<string, { gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number; withRegister: number; esiCovered: number }> = {};
     payslips.forEach((p: any) => {
       const k = String(p.period_month).slice(0, 7);
-      const r = m[k] || (m[k] = { gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0 });
+      const r = m[k] || (m[k] = { gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0, withRegister: 0, esiCovered: 0 });
       r.gross += Number(p.gross || 0); r.net += Number(p.net || 0);
       r.deductions += Math.abs(Number(p.total_deductions || 0));
       r.tds += Math.abs(Number(p.tds_amount || 0)); r.pf += Math.abs(Number(p.pf_amount || 0));
       r.esi += Math.abs(Number(p.esi_amount || 0)); r.pt += Math.abs(Number(p.professional_tax || 0));
       r.er += Number(p.employer_contrib || 0); r.count += 1;
+      if (p.register_source) r.withRegister += 1;
+      if (Math.abs(Number(p.esi_amount || 0)) > 0) r.esiCovered += 1;
     });
     return Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ key: k, month: monthLabel(k), ...v }));
   }, [payslips]);
@@ -151,6 +153,18 @@ export default function ReportsPage() {
     (s, r) => ({ pf: s.pf + r.pf, esi: s.esi + r.esi, pt: s.pt + r.pt, tds: s.tds + r.tds, er: s.er + r.er }),
     { pf: 0, esi: 0, pt: 0, tds: 0, er: 0 },
   );
+
+  // Statutory figures are only as complete as the imported salary registers.
+  // Dashboard-only payslips carry no PF/ESI/PT breakdown, so surface the gap instead of understating silently.
+  const statutoryCoverage = useMemo(() => {
+    const total = payrollMonths.reduce((s, r) => s + r.count, 0);
+    const withReg = payrollMonths.reduce((s, r) => s + r.withRegister, 0);
+    const esiCovered = payrollMonths.reduce((s, r) => s + r.esiCovered, 0);
+    const missingMonths = payrollMonths.filter((r) => r.withRegister === 0).map((r) => r.month);
+    const partialMonths = payrollMonths.filter((r) => r.withRegister > 0 && r.withRegister < r.count).map((r) => `${r.month} (${r.count - r.withRegister} missing)`);
+    return { total, withReg, esiCovered, missingMonths, partialMonths };
+  }, [payrollMonths]);
+
 
   // ─── Attendance (v4 daily rollup) ───
   const attStats = useMemo(() => {

@@ -95,6 +95,8 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [processedOnDraft, setProcessedOnDraft] = useState<string>("");
   const [unmatched, setUnmatched] = useState<string[]>([]);
+  const [showExcluded, setShowExcluded] = useState(false);
+
   const [registerOpen, setRegisterOpen] = useState(false);
 
 

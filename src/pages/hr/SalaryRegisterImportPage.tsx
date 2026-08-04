@@ -269,6 +269,7 @@ export default function SalaryRegisterImportPage({
   const [periodMonth, setPeriodMonth] = useState<string>(initialMonth ?? "");
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [missingCols, setMissingCols] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ updated: number; missing: string[]; mismatch: { name: string; api: number | null; csv: number | null }[] } | null>(null);
 
@@ -300,7 +301,8 @@ export default function SalaryRegisterImportPage({
     setFile(f);
     setResult(null);
     const t = await f.text();
-    const { rows, error } = parseRows(t);
+    const { rows, error, missingCols } = parseRows(t);
+    setMissingCols(missingCols ?? []);
     if (error) { setParseError(error); setParsed([]); return; }
     setParseError(null);
     setParsed(rows);
@@ -466,6 +468,17 @@ export default function SalaryRegisterImportPage({
               />
             </div>
           </div>
+
+          {missingCols.length > 0 && (
+            <Alert>
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle>Columns not found in this CSV</AlertTitle>
+              <AlertDescription className="text-xs">
+                These fields will be stored empty — check the RazorpayX export if any are expected:{" "}
+                <strong>{missingCols.join(", ")}</strong>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {parseError && (
             <Alert variant="destructive">

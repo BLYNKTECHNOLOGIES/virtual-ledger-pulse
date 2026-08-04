@@ -635,19 +635,20 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                   />
                 </div>
                 <div>
-                  <Label>Payout month</Label>
+                  <Label>Paid on</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal text-foreground">
                         <CalendarIcon className="h-4 w-4 mr-2" />
-                        {format(payoutMonth, "MMM yyyy")}
+                        {format(paidOn, "PPP")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={payoutMonth} onSelect={(d) => d && setPayoutMonth(d)} initialFocus className="p-3 pointer-events-auto" />
+                      <Calendar mode="single" selected={paidOn} onSelect={(d) => d && setPaidOn(d)} initialFocus className="p-3 pointer-events-auto" />
                     </PopoverContent>
                   </Popover>
                 </div>
+
               </div>
 
               <div>

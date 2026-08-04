@@ -89,17 +89,23 @@ export async function resolveMonthlyGross(
     // ONLY the 42-column Salary Register import is a monthly base. Rows pulled
     // from payroll:view-payroll carry the run's *prorated* salary (mid-month
     // joiners show figures like 387) — those must never become an LOP base.
+    //
+    // CRITICAL: use REGULAR gross, not the register's reported gross. RazorpayX
+    // inflates gross with one-time payouts and then reverses them in the
+    // "One-time Payments" column (e.g. 2,20,380 reported vs 29,000 regular).
+    // Using reported gross would make one LOP day worth ~6x the real rate.
     const { data: reg } = await supabase
-      .from("hr_razorpay_payslip_records")
-      .select("reg_gross_salary")
+      .from("hr_payslip_gross_split_v")
+      .select("regular_gross")
       .eq("hr_employee_id", employeeId)
       .eq("period_month", periodStr)
-      .not("reg_gross_salary", "is", null)
+      .gt("regular_gross", 0)
       .limit(1);
     const r: any = reg?.[0];
-    monthlyGross = Number(r?.reg_gross_salary ?? 0);
+    monthlyGross = Number(r?.regular_gross ?? 0);
     if (monthlyGross > 0) source = "salary_register";
   }
+
 
   if (!(monthlyGross > 0)) {
     // Preferred over an older payslip because prior-period payslips are often

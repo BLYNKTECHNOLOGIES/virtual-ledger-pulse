@@ -65,7 +65,7 @@ export default function ReportsPage() {
     queryKey: ["rpt_payslips", dateFrom, dateTo],
     queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
       .from("hr_payslips_v")
-      .select("employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib")
+      .select("employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib, register_source")
       .gte("period_month", dateFrom.slice(0, 8) + "01")
       .lte("period_month", dateTo)),
   });

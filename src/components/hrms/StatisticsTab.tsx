@@ -426,6 +426,22 @@ export function StatisticsTab() {
         }))
         .sort((a, b) => b.amount - a.amount);
 
+      // Income breakdown by category
+      const totalIncome = incomes?.reduce((sum, i) => sum + Number(i.amount || 0), 0) || 0;
+      const incomeByCategory = new Map<string, number>();
+      incomes?.forEach(inc => {
+        const cat = inc.category || 'Other';
+        if (excludeExpenseCategories.includes(cat)) return;
+        incomeByCategory.set(cat, (incomeByCategory.get(cat) || 0) + Number(inc.amount || 0));
+      });
+      const incomeBreakdown = Array.from(incomeByCategory.entries())
+        .map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: totalIncome > 0 ? Math.round((amount / totalIncome) * 100) : 0
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
       // Calculate USDT fees totals
       const totalUsdtFees = usdtFees?.reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
       const platformFees = usdtFees?.filter(f => f.reference_type === 'PLATFORM_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;

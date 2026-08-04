@@ -546,10 +546,15 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                 {rosterQ.isLoading && (
                   <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Loading roster…</td></tr>
                 )}
-                {!rosterQ.isLoading && rows.length === 0 && (
-                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No payslip records imported for this month yet.</td></tr>
+                {!rosterQ.isLoading && visibleRows.length === 0 && (
+                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">
+                    {rows.length === 0
+                      ? "No payslip records imported for this month yet."
+                      : "No employee had salary processed for this month."}
+                  </td></tr>
                 )}
-                {rows.map((r) => (
+                {visibleRows.map((r) => (
+
                   <tr
                     key={r.employee_id}
                     className={`border-t ${r.sendable ? "" : "bg-destructive/[0.04]"}`}

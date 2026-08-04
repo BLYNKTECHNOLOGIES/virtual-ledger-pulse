@@ -597,7 +597,37 @@ export default function EmployeeProfilePage() {
       toast.error("RazorpayX sync failed", { description: e?.message || String(e) });
     }
   };
-...
+
+  // ─── Work Info Save Mutation ───
+  const saveWorkInfoMutation = useMutation({
+    mutationFn: async () => {
+      const updateData: any = {
+        reporting_manager_id: workInfoForm.reporting_manager_id || null,
+        shift_id: workInfoForm.shift_id || null,
+        department_id: workInfoForm.department_id || null,
+        job_position_id: workInfoForm.job_position_id || null,
+        job_role: workInfoForm.job_role || null,
+        work_type: workInfoForm.work_type || null,
+        employee_type: workInfoForm.employee_type || null,
+        location: workInfoForm.location || null,
+        company_name: workInfoForm.company_name || null,
+        work_email: workInfoForm.work_email || null,
+        work_phone: workInfoForm.work_phone || null,
+        basic_salary: workInfoForm.basic_salary ? parseFloat(workInfoForm.basic_salary) : null,
+        joining_date: workInfoForm.joining_date || null,
+        contract_end_date: workInfoForm.contract_end_date || null,
+        experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
+        level_band: workInfoForm.level_band || null,
+      };
+
+      if (workInfo?.id) {
+        const { error } = await supabase.from("hr_employee_work_info").update(updateData).eq("id", workInfo.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("hr_employee_work_info").insert({ ...updateData, employee_id: id! });
+        if (error) throw error;
+      }
+    },
     onSuccess: () => {
       toast.success("Work information updated");
       setEditingWorkInfo(false);

@@ -109,6 +109,10 @@ Deno.serve(async (req) => {
           .eq("device_serial", serialNumber)
           .maybeSingle();
 
+        // IMPORTANT: the ADMS `Stamp` is compared by the device against its OWN
+        // (uncorrected) clock. `last_stamp` is persisted in device-raw wall clock
+        // for exactly this reason — never hand back a clock-corrected value, or
+        // the device silently withholds every punch inside the correction window.
         let lastStamp = device?.last_stamp || "0";
 
         // Fallback: if stamp was never initialized, derive from latest punch for this device
@@ -122,9 +126,13 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (latestPunch?.punch_time) {
-            lastStamp = formatESSLStamp(new Date(latestPunch.punch_time));
+            // stored punch_time is clock-corrected → undo the correction
+            lastStamp = formatESSLStamp(
+              new Date(new Date(latestPunch.punch_time).getTime() - deviceOffsetMin * 60 * 1000),
+            );
           }
         }
+
 
         const config = [
           "GET OPTION FROM: " + serialNumber,
@@ -387,7 +395,14 @@ Deno.serve(async (req) => {
         }
 
         // Update device heartbeat and stamp
-        const newStamp = maxPunchDate ? formatESSLStamp(maxPunchDate) : undefined;
+        // Persist the stamp in DEVICE-RAW wall clock (undo clock correction) so
+        // the next handshake hands the device a stamp it can compare against its
+        // own clock. Handing back the corrected value made the device suppress
+        // every punch that fell inside the correction window.
+        const newStamp = maxPunchDate
+          ? formatESSLStamp(new Date(maxPunchDate.getTime() - deviceOffsetMin * 60 * 1000))
+          : undefined;
+
         await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, newStamp);
 
         // Silence-alarm bookkeeping. Accumulate the total drop count with a

@@ -1328,3 +1328,26 @@ html {
     scrollbar-width: none;
   }
 }
+
+/* ── Dark sidebar scrollbar (HRMS/ERP left nav) ─────────── */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(240 12% 32% / 0.7) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: hsl(240 12% 32% / 0.7);
+  border-radius: 9999px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(240 14% 45% / 0.9);
+}
+.sidebar-scroll::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+}

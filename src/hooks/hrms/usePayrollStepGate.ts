@@ -2,12 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Step 5 (additions / deductions) may not be opened or acknowledged until
- * step 4 is genuinely finished:
- *  - every staged LOP deduction for the month is verified on the RazorpayX run
- *  - every automatic recovery for the month is pushed / paid / collected
- *    (nothing left scheduled or failed)
+ * Step 5 (additions / deductions) readiness.
+ *
+ * Two distinct concerns, deliberately kept apart:
+ *  - LOP verification is an UPSTREAM dependency (step 4's own work).
+ *  - Unpushed automatic recoveries are step 5's OWN work — they are pushed
+ *    from the step 5 tool itself, so they must never block access to it,
+ *    only the acknowledgement of the step.
  */
+
 export function usePayrollStepGate(month: string) {
   const periodDate = month; // YYYY-MM-01
 

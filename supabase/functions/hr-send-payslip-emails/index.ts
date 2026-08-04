@@ -26,8 +26,10 @@ type Row = {
   month_days: number
   bank_last4: string | null
   employer_contrib: number
-  earning_breakdown: { label: string; amount: number }[]
+  one_time_recovery: number
+  earning_breakdown: { label: string; amount: number; one_time?: boolean }[]
   deduction_breakdown: { label: string; amount: number }[]
+
   pdf_path: string | null
   already_sent_at: string | null
   not_processed: boolean

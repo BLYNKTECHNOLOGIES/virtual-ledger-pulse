@@ -653,8 +653,13 @@ export default function SalaryRegisterImportPage({
                 <InsightTile label="LWF (EE+ER)" value={INR(insights.totalLwf)} />
                 <InsightTile label="PT" value={INR(insights.totalPt)} />
                 <InsightTile label="TDS" value={INR(insights.totalTds)} />
+                <InsightTile label="Advance Salary recovered" value={INR(insights.totalAdvance)} tone={insights.totalAdvance ? "warn" : undefined} />
+                <InsightTile label="Loan EMI recovered" value={INR(insights.totalLoanEmi)} tone={insights.totalLoanEmi ? "warn" : undefined} />
+                <InsightTile label="One-time payouts" value={INR(insights.otpPayout)} />
+                <InsightTile label="One-time recoveries" value={INR(insights.otpRecovery)} tone={insights.otpRecovery ? "warn" : undefined} />
                 <InsightTile label="Overtime" value={INR(insights.overtime)} />
                 <InsightTile label="Performance Incentive" value={INR(insights.pli)} />
+
                 <InsightTile label="Separated this month" value={String(insights.separated)} tone={insights.separated ? "warn" : undefined} />
               </div>
               {insights.customPayHeads.length > 0 && (

@@ -444,8 +444,41 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           ))}
         </div>
 
+        {/* Single vs bulk */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted rounded-lg">
+          {([
+            { key: "single", label: "Single entry" },
+            { key: "bulk", label: "Bulk (CSV)" },
+          ] as { key: "single" | "bulk"; label: string }[]).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setEntryMode(t.key)}
+              className={cn(
+                "text-[11px] sm:text-xs font-medium py-1.5 rounded-md transition-colors",
+                entryMode === t.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
+        {entryMode === "bulk" ? (
+          <BulkCompensationPanel
+            mode={mode}
+            employees={employees as any}
+            approvedBy={
+              [(user as any)?.firstName, (user as any)?.lastName].filter(Boolean).join(" ") ||
+              (user as any)?.email ||
+              "System"
+            }
+            userId={(user as any)?.id ?? null}
+            onDone={() => onOpenChange(false)}
+          />
+        ) : (
         <div className="space-y-3">
+
           <div>
             <Label>Employee</Label>
             <Select value={employeeId} onValueChange={setEmployeeId} disabled={!!presetEmployeeId}>

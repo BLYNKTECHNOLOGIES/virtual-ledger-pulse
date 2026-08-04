@@ -436,10 +436,16 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
             ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
             : '';
           const hasReg = !!p.has_register;
-          const earnings: Array<[string, number | null]> = [
+          const headLines = (p.pay_head_lines ?? []).filter((l) => Number(l.amount) > 0);
+          const oneTimeHeads = headLines.filter((l) => l.classification === 'one_time');
+          const variableHeads = headLines.filter((l) => l.classification !== 'one_time');
+          const oneTimeRecovery = Number(p.one_time_recovery) || 0;
+          const earnings: Array<[string, number | null]> = ([
             ['Basic', p.basic], ['HRA', p.hra], ['Special Allowance', p.special_allowance],
             ['LTA', p.lta], ['DA', p.dearness_allowance],
-          ].filter(([, v]) => Number(v) > 0) as any;
+            ...variableHeads.map((l) => [l.label, l.amount] as [string, number]),
+          ] as Array<[string, number | null]>).filter(([, v]) => Number(v) > 0);
+
           return (
             <Card key={p.id}>
               <CardContent className="p-5">

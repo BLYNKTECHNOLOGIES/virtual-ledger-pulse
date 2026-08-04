@@ -32,9 +32,18 @@ const TYPE_META: Record<string, { label: string; icon: any; tone: string }> = {
   special_allowance: { label: "Special Allowance", icon: Wallet, tone: "text-primary" },
   ad_hoc: { label: "Ad-hoc", icon: Sparkles, tone: "text-muted-foreground" },
   one_time_correction: { label: "Correction (one-time)", icon: Sparkles, tone: "text-muted-foreground" },
+  payroll_addition: { label: "Payroll Addition", icon: TrendingUp, tone: "text-primary" },
+  payroll_deduction: { label: "Payroll Deduction", icon: TrendingDown, tone: "text-destructive" },
 };
 
-const ONE_TIME_KINDS = new Set(["bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction"]);
+const ONE_TIME_KINDS = new Set([
+  "bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction",
+  "payroll_addition", "payroll_deduction",
+]);
+const BONUS_KINDS = new Set([
+  "bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction",
+]);
+
 
 export function CompensationHistory({ employeeId }: { employeeId: string }) {
   const { data, isLoading } = useQuery({

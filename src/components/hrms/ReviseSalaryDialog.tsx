@@ -97,6 +97,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   useEffect(() => {
     if (open) {
       setMode("recurring");
+      setEntryMode("single");
+
       setEmployeeId(presetEmployeeId || "");
       setRevisionType("increment");
       setNewTotal("");

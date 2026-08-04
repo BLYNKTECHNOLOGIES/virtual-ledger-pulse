@@ -129,6 +129,8 @@ interface ParsedRow {
   reg_official_email: string | null;
   reg_extra_earnings: { label: string; amount: number }[];
   gross_tieout_diff: number | null;
+  net_tieout_diff: number | null;
+
   // demographics snapshots
   reg_department: string | null;
   reg_designation: string | null;

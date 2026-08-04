@@ -458,6 +458,29 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+            // Deletable: anything still queued (scheduled), any staged payroll
+            // addition/deduction, and any one-time payout/correction. Applied
+            // CTC / statutory revisions are NOT deletable — they already mutated
+            // the salary structure and need a corrective revision instead.
+            const isDeletable = canManage && !r.register_confirmed_at &&
+              (isScheduled || isPayrollInput || isOneTime);
+            const deleteBtn = isDeletable ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm" variant="ghost" className="h-7 w-7 p-0"
+                    onClick={() => { setDeleteReason(""); setDeleteTarget(r); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs text-xs">
+                  Delete this entry so it no longer affects payroll
+                </TooltipContent>
+              </Tooltip>
+            ) : null;
+
             const pushBtn =
               isPayrollInput || isRecordOnlyPayout ? null
               : isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (

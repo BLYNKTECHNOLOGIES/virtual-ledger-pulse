@@ -31,6 +31,7 @@ type Row = {
   pdf_path: string | null
   already_sent_at: string | null
   not_processed: boolean
+  not_processed_reason: string | null
   blockers: string[]
   sendable: boolean
 
@@ -338,34 +339,43 @@ Deno.serve(async (req) => {
 
       // --- "Was this person's salary actually processed this month?" -------
       // A payslip email is a statement that money was credited. It must NEVER
-      // go out for someone who was not part of the disbursed run. Authoritative
-      // signals, in order: do-not-pay flag, absence from the processed Salary
-      // Register once it is imported, and zero/negative net pay.
-      const not_processed =
-        !!p.do_not_pay ||
-        (registerPresent && !hasReg) ||
-        (hasReg && !(Number(p.reg_net_pay) > 0)) ||
-        (!hasReg && !(Number(p.net_pay) > 0))
+      // go out for someone who was not part of the disbursed run, and such a
+      // person must not clutter the dispatch roster at all.
+      // Authoritative signals, in priority order:
+      //   1. do-not-pay flag verified against RazorpayX
+      //   2. employee is inactive / has left / relieved
+      //   3. Salary Register imported but this person has no row in it
+      //   4. zero or negative net pay
+      //   5. register not yet imported and RazorpayX issued no payslip PDF for
+      //      this person in the disbursed run (the PDF pack is generated only
+      //      for employees actually paid in that month's run)
+      let not_processed_reason: string | null = null
+      if (p.do_not_pay) not_processed_reason = 'Marked do-not-pay in RazorpayX'
+      else if (p.reg_has_left) not_processed_reason = 'Employee has left / relieved'
+      else if (emp && emp.is_active === false) not_processed_reason = 'Employee inactive'
+      else if (registerPresent && !hasReg) not_processed_reason = 'Not in this month\u2019s Salary Register'
+      else if (hasReg && !(Number(p.reg_net_pay) > 0)) not_processed_reason = 'Zero net pay in the Salary Register'
+      else if (!hasReg && !(Number(p.net_pay) > 0)) not_processed_reason = 'Zero net pay in the RazorpayX run'
+      else if (!hasReg && !p.pdf_storage_path) not_processed_reason = 'No payslip issued by RazorpayX for this month'
+      const not_processed = not_processed_reason !== null
 
       const blockers: string[] = []
       if (not_processed) {
-        blockers.push(
-          p.do_not_pay
-            ? 'Salary not processed this month — marked do-not-pay'
-            : 'Salary not processed this month — not part of the processed payroll run',
-        )
+        blockers.push(`Salary not processed this month — ${not_processed_reason}`)
       }
-      if (!registerPresent) blockers.push('Salary Register CSV not imported for this month')
-      if (registerPresent && !hasReg && !p.do_not_pay) blockers.push('No Salary Register row for this employee')
-      if (p.reg_has_left) blockers.push('Employee has left / relieved')
-      if (emp && emp.is_active === false) blockers.push('Employee inactive')
-      if (!email) blockers.push('No email address on record')
-      if (!p.pdf_storage_path) blockers.push('Payslip PDF not uploaded')
-      if (!not_processed && Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
-        blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
+
+      if (!not_processed) {
+        // Only surface actionable blockers for people who WERE paid this month.
+        if (!registerPresent) blockers.push('Salary Register CSV not imported for this month')
+        if (!email) blockers.push('No email address on record')
+        if (!p.pdf_storage_path) blockers.push('Payslip PDF not uploaded')
+        if (Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
+          blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
+        }
+        if (deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
+        if (!processedOn) blockers.push('Salary credit date not set for this month')
       }
-      if (!not_processed && deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
-      if (!processedOn) blockers.push('Salary credit date not set for this month')
+
 
 
       return {
@@ -390,6 +400,7 @@ Deno.serve(async (req) => {
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,
         not_processed,
+        not_processed_reason,
         blockers,
         sendable: blockers.length === 0 && !not_processed,
 

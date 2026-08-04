@@ -41,6 +41,8 @@ interface DispatchRow {
   pdf_path: string | null;
   already_sent_at: string | null;
   not_processed?: boolean;
+  not_processed_reason?: string | null;
+
   blockers: string[];
   sendable: boolean;
 
@@ -95,6 +97,8 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [processedOnDraft, setProcessedOnDraft] = useState<string>("");
   const [unmatched, setUnmatched] = useState<string[]>([]);
+  const [showExcluded, setShowExcluded] = useState(false);
+
   const [registerOpen, setRegisterOpen] = useState(false);
 
 
@@ -115,7 +119,13 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
   const processedOn = rosterQ.data?.processed_on ?? null;
 
   const sendable = useMemo(() => rows.filter((r) => r.sendable && !r.already_sent_at), [rows]);
+  // Employees whose salary was not processed this month are not payslip recipients
+  // at all — keep them out of the roster unless HR explicitly asks to see them.
+  const excludedRows = useMemo(() => rows.filter((r) => r.not_processed), [rows]);
+  const payrollRows = useMemo(() => rows.filter((r) => !r.not_processed), [rows]);
+  const visibleRows = showExcluded ? rows : payrollRows;
   const sentCount = rows.filter((r) => r.already_sent_at).length;
+
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
 
   const setProcessed = useMutation({
@@ -357,9 +367,21 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setRegisterOpen(true)}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> {registerPresent ? "Re-import Salary Register" : "Import Salary Register"}
             </Button>
+            {excludedRows.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-xs"
+                onClick={() => setShowExcluded((v) => !v)}
+              >
+                {showExcluded ? "Hide" : "Show"} {excludedRows.length} not paid this month
+              </Button>
+            )}
             <div className="ml-auto text-xs text-muted-foreground">
-              {sentCount}/{rows.length} sent · {sendable.length} ready
+              {sentCount}/{payrollRows.length} sent · {sendable.length} ready
+              {excludedRows.length > 0 && ` · ${excludedRows.length} not in this month's payroll`}
             </div>
+
           </div>
 
           {!registerPresent && (
@@ -524,10 +546,15 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                 {rosterQ.isLoading && (
                   <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Loading roster…</td></tr>
                 )}
-                {!rosterQ.isLoading && rows.length === 0 && (
-                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No payslip records imported for this month yet.</td></tr>
+                {!rosterQ.isLoading && visibleRows.length === 0 && (
+                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">
+                    {rows.length === 0
+                      ? "No payslip records imported for this month yet."
+                      : "No employee had salary processed for this month."}
+                  </td></tr>
                 )}
-                {rows.map((r) => (
+                {visibleRows.map((r) => (
+
                   <tr
                     key={r.employee_id}
                     className={`border-t ${r.sendable ? "" : "bg-destructive/[0.04]"}`}

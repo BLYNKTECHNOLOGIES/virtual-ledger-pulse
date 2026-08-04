@@ -74,8 +74,23 @@ export default function ReportsPage() {
     queryKey: ["rpt_attendance_daily", dateFrom, dateTo],
     queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
       .from("hr_attendance_daily")
-      .select("employee_id, attendance_date, status, is_late, total_hours")
+      .select("employee_id, attendance_date, status, is_late, late_by_minutes, early_departure, total_hours, net_work_minutes")
       .gte("attendance_date", dateFrom).lte("attendance_date", dateTo)),
+  });
+  // Same-length window immediately before the range, for period-over-period deltas.
+  const prevWindow = useMemo(() => {
+    const from = new Date(`${dateFrom}T00:00:00`), to = new Date(`${dateTo}T00:00:00`);
+    const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+    const pTo = new Date(from); pTo.setDate(from.getDate() - 1);
+    const pFrom = new Date(pTo); pFrom.setDate(pTo.getDate() - (days - 1));
+    return { from: pFrom.toISOString().slice(0, 10), to: pTo.toISOString().slice(0, 10) };
+  }, [dateFrom, dateTo]);
+  const { data: prevAttendance = [] } = useQuery({
+    queryKey: ["rpt_attendance_prev", prevWindow.from, prevWindow.to],
+    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
+      .from("hr_attendance_daily")
+      .select("employee_id, status, is_late")
+      .gte("attendance_date", prevWindow.from).lte("attendance_date", prevWindow.to)),
   });
 
   // ─── Lookups ───
@@ -166,11 +181,15 @@ export default function ReportsPage() {
   }, [payrollMonths]);
 
 
-  // ─── Attendance (v4 daily rollup) ───
+  // ─── Attendance (v4 daily rollup) — rate-based KPIs, the way HRIS suites report it ───
   const attStats = useMemo(() => {
     let present = 0, halfDay = 0, absent = 0, late = 0, noData = 0, incomplete = 0;
+    let lateMinutes = 0, earlyOuts = 0, workedMinutes = 0, workedDays = 0;
     attendance.forEach((a: any) => {
-      if (a.is_late) late++;
+      if (a.is_late) { late++; lateMinutes += Number(a.late_by_minutes || 0); }
+      if (a.early_departure) earlyOuts++;
+      const mins = a.net_work_minutes != null ? Number(a.net_work_minutes) : Number(a.total_hours || 0) * 60;
+      if (mins > 0) { workedMinutes += mins; workedDays++; }
       switch (a.status) {
         case "present": present++; break;
         case "half_day": halfDay++; break;
@@ -180,9 +199,52 @@ export default function ReportsPage() {
       }
     });
     const considered = present + halfDay + absent + incomplete;
+    const workedRows = present + halfDay + incomplete;
     const pct = considered ? ((present + halfDay * 0.5 + incomplete * 0.5) / considered) * 100 : 0;
-    return { present, halfDay, absent, late, noData, incomplete, considered, pct };
+    const absenteeism = considered ? ((absent + halfDay * 0.5) / considered) * 100 : 0;
+    const punctuality = workedRows ? ((workedRows - late) / workedRows) * 100 : 0;
+    const avgHours = workedDays ? workedMinutes / workedDays / 60 : 0;
+    const avgLateMin = late ? lateMinutes / late : 0;
+    const earlyOutRate = workedRows ? (earlyOuts / workedRows) * 100 : 0;
+    return { present, halfDay, absent, late, noData, incomplete, considered, pct, absenteeism, punctuality, avgHours, avgLateMin, earlyOutRate, workedRows };
   }, [attendance]);
+
+  const prevAttStats = useMemo(() => {
+    let present = 0, halfDay = 0, absent = 0, incomplete = 0, late = 0;
+    prevAttendance.forEach((a: any) => {
+      if (a.is_late) late++;
+      if (a.status === "present") present++;
+      else if (a.status === "half_day") halfDay++;
+      else if (a.status === "absent") absent++;
+      else if (a.status === "incomplete") incomplete++;
+    });
+    const considered = present + halfDay + absent + incomplete;
+    const workedRows = present + halfDay + incomplete;
+    return {
+      considered,
+      pct: considered ? ((present + halfDay * 0.5 + incomplete * 0.5) / considered) * 100 : 0,
+      absenteeism: considered ? ((absent + halfDay * 0.5) / considered) * 100 : 0,
+      punctuality: workedRows ? ((workedRows - late) / workedRows) * 100 : 0,
+    };
+  }, [prevAttendance]);
+
+  // Who actually needs a conversation — chronic absence / chronic lateness in this window.
+  const attentionList = useMemo(() => {
+    const m: Record<string, { marked: number; lost: number; late: number }> = {};
+    attendance.forEach((a: any) => {
+      if (!["present", "half_day", "absent", "incomplete"].includes(a.status)) return;
+      const r = m[a.employee_id] || (m[a.employee_id] = { marked: 0, lost: 0, late: 0 });
+      r.marked++;
+      if (a.status === "absent") r.lost += 1;
+      else if (a.status === "half_day") r.lost += 0.5;
+      if (a.is_late) r.late++;
+    });
+    return Object.entries(m)
+      .filter(([, r]) => r.marked >= 5 && (r.lost / r.marked >= 0.1 || r.late / r.marked >= 0.3))
+      .map(([id, r]) => ({ id, absentPct: (r.lost / r.marked) * 100, latePct: (r.late / r.marked) * 100, lost: r.lost, late: r.late }))
+      .sort((a, b) => (b.absentPct + b.latePct) - (a.absentPct + a.latePct));
+  }, [attendance]);
+
 
   const attendanceTrend = useMemo(() => {
     const wm: Record<string, { present: number; absent: number; late: number; half: number }> = {};
@@ -325,22 +387,68 @@ export default function ReportsPage() {
         <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Attendance Health</CardTitle></CardHeader>
         <CardContent>
           {attendance.length ? (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {[
-                { l: "Attendance %", v: `${attStats.pct.toFixed(1)}%` },
-                { l: "Present days", v: attStats.present },
-                { l: "Half days", v: attStats.halfDay },
-                { l: "Absent days", v: attStats.absent },
-                { l: "Late instances", v: attStats.late },
-              ].map(x => (
-                <div key={x.l} className="rounded-lg border border-border p-2.5">
-                  <p className="text-lg font-bold tabular-nums text-foreground">{x.v}</p>
-                  <p className="text-[11px] text-muted-foreground">{x.l}</p>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {[
+                  {
+                    l: "Attendance rate", v: `${attStats.pct.toFixed(1)}%`,
+                    d: prevAttStats.considered ? attStats.pct - prevAttStats.pct : null, good: "up" as const,
+                    sub: "of scheduled days worked",
+                  },
+                  {
+                    l: "Absenteeism rate", v: `${attStats.absenteeism.toFixed(1)}%`,
+                    d: prevAttStats.considered ? attStats.absenteeism - prevAttStats.absenteeism : null, good: "down" as const,
+                    sub: `${attStats.absent} full + ${attStats.halfDay} half days lost`,
+                  },
+                  {
+                    l: "On-time rate", v: `${attStats.punctuality.toFixed(1)}%`,
+                    d: prevAttStats.considered ? attStats.punctuality - prevAttStats.punctuality : null, good: "up" as const,
+                    sub: attStats.late ? `avg ${Math.round(attStats.avgLateMin)} min late when late` : "no late arrivals",
+                  },
+                  {
+                    l: "Avg hours / worked day", v: `${attStats.avgHours.toFixed(1)} h`,
+                    d: null, good: "up" as const,
+                    sub: `${attStats.earlyOutRate.toFixed(0)}% days ended early`,
+                  },
+                  {
+                    l: "Employees to review", v: attentionList.length,
+                    d: null, good: "down" as const,
+                    sub: "≥10% days lost or ≥30% late",
+                  },
+                ].map(x => {
+                  const improving = x.d == null ? null : (x.good === "up" ? x.d > 0 : x.d < 0);
+                  return (
+                    <div key={x.l} className="rounded-lg border border-border p-2.5">
+                      <div className="flex items-baseline gap-1.5">
+                        <p className="text-lg font-bold tabular-nums text-foreground">{x.v}</p>
+                        {x.d != null && Math.abs(x.d) >= 0.1 && (
+                          <span className={`text-[10px] font-semibold tabular-nums ${improving ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                            {x.d > 0 ? "+" : ""}{x.d.toFixed(1)} pt
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{x.l}</p>
+                      <p className="text-[10px] text-muted-foreground/80">{x.sub}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {attentionList.length > 0 && (
+                <div className="mt-3 rounded-md border border-border bg-muted/40 p-2.5">
+                  <p className="text-[11px] font-semibold text-foreground">Needs attention</p>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                    {attentionList.slice(0, 5).map(a => (
+                      <span key={a.id} className="text-[11px] text-muted-foreground">
+                        <span className="text-foreground">{empName(a.id)}</span> · {a.absentPct.toFixed(0)}% days lost · {a.latePct.toFixed(0)}% late
+                      </span>
+                    ))}
+                    {attentionList.length > 5 && <span className="text-[11px] text-muted-foreground">+{attentionList.length - 5} more</span>}
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           ) : <NoData reason="No attendance rows recorded in the selected range." />}
-          <Source>attendance engine daily rollup (hr_attendance_daily); {attStats.noData} day-rows with no device data are excluded from the percentage</Source>
+          <Source>attendance engine daily rollup (hr_attendance_daily) · {attStats.considered} marked day-rows; {attStats.noData} rows with no device data excluded · deltas compare the same-length window before this range</Source>
         </CardContent>
       </Card>
 

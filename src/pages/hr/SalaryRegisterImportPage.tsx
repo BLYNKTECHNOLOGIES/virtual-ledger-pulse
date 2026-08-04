@@ -404,6 +404,26 @@ export default function SalaryRegisterImportPage({
 
   const insights = useMemo(() => (parsed.length ? computeInsights(parsed) : null), [parsed]);
 
+  const reconEmpIds = useMemo(
+    () =>
+      recon
+        ? Array.from(new Set([...recon.register_only.map((l) => l.hr_employee_id), ...recon.hrms_only.map((l) => l.hr_employee_id)].filter(Boolean)))
+        : [],
+    [recon],
+  );
+  const { data: empNames = {} } = useQuery({
+    queryKey: ["recon_emp_names", reconEmpIds],
+    enabled: reconEmpIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name").in("id", reconEmpIds);
+      if (error) throw error;
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((e: any) => { m[e.id] = [e.first_name, e.last_name].filter(Boolean).join(" "); });
+      return m;
+    },
+  });
+
+
   const preview = useMemo(() => {
     if (!parsed.length || !existingPayslips) return { matched: 0, missing: [] as string[] };
     const known = new Set(existingPayslips.map((p: any) => String(p.razorpay_employee_id)));

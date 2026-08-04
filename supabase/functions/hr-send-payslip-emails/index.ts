@@ -235,6 +235,19 @@ Deno.serve(async (req) => {
     const mDays = daysInMonth(month)
     const processedOn = (meta as any)?.processed_on ?? null
 
+    // Classified custom pay heads for this month (one-time vs variable).
+    const { data: headLines } = await admin
+      .from('hr_payslip_pay_head_lines')
+      .select('payslip_record_id, normalized_label, classification')
+      .eq('period_month', month)
+    const lineByRecord = new Map<string, any[]>()
+    for (const l of headLines ?? []) {
+      const k = (l as any).payslip_record_id
+      if (!lineByRecord.has(k)) lineByRecord.set(k, [])
+      lineByRecord.get(k)!.push(l)
+    }
+
+
     const rows: Row[] = (records ?? []).map((p: any) => {
       const emp = p.hr_employee_id ? empById.get(p.hr_employee_id) : null
       const name = [emp?.first_name, emp?.last_name].filter(Boolean).join(' ') || p.employee_name_snapshot || 'Employee'

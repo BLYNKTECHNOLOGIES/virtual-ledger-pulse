@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { Switch } from "@/components/ui/switch";
 import { additionTypeCode } from "@/lib/hrms/additionType";
+import { BulkCompensationPanel } from "@/components/hrms/BulkCompensationPanel";
+
 
 
 const RECURRING_TYPES = [

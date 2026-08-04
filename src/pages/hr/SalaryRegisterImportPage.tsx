@@ -380,6 +380,13 @@ export default function SalaryRegisterImportPage({
   const [missingCols, setMissingCols] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ updated: number; missing: string[]; mismatch: { name: string; api: number | null; csv: number | null }[] } | null>(null);
+  const [recon, setRecon] = useState<{
+    matched: number;
+    register_only: { line_id: string; hr_employee_id: string; label: string; amount: number }[];
+    hrms_only: { revision_id: string; hr_employee_id: string; label: string; amount: number }[];
+  } | null>(null);
+  const [backfilling, setBackfilling] = useState<string | null>(null);
+
 
   const { data: existingPayslips } = useQuery({
     queryKey: ["payslip_records_for_period", periodMonth],

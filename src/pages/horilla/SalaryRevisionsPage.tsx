@@ -635,6 +635,26 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORY_TABS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setCategoryFilter(c.value)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  categoryFilter === c.value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {c.label}
+                <span className="ml-1.5 opacity-70 tabular-nums">{categoryCounts[c.value]}</span>
+              </button>
+            ))}
+          </div>
+
+
           {isLoading ? (
             <TableSkeleton rows={4} columns={4} />
           ) : filtered.length === 0 ? (

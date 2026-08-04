@@ -297,7 +297,11 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
   const renderRevisionCard = (r: any) => {
-            const isOneTime = ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0;
+            const category = revisionCategory(r);
+            const isPayrollInput = category === "ADDITION" || category === "DEDUCTION";
+            // Record-only payouts are paid outside payroll — nothing is ever pushed.
+            const isRecordOnlyPayout = category === "PAYOUT" && r.payout_channel === "outside_payroll";
+            const isOneTime = !isPayrollInput && (ONE_TIME_KINDS.has(r.revision_type) || Number(r.one_time_amount || 0) > 0);
             const isIncrease = Number(r.new_total || 0) > Number(r.previous_total || 0);
             const diff = Number(r.new_total || 0) - Number(r.previous_total || 0);
             const isScheduled = r.status === "SCHEDULED";

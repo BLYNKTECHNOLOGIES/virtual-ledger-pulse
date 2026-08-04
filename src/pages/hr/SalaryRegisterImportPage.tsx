@@ -592,6 +592,21 @@ export default function SalaryRegisterImportPage({
             </Alert>
           )}
 
+          {parsed.some(r => Math.abs(r.net_tieout_diff ?? 0) > 1) && (
+            <Alert variant="destructive">
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle>Net Pay does not tie out for some rows</AlertTitle>
+              <AlertDescription className="text-xs">
+                Net must equal Gross − (PF EE+ER, ESI EE+ER, LWF EE, PT, TDS, Advance, Loan EMI, one-time recovery).{" "}
+                {parsed
+                  .filter(r => Math.abs(r.net_tieout_diff ?? 0) > 1)
+                  .map(r => `${r.name}: off by ${INR(r.net_tieout_diff)}`)
+                  .join(" · ")}
+              </AlertDescription>
+            </Alert>
+          )}
+
+
           {parsed.some(r => r.reg_extra_earnings.length > 0) && (
             <Alert>
               <Info className="w-4 h-4" />

@@ -25,6 +25,8 @@ type Row = {
   paid_days: number | null
   month_days: number
   bank_last4: string | null
+  employer_contrib: number
+  deduction_breakdown: { label: string; amount: number }[]
   pdf_path: string | null
   already_sent_at: string | null
   blockers: string[]
@@ -199,7 +201,7 @@ Deno.serve(async (req) => {
         admin.from('hr_employees').select('id, first_name, last_name, email, is_active, badge_id'),
         admin.from('hr_payroll_input_deductions').select('hr_employee_id, label, amount, lop_days, source, readback_verified_at, pushed_at').eq('period_month', month),
         admin.from('hr_payroll_input_additions').select('hr_employee_id, label, amount, readback_verified_at, pushed_at').eq('period_month', month),
-        admin.from('hr_email_send_log').select('metadata, created_at, status').eq('template_name', TEMPLATE),
+        admin.from('hr_email_send_log').select('metadata, created_at, status').eq('template_name', TEMPLATE).filter('metadata->>period_month', 'eq', month),
         admin.from('hr_payroll_month_meta').select('processed_on').eq('period_month', month).maybeSingle(),
       ])
     if (recErr) return json({ error: recErr.message }, 500)
@@ -222,9 +224,37 @@ Deno.serve(async (req) => {
       const email = emp?.email || p.reg_personal_email || null
 
       const hasReg = p.reg_gross_salary !== null && p.reg_gross_salary !== undefined
-      const gross = Number(hasReg ? p.reg_gross_salary : p.gross_earnings) || 0
+      const num = (v: any) => Math.abs(Number(v) || 0)
+
+      // The RazorpayX Salary Register is CTC-inclusive: reg_gross_salary carries the
+      // employer-side statutory cost, and reg_net_pay is net of BOTH employee and
+      // employer contributions. An employee-facing payslip must never show employer
+      // contributions as a deduction, so carve them out of gross first.
+      const employer_contrib = hasReg
+        ? num(p.reg_pf_er) + num(p.reg_esi_er) + num(p.reg_lwf_er) + num(p.reg_employer_pf_contr) * 0 + num(p.reg_employer_esi_contr) * 0
+        : 0
+      const gross = hasReg
+        ? Number(p.reg_gross_salary) - employer_contrib
+        : Number(p.gross_earnings) || 0
       const net = Number(hasReg ? p.reg_net_pay : p.net_pay) || 0
-      const deductions = hasReg ? Math.max(0, gross - net) : Number(p.total_deductions) || 0
+      const deductions = hasReg ? gross - net : Number(p.total_deductions) || 0
+
+      const deduction_breakdown: { label: string; amount: number }[] = []
+      if (hasReg) {
+        const push = (label: string, v: any) => { const a = num(v); if (a > 0) deduction_breakdown.push({ label, amount: a }) }
+        push('Provident Fund (employee)', p.reg_pf_ee)
+        push('ESIC (employee)', p.reg_esi_ee)
+        push('Professional Tax', p.reg_pt)
+        push('Labour Welfare Fund', p.reg_lwf_ee)
+        push('TDS / Income Tax', p.reg_tds)
+        push('Salary advance recovery', p.reg_advance_salary)
+        push('Loan / EMI recovery', p.reg_loan_emi)
+        const listed = deduction_breakdown.reduce((s2, d) => s2 + d.amount, 0)
+        const residual = Math.round((deductions - listed) * 100) / 100
+        if (Math.abs(residual) > TIE_OUT_TOLERANCE) {
+          deduction_breakdown.push({ label: 'Other deductions', amount: residual })
+        }
+      }
 
       const empDeds = (dedRows ?? []).filter((d: any) => d.hr_employee_id === p.hr_employee_id)
       const lopRows = empDeds.filter((d: any) => String(d.label || '').toLowerCase().includes('lop') && d.readback_verified_at)
@@ -252,6 +282,8 @@ Deno.serve(async (req) => {
         blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
       }
       if (net <= 0) blockers.push('Net pay is zero or negative')
+      if (deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
+      if (!processedOn) blockers.push('Salary credit date not set for this month')
 
       return {
         employee_id: p.hr_employee_id,
@@ -269,6 +301,8 @@ Deno.serve(async (req) => {
         paid_days,
         month_days: mDays,
         bank_last4: p.reg_bank_acc_no ? String(p.reg_bank_acc_no).slice(-4) : null,
+        employer_contrib,
+        deduction_breakdown,
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,
         blockers,

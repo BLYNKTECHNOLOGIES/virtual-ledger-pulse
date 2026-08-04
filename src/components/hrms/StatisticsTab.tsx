@@ -567,8 +567,8 @@ export function StatisticsTab() {
 
   const { 
     kpi, clientStats, kycStats, leadStats, onboardingStats, 
-    employeePerformance, trendData, departmentData, expenseBreakdown, 
-    topClients, totalExpenses, totalSalary, usdtFees
+    employeePerformance, trendData, departmentData, expenseBreakdown, incomeBreakdown,
+    topClients, totalExpenses, totalIncome, totalSalary, usdtFees
   } = statsData || {
     kpi: { revenue: 0, revenueChange: 0, clients: 0, trades: 0, employees: 0, profit: 0 },
     clientStats: { total: 0, newInPeriod: 0, newInPrevPeriod: 0, buyers: 0, sellers: 0, newBuyers: 0, newSellers: 0 },
@@ -579,8 +579,10 @@ export function StatisticsTab() {
     trendData: [],
     departmentData: [],
     expenseBreakdown: [],
+    incomeBreakdown: [],
     topClients: [],
     totalExpenses: 0,
+    totalIncome: 0,
     totalSalary: 0,
     usdtFees: { total: 0, platform: 0, transfer: 0, salesOrder: 0, purchaseOrder: 0, transactions: [] }
   };

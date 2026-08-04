@@ -497,9 +497,9 @@ Deno.serve(async (req) => {
       ));
       const annualBasePreLop = regularBase * 12;
       const { data: ytdTds } = await supabase
-        .from("hr_razorpay_payslip_records")
+        .from("hr_payslips_v")
         .select("tds_amount")
-        .eq("hr_employee_id", emp.id)
+        .eq("employee_id", emp.id)
         .gte("period_month", fyStart.toISOString().slice(0, 10))
         .lt("period_month", periodStr);
       const ytdTdsPaid = (ytdTds ?? []).reduce((s: number, r: any) => s + Number(r.tds_amount ?? 0), 0);

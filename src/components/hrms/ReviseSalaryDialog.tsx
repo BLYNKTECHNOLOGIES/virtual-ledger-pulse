@@ -144,6 +144,22 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
     [employees, employeeId],
   );
 
+  // RazorpayX link — required to stage additions / deductions on a payroll month.
+  const { data: razorpayEmployeeId } = useQuery({
+    queryKey: ["hr_razorpay_map_for_revision", employeeId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", employeeId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.razorpay_employee_id as string | undefined) ?? null;
+    },
+    enabled: open && !!employeeId,
+  });
+
+
   // Seed statutory switches from the selected employee's current flags
   useEffect(() => {
     if (mode !== "statutory" || !employee) return;

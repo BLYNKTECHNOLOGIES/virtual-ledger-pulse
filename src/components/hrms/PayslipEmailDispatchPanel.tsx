@@ -320,12 +320,15 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
           </div>
 
           {!registerPresent && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
+            <div className="flex flex-wrap items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>
+              <span className="flex-1 min-w-[240px]">
                 Salary Register CSV has not been imported for this month. Payslip emails are blocked until the register
                 is imported — statutory splits and register-based gross/net are required.
               </span>
+              <Button size="sm" className="gap-1.5" onClick={() => setRegisterOpen(true)}>
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Import Salary Register CSV
+              </Button>
             </div>
           )}
 

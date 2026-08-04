@@ -363,17 +363,18 @@ Deno.serve(async (req) => {
         blockers.push(`Salary not processed this month — ${not_processed_reason}`)
       }
 
-      if (!registerPresent) blockers.push('Salary Register CSV not imported for this month')
-      if (registerPresent && !hasReg && !p.do_not_pay) blockers.push('No Salary Register row for this employee')
-      if (p.reg_has_left) blockers.push('Employee has left / relieved')
-      if (emp && emp.is_active === false) blockers.push('Employee inactive')
-      if (!email) blockers.push('No email address on record')
-      if (!p.pdf_storage_path) blockers.push('Payslip PDF not uploaded')
-      if (!not_processed && Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
-        blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
+      if (!not_processed) {
+        // Only surface actionable blockers for people who WERE paid this month.
+        if (!registerPresent) blockers.push('Salary Register CSV not imported for this month')
+        if (!email) blockers.push('No email address on record')
+        if (!p.pdf_storage_path) blockers.push('Payslip PDF not uploaded')
+        if (Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
+          blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
+        }
+        if (deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
+        if (!processedOn) blockers.push('Salary credit date not set for this month')
       }
-      if (!not_processed && deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
-      if (!processedOn) blockers.push('Salary credit date not set for this month')
+
 
 
       return {

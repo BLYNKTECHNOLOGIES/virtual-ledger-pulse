@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       supabase.from("hr_employees").select("id, badge_id, first_name, last_name, email, dob, gender, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, pan_number, uan_number, esi_number, resignation_date, last_working_day, total_salary").eq("is_active", true),
       supabase.from("hr_employee_work_info").select("employee_id, department_id, job_position_id, joining_date, location, employee_type"),
       supabase.from("departments").select("id, name"),
-      supabase.from("positions").select("id, name"),
+      supabase.from("positions").select("id, title"),
       supabase.from("hr_employee_bank_details").select("employee_id, account_number, ifsc_code"),
       supabase.from("hr_employee_statutory_profiles").select("hr_employee_id,effective_from,pf_enabled,pf_wage_basis,vpf_mode,vpf_value,esi_enabled,pt_enabled").lte("effective_from", periodStr).order("effective_from", { ascending: true }),
       supabase.from("hr_payroll_input_additions").select("hr_employee_id, amount, label, addition_type, pushed_at").eq("period_month", periodStr),
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
 
     const wiByEmp = new Map<string, any>((workInfos ?? []).map((w: any) => [w.employee_id, w]));
     const deptById = new Map<string, string>((departments ?? []).map((d: any) => [d.id, d.name]));
-    const posById = new Map<string, string>((positions ?? []).map((p: any) => [p.id, p.name]));
+    const posById = new Map<string, string>((positions ?? []).map((p: any) => [p.id, p.title]));
     const bankByEmp = new Map<string, any>((banks ?? []).map((b: any) => [b.employee_id, b]));
     const regimeById = new Map<string, string>((filingStatuses ?? []).map((f: any) => [f.id, f.regime]));
     const statProfiles = new Map<string, any>();
@@ -155,19 +155,28 @@ Deno.serve(async (req) => {
     const regularAddByEmp = groupSum(adds as any[], "hr_employee_id", (r: any) => !isOneTime(r));
     const dedByEmp = groupSum(deds as any[], "hr_employee_id");
     const kpiLossByEmp = groupSum(deds as any[], "hr_employee_id", (r: any) => /kpi/i.test(String(r.label ?? "")));
-    const emiByEmp = groupSum(recoveries as any[], "employee_id", (r: any) => r.source_kind === "loan" || /emi|loan/i.test(String(r.label ?? "")));
-    const otherRecoveryByEmp = groupSum(recoveries as any[], "employee_id", (r: any) => !(r.source_kind === "loan" || /emi|loan/i.test(String(r.label ?? ""))));
+    const isLoan = (r: any) => r.source_kind === "loan" || /emi|loan/i.test(String(r.label ?? ""));
+    const isDeposit = (r: any) => r.source_kind === "deposit" || /deposit/i.test(String(r.label ?? ""));
+    const emiByEmp = groupSum(recoveries as any[], "employee_id", isLoan);
+    const depositByEmp = groupSum(recoveries as any[], "employee_id", isDeposit);
+    const otherRecoveryByEmp = groupSum(recoveries as any[], "employee_id", (r: any) => !isLoan(r) && !isDeposit(r));
     // One-time payouts staged through the salary-revision flow (visible for the
     // upcoming month before payroll runs — same behaviour as RazorpayX).
+    // Only payouts routed THROUGH payroll belong in the register's One-time
+    // Payments column (that is exactly what RazorpayX shows pre-processing).
+    // Payouts marked "outside_payroll" are disbursed off-cycle and are surfaced
+    // separately so they are never mistaken for a payroll component.
     const revisionPayoutByEmp = new Map<string, { amount: number; labels: string[] }>();
+    const offPayrollByEmp = new Map<string, { amount: number; labels: string[] }>();
     for (const r of (revisions ?? []) as any[]) {
       if (!r.employee_id) continue;
       const amt = Number(r.one_time_amount ?? 0);
       if (!amt) continue;
-      const cur = revisionPayoutByEmp.get(r.employee_id) ?? { amount: 0, labels: [] };
+      const target = r.payout_channel === "outside_payroll" ? offPayrollByEmp : revisionPayoutByEmp;
+      const cur = target.get(r.employee_id) ?? { amount: 0, labels: [] };
       cur.amount += amt;
       cur.labels.push(String(r.pay_head_label || r.revision_type || "One-time payment"));
-      revisionPayoutByEmp.set(r.employee_id, cur);
+      target.set(r.employee_id, cur);
     }
 
     // LOP via the shared read-only SQL function (single source of truth).
@@ -239,7 +248,8 @@ Deno.serve(async (req) => {
           ...base, do_not_pay: true,
           basic: 0, da: 0, hra: 0, sa: 0, lta: 0, employer_esi: 0, employer_pf: 0,
           one_time_payments: 0, one_time_labels: [], gross: 0, esi_ee: 0, esi_er: 0, pf_ee: 0, pf_er: 0,
-          vpf: 0, pt: 0, tds: 0, loan_emi: 0, other_recovery: 0, lop_days: 0, lop_amount: 0,
+          vpf: 0, pt: 0, tds: 0, loan_emi: 0, deposit_recovery: 0, other_recovery: 0,
+          off_payroll_payouts: 0, off_payroll_labels: [], lop_days: 0, lop_amount: 0,
           net_pay: 0, salary_base_source: "do_not_pay",
           actual: actualByEmp.get(emp.id) ?? null,
         });
@@ -302,11 +312,12 @@ Deno.serve(async (req) => {
       const tds = Math.round(Math.max(0, annualTax - (ytdTdsByEmp.get(emp.id) ?? 0)) / monthsRemaining);
 
       const loanEmi = emiByEmp.get(emp.id) ?? 0;
+      const depositRecovery = depositByEmp.get(emp.id) ?? 0;
       const otherRecovery = (otherRecoveryByEmp.get(emp.id) ?? 0) + addNegative
         + Math.max(0, (dedByEmp.get(emp.id) ?? 0) - kpiLoss);
 
       const grossTotal = grossEarnings + addPositive;
-      const netPay = grossTotal - (epf.employee + vpf + esi.employee + pt + tds + loanEmi + otherRecovery);
+      const netPay = grossTotal - (epf.employee + vpf + esi.employee + pt + tds + loanEmi + depositRecovery + otherRecovery);
 
       rows.push({
         ...base,
@@ -322,7 +333,9 @@ Deno.serve(async (req) => {
         regular_gross: grossEarnings,
         esi_ee: esi.employee, esi_er: esi.employer,
         pf_ee: epf.employee, pf_er: epf.employer,
-        vpf, pt, tds, loan_emi: loanEmi, other_recovery: otherRecovery,
+        vpf, pt, tds, loan_emi: loanEmi, deposit_recovery: depositRecovery, other_recovery: otherRecovery,
+        off_payroll_payouts: offPayrollByEmp.get(emp.id)?.amount ?? 0,
+        off_payroll_labels: offPayrollByEmp.get(emp.id)?.labels ?? [],
         lop_days: lopDays, lop_amount: lopAmount, kpi_loss: kpiLoss,
         net_pay: netPay,
         pf_enrolled: pfEnrolled, esi_enrolled: esiEnrolled, pt_enrolled: ptEnrolled,
@@ -354,7 +367,8 @@ Deno.serve(async (req) => {
         employees: rows.length,
         gross: sum("gross"), net_pay: sum("net_pay"), one_time_payments: sum("one_time_payments"),
         pf_ee: sum("pf_ee"), pf_er: sum("pf_er"), esi_ee: sum("esi_ee"), esi_er: sum("esi_er"),
-        pt: sum("pt"), tds: sum("tds"), loan_emi: sum("loan_emi"), lop_amount: sum("lop_amount"),
+        pt: sum("pt"), tds: sum("tds"), loan_emi: sum("loan_emi"), deposit_recovery: sum("deposit_recovery"),
+        off_payroll_payouts: sum("off_payroll_payouts"), lop_amount: sum("lop_amount"),
       },
       readiness: {
         attendance_coverage_pct: attendanceCoveragePct,

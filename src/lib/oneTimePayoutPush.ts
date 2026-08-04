@@ -27,6 +27,7 @@ const ADDITION_TYPE_MAP: Record<string, string> = {
   retention_bonus: "bonus",
   special_allowance: "bonus",
   ad_hoc: "bonus",
+  one_time_correction: "bonus",
   reimbursement: "reimbursement",
   arrears: "arrears",
 };

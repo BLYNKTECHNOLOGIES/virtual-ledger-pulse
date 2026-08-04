@@ -123,17 +123,19 @@ export async function resolveMonthlyGross(
   }
 
   if (!(monthlyGross > 0)) {
+    // Same one-time-payout hazard as above: prefer the regular-gross split.
     const { data: prev } = await supabase
-      .from("hr_razorpay_payslip_records")
-      .select("gross_earnings, reg_gross_salary, period_month")
+      .from("hr_payslip_gross_split_v")
+      .select("regular_gross, period_month")
       .eq("hr_employee_id", employeeId)
       .lte("period_month", periodStr)
       .order("period_month", { ascending: false })
       .limit(1);
     const p: any = prev?.[0];
-    monthlyGross = Number(p?.reg_gross_salary ?? p?.gross_earnings ?? 0);
+    monthlyGross = Number(p?.regular_gross ?? 0);
     if (monthlyGross > 0) source = "previous_payslip";
   }
+
 
   monthlyGross = Math.round(monthlyGross);
   if (!(monthlyGross > 0)) return { monthlyGross: 0, source: "none" };

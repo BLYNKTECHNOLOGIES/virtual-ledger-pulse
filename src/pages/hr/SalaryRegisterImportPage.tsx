@@ -380,6 +380,9 @@ export default function SalaryRegisterImportPage({
         `Imported ${updated} rows${derivedCount ? ` · derived statutory enrollment for ${derivedCount} employees` : ""}. ${missing.length ? `${missing.length} not matched.` : "All matched."}`,
       );
       await qc.invalidateQueries({ queryKey: ["payslip_records_for_period", periodMonth] });
+      await qc.invalidateQueries({ queryKey: ["payslip_email_roster", periodMonth] });
+      await qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state", periodMonth] });
+      onImported?.();
 
     } catch (e: any) {
       toast.error(e.message || "Import failed");
@@ -389,11 +392,13 @@ export default function SalaryRegisterImportPage({
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
-      <PageHeader
-        title="Import Salary Register (CSV)"
-        description="Ingest statutory splits (PF/ESI/PT/TDS/LWF/employer contributions), variable pay (Overtime, PLI), separation and identity snapshots from the monthly RazorpayX dashboard CSV. The API does not expose these fields; this is the only source of parity."
-      />
+    <div className={embedded ? "space-y-4" : "p-4 md:p-6 space-y-4 page-mount"}>
+      {!embedded && (
+        <PageHeader
+          title="Import Salary Register (CSV)"
+          description="Ingest statutory splits (PF/ESI/PT/TDS/LWF/employer contributions), variable pay (Overtime, PLI), separation and identity snapshots from the monthly RazorpayX dashboard CSV. The API does not expose these fields; this is the only source of parity."
+        />
+      )}
 
       <Alert>
         <Info className="w-4 h-4" />

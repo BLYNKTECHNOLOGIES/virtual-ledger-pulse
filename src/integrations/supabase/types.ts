@@ -23144,6 +23144,7 @@ export type Database = {
           net: number | null
           one_time_payments: number | null
           overtime: number | null
+          pdf_storage_path: string | null
           pdf_url: string | null
           performance_incentive: number | null
           period_month: string | null
@@ -23194,6 +23195,7 @@ export type Database = {
           net?: never
           one_time_payments?: number | null
           overtime?: number | null
+          pdf_storage_path?: string | null
           pdf_url?: string | null
           performance_incentive?: number | null
           period_month?: string | null
@@ -23244,6 +23246,7 @@ export type Database = {
           net?: never
           one_time_payments?: number | null
           overtime?: number | null
+          pdf_storage_path?: string | null
           pdf_url?: string | null
           performance_incentive?: number | null
           period_month?: string | null

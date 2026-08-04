@@ -31,6 +31,7 @@ const ONE_TIME_TYPES = [
   { value: "retention_bonus", label: "Retention Bonus" },
   { value: "special_allowance", label: "Special Allowance" },
   { value: "ad_hoc", label: "Ad-hoc Adjustment" },
+  { value: "one_time_correction", label: "Correction" },
 ];
 
 interface Props {

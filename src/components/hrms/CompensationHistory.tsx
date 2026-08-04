@@ -132,7 +132,7 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
               </div>
               <div className="text-sm">
                 {oneTime ? (
-                  <span className="font-semibold text-success">+₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</span>
+                  <span className={`font-semibold ${r.revision_type === "payroll_deduction" ? "text-destructive" : "text-success"}`}>{r.revision_type === "payroll_deduction" ? "−" : "+"}₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</span>
                 ) : (
                   <div>
                     <div className="text-foreground">

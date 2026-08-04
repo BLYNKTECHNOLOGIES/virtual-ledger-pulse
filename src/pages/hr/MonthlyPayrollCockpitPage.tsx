@@ -402,11 +402,17 @@ export default function MonthlyPayrollCockpitPage() {
                         </div>
                       )}
                       {gated && (
-                        <div className="text-xs text-destructive flex items-start gap-1.5 border-l-2 border-destructive/40 pl-2">
+                        <div className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 border-l-2 border-amber-500/40 pl-2 space-y-0.5">
                           <Lock className="h-3 w-3 mt-0.5 shrink-0" />
-                          <span>
-                            Locked until Step 4 completes — {stepGate.reasons.join("; ")}.
-                          </span>
+                          <div className="space-y-0.5">
+                            <div className="font-medium">Cannot acknowledge yet — the tool is still open, finish the work inside it.</div>
+                            {stepGate.lopReasons.map((r) => (
+                              <div key={r}>Upstream (Step 4): {r}.</div>
+                            ))}
+                            {stepGate.recoveryReasons.map((r) => (
+                              <div key={r}>To do here: {r}. Open the tool below to push {stepGate.recPending === 1 ? "it" : "them"}.</div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -417,13 +423,12 @@ export default function MonthlyPayrollCockpitPage() {
                           variant="outline"
                           size="sm"
                           className="gap-1.5"
-                          disabled={gated}
-                          title={gated ? `Locked until Step 4 completes — ${stepGate.reasons.join("; ")}` : undefined}
                           onClick={() => openTool(target.tool, target.params)}
                         >
                           {target.label} <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                       )}
+
                       {target && "href" in target && (
                         <Button variant="outline" size="sm" asChild className="gap-1.5">
                           <a href={target.href} target="_blank" rel="noreferrer">

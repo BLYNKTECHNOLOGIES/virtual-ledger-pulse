@@ -67,17 +67,6 @@ function nextMonths(count = 15): string[] {
   return out;
 }
 
-const colLetter = (i: number) => {
-  let n = i;
-  let s = "";
-  while (n > 0) {
-    const r = (n - 1) % 26;
-    s = String.fromCharCode(65 + r) + s;
-    n = Math.floor((n - 1) / 26);
-  }
-  return s;
-};
-
 function sortEmployees(employees: EmployeeLite[]) {
   return [...employees].sort((a, b) => {
     const act = Number(!!b.is_active) - Number(!!a.is_active);

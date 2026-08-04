@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, Upload, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { buildTemplateWorkbook, downloadBlob, parseSpreadsheetFile } from "@/lib/hrms/bulkCompensationWorkbook";
 import {
   applyCompensationRow,
   buildFailureCsv,
@@ -56,18 +57,32 @@ export function BulkCompensationPanel({ mode, employees, approvedBy, userId, onD
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const handleTemplate = () => {
-    downloadCsv(
-      `bulk-${mode}-template-${new Date().toISOString().slice(0, 10)}.csv`,
-      buildTemplateCsv(mode, employees),
-    );
+  const [building, setBuilding] = useState(false);
+
+  const handleTemplate = async (kind: "xlsx" | "csv") => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (kind === "csv") {
+      downloadCsv(`bulk-${mode}-template-${stamp}.csv`, buildTemplateCsv(mode, employees));
+    } else {
+      setBuilding(true);
+      try {
+        downloadBlob(
+          `bulk-${mode}-template-${stamp}.xlsx`,
+          await buildTemplateWorkbook(mode, employees),
+        );
+      } catch (e: any) {
+        toast.error(`Could not build the Excel template: ${e?.message || e}`);
+        return;
+      } finally {
+        setBuilding(false);
+      }
+    }
     toast.success(`${MODE_LABEL[mode]} template downloaded with ${employees.length} employees`);
   };
 
   const handleFile = async (file: File) => {
     try {
-      const text = await file.text();
-      const { header, rows: raw } = parseCsv(text);
+      const { header, rows: raw } = await parseSpreadsheetFile(file);
       if (!header.includes("badge_id")) {
         toast.error("This file has no badge_id column — download the template for this category first.");
         return;
@@ -158,20 +173,24 @@ export function BulkCompensationPanel({ mode, employees, approvedBy, userId, onD
     <div className="space-y-3">
       <Alert>
         <AlertDescription className="text-xs">
-          Download the <strong>{MODE_LABEL[mode]}</strong> template — it lists every employee with their
-          badge ID and name. Fill in only the rows you want to change; a row left blank means no change
-          for that employee.
+          Download the <strong>{MODE_LABEL[mode]}</strong> Excel template — it lists every employee with their
+          badge ID and name, with dropdowns for every choice column and date/amount checks built in.
+          Fill in only the rows you want to change; a row left blank means no change for that employee.
+          A plain CSV version is available too, and both can be uploaded back here.
         </AlertDescription>
       </Alert>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={handleTemplate}>
-          <Download className="h-4 w-4 mr-1.5" />
-          Download template
+        <Button type="button" variant="outline" size="sm" disabled={building} onClick={() => handleTemplate("xlsx")}>
+          {building ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
+          Download Excel template
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => handleTemplate("csv")}>
+          Plain CSV
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
           <Upload className="h-4 w-4 mr-1.5" />
-          Upload filled CSV
+          Upload filled file
         </Button>
         {rows && (
           <Button type="button" variant="ghost" size="sm" onClick={reset}>
@@ -181,7 +200,7 @@ export function BulkCompensationPanel({ mode, employees, approvedBy, userId, onD
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];

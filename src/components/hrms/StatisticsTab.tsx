@@ -192,6 +192,19 @@ export function StatisticsTab() {
           .order('id', { ascending: true })
       );
 
+      // Fetch non-core incomes (same shape as expenses; settlement / adjustment
+      // buckets excluded so they don't inflate the breakdown)
+      const incomes = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('bank_transactions')
+          .select('id, amount, category, description, transaction_date')
+          .eq('transaction_type', 'INCOME')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset","Settlement","Payment Gateway Settlement")')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr)
+          .order('id', { ascending: true })
+      );
+
       // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
       // Paginated + ordered: busy months exceed 1000 fee rows, and a silent cap
       // here would undercount fees and overstate Net Profit.

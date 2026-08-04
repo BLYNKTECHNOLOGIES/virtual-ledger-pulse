@@ -351,9 +351,10 @@ Deno.serve(async (req) => {
         if (!registerPresent) blockers.push('Salary Register CSV not imported for this month')
         if (!email) blockers.push('No email address on record')
         if (!p.pdf_storage_path) blockers.push('Payslip PDF not uploaded')
-        if (Math.abs(gross - deductions - net) > TIE_OUT_TOLERANCE) {
-          blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} != net ${net}`)
+        if (Math.abs(gross - deductions - one_time_recovery - net) > TIE_OUT_TOLERANCE) {
+          blockers.push(`Tie-out failed: gross ${gross} - deductions ${deductions} - one-time ${one_time_recovery} != net ${net}`)
         }
+
         if (deductions < -TIE_OUT_TOLERANCE) blockers.push('Register deductions are negative — check the Salary Register row')
         if (!processedOn) blockers.push('Salary credit date not set for this month')
       }

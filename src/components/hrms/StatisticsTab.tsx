@@ -515,6 +515,8 @@ export function StatisticsTab() {
         trendData,
         departmentData,
         expenseBreakdown,
+        incomeBreakdown,
+        totalIncome,
         topClients,
         totalExpenses,
         totalSalary: employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0,

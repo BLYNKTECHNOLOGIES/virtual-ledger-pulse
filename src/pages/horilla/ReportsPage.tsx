@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -293,6 +294,22 @@ export default function ReportsPage() {
           </div>
         }
       />
+
+      {/* In-progress / upcoming reports (read-only pilot) */}
+      <Card className="border-primary/40">
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">In Progress / Upcoming Reports</p>
+            <p className="text-xs text-muted-foreground">
+              Read-only pilot: RazorpayX-format reports projected from HRMS data so you can tally mid-month, before payroll is processed.
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="h-9">
+            <Link to="/hrms/reports/salary-register-projection">Salary Register (In Progress)</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
 
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8 gap-3">
         {kpis.map(s => (

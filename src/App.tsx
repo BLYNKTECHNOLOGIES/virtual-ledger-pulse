@@ -123,6 +123,7 @@ const OrganizationPage = lazy(() => import('./pages/horilla/OrganizationPage'));
 const DocumentsPage = lazy(() => import('./pages/horilla/DocumentsPage'));
 const AnnouncementsPage = lazy(() => import('./pages/horilla/AnnouncementsPage'));
 const ReportsPage = lazy(() => import('./pages/horilla/ReportsPage'));
+const SalaryRegisterProjectionPage = lazy(() => import('./pages/horilla/SalaryRegisterProjectionPage'));
 const PMSDashboardPage = lazy(() => import('./pages/horilla/PMSDashboardPage'));
 
 const Feedback360Page = lazy(() => import('./pages/horilla/Feedback360Page'));
@@ -787,6 +788,7 @@ const router = createBrowserRouter([
         { path: "documents", element: <DocumentsPage /> },
         { path: "announcements", element: <AnnouncementsPage /> },
         { path: "reports", element: <ReportsPage /> },
+        { path: "reports/salary-register-projection", element: <SalaryRegisterProjectionPage /> },
         { path: "onboarding-pipeline", element: <EmployeeOnboardingPipelinePage /> },
         { path: "disciplinary-actions", element: <DisciplinaryActionsPage /> },
         

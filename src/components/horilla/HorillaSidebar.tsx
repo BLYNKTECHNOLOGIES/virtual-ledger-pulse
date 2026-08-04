@@ -20,6 +20,7 @@ import {
   Briefcase,
   AlertTriangle,
   
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -188,7 +189,10 @@ const navGroups: NavGroup[] = [
   },
   {
     title: "ANALYTICS",
-    items: [{ label: "Reports", icon: BarChart3, path: "/hrms/reports" }],
+    items: [
+      { label: "Reports", icon: BarChart3, path: "/hrms/reports" },
+      { label: "Registers", icon: FileSpreadsheet, path: "/hrms/registers" },
+    ],
   },
   {
     title: "SYSTEM",

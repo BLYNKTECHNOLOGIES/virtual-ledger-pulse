@@ -677,6 +677,9 @@ export default function SalaryRegisterImportPage({
                 <CoverageTile label="With UAN (PF)" value={insights.withUan} total={insights.headcount} />
                 <CoverageTile label="With ESI Number" value={insights.withEsi} total={insights.headcount} />
                 <CoverageTile label="With PT" value={insights.withPt} total={insights.headcount} />
+                <CoverageTile label="With Advance recovery" value={insights.withAdvance} total={insights.headcount} />
+                <CoverageTile label="With Loan EMI" value={insights.withLoan} total={insights.headcount} />
+                <CoverageTile label="With One-time entry" value={insights.withOtp} total={insights.headcount} />
               </div>
             </div>
           )}

@@ -217,6 +217,7 @@ Deno.serve(async (req) => {
     }
 
     const mDays = daysInMonth(month)
+    const processedOn = (meta as any)?.processed_on ?? null
 
     const rows: Row[] = (records ?? []).map((p: any) => {
       const emp = p.hr_employee_id ? empById.get(p.hr_employee_id) : null
@@ -231,7 +232,9 @@ Deno.serve(async (req) => {
       // employer contributions. An employee-facing payslip must never show employer
       // contributions as a deduction, so carve them out of gross first.
       const employer_contrib = hasReg
-        ? num(p.reg_pf_er) + num(p.reg_esi_er) + num(p.reg_lwf_er) + num(p.reg_employer_pf_contr) * 0 + num(p.reg_employer_esi_contr) * 0
+        ? Math.max(num(p.reg_pf_er), num(p.reg_employer_pf_contr)) +
+          Math.max(num(p.reg_esi_er), num(p.reg_employer_esi_contr)) +
+          num(p.reg_lwf_er)
         : 0
       const gross = hasReg
         ? Number(p.reg_gross_salary) - employer_contrib
@@ -309,8 +312,6 @@ Deno.serve(async (req) => {
         sendable: blockers.length === 0,
       }
     }).sort((a: Row, b: Row) => a.name.localeCompare(b.name))
-
-    const processedOn = (meta as any)?.processed_on ?? null
 
     if (mode === 'roster') {
       return json({ month, register_present: registerPresent, processed_on: processedOn, rows })

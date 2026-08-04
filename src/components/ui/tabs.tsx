@@ -13,7 +13,9 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-12 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground border border-border",
+      // h-auto + min-h keeps the bar usable when triggers wrap onto more rows;
+      // max-w-full stops any tab bar from pushing its container wider than the viewport.
+      "inline-flex h-auto min-h-12 max-w-full flex-wrap items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground border border-border",
       className
     )}
     {...props}

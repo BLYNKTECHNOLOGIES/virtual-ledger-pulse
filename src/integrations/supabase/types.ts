@@ -10787,6 +10787,51 @@ export type Database = {
           },
         ]
       }
+      hr_pay_heads: {
+        Row: {
+          classification: string
+          created_at: string
+          first_seen_month: string | null
+          id: string
+          is_taxable: boolean
+          label: string
+          last_seen_month: string | null
+          needs_review: boolean
+          normalized_label: string
+          notes: string | null
+          occurrences: number
+          updated_at: string
+        }
+        Insert: {
+          classification?: string
+          created_at?: string
+          first_seen_month?: string | null
+          id?: string
+          is_taxable?: boolean
+          label: string
+          last_seen_month?: string | null
+          needs_review?: boolean
+          normalized_label: string
+          notes?: string | null
+          occurrences?: number
+          updated_at?: string
+        }
+        Update: {
+          classification?: string
+          created_at?: string
+          first_seen_month?: string | null
+          id?: string
+          is_taxable?: boolean
+          label?: string
+          last_seen_month?: string | null
+          needs_review?: boolean
+          normalized_label?: string
+          notes?: string | null
+          occurrences?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_payroll_cockpit_state: {
         Row: {
           acknowledged_at: string | null
@@ -11159,6 +11204,73 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_razorpay_payroll_freshness"
             referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
+      hr_payslip_pay_head_lines: {
+        Row: {
+          amount: number
+          classification: string
+          created_at: string
+          hr_employee_id: string | null
+          id: string
+          is_taxable: boolean
+          label: string
+          normalized_label: string
+          pay_head_id: string | null
+          payslip_record_id: string
+          period_month: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          classification?: string
+          created_at?: string
+          hr_employee_id?: string | null
+          id?: string
+          is_taxable?: boolean
+          label: string
+          normalized_label: string
+          pay_head_id?: string | null
+          payslip_record_id: string
+          period_month: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          classification?: string
+          created_at?: string
+          hr_employee_id?: string | null
+          id?: string
+          is_taxable?: boolean
+          label?: string
+          normalized_label?: string
+          pay_head_id?: string | null
+          payslip_record_id?: string
+          period_month?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_pay_head_id_fkey"
+            columns: ["pay_head_id"]
+            isOneToOne: false
+            referencedRelation: "hr_pay_heads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_payslip_record_id_fkey"
+            columns: ["payslip_record_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payslips_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payslip_pay_head_lines_payslip_record_id_fkey"
+            columns: ["payslip_record_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payslip_records"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -13488,10 +13600,12 @@ export type Database = {
           effective_from: string
           employee_id: string
           id: string
+          is_taxable: boolean
           new_basic: number | null
           new_total: number | null
           notes: string | null
           one_time_amount: number | null
+          pay_head_label: string | null
           payout_channel: string | null
           payout_month: string | null
           payout_paid_on: string | null
@@ -13503,6 +13617,8 @@ export type Database = {
           razorpay_push_response: Json | null
           razorpay_pushed_at: string | null
           razorpay_verified_at: string | null
+          register_confirmed_at: string | null
+          register_match_note: string | null
           revision_reason: string | null
           revision_type: string
           status: string
@@ -13519,10 +13635,12 @@ export type Database = {
           effective_from?: string
           employee_id: string
           id?: string
+          is_taxable?: boolean
           new_basic?: number | null
           new_total?: number | null
           notes?: string | null
           one_time_amount?: number | null
+          pay_head_label?: string | null
           payout_channel?: string | null
           payout_month?: string | null
           payout_paid_on?: string | null
@@ -13534,6 +13652,8 @@ export type Database = {
           razorpay_push_response?: Json | null
           razorpay_pushed_at?: string | null
           razorpay_verified_at?: string | null
+          register_confirmed_at?: string | null
+          register_match_note?: string | null
           revision_reason?: string | null
           revision_type?: string
           status?: string
@@ -13550,10 +13670,12 @@ export type Database = {
           effective_from?: string
           employee_id?: string
           id?: string
+          is_taxable?: boolean
           new_basic?: number | null
           new_total?: number | null
           notes?: string | null
           one_time_amount?: number | null
+          pay_head_label?: string | null
           payout_channel?: string | null
           payout_month?: string | null
           payout_paid_on?: string | null
@@ -13565,6 +13687,8 @@ export type Database = {
           razorpay_push_response?: Json | null
           razorpay_pushed_at?: string | null
           razorpay_verified_at?: string | null
+          register_confirmed_at?: string | null
+          register_match_note?: string | null
           revision_reason?: string | null
           revision_type?: string
           status?: string

@@ -395,7 +395,14 @@ Deno.serve(async (req) => {
         }
 
         // Update device heartbeat and stamp
-        const newStamp = maxPunchDate ? formatESSLStamp(maxPunchDate) : undefined;
+        // Persist the stamp in DEVICE-RAW wall clock (undo clock correction) so
+        // the next handshake hands the device a stamp it can compare against its
+        // own clock. Handing back the corrected value made the device suppress
+        // every punch that fell inside the correction window.
+        const newStamp = maxPunchDate
+          ? formatESSLStamp(new Date(maxPunchDate.getTime() - deviceOffsetMin * 60 * 1000))
+          : undefined;
+
         await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, newStamp);
 
         // Silence-alarm bookkeeping. Accumulate the total drop count with a

@@ -48,6 +48,27 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
     enabled: !!employeeId,
   });
 
+  // RazorpayX is the payroll authority. Its API (payroll:view-payroll) exposes
+  // only the CTC / monthly salary — never the component split — so the rows
+  // below are a local derivation anchored to that CTC. Surface the anchor so a
+  // mismatch can never masquerade as "mirrored from Razorpay".
+  const { data: rzpCtc } = useQuery({
+    queryKey: ["hr_razorpay_snapshot_ctc", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("hr_razorpay_employee_map")
+        .select("last_pull_snapshot,last_pulled_at")
+        .eq("hr_employee_id", employeeId)
+        .order("last_pulled_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      const n = Number(data?.last_pull_snapshot?.__salary?.annual_ctc);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    },
+    enabled: !!employeeId,
+  });
+
+
+
   const { data: components = [] } = useQuery({
     queryKey: ["hr_salary_components_all"],
     queryFn: async () => {

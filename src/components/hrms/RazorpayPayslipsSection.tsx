@@ -245,12 +245,16 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
               <tbody>
                 {rows.map((r: any) => {
                   const f = flagsForRow(r);
+                  const d = view(r);
                   return (
                     <tr
                       key={r.id}
                       className="border-b border-border/50 hover:bg-muted/30"
                     >
-                      <td className="py-2.5 px-3 text-foreground font-medium cursor-pointer" onClick={() => setOpenRow(r)}>{IN_MONTH(r.period_month)}</td>
+                      <td className="py-2.5 px-3 text-foreground font-medium cursor-pointer" onClick={() => setOpenRow(r)}>
+                        {IN_MONTH(r.period_month)}
+                        <div className="mt-0.5"><SourceTag source={d.hasRegister ? "register_csv" : "dashboard_only"} compact /></div>
+                      </td>
                       <td className="py-2.5 px-3">
                         <div className="flex gap-1 flex-wrap">
                           {f.dnp && <Badge variant="destructive" className="text-[10px]">Paused</Badge>}
@@ -258,21 +262,24 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                           {!f.isPaid && !f.dnp && <span className="text-[10px] text-muted-foreground">Unpaid</span>}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-right text-foreground cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.gross_earnings)}</td>
-                      <td className="py-2.5 px-3 text-right text-destructive cursor-pointer" onClick={() => setOpenRow(r)}>{INR(r.total_deductions)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">
-                        <ComplianceCell value={r.tds_amount} messages={complianceDriftForPayslip({ tds_amount: r.tds_amount }, compliance)} />
+                      <td className="py-2.5 px-3 text-right text-foreground cursor-pointer" onClick={() => setOpenRow(r)}>{INR(d.gross)}</td>
+                      <td className="py-2.5 px-3 text-right text-destructive cursor-pointer" onClick={() => setOpenRow(r)}>
+                        {d.hasRegister ? INR(d.deductions) : <NotImported />}
                       </td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">
-                        <ComplianceCell value={r.pf_amount} messages={complianceDriftForPayslip({ pf_amount: r.pf_amount }, compliance)} />
+                        <StatCell hasRegister={d.hasRegister} value={d.tds} messages={complianceDriftForPayslip({ tds_amount: d.tds }, compliance)} />
                       </td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">
-                        <ComplianceCell value={r.esi_amount} messages={complianceDriftForPayslip({ esi_amount: r.esi_amount }, compliance)} />
+                        <StatCell hasRegister={d.hasRegister} value={d.pf} messages={complianceDriftForPayslip({ pf_amount: d.pf }, compliance)} />
                       </td>
                       <td className="py-2.5 px-3 text-right text-muted-foreground">
-                        <ComplianceCell value={r.professional_tax} messages={complianceDriftForPayslip({ professional_tax: r.professional_tax }, compliance)} />
+                        <StatCell hasRegister={d.hasRegister} value={d.esi} messages={complianceDriftForPayslip({ esi_amount: d.esi }, compliance)} />
                       </td>
-                      <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(r.net_pay)}</td>
+                      <td className="py-2.5 px-3 text-right text-muted-foreground">
+                        <StatCell hasRegister={d.hasRegister} value={d.pt} messages={complianceDriftForPayslip({ professional_tax: d.pt }, compliance)} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-foreground">{INR(d.net)}</td>
+
                       <td className="py-2.5 px-3 text-center">
                         {r.pdf_storage_path ? (
                           <PayslipPdfDownloadButton storagePath={r.pdf_storage_path} periodMonth={r.period_month} size="icon" />

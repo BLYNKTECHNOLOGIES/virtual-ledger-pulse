@@ -796,8 +796,11 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           )}
 
         </div>
+        )}
 
+        {entryMode === "single" && (
         <DialogFooter>
+
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => mutation.mutate()}

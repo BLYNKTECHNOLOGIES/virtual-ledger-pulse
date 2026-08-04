@@ -23128,6 +23128,7 @@ export type Database = {
           advance_salary: number | null
           basic: number | null
           dearness_allowance: number | null
+          employee_deductions: number | null
           employee_id: string | null
           employer_esi: number | null
           employer_pf: number | null
@@ -23143,6 +23144,7 @@ export type Database = {
           lwf_er: number | null
           net: number | null
           one_time_payments: number | null
+          one_time_recovery: number | null
           overtime: number | null
           pdf_storage_path: string | null
           pdf_url: string | null
@@ -23179,6 +23181,7 @@ export type Database = {
           advance_salary?: number | null
           basic?: number | null
           dearness_allowance?: number | null
+          employee_deductions?: never
           employee_id?: string | null
           employer_esi?: number | null
           employer_pf?: number | null
@@ -23194,6 +23197,7 @@ export type Database = {
           lwf_er?: never
           net?: never
           one_time_payments?: number | null
+          one_time_recovery?: never
           overtime?: number | null
           pdf_storage_path?: string | null
           pdf_url?: string | null
@@ -23230,6 +23234,7 @@ export type Database = {
           advance_salary?: number | null
           basic?: number | null
           dearness_allowance?: number | null
+          employee_deductions?: never
           employee_id?: string | null
           employer_esi?: number | null
           employer_pf?: number | null
@@ -23245,6 +23250,7 @@ export type Database = {
           lwf_er?: never
           net?: never
           one_time_payments?: number | null
+          one_time_recovery?: never
           overtime?: number | null
           pdf_storage_path?: string | null
           pdf_url?: string | null

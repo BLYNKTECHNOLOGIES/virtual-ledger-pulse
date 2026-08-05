@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
   Bar,
@@ -63,10 +65,16 @@ type Props = {
   maintained: MaintainedRow[];
   maintainedPrev: MaintainedRow[];
   daily: DailyRow[];
+  /** Every employee that can appear in attendance data — active AND former. */
   employees: any[];
+  /** Ids of the currently active roster; anyone else is tagged "inactive". */
+  activeIds?: Set<string>;
   deptByEmployee: Map<string, string>;
   shiftMinutesByEmployee: Map<string, number>;
 };
+
+/** Lateness beyond this is a shift-mapping / timestamp artefact, not real lateness. */
+const LATE_SANITY_MINUTES = 240;
 
 const isPresentStatus = (s: string | null) => {
   const v = (s || "").toLowerCase();
@@ -75,8 +83,13 @@ const isPresentStatus = (s: string | null) => {
 const isAbsentStatus = (s: string | null) => (s || "").toLowerCase() === "absent";
 const isHalfStatus = (s: string | null) => (s || "").toLowerCase() === "half_day";
 
-const nameOf = (e: any) => `${e?.first_name || ""} ${e?.last_name || ""}`.trim() || "Unknown";
-const shortName = (e: any) => `${(e?.first_name || "?")[0]}. ${e?.last_name || ""}`.trim();
+const fmtMinutes = (m: number) => {
+  const v = Math.round(m);
+  if (v < 60) return `${v}m`;
+  const h = Math.floor(v / 60);
+  const rem = v % 60;
+  return rem === 0 ? `${h}h` : `${h}h ${rem}m`;
+};
 
 function Delta({ value, unit = "pt", invert = false }: { value: number | null; unit?: string; invert?: boolean }) {
   if (value === null || !isFinite(value)) return <span className="text-[11px] text-muted-foreground">no prior data</span>;
@@ -100,6 +113,72 @@ function Delta({ value, unit = "pt", invert = false }: { value: number | null; u
   );
 }
 
+function Kpi({
+  icon: Icon,
+  iconClass,
+  label,
+  value,
+  children,
+}: {
+  icon: any;
+  iconClass: string;
+  label: string;
+  value: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <Icon className={`h-3.5 w-3.5 ${iconClass}`} /> {label}
+        </div>
+        <p className="mt-2 text-3xl font-semibold tabular-nums leading-none text-foreground">{value}</p>
+        <div className="mt-2 space-y-0.5">{children}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionCard({
+  title,
+  caption,
+  children,
+  className,
+}: {
+  title: string;
+  caption?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card className={className}>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+        {caption && <p className="text-xs text-muted-foreground font-normal">{caption}</p>}
+      </CardHeader>
+      <CardContent className="pt-0">{children}</CardContent>
+    </Card>
+  );
+}
+
+const axisProps = {
+  fontSize: 11,
+  stroke: "hsl(var(--muted-foreground))",
+  tickLine: false,
+  axisLine: { stroke: "hsl(var(--border))" },
+} as const;
+
+const tooltipStyle = {
+  contentStyle: {
+    background: "hsl(var(--popover))",
+    border: "1px solid hsl(var(--border))",
+    borderRadius: 8,
+    fontSize: 12,
+    color: "hsl(var(--popover-foreground))",
+  },
+  labelStyle: { color: "hsl(var(--foreground))", fontWeight: 600 },
+} as const;
+
 export function AttendanceInsights({
   month,
   summary,
@@ -107,14 +186,49 @@ export function AttendanceInsights({
   maintainedPrev,
   daily,
   employees,
+  activeIds,
   deptByEmployee,
   shiftMinutesByEmployee,
 }: Props) {
+  const [showAllPeople, setShowAllPeople] = useState(false);
+
   const empById = useMemo(() => {
     const m = new Map<string, any>();
     for (const e of employees) m.set(e.id, e);
     return m;
   }, [employees]);
+
+  /** Never renders "Unknown": falls back to badge id, then a short id stub. */
+  const nameOf = useMemo(
+    () => (id: string) => {
+      const e = empById.get(id);
+      const n = `${e?.first_name || ""} ${e?.last_name || ""}`.trim();
+      if (n) return n;
+      if (e?.badge_id) return String(e.badge_id);
+      return `Employee ${String(id).slice(0, 8)}`;
+    },
+    [empById],
+  );
+
+  const isInactive = useMemo(
+    () => (id: string) => {
+      if (activeIds && activeIds.size > 0) return !activeIds.has(id);
+      const e = empById.get(id);
+      return e ? e.is_active === false : false;
+    },
+    [activeIds, empById],
+  );
+
+  const Person = ({ id, className }: { id: string; className?: string }) => (
+    <span className={`inline-flex items-center gap-1.5 ${className || ""}`}>
+      <span className="truncate">{nameOf(id)}</span>
+      {isInactive(id) && (
+        <Badge variant="outline" className="h-4 px-1 text-[9px] font-normal text-muted-foreground border-muted-foreground/30">
+          inactive
+        </Badge>
+      )}
+    </span>
+  );
 
   /* ---------------- coverage / integrity ---------------- */
   const coverage = useMemo(() => {
@@ -122,7 +236,6 @@ export function AttendanceInsights({
     const maintainedDays = maintained.length;
     const pct = expected > 0 ? Math.min(100, (maintainedDays / expected) * 100) : 0;
 
-    // dates where maintained rows are materially below the day's punch-evidence headcount
     const maintainedByDate = new Map<string, number>();
     for (const r of maintained) maintainedByDate.set(r.attendance_date, (maintainedByDate.get(r.attendance_date) || 0) + 1);
     const evidenceByDate = new Map<string, number>();
@@ -148,7 +261,9 @@ export function AttendanceInsights({
     const absent = rows.filter((r) => isAbsentStatus(r.attendance_status)).length;
     const worked = present + half;
     const lateRows = rows.filter((r) => Number(r.late_minutes || 0) > 0);
-    const lateMinutes = lateRows.reduce((a, r) => a + Number(r.late_minutes || 0), 0);
+    // implausible lateness is still a late day, but it must not poison the average
+    const saneLate = lateRows.filter((r) => Number(r.late_minutes || 0) <= LATE_SANITY_MINUTES);
+    const saneMinutes = saneLate.reduce((a, r) => a + Number(r.late_minutes || 0), 0);
     return {
       total,
       present,
@@ -157,8 +272,9 @@ export function AttendanceInsights({
       worked,
       attendanceRate: total > 0 ? (present + half * 0.5) * (100 / total) : 0,
       onTimeRate: worked > 0 ? ((worked - lateRows.length) / worked) * 100 : 0,
-      avgLateWhenLate: lateRows.length > 0 ? lateMinutes / lateRows.length : 0,
+      avgLateWhenLate: saneLate.length > 0 ? saneMinutes / saneLate.length : 0,
       lateDays: lateRows.length,
+      implausibleLateDays: lateRows.length - saneLate.length,
     };
   };
 
@@ -190,10 +306,33 @@ export function AttendanceInsights({
   const perEmployee = useMemo(() => {
     const map = new Map<
       string,
-      { maintained: number; present: number; half: number; absent: number; lateDays: number; lateMin: number; netMin: number; workedDays: number }
+      {
+        maintained: number;
+        present: number;
+        half: number;
+        absent: number;
+        lateDays: number;
+        saneLateDays: number;
+        saneLateMin: number;
+        implausibleLateDays: number;
+        netMin: number;
+        workedDays: number;
+      }
     >();
     const ensure = (id: string) => {
-      if (!map.has(id)) map.set(id, { maintained: 0, present: 0, half: 0, absent: 0, lateDays: 0, lateMin: 0, netMin: 0, workedDays: 0 });
+      if (!map.has(id))
+        map.set(id, {
+          maintained: 0,
+          present: 0,
+          half: 0,
+          absent: 0,
+          lateDays: 0,
+          saneLateDays: 0,
+          saneLateMin: 0,
+          implausibleLateDays: 0,
+          netMin: 0,
+          workedDays: 0,
+        });
       return map.get(id)!;
     };
     for (const r of maintained) {
@@ -202,9 +341,15 @@ export function AttendanceInsights({
       if (isPresentStatus(r.attendance_status)) e.present++;
       if (isHalfStatus(r.attendance_status)) e.half++;
       if (isAbsentStatus(r.attendance_status)) e.absent++;
-      if (Number(r.late_minutes || 0) > 0) {
+      const late = Number(r.late_minutes || 0);
+      if (late > 0) {
         e.lateDays++;
-        e.lateMin += Number(r.late_minutes || 0);
+        if (late <= LATE_SANITY_MINUTES) {
+          e.saneLateDays++;
+          e.saneLateMin += late;
+        } else {
+          e.implausibleLateDays++;
+        }
       }
     }
     for (const d of daily) {
@@ -217,25 +362,43 @@ export function AttendanceInsights({
     return map;
   }, [maintained, daily]);
 
-  /* ---------------- review list ---------------- */
-  const review = useMemo(() => {
-    const out: { id: string; name: string; reasons: string[]; lossPct: number; latePct: number }[] = [];
+  /* ---------------- unified people table (attention + lateness in one ranked list) ---- */
+  const people = useMemo(() => {
+    const lopById = new Map<string, { lop: number; working: number }>();
     for (const s of summary) {
-      const stat = perEmployee.get(s.employee_id);
-      const wd = Number(s.working_days || 0);
-      const lost = Number(s.lop_days || 0);
-      const lossPct = wd > 0 ? (lost / wd) * 100 : 0;
-      const workedM = stat ? stat.present + stat.half : 0;
-      const latePct = workedM > 0 ? ((stat?.lateDays || 0) / workedM) * 100 : 0;
-      const reasons: string[] = [];
-      if (lossPct >= 10 && lost > 0) reasons.push(`${lost} day(s) lost (${lossPct.toFixed(0)}%)`);
-      if (latePct >= 30 && (stat?.lateDays || 0) > 0) reasons.push(`late on ${stat!.lateDays}/${workedM} days`);
-      if (reasons.length) {
-        out.push({ id: s.employee_id, name: nameOf(empById.get(s.employee_id)), reasons, lossPct, latePct });
-      }
+      lopById.set(s.employee_id, { lop: Number(s.lop_days || 0), working: Number(s.working_days || 0) });
     }
-    return out.sort((a, b) => b.lossPct + b.latePct - (a.lossPct + a.latePct));
-  }, [summary, perEmployee, empById]);
+    const ids = new Set<string>([...lopById.keys(), ...perEmployee.keys()]);
+    const rows = [...ids].map((id) => {
+      const stat = perEmployee.get(id);
+      const sm = lopById.get(id) || { lop: 0, working: 0 };
+      const worked = stat ? stat.present + stat.half : 0;
+      const lossPct = sm.working > 0 ? (sm.lop / sm.working) * 100 : 0;
+      const latePct = worked > 0 ? ((stat?.lateDays || 0) / worked) * 100 : 0;
+      const flags: string[] = [];
+      if (lossPct >= 10 && sm.lop > 0) flags.push("loss of pay");
+      if (latePct >= 50 && (stat?.lateDays || 0) > 0) flags.push("chronic lateness");
+      else if (latePct >= 30 && (stat?.lateDays || 0) > 0) flags.push("frequent lateness");
+      return {
+        id,
+        dept: deptByEmployee.get(id) || "Unassigned",
+        working: sm.working,
+        lop: sm.lop,
+        lossPct,
+        lateDays: stat?.lateDays || 0,
+        worked,
+        latePct,
+        avgLate: stat && stat.saneLateDays > 0 ? stat.saneLateMin / stat.saneLateDays : null,
+        implausible: stat?.implausibleLateDays || 0,
+        avgHours: stat && stat.workedDays > 0 ? stat.netMin / stat.workedDays / 60 : null,
+        flags,
+        score: lossPct * 2 + latePct,
+      };
+    });
+    return rows.filter((r) => r.flags.length > 0 || r.lop > 0 || r.lateDays > 0).sort((a, b) => b.score - a.score);
+  }, [summary, perEmployee, deptByEmployee]);
+
+  const reviewCount = people.filter((p) => p.flags.length > 0).length;
 
   /* ---------------- daily trend ---------------- */
   const trend = useMemo(() => {
@@ -252,7 +415,7 @@ export function AttendanceInsights({
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, b]) => ({
         day: date.slice(8),
-        date,
+        label: new Date(`${date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }),
         rate: b.total > 0 ? Math.round(((b.present + b.half * 0.5) / b.total) * 1000) / 10 : 0,
         late: b.late,
         maintained: b.total,
@@ -266,7 +429,8 @@ export function AttendanceInsights({
       { name: "1-15 min", days: 0 },
       { name: "16-30 min", days: 0 },
       { name: "31-60 min", days: 0 },
-      { name: "60+ min", days: 0 },
+      { name: "1-4 h", days: 0 },
+      { name: "Suspect", days: 0 },
     ];
     for (const r of maintained) {
       if (!isPresentStatus(r.attendance_status) && !isHalfStatus(r.attendance_status)) continue;
@@ -275,25 +439,11 @@ export function AttendanceInsights({
       else if (m <= 15) b[1].days++;
       else if (m <= 30) b[2].days++;
       else if (m <= 60) b[3].days++;
-      else b[4].days++;
+      else if (m <= LATE_SANITY_MINUTES) b[4].days++;
+      else b[5].days++;
     }
     return b;
   }, [maintained]);
-
-  const latenessSplit = useMemo(() => {
-    const chronic: { name: string; lateDays: number; worked: number; avg: number }[] = [];
-    const occasional: { name: string; lateDays: number; worked: number; avg: number }[] = [];
-    for (const [id, s] of perEmployee) {
-      const worked = s.present + s.half;
-      if (worked === 0 || s.lateDays === 0) continue;
-      const rec = { name: nameOf(empById.get(id)), lateDays: s.lateDays, worked, avg: s.lateMin / s.lateDays };
-      if (s.lateDays / worked >= 0.5) chronic.push(rec);
-      else occasional.push(rec);
-    }
-    chronic.sort((a, b) => b.lateDays - a.lateDays);
-    occasional.sort((a, b) => b.lateDays - a.lateDays);
-    return { chronic, occasional };
-  }, [perEmployee, empById]);
 
   /* ---------------- weekday pattern ---------------- */
   const weekday = useMemo(() => {
@@ -318,7 +468,10 @@ export function AttendanceInsights({
 
   /* ---------------- departments ---------------- */
   const deptRows = useMemo(() => {
-    const acc = new Map<string, { headcount: number; total: number; present: number; half: number; lateDays: number; lop: number; netMin: number; workedDays: number }>();
+    const acc = new Map<
+      string,
+      { headcount: number; total: number; present: number; half: number; lateDays: number; lop: number; netMin: number; workedDays: number }
+    >();
     const ensure = (d: string) => {
       if (!acc.has(d)) acc.set(d, { headcount: 0, total: 0, present: 0, half: 0, lateDays: 0, lop: 0, netMin: 0, workedDays: 0 });
       return acc.get(d)!;
@@ -353,7 +506,7 @@ export function AttendanceInsights({
   /* ---------------- exceptions ---------------- */
   const exceptions = useMemo(() => {
     const maintainedKeys = new Set(maintained.map((r) => `${r.employee_id}|${r.attendance_date}`));
-    const noSignal = summary.filter((s) => s.no_biometric_signal).map((s) => nameOf(empById.get(s.employee_id)));
+    const noSignal = summary.filter((s) => s.no_biometric_signal).map((s) => ({ id: s.employee_id, n: 0 }));
 
     const unmaintained = new Map<string, number>();
     const singlePunch = new Map<string, number>();
@@ -369,19 +522,43 @@ export function AttendanceInsights({
       if (net > 14 * 60) longDays.set(d.employee_id, (longDays.get(d.employee_id) || 0) + 1);
       if (net > 0 && net < 120) microDays.set(d.employee_id, (microDays.get(d.employee_id) || 0) + 1);
     }
+    const implausible = new Map<string, number>();
+    for (const [id, s] of perEmployee) if (s.implausibleLateDays > 0) implausible.set(id, s.implausibleLateDays);
+
     const toList = (m: Map<string, number>) =>
       [...m.entries()]
-        .map(([id, n]) => ({ name: nameOf(empById.get(id)), n }))
+        .map(([id, n]) => ({ id, n }))
         .sort((a, b) => b.n - a.n);
 
     return [
-      { key: "no-signal", label: "No biometric signal this month", detail: noSignal.map((n) => ({ name: n, n: 0 })) },
-      { key: "unmaintained", label: "Punches recorded but no maintained attendance row", detail: toList(unmaintained) },
-      { key: "single", label: "Single-punch days (missing punch-out)", detail: toList(singlePunch) },
-      { key: "long", label: "Days over 14 net hours", detail: toList(longDays) },
-      { key: "micro", label: "Days under 2 net hours", detail: toList(microDays) },
+      {
+        key: "no-signal",
+        label: "No biometric signal this month",
+        hint: "Enrolment or device mapping is missing — payroll treats these days as held harmless.",
+        detail: noSignal,
+      },
+      {
+        key: "unmaintained",
+        label: "Punches recorded but no maintained attendance row",
+        hint: "The person was at work but the day was never finalised — fix before payroll lock.",
+        detail: toList(unmaintained),
+      },
+      {
+        key: "single",
+        label: "Single-punch days (missing punch-out)",
+        hint: "Hours cannot be computed for these days.",
+        detail: toList(singlePunch),
+      },
+      {
+        key: "implausible",
+        label: `Implausible late minutes (over ${LATE_SANITY_MINUTES / 60}h)`,
+        hint: "Almost always a shift-mapping or night-shift timestamp issue, not real lateness. Excluded from the average-late figure.",
+        detail: toList(implausible),
+      },
+      { key: "long", label: "Days over 14 net hours", hint: "Check for an unresolved session or a duplicate punch pair.", detail: toList(longDays) },
+      { key: "micro", label: "Days under 2 net hours", hint: "Short attendance that still counts as a worked day.", detail: toList(microDays) },
     ].filter((x) => x.detail.length > 0);
-  }, [daily, maintained, summary, empById]);
+  }, [daily, maintained, summary, perEmployee]);
 
   /* ---------------- day distribution ---------------- */
   const distribution = useMemo(() => {
@@ -407,33 +584,37 @@ export function AttendanceInsights({
   const lopPct = totalWorkingDays > 0 ? (totalLop / totalWorkingDays) * 100 : 0;
 
   const monthLabel = new Date(`${month}-01T00:00:00`).toLocaleString("en-IN", { month: "long", year: "numeric" });
+  const visiblePeople = showAllPeople ? people : people.slice(0, 10);
 
   return (
-    <div className="space-y-6">
-      {/* 1. Period integrity */}
-      <Card className={coverage.pct < 99 ? "border-warning/40" : undefined}>
-        <CardContent className="p-4 space-y-2">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-            <span className="font-medium">{monthLabel}</span>
+    <div className="space-y-5">
+      {/* Period integrity */}
+      <Card className={coverage.pct < 99 ? "border-warning/40 bg-warning/[0.03]" : undefined}>
+        <CardContent className="p-3.5 space-y-2">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+            <span className="font-semibold text-foreground">{monthLabel}</span>
             <span className="text-muted-foreground">
-              Elapsed working days counted: <span className="font-semibold text-foreground tabular-nums">{Math.round(totalWorkingDays)}</span> employee-days
+              Elapsed working days <span className="font-semibold text-foreground tabular-nums">{Math.round(totalWorkingDays)}</span>
             </span>
             <span className="text-muted-foreground">
-              Maintained rows: <span className="font-semibold text-foreground tabular-nums">{coverage.maintainedDays}</span>
+              Maintained rows <span className="font-semibold text-foreground tabular-nums">{coverage.maintainedDays}</span>
             </span>
-            <Badge variant={coverage.pct >= 99 ? "secondary" : "outline"} className={coverage.pct < 99 ? "border-warning text-warning" : undefined}>
-              {coverage.pct.toFixed(1)}% maintained coverage
+            <Badge
+              variant={coverage.pct >= 99 ? "secondary" : "outline"}
+              className={coverage.pct < 99 ? "border-warning text-warning" : undefined}
+            >
+              {coverage.pct.toFixed(1)}% coverage
             </Badge>
           </div>
           {coverage.pct < 99 && (
-            <p className="text-xs text-warning flex items-start gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-warning flex items-start gap-2 leading-relaxed">
+              <AlertTriangle className="h-3.5 w-3.5 mt-px shrink-0" />
               <span>
-                Attendance is not yet maintained for every elapsed working day, so the rates below are computed{" "}
+                Attendance is not maintained for every elapsed working day, so rates below are computed{" "}
                 <strong>on maintained days only</strong> — a low rate here is not the same as absence.
                 {coverage.gapDates.length > 0 && (
                   <>
-                    {" "}Days with punch evidence but missing maintained rows:{" "}
+                    {" "}Days with punch evidence but no maintained row:{" "}
                     {coverage.gapDates.slice(0, 8).map((g) => `${g.date.slice(5)} (${g.missing})`).join(", ")}
                     {coverage.gapDates.length > 8 ? ` +${coverage.gapDates.length - 8} more` : ""}.
                   </>
@@ -444,309 +625,367 @@ export function AttendanceInsights({
         </CardContent>
       </Card>
 
-      {/* 2. KPI tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-              <TrendingUp className="h-4 w-4 text-primary" /> Attendance rate
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{cur.attendanceRate.toFixed(1)}%</p>
-            <Delta value={prev.total > 0 ? cur.attendanceRate - prev.attendanceRate : null} />
-            <p className="text-[11px] text-muted-foreground">on {cur.total} maintained days</p>
-          </CardContent>
-        </Card>
+      {/* KPI strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+        <Kpi icon={TrendingUp} iconClass="text-primary" label="Attendance rate" value={`${cur.attendanceRate.toFixed(1)}%`}>
+          <Delta value={prev.total > 0 ? cur.attendanceRate - prev.attendanceRate : null} />
+          <p className="text-[11px] text-muted-foreground">on {cur.total} maintained days</p>
+        </Kpi>
 
-        <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-              <ShieldAlert className="h-4 w-4 text-destructive" /> Loss-of-pay exposure
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{lopPct.toFixed(1)}%</p>
-            <p className="text-[11px] text-muted-foreground">
-              {Math.round(totalLop * 10) / 10} unpaid day(s) of {Math.round(totalWorkingDays)} payable
-            </p>
-            <p className="text-[11px] text-muted-foreground">{employeesWithLop} employee(s) affected</p>
-          </CardContent>
-        </Card>
+        <Kpi icon={ShieldAlert} iconClass="text-destructive" label="Loss-of-pay exposure" value={`${lopPct.toFixed(1)}%`}>
+          <p className="text-[11px] text-muted-foreground">
+            {Math.round(totalLop * 10) / 10} unpaid of {Math.round(totalWorkingDays)} payable days
+          </p>
+          <p className="text-[11px] text-muted-foreground">{employeesWithLop} employee(s) affected</p>
+        </Kpi>
 
-        <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-              <Clock className="h-4 w-4 text-warning" /> On-time rate
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{cur.onTimeRate.toFixed(1)}%</p>
-            <Delta value={prev.worked > 0 ? cur.onTimeRate - prev.onTimeRate : null} />
-            <p className="text-[11px] text-muted-foreground">
-              avg {Math.round(cur.avgLateWhenLate)} min late when late · {cur.lateDays} late day(s)
-            </p>
-          </CardContent>
-        </Card>
+        <Kpi icon={Clock} iconClass="text-warning" label="On-time rate" value={`${cur.onTimeRate.toFixed(1)}%`}>
+          <Delta value={prev.worked > 0 ? cur.onTimeRate - prev.onTimeRate : null} />
+          <p className="text-[11px] text-muted-foreground">
+            avg {fmtMinutes(cur.avgLateWhenLate)} late when late · {cur.lateDays} late day(s)
+          </p>
+        </Kpi>
 
-        <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-              <Timer className="h-4 w-4 text-info" /> Avg net hours / worked day
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{hours.avgHours.toFixed(2)}h</p>
-            <p className="text-[11px] text-muted-foreground">
-              {hours.shortPct === null
-                ? "no shift mapped — short-day share unavailable"
-                : `${hours.shortPct.toFixed(0)}% of days below scheduled shift`}
-            </p>
-            <p className="text-[11px] text-muted-foreground">across {hours.workedDays} worked day(s)</p>
-          </CardContent>
-        </Card>
+        <Kpi icon={Timer} iconClass="text-info" label="Avg net hours / day" value={`${hours.avgHours.toFixed(2)}h`}>
+          <p className="text-[11px] text-muted-foreground">
+            {hours.shortPct === null ? "no shift mapped" : `${hours.shortPct.toFixed(0)}% of days below scheduled shift`}
+          </p>
+          <p className="text-[11px] text-muted-foreground">across {hours.workedDays} worked day(s)</p>
+        </Kpi>
 
-        <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-              <UserCheck className="h-4 w-4 text-destructive" /> Employees to review
-            </div>
-            <p className="text-2xl font-bold tabular-nums">{review.length}</p>
-            <p className="text-[11px] text-muted-foreground">≥10% days lost or late on ≥30% of days</p>
-            {review.length > 0 && (
-              <p className="text-[11px] text-foreground/80 leading-tight">
-                {review.slice(0, 3).map((r) => r.name).join(", ")}
-                {review.length > 3 ? ` +${review.length - 3}` : ""}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <Kpi icon={UserCheck} iconClass="text-destructive" label="Employees to review" value={String(reviewCount)}>
+          <p className="text-[11px] text-muted-foreground">≥10% days lost, or late on ≥30% of days</p>
+          <p className="text-[11px] text-muted-foreground">see the People tab for the ranked list</p>
+        </Kpi>
       </div>
 
-      {review.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Needs attention</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 flex flex-wrap gap-2">
-            {review.map((r) => (
-              <span key={r.id} className="text-xs rounded-full border px-3 py-1 bg-muted/40">
-                <span className="font-medium">{r.name}</span>
-                <span className="text-muted-foreground"> — {r.reasons.join(" · ")}</span>
-              </span>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="people">
+            People{reviewCount > 0 ? ` (${reviewCount})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="patterns">Patterns</TabsTrigger>
+          <TabsTrigger value="exceptions">
+            Exceptions{exceptions.length > 0 ? ` (${exceptions.length})` : ""}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* 3. Daily trend */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Daily attendance rate & late arrivals</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {trend.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="day" fontSize={11} />
-                <YAxis yAxisId="left" fontSize={11} unit="%" domain={[0, 100]} />
-                <YAxis yAxisId="right" orientation="right" fontSize={11} allowDecimals={false} />
-                <Tooltip
-                  formatter={(v: any, n: any) => (n === "Attendance rate" ? [`${v}%`, n] : [v, n])}
-                  labelFormatter={(l: any) => `Day ${l}`}
-                />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar yAxisId="right" dataKey="late" name="Late arrivals" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="left" type="monotone" dataKey="rate" name="Attendance rate" stroke="#22c55e" strokeWidth={2} dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-center text-muted-foreground py-8 text-sm">No maintained attendance for this month</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 4. Punctuality distribution */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Punctuality distribution (worked days)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {buckets.some((b) => b.days > 0) ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={buckets}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" fontSize={11} />
-                  <YAxis fontSize={11} allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="days" name="Days" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
+        {/* ---------------- Overview ---------------- */}
+        <TabsContent value="overview" className="space-y-4 mt-0">
+          <SectionCard
+            title="Daily attendance rate & late arrivals"
+            caption="How the roster showed up each day — the line is the attendance rate, the bars count late arrivals."
+          >
+            {trend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart data={trend} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="day" {...axisProps} />
+                  <YAxis yAxisId="left" unit="%" domain={[0, 100]} {...axisProps} />
+                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} {...axisProps} />
+                  <Tooltip
+                    {...tooltipStyle}
+                    formatter={(v: any, n: any) => (n === "Attendance rate" ? [`${v}%`, n] : [`${v} people`, n])}
+                    labelFormatter={(l: any) => trend.find((t) => t.day === l)?.label || `Day ${l}`}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar yAxisId="right" dataKey="late" name="Late arrivals" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="rate"
+                    name="Attendance rate"
+                    stroke="hsl(var(--success))"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-muted-foreground py-8 text-sm">No worked days recorded</p>
+              <p className="text-center text-muted-foreground py-10 text-sm">No maintained attendance for this month</p>
             )}
-          </CardContent>
-        </Card>
+          </SectionCard>
 
-        {/* chronic vs occasional */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Chronic vs occasional lateness</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                Chronic — late on at least half their worked days ({latenessSplit.chronic.length})
-              </p>
-              {latenessSplit.chronic.length === 0 ? (
-                <p className="text-xs text-muted-foreground">None</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SectionCard
+              title="Punctuality distribution"
+              caption="Worked days grouped by how late the first punch was. 'Suspect' is beyond 4 hours — treated as a data issue."
+            >
+              {buckets.some((b) => b.days > 0) ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={buckets} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="name" {...axisProps} />
+                    <YAxis allowDecimals={false} {...axisProps} />
+                    <Tooltip {...tooltipStyle} formatter={(v: any) => [`${v} day(s)`, "Worked days"]} />
+                    <Bar dataKey="days" name="Days" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
-                <ul className="space-y-1">
-                  {latenessSplit.chronic.slice(0, 8).map((c) => (
-                    <li key={c.name} className="flex justify-between gap-3">
-                      <span className="truncate">{c.name}</span>
-                      <span className="text-muted-foreground tabular-nums whitespace-nowrap">
-                        {c.lateDays}/{c.worked} days · avg {Math.round(c.avg)}m
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="text-center text-muted-foreground py-10 text-sm">No worked days recorded</p>
               )}
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                Occasional ({latenessSplit.occasional.length})
-              </p>
-              {latenessSplit.occasional.length === 0 ? (
-                <p className="text-xs text-muted-foreground">None</p>
-              ) : (
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {latenessSplit.occasional
-                    .slice(0, 12)
-                    .map((c) => `${c.name} (${c.lateDays})`)
-                    .join(", ")}
-                  {latenessSplit.occasional.length > 12 ? ` +${latenessSplit.occasional.length - 12} more` : ""}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </SectionCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 5. Weekday pattern */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Day-of-week pattern</CardTitle>
-          </CardHeader>
-          <CardContent>
+            <SectionCard title="Day mix" caption="Every payable employee-day in the month, split by how payroll will treat it.">
+              {distribution.total > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex h-4 w-full overflow-hidden rounded-full">
+                    {distribution.parts.map((p) => (
+                      <div
+                        key={p.name}
+                        className={p.cls}
+                        style={{ width: `${(p.value / distribution.total) * 100}%` }}
+                        title={`${p.name}: ${Math.round(p.value * 10) / 10} days`}
+                      />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                    {distribution.parts.map((p) => (
+                      <div key={p.name} className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-sm ${p.cls}`} />
+                        <span className="text-muted-foreground">{p.name}</span>
+                        <span className="ml-auto tabular-nums font-medium text-foreground">
+                          {Math.round(p.value * 10) / 10} d · {((p.value / distribution.total) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-10 text-sm">No data</p>
+              )}
+            </SectionCard>
+          </div>
+        </TabsContent>
+
+        {/* ---------------- People ---------------- */}
+        <TabsContent value="people" className="space-y-4 mt-0">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-foreground">Employees ranked by attendance risk</CardTitle>
+              <p className="text-xs text-muted-foreground font-normal">
+                Anyone with lost days or late arrivals this month, worst first. Flags mark the people who need an HR conversation.
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              {people.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10 text-sm">No lost days or late arrivals this month</p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 border-y">
+                        <tr>
+                          {["Employee", "Department", "Days lost", "Late days", "Avg late", "Avg hours", "Flags"].map((h, i) => (
+                            <th
+                              key={h}
+                              className={`px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap ${
+                                i >= 2 && i <= 5 ? "text-right" : "text-left"
+                              }`}
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visiblePeople.map((p) => (
+                          <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
+                            <td className="px-4 py-2 font-medium max-w-[220px]">
+                              <Person id={p.id} />
+                            </td>
+                            <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{p.dept}</td>
+                            <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">
+                              {p.lop > 0 ? (
+                                <span className="text-destructive font-medium">
+                                  {Math.round(p.lop * 10) / 10}
+                                  <span className="text-muted-foreground font-normal"> / {Math.round(p.working)}</span>
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">
+                              {p.lateDays > 0 ? (
+                                <>
+                                  {p.lateDays}
+                                  <span className="text-muted-foreground"> / {p.worked}</span>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">
+                              {p.avgLate === null ? <span className="text-muted-foreground">—</span> : fmtMinutes(p.avgLate)}
+                              {p.implausible > 0 && (
+                                <AlertTriangle className="inline h-3 w-3 ml-1 text-warning" aria-label="implausible late minutes present" />
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">
+                              {p.avgHours === null ? <span className="text-muted-foreground">—</span> : `${p.avgHours.toFixed(2)}h`}
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                {p.flags.length === 0 ? (
+                                  <span className="text-muted-foreground text-xs">—</span>
+                                ) : (
+                                  p.flags.map((f) => (
+                                    <Badge
+                                      key={f}
+                                      variant="outline"
+                                      className={
+                                        f === "loss of pay"
+                                          ? "border-destructive/40 text-destructive text-[10px] font-normal"
+                                          : "border-warning/40 text-warning text-[10px] font-normal"
+                                      }
+                                    >
+                                      {f}
+                                    </Badge>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {people.length > 10 && (
+                    <div className="p-3 border-t flex justify-center">
+                      <Button variant="ghost" size="sm" onClick={() => setShowAllPeople((v) => !v)}>
+                        {showAllPeople ? "Show top 10 only" : `Show all ${people.length} employees`}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ---------------- Patterns ---------------- */}
+        <TabsContent value="patterns" className="space-y-4 mt-0">
+          <SectionCard
+            title="Day-of-week pattern"
+            caption="Share of maintained days lost or late, by weekday — useful for spotting Monday/Saturday drift."
+          >
             {weekday.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={weekday}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" fontSize={11} />
-                  <YAxis fontSize={11} unit="%" />
-                  <Tooltip formatter={(v: any) => `${v}%`} />
+                <BarChart data={weekday} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" {...axisProps} />
+                  <YAxis unit="%" {...axisProps} />
+                  <Tooltip {...tooltipStyle} formatter={(v: any, n: any) => [`${v}%`, n]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="absence" name="Days lost" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="late" name="Late" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="absence" name="Days lost" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="late" name="Late" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-muted-foreground py-8 text-sm">No data</p>
+              <p className="text-center text-muted-foreground py-10 text-sm">No data</p>
             )}
-          </CardContent>
-        </Card>
+          </SectionCard>
 
-        {/* 8. Day distribution */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Day distribution</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {distribution.total > 0 ? (
-              <>
-                <div className="flex h-4 w-full overflow-hidden rounded-full">
-                  {distribution.parts.map((p) => (
-                    <div
-                      key={p.name}
-                      className={p.cls}
-                      style={{ width: `${(p.value / distribution.total) * 100}%` }}
-                      title={`${p.name}: ${Math.round(p.value * 10) / 10} days`}
-                    />
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
+              <p className="text-xs text-muted-foreground font-normal">Weakest attendance first. Rates use maintained days only.</p>
+            </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 border-y">
+                  <tr>
+                    {["Department", "Headcount", "Attendance rate", "On-time rate", "LOP days", "Avg net hours"].map((h, i) => (
+                      <th
+                        key={h}
+                        className={`px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap ${
+                          i === 0 ? "text-left" : "text-right"
+                        }`}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {deptRows.map((d) => (
+                    <tr key={d.name} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="px-4 py-2 font-medium">{d.name}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{d.headcount}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">{d.onTimeRate === null ? "—" : `${d.onTimeRate.toFixed(1)}%`}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-destructive">{Math.round(d.lop * 10) / 10}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{d.avgHours === null ? "—" : `${d.avgHours.toFixed(2)}h`}</td>
+                    </tr>
                   ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {distribution.parts.map((p) => (
-                    <div key={p.name} className="flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 rounded-sm ${p.cls}`} />
-                      <span className="text-muted-foreground">{p.name}</span>
-                      <span className="ml-auto tabular-nums font-medium">
-                        {Math.round(p.value * 10) / 10} d · {((p.value / distribution.total) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-center text-muted-foreground py-8 text-sm">No data</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* 6. Department comparison */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Department comparison</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-y">
-              <tr>
-                {["Department", "Headcount", "Attendance rate", "On-time rate", "LOP days", "Avg net hours"].map((h) => (
-                  <th key={h} className="text-left px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                    {h}
-                  </th>
+        {/* ---------------- Exceptions ---------------- */}
+        <TabsContent value="exceptions" className="space-y-4 mt-0">
+          {exceptions.length === 0 ? (
+            <Card>
+              <CardContent className="p-10 text-center text-sm text-muted-foreground">No exceptions this month.</CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                  <Users className="h-4 w-4" /> Exception register
+                </CardTitle>
+                <p className="text-xs text-muted-foreground font-normal">Days that need a human decision before the period is locked.</p>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                {exceptions.map((ex) => (
+                  <ExceptionBlock key={ex.key} ex={ex} Person={Person} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {deptRows.map((d) => (
-                <tr key={d.name} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="px-4 py-2 font-medium">{d.name}</td>
-                  <td className="px-4 py-2 tabular-nums">{d.headcount}</td>
-                  <td className="px-4 py-2 tabular-nums">{d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}</td>
-                  <td className="px-4 py-2 tabular-nums">{d.onTimeRate === null ? "—" : `${d.onTimeRate.toFixed(1)}%`}</td>
-                  <td className="px-4 py-2 tabular-nums text-destructive">{Math.round(d.lop * 10) / 10}</td>
-                  <td className="px-4 py-2 tabular-nums">{d.avgHours === null ? "—" : `${d.avgHours.toFixed(2)}h`}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
 
-      {/* 7. Exception register */}
-      {exceptions.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4" /> Exception register
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {exceptions.map((ex) => (
-              <div key={ex.key}>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                  {ex.label} ({ex.detail.length})
-                </p>
-                <p className="text-xs leading-relaxed">
-                  {ex.detail
-                    .slice(0, 12)
-                    .map((d) => (d.n > 0 ? `${d.name} (${d.n})` : d.name))
-                    .join(", ")}
-                  {ex.detail.length > 12 ? ` +${ex.detail.length - 12} more` : ""}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+function ExceptionBlock({
+  ex,
+  Person,
+}: {
+  ex: { key: string; label: string; hint: string; detail: { id: string; n: number }[] };
+  Person: (p: { id: string; className?: string }) => JSX.Element;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? ex.detail : ex.detail.slice(0, 8);
+  return (
+    <div className="rounded-lg border bg-muted/20 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-foreground">
+            {ex.label} <span className="text-muted-foreground font-normal">({ex.detail.length})</span>
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{ex.hint}</p>
+        </div>
+        {ex.detail.length > 8 && (
+          <Button variant="ghost" size="sm" className="h-6 text-[11px] shrink-0" onClick={() => setExpanded((v) => !v)}>
+            {expanded ? "Show less" : `+${ex.detail.length - 8} more`}
+          </Button>
+        )}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {shown.map((d) => (
+          <span key={d.id} className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[11px]">
+            <Person id={d.id} />
+            {d.n > 0 && <span className="text-muted-foreground tabular-nums">· {d.n}</span>}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

@@ -963,11 +963,17 @@ export function AttendanceInsights({
         <TabsContent value="overview" className="space-y-4 mt-0">
           <SectionCard
             title="Daily attendance rate & late arrivals"
-            caption="How the roster showed up each day — the line is the attendance rate, the bars count late arrivals."
+            caption="How the roster showed up each day — the line is the attendance rate, the bars count late arrivals. Click any day for the full breakdown."
+            action={<DrillBadge />}
           >
             {trend.length > 0 ? (
               <ResponsiveContainer width="100%" height={260}>
-                <ComposedChart data={trend} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+                <ComposedChart
+                  data={trend}
+                  margin={{ top: 4, right: 8, left: -8, bottom: 0 }}
+                  onClick={(e: any) => e?.activeLabel && openDay(String(e.activeLabel))}
+                  style={{ cursor: "pointer" }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="day" {...axisProps} />
                   <YAxis yAxisId="left" unit="%" domain={[0, 100]} {...axisProps} />
@@ -975,7 +981,7 @@ export function AttendanceInsights({
                   <Tooltip
                     {...tooltipStyle}
                     formatter={(v: any, n: any) => (n === "Attendance rate" ? [`${v}%`, n] : [`${v} people`, n])}
-                    labelFormatter={(l: any) => trend.find((t) => t.day === l)?.label || `Day ${l}`}
+                    labelFormatter={(l: any) => `${trend.find((t) => t.day === l)?.label || `Day ${l}`} — click to expand`}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar yAxisId="right" dataKey="late" name="Late arrivals" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
@@ -999,14 +1005,20 @@ export function AttendanceInsights({
             <SectionCard
               title="Punctuality distribution"
               caption="Worked days grouped by how late the first punch was. 'Suspect' is beyond 4 hours — treated as a data issue."
+              action={<DrillBadge />}
             >
               {buckets.some((b) => b.days > 0) ? (
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={buckets} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <BarChart
+                    data={buckets}
+                    margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                    onClick={(e: any) => e?.activeLabel && openBucket(String(e.activeLabel))}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="name" {...axisProps} />
                     <YAxis allowDecimals={false} {...axisProps} />
-                    <Tooltip {...tooltipStyle} formatter={(v: any) => [`${v} day(s)`, "Worked days"]} />
+                    <Tooltip {...tooltipStyle} formatter={(v: any) => [`${v} day(s) — click to expand`, "Worked days"]} />
                     <Bar dataKey="days" name="Days" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1015,28 +1027,40 @@ export function AttendanceInsights({
               )}
             </SectionCard>
 
-            <SectionCard title="Day mix" caption="Every payable employee-day in the month, split by how payroll will treat it.">
+            <SectionCard
+              title="Day mix"
+              caption="Every payable employee-day in the month, split by how payroll will treat it. Click a segment to see who holds those days."
+              action={<DrillBadge />}
+            >
               {distribution.total > 0 ? (
                 <div className="space-y-3">
                   <div className="flex h-4 w-full overflow-hidden rounded-full">
                     {distribution.parts.map((p) => (
-                      <div
+                      <button
                         key={p.name}
-                        className={p.cls}
+                        type="button"
+                        onClick={() => openMix(p.name)}
+                        className={`${p.cls} transition-opacity hover:opacity-75`}
                         style={{ width: `${(p.value / distribution.total) * 100}%` }}
-                        title={`${p.name}: ${Math.round(p.value * 10) / 10} days`}
+                        title={`${p.name}: ${Math.round(p.value * 10) / 10} days — click to expand`}
+                        aria-label={`${p.name} days`}
                       />
                     ))}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
                     {distribution.parts.map((p) => (
-                      <div key={p.name} className="flex items-center gap-2">
+                      <button
+                        key={p.name}
+                        type="button"
+                        onClick={() => openMix(p.name)}
+                        className="flex items-center gap-2 rounded-md px-1.5 py-1 -mx-1.5 text-left hover:bg-muted/60"
+                      >
                         <span className={`h-2.5 w-2.5 rounded-sm ${p.cls}`} />
                         <span className="text-muted-foreground">{p.name}</span>
                         <span className="ml-auto tabular-nums font-medium text-foreground">
                           {Math.round(p.value * 10) / 10} d · {((p.value / distribution.total) * 100).toFixed(1)}%
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1044,6 +1068,7 @@ export function AttendanceInsights({
                 <p className="text-center text-muted-foreground py-10 text-sm">No data</p>
               )}
             </SectionCard>
+
           </div>
         </TabsContent>
 

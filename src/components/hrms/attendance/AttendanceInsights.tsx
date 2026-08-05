@@ -1209,9 +1209,15 @@ export function AttendanceInsights({
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
-              <p className="text-xs text-muted-foreground font-normal">Weakest attendance first. Rates use maintained days only.</p>
+              <div className="flex items-start justify-between gap-3">
+                <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
+                <DrillBadge />
+              </div>
+              <p className="text-xs text-muted-foreground font-normal">
+                Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown.
+              </p>
             </CardHeader>
+
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-y">

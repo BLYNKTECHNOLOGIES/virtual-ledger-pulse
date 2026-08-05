@@ -65,7 +65,6 @@ import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
 import MyHelpdeskCard from '@/components/profile/MyHelpdeskCard';
 import MyDisciplinaryCard from '@/components/profile/MyDisciplinaryCard';
 import MyFeedback360Card from '@/components/profile/MyFeedback360Card';
-import MySeparationCard from '@/components/profile/MySeparationCard';
 import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
@@ -396,8 +395,24 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 // hr_payslips_v (a view over hr_razorpay_payslip_records) and deep-link into
 // the RazorpayX dashboard for the PDF binary — the RazorpayX API does not
 // expose PDFs, so a fake "Download" button would be dishonest.
-function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
-  const { data: payslips = [], isLoading } = useCanonicalPayslips({ employeeId });
+function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badgeId?: string | number | null }) {
+  // Some staff have more than one HR employee row (legacy + biometric-created).
+  // Payslips may be attached to the sibling row, so resolve all matching ids.
+  const { data: employeeIds = [employeeId] } = useQuery({
+    queryKey: ['ess_payslip_employee_ids', employeeId, badgeId],
+    queryFn: async () => {
+      if (!badgeId) return [employeeId];
+      const { data } = await (supabase as any)
+        .from('hr_employees')
+        .select('id')
+        .eq('badge_id', badgeId);
+      const ids = (data ?? []).map((r: any) => r.id as string);
+      return Array.from(new Set([employeeId, ...ids]));
+    },
+  });
+
+  const { data: payslips = [], isLoading } = useCanonicalPayslips({ employeeIds });
+
 
   if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading payslips...</p>;
 
@@ -1157,7 +1172,7 @@ export default function UserProfile() {
           <TabsTrigger value="policies" className="shrink-0">Policies</TabsTrigger>
           <TabsTrigger value="growth" className="shrink-0">Growth</TabsTrigger>
           <TabsTrigger value="helpdesk" className="shrink-0">Help</TabsTrigger>
-          <TabsTrigger value="separation" className="shrink-0">Separation</TabsTrigger>
+          
           <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
           <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>
@@ -1332,7 +1347,7 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <EmployeePayslipsTab employeeId={hrEmployee.id} />
+            <EmployeePayslipsTab employeeId={hrEmployee.id} badgeId={hrEmployee.badge_id} />
           )}
         </TabsContent>
 
@@ -1758,14 +1773,8 @@ export default function UserProfile() {
           {user?.id && <MyHelpdeskCard userId={user.id} />}
         </TabsContent>
 
-        {/* ═══════ Separation Tab ═══════ */}
-        <TabsContent value="separation" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <MySeparationCard employee={hrEmployee as any} />
-          )}
-        </TabsContent>
+
+
       </Tabs>
 
       <ForgotPasswordDialog

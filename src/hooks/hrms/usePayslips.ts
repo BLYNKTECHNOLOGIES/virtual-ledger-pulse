@@ -48,18 +48,20 @@ export interface CanonicalPayslip {
 
 export function useCanonicalPayslips(params?: {
   employeeId?: string;
+  employeeIds?: string[];
   periodMonth?: string; // YYYY-MM-01
 }) {
-  const { employeeId, periodMonth } = params ?? {};
+  const { employeeId, employeeIds, periodMonth } = params ?? {};
+  const idList = (employeeIds && employeeIds.length ? employeeIds : employeeId ? [employeeId] : null);
   return useQuery({
-    queryKey: ["hr_payslips_v", employeeId ?? "all", periodMonth ?? "all"],
+    queryKey: ["hr_payslips_v", idList ? idList.join(",") : "all", periodMonth ?? "all"],
     queryFn: async () => {
       let q = (supabase as any)
         .from("hr_payslips_v")
         .select("*")
         .order("period_month", { ascending: false })
         .limit(500);
-      if (employeeId) q = q.eq("employee_id", employeeId);
+      if (idList) q = idList.length === 1 ? q.eq("employee_id", idList[0]) : q.in("employee_id", idList);
       if (periodMonth) q = q.eq("period_month", periodMonth);
       const { data, error } = await q;
       if (error) throw error;
@@ -67,6 +69,7 @@ export function useCanonicalPayslips(params?: {
     },
   });
 }
+
 
 export function usePayslipOrphans() {
   return useQuery({

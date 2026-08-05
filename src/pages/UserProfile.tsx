@@ -1347,7 +1347,7 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <EmployeePayslipsTab employeeId={hrEmployee.id} />
+            <EmployeePayslipsTab employeeId={hrEmployee.id} badgeId={hrEmployee.badge_id} />
           )}
         </TabsContent>
 

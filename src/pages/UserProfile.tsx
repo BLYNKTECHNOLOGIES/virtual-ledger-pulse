@@ -70,7 +70,6 @@ import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
-import { RazorpayPayslipLink } from '@/components/hrms/RazorpayPayslipLink';
 import { useCanonicalPayslips } from '@/hooks/hrms/usePayslips';
 import { formatDistanceToNow } from 'date-fns';
 

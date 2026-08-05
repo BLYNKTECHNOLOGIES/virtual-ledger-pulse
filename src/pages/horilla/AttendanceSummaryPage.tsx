@@ -2,16 +2,15 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, Users, Clock, AlertTriangle, TrendingUp } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Search, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AttendanceInsights, type DailyRow, type MaintainedRow } from "@/components/hrms/attendance/AttendanceInsights";
 
-const PIE_COLORS = ["#22c55e", "#ef4444", "#f59e0b", "#3b82f6", "#8b5cf6"];
 
 type SummaryRow = {
   employee_id: string;
@@ -92,30 +91,112 @@ export default function AttendanceSummaryPage() {
     return name.includes(q) || String(s.employee?.badge_id || "").toLowerCase().includes(q);
   });
 
-  const totals = useMemo(() => {
-    const sum = (k: keyof SummaryRow) => rows.reduce((a: number, r: any) => a + Number(r[k] || 0), 0);
+  /* ---- windows for insight queries ---- */
+  const windows = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    const monthStart = new Date(Date.UTC(y, m - 1, 1));
+    const monthEnd = new Date(Date.UTC(y, m, 0));
+    const nowIst = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayUtc = new Date(Date.UTC(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate()));
+    const end = todayUtc < monthEnd ? todayUtc : monthEnd;
+    const cutoffDay = end < monthStart ? 0 : end.getUTCDate();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const prevStart = new Date(Date.UTC(y, m - 2, 1));
+    const prevMonthEnd = new Date(Date.UTC(y, m - 1, 0));
+    const prevCutoff = new Date(Date.UTC(y, m - 2, Math.min(cutoffDay || 1, prevMonthEnd.getUTCDate())));
     return {
-      working: sum("working_days"),
-      present: sum("present_days"),
-      lop: sum("lop_days"),
-      held: sum("held_harmless_days"),
-      unverified: sum("unverified_days"),
-      paidLeave: sum("paid_leave_days"),
-      noSignal: rows.filter((r: any) => r.no_biometric_signal).length,
-      legacyGap: rows.filter((r: any) => Number(r.legacy_present_days) > Number(r.present_days) + Number(r.paid_leave_days)).length,
+      start: iso(monthStart),
+      end: iso(end < monthStart ? monthStart : end),
+      monthEnd: iso(monthEnd),
+      prevStart: iso(prevStart),
+      prevEnd: iso(prevCutoff),
+      cutoffDay,
     };
-  }, [rows]);
+  }, [month]);
 
-  const attendanceRate = totals.working > 0 ? (((totals.present + totals.paidLeave + totals.held) / totals.working) * 100).toFixed(1) : "0";
+  const { data: maintained = [] } = useQuery({
+    queryKey: ["hr_attendance_maintained", windows.start, windows.end],
+    queryFn: async () =>
+      (await fetchAllPaginated<MaintainedRow>(() =>
+        (supabase as any)
+          .from("hr_attendance")
+          .select("employee_id, attendance_date, attendance_status, late_minutes, early_leave_minutes, overtime_hours")
+          .gte("attendance_date", windows.start)
+          .lte("attendance_date", windows.end),
+      )) || [],
+  });
 
-  const pieData = [
-    { name: "Verified present", value: Math.round(totals.present) },
-    { name: "Loss of pay", value: Math.round(totals.lop) },
-    { name: "Paid leave", value: Math.round(totals.paidLeave) },
-    { name: "Held harmless", value: Math.round(totals.held) },
-  ].filter((d) => d.value > 0);
+  const { data: maintainedPrev = [] } = useQuery({
+    queryKey: ["hr_attendance_maintained_prev", windows.prevStart, windows.prevEnd],
+    queryFn: async () =>
+      (await fetchAllPaginated<MaintainedRow>(() =>
+        (supabase as any)
+          .from("hr_attendance")
+          .select("employee_id, attendance_date, attendance_status, late_minutes, early_leave_minutes, overtime_hours")
+          .gte("attendance_date", windows.prevStart)
+          .lte("attendance_date", windows.prevEnd),
+      )) || [],
+  });
 
-  const topLate = [...rows].sort((a: any, b: any) => Number(b.late_minutes) - Number(a.late_minutes)).slice(0, 5);
+  const { data: daily = [] } = useQuery({
+    queryKey: ["hr_attendance_daily_month", windows.start, windows.monthEnd],
+    queryFn: async () =>
+      (await fetchAllPaginated<DailyRow>(() =>
+        (supabase as any)
+          .from("hr_attendance_daily")
+          .select(
+            "employee_id, attendance_date, net_work_minutes, late_by_minutes, is_late, early_departure, punch_count, session_count, status",
+          )
+          .gte("attendance_date", windows.start)
+          .lte("attendance_date", windows.monthEnd),
+      )) || [],
+  });
+
+  const { data: workInfo = [] } = useQuery({
+    queryKey: ["hr_work_info_dept_shift"],
+    queryFn: async () =>
+      (await fetchAllPaginated<any>(() =>
+        (supabase as any).from("hr_employee_work_info").select("employee_id, department_id, shift_id"),
+      )) || [],
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments_list"],
+    queryFn: async () => (await fetchAllPaginated<any>(() => (supabase as any).from("departments").select("id, name"))) || [],
+  });
+
+  const { data: shiftSchedule = [] } = useQuery({
+    queryKey: ["hr_employee_shift_schedule_current"],
+    queryFn: async () =>
+      (await fetchAllPaginated<any>(() =>
+        (supabase as any).from("hr_employee_shift_schedule").select("employee_id, shift_id, is_current").eq("is_current", true),
+      )) || [],
+  });
+
+  const { data: shifts = [] } = useQuery({
+    queryKey: ["hr_shifts_durations"],
+    queryFn: async () => (await fetchAllPaginated<any>(() => (supabase as any).from("hr_shifts").select("id, duration_hours"))) || [],
+  });
+
+  const deptByEmployee = useMemo(() => {
+    const deptName = new Map<string, string>();
+    for (const d of departments as any[]) deptName.set(d.id, d.name);
+    const m = new Map<string, string>();
+    for (const w of workInfo as any[]) {
+      if (w.department_id && deptName.has(w.department_id)) m.set(w.employee_id, deptName.get(w.department_id)!);
+    }
+    return m;
+  }, [workInfo, departments]);
+
+  const shiftMinutesByEmployee = useMemo(() => {
+    const dur = new Map<string, number>();
+    for (const s of shifts as any[]) if (s.duration_hours) dur.set(s.id, Number(s.duration_hours) * 60);
+    const m = new Map<string, number>();
+    for (const w of workInfo as any[]) if (w.shift_id && dur.has(w.shift_id)) m.set(w.employee_id, dur.get(w.shift_id)!);
+    for (const s of shiftSchedule as any[]) if (s.shift_id && dur.has(s.shift_id)) m.set(s.employee_id, dur.get(s.shift_id)!);
+    return m;
+  }, [workInfo, shiftSchedule, shifts]);
+
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -125,28 +206,6 @@ export default function AttendanceSummaryPage() {
           description="Maintained monthly attendance — the exact source payroll loss-of-pay uses"
         />
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {[
-            { label: "Working Days", value: Math.round(totals.working), icon: Clock, color: "text-info", bg: "bg-info/10" },
-            { label: "Verified Present", value: Math.round(totals.present), icon: Users, color: "text-success", bg: "bg-success/10" },
-            { label: "Loss of Pay Days", value: Math.round(totals.lop), icon: Users, color: "text-destructive", bg: "bg-destructive/10" },
-            { label: "Held Harmless", value: Math.round(totals.held), icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
-            { label: "Attendance Rate", value: `${attendanceRate}%`, icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-          ].map((s) => (
-            <Card key={s.label}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${s.bg}`}>
-                  <s.icon className={`h-5 w-5 ${s.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{s.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         <div className="flex gap-3 flex-wrap">
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44 h-9" />
           <div className="relative flex-1 min-w-[200px]">
@@ -155,40 +214,17 @@ export default function AttendanceSummaryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader><CardTitle className="text-sm font-semibold">Day Distribution</CardTitle></CardHeader>
-            <CardContent>
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                      {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : <p className="text-center text-muted-foreground py-8 text-sm">No data</p>}
-            </CardContent>
-          </Card>
+        <AttendanceInsights
+          month={month}
+          summary={summary as any}
+          maintained={maintained as MaintainedRow[]}
+          maintainedPrev={maintainedPrev as MaintainedRow[]}
+          daily={daily as DailyRow[]}
+          employees={employees as any[]}
+          deptByEmployee={deptByEmployee}
+          shiftMinutesByEmployee={shiftMinutesByEmployee}
+        />
 
-          <Card>
-            <CardHeader><CardTitle className="text-sm font-semibold">Top Late Employees (by minutes)</CardTitle></CardHeader>
-            <CardContent>
-              {topLate.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={topLate.map((e: any) => ({ name: `${e.employee?.first_name?.[0] ?? "?"}. ${e.employee?.last_name ?? ""}`, mins: Number(e.late_minutes) }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="name" fontSize={11} />
-                    <YAxis fontSize={11} />
-                    <Tooltip />
-                    <Bar dataKey="mins" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Late Minutes" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <p className="text-center text-muted-foreground py-8 text-sm">No data</p>}
-            </CardContent>
-          </Card>
-        </div>
 
         {isLoading ? (
           <TableSkeleton rows={6} columns={10} />

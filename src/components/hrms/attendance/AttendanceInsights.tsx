@@ -151,22 +151,28 @@ function SectionCard({
   caption,
   children,
   className,
+  action,
 }: {
   title: string;
   caption?: string;
   children: React.ReactNode;
   className?: string;
+  action?: React.ReactNode;
 }) {
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+          {action}
+        </div>
         {caption && <p className="text-xs text-muted-foreground font-normal">{caption}</p>}
       </CardHeader>
       <CardContent className="pt-0">{children}</CardContent>
     </Card>
   );
 }
+
 
 const axisProps = {
   fontSize: 11,

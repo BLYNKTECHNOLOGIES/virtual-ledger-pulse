@@ -198,6 +198,8 @@ export function AttendanceInsights({
   shiftMinutesByEmployee,
 }: Props) {
   const [showAllPeople, setShowAllPeople] = useState(false);
+  const [drill, setDrill] = useState<DrillPayload | null>(null);
+
 
   const empById = useMemo(() => {
     const m = new Map<string, any>();

@@ -558,10 +558,9 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                   </>
                 ) : (
                   <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
-                    The Salary Register CSV for this month has not been uploaded yet, so component-wise
-                    Basic / HRA / PF / ESI / PT / TDS values aren't available. The RazorpayX API only
-                    returns the summary net figure. HR will publish the register after the payroll run
-                    is finalised.
+                    The detailed breakdown for this month has not been published yet, so component-wise
+                    Basic / HRA / PF / ESI / PT / TDS values aren't available. Only the summary figures are
+                    shown. HR will publish the full breakdown after the payroll run is finalised.
                   </div>
                 )}
               </CardContent>

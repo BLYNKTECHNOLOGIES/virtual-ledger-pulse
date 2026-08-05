@@ -353,8 +353,8 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : employerContribs.length === 0 ? (
             <div className="text-sm text-muted-foreground space-y-1">
-              <p>No separate employer contributions (PF / ESI / gratuity) are configured in your mirrored structure.</p>
-              <p className="text-[11px]">If you expect PF or ESI on your payslip, please confirm with HR — RazorpayX may be computing it outside the assigned structure.</p>
+              <p>No separate employer contributions (PF / ESI / gratuity) are configured in your salary structure.</p>
+              <p className="text-[11px]">If you expect PF or ESI on your payslip, please confirm with HR.</p>
             </div>
           ) : (
             <>

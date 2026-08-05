@@ -1236,8 +1236,13 @@ export function AttendanceInsights({
                 </thead>
                 <tbody>
                   {deptRows.map((d) => (
-                    <tr key={d.name} className="border-b last:border-0 hover:bg-muted/40">
-                      <td className="px-4 py-2 font-medium">{d.name}</td>
+                    <tr
+                      key={d.name}
+                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                      onClick={() => openDept(d.name)}
+                    >
+                      <td className="px-4 py-2 font-medium text-primary underline-offset-2 hover:underline">{d.name}</td>
+
                       <td className="px-4 py-2 text-right tabular-nums">{d.headcount}</td>
                       <td className="px-4 py-2 text-right tabular-nums">
                         {d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}

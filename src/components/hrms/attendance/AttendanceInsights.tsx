@@ -865,7 +865,9 @@ export function AttendanceInsights({
     });
   };
 
+  return (
     <div className="space-y-5">
+
       {/* Period integrity */}
       <Card className={coverage.pct < 99 ? "border-warning/40 bg-warning/[0.03]" : undefined}>
         <CardContent className="p-3.5 space-y-2">

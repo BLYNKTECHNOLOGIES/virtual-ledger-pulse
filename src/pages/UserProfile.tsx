@@ -1758,14 +1758,8 @@ export default function UserProfile() {
           {user?.id && <MyHelpdeskCard userId={user.id} />}
         </TabsContent>
 
-        {/* ═══════ Separation Tab ═══════ */}
-        <TabsContent value="separation" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <MySeparationCard employee={hrEmployee as any} />
-          )}
-        </TabsContent>
+
+
       </Tabs>
 
       <ForgotPasswordDialog

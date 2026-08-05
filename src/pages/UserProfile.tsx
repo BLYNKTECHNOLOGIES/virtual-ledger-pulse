@@ -451,19 +451,17 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                     <h4 className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
                       Payslip — {period}
                       <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${hasReg ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning-foreground'}`}>
-                        {hasReg ? 'Register CSV' : 'Register pending'}
+                        {hasReg ? 'Detailed' : 'Breakdown pending'}
                       </span>
                     </h4>
                     {p.pulled_at && (
                       <p className="text-xs text-muted-foreground">
-                        Synced {formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}
-                        {p.register_source && ` · ${p.register_source}`}
+                        Updated {formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}
                       </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
                     <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
-                    <RazorpayPayslipLink razorpayPayslipId={p.razorpay_payslip_id} />
                   </div>
                 </div>
 

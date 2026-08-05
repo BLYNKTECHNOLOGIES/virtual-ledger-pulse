@@ -423,7 +423,9 @@ export function AttendanceInsights({
     return [...byDate.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, b]) => ({
+        date,
         day: date.slice(8),
+
         label: new Date(`${date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }),
         rate: b.total > 0 ? Math.round(((b.present + b.half * 0.5) / b.total) * 1000) / 10 : 0,
         late: b.late,

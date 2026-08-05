@@ -58,9 +58,8 @@ function generatePayslipPDF(detail: any) {
 
   const empDetails = [
     ["Employee Name", empName, "Badge ID", badgeId],
-    ["Designation", emp.designation || "-", "Department", emp.department || "-"],
-    ["Date of Joining", emp.date_of_joining ? new Date(emp.date_of_joining + "T00:00:00").toLocaleDateString("en-IN") : "-", "PAN", emp.pan_number || "-"],
-    ["Bank", emp.bank_name || "-", "Account No.", emp.account_number || "-"],
+    ["PAN", emp.pan_number || "-", "UAN", emp.uan_number || "-"],
+    ["ESI No.", emp.esi_number || "-", "Period", detail.period_month || "-"],
   ];
 
   empDetails.forEach(([l1, v1, l2, v2]) => {

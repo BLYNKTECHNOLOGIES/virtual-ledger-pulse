@@ -1181,11 +1181,18 @@ export function AttendanceInsights({
         <TabsContent value="patterns" className="space-y-4 mt-0">
           <SectionCard
             title="Day-of-week pattern"
-            caption="Share of maintained days lost or late, by weekday — useful for spotting Monday/Saturday drift."
+            caption="Share of maintained days lost or late, by weekday — useful for spotting Monday/Saturday drift. Click a weekday to expand."
+            action={<DrillBadge />}
           >
             {weekday.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={weekday} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                <BarChart
+                  data={weekday}
+                  margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                  onClick={(e: any) => e?.activeLabel && openWeekday(String(e.activeLabel))}
+                  style={{ cursor: "pointer" }}
+                >
+
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="name" {...axisProps} />
                   <YAxis unit="%" {...axisProps} />

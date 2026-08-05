@@ -27,6 +27,13 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import {
+  AttendanceDrilldownDialog,
+  DrillBadge,
+  type DrillPayload,
+  type DrillRow,
+} from "./AttendanceDrilldownDialog";
+
 
 export type MaintainedRow = {
   employee_id: string;
@@ -144,22 +151,28 @@ function SectionCard({
   caption,
   children,
   className,
+  action,
 }: {
   title: string;
   caption?: string;
   children: React.ReactNode;
   className?: string;
+  action?: React.ReactNode;
 }) {
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+          {action}
+        </div>
         {caption && <p className="text-xs text-muted-foreground font-normal">{caption}</p>}
       </CardHeader>
       <CardContent className="pt-0">{children}</CardContent>
     </Card>
   );
 }
+
 
 const axisProps = {
   fontSize: 11,
@@ -191,6 +204,8 @@ export function AttendanceInsights({
   shiftMinutesByEmployee,
 }: Props) {
   const [showAllPeople, setShowAllPeople] = useState(false);
+  const [drill, setDrill] = useState<DrillPayload | null>(null);
+
 
   const empById = useMemo(() => {
     const m = new Map<string, any>();
@@ -414,7 +429,9 @@ export function AttendanceInsights({
     return [...byDate.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, b]) => ({
+        date,
         day: date.slice(8),
+
         label: new Date(`${date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }),
         rate: b.total > 0 ? Math.round(((b.present + b.half * 0.5) / b.total) * 1000) / 10 : 0,
         late: b.late,
@@ -586,8 +603,279 @@ export function AttendanceInsights({
   const monthLabel = new Date(`${month}-01T00:00:00`).toLocaleString("en-IN", { month: "long", year: "numeric" });
   const visiblePeople = showAllPeople ? people : people.slice(0, 10);
 
+  /* ---------------- drill-down builders ---------------- */
+  const dailyByKey = useMemo(() => {
+    const m = new Map<string, DailyRow>();
+    for (const d of daily) m.set(`${d.employee_id}|${d.attendance_date}`, d);
+    return m;
+  }, [daily]);
+
+  const deptOf = (id: string) => deptByEmployee.get(id) || "Unassigned";
+  const cell = (value: string, tone?: "default" | "good" | "warn" | "bad") => ({ value, tone });
+  const hrsOf = (min: number) => `${(min / 60).toFixed(2)}h`;
+  const pretty = (s: string | null) => {
+    const v = (s || "").toLowerCase();
+    if (v === "half_day") return "Half day";
+    if (!v) return "—";
+    return v.charAt(0).toUpperCase() + v.slice(1);
+  };
+  const bucketOf = (m: number) =>
+    m <= 0 ? "On time" : m <= 15 ? "1-15 min" : m <= 30 ? "16-30 min" : m <= 60 ? "31-60 min" : m <= LATE_SANITY_MINUTES ? "1-4 h" : "Suspect";
+
+  const openDay = (dayKey: string) => {
+    const point = trend.find((t) => t.day === dayKey);
+    if (!point) return;
+    const rows = maintained.filter((r) => r.attendance_date === point.date);
+    const present = rows.filter((r) => isPresentStatus(r.attendance_status)).length;
+    const half = rows.filter((r) => isHalfStatus(r.attendance_status)).length;
+    const absent = rows.filter((r) => isAbsentStatus(r.attendance_status)).length;
+    const lateRows = rows.filter((r) => Number(r.late_minutes || 0) > 0);
+    const saneLate = lateRows.filter((r) => Number(r.late_minutes || 0) <= LATE_SANITY_MINUTES);
+    const avgLate = saneLate.length > 0 ? saneLate.reduce((a, r) => a + Number(r.late_minutes || 0), 0) / saneLate.length : 0;
+    const netRows = rows
+      .map((r) => Number(dailyByKey.get(`${r.employee_id}|${r.attendance_date}`)?.net_work_minutes || 0))
+      .filter((n) => n > 0);
+
+    const drillRows: DrillRow[] = rows
+      .map((r) => {
+        const late = Number(r.late_minutes || 0);
+        const net = Number(dailyByKey.get(`${r.employee_id}|${r.attendance_date}`)?.net_work_minutes || 0);
+        return {
+          id: r.employee_id,
+          dept: deptOf(r.employee_id),
+          rank: (isAbsentStatus(r.attendance_status) ? 100000 : isHalfStatus(r.attendance_status) ? 50000 : 0) + Math.min(late, 9999),
+          cells: [
+            cell(
+              pretty(r.attendance_status),
+              isAbsentStatus(r.attendance_status) ? "bad" : isHalfStatus(r.attendance_status) ? "warn" : "good",
+            ),
+            cell(late > 0 ? fmtMinutes(late) : "on time", late > LATE_SANITY_MINUTES ? "bad" : late > 0 ? "warn" : "good"),
+            cell(net > 0 ? hrsOf(net) : "—"),
+          ],
+        };
+      })
+      .sort((a, b) => (b.rank || 0) - (a.rank || 0));
+
+    setDrill({
+      title: `Attendance on ${point.label}`,
+      subtitle: `${rows.length} maintained attendance row(s) on this date`,
+      narrative:
+        `The plotted rate of ${point.rate}% for this day comes from the ${rows.length} maintained attendance rows dated ${point.date}. ` +
+        `Each fully present (or late-but-present) person counts as 1 day, each half day counts as 0.5, and absent days count as 0. ` +
+        `The bar on the same day counts everyone whose first punch was after their shift start.`,
+      formula: {
+        expression: `(${present} present + ${half} half × 0.5) ÷ ${rows.length} maintained × 100`,
+        result: `${point.rate}%`,
+      },
+      stats: [
+        { label: "Present", value: String(present), tone: "good" },
+        { label: "Half day", value: String(half), tone: half > 0 ? "warn" : "default" },
+        { label: "Absent", value: String(absent), tone: absent > 0 ? "bad" : "default" },
+        { label: "Late arrivals", value: String(lateRows.length), tone: lateRows.length > 0 ? "warn" : "default", hint: `avg ${fmtMinutes(avgLate)} late` },
+        {
+          label: "Avg net hours",
+          value: netRows.length > 0 ? hrsOf(netRows.reduce((a, b) => a + b, 0) / netRows.length) : "—",
+          hint: `${netRows.length} day(s) with computable hours`,
+        },
+      ],
+      columns: ["Status", "Late by", "Net hours"],
+      rows: drillRows,
+      notes:
+        lateRows.length - saneLate.length > 0
+          ? [`${lateRows.length - saneLate.length} row(s) show lateness over ${LATE_SANITY_MINUTES / 60}h and are excluded from the average-late figure (shift-mapping artefact).`]
+          : undefined,
+    });
+  };
+
+  const openBucket = (name: string) => {
+    const rows = maintained.filter(
+      (r) => (isPresentStatus(r.attendance_status) || isHalfStatus(r.attendance_status)) && bucketOf(Number(r.late_minutes || 0)) === name,
+    );
+    const byEmp = new Map<string, { days: number; total: number; worst: number; worstDate: string }>();
+    for (const r of rows) {
+      const m = Number(r.late_minutes || 0);
+      const e = byEmp.get(r.employee_id) || { days: 0, total: 0, worst: 0, worstDate: "" };
+      e.days++;
+      e.total += m;
+      if (m >= e.worst) {
+        e.worst = m;
+        e.worstDate = r.attendance_date;
+      }
+      byEmp.set(r.employee_id, e);
+    }
+    const workedTotal = maintained.filter((r) => isPresentStatus(r.attendance_status) || isHalfStatus(r.attendance_status)).length;
+    const drillRows: DrillRow[] = [...byEmp.entries()]
+      .map(([id, e]) => ({
+        id,
+        dept: deptOf(id),
+        rank: e.days,
+        cells: [
+          cell(String(e.days)),
+          cell(name === "On time" ? "—" : fmtMinutes(e.total / e.days)),
+          cell(name === "On time" ? "—" : `${fmtMinutes(e.worst)} on ${e.worstDate.slice(5)}`),
+        ],
+      }))
+      .sort((a, b) => (b.rank || 0) - (a.rank || 0));
+
+    setDrill({
+      title: name === "On time" ? "On-time worked days" : `Worked days late by ${name}`,
+      subtitle: `${rows.length} of ${workedTotal} worked days this month`,
+      narrative:
+        name === "Suspect"
+          ? `These worked days record lateness beyond ${LATE_SANITY_MINUTES / 60} hours. That is almost never real lateness — it means the person's shift is mapped wrong, or a night-shift punch was attributed to the wrong calendar day. They still count as late days, but are kept out of the average-late figure so one bad mapping does not distort the month.`
+          : `Every worked day (present or half day) is bucketed by how many minutes after shift start the first punch landed. This bar is the count of days that fell in the ${name} band, grouped below by employee so you can see whether it is one repeat offender or spread across the roster.`,
+      formula: { expression: `${rows.length} day(s) ÷ ${workedTotal} worked days × 100`, result: `${workedTotal > 0 ? ((rows.length / workedTotal) * 100).toFixed(1) : "0.0"}% of worked days` },
+      stats: [
+        { label: "Days in band", value: String(rows.length) },
+        { label: "Employees involved", value: String(byEmp.size) },
+        {
+          label: "Avg late in band",
+          value: name === "On time" ? "—" : fmtMinutes(rows.reduce((a, r) => a + Number(r.late_minutes || 0), 0) / Math.max(1, rows.length)),
+        },
+        { label: "Share of worked days", value: `${workedTotal > 0 ? ((rows.length / workedTotal) * 100).toFixed(1) : "0.0"}%` },
+      ],
+      columns: ["Days in band", "Avg late", "Worst day"],
+      rows: drillRows,
+    });
+  };
+
+  const openMix = (part: string) => {
+    const field = part === "Present" ? "present_days" : part === "Paid leave" ? "paid_leave_days" : part === "Half day" ? "half_days" : "lop_days";
+    const rows = summary
+      .map((s) => ({ s, v: Number((s as any)[field] || 0) }))
+      .filter((x) => x.v > 0)
+      .sort((a, b) => b.v - a.v);
+    const total = rows.reduce((a, x) => a + x.v, 0);
+    const drillRows: DrillRow[] = rows.map(({ s, v }) => ({
+      id: s.employee_id,
+      dept: deptOf(s.employee_id),
+      cells: [
+        cell(String(Math.round(v * 10) / 10), part === "Loss of pay" ? "bad" : part === "Half day" ? "warn" : "default"),
+        cell(`${Math.round(Number(s.working_days || 0))}`),
+        cell(Number(s.working_days || 0) > 0 ? `${((v / Number(s.working_days)) * 100).toFixed(1)}%` : "—"),
+      ],
+    }));
+    setDrill({
+      title: `${part} days`,
+      subtitle: `${Math.round(total * 10) / 10} day(s) across ${rows.length} employee(s)`,
+      narrative:
+        `The day-mix bar splits every payable employee-day this month by how payroll will treat it. This segment is the sum of the "${part}" ` +
+        `column of each employee's monthly attendance summary — the same figures payroll consumes, not a re-derived number.` +
+        (part === "Loss of pay" ? " Loss-of-pay days are unpaid and directly reduce net salary." : ""),
+      formula: { expression: `Σ ${part.toLowerCase()} days over ${rows.length} employee(s)`, result: `${Math.round(total * 10) / 10} days` },
+      stats: [
+        { label: "Total days", value: String(Math.round(total * 10) / 10), tone: part === "Loss of pay" ? "bad" : "default" },
+        { label: "Employees", value: String(rows.length) },
+        { label: "Largest single holder", value: rows.length > 0 ? `${Math.round(rows[0].v * 10) / 10} d` : "—", hint: rows.length > 0 ? nameOf(rows[0].s.employee_id) : undefined },
+        { label: "Avg per affected employee", value: rows.length > 0 ? `${(total / rows.length).toFixed(1)} d` : "—" },
+      ],
+      columns: [`${part} days`, "Working days", "Share of own month"],
+      rows: drillRows,
+    });
+  };
+
+  const openWeekday = (name: string) => {
+    const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dow = labels.indexOf(name);
+    const rows = maintained.filter((r) => new Date(`${r.attendance_date}T00:00:00`).getDay() === dow);
+    const dates = [...new Set(rows.map((r) => r.attendance_date))].sort();
+    const byEmp = new Map<string, { days: number; lost: number; late: number }>();
+    for (const r of rows) {
+      const e = byEmp.get(r.employee_id) || { days: 0, lost: 0, late: 0 };
+      e.days++;
+      if (isAbsentStatus(r.attendance_status)) e.lost += 1;
+      if (isHalfStatus(r.attendance_status)) e.lost += 0.5;
+      if (Number(r.late_minutes || 0) > 0) e.late++;
+      byEmp.set(r.employee_id, e);
+    }
+    const lost = rows.filter((r) => isAbsentStatus(r.attendance_status)).length + rows.filter((r) => isHalfStatus(r.attendance_status)).length * 0.5;
+    const late = rows.filter((r) => Number(r.late_minutes || 0) > 0).length;
+    const drillRows: DrillRow[] = [...byEmp.entries()]
+      .filter(([, e]) => e.lost > 0 || e.late > 0)
+      .map(([id, e]) => ({
+        id,
+        dept: deptOf(id),
+        rank: e.lost * 2 + e.late,
+        cells: [
+          cell(String(e.days)),
+          cell(e.lost > 0 ? String(Math.round(e.lost * 10) / 10) : "—", e.lost > 0 ? "bad" : "default"),
+          cell(e.late > 0 ? String(e.late) : "—", e.late > 0 ? "warn" : "default"),
+        ],
+      }))
+      .sort((a, b) => (b.rank || 0) - (a.rank || 0));
+
+    setDrill({
+      title: `${name} pattern`,
+      subtitle: `${dates.length} ${name}(s) this month · ${rows.length} maintained attendance rows`,
+      narrative:
+        `Every maintained attendance row falling on a ${name} is pooled together, then expressed as a percentage so weekdays with a different ` +
+        `number of occurrences stay comparable. A spike here usually means an extended-weekend habit or a shift that is poorly covered on this day.`,
+      formula: {
+        expression: `${Math.round(lost * 10) / 10} lost ÷ ${rows.length} rows × 100  |  ${late} late ÷ ${rows.length} × 100`,
+        result: `${rows.length > 0 ? ((lost / rows.length) * 100).toFixed(1) : "0.0"}% lost, ${rows.length > 0 ? ((late / rows.length) * 100).toFixed(1) : "0.0"}% late`,
+      },
+      stats: [
+        { label: `${name}s in month`, value: String(dates.length), hint: dates.map((d) => d.slice(5)).join(", ") },
+        { label: "Days lost", value: String(Math.round(lost * 10) / 10), tone: lost > 0 ? "bad" : "default" },
+        { label: "Late arrivals", value: String(late), tone: late > 0 ? "warn" : "default" },
+        { label: "Employees affected", value: String(drillRows.length) },
+      ],
+      columns: [`${name}s recorded`, "Days lost", "Late days"],
+      rows: drillRows,
+      emptyText: `No absence or lateness on any ${name} this month.`,
+    });
+  };
+
+  const openDept = (name: string) => {
+    const ids = summary.filter((s) => deptOf(s.employee_id) === name).map((s) => s.employee_id);
+    const lopById = new Map(summary.map((s) => [s.employee_id, Number(s.lop_days || 0)]));
+    const row = deptRows.find((d) => d.name === name);
+    const drillRows: DrillRow[] = ids
+      .map((id) => {
+        const st = perEmployee.get(id);
+        const worked = st ? st.present + st.half : 0;
+        const rate = st && st.maintained > 0 ? ((st.present + st.half * 0.5) / st.maintained) * 100 : null;
+        return {
+          id,
+          dept: name,
+          rank: 100 - (rate ?? 100),
+          cells: [
+            cell(String(st?.maintained ?? 0)),
+            cell(rate === null ? "—" : `${rate.toFixed(1)}%`, rate !== null && rate < 90 ? "bad" : "good"),
+            cell(String(st?.lateDays ?? 0), (st?.lateDays ?? 0) > 0 ? "warn" : "default"),
+            cell(String(Math.round((lopById.get(id) || 0) * 10) / 10), (lopById.get(id) || 0) > 0 ? "bad" : "default"),
+            cell(st && st.workedDays > 0 ? hrsOf(st.netMin / st.workedDays) : "—"),
+          ],
+        };
+      })
+      .sort((a, b) => (b.rank || 0) - (a.rank || 0));
+
+    setDrill({
+      title: `${name} department`,
+      subtitle: `${ids.length} employee(s) on the active roster`,
+      narrative:
+        `Department figures are the sum of each member's maintained attendance rows — no separate department-level source exists. ` +
+        `The attendance rate below is computed on maintained days only, so a department with unfinalised days will look different from one ` +
+        `that is fully maintained. The per-employee table shows exactly who is pulling the department average.`,
+      formula: {
+        expression: `Σ (present + half × 0.5) ÷ Σ maintained days for ${ids.length} member(s)`,
+        result: row?.attendanceRate != null ? `${row.attendanceRate.toFixed(1)}%` : "—",
+      },
+      stats: [
+        { label: "Headcount", value: String(ids.length) },
+        { label: "Attendance rate", value: row?.attendanceRate != null ? `${row.attendanceRate.toFixed(1)}%` : "—" },
+        { label: "On-time rate", value: row?.onTimeRate != null ? `${row.onTimeRate.toFixed(1)}%` : "—" },
+        { label: "LOP days", value: String(Math.round((row?.lop || 0) * 10) / 10), tone: (row?.lop || 0) > 0 ? "bad" : "default" },
+        { label: "Avg net hours", value: row?.avgHours != null ? `${row.avgHours.toFixed(2)}h` : "—" },
+      ],
+      columns: ["Maintained days", "Attendance rate", "Late days", "LOP days", "Avg net hours"],
+      rows: drillRows,
+    });
+  };
+
   return (
     <div className="space-y-5">
+
       {/* Period integrity */}
       <Card className={coverage.pct < 99 ? "border-warning/40 bg-warning/[0.03]" : undefined}>
         <CardContent className="p-3.5 space-y-2">
@@ -675,11 +963,17 @@ export function AttendanceInsights({
         <TabsContent value="overview" className="space-y-4 mt-0">
           <SectionCard
             title="Daily attendance rate & late arrivals"
-            caption="How the roster showed up each day — the line is the attendance rate, the bars count late arrivals."
+            caption="How the roster showed up each day — the line is the attendance rate, the bars count late arrivals. Click any day for the full breakdown."
+            action={<DrillBadge />}
           >
             {trend.length > 0 ? (
               <ResponsiveContainer width="100%" height={260}>
-                <ComposedChart data={trend} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+                <ComposedChart
+                  data={trend}
+                  margin={{ top: 4, right: 8, left: -8, bottom: 0 }}
+                  onClick={(e: any) => e?.activeLabel && openDay(String(e.activeLabel))}
+                  style={{ cursor: "pointer" }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="day" {...axisProps} />
                   <YAxis yAxisId="left" unit="%" domain={[0, 100]} {...axisProps} />
@@ -687,7 +981,7 @@ export function AttendanceInsights({
                   <Tooltip
                     {...tooltipStyle}
                     formatter={(v: any, n: any) => (n === "Attendance rate" ? [`${v}%`, n] : [`${v} people`, n])}
-                    labelFormatter={(l: any) => trend.find((t) => t.day === l)?.label || `Day ${l}`}
+                    labelFormatter={(l: any) => `${trend.find((t) => t.day === l)?.label || `Day ${l}`} — click to expand`}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar yAxisId="right" dataKey="late" name="Late arrivals" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
@@ -711,14 +1005,20 @@ export function AttendanceInsights({
             <SectionCard
               title="Punctuality distribution"
               caption="Worked days grouped by how late the first punch was. 'Suspect' is beyond 4 hours — treated as a data issue."
+              action={<DrillBadge />}
             >
               {buckets.some((b) => b.days > 0) ? (
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={buckets} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <BarChart
+                    data={buckets}
+                    margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                    onClick={(e: any) => e?.activeLabel && openBucket(String(e.activeLabel))}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="name" {...axisProps} />
                     <YAxis allowDecimals={false} {...axisProps} />
-                    <Tooltip {...tooltipStyle} formatter={(v: any) => [`${v} day(s)`, "Worked days"]} />
+                    <Tooltip {...tooltipStyle} formatter={(v: any) => [`${v} day(s) — click to expand`, "Worked days"]} />
                     <Bar dataKey="days" name="Days" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -727,28 +1027,40 @@ export function AttendanceInsights({
               )}
             </SectionCard>
 
-            <SectionCard title="Day mix" caption="Every payable employee-day in the month, split by how payroll will treat it.">
+            <SectionCard
+              title="Day mix"
+              caption="Every payable employee-day in the month, split by how payroll will treat it. Click a segment to see who holds those days."
+              action={<DrillBadge />}
+            >
               {distribution.total > 0 ? (
                 <div className="space-y-3">
                   <div className="flex h-4 w-full overflow-hidden rounded-full">
                     {distribution.parts.map((p) => (
-                      <div
+                      <button
                         key={p.name}
-                        className={p.cls}
+                        type="button"
+                        onClick={() => openMix(p.name)}
+                        className={`${p.cls} transition-opacity hover:opacity-75`}
                         style={{ width: `${(p.value / distribution.total) * 100}%` }}
-                        title={`${p.name}: ${Math.round(p.value * 10) / 10} days`}
+                        title={`${p.name}: ${Math.round(p.value * 10) / 10} days — click to expand`}
+                        aria-label={`${p.name} days`}
                       />
                     ))}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
                     {distribution.parts.map((p) => (
-                      <div key={p.name} className="flex items-center gap-2">
+                      <button
+                        key={p.name}
+                        type="button"
+                        onClick={() => openMix(p.name)}
+                        className="flex items-center gap-2 rounded-md px-1.5 py-1 -mx-1.5 text-left hover:bg-muted/60"
+                      >
                         <span className={`h-2.5 w-2.5 rounded-sm ${p.cls}`} />
                         <span className="text-muted-foreground">{p.name}</span>
                         <span className="ml-auto tabular-nums font-medium text-foreground">
                           {Math.round(p.value * 10) / 10} d · {((p.value / distribution.total) * 100).toFixed(1)}%
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -756,6 +1068,7 @@ export function AttendanceInsights({
                 <p className="text-center text-muted-foreground py-10 text-sm">No data</p>
               )}
             </SectionCard>
+
           </div>
         </TabsContent>
 
@@ -868,11 +1181,18 @@ export function AttendanceInsights({
         <TabsContent value="patterns" className="space-y-4 mt-0">
           <SectionCard
             title="Day-of-week pattern"
-            caption="Share of maintained days lost or late, by weekday — useful for spotting Monday/Saturday drift."
+            caption="Share of maintained days lost or late, by weekday — useful for spotting Monday/Saturday drift. Click a weekday to expand."
+            action={<DrillBadge />}
           >
             {weekday.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={weekday} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                <BarChart
+                  data={weekday}
+                  margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                  onClick={(e: any) => e?.activeLabel && openWeekday(String(e.activeLabel))}
+                  style={{ cursor: "pointer" }}
+                >
+
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="name" {...axisProps} />
                   <YAxis unit="%" {...axisProps} />
@@ -889,9 +1209,15 @@ export function AttendanceInsights({
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
-              <p className="text-xs text-muted-foreground font-normal">Weakest attendance first. Rates use maintained days only.</p>
+              <div className="flex items-start justify-between gap-3">
+                <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
+                <DrillBadge />
+              </div>
+              <p className="text-xs text-muted-foreground font-normal">
+                Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown.
+              </p>
             </CardHeader>
+
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-y">
@@ -910,8 +1236,13 @@ export function AttendanceInsights({
                 </thead>
                 <tbody>
                   {deptRows.map((d) => (
-                    <tr key={d.name} className="border-b last:border-0 hover:bg-muted/40">
-                      <td className="px-4 py-2 font-medium">{d.name}</td>
+                    <tr
+                      key={d.name}
+                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                      onClick={() => openDept(d.name)}
+                    >
+                      <td className="px-4 py-2 font-medium text-primary underline-offset-2 hover:underline">{d.name}</td>
+
                       <td className="px-4 py-2 text-right tabular-nums">{d.headcount}</td>
                       <td className="px-4 py-2 text-right tabular-nums">
                         {d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}
@@ -950,7 +1281,15 @@ export function AttendanceInsights({
           )}
         </TabsContent>
       </Tabs>
+
+      <AttendanceDrilldownDialog
+        payload={drill}
+        onOpenChange={(o) => !o && setDrill(null)}
+        renderPerson={(id) => <Person id={id} />}
+        nameOf={nameOf}
+      />
     </div>
+
   );
 }
 

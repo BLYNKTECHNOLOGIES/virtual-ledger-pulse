@@ -329,11 +329,11 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 
               {hasDrift && (
                 <div className="text-[11px] rounded-md border border-warning/40 bg-warning/10 text-warning-foreground p-2">
-                  Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR is notified to reconcile with RazorpayX.
+                  Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
                 </div>
               )}
               <p className="text-[11px] text-muted-foreground">
-                Mirror of RazorpayX (stored as {storedUnit} amounts, shown both /mo and /yr). Actual payslip may differ by LOP, one-off additions/deductions, and tax.
+                Shown both /mo and /yr. Actual payslip may differ by LOP, one-off additions/deductions, and tax.
               </p>
             </>
           )}

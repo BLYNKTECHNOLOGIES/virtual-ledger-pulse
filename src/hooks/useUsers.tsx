@@ -246,7 +246,7 @@ export function useUsers() {
     last_name?: string;
     phone?: string;
     status?: ValidStatus;
-    role_id?: string;
+    role_id?: string | null;
     badge_id?: string | null;
   }) => {
     try {

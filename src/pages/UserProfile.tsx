@@ -1205,49 +1205,8 @@ export default function UserProfile() {
                 </CardContent>
               </Card>
 
-              {/* Address */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Address</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    { label: 'Street / Address', value: hrEmployee.address || 'None' },
-                    { label: 'City', value: hrEmployee.city || 'None' },
-                    { label: 'State', value: hrEmployee.state || 'None' },
-                    { label: 'PIN / ZIP', value: hrEmployee.zip || 'None' },
-                    { label: 'Country', value: hrEmployee.country || 'None' },
-                  ].map((item, idx) => (
-                    <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
-                      <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
-                      <p className="text-sm font-semibold text-foreground break-words">{item.value}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
 
-              {/* Emergency Contact */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Emergency Contact</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    { label: 'Name', value: hrEmployee.emergency_contact_name || 'None' },
-                    { label: 'Relationship', value: (hrEmployee as any).emergency_contact_relation || 'None' },
-                    { label: 'Phone', value: hrEmployee.emergency_contact || 'None' },
-                    { label: 'Dependents / Children', value: hrEmployee.children != null ? String(hrEmployee.children) : 'None' },
-                  ].map((item, idx) => (
-                    <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
-                      <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
-                      <p className="text-sm font-semibold text-foreground break-words">{item.value}</p>
-                    </div>
-                  ))}
-                  <p className="text-[11px] text-muted-foreground pt-1">
-                    To update contact, address or emergency details, please raise a request with HR.
-                  </p>
-                </CardContent>
-              </Card>
+
 
               {/* Statutory IDs — masked, read-only */}
               <Card>

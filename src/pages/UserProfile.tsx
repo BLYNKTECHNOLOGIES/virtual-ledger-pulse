@@ -65,7 +65,6 @@ import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
 import MyHelpdeskCard from '@/components/profile/MyHelpdeskCard';
 import MyDisciplinaryCard from '@/components/profile/MyDisciplinaryCard';
 import MyFeedback360Card from '@/components/profile/MyFeedback360Card';
-import MySeparationCard from '@/components/profile/MySeparationCard';
 import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';

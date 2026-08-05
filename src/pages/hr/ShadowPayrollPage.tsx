@@ -346,6 +346,10 @@ export default function ShadowPayrollPage() {
                         <RowDiff label="Total deductions" shadow={l.deductions_total} rz={null} />
                         <RowDiff label="Net pay" shadow={l.net_pay} rz={l.razorpay_net} />
                       </div>
+
+                      {/* Head-by-head attribution of the net delta — always ties out */}
+                      <NetVarianceBridge line={l} />
+
                       {l.compute_notes && (
                         <div className="mt-3 text-[10px] text-muted-foreground font-mono">
                           Regime: {l.compute_notes.regime} · Months left: {l.compute_notes.monthsRemaining}

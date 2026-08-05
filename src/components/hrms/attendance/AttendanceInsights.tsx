@@ -1281,7 +1281,15 @@ export function AttendanceInsights({
           )}
         </TabsContent>
       </Tabs>
+
+      <AttendanceDrilldownDialog
+        payload={drill}
+        onOpenChange={(o) => !o && setDrill(null)}
+        renderPerson={(id) => <Person id={id} />}
+        nameOf={nameOf}
+      />
     </div>
+
   );
 }
 

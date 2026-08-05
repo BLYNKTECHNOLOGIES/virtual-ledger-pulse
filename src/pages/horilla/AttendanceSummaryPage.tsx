@@ -206,28 +206,6 @@ export default function AttendanceSummaryPage() {
           description="Maintained monthly attendance — the exact source payroll loss-of-pay uses"
         />
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {[
-            { label: "Working Days", value: Math.round(totals.working), icon: Clock, color: "text-info", bg: "bg-info/10" },
-            { label: "Verified Present", value: Math.round(totals.present), icon: Users, color: "text-success", bg: "bg-success/10" },
-            { label: "Loss of Pay Days", value: Math.round(totals.lop), icon: Users, color: "text-destructive", bg: "bg-destructive/10" },
-            { label: "Held Harmless", value: Math.round(totals.held), icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
-            { label: "Attendance Rate", value: `${attendanceRate}%`, icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-          ].map((s) => (
-            <Card key={s.label}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${s.bg}`}>
-                  <s.icon className={`h-5 w-5 ${s.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{s.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         <div className="flex gap-3 flex-wrap">
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44 h-9" />
           <div className="relative flex-1 min-w-[200px]">
@@ -236,40 +214,17 @@ export default function AttendanceSummaryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader><CardTitle className="text-sm font-semibold">Day Distribution</CardTitle></CardHeader>
-            <CardContent>
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                      {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : <p className="text-center text-muted-foreground py-8 text-sm">No data</p>}
-            </CardContent>
-          </Card>
+        <AttendanceInsights
+          month={month}
+          summary={summary as any}
+          maintained={maintained as MaintainedRow[]}
+          maintainedPrev={maintainedPrev as MaintainedRow[]}
+          daily={daily as DailyRow[]}
+          employees={employees as any[]}
+          deptByEmployee={deptByEmployee}
+          shiftMinutesByEmployee={shiftMinutesByEmployee}
+        />
 
-          <Card>
-            <CardHeader><CardTitle className="text-sm font-semibold">Top Late Employees (by minutes)</CardTitle></CardHeader>
-            <CardContent>
-              {topLate.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={topLate.map((e: any) => ({ name: `${e.employee?.first_name?.[0] ?? "?"}. ${e.employee?.last_name ?? ""}`, mins: Number(e.late_minutes) }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="name" fontSize={11} />
-                    <YAxis fontSize={11} />
-                    <Tooltip />
-                    <Bar dataKey="mins" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Late Minutes" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <p className="text-center text-muted-foreground py-8 text-sm">No data</p>}
-            </CardContent>
-          </Card>
-        </div>
 
         {isLoading ? (
           <TableSkeleton rows={6} columns={10} />

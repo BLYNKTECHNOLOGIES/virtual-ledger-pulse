@@ -42,17 +42,23 @@ export default function AttendanceSummaryPage() {
 
   const periodMonth = `${month}-01`;
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ["hr_employees_active"],
+  // Full directory (active AND former) — attendance rows exist for people who
+  // have since been deactivated, and they must still resolve to a real name.
+  const { data: allEmployees = [] } = useQuery({
+    queryKey: ["hr_employees_all_for_attendance"],
     queryFn: async () => {
       const data = await fetchAllPaginated<any>(() =>
-        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true).order("first_name"),
+        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").order("first_name"),
       );
       return data || [];
     },
   });
 
+  const employees = useMemo(() => (allEmployees as any[]).filter((e) => e.is_active), [allEmployees]);
+  const activeIds = useMemo(() => new Set((employees as any[]).map((e) => e.id)), [employees]);
+
   const empIds = useMemo(() => (employees as any[]).map((e) => e.id), [employees]);
+
 
   const { data: summary = [], isLoading } = useQuery({
     queryKey: ["hr_attendance_month_summary", month, empIds.length],

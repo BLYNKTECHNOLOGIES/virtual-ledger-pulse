@@ -91,30 +91,112 @@ export default function AttendanceSummaryPage() {
     return name.includes(q) || String(s.employee?.badge_id || "").toLowerCase().includes(q);
   });
 
-  const totals = useMemo(() => {
-    const sum = (k: keyof SummaryRow) => rows.reduce((a: number, r: any) => a + Number(r[k] || 0), 0);
+  /* ---- windows for insight queries ---- */
+  const windows = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    const monthStart = new Date(Date.UTC(y, m - 1, 1));
+    const monthEnd = new Date(Date.UTC(y, m, 0));
+    const nowIst = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayUtc = new Date(Date.UTC(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate()));
+    const end = todayUtc < monthEnd ? todayUtc : monthEnd;
+    const cutoffDay = end < monthStart ? 0 : end.getUTCDate();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const prevStart = new Date(Date.UTC(y, m - 2, 1));
+    const prevMonthEnd = new Date(Date.UTC(y, m - 1, 0));
+    const prevCutoff = new Date(Date.UTC(y, m - 2, Math.min(cutoffDay || 1, prevMonthEnd.getUTCDate())));
     return {
-      working: sum("working_days"),
-      present: sum("present_days"),
-      lop: sum("lop_days"),
-      held: sum("held_harmless_days"),
-      unverified: sum("unverified_days"),
-      paidLeave: sum("paid_leave_days"),
-      noSignal: rows.filter((r: any) => r.no_biometric_signal).length,
-      legacyGap: rows.filter((r: any) => Number(r.legacy_present_days) > Number(r.present_days) + Number(r.paid_leave_days)).length,
+      start: iso(monthStart),
+      end: iso(end < monthStart ? monthStart : end),
+      monthEnd: iso(monthEnd),
+      prevStart: iso(prevStart),
+      prevEnd: iso(prevCutoff),
+      cutoffDay,
     };
-  }, [rows]);
+  }, [month]);
 
-  const attendanceRate = totals.working > 0 ? (((totals.present + totals.paidLeave + totals.held) / totals.working) * 100).toFixed(1) : "0";
+  const { data: maintained = [] } = useQuery({
+    queryKey: ["hr_attendance_maintained", windows.start, windows.end],
+    queryFn: async () =>
+      (await fetchAllPaginated<MaintainedRow>(() =>
+        (supabase as any)
+          .from("hr_attendance")
+          .select("employee_id, attendance_date, attendance_status, late_minutes, early_leave_minutes, overtime_hours")
+          .gte("attendance_date", windows.start)
+          .lte("attendance_date", windows.end),
+      )) || [],
+  });
 
-  const pieData = [
-    { name: "Verified present", value: Math.round(totals.present) },
-    { name: "Loss of pay", value: Math.round(totals.lop) },
-    { name: "Paid leave", value: Math.round(totals.paidLeave) },
-    { name: "Held harmless", value: Math.round(totals.held) },
-  ].filter((d) => d.value > 0);
+  const { data: maintainedPrev = [] } = useQuery({
+    queryKey: ["hr_attendance_maintained_prev", windows.prevStart, windows.prevEnd],
+    queryFn: async () =>
+      (await fetchAllPaginated<MaintainedRow>(() =>
+        (supabase as any)
+          .from("hr_attendance")
+          .select("employee_id, attendance_date, attendance_status, late_minutes, early_leave_minutes, overtime_hours")
+          .gte("attendance_date", windows.prevStart)
+          .lte("attendance_date", windows.prevEnd),
+      )) || [],
+  });
 
-  const topLate = [...rows].sort((a: any, b: any) => Number(b.late_minutes) - Number(a.late_minutes)).slice(0, 5);
+  const { data: daily = [] } = useQuery({
+    queryKey: ["hr_attendance_daily_month", windows.start, windows.monthEnd],
+    queryFn: async () =>
+      (await fetchAllPaginated<DailyRow>(() =>
+        (supabase as any)
+          .from("hr_attendance_daily")
+          .select(
+            "employee_id, attendance_date, net_work_minutes, late_by_minutes, is_late, early_departure, punch_count, session_count, status",
+          )
+          .gte("attendance_date", windows.start)
+          .lte("attendance_date", windows.monthEnd),
+      )) || [],
+  });
+
+  const { data: workInfo = [] } = useQuery({
+    queryKey: ["hr_work_info_dept_shift"],
+    queryFn: async () =>
+      (await fetchAllPaginated<any>(() =>
+        (supabase as any).from("hr_employee_work_info").select("employee_id, department_id, shift_id"),
+      )) || [],
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments_list"],
+    queryFn: async () => (await fetchAllPaginated<any>(() => (supabase as any).from("departments").select("id, name"))) || [],
+  });
+
+  const { data: shiftSchedule = [] } = useQuery({
+    queryKey: ["hr_employee_shift_schedule_current"],
+    queryFn: async () =>
+      (await fetchAllPaginated<any>(() =>
+        (supabase as any).from("hr_employee_shift_schedule").select("employee_id, shift_id, is_current").eq("is_current", true),
+      )) || [],
+  });
+
+  const { data: shifts = [] } = useQuery({
+    queryKey: ["hr_shifts_durations"],
+    queryFn: async () => (await fetchAllPaginated<any>(() => (supabase as any).from("hr_shifts").select("id, duration_hours"))) || [],
+  });
+
+  const deptByEmployee = useMemo(() => {
+    const deptName = new Map<string, string>();
+    for (const d of departments as any[]) deptName.set(d.id, d.name);
+    const m = new Map<string, string>();
+    for (const w of workInfo as any[]) {
+      if (w.department_id && deptName.has(w.department_id)) m.set(w.employee_id, deptName.get(w.department_id)!);
+    }
+    return m;
+  }, [workInfo, departments]);
+
+  const shiftMinutesByEmployee = useMemo(() => {
+    const dur = new Map<string, number>();
+    for (const s of shifts as any[]) if (s.duration_hours) dur.set(s.id, Number(s.duration_hours) * 60);
+    const m = new Map<string, number>();
+    for (const w of workInfo as any[]) if (w.shift_id && dur.has(w.shift_id)) m.set(w.employee_id, dur.get(w.shift_id)!);
+    for (const s of shiftSchedule as any[]) if (s.shift_id && dur.has(s.shift_id)) m.set(s.employee_id, dur.get(s.shift_id)!);
+    return m;
+  }, [workInfo, shiftSchedule, shifts]);
+
 
   return (
     <TooltipProvider delayDuration={150}>

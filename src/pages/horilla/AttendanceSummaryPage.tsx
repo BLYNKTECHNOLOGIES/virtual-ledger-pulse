@@ -226,7 +226,8 @@ export default function AttendanceSummaryPage() {
           maintained={maintained as MaintainedRow[]}
           maintainedPrev={maintainedPrev as MaintainedRow[]}
           daily={daily as DailyRow[]}
-          employees={employees as any[]}
+          employees={allEmployees as any[]}
+          activeIds={activeIds}
           deptByEmployee={deptByEmployee}
           shiftMinutesByEmployee={shiftMinutesByEmployee}
         />

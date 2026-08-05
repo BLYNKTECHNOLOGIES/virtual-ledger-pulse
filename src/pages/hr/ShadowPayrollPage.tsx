@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { SourceTag } from "@/components/hr/payroll/SourceTag";
 import { ShadowReadinessPanel } from "@/components/hr/payroll/ShadowReadinessPanel";
 import { useShadowReadiness } from "@/hooks/hrms/useShadowReadiness";
+import { NetVarianceBridge, buildVarianceBridge } from "@/components/hr/payroll/NetVarianceBridge";
 import { cn } from "@/lib/utils";
 
 type Line = {
@@ -162,6 +163,33 @@ export default function ShadowPayrollPage() {
     );
   }, [lines]);
 
+  // Period-level attribution: the same heads, summed across every employee
+  // that has a Razorpay counterpart. Sums to the total net delta by identity.
+  const bridgeTotals = useMemo(() => {
+    const map = new Map<string, { label: string; delta: number; employees: number }>();
+    let netDelta = 0;
+    let covered = 0;
+    (lines ?? []).forEach((l) => {
+      const b = buildVarianceBridge(l as any);
+      if (!b.available) return;
+      covered += 1;
+      netDelta += b.netDelta;
+      b.heads.forEach((h) => {
+        const prev = map.get(h.key) ?? { label: h.label, delta: 0, employees: 0 };
+        map.set(h.key, {
+          label: h.label,
+          delta: prev.delta + h.delta,
+          employees: prev.employees + (Math.abs(h.delta) >= 1 ? 1 : 0),
+        });
+      });
+    });
+    const heads = Array.from(map.entries())
+      .map(([key, v]) => ({ key, ...v }))
+      .filter((h) => Math.abs(h.delta) >= 1)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    return { heads, netDelta: Math.round(netDelta), covered };
+  }, [lines]);
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
       {/* Big loud banner — this page is advisory only */}
@@ -281,6 +309,49 @@ export default function ShadowPayrollPage() {
         </div>
       )}
 
+      {/* Where the whole month's drift comes from */}
+      {bridgeTotals.heads.length > 0 && (
+        <Card className="p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <div>
+              <div className="text-sm font-semibold text-foreground">Where the drift comes from — {period.slice(0, 7)}</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Head-by-head attribution across {bridgeTotals.covered} compared employee{bridgeTotals.covered === 1 ? "" : "s"}. The heads sum exactly to the total net delta.
+              </p>
+            </div>
+            <div className="text-sm">
+              <span className="text-muted-foreground text-xs mr-2">Total Δ net</span>
+              <span className={bridgeTotals.netDelta >= 0 ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                {bridgeTotals.netDelta > 0 ? "+" : bridgeTotals.netDelta < 0 ? "−" : ""}₹{Math.abs(bridgeTotals.netDelta).toLocaleString("en-IN")}
+              </span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {bridgeTotals.heads.map((h) => {
+              const max = Math.max(...bridgeTotals.heads.map((x) => Math.abs(x.delta)), 1);
+              return (
+                <div key={h.key} className="grid grid-cols-12 items-center gap-2 text-xs">
+                  <div className="col-span-5 md:col-span-4 text-foreground truncate">{h.label}</div>
+                  <div className="col-span-3 md:col-span-2 text-right text-muted-foreground">{h.employees} emp</div>
+                  <div className={cn("col-span-4 md:col-span-2 text-right font-medium", h.delta > 0 ? "text-success" : "text-destructive")}>
+                    {h.delta > 0 ? "+" : "−"}₹{Math.abs(h.delta).toLocaleString("en-IN")}
+                  </div>
+                  <div className="hidden md:flex col-span-4 h-1.5 rounded bg-muted overflow-hidden">
+                    <div className="w-1/2 flex justify-end">
+                      {h.delta < 0 && <div className="h-full bg-destructive/70" style={{ width: `${(Math.abs(h.delta) / max) * 100}%` }} />}
+                    </div>
+                    <div className="w-1/2">
+                      {h.delta > 0 && <div className="h-full bg-success/70" style={{ width: `${(Math.abs(h.delta) / max) * 100}%` }} />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+
       {/* Lines */}
       <Card className="overflow-hidden">
         {!run ? (
@@ -346,6 +417,10 @@ export default function ShadowPayrollPage() {
                         <RowDiff label="Total deductions" shadow={l.deductions_total} rz={null} />
                         <RowDiff label="Net pay" shadow={l.net_pay} rz={l.razorpay_net} />
                       </div>
+
+                      {/* Head-by-head attribution of the net delta — always ties out */}
+                      <NetVarianceBridge line={l} />
+
                       {l.compute_notes && (
                         <div className="mt-3 text-[10px] text-muted-foreground font-mono">
                           Regime: {l.compute_notes.regime} · Months left: {l.compute_notes.monthsRemaining}

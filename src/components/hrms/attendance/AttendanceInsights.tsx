@@ -760,7 +760,7 @@ export function AttendanceInsights({
       stats: [
         { label: "Total days", value: String(Math.round(total * 10) / 10), tone: part === "Loss of pay" ? "bad" : "default" },
         { label: "Employees", value: String(rows.length) },
-        { label: "Largest single holder", value: rows.length > 0 ? `${Math.round(rows[0].v * 10) / 10} d` : "—", hint: rows.length > 0 ? nameOf(rows[0].id ?? rows[0].s.employee_id) : undefined },
+        { label: "Largest single holder", value: rows.length > 0 ? `${Math.round(rows[0].v * 10) / 10} d` : "—", hint: rows.length > 0 ? nameOf(rows[0].s.employee_id) : undefined },
         { label: "Avg per affected employee", value: rows.length > 0 ? `${(total / rows.length).toFixed(1)} d` : "—" },
       ],
       columns: [`${part} days`, "Working days", "Share of own month"],

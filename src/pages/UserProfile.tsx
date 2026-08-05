@@ -1157,7 +1157,7 @@ export default function UserProfile() {
           <TabsTrigger value="policies" className="shrink-0">Policies</TabsTrigger>
           <TabsTrigger value="growth" className="shrink-0">Growth</TabsTrigger>
           <TabsTrigger value="helpdesk" className="shrink-0">Help</TabsTrigger>
-          <TabsTrigger value="separation" className="shrink-0">Separation</TabsTrigger>
+          
           <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
           <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>

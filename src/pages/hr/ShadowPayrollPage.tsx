@@ -309,6 +309,49 @@ export default function ShadowPayrollPage() {
         </div>
       )}
 
+      {/* Where the whole month's drift comes from */}
+      {bridgeTotals.heads.length > 0 && (
+        <Card className="p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <div>
+              <div className="text-sm font-semibold text-foreground">Where the drift comes from — {period.slice(0, 7)}</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Head-by-head attribution across {bridgeTotals.covered} compared employee{bridgeTotals.covered === 1 ? "" : "s"}. The heads sum exactly to the total net delta.
+              </p>
+            </div>
+            <div className="text-sm">
+              <span className="text-muted-foreground text-xs mr-2">Total Δ net</span>
+              <span className={bridgeTotals.netDelta >= 0 ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                {bridgeTotals.netDelta > 0 ? "+" : bridgeTotals.netDelta < 0 ? "−" : ""}₹{Math.abs(bridgeTotals.netDelta).toLocaleString("en-IN")}
+              </span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {bridgeTotals.heads.map((h) => {
+              const max = Math.max(...bridgeTotals.heads.map((x) => Math.abs(x.delta)), 1);
+              return (
+                <div key={h.key} className="grid grid-cols-12 items-center gap-2 text-xs">
+                  <div className="col-span-5 md:col-span-4 text-foreground truncate">{h.label}</div>
+                  <div className="col-span-3 md:col-span-2 text-right text-muted-foreground">{h.employees} emp</div>
+                  <div className={cn("col-span-4 md:col-span-2 text-right font-medium", h.delta > 0 ? "text-success" : "text-destructive")}>
+                    {h.delta > 0 ? "+" : "−"}₹{Math.abs(h.delta).toLocaleString("en-IN")}
+                  </div>
+                  <div className="hidden md:flex col-span-4 h-1.5 rounded bg-muted overflow-hidden">
+                    <div className="w-1/2 flex justify-end">
+                      {h.delta < 0 && <div className="h-full bg-destructive/70" style={{ width: `${(Math.abs(h.delta) / max) * 100}%` }} />}
+                    </div>
+                    <div className="w-1/2">
+                      {h.delta > 0 && <div className="h-full bg-success/70" style={{ width: `${(Math.abs(h.delta) / max) * 100}%` }} />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+
       {/* Lines */}
       <Card className="overflow-hidden">
         {!run ? (

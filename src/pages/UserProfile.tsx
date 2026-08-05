@@ -290,8 +290,8 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
             <p className="text-muted-foreground text-sm">Loading salary structure…</p>
           ) : rows.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4 text-center space-y-1">
-              <p className="font-medium text-foreground">Structure not yet mirrored from RazorpayX</p>
-              <p>Your CTC above is what payroll will pay. The component-wise breakdown appears here after the next RazorpayX sync.</p>
+              <p className="font-medium text-foreground">Component breakdown not published yet</p>
+              <p>Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.</p>
             </div>
           ) : (
             <>

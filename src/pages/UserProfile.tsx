@@ -70,7 +70,6 @@ import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
-import { RazorpayPayslipLink } from '@/components/hrms/RazorpayPayslipLink';
 import { useCanonicalPayslips } from '@/hooks/hrms/usePayslips';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -290,8 +289,8 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
             <p className="text-muted-foreground text-sm">Loading salary structure…</p>
           ) : rows.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4 text-center space-y-1">
-              <p className="font-medium text-foreground">Structure not yet mirrored from RazorpayX</p>
-              <p>Your CTC above is what payroll will pay. The component-wise breakdown appears here after the next RazorpayX sync.</p>
+              <p className="font-medium text-foreground">Component breakdown not published yet</p>
+              <p>Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.</p>
             </div>
           ) : (
             <>
@@ -329,11 +328,11 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 
               {hasDrift && (
                 <div className="text-[11px] rounded-md border border-warning/40 bg-warning/10 text-warning-foreground p-2">
-                  Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR is notified to reconcile with RazorpayX.
+                  Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
                 </div>
               )}
               <p className="text-[11px] text-muted-foreground">
-                Mirror of RazorpayX (stored as {storedUnit} amounts, shown both /mo and /yr). Actual payslip may differ by LOP, one-off additions/deductions, and tax.
+                Shown both /mo and /yr. Actual payslip may differ by LOP, one-off additions/deductions, and tax.
               </p>
             </>
           )}
@@ -353,8 +352,8 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : employerContribs.length === 0 ? (
             <div className="text-sm text-muted-foreground space-y-1">
-              <p>No separate employer contributions (PF / ESI / gratuity) are configured in your mirrored structure.</p>
-              <p className="text-[11px]">If you expect PF or ESI on your payslip, please confirm with HR — RazorpayX may be computing it outside the assigned structure.</p>
+              <p>No separate employer contributions (PF / ESI / gratuity) are configured in your salary structure.</p>
+              <p className="text-[11px]">If you expect PF or ESI on your payslip, please confirm with HR.</p>
             </div>
           ) : (
             <>
@@ -409,7 +408,7 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
           <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No Payslips Yet</h3>
           <p className="text-muted-foreground">
-            Your payslips will appear here once RazorpayX processes payroll for the month.
+            Your payslips will appear here once payroll for the month is processed.
           </p>
         </CardContent>
       </Card>
@@ -422,13 +421,10 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-lg font-semibold">My Payslips</h3>
-        <span className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
-          Source · RazorpayX API + Salary Register
-        </span>
       </div>
       <p className="text-[11px] text-muted-foreground -mt-2">
-        Statutory splits (PF / ESI / PT / TDS) and component-wise pay come from the monthly Salary Register CSV.
-        Months without a register only show the RazorpayX net figure and are marked <b>register pending</b>.
+        Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
+        run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
       </p>
       <div className="space-y-3">
         {payslips.map((p) => {
@@ -454,19 +450,17 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                     <h4 className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
                       Payslip — {period}
                       <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${hasReg ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning-foreground'}`}>
-                        {hasReg ? 'Register CSV' : 'Register pending'}
+                        {hasReg ? 'Detailed' : 'Breakdown pending'}
                       </span>
                     </h4>
                     {p.pulled_at && (
                       <p className="text-xs text-muted-foreground">
-                        Synced {formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}
-                        {p.register_source && ` · ${p.register_source}`}
+                        Updated {formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}
                       </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
                     <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
-                    <RazorpayPayslipLink razorpayPayslipId={p.razorpay_payslip_id} />
                   </div>
                 </div>
 
@@ -563,10 +557,9 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
                   </>
                 ) : (
                   <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
-                    The Salary Register CSV for this month has not been uploaded yet, so component-wise
-                    Basic / HRA / PF / ESI / PT / TDS values aren't available. The RazorpayX API only
-                    returns the summary net figure. HR will publish the register after the payroll run
-                    is finalised.
+                    The detailed breakdown for this month has not been published yet, so component-wise
+                    Basic / HRA / PF / ESI / PT / TDS values aren't available. Only the summary figures are
+                    shown. HR will publish the full breakdown after the payroll run is finalised.
                   </div>
                 )}
               </CardContent>

@@ -164,9 +164,9 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
 
     try {
       // HR-restricted editors cannot change the role — always keep the original
-      const effectiveRoleId = restrictSensitive
-        ? (initialRoleId === "no_role" ? "" : initialRoleId)
-        : (formData.role_id === "no_role" ? "" : formData.role_id);
+      const effectiveRoleId: string | null = restrictSensitive
+        ? (initialRoleId === "no_role" ? null : initialRoleId)
+        : (formData.role_id === "no_role" ? null : formData.role_id);
       const submitData = {
         ...formData,
         role_id: effectiveRoleId,

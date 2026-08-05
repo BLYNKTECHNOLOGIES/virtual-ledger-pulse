@@ -409,7 +409,7 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
           <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No Payslips Yet</h3>
           <p className="text-muted-foreground">
-            Your payslips will appear here once RazorpayX processes payroll for the month.
+            Your payslips will appear here once payroll for the month is processed.
           </p>
         </CardContent>
       </Card>

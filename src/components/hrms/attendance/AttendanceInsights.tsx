@@ -27,6 +27,13 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import {
+  AttendanceDrilldownDialog,
+  DrillBadge,
+  type DrillPayload,
+  type DrillRow,
+} from "./AttendanceDrilldownDialog";
+
 
 export type MaintainedRow = {
   employee_id: string;

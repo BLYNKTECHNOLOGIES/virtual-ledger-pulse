@@ -163,6 +163,33 @@ export default function ShadowPayrollPage() {
     );
   }, [lines]);
 
+  // Period-level attribution: the same heads, summed across every employee
+  // that has a Razorpay counterpart. Sums to the total net delta by identity.
+  const bridgeTotals = useMemo(() => {
+    const map = new Map<string, { label: string; delta: number; employees: number }>();
+    let netDelta = 0;
+    let covered = 0;
+    (lines ?? []).forEach((l) => {
+      const b = buildVarianceBridge(l as any);
+      if (!b.available) return;
+      covered += 1;
+      netDelta += b.netDelta;
+      b.heads.forEach((h) => {
+        const prev = map.get(h.key) ?? { label: h.label, delta: 0, employees: 0 };
+        map.set(h.key, {
+          label: h.label,
+          delta: prev.delta + h.delta,
+          employees: prev.employees + (Math.abs(h.delta) >= 1 ? 1 : 0),
+        });
+      });
+    });
+    const heads = Array.from(map.entries())
+      .map(([key, v]) => ({ key, ...v }))
+      .filter((h) => Math.abs(h.delta) >= 1)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    return { heads, netDelta: Math.round(netDelta), covered };
+  }, [lines]);
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
       {/* Big loud banner — this page is advisory only */}

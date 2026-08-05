@@ -422,13 +422,10 @@ function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-lg font-semibold">My Payslips</h3>
-        <span className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
-          Source · RazorpayX API + Salary Register
-        </span>
       </div>
       <p className="text-[11px] text-muted-foreground -mt-2">
-        Statutory splits (PF / ESI / PT / TDS) and component-wise pay come from the monthly Salary Register CSV.
-        Months without a register only show the RazorpayX net figure and are marked <b>register pending</b>.
+        Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
+        run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
       </p>
       <div className="space-y-3">
         {payslips.map((p) => {

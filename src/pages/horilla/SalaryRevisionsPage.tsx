@@ -785,19 +785,43 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this entry permanently?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTarget?.__ctcRollback ? "Delete this salary revision?" : "Delete this entry permanently?"}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm">
                 <p>
-                  {deleteTarget?.hr_employees?.first_name} {deleteTarget?.hr_employees?.last_name} ·{" "}
-                  <b>₹{Number(deleteTarget?.one_time_amount || 0).toLocaleString("en-IN")}</b>
-                  {deleteTarget?.payout_month ? ` · ${format(new Date(deleteTarget.payout_month), "MMM yyyy")} payroll` : ""}
+                  {deleteTarget?.hr_employees?.first_name} {deleteTarget?.hr_employees?.last_name}
+                  {deleteTarget?.__ctcRollback ? (
+                    <>
+                      {" · "}
+                      <b>
+                        ₹{Number(deleteTarget?.previous_total || 0).toLocaleString("en-IN")} ←{" "}
+                        ₹{Number(deleteTarget?.new_total || 0).toLocaleString("en-IN")}
+                      </b>
+                    </>
+                  ) : (
+                    <>
+                      {" · "}
+                      <b>₹{Number(deleteTarget?.one_time_amount || 0).toLocaleString("en-IN")}</b>
+                      {deleteTarget?.payout_month ? ` · ${format(new Date(deleteTarget.payout_month), "MMM yyyy")} payroll` : ""}
+                    </>
+                  )}
                 </p>
-                <p>
-                  The entry is removed from HRMS along with its staged payroll input, so it will
-                  <b> no longer be picked up by the payroll engine, LOP or payslip generation</b> for that month.
-                  An audit copy is retained.
-                </p>
+                {deleteTarget?.__ctcRollback ? (
+                  <p>
+                    This revision was never sent to RazorpayX. Deleting it will
+                    <b> revert the salary back to ₹{Number(deleteTarget?.previous_total || 0).toLocaleString("en-IN")}</b>{" "}
+                    and remove it from the revision history. An audit copy is retained.
+                  </p>
+                ) : (
+                  <p>
+                    The entry is removed from HRMS along with its staged payroll input, so it will
+                    <b> no longer be picked up by the payroll engine, LOP or payslip generation</b> for that month.
+                    An audit copy is retained.
+                  </p>
+                )}
+
                 {(deleteTarget?.razorpay_pushed_at || deleteTarget?.razorpay_verified_at) && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive">
                     <p className="font-semibold flex items-center gap-1.5">

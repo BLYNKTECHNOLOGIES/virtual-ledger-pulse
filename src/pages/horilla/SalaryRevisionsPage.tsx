@@ -151,14 +151,20 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
       qc.invalidateQueries({ queryKey: ["hr_payroll_inputs"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_salary_structures"] });
       if (res?.razorpay_reversal_required) {
         toast.warning("Entry deleted in HRMS — reverse it in RazorpayX", {
           description: "This amount was already pushed to RazorpayX. Open the payroll month there and remove the addition/deduction, otherwise it will still be paid.",
           duration: 12000,
         });
+      } else if (res?.ctc_rolled_back) {
+        toast.success(
+          `Revision deleted — salary restored to ₹${Number(res.rolled_back_to_total || 0).toLocaleString("en-IN")}`,
+        );
       } else {
         toast.success("Entry deleted — it will not affect payroll.");
       }
+
       setDeleteTarget(null);
       setDeleteReason("");
     },
@@ -168,6 +174,24 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
   const ONE_TIME_KINDS = ONE_TIME_TYPE_SET;
+
+  // Newest APPLIED CTC/statutory revision id per employee. Only that one can be
+  // deleted (rolled back) — deleting an older one would rewrite history under a
+  // newer change.
+  const latestCtcRevisionByEmployee = useMemo(() => {
+    const map: Record<string, { id: string; created_at: string }> = {};
+    for (const r of revisions as any[]) {
+      if (r.status !== "APPLIED") continue;
+      if (r.revision_type === "payroll_addition" || r.revision_type === "payroll_deduction") continue;
+      if (ONE_TIME_TYPE_SET.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) continue;
+      const cur = map[r.employee_id];
+      if (!cur || String(r.created_at) > cur.created_at) {
+        map[r.employee_id] = { id: r.id, created_at: String(r.created_at) };
+      }
+    }
+    return map;
+  }, [revisions]);
+
   const baseVisible = useMemo(() => revisions.filter((r: any) => {
     const cat = revisionCategory(r);
     // Exclude initial onboarding entries (no prior salary → not a revision),
@@ -460,26 +484,36 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
             // Deletable: anything still queued (scheduled), any staged payroll
-            // addition/deduction, and any one-time payout/correction. Applied
-            // CTC / statutory revisions are NOT deletable — they already mutated
-            // the salary structure and need a corrective revision instead.
+            // addition/deduction, any one-time payout/correction, and — new —
+            // an APPLIED CTC/statutory revision that was never pushed to
+            // RazorpayX, as long as it is the employee's latest CTC revision.
+            // Deleting the latter rolls the salary structure back automatically.
+            const isCtcRow = isApplied && !isPayrollInput && !isOneTime;
+            const isLatestCtc = latestCtcRevisionByEmployee[r.employee_id]?.id === r.id;
+            const ctcRollbackDeletable =
+              isCtcRow && isLatestCtc && !pushSyncedAfterRevision &&
+              !r.razorpay_pushed_at && !r.razorpay_verified_at &&
+              Number(r.previous_total || 0) > 0;
             const isDeletable = canManage && !r.register_confirmed_at &&
-              (isScheduled || isPayrollInput || isOneTime);
+              (isScheduled || isPayrollInput || isOneTime || ctcRollbackDeletable);
             const deleteBtn = isDeletable ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm" variant="ghost" className="h-7 w-7 p-0"
-                    onClick={() => { setDeleteReason(""); setDeleteTarget(r); }}
+                    onClick={() => { setDeleteReason(""); setDeleteTarget({ ...r, __ctcRollback: ctcRollbackDeletable }); }}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" className="max-w-xs text-xs">
-                  Delete this entry so it no longer affects payroll
+                  {ctcRollbackDeletable
+                    ? `Delete this revision — salary reverts to ${money(r.previous_total)}`
+                    : "Delete this entry so it no longer affects payroll"}
                 </TooltipContent>
               </Tooltip>
             ) : null;
+
 
             const pushBtn =
               isPayrollInput || isRecordOnlyPayout ? null
@@ -751,19 +785,43 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this entry permanently?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTarget?.__ctcRollback ? "Delete this salary revision?" : "Delete this entry permanently?"}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm">
                 <p>
-                  {deleteTarget?.hr_employees?.first_name} {deleteTarget?.hr_employees?.last_name} ·{" "}
-                  <b>₹{Number(deleteTarget?.one_time_amount || 0).toLocaleString("en-IN")}</b>
-                  {deleteTarget?.payout_month ? ` · ${format(new Date(deleteTarget.payout_month), "MMM yyyy")} payroll` : ""}
+                  {deleteTarget?.hr_employees?.first_name} {deleteTarget?.hr_employees?.last_name}
+                  {deleteTarget?.__ctcRollback ? (
+                    <>
+                      {" · "}
+                      <b>
+                        ₹{Number(deleteTarget?.previous_total || 0).toLocaleString("en-IN")} ←{" "}
+                        ₹{Number(deleteTarget?.new_total || 0).toLocaleString("en-IN")}
+                      </b>
+                    </>
+                  ) : (
+                    <>
+                      {" · "}
+                      <b>₹{Number(deleteTarget?.one_time_amount || 0).toLocaleString("en-IN")}</b>
+                      {deleteTarget?.payout_month ? ` · ${format(new Date(deleteTarget.payout_month), "MMM yyyy")} payroll` : ""}
+                    </>
+                  )}
                 </p>
-                <p>
-                  The entry is removed from HRMS along with its staged payroll input, so it will
-                  <b> no longer be picked up by the payroll engine, LOP or payslip generation</b> for that month.
-                  An audit copy is retained.
-                </p>
+                {deleteTarget?.__ctcRollback ? (
+                  <p>
+                    This revision was never sent to RazorpayX. Deleting it will
+                    <b> revert the salary back to ₹{Number(deleteTarget?.previous_total || 0).toLocaleString("en-IN")}</b>{" "}
+                    and remove it from the revision history. An audit copy is retained.
+                  </p>
+                ) : (
+                  <p>
+                    The entry is removed from HRMS along with its staged payroll input, so it will
+                    <b> no longer be picked up by the payroll engine, LOP or payslip generation</b> for that month.
+                    An audit copy is retained.
+                  </p>
+                )}
+
                 {(deleteTarget?.razorpay_pushed_at || deleteTarget?.razorpay_verified_at) && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-destructive">
                     <p className="font-semibold flex items-center gap-1.5">

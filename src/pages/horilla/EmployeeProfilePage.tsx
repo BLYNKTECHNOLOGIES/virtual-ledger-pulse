@@ -450,7 +450,7 @@ export default function EmployeeProfilePage() {
       if (badge) {
         const { data } = await (supabase as any)
           .from("users")
-          .select("id, name, email, badge_id, role_id, is_active")
+          .select("id, first_name, last_name, email, badge_id, role_id, status")
           .ilike("badge_id", badge)
           .limit(1);
         byBadge = data?.[0] ?? null;
@@ -459,7 +459,7 @@ export default function EmployeeProfilePage() {
       if (!byBadge && email) {
         const { data } = await (supabase as any)
           .from("users")
-          .select("id, name, email, badge_id, role_id, is_active")
+          .select("id, first_name, last_name, email, badge_id, role_id, status")
           .ilike("email", email)
           .limit(1);
         byEmail = data?.[0] ?? null;
@@ -1425,7 +1425,7 @@ export default function EmployeeProfilePage() {
                           <>
                             <span>
                               <span className="text-muted-foreground">ERP user: </span>
-                              {linkedUser.name || "—"}
+                              {`${linkedUser.first_name || ""} ${linkedUser.last_name || ""}`.trim() || "—"}
                             </span>
                             <span>
                               <span className="text-muted-foreground">ERP email: </span>
@@ -1437,7 +1437,7 @@ export default function EmployeeProfilePage() {
                             </span>
                             <span>
                               <span className="text-muted-foreground">ERP status: </span>
-                              {linkedUser.is_active === false ? "Inactive" : "Active"}
+                              {linkedUser.status || "—"}
                             </span>
                           </>
                         )}

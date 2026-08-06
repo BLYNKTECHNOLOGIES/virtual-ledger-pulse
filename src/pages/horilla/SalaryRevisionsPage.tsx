@@ -484,26 +484,36 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             const money = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
             // Deletable: anything still queued (scheduled), any staged payroll
-            // addition/deduction, and any one-time payout/correction. Applied
-            // CTC / statutory revisions are NOT deletable — they already mutated
-            // the salary structure and need a corrective revision instead.
+            // addition/deduction, any one-time payout/correction, and — new —
+            // an APPLIED CTC/statutory revision that was never pushed to
+            // RazorpayX, as long as it is the employee's latest CTC revision.
+            // Deleting the latter rolls the salary structure back automatically.
+            const isCtcRow = isApplied && !isPayrollInput && !isOneTime;
+            const isLatestCtc = latestCtcRevisionByEmployee[r.employee_id]?.id === r.id;
+            const ctcRollbackDeletable =
+              isCtcRow && isLatestCtc && !pushSyncedAfterRevision &&
+              !r.razorpay_pushed_at && !r.razorpay_verified_at &&
+              Number(r.previous_total || 0) > 0;
             const isDeletable = canManage && !r.register_confirmed_at &&
-              (isScheduled || isPayrollInput || isOneTime);
+              (isScheduled || isPayrollInput || isOneTime || ctcRollbackDeletable);
             const deleteBtn = isDeletable ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm" variant="ghost" className="h-7 w-7 p-0"
-                    onClick={() => { setDeleteReason(""); setDeleteTarget(r); }}
+                    onClick={() => { setDeleteReason(""); setDeleteTarget({ ...r, __ctcRollback: ctcRollbackDeletable }); }}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" className="max-w-xs text-xs">
-                  Delete this entry so it no longer affects payroll
+                  {ctcRollbackDeletable
+                    ? `Delete this revision — salary reverts to ${money(r.previous_total)}`
+                    : "Delete this entry so it no longer affects payroll"}
                 </TooltipContent>
               </Tooltip>
             ) : null;
+
 
             const pushBtn =
               isPayrollInput || isRecordOnlyPayout ? null

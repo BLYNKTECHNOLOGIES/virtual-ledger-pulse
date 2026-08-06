@@ -696,7 +696,9 @@ export default function EmployeeProfilePage() {
   const startEdit = () => {
     if (activeTab === "About" && emp) {
       setEditForm({
+        email: emp.email || "",
         phone: emp.phone || "", gender: emp.gender || "", dob: emp.dob || "",
+
         marital_status: emp.marital_status || "", address: emp.address || "",
         city: emp.city || "", state: emp.state || "", country: emp.country || "",
         qualification: emp.qualification || "", experience: emp.experience || "",

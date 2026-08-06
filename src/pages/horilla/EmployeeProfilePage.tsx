@@ -521,8 +521,27 @@ export default function EmployeeProfilePage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (activeTab === "About") {
+        const nextEmail = (editForm.email || "").trim().toLowerCase();
+        if (nextEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+          throw new Error("Enter a valid email address");
+        }
+        if (nextEmail && nextEmail !== (emp?.email || "").trim().toLowerCase()) {
+          const { data: clash } = await (supabase as any)
+            .from("hr_employees")
+            .select("id, first_name, last_name, badge_id")
+            .ilike("email", nextEmail)
+            .neq("id", id!)
+            .maybeSingle();
+          if (clash) {
+            throw new Error(
+              `That email is already used by ${clash.first_name || ""} ${clash.last_name || ""} (${clash.badge_id ?? "—"})`,
+            );
+          }
+        }
         const { error } = await (supabase as any).from("hr_employees").update({
+          email: nextEmail || null,
           phone: editForm.phone || null,
+
           gender: editForm.gender || null,
           dob: editForm.dob || null,
           marital_status: editForm.marital_status || null,

@@ -174,6 +174,24 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
   const ONE_TIME_KINDS = ONE_TIME_TYPE_SET;
+
+  // Newest APPLIED CTC/statutory revision id per employee. Only that one can be
+  // deleted (rolled back) — deleting an older one would rewrite history under a
+  // newer change.
+  const latestCtcRevisionByEmployee = useMemo(() => {
+    const map: Record<string, { id: string; created_at: string }> = {};
+    for (const r of revisions as any[]) {
+      if (r.status !== "APPLIED") continue;
+      if (r.revision_type === "payroll_addition" || r.revision_type === "payroll_deduction") continue;
+      if (ONE_TIME_TYPE_SET.has(r.revision_type) || Number(r.one_time_amount || 0) > 0) continue;
+      const cur = map[r.employee_id];
+      if (!cur || String(r.created_at) > cur.created_at) {
+        map[r.employee_id] = { id: r.id, created_at: String(r.created_at) };
+      }
+    }
+    return map;
+  }, [revisions]);
+
   const baseVisible = useMemo(() => revisions.filter((r: any) => {
     const cat = revisionCategory(r);
     // Exclude initial onboarding entries (no prior salary → not a revision),

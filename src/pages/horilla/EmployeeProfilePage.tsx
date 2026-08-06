@@ -437,6 +437,39 @@ export default function EmployeeProfilePage() {
     enabled: !!id,
   });
 
+  // ─── ERP account link (badge ID is the intended anchor; email is a fallback
+  // signal so we can flag "account exists but badge not set"). ───
+  const { data: erpLink, isLoading: erpLinkLoading } = useQuery({
+    queryKey: ["erp_account_link", id, emp?.badge_id, emp?.email],
+    enabled: !!id && !!emp,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const badge = (emp?.badge_id ?? "").toString().trim();
+      const email = (emp?.email ?? "").toString().trim();
+      let byBadge: any = null;
+      if (badge) {
+        const { data } = await (supabase as any)
+          .from("users")
+          .select("id, name, email, badge_id, role_id, is_active")
+          .ilike("badge_id", badge)
+          .limit(1);
+        byBadge = data?.[0] ?? null;
+      }
+      let byEmail: any = null;
+      if (!byBadge && email) {
+        const { data } = await (supabase as any)
+          .from("users")
+          .select("id, name, email, badge_id, role_id, is_active")
+          .ilike("email", email)
+          .limit(1);
+        byEmail = data?.[0] ?? null;
+      }
+      return { badge, email, byBadge, byEmail };
+    },
+  });
+
+
+
   // ─── Attendance (V1: canonical view via useAttendanceDayRange; legacy
   // `hr_attendance` table only used as a compatibility fallback for very
   // old rows that never made it into hr_attendance_daily). ───

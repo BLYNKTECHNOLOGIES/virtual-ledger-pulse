@@ -521,8 +521,27 @@ export default function EmployeeProfilePage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (activeTab === "About") {
+        const nextEmail = (editForm.email || "").trim().toLowerCase();
+        if (nextEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+          throw new Error("Enter a valid email address");
+        }
+        if (nextEmail && nextEmail !== (emp?.email || "").trim().toLowerCase()) {
+          const { data: clash } = await (supabase as any)
+            .from("hr_employees")
+            .select("id, first_name, last_name, badge_id")
+            .ilike("email", nextEmail)
+            .neq("id", id!)
+            .maybeSingle();
+          if (clash) {
+            throw new Error(
+              `That email is already used by ${clash.first_name || ""} ${clash.last_name || ""} (${clash.badge_id ?? "—"})`,
+            );
+          }
+        }
         const { error } = await (supabase as any).from("hr_employees").update({
+          email: nextEmail || null,
           phone: editForm.phone || null,
+
           gender: editForm.gender || null,
           dob: editForm.dob || null,
           marital_status: editForm.marital_status || null,
@@ -677,7 +696,9 @@ export default function EmployeeProfilePage() {
   const startEdit = () => {
     if (activeTab === "About" && emp) {
       setEditForm({
+        email: emp.email || "",
         phone: emp.phone || "", gender: emp.gender || "", dob: emp.dob || "",
+
         marital_status: emp.marital_status || "", address: emp.address || "",
         city: emp.city || "", state: emp.state || "", country: emp.country || "",
         qualification: emp.qualification || "", experience: emp.experience || "",
@@ -894,7 +915,10 @@ export default function EmployeeProfilePage() {
                 )}
               </div>
               <div className="border border-border rounded-lg p-3 md:p-4 space-y-0">
+                <InfoRow label="Email" value={emp.email} editKey="email" inputType="email" />
+                <InfoRow label="Phone" value={emp.phone} editKey="phone" inputType="tel" />
                 <InfoRow label="Date of birth" value={emp.dob} editKey="dob" inputType="date" />
+
                 <InfoRow label="Gender" value={emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
                 <InfoRow label="Address" value={emp.address} editKey="address" />
                 <InfoRow label="Country" value={emp.country} editKey="country" />

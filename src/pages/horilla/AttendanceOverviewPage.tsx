@@ -196,6 +196,7 @@ export default function AttendanceOverviewPage() {
   const filtered = attendance.filter((a: any) => {
     const emp = a.hr_employees;
     if (!emp) return false;
+    if (statusFilter !== "all" && a.attendance_status !== statusFilter) return false;
     const q = search.toLowerCase();
     const fullName = `${emp.first_name} ${emp.last_name}`.toLowerCase();
     return fullName.includes(q) || emp.badge_id?.toLowerCase().includes(q);

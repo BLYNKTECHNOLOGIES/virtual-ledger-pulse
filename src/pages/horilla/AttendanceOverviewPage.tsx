@@ -57,7 +57,7 @@ export default function AttendanceOverviewPage() {
   );
 
   const { data: attendance = [], isLoading, error: queryError } = useQuery({
-    queryKey: ["hr_attendance_unified_v1", dateFilter, statusFilter, employees.length, dayRows.length],
+    queryKey: ["hr_attendance_unified_v1", dateFilter, employees.length, dayRows.length],
     enabled: employees.length > 0,
     queryFn: async () => {
       const nextDate = format(

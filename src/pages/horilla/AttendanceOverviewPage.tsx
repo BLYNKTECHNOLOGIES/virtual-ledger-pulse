@@ -57,7 +57,7 @@ export default function AttendanceOverviewPage() {
   );
 
   const { data: attendance = [], isLoading, error: queryError } = useQuery({
-    queryKey: ["hr_attendance_unified_v1", dateFilter, statusFilter, employees.length, dayRows.length],
+    queryKey: ["hr_attendance_unified_v1", dateFilter, employees.length, dayRows.length],
     enabled: employees.length > 0,
     queryFn: async () => {
       const nextDate = format(
@@ -154,9 +154,7 @@ export default function AttendanceOverviewPage() {
 
       let rows = Array.from(byEmployee.values()).filter((r) => r.hr_employees);
 
-      if (statusFilter !== "all") {
-        rows = rows.filter((row: any) => row.attendance_status === statusFilter);
-      }
+
 
       rows.sort((a: any, b: any) => {
         // punched employees first (chronological), then unpunched by name
@@ -198,6 +196,7 @@ export default function AttendanceOverviewPage() {
   const filtered = attendance.filter((a: any) => {
     const emp = a.hr_employees;
     if (!emp) return false;
+    if (statusFilter !== "all" && a.attendance_status !== statusFilter) return false;
     const q = search.toLowerCase();
     const fullName = `${emp.first_name} ${emp.last_name}`.toLowerCase();
     return fullName.includes(q) || emp.badge_id?.toLowerCase().includes(q);
@@ -278,7 +277,7 @@ export default function AttendanceOverviewPage() {
           items={filtered}
           columns={["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => ({ key: h, label: h }))}
           keyFor={(a: any) => a.id}
-          emptyState={<Card><CardContent className="p-0"><EmptyState icon={Clock} title="No attendance records for this date" description="Adjust the date filter or mark attendance." /></CardContent></Card>}
+          emptyState={<Card><CardContent className="p-0"><EmptyState icon={Clock} title={statusFilter !== "all" || search ? "No employees match the current filters" : "No attendance records for this date"} description={statusFilter !== "all" || search ? `${attendance.length} employee record(s) exist for this date — clear the status/search filter to see them.` : "Adjust the date filter or mark attendance."} /></CardContent></Card>}
           renderRow={(a: any) => (
             <>
               <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>

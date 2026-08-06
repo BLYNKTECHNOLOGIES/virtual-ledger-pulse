@@ -277,7 +277,7 @@ export default function AttendanceOverviewPage() {
           items={filtered}
           columns={["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => ({ key: h, label: h }))}
           keyFor={(a: any) => a.id}
-          emptyState={<Card><CardContent className="p-0"><EmptyState icon={Clock} title="No attendance records for this date" description="Adjust the date filter or mark attendance." /></CardContent></Card>}
+          emptyState={<Card><CardContent className="p-0"><EmptyState icon={Clock} title={statusFilter !== "all" || search ? "No employees match the current filters" : "No attendance records for this date"} description={statusFilter !== "all" || search ? `${attendance.length} employee record(s) exist for this date — clear the status/search filter to see them.` : "Adjust the date filter or mark attendance."} /></CardContent></Card>}
           renderRow={(a: any) => (
             <>
               <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>

@@ -154,9 +154,7 @@ export default function AttendanceOverviewPage() {
 
       let rows = Array.from(byEmployee.values()).filter((r) => r.hr_employees);
 
-      if (statusFilter !== "all") {
-        rows = rows.filter((row: any) => row.attendance_status === statusFilter);
-      }
+
 
       rows.sort((a: any, b: any) => {
         // punched employees first (chronological), then unpunched by name

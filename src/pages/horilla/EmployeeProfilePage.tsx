@@ -915,7 +915,10 @@ export default function EmployeeProfilePage() {
                 )}
               </div>
               <div className="border border-border rounded-lg p-3 md:p-4 space-y-0">
+                <InfoRow label="Email" value={emp.email} editKey="email" inputType="email" />
+                <InfoRow label="Phone" value={emp.phone} editKey="phone" inputType="tel" />
                 <InfoRow label="Date of birth" value={emp.dob} editKey="dob" inputType="date" />
+
                 <InfoRow label="Gender" value={emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
                 <InfoRow label="Address" value={emp.address} editKey="address" />
                 <InfoRow label="Country" value={emp.country} editKey="country" />

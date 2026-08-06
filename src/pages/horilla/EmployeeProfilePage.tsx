@@ -437,6 +437,39 @@ export default function EmployeeProfilePage() {
     enabled: !!id,
   });
 
+  // ─── ERP account link (badge ID is the intended anchor; email is a fallback
+  // signal so we can flag "account exists but badge not set"). ───
+  const { data: erpLink, isLoading: erpLinkLoading } = useQuery({
+    queryKey: ["erp_account_link", id, emp?.badge_id, emp?.email],
+    enabled: !!id && !!emp,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const badge = (emp?.badge_id ?? "").toString().trim();
+      const email = (emp?.email ?? "").toString().trim();
+      let byBadge: any = null;
+      if (badge) {
+        const { data } = await (supabase as any)
+          .from("users")
+          .select("id, first_name, last_name, email, badge_id, role_id, status")
+          .ilike("badge_id", badge)
+          .limit(1);
+        byBadge = data?.[0] ?? null;
+      }
+      let byEmail: any = null;
+      if (!byBadge && email) {
+        const { data } = await (supabase as any)
+          .from("users")
+          .select("id, first_name, last_name, email, badge_id, role_id, status")
+          .ilike("email", email)
+          .limit(1);
+        byEmail = data?.[0] ?? null;
+      }
+      return { badge, email, byBadge, byEmail };
+    },
+  });
+
+
+
   // ─── Attendance (V1: canonical view via useAttendanceDayRange; legacy
   // `hr_attendance` table only used as a compatibility fallback for very
   // old rows that never made it into hr_attendance_daily). ───
@@ -1338,7 +1371,86 @@ export default function EmployeeProfilePage() {
         {/* ── ASSET TAB ── */}
         {activeTab === "Asset" && (
           <div className="space-y-4">
+            {(() => {
+              const badge = (emp?.badge_id ?? "").toString().trim();
+              const linkedUser = erpLink?.byBadge || erpLink?.byEmail || null;
+              const state = erpLinkLoading
+                ? "loading"
+                : !badge
+                  ? "no_badge"
+                  : erpLink?.byBadge
+                    ? "linked"
+                    : erpLink?.byEmail
+                      ? "email_only"
+                      : "missing";
+              const tone: Record<string, string> = {
+                loading: "border-border bg-muted/40 text-muted-foreground",
+                linked: "border-success/30 bg-success/10 text-success",
+                email_only: "border-warning/30 bg-warning/10 text-warning",
+                no_badge: "border-warning/30 bg-warning/10 text-warning",
+                missing: "border-destructive/30 bg-destructive/10 text-destructive",
+              };
+              const label: Record<string, string> = {
+                loading: "Checking…",
+                linked: "ERP account linked",
+                email_only: "ERP account found — badge ID not set",
+                no_badge: "No badge ID on HRMS record",
+                missing: "No ERP account",
+              };
+              const hint: Record<string, string> = {
+                loading: "",
+                linked: "Matched by badge ID.",
+                email_only:
+                  "An ERP account exists with this email, but its badge ID is empty or different. Set the badge ID on the ERP user so the link is anchored correctly.",
+                no_badge: "Add a badge ID to this employee before an ERP account can be linked.",
+                missing:
+                  "No ERP user matches this employee's badge ID or email. Create the ERP account in User Management.",
+              };
+              return (
+                <div className={`rounded-lg border p-3 md:p-4 ${tone[state]}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider">ERP Account</span>
+                    <span className="inline-flex items-center rounded-full border border-current/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+                      {label[state]}
+                    </span>
+                  </div>
+                  {state !== "loading" && (
+                    <div className="mt-2 grid gap-1 text-xs text-foreground">
+                      <div className="flex flex-wrap gap-x-6 gap-y-1">
+                        <span>
+                          <span className="text-muted-foreground">HRMS badge ID: </span>
+                          {badge || "—"}
+                        </span>
+                        {linkedUser && (
+                          <>
+                            <span>
+                              <span className="text-muted-foreground">ERP user: </span>
+                              {`${linkedUser.first_name || ""} ${linkedUser.last_name || ""}`.trim() || "—"}
+                            </span>
+                            <span>
+                              <span className="text-muted-foreground">ERP email: </span>
+                              {linkedUser.email || "—"}
+                            </span>
+                            <span>
+                              <span className="text-muted-foreground">ERP badge ID: </span>
+                              {linkedUser.badge_id || "not set"}
+                            </span>
+                            <span>
+                              <span className="text-muted-foreground">ERP status: </span>
+                              {linkedUser.status || "—"}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {hint[state] && <p className="text-muted-foreground">{hint[state]}</p>}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <h3 className="text-base font-semibold text-foreground">Assigned Assets</h3>
+
             {(assetAssignments || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No assets assigned</p>
             ) : (

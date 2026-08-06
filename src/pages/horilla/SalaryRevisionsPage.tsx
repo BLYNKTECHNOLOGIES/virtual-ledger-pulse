@@ -151,14 +151,20 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_salary_revisions"] });
       qc.invalidateQueries({ queryKey: ["hr_payroll_inputs"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_salary_structures"] });
       if (res?.razorpay_reversal_required) {
         toast.warning("Entry deleted in HRMS — reverse it in RazorpayX", {
           description: "This amount was already pushed to RazorpayX. Open the payroll month there and remove the addition/deduction, otherwise it will still be paid.",
           duration: 12000,
         });
+      } else if (res?.ctc_rolled_back) {
+        toast.success(
+          `Revision deleted — salary restored to ₹${Number(res.rolled_back_to_total || 0).toLocaleString("en-IN")}`,
+        );
       } else {
         toast.success("Entry deleted — it will not affect payroll.");
       }
+
       setDeleteTarget(null);
       setDeleteReason("");
     },

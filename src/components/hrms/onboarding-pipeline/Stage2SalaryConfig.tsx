@@ -28,6 +28,8 @@ interface Stage2Props {
 export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly }: Stage2Props) {
   const [form, setForm] = useState({
     ctc: "",
+    training_completion_date: "",
+    post_training_ctc: "",
     deposit_config: null as any,
   });
   const dirtyRef = useRef(false);
@@ -38,22 +40,63 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     if (data) {
       setForm({
         ctc: data.ctc?.toString() || "",
+        training_completion_date: data.training_completion_date || "",
+        post_training_ctc: data.post_training_ctc?.toString() || "",
         deposit_config: data.deposit_config || null,
       });
     }
   }, [data]);
 
+  const doj: string | null = data?.date_of_joining || null;
+
   const validate = () => {
     if (!form.ctc || Number(form.ctc) <= 0) { toast.error("CTC is required and must be positive"); return false; }
+    const hasDate = !!form.training_completion_date;
+    const hasCtc = !!form.post_training_ctc && Number(form.post_training_ctc) > 0;
+    if (hasDate !== hasCtc) {
+      toast.error("Enter both the training completion date and the post-training CTC, or leave both blank");
+      return false;
+    }
+    if (hasDate && doj && form.training_completion_date <= doj) {
+      toast.error("Training completion date must be after the date of joining");
+      return false;
+    }
+    if (hasDate && Number(form.post_training_ctc) === Number(form.ctc)) {
+      toast.error("Post-training CTC must differ from the training CTC");
+      return false;
+    }
     return true;
   };
+
+  // Approximate recovery preview. LOP is unknown at onboarding time, so this
+  // assumes a clean month; the exact figure is recomputed on the effective date.
+  const preview = (() => {
+    const c1 = Number(form.ctc);
+    const c2 = Number(form.post_training_ctc);
+    if (!form.training_completion_date || !c1 || !c2 || c1 === c2) return null;
+    const t = new Date(`${form.training_completion_date}T00:00:00`);
+    if (Number.isNaN(t.getTime())) return null;
+    const n = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    const dOld = t.getDate() - 1;
+    const amount = ((c2 - c1) / 12) * (dOld / n);
+    return {
+      monthLabel: t.toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+      dateLabel: t.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+      amount,
+      dOld,
+      n,
+    };
+  })();
 
   const getPayload = () => ({
     ctc: Number(form.ctc) || null,
     // salary_template_id intentionally removed — templates abolished.
     salary_template_id: null,
+    training_completion_date: form.training_completion_date || null,
+    post_training_ctc: form.post_training_ctc ? Number(form.post_training_ctc) : null,
     deposit_config: form.deposit_config,
   });
+
 
   useEffect(() => {
     if (!dirtyRef.current || readOnly) return;
@@ -91,6 +134,57 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
             Enter the annual CTC only. The component split (Basic / HRA / PF / ESI etc.) is assigned inside RazorpayX after the employee is created there.
           </p>
         </div>
+
+        <div className="rounded-lg border p-4 space-y-3">
+          <p className="text-sm font-medium">Training period (optional)</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Training completion date</Label>
+              <Input
+                type="date"
+                value={form.training_completion_date}
+                min={doj || undefined}
+                onChange={e => {
+                  dirtyRef.current = true;
+                  setForm(p => ({ ...p, training_completion_date: e.target.value }));
+                }}
+                disabled={readOnly}
+                className="text-foreground"
+              />
+            </div>
+            <div>
+              <Label>Post-training annual CTC</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 900000"
+                value={form.post_training_ctc}
+                onChange={e => {
+                  dirtyRef.current = true;
+                  setForm(p => ({ ...p, post_training_ctc: e.target.value }));
+                }}
+                disabled={readOnly}
+                className="text-foreground"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Leave both blank if the hire starts on their final CTC. When filled, a scheduled salary revision is created at onboarding and the new CTC is pushed to RazorpayX automatically on that date — nothing to do manually.
+          </p>
+          {preview && (
+            <div className="rounded-md bg-primary/5 border p-3 text-xs text-muted-foreground">
+              On <span className="text-foreground font-medium">{preview.dateLabel}</span> the CTC changes from ₹
+              {Number(form.ctc).toLocaleString("en-IN")} to ₹{Number(form.post_training_ctc).toLocaleString("en-IN")}.
+              RazorpayX pays {preview.monthLabel} fully at the new CTC, so a one-time{" "}
+              {preview.amount >= 0 ? "recovery" : "addition"} of about{" "}
+              <span className="text-foreground font-medium">
+                ₹{Math.abs(Math.round(preview.amount)).toLocaleString("en-IN")}
+              </span>{" "}
+              ({preview.dOld} day{preview.dOld === 1 ? "" : "s"} of {preview.n}) will be staged in the {preview.monthLabel} payroll for HR approval. Loss of pay is applied to the exact figure on the effective date.
+            </div>
+          )}
+        </div>
+
+
 
         <div className="rounded-lg border p-3 bg-primary/5 flex gap-2 items-start">
           <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />

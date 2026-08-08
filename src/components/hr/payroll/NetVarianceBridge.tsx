@@ -33,6 +33,12 @@ export type BridgeLine = {
   razorpay_pt: number | null;
   razorpay_tds: number | null;
   compute_notes: any;
+  /** Training-completion CTC correction staged for this employee/month, as a
+   *  deduction-positive rupee amount (arrears come through negative). */
+  training_ctc_adjustment?: number | null;
+  /** True once the same correction is live on the RazorpayX run. */
+  training_ctc_adjustment_pushed?: boolean;
+
 };
 
 export type BridgeHead = {
@@ -132,9 +138,23 @@ export function buildVarianceBridge(l: BridgeLine): {
 
   // Everything else on both deduction stacks: loans, advances, recoveries,
   // LWF, register component gaps, unlabelled register deductions.
-  const shadowOther = r0(n0(l.deductions_total) - (shadowPf + shadowEsi + shadowPt + shadowTds));
-  const rzOther = r0((rzGross - rzNet) - (rzPf + rzEsi + rzPt + rzTds));
+  const trainingAdj = r0(n0(l.training_ctc_adjustment));
+  const trainingRzp = l.training_ctc_adjustment_pushed ? trainingAdj : 0;
+  const shadowOther = r0(n0(l.deductions_total) - (shadowPf + shadowEsi + shadowPt + shadowTds) - trainingAdj);
+  const rzOther = r0((rzGross - rzNet) - (rzPf + rzEsi + rzPt + rzTds) - trainingRzp);
+
+  if (trainingAdj !== 0 || trainingRzp !== 0) {
+    heads.push(dedHead(
+      "training_ctc_adjustment",
+      "Training CTC adjustment",
+      "One-time correction for a CTC that changed mid-month on training completion. RazorpayX pays the whole month at the live CTC, so the difference on the days before the change is recovered (or paid as arrears) through this line. It stays out of the residual by design.",
+      trainingAdj,
+      trainingRzp,
+    ));
+  }
+
   heads.push(dedHead(
+
     "other_deductions",
     "Other deductions & recoveries",
     "Everything the two stacks deduct beyond PF/ESI/PT/TDS — loan EMIs, salary advances, security deposits, LWF, and any unlabelled deduction inside the imported Razorpay register (including a register whose gross does not equal the sum of its own pay heads).",

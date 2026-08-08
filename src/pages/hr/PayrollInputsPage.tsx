@@ -19,6 +19,8 @@ import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
 import { AutoRecoveriesCard } from "@/components/hr/payroll/AutoRecoveriesCard";
+import { TrainingCtcAdjustmentsCard } from "@/components/hr/payroll/TrainingCtcAdjustmentsCard";
+
 import { OtherPayrollInputsCard } from "@/components/hr/payroll/OtherPayrollInputsCard";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
@@ -166,11 +168,14 @@ export default function PayrollInputsPage() {
   });
 
   // Cockpit step 3 deep-links here with focus=lop — narrow the list to loss-of-pay rows.
+  // Training-completion CTC corrections live in their own block below, with the
+  // full derivation and an HR approval gate, so they are kept out of this list.
   const visibleRows = useMemo(() => {
-    const all = (rows as any[]) ?? [];
+    const all = ((rows as any[]) ?? []).filter((r) => r.source !== "training_ctc_adjustment");
     if (!lopFocus || tab !== "deduction") return all;
     return all.filter((r) => /lop|loss of pay|loss-of-pay/i.test(String(r.label ?? "")));
   }, [rows, lopFocus, tab]);
+
 
 
 
@@ -612,8 +617,10 @@ export default function PayrollInputsPage() {
         </TabsContent>
       </Tabs>
 
+      {!lopFocus && <TrainingCtcAdjustmentsCard period={period} />}
       {!lopFocus && tab === "deduction" && <AutoRecoveriesCard period={period} />}
       {!lopFocus && tab === "addition" && <OtherPayrollInputsCard period={period} />}
+
 
 
 

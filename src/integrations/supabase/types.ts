@@ -7423,6 +7423,7 @@ export type Database = {
           offer_policy_status: string | null
           phone: string | null
           position_id: string | null
+          post_training_ctc: number | null
           probation_end_date: string | null
           razorpay_employee_id: string | null
           razorpay_reconciliation: Json | null
@@ -7433,6 +7434,7 @@ export type Database = {
           stage_completions: Json | null
           status: string
           tax_regime: string | null
+          training_completion_date: string | null
           updated_at: string
         }
         Insert: {
@@ -7465,6 +7467,7 @@ export type Database = {
           offer_policy_status?: string | null
           phone?: string | null
           position_id?: string | null
+          post_training_ctc?: number | null
           probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
@@ -7475,6 +7478,7 @@ export type Database = {
           stage_completions?: Json | null
           status?: string
           tax_regime?: string | null
+          training_completion_date?: string | null
           updated_at?: string
         }
         Update: {
@@ -7507,6 +7511,7 @@ export type Database = {
           offer_policy_status?: string | null
           phone?: string | null
           position_id?: string | null
+          post_training_ctc?: number | null
           probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
@@ -7517,6 +7522,7 @@ export type Database = {
           stage_completions?: Json | null
           status?: string
           tax_regime?: string | null
+          training_completion_date?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -10883,6 +10889,8 @@ export type Database = {
           razorpay_employee_id: string
           readback_diff: Json | null
           readback_verified_at: string | null
+          source: string | null
+          source_revision_id: string | null
           taxable: boolean
           updated_at: string
         }
@@ -10900,6 +10908,8 @@ export type Database = {
           razorpay_employee_id: string
           readback_diff?: Json | null
           readback_verified_at?: string | null
+          source?: string | null
+          source_revision_id?: string | null
           taxable?: boolean
           updated_at?: string
         }
@@ -10917,6 +10927,8 @@ export type Database = {
           razorpay_employee_id?: string
           readback_diff?: Json | null
           readback_verified_at?: string | null
+          source?: string | null
+          source_revision_id?: string | null
           taxable?: boolean
           updated_at?: string
         }
@@ -10981,6 +10993,7 @@ export type Database = {
           readback_diff: Json | null
           readback_verified_at: string | null
           source: string
+          source_revision_id: string | null
           updated_at: string
         }
         Insert: {
@@ -10998,6 +11011,7 @@ export type Database = {
           readback_diff?: Json | null
           readback_verified_at?: string | null
           source?: string
+          source_revision_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -11015,6 +11029,7 @@ export type Database = {
           readback_diff?: Json | null
           readback_verified_at?: string | null
           source?: string
+          source_revision_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -25101,6 +25116,29 @@ export type Database = {
           working_days: number
         }[]
       }
+      hr_lop_days_window: {
+        Args: {
+          p_employee_ids: string[]
+          p_from?: string
+          p_period_month: string
+          p_to?: string
+        }
+        Returns: {
+          absent_days: number
+          config_errors: string[]
+          employee_id: string
+          formula: string
+          half_days: number
+          incomplete_held_days: number
+          lop_days: number
+          paid_leave_days: number
+          present_days: number
+          unpaid_leave_days: number
+          weekly_off_days: number[]
+          weekly_off_source: string
+          working_days: number
+        }[]
+      }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string
@@ -25279,6 +25317,10 @@ export type Database = {
         Returns: undefined
       }
       hr_settle_loan_period: { Args: { p_period: string }; Returns: number }
+      hr_stage_training_ctc_adjustment: {
+        Args: { p_revision_id: string }
+        Returns: Json
+      }
       hr_stale_session_held: {
         Args: { p_date: string; p_employee_id: string }
         Returns: boolean
@@ -25307,6 +25349,10 @@ export type Database = {
         }[]
       }
       hr_system_pulse: { Args: never; Returns: Json }
+      hr_training_ctc_adjustment: {
+        Args: { p_revision_id: string }
+        Returns: Json
+      }
       hr_unlock_attendance_period: {
         Args: { _period_end: string; _period_start: string; _reason: string }
         Returns: {

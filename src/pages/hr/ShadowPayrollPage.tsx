@@ -83,7 +83,32 @@ export default function ShadowPayrollPage() {
     },
   });
 
-  const { data: lines } = useQuery({
+  // Training-completion CTC corrections staged for this month. They are a
+  // dedicated bridge bucket so they never land in the unexplained residual.
+  const { data: trainingAdj } = useQuery({
+    queryKey: ["shadow_training_adjustments", period],
+    queryFn: async () => {
+      const periodDate = `${period}-01`;
+      const [ded, add] = await Promise.all([
+        (supabase as any).from("hr_payroll_input_deductions")
+          .select("hr_employee_id, amount, pushed_at")
+          .eq("period_month", periodDate).eq("source", "training_ctc_adjustment"),
+        (supabase as any).from("hr_payroll_input_additions")
+          .select("hr_employee_id, amount, pushed_at")
+          .eq("period_month", periodDate).eq("source", "training_ctc_adjustment"),
+      ]);
+      const map: Record<string, { amount: number; pushed: boolean }> = {};
+      (ded.data ?? []).forEach((r: any) => {
+        map[r.hr_employee_id] = { amount: Number(r.amount || 0), pushed: !!r.pushed_at };
+      });
+      (add.data ?? []).forEach((r: any) => {
+        map[r.hr_employee_id] = { amount: -Number(r.amount || 0), pushed: !!r.pushed_at };
+      });
+      return map;
+    },
+  });
+
+  const { data: rawLines } = useQuery({
     queryKey: ["shadow_lines", run?.id],
     queryFn: async (): Promise<Line[]> => {
       if (!run?.id) return [];
@@ -96,6 +121,17 @@ export default function ShadowPayrollPage() {
     },
     enabled: !!run?.id,
   });
+
+  const lines = useMemo(
+    () => (rawLines ?? []).map((l: any) => {
+      const t = trainingAdj?.[l.hr_employee_id];
+      return t
+        ? { ...l, training_ctc_adjustment: t.amount, training_ctc_adjustment_pushed: t.pushed }
+        : l;
+    }) as Line[] | undefined,
+    [rawLines, trainingAdj],
+  );
+
 
   const { data: employees } = useQuery({
     queryKey: ["shadow_emp_names"],

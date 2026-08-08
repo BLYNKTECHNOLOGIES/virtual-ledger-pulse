@@ -28,6 +28,7 @@ interface Stage2Props {
 export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly }: Stage2Props) {
   const [form, setForm] = useState({
     ctc: "",
+    date_of_joining: "",
     training_completion_date: "",
     post_training_ctc: "",
     deposit_config: null as any,

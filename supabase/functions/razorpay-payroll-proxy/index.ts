@@ -1673,6 +1673,8 @@ Deno.serve(async (req) => {
           case "probation_end_date": { const d = toOpfinDate(raw); if (d) { data["probation-end-date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
           case "employee_type": data["employment-type"] = employeeKind(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "job_role": data["title"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
+          case "department": data["department"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
+
           case "tax_regime": data["tax-regime"] = String(raw).toLowerCase().replace(/[^a-z]/g, ""); applied.push(k); break;
           // RazorpayX opfin people:edit envelope accepts `pan` (NOT `pan-number`).
           // The verified bank+PAN push path (push_bank_apply_*) uses `pan` and

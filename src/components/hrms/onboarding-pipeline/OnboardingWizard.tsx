@@ -590,6 +590,41 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       //    the component breakdown is assigned on the RazorpayX dashboard and
       //    mirrored read-only inside the employee profile after the next sync.
 
+      // 5b. Training-completion CTC — stage a SCHEDULED revision so the new CTC
+      //     is pushed to RazorpayX automatically on the completion date, and the
+      //     transition is visible in Salary Revision History from day one.
+      try {
+        const trainingDate = (r as any).training_completion_date as string | null;
+        const postCtc = Number((r as any).post_training_ctc || 0);
+        const trainingCtc = Number(r.ctc || 0);
+        if (trainingDate && postCtc > 0 && trainingCtc > 0 && postCtc !== trainingCtc) {
+          const { data: existing } = await supabase
+            .from("hr_salary_revisions")
+            .select("id")
+            .eq("employee_id", emp.id)
+            .eq("revision_reason", "training_completion")
+            .eq("status", "SCHEDULED")
+            .maybeSingle();
+          const revisionRow = {
+            employee_id: emp.id,
+            previous_total: trainingCtc,
+            new_total: postCtc,
+            effective_from: trainingDate,
+            revision_type: postCtc > trainingCtc ? "increment" : "demotion",
+            revision_reason: "training_completion",
+            status: "SCHEDULED",
+            notes: "Auto-scheduled from onboarding — training completion CTC",
+          };
+          const write = existing?.id
+            ? await supabase.from("hr_salary_revisions").update(revisionRow).eq("id", existing.id)
+            : await supabase.from("hr_salary_revisions").insert(revisionRow);
+          if (write.error) throw write.error;
+        }
+      } catch (trainErr) {
+        console.warn("Training-completion revision scheduling failed:", trainErr);
+      }
+
+
       // 6. Determine which external system creations were requested BEFORE
       //    marking the onboarding as completed. If any requested creation
       //    fails, we abort completion and keep the record on Stage 5 with a

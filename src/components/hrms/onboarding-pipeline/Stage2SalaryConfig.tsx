@@ -130,9 +130,6 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
             }}
             disabled={readOnly}
           />
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Enter the annual CTC only. The component split (Basic / HRA / PF / ESI etc.) is assigned inside RazorpayX after the employee is created there.
-          </p>
         </div>
 
         <div className="rounded-lg border p-4 space-y-3">

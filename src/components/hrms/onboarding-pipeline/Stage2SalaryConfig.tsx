@@ -41,6 +41,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     if (data) {
       setForm({
         ctc: data.ctc?.toString() || "",
+        date_of_joining: data.date_of_joining || "",
         training_completion_date: data.training_completion_date || "",
         post_training_ctc: data.post_training_ctc?.toString() || "",
         deposit_config: data.deposit_config || null,
@@ -48,7 +49,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     }
   }, [data]);
 
-  const doj: string | null = data?.date_of_joining || null;
+  const doj: string | null = form.date_of_joining || data?.date_of_joining || null;
 
   const validate = () => {
     if (!form.ctc || Number(form.ctc) <= 0) { toast.error("CTC is required and must be positive"); return false; }

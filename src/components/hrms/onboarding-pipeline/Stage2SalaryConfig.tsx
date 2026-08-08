@@ -121,18 +121,33 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <Label>Annual CTC *</Label>
-          <Input
-            type="number"
-            placeholder="e.g. 600000"
-            value={form.ctc}
-            onChange={e => {
-              dirtyRef.current = true;
-              setForm(p => ({ ...p, ctc: e.target.value }));
-            }}
-            disabled={readOnly}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label>Annual CTC *</Label>
+            <Input
+              type="number"
+              placeholder="e.g. 600000"
+              value={form.ctc}
+              onChange={e => {
+                dirtyRef.current = true;
+                setForm(p => ({ ...p, ctc: e.target.value }));
+              }}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Date of Joining *</Label>
+            <Input
+              type="date"
+              value={form.date_of_joining}
+              onChange={e => {
+                dirtyRef.current = true;
+                setForm(p => ({ ...p, date_of_joining: e.target.value }));
+              }}
+              disabled={readOnly}
+              className="text-foreground"
+            />
+          </div>
         </div>
 
         <div className="rounded-lg border p-4 space-y-3">

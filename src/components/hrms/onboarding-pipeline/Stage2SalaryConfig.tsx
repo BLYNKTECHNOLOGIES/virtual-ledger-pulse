@@ -53,6 +53,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
 
   const validate = () => {
     if (!form.ctc || Number(form.ctc) <= 0) { toast.error("CTC is required and must be positive"); return false; }
+    if (!form.date_of_joining) { toast.error("Date of Joining is required"); return false; }
     const hasDate = !!form.training_completion_date;
     const hasCtc = !!form.post_training_ctc && Number(form.post_training_ctc) > 0;
     if (hasDate !== hasCtc) {

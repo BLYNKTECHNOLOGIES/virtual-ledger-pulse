@@ -197,6 +197,21 @@ Deno.serve(async (req) => {
     const totalDays = monthEnd.getUTCDate();
     const activeCount = employees?.length ?? 0;
 
+    // Joining dates live on hr_employee_work_info (NOT hr_employees) and the
+    // imported register does not carry a hire date, so this is the only
+    // reliable source for the mid-month joiner clamp.
+    const joiningByEmp = new Map<string, string>();
+    if (activeCount > 0) {
+      const { data: wi, error: wiErr } = await supabase
+        .from("hr_employee_work_info")
+        .select("employee_id, joining_date")
+        .in("employee_id", employees!.map((e: any) => e.id));
+      if (wiErr) console.error("work info err", wiErr);
+      for (const r of wi ?? []) if (r.joining_date) joiningByEmp.set(r.employee_id, r.joining_date);
+    }
+
+
+
     let attendanceCoveragePct = 0;
     if (activeCount > 0) {
       const { data: attEmps, error: attErr } = await supabase

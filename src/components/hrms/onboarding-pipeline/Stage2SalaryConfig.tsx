@@ -92,6 +92,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
 
   const getPayload = () => ({
     ctc: Number(form.ctc) || null,
+    date_of_joining: form.date_of_joining || null,
     // salary_template_id intentionally removed — templates abolished.
     salary_template_id: null,
     training_completion_date: form.training_completion_date || null,

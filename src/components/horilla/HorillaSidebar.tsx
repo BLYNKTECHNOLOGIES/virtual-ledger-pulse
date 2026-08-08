@@ -19,6 +19,8 @@ import {
   ChevronRight,
   Briefcase,
   AlertTriangle,
+  Mail,
+
   
   FileSpreadsheet,
 } from "lucide-react";
@@ -183,6 +185,7 @@ const navGroups: NavGroup[] = [
       { label: "Organization", icon: Building2, path: "/hrms/organization" },
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
       { label: "Announcements", icon: Megaphone, path: "/hrms/announcements" },
+      { label: "Mailbox", icon: Mail, path: "/hrms/mailbox" },
       { label: "Disciplinary Actions", icon: AlertTriangle, path: "/hrms/disciplinary-actions" },
       
     ],

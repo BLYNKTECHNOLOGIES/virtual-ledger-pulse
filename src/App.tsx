@@ -143,6 +143,7 @@ const SkillZonePage = lazy(() => import('./pages/horilla/SkillZonePage'));
 const RecruitmentSurveyPage = lazy(() => import('./pages/horilla/RecruitmentSurveyPage'));
 const RejectedCandidatesPage = lazy(() => import('./pages/horilla/RejectedCandidatesPage'));
 const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
+const MailboxPage = lazy(() => import('./pages/horilla/MailboxPage'));
 const AttendancePunchesPage = lazy(() => import('./pages/horilla/AttendancePunchesPage'));
 const MonthlyHoursSummaryPage = lazy(() => import('./pages/horilla/MonthlyHoursSummaryPage'));
 const ExchangeAccountsSettings = lazy(() => import('./pages/ExchangeAccountsSettings'));
@@ -795,6 +796,7 @@ const router = createBrowserRouter([
         { path: "disciplinary-actions", element: <DisciplinaryActionsPage /> },
         
         { path: "logs", element: <HRLogsPage /> },
+        { path: "mailbox", element: <MailboxPage /> },
         { path: "recruitment", element: <RecruitmentDashboardPage /> },
         { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },
         { path: "recruitment/candidates", element: <CandidatesListPage /> },

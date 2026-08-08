@@ -61,7 +61,7 @@ export default function MailboxPage() {
 
         <TabsContent value="inbox"><InboxTab mailboxId={activeMailboxId} /></TabsContent>
         <TabsContent value="compose"><ComposeTab mailboxId={activeMailboxId} onSent={() => setTab("sent")} /></TabsContent>
-        <TabsContent value="sent"><SentTab /></TabsContent>
+        <TabsContent value="sent"><SentTab mailboxId={activeMailboxId} /></TabsContent>
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
       </Tabs>
     </div>
@@ -370,8 +370,8 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
 
 /* -------------------------------- SENT --------------------------------- */
 
-function SentTab() {
-  const { data: campaigns = [], isLoading } = useHrMailCampaigns();
+function SentTab({ mailboxId }: { mailboxId?: string }) {
+  const { data: campaigns = [], isLoading } = useHrMailCampaigns(mailboxId);
   const [open, setOpen] = useState<HrMailCampaign | null>(null);
 
   return (

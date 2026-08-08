@@ -353,6 +353,11 @@ Deno.serve(async (req) => {
 
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
+      const rz = rzByEmp.get(emp.id);
+      const rzBasis: "register_csv" | "api" | null = rz
+        ? (rz.has_register ? "register_csv" : "api")
+        : null;
+
 
       if (doNotPayEmp.has(emp.id)) {
         const { error: dnpLineErr } = await supabase

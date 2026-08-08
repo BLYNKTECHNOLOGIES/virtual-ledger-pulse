@@ -660,6 +660,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     },
   });
 
+  const { data: departments } = useQuery({
+    queryKey: ["departments-list-stage5"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("id, name").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+
   // Re-run reconciliation when managers list finishes loading or the
   // reporting-manager selection changes, so the "Reporting manager" row
   // reflects the correct ERP-side badge/name rather than a stale blank.

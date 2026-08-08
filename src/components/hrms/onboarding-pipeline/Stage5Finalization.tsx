@@ -309,6 +309,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "employee_type":
       case "job_role":
         return { onboardingPatch: { [diff.field]: rpVal } };
+      case "department": {
+        const dep = (departments || []).find((d: any) => String(d.name).trim().toLowerCase() === rpStr.trim().toLowerCase());
+        return dep ? { onboardingPatch: { department_id: dep.id } } : {};
+      }
       case "pan":
         return { docsPatch: { pan: { value: rpStr.toUpperCase() } } };
       case "uan":

@@ -33,6 +33,19 @@ export type BridgeLine = {
   razorpay_pt: number | null;
   razorpay_tds: number | null;
   compute_notes: any;
+  /** Which Razorpay source this line was compared against. */
+  razorpay_basis?: "register_csv" | "api" | null;
+  /** Register-only heads, mirrored onto the line by the shadow engine. */
+  rz_advance_salary?: number | null;
+  rz_loan_emi?: number | null;
+  rz_lwf_ee?: number | null;
+  rz_refund_security_deposit?: number | null;
+  rz_one_time_payments?: number | null;
+  rz_overtime?: number | null;
+  rz_performance_incentive?: number | null;
+  enrollment_mismatch?: Array<{ head: string; hrms: string; razorpay_amount: number }> | null;
+  lop_not_pushed?: boolean | null;
+  employment_window?: { factor?: number; reason?: string; paid_calendar_days?: number; total_days?: number } | null;
   /** Training-completion CTC correction staged for this employee/month, as a
    *  deduction-positive rupee amount (arrears come through negative). */
   training_ctc_adjustment?: number | null;
@@ -40,6 +53,7 @@ export type BridgeLine = {
   training_ctc_adjustment_pushed?: boolean;
 
 };
+
 
 export type BridgeHead = {
   key: string;

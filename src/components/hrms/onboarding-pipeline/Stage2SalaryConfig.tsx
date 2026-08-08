@@ -28,6 +28,7 @@ interface Stage2Props {
 export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly }: Stage2Props) {
   const [form, setForm] = useState({
     ctc: "",
+    date_of_joining: "",
     training_completion_date: "",
     post_training_ctc: "",
     deposit_config: null as any,
@@ -40,6 +41,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     if (data) {
       setForm({
         ctc: data.ctc?.toString() || "",
+        date_of_joining: data.date_of_joining || "",
         training_completion_date: data.training_completion_date || "",
         post_training_ctc: data.post_training_ctc?.toString() || "",
         deposit_config: data.deposit_config || null,
@@ -47,10 +49,11 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     }
   }, [data]);
 
-  const doj: string | null = data?.date_of_joining || null;
+  const doj: string | null = form.date_of_joining || data?.date_of_joining || null;
 
   const validate = () => {
     if (!form.ctc || Number(form.ctc) <= 0) { toast.error("CTC is required and must be positive"); return false; }
+    if (!form.date_of_joining) { toast.error("Date of Joining is required"); return false; }
     const hasDate = !!form.training_completion_date;
     const hasCtc = !!form.post_training_ctc && Number(form.post_training_ctc) > 0;
     if (hasDate !== hasCtc) {
@@ -90,6 +93,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
 
   const getPayload = () => ({
     ctc: Number(form.ctc) || null,
+    date_of_joining: form.date_of_joining || null,
     // salary_template_id intentionally removed — templates abolished.
     salary_template_id: null,
     training_completion_date: form.training_completion_date || null,
@@ -118,18 +122,33 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <Label>Annual CTC *</Label>
-          <Input
-            type="number"
-            placeholder="e.g. 600000"
-            value={form.ctc}
-            onChange={e => {
-              dirtyRef.current = true;
-              setForm(p => ({ ...p, ctc: e.target.value }));
-            }}
-            disabled={readOnly}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label>Annual CTC *</Label>
+            <Input
+              type="number"
+              placeholder="e.g. 600000"
+              value={form.ctc}
+              onChange={e => {
+                dirtyRef.current = true;
+                setForm(p => ({ ...p, ctc: e.target.value }));
+              }}
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label>Date of Joining *</Label>
+            <Input
+              type="date"
+              value={form.date_of_joining}
+              onChange={e => {
+                dirtyRef.current = true;
+                setForm(p => ({ ...p, date_of_joining: e.target.value }));
+              }}
+              disabled={readOnly}
+              className="text-foreground"
+            />
+          </div>
         </div>
 
         <div className="rounded-lg border p-4 space-y-3">

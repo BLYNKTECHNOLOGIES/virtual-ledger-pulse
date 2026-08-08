@@ -33,6 +33,12 @@ export type BridgeLine = {
   razorpay_pt: number | null;
   razorpay_tds: number | null;
   compute_notes: any;
+  /** Training-completion CTC correction staged for this employee/month, as a
+   *  deduction-positive rupee amount (arrears come through negative). */
+  training_ctc_adjustment?: number | null;
+  /** True once the same correction is live on the RazorpayX run. */
+  training_ctc_adjustment_pushed?: boolean;
+
 };
 
 export type BridgeHead = {

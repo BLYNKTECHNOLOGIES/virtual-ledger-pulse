@@ -339,6 +339,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "probation_end_date": return record?.probation_end_date;
       case "employee_type": return record?.employee_type;
       case "job_role": return record?.job_role;
+      case "department": return (departments || []).find((d: any) => d.id === record?.department_id)?.name || "";
       case "ctc": return record?.ctc;
       case "pan": return docs?.pan?.value || docs?.pan || "";
       case "uan": return docs?.uan?.value || docs?.uan || "";

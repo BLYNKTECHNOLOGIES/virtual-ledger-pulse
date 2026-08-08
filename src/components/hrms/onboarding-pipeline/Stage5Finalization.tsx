@@ -600,6 +600,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               probation_end_date: (onboardingRecord as any)?.probation_end_date,
               employee_type: (onboardingRecord as any)?.employee_type,
               job_role: (onboardingRecord as any)?.job_role,
+              department: (departments || []).find((d: any) => d.id === (onboardingRecord as any)?.department_id)?.name || null,
               ctc: onboardingRecord?.ctc,
               documents: onboardingRecord?.documents,
               bank: {

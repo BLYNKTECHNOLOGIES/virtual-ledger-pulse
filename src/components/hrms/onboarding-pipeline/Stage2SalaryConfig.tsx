@@ -167,9 +167,6 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
               />
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Leave both blank if the hire starts on their final CTC. When filled, a scheduled salary revision is created at onboarding and the new CTC is pushed to RazorpayX automatically on that date — nothing to do manually.
-          </p>
           {preview && (
             <div className="rounded-md bg-primary/5 border p-3 text-xs text-muted-foreground">
               On <span className="text-foreground font-medium">{preview.dateLabel}</span> the CTC changes from ₹

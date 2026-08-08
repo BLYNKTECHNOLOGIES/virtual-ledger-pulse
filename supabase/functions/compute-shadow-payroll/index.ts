@@ -564,14 +564,44 @@ Deno.serve(async (req) => {
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
-      // RazorpayX side of the comparison. Read the reconciled payslip view
-      // (hr_payslips_v) — it already merges the API pull with the imported
-      // salary register and exposes regular_gross (gross with one-time payouts
-      // carved out), which is the only apples-to-apples counterpart to the
-      // shadow engine's earningsTotal. The raw record table has no
-      // gross_amount column and its pf/esi/pt/tds columns stay NULL for
-      // register-imported months.
-      const rz = rzByEmp.get(emp.id);
+      // RazorpayX side of the comparison — ONE declared basis per line
+      // (register when imported, API otherwise), recorded on the row so a
+      // variance can never come from silently mixing sources.
+      const rzGrossCmp = num(rz?.regular_gross ?? rz?.gross);
+      const rzPfCmp = num(rz?.pf_amount);
+      const rzEsiCmp = num(rz?.esi_amount);
+      const rzPtCmp = num(rz?.professional_tax);
+
+      // Register-only heads. Kept as their own columns so the variance bridge
+      // can name them instead of dumping them into "other deductions".
+      const rzAdvance = Number(rz?.advance_salary ?? 0);
+      const rzLoanEmi = Number(rz?.loan_emi ?? 0);
+      const rzLwf = Number(rz?.lwf_ee ?? 0);
+      const rzSecDep = Number(rz?.refund_security_deposit ?? 0);
+      const rzOneTime = Number(rz?.one_time_payments ?? 0);
+      const rzOvertime = Number(rz?.overtime ?? 0);
+      const rzIncentive = Number(rz?.performance_incentive ?? 0);
+
+      // Enrollment reality check: HRMS flag vs what the register actually
+      // deducted. Computation still follows the HRMS flag — the mismatch is
+      // surfaced as a named data-quality finding.
+      const enrollmentMismatch: Array<Record<string, unknown>> = [];
+      const mismatchCheck = (head: string, enrolled: boolean, rzAmt: number | null) => {
+        if (rzAmt === null) return;
+        if (!enrolled && Math.abs(rzAmt) >= 1) {
+          enrollmentMismatch.push({ head, hrms: "not_enrolled", razorpay_amount: rzAmt });
+        } else if (enrolled && Math.abs(rzAmt) < 1) {
+          enrollmentMismatch.push({ head, hrms: "enrolled", razorpay_amount: 0 });
+        }
+      };
+      mismatchCheck("pf", pfEnrolled, rzPfCmp);
+      mismatchCheck("esi", esiEnrolled, rzEsiCmp);
+      mismatchCheck("pt", ptEnrolled, rzPtCmp);
+
+      // LOP applied locally but absent on the Razorpay side (their gross sits
+      // at or above the un-LOP'd CTC) — a push gap, not a computation error.
+      const lopNotPushed = lopAmount > 0 && rzGrossCmp !== null
+        && rzGrossCmp >= (regularBase + lopAmount) - 1;
 
       const { data: line, error: lineErr } = await supabase
         .from("hr_shadow_payroll_lines")
@@ -593,12 +623,24 @@ Deno.serve(async (req) => {
           tds_amount: tds,
           deductions_total: deductions,
           net_pay: net,
-          razorpay_gross: num(rz?.regular_gross ?? rz?.gross),
+          razorpay_basis: rzBasis,
+          razorpay_gross: rzGrossCmp,
           razorpay_net: num(rz?.net),
-          razorpay_pf: num(rz?.pf_amount),
-          razorpay_esi: num(rz?.esi_amount),
-          razorpay_pt: num(rz?.professional_tax),
+          razorpay_pf: rzPfCmp,
+          razorpay_esi: rzEsiCmp,
+          razorpay_pt: rzPtCmp,
           razorpay_tds: num(rz?.tds_amount),
+          rz_advance_salary: rzAdvance,
+          rz_loan_emi: rzLoanEmi,
+          rz_lwf_ee: rzLwf,
+          rz_refund_security_deposit: rzSecDep,
+          rz_one_time_payments: rzOneTime,
+          rz_overtime: rzOvertime,
+          rz_performance_incentive: rzIncentive,
+          rz_working_days: rz?.working_days ?? null,
+          enrollment_mismatch: enrollmentMismatch,
+          lop_not_pushed: lopNotPushed,
+          employment_window: employmentWindow,
           compute_notes: {
             regime, monthsRemaining, annualBasePreLop, ytdTdsPaid, annualTax,
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
@@ -611,7 +653,11 @@ Deno.serve(async (req) => {
             ctc_post_lop: ctcPost,
             employer_cost_within_ctc: employerCost,
             bonus_outside_ctc: addPositive,
+            razorpay_basis: rzBasis,
+            employment_window: employmentWindow,
+            window_factor: Number(windowFactor.toFixed(6)),
           },
+
         }, { onConflict: "run_id,hr_employee_id" })
         .select()
         .single();

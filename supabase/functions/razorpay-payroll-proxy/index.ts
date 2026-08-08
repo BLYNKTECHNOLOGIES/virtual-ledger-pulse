@@ -6105,18 +6105,26 @@ Deno.serve(async (req) => {
       if (!accountHolder) missing.push("bank_account_holder_name");
       if (missing.length) return json(400, { ok: false, reason: "missing_fields", missing });
 
+      // Every employee is on the Madhya Pradesh PT roll — pushed as the default
+      // state on every RazorpayX create/edit so PT slabs resolve correctly.
+      const DEFAULT_RP_STATE = "madhya pradesh";
+
       const createData: Record<string, any> = {
         email: String(ob.email).trim().toLowerCase(),
         name: fullName,
         type: "employee",
         "phone-number": normPhone(ob.phone),
         gender: ob.gender ? String(ob.gender).toLowerCase() : null,
-        "date-of-birth": dobIso,
+        // RazorpayX expects DD/MM/YYYY on the people envelope — an ISO date is
+        // accepted with HTTP 200 but silently dropped, which is why DOB never
+        // appeared on created people.
+        "date-of-birth": toDdMmYyyy(dobIso),
         "hiring-date": dojIso,
         hire_date: dojRp,
         "date-of-joining": dojRp,
         department: deptName,
         title: ob.job_role,
+        state: DEFAULT_RP_STATE,
         pan,
         "bank-account-number": accountNumber,
         "bank-ifsc": ifsc,
@@ -6125,6 +6133,7 @@ Deno.serve(async (req) => {
       for (const k of Object.keys(createData)) {
         if (createData[k] === null || createData[k] === "" || createData[k] === undefined) delete createData[k];
       }
+
 
       const persistCreateRequest = async (patch: Record<string, any>) => {
         const existing = (ob.razorpay_reconciliation && typeof ob.razorpay_reconciliation === "object")

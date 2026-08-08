@@ -167,14 +167,36 @@ export function buildVarianceBridge(l: BridgeLine): {
     ));
   }
 
+  // Register-only heads, now named individually instead of being swept into
+  // the catch-all bucket. Shadow side is 0 for each — HRMS does not stage them.
+  const regHeads: Array<[string, string, string, number]> = [
+    ["advance_salary", "Salary advance recovery", "Advance-salary recovery taken by RazorpayX on the imported register. HRMS does not stage this input, so the whole amount is a Razorpay-side deduction.", r0(n0(l.rz_advance_salary))],
+    ["loan_emi", "Loan EMI recovery", "Loan instalment recovered on the Razorpay register.", r0(n0(l.rz_loan_emi))],
+    ["lwf", "Labour Welfare Fund", "Employee LWF contribution from the register. The shadow engine does not model LWF.", r0(n0(l.rz_lwf_ee))],
+    ["security_deposit", "Security deposit refund", "Security-deposit refund paid back on the register (an earning, so it shows as a negative deduction).", -r0(n0(l.rz_refund_security_deposit))],
+    ["one_time_payments", "One-time payments (register)", "One-time payouts or recoveries booked directly on the Razorpay register. Positive register amounts are payouts; negative amounts are recoveries.", -r0(n0(l.rz_one_time_payments))],
+    ["overtime_reg", "Overtime (register)", "Overtime paid on the register and not mirrored into HRMS payroll inputs.", -r0(n0(l.rz_overtime))],
+    ["incentive_reg", "Performance incentive (register)", "Performance incentive paid on the register and not mirrored into HRMS payroll inputs.", -r0(n0(l.rz_performance_incentive))],
+  ];
+  let regTotal = 0;
+  for (const [key, label, hint, amt] of regHeads) {
+    if (amt === 0) continue;
+    regTotal += amt;
+    heads.push(dedHead(key, label, hint, 0, amt));
+  }
+
+  const shadowOther = r0(n0(l.deductions_total) - (shadowPf + shadowEsi + shadowPt + shadowTds) - trainingAdj);
+  const rzOther = r0((rzGross - rzNet) - (rzPf + rzEsi + rzPt + rzTds) - trainingRzp - regTotal);
+
   heads.push(dedHead(
 
     "other_deductions",
     "Other deductions & recoveries",
-    "Everything the two stacks deduct beyond PF/ESI/PT/TDS — loan EMIs, salary advances, security deposits, LWF, and any unlabelled deduction inside the imported Razorpay register (including a register whose gross does not equal the sum of its own pay heads).",
+    "Everything the two stacks deduct beyond PF/ESI/PT/TDS and the named register heads above — plus any unlabelled deduction inside the imported Razorpay register (including a register whose gross does not equal the sum of its own pay heads).",
     shadowOther,
     rzOther,
   ));
+
 
   const explained = heads.reduce((s, h) => s + h.delta, 0);
   const residual = r0(netDelta - explained);

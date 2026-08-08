@@ -1673,6 +1673,8 @@ Deno.serve(async (req) => {
           case "probation_end_date": { const d = toOpfinDate(raw); if (d) { data["probation-end-date"] = d; applied.push(k); expectedReadBack[k] = raw; } break; }
           case "employee_type": data["employment-type"] = employeeKind(raw); applied.push(k); expectedReadBack[k] = raw; break;
           case "job_role": data["title"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
+          case "department": data["department"] = String(raw); applied.push(k); expectedReadBack[k] = raw; break;
+
           case "tax_regime": data["tax-regime"] = String(raw).toLowerCase().replace(/[^a-z]/g, ""); applied.push(k); break;
           // RazorpayX opfin people:edit envelope accepts `pan` (NOT `pan-number`).
           // The verified bank+PAN push path (push_bank_apply_*) uses `pan` and
@@ -6105,18 +6107,26 @@ Deno.serve(async (req) => {
       if (!accountHolder) missing.push("bank_account_holder_name");
       if (missing.length) return json(400, { ok: false, reason: "missing_fields", missing });
 
+      // Every employee is on the Madhya Pradesh PT roll — pushed as the default
+      // state on every RazorpayX create/edit so PT slabs resolve correctly.
+      const DEFAULT_RP_STATE = "madhya pradesh";
+
       const createData: Record<string, any> = {
         email: String(ob.email).trim().toLowerCase(),
         name: fullName,
         type: "employee",
         "phone-number": normPhone(ob.phone),
         gender: ob.gender ? String(ob.gender).toLowerCase() : null,
-        "date-of-birth": dobIso,
+        // RazorpayX expects DD/MM/YYYY on the people envelope — an ISO date is
+        // accepted with HTTP 200 but silently dropped, which is why DOB never
+        // appeared on created people.
+        "date-of-birth": toDdMmYyyy(dobIso),
         "hiring-date": dojIso,
         hire_date: dojRp,
         "date-of-joining": dojRp,
         department: deptName,
         title: ob.job_role,
+        state: DEFAULT_RP_STATE,
         pan,
         "bank-account-number": accountNumber,
         "bank-ifsc": ifsc,
@@ -6125,6 +6135,7 @@ Deno.serve(async (req) => {
       for (const k of Object.keys(createData)) {
         if (createData[k] === null || createData[k] === "" || createData[k] === undefined) delete createData[k];
       }
+
 
       const persistCreateRequest = async (patch: Record<string, any>) => {
         const existing = (ob.razorpay_reconciliation && typeof ob.razorpay_reconciliation === "object")
@@ -6173,12 +6184,63 @@ Deno.serve(async (req) => {
         clearTimeout(timer);
       }
 
+      // ---- Post-create reinforcement -------------------------------------
+      // RazorpayX people:create accepts the invite with only the identity keys
+      // it needs (email/name/pan/bank) and silently drops department, gender,
+      // date-of-birth, title and state — they show up as "-NA-" on the profile
+      // and the self-registration wizard opens with empty Department/State.
+      // Re-send them through the documented people:edit contract and read the
+      // person back so we log what actually landed instead of assuming.
+      let postCreateEdit: any = null;
+      if (!errText) {
+        const newRpId = String(
+          bodyOut?.["employee-id"] ?? bodyOut?.employee_id ?? bodyOut?.data?.["employee-id"] ?? bodyOut?.data?.employee_id ?? ""
+        ).trim();
+        if (newRpId) {
+          const editData: Record<string, any> = {
+            "employee-id": /^\d+$/.test(newRpId) ? Number(newRpId) : newRpId,
+            email: String(ob.email).trim().toLowerCase(),
+            state: DEFAULT_RP_STATE,
+          };
+          if (deptName) editData["department"] = deptName;
+          if (ob.job_role) editData["title"] = String(ob.job_role);
+          if (ob.gender) editData["gender"] = String(ob.gender).toLowerCase();
+          const dobRp = toDdMmYyyy(dobIso);
+          if (dobRp) editData["date-of-birth"] = dobRp;
+          const editRes = await opfinEditPerson(editData);
+          let readBack: Record<string, any> | null = null;
+          try {
+            const view = await opfinView(newRpId, "employee");
+            if (view.ok) {
+              const b: any = view.body || {};
+              readBack = {
+                department: b.department ?? null,
+                title: b.title ?? null,
+                gender: b.gender ?? null,
+                "date-of-birth": b["date-of-birth"] ?? b.date_of_birth ?? null,
+                email: b.email ?? b["work-email"] ?? null,
+              };
+            }
+          } catch { /* read-back is advisory only */ }
+          postCreateEdit = {
+            razorpay_employee_id: newRpId,
+            ok: !!editRes?.ok,
+            http_status: editRes?.status ?? 0,
+            error: editRes?.ok ? null : (editRes?.error || null),
+            sent_fields: Object.keys(editData).sort(),
+            read_back: readBack,
+          };
+        }
+      }
+
       const duplicateEmail = !!errText && /email.*(exist|already|duplicate)|already.*email|already.*exist/i.test(errText);
       await persistCreateRequest({
         status: errText ? (duplicateEmail ? "email_exists" : "failed") : "created",
         http_status: httpStatus,
         error: errText,
+        post_create_edit: postCreateEdit,
       });
+
       await logSync(svc, {
         action: "create_onboarding_invite",
         http_status: httpStatus,

@@ -255,6 +255,34 @@ export function NetVarianceBridge({ line }: { line: BridgeLine }) {
         </span>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 border-b border-border/60">
+        <span className="rounded px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground">
+          Compared against:{" "}
+          {line.razorpay_basis === "register_csv"
+            ? "imported salary register"
+            : line.razorpay_basis === "api"
+              ? "payroll API payslip"
+              : "unknown source"}
+        </span>
+        {line.employment_window?.factor !== undefined && (
+          <span className="rounded px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground">
+            Part month: {line.employment_window.paid_calendar_days}/{line.employment_window.total_days} days
+            {line.employment_window.reason ? ` (${line.employment_window.reason.replace(/_/g, " ")})` : ""}
+          </span>
+        )}
+        {line.lop_not_pushed && (
+          <span className="rounded px-1.5 py-0.5 text-[10px] bg-destructive/15 text-destructive">
+            LOP applied in HRMS but not pushed to payroll
+          </span>
+        )}
+        {(line.enrollment_mismatch ?? []).map((m) => (
+          <span key={m.head} className="rounded px-1.5 py-0.5 text-[10px] bg-destructive/15 text-destructive">
+            {m.head.toUpperCase()} enrollment mismatch ({m.hrms.replace(/_/g, " ")} in HRMS, {money(m.razorpay_amount)} deducted)
+          </span>
+        ))}
+      </div>
+
+
       <table className="w-full text-[11px]">
         <thead>
           <tr className="text-muted-foreground">

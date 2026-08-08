@@ -124,7 +124,7 @@ export default function ShadowPayrollPage() {
 
   const lines = useMemo(
     () => (rawLines ?? []).map((l: any) => {
-      const t = trainingAdj?.[l.employee_id];
+      const t = trainingAdj?.[l.hr_employee_id];
       return t
         ? { ...l, training_ctc_adjustment: t.amount, training_ctc_adjustment_pushed: t.pushed }
         : l;

@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
   const { data: due, error: dueErr } = await svc
     .from("hr_salary_revisions")
-    .select("id, employee_id, effective_from, new_total, new_basic")
+    .select("id, employee_id, effective_from, new_total, new_basic, revision_reason")
     .eq("status", "SCHEDULED")
     .lte("effective_from", today)
     .is("one_time_amount", null)
@@ -57,12 +57,26 @@ Deno.serve(async (req) => {
           },
         },
       );
+
+      // Training-completion transitions: RazorpayX pays the whole month at the
+      // live CTC, so stage the exact one-time recovery (or arrears) for HR to
+      // approve in the payroll cockpit. Idempotent — safe on cron re-runs.
+      let adjustment: any = null;
+      if (row.revision_reason === "training_completion") {
+        const { data: adj, error: adjErr } = await svc.rpc(
+          "hr_stage_training_ctc_adjustment",
+          { p_revision_id: row.id },
+        );
+        adjustment = adjErr ? { ok: false, error: adjErr.message } : adj;
+      }
+
       results.push({
         id: row.id,
         employee_id: row.employee_id,
         effective_from: row.effective_from,
         ok: true,
         promoted,
+        adjustment,
         push_ok: !pushErr && !(pushResp as any)?.error,
         push_error: pushErr?.message || (pushResp as any)?.error || null,
       });
@@ -70,6 +84,7 @@ Deno.serve(async (req) => {
       results.push({ id: row.id, ok: false, stage: "exception", error: e?.message || String(e) });
     }
   }
+
 
   return new Response(
     JSON.stringify({ ok: true, ran_at: new Date().toISOString(), count: results.length, results }),

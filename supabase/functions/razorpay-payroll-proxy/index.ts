@@ -2767,6 +2767,143 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---------- Identity backfill for already-onboarded people --------------
+    // people:create silently drops department / gender / date-of-birth / title
+    // and state, so every employee created before that was fixed still shows
+    // "-NA-" on the RazorpayX profile. This action re-sends those fields for
+    // ALL mapped employees through the documented people:edit contract and
+    // reads each person back so we log what actually landed.
+    //   payload: { action:"backfill_identity_all", dry_run?:bool,
+    //              razorpay_employee_ids?: string[] }
+    if (action === "backfill_identity_all") {
+      const DEFAULT_RP_STATE = "madhya pradesh";
+      const dryRun = payload?.dry_run === true;
+      const only: string[] | null = Array.isArray(payload?.razorpay_employee_ids) && payload.razorpay_employee_ids.length
+        ? payload.razorpay_employee_ids.map((v: any) => String(v))
+        : null;
+
+      let mapQuery = svc.from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id,hr_employee_id,last_pull_snapshot");
+      if (only) mapQuery = mapQuery.in("razorpay_employee_id", only);
+      const { data: bfMaps, error: bfMapsErr } = await mapQuery;
+      if (bfMapsErr) return json(500, { error: `map read failed: ${bfMapsErr.message}` });
+      if (!bfMaps?.length) return json(400, { error: "No RazorpayX mappings found" });
+
+      const bfHrIds = bfMaps.map((m: any) => m.hr_employee_id).filter(Boolean);
+      const [{ data: bfEmps }, { data: bfWis }] = await Promise.all([
+        svc.from("hr_employees").select("id,first_name,last_name,email,phone,gender,dob,is_active").in("id", bfHrIds),
+        svc.from("hr_employee_work_info").select("employee_id,department_id,job_position_id,job_role").in("employee_id", bfHrIds),
+      ]);
+      const bfEmpById = new Map((bfEmps || []).map((r: any) => [r.id, r]));
+      const bfWiById = new Map((bfWis || []).map((r: any) => [r.employee_id, r]));
+      const bfDeptIds = Array.from(new Set((bfWis || []).map((r: any) => r.department_id).filter(Boolean)));
+      const bfPosIds = Array.from(new Set((bfWis || []).map((r: any) => r.job_position_id).filter(Boolean)));
+      const bfDeptById = new Map<string, string>();
+      const bfPosById = new Map<string, string>();
+      if (bfDeptIds.length) {
+        const { data: d } = await svc.from("departments").select("id,name").in("id", bfDeptIds);
+        for (const r of d || []) bfDeptById.set(r.id, r.name);
+      }
+      if (bfPosIds.length) {
+        const { data: p } = await svc.from("positions").select("id,title").in("id", bfPosIds);
+        for (const r of p || []) bfPosById.set(r.id, r.title);
+      }
+
+      const bfRows: any[] = [];
+      let bfApplied = 0, bfFailed = 0, bfSkipped = 0;
+
+      for (const m of bfMaps) {
+        const rpId = String(m.razorpay_employee_id || "").trim();
+        const e: any = bfEmpById.get(m.hr_employee_id) || {};
+        const w: any = bfWiById.get(m.hr_employee_id) || {};
+        const snap: any = m.last_pull_snapshot && typeof m.last_pull_snapshot === "object" ? m.last_pull_snapshot : {};
+        const email = String(e.email || snap.email || snap["work-email"] || "").trim().toLowerCase();
+        if (!/^\d+$/.test(rpId) || !email.includes("@")) {
+          bfSkipped++;
+          bfRows.push({ razorpay_employee_id: rpId || null, hr_employee_id: m.hr_employee_id, status: "skipped", reason: !email.includes("@") ? "no_email" : "non_numeric_employee_id" });
+          continue;
+        }
+
+        const dobIso = e.dob ? String(e.dob) : null;
+        const dobRp = dobIso && /^\d{4}-\d{2}-\d{2}$/.test(dobIso)
+          ? `${dobIso.slice(8, 10)}/${dobIso.slice(5, 7)}/${dobIso.slice(0, 4)}`
+          : null;
+        const deptName = bfDeptById.get(w.department_id) || null;
+        const titleName = bfPosById.get(w.job_position_id) || w.job_role || null;
+
+        const editData: Record<string, any> = {
+          "employee-id": Number(rpId),
+          "employee-type": "employee",
+          email,
+          state: DEFAULT_RP_STATE,
+        };
+        if (deptName) editData.department = deptName;
+        if (titleName) editData.title = String(titleName);
+        if (e.gender) editData.gender = String(e.gender).toLowerCase();
+        if (dobRp) editData["date-of-birth"] = dobRp;
+        const phone = normPhone(e.phone);
+        if (phone) editData["phone-number"] = String(phone).replace(/\D/g, "").slice(-10);
+
+        if (dryRun) {
+          bfRows.push({
+            razorpay_employee_id: rpId,
+            hr_employee_id: m.hr_employee_id,
+            status: "planned",
+            employee_name: [e.first_name, e.last_name].filter(Boolean).join(" "),
+            sent_fields: Object.keys(editData).sort(),
+          });
+          continue;
+        }
+
+        const editRes = await opfinEditPerson(editData);
+        let readBack: Record<string, any> | null = null;
+        try {
+          const view = await opfinView(Number(rpId), "employee");
+          if (view.ok) {
+            const b: any = view.body || {};
+            readBack = {
+              department: b.department ?? null,
+              title: b.title ?? null,
+              gender: b.gender ?? null,
+              "date-of-birth": b["date-of-birth"] ?? b.date_of_birth ?? null,
+              state: b.state ?? null,
+              email: b.email ?? b["work-email"] ?? null,
+            };
+          }
+        } catch { /* read-back advisory only */ }
+
+        await logSync(svc, {
+          action: "backfill_identity",
+          http_status: editRes.status,
+          razorpay_employee_id: rpId,
+          hr_employee_id: m.hr_employee_id,
+          field_diff_summary: { sent_fields: Object.keys(editData).sort(), read_back: readBack },
+          error_text: editRes.ok ? null : editRes.error,
+          actor_user_id: authed.userId,
+        });
+
+        if (editRes.ok) bfApplied++; else bfFailed++;
+        bfRows.push({
+          razorpay_employee_id: rpId,
+          hr_employee_id: m.hr_employee_id,
+          employee_name: [e.first_name, e.last_name].filter(Boolean).join(" "),
+          status: editRes.ok ? "applied" : "failed",
+          http_status: editRes.status,
+          error: editRes.ok ? null : editRes.error,
+          sent_fields: Object.keys(editData).sort(),
+          read_back: readBack,
+        });
+      }
+
+      return json(200, {
+        ok: true,
+        dry_run: dryRun,
+        summary: { total: bfMaps.length, applied: bfApplied, failed: bfFailed, skipped: bfSkipped },
+        rows: bfRows,
+      });
+    }
+
+
     // ---------- Phase 4: Bank & PAN push ----------
     // Isolated behind its own toggle + pilot + bulk unlock. Uses the verified
     // people:update envelope with hyphenated keys. Every candidate is validated

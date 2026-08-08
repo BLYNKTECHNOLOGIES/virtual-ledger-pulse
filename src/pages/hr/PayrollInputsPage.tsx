@@ -615,8 +615,10 @@ export default function PayrollInputsPage() {
         </TabsContent>
       </Tabs>
 
+      {!lopFocus && <TrainingCtcAdjustmentsCard period={period} />}
       {!lopFocus && tab === "deduction" && <AutoRecoveriesCard period={period} />}
       {!lopFocus && tab === "addition" && <OtherPayrollInputsCard period={period} />}
+
 
 
 

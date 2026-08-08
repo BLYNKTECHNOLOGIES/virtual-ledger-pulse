@@ -434,8 +434,9 @@ Deno.serve(async (req) => {
         const t = new Date(String(d).slice(0, 10) + "T00:00:00Z");
         return isNaN(t.getTime()) ? null : t;
       };
-      const hireD = dayNum(rz?.reg_hire_date);
-      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : null;
+      const hireD = dayNum(rz?.reg_hire_date) ?? dayNum(joiningByEmp.get(emp.id));
+      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : dayNum(emp.termination_date);
+
       const winStartDay = hireD && hireD > period && hireD <= monthEnd ? hireD.getUTCDate() : 1;
       const winEndDay = relD && relD >= period && relD < monthEnd ? relD.getUTCDate() : totalDays;
       const paidCalDays = Math.max(0, winEndDay - winStartDay + 1);

@@ -154,8 +154,6 @@ export function buildVarianceBridge(l: BridgeLine): {
   // LWF, register component gaps, unlabelled register deductions.
   const trainingAdj = r0(n0(l.training_ctc_adjustment));
   const trainingRzp = l.training_ctc_adjustment_pushed ? trainingAdj : 0;
-  const shadowOther = r0(n0(l.deductions_total) - (shadowPf + shadowEsi + shadowPt + shadowTds) - trainingAdj);
-  const rzOther = r0((rzGross - rzNet) - (rzPf + rzEsi + rzPt + rzTds) - trainingRzp);
 
   if (trainingAdj !== 0 || trainingRzp !== 0) {
     heads.push(dedHead(

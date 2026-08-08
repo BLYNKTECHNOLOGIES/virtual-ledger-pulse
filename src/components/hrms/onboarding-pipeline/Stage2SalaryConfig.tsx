@@ -135,6 +135,57 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
           </p>
         </div>
 
+        <div className="rounded-lg border p-4 space-y-3">
+          <p className="text-sm font-medium">Training period (optional)</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Training completion date</Label>
+              <Input
+                type="date"
+                value={form.training_completion_date}
+                min={doj || undefined}
+                onChange={e => {
+                  dirtyRef.current = true;
+                  setForm(p => ({ ...p, training_completion_date: e.target.value }));
+                }}
+                disabled={readOnly}
+                className="text-foreground"
+              />
+            </div>
+            <div>
+              <Label>Post-training annual CTC</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 900000"
+                value={form.post_training_ctc}
+                onChange={e => {
+                  dirtyRef.current = true;
+                  setForm(p => ({ ...p, post_training_ctc: e.target.value }));
+                }}
+                disabled={readOnly}
+                className="text-foreground"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Leave both blank if the hire starts on their final CTC. When filled, a scheduled salary revision is created at onboarding and the new CTC is pushed to RazorpayX automatically on that date — nothing to do manually.
+          </p>
+          {preview && (
+            <div className="rounded-md bg-primary/5 border p-3 text-xs text-muted-foreground">
+              On <span className="text-foreground font-medium">{preview.dateLabel}</span> the CTC changes from ₹
+              {Number(form.ctc).toLocaleString("en-IN")} to ₹{Number(form.post_training_ctc).toLocaleString("en-IN")}.
+              RazorpayX pays {preview.monthLabel} fully at the new CTC, so a one-time{" "}
+              {preview.amount >= 0 ? "recovery" : "addition"} of about{" "}
+              <span className="text-foreground font-medium">
+                ₹{Math.abs(Math.round(preview.amount)).toLocaleString("en-IN")}
+              </span>{" "}
+              ({preview.dOld} day{preview.dOld === 1 ? "" : "s"} of {preview.n}) will be staged in the {preview.monthLabel} payroll for HR approval. Loss of pay is applied to the exact figure on the effective date.
+            </div>
+          )}
+        </div>
+
+
+
         <div className="rounded-lg border p-3 bg-primary/5 flex gap-2 items-start">
           <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
           <div className="text-xs text-muted-foreground">

@@ -24,18 +24,24 @@ export function BiometricQuarantineBanner() {
       if (quarantineRes.error) throw quarantineRes.error;
       if (devUsersRes.error) throw devUsersRes.error;
 
+      // PINs that are never employees: 0 (unset) and 100 (shared visitor PIN).
+      const IGNORED_PINS = new Set(["0", "100"]);
+
       // Only surface PINs that still exist on at least one eSSL device.
       // PINs that were deleted from the device (ex-employees, test entries)
       // are noise — the punches were captured historically but the identity
       // is gone, so no mapping is possible or useful.
       const activePins = new Set<string>(
-        ((devUsersRes.data || []) as any[]).map((r) => String(r.pin)).filter((p) => p && p !== "0")
+        ((devUsersRes.data || []) as any[])
+          .map((r) => String(r.pin))
+          .filter((p) => p && !IGNORED_PINS.has(p))
       );
 
       const pins = new Map<string, number>();
       let total = 0;
       for (const row of (quarantineRes.data || []) as any[]) {
         const pin = String(row.pin);
+        if (IGNORED_PINS.has(pin)) continue;
         if (!activePins.has(pin)) continue;
         pins.set(pin, (pins.get(pin) || 0) + 1);
         total += 1;

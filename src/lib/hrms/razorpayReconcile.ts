@@ -120,6 +120,8 @@ interface ErpInput {
   probation_end_date?: string | null;
   employee_type?: string | null;
   job_role?: string | null;
+  /** Department NAME (resolved from department_id) — RazorpayX stores it as text. */
+  department?: string | null;
   
   ctc?: number | string | null;
   documents?: any;

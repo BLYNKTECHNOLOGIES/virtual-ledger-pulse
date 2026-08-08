@@ -76,15 +76,17 @@ export function useHrMailMessages(mailboxId?: string, search = "") {
   });
 }
 
-export function useHrMailCampaigns() {
+export function useHrMailCampaigns(mailboxId?: string) {
   return useQuery({
-    queryKey: ["hr_mail_campaigns"],
+    queryKey: ["hr_mail_campaigns", mailboxId],
     queryFn: async (): Promise<HrMailCampaign[]> => {
-      const { data, error } = await anyDb
+      let q = anyDb
         .from("hr_mail_campaigns")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(100);
+      if (mailboxId) q = q.eq("mailbox_id", mailboxId);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },

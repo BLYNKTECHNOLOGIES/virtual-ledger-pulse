@@ -664,6 +664,8 @@ Deno.serve(async (req) => {
             razorpay_basis: rzBasis,
             employment_window: employmentWindow,
             window_factor: Number(windowFactor.toFixed(6)),
+            lop_unavailable: lopUnavailable,
+
           },
 
         }, { onConflict: "run_id,hr_employee_id" })

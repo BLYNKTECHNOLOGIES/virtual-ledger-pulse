@@ -13958,12 +13958,15 @@ export type Database = {
           deductions_total: number
           diff_summary: Json | null
           earnings_total: number
+          employment_window: Json | null
+          enrollment_mismatch: Json | null
           esi_employee: number
           esi_employer: number
           hr_employee_id: string
           id: string
           lop_amount: number
           lop_days: number
+          lop_not_pushed: boolean | null
           monthly_ctc: number
           monthly_gross: number
           net_pay: number
@@ -13971,6 +13974,7 @@ export type Database = {
           pf_employee: number
           pf_employer: number
           pt_amount: number
+          razorpay_basis: string | null
           razorpay_esi: number | null
           razorpay_gross: number | null
           razorpay_net: number | null
@@ -13978,6 +13982,14 @@ export type Database = {
           razorpay_pt: number | null
           razorpay_tds: number | null
           run_id: string
+          rz_advance_salary: number | null
+          rz_loan_emi: number | null
+          rz_lwf_ee: number | null
+          rz_one_time_payments: number | null
+          rz_overtime: number | null
+          rz_performance_incentive: number | null
+          rz_refund_security_deposit: number | null
+          rz_working_days: number | null
           tds_amount: number
           updated_at: string
         }
@@ -13988,12 +14000,15 @@ export type Database = {
           deductions_total?: number
           diff_summary?: Json | null
           earnings_total?: number
+          employment_window?: Json | null
+          enrollment_mismatch?: Json | null
           esi_employee?: number
           esi_employer?: number
           hr_employee_id: string
           id?: string
           lop_amount?: number
           lop_days?: number
+          lop_not_pushed?: boolean | null
           monthly_ctc?: number
           monthly_gross?: number
           net_pay?: number
@@ -14001,6 +14016,7 @@ export type Database = {
           pf_employee?: number
           pf_employer?: number
           pt_amount?: number
+          razorpay_basis?: string | null
           razorpay_esi?: number | null
           razorpay_gross?: number | null
           razorpay_net?: number | null
@@ -14008,6 +14024,14 @@ export type Database = {
           razorpay_pt?: number | null
           razorpay_tds?: number | null
           run_id: string
+          rz_advance_salary?: number | null
+          rz_loan_emi?: number | null
+          rz_lwf_ee?: number | null
+          rz_one_time_payments?: number | null
+          rz_overtime?: number | null
+          rz_performance_incentive?: number | null
+          rz_refund_security_deposit?: number | null
+          rz_working_days?: number | null
           tds_amount?: number
           updated_at?: string
         }
@@ -14018,12 +14042,15 @@ export type Database = {
           deductions_total?: number
           diff_summary?: Json | null
           earnings_total?: number
+          employment_window?: Json | null
+          enrollment_mismatch?: Json | null
           esi_employee?: number
           esi_employer?: number
           hr_employee_id?: string
           id?: string
           lop_amount?: number
           lop_days?: number
+          lop_not_pushed?: boolean | null
           monthly_ctc?: number
           monthly_gross?: number
           net_pay?: number
@@ -14031,6 +14058,7 @@ export type Database = {
           pf_employee?: number
           pf_employer?: number
           pt_amount?: number
+          razorpay_basis?: string | null
           razorpay_esi?: number | null
           razorpay_gross?: number | null
           razorpay_net?: number | null
@@ -14038,6 +14066,14 @@ export type Database = {
           razorpay_pt?: number | null
           razorpay_tds?: number | null
           run_id?: string
+          rz_advance_salary?: number | null
+          rz_loan_emi?: number | null
+          rz_lwf_ee?: number | null
+          rz_one_time_payments?: number | null
+          rz_overtime?: number | null
+          rz_performance_incentive?: number | null
+          rz_refund_security_deposit?: number | null
+          rz_working_days?: number | null
           tds_amount?: number
           updated_at?: string
         }

@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
 
     // 2. Active employees + per-employee statutory flags + custom split + provenance
     let empQ: any = supabase.from("hr_employees")
-      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source")
+      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date")
       .eq("is_active", true);
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
     const { data: employees, error: empErr } = await empQ;
@@ -196,6 +196,21 @@ Deno.serve(async (req) => {
     const monthEndStr = monthEnd.toISOString().slice(0, 10);
     const totalDays = monthEnd.getUTCDate();
     const activeCount = employees?.length ?? 0;
+
+    // Joining dates live on hr_employee_work_info (NOT hr_employees) and the
+    // imported register does not carry a hire date, so this is the only
+    // reliable source for the mid-month joiner clamp.
+    const joiningByEmp = new Map<string, string>();
+    if (activeCount > 0) {
+      const { data: wi, error: wiErr } = await supabase
+        .from("hr_employee_work_info")
+        .select("employee_id, joining_date")
+        .in("employee_id", employees!.map((e: any) => e.id));
+      if (wiErr) console.error("work info err", wiErr);
+      for (const r of wi ?? []) if (r.joining_date) joiningByEmp.set(r.employee_id, r.joining_date);
+    }
+
+
 
     let attendanceCoveragePct = 0;
     if (activeCount > 0) {
@@ -329,14 +344,20 @@ Deno.serve(async (req) => {
     }
 
     // RazorpayX comparison side, prefetched once for the whole period.
-    // hr_payslips_v is the reconciled payslip view (API pull + imported salary
-    // register), so it is populated for months that were only imported.
+    // ONE DECLARED BASIS: when an imported salary register exists for the
+    // employee/month we take EVERY Razorpay figure from the register; otherwise
+    // every figure comes from the API payslip. Mixing the two (register net vs
+    // API gross) was the single largest source of phantom variance.
     const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
     const rzByEmp = new Map<string, any>();
     {
       const { data: rzRows, error: rzErr } = await supabase
         .from("hr_payslips_v")
-        .select("employee_id, gross, regular_gross, net, pf_amount, esi_amount, professional_tax, tds_amount")
+        .select(
+          "employee_id, gross, regular_gross, net, pf_amount, esi_amount, professional_tax, tds_amount, " +
+          "has_register, source, lwf_ee, advance_salary, loan_emi, refund_security_deposit, " +
+          "one_time_payments, overtime, performance_incentive, working_days, has_left, relieving_date, reg_hire_date",
+        )
         .eq("period_month", periodStr);
       if (rzErr) console.error("razorpay payslip view fetch err", rzErr);
       for (const r of rzRows ?? []) if (r.employee_id) rzByEmp.set(r.employee_id, r);
@@ -344,8 +365,14 @@ Deno.serve(async (req) => {
     }
 
 
+
     for (const emp of employees ?? []) {
       const empName = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
+      const rz = rzByEmp.get(emp.id);
+      const rzBasis: "register_csv" | "api" | null = rz
+        ? (rz.has_register ? "register_csv" : "api")
+        : null;
+
 
       if (doNotPayEmp.has(emp.id)) {
         const { error: dnpLineErr } = await supabase
@@ -398,24 +425,58 @@ Deno.serve(async (req) => {
       }
 
 
+      // ---- EMPLOYMENT WINDOW CLAMP ----
+      // Mid-month joiners / leavers must be prorated ONCE, on the calendar days
+      // actually employed inside the period. Dates come from the register
+      // (hire date / relieving date) when it exists.
+      const dayNum = (d: string | null | undefined) => {
+        if (!d) return null;
+        const t = new Date(String(d).slice(0, 10) + "T00:00:00Z");
+        return isNaN(t.getTime()) ? null : t;
+      };
+      const hireD = dayNum(rz?.reg_hire_date) ?? dayNum(joiningByEmp.get(emp.id));
+      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : dayNum(emp.termination_date);
+
+      const winStartDay = hireD && hireD > period && hireD <= monthEnd ? hireD.getUTCDate() : 1;
+      const winEndDay = relD && relD >= period && relD < monthEnd ? relD.getUTCDate() : totalDays;
+      const paidCalDays = Math.max(0, winEndDay - winStartDay + 1);
+      const windowFactor = totalDays > 0 ? Math.min(1, paidCalDays / totalDays) : 1;
+      const employmentWindow = windowFactor < 1
+        ? {
+            start_day: winStartDay, end_day: winEndDay, paid_calendar_days: paidCalDays,
+            total_days: totalDays, factor: Number(windowFactor.toFixed(6)),
+            reason: hireD && winStartDay > 1 ? "mid_month_joiner" : "mid_month_leaver",
+          }
+        : null;
+      const windowedGross = Math.round(monthlyGross * windowFactor);
+
       const pct = resolveStructurePct(emp.custom_structure_pct, defaultComps, useDefault);
-      const preBasic = Math.round(monthlyGross * (pct.basic / 100));
-      const preHra = Math.round(monthlyGross * (pct.hra / 100));
-      const preLta = Math.round(monthlyGross * (pct.lta / 100));
-      const preSpecial = monthlyGross - preBasic - preHra - preLta;
+      const preBasic = Math.round(windowedGross * (pct.basic / 100));
+      const preHra = Math.round(windowedGross * (pct.hra / 100));
+      const preLta = Math.round(windowedGross * (pct.lta / 100));
+      const preSpecial = windowedGross - preBasic - preHra - preLta;
       const regularBase = preBasic + preHra + preSpecial + preLta;
+
 
       // LOP — from the shared hr_compute_lop_days SQL function (single source of truth).
       // Uses Razorpay-parity formula: LOP = working_days − (present + paid_leave + incomplete_held).
       // Incomplete-punch days are held harmless (0 LOP) until an approved regularization exists.
       const lop = lopByEmp.get(emp.id);
-      if (lop?.config_errors?.length) {
-        skipped.push({ employee_id: emp.id, name: empName, reason: "leave_config_error", detail: lop.config_errors.join(" ") });
+      const lopErrors: string[] = lop?.config_errors ?? [];
+      // Historical months can legitimately have no attendance signal (e.g. the
+      // punch tables were reset). When an imported register exists for the
+      // employee, the register is the authority for the month — compute the
+      // line with LOP = 0 and record why, instead of dropping the employee.
+      const attendanceMissing = lopErrors.some((e) => /biometric attendance signal/i.test(e));
+      const lopUnavailable = attendanceMissing && rzBasis === "register_csv";
+      if (lopErrors.length && !lopUnavailable) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "leave_config_error", detail: lopErrors.join(" ") });
         continue;
       }
-      const lopDays = Number(lop?.lop_days ?? 0);
+      const lopDays = lopUnavailable ? 0 : Number(lop?.lop_days ?? 0);
       const lopDivisor = Number(lop?.working_days ?? 0) > 0 ? Number(lop!.working_days) : totalDays;
       const lopAmount = lopDivisor > 0 ? Math.round(regularBase * (lopDays / lopDivisor)) : 0;
+
 
 
       // KPI-Loss / other gross-side recoveries — matched on label since the
@@ -511,7 +572,7 @@ Deno.serve(async (req) => {
         (period.getUTCFullYear() * 12 + period.getUTCMonth())
         - (fyStart.getUTCFullYear() * 12 + fyStart.getUTCMonth())
       ));
-      const annualBasePreLop = regularBase * 12;
+      const annualBasePreLop = monthlyGross * 12;
       const { data: ytdTds } = await supabase
         .from("hr_payslips_v")
         .select("tds_amount")
@@ -527,14 +588,44 @@ Deno.serve(async (req) => {
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
-      // RazorpayX side of the comparison. Read the reconciled payslip view
-      // (hr_payslips_v) — it already merges the API pull with the imported
-      // salary register and exposes regular_gross (gross with one-time payouts
-      // carved out), which is the only apples-to-apples counterpart to the
-      // shadow engine's earningsTotal. The raw record table has no
-      // gross_amount column and its pf/esi/pt/tds columns stay NULL for
-      // register-imported months.
-      const rz = rzByEmp.get(emp.id);
+      // RazorpayX side of the comparison — ONE declared basis per line
+      // (register when imported, API otherwise), recorded on the row so a
+      // variance can never come from silently mixing sources.
+      const rzGrossCmp = num(rz?.regular_gross ?? rz?.gross);
+      const rzPfCmp = num(rz?.pf_amount);
+      const rzEsiCmp = num(rz?.esi_amount);
+      const rzPtCmp = num(rz?.professional_tax);
+
+      // Register-only heads. Kept as their own columns so the variance bridge
+      // can name them instead of dumping them into "other deductions".
+      const rzAdvance = Number(rz?.advance_salary ?? 0);
+      const rzLoanEmi = Number(rz?.loan_emi ?? 0);
+      const rzLwf = Number(rz?.lwf_ee ?? 0);
+      const rzSecDep = Number(rz?.refund_security_deposit ?? 0);
+      const rzOneTime = Number(rz?.one_time_payments ?? 0);
+      const rzOvertime = Number(rz?.overtime ?? 0);
+      const rzIncentive = Number(rz?.performance_incentive ?? 0);
+
+      // Enrollment reality check: HRMS flag vs what the register actually
+      // deducted. Computation still follows the HRMS flag — the mismatch is
+      // surfaced as a named data-quality finding.
+      const enrollmentMismatch: Array<Record<string, unknown>> = [];
+      const mismatchCheck = (head: string, enrolled: boolean, rzAmt: number | null) => {
+        if (rzAmt === null) return;
+        if (!enrolled && Math.abs(rzAmt) >= 1) {
+          enrollmentMismatch.push({ head, hrms: "not_enrolled", razorpay_amount: rzAmt });
+        } else if (enrolled && Math.abs(rzAmt) < 1) {
+          enrollmentMismatch.push({ head, hrms: "enrolled", razorpay_amount: 0 });
+        }
+      };
+      mismatchCheck("pf", pfEnrolled, rzPfCmp);
+      mismatchCheck("esi", esiEnrolled, rzEsiCmp);
+      mismatchCheck("pt", ptEnrolled, rzPtCmp);
+
+      // LOP applied locally but absent on the Razorpay side (their gross sits
+      // at or above the un-LOP'd CTC) — a push gap, not a computation error.
+      const lopNotPushed = lopAmount > 0 && rzGrossCmp !== null
+        && rzGrossCmp >= (regularBase + lopAmount) - 1;
 
       const { data: line, error: lineErr } = await supabase
         .from("hr_shadow_payroll_lines")
@@ -556,12 +647,24 @@ Deno.serve(async (req) => {
           tds_amount: tds,
           deductions_total: deductions,
           net_pay: net,
-          razorpay_gross: num(rz?.regular_gross ?? rz?.gross),
+          razorpay_basis: rzBasis,
+          razorpay_gross: rzGrossCmp,
           razorpay_net: num(rz?.net),
-          razorpay_pf: num(rz?.pf_amount),
-          razorpay_esi: num(rz?.esi_amount),
-          razorpay_pt: num(rz?.professional_tax),
+          razorpay_pf: rzPfCmp,
+          razorpay_esi: rzEsiCmp,
+          razorpay_pt: rzPtCmp,
           razorpay_tds: num(rz?.tds_amount),
+          rz_advance_salary: rzAdvance,
+          rz_loan_emi: rzLoanEmi,
+          rz_lwf_ee: rzLwf,
+          rz_refund_security_deposit: rzSecDep,
+          rz_one_time_payments: rzOneTime,
+          rz_overtime: rzOvertime,
+          rz_performance_incentive: rzIncentive,
+          rz_working_days: rz?.working_days ?? null,
+          enrollment_mismatch: enrollmentMismatch,
+          lop_not_pushed: lopNotPushed,
+          employment_window: employmentWindow,
           compute_notes: {
             regime, monthsRemaining, annualBasePreLop, ytdTdsPaid, annualTax,
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
@@ -574,7 +677,13 @@ Deno.serve(async (req) => {
             ctc_post_lop: ctcPost,
             employer_cost_within_ctc: employerCost,
             bonus_outside_ctc: addPositive,
+            razorpay_basis: rzBasis,
+            employment_window: employmentWindow,
+            window_factor: Number(windowFactor.toFixed(6)),
+            lop_unavailable: lopUnavailable,
+
           },
+
         }, { onConflict: "run_id,hr_employee_id" })
         .select()
         .single();

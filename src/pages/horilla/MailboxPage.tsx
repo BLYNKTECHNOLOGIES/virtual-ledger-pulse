@@ -61,7 +61,7 @@ export default function MailboxPage() {
 
         <TabsContent value="inbox"><InboxTab mailboxId={activeMailboxId} /></TabsContent>
         <TabsContent value="compose"><ComposeTab mailboxId={activeMailboxId} onSent={() => setTab("sent")} /></TabsContent>
-        <TabsContent value="sent"><SentTab /></TabsContent>
+        <TabsContent value="sent"><SentTab mailboxId={activeMailboxId} /></TabsContent>
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
       </Tabs>
     </div>

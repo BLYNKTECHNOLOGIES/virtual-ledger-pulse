@@ -1239,6 +1239,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             <span>{onboardingRecord?.email || "—"}</span>
             <span className="text-muted-foreground">CTC:</span>
             <span>{onboardingRecord?.ctc ? `₹${Number(onboardingRecord.ctc).toLocaleString("en-IN")}` : "—"}</span>
+            <span className="text-muted-foreground">Date of Joining:</span>
+            <span>{form.date_of_joining || onboardingRecord?.date_of_joining || "—"}</span>
             <span className="text-muted-foreground">Documents:</span>
             <Badge variant={onboardingRecord?.document_collection_status === "completed" ? "default" : "destructive"}>
               {onboardingRecord?.document_collection_status || "pending"}
@@ -1247,15 +1249,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label>Date of Joining *</Label>
-            <Input
-              type="date"
-              value={form.date_of_joining}
-              onChange={e => updateForm({ date_of_joining: e.target.value })}
-              disabled={readOnly}
-            />
-          </div>
           <div className="sm:col-span-2">
             {/* Bank Details — required by RazorpayX invite create, so placed BEFORE Step 1. */}
             <div className="rounded-lg border p-4 space-y-3">

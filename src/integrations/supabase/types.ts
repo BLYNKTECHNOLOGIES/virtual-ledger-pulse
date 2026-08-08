@@ -10142,6 +10142,333 @@ export type Database = {
           },
         ]
       }
+      hr_mail_attachments: {
+        Row: {
+          campaign_id: string | null
+          content_type: string | null
+          created_at: string
+          file_name: string
+          id: string
+          message_id: string | null
+          size_bytes: number | null
+          storage_path: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          id?: string
+          message_id?: string | null
+          size_bytes?: number | null
+          storage_path: string
+        }
+        Update: {
+          campaign_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          id?: string
+          message_id?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_mail_attachments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "hr_mail_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_mail_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "hr_mail_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_mail_campaign_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          email: string
+          employee_id: string | null
+          employee_name: string | null
+          error_message: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          email: string
+          employee_id?: string | null
+          employee_name?: string | null
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          email?: string
+          employee_id?: string | null
+          employee_name?: string | null
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_mail_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "hr_mail_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_mail_campaigns: {
+        Row: {
+          attachment_paths: string[]
+          body_html: string
+          created_at: string
+          failed_count: number
+          from_address: string
+          id: string
+          in_reply_to_message_id: string | null
+          mailbox_id: string | null
+          recipient_mode: string
+          sent_by: string | null
+          sent_by_name: string | null
+          sent_count: number
+          status: string
+          subject: string
+          total_count: number
+          updated_at: string
+        }
+        Insert: {
+          attachment_paths?: string[]
+          body_html: string
+          created_at?: string
+          failed_count?: number
+          from_address: string
+          id?: string
+          in_reply_to_message_id?: string | null
+          mailbox_id?: string | null
+          recipient_mode?: string
+          sent_by?: string | null
+          sent_by_name?: string | null
+          sent_count?: number
+          status?: string
+          subject: string
+          total_count?: number
+          updated_at?: string
+        }
+        Update: {
+          attachment_paths?: string[]
+          body_html?: string
+          created_at?: string
+          failed_count?: number
+          from_address?: string
+          id?: string
+          in_reply_to_message_id?: string | null
+          mailbox_id?: string | null
+          recipient_mode?: string
+          sent_by?: string | null
+          sent_by_name?: string | null
+          sent_count?: number
+          status?: string
+          subject?: string
+          total_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_mail_campaigns_mailbox_id_fkey"
+            columns: ["mailbox_id"]
+            isOneToOne: false
+            referencedRelation: "hr_mailboxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_mail_messages: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          created_at: string
+          from_address: string | null
+          from_name: string | null
+          has_attachments: boolean
+          id: string
+          imap_uid: number
+          is_read: boolean
+          mailbox_id: string
+          matched_employee_id: string | null
+          message_id_header: string | null
+          received_at: string | null
+          snippet: string | null
+          subject: string | null
+          to_addresses: string[]
+          updated_at: string
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string
+          from_address?: string | null
+          from_name?: string | null
+          has_attachments?: boolean
+          id?: string
+          imap_uid: number
+          is_read?: boolean
+          mailbox_id: string
+          matched_employee_id?: string | null
+          message_id_header?: string | null
+          received_at?: string | null
+          snippet?: string | null
+          subject?: string | null
+          to_addresses?: string[]
+          updated_at?: string
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string
+          from_address?: string | null
+          from_name?: string | null
+          has_attachments?: boolean
+          id?: string
+          imap_uid?: number
+          is_read?: boolean
+          mailbox_id?: string
+          matched_employee_id?: string | null
+          message_id_header?: string | null
+          received_at?: string | null
+          snippet?: string | null
+          subject?: string | null
+          to_addresses?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_mail_messages_mailbox_id_fkey"
+            columns: ["mailbox_id"]
+            isOneToOne: false
+            referencedRelation: "hr_mailboxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_mail_templates: {
+        Row: {
+          body_html: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          name: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body_html?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          name: string
+          subject?: string
+          updated_at?: string
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_mailboxes: {
+        Row: {
+          cc_addresses: string[]
+          created_at: string
+          from_address: string
+          from_name: string | null
+          id: string
+          imap_enabled: boolean
+          imap_host: string | null
+          imap_last_error: string | null
+          imap_last_sync_at: string | null
+          imap_last_uid: number
+          imap_pass_secret: string | null
+          imap_port: number
+          imap_user_secret: string | null
+          is_active: boolean
+          label: string
+          smtp_host_secret: string
+          smtp_pass_secret: string
+          smtp_user_secret: string
+          updated_at: string
+        }
+        Insert: {
+          cc_addresses?: string[]
+          created_at?: string
+          from_address: string
+          from_name?: string | null
+          id?: string
+          imap_enabled?: boolean
+          imap_host?: string | null
+          imap_last_error?: string | null
+          imap_last_sync_at?: string | null
+          imap_last_uid?: number
+          imap_pass_secret?: string | null
+          imap_port?: number
+          imap_user_secret?: string | null
+          is_active?: boolean
+          label: string
+          smtp_host_secret?: string
+          smtp_pass_secret?: string
+          smtp_user_secret?: string
+          updated_at?: string
+        }
+        Update: {
+          cc_addresses?: string[]
+          created_at?: string
+          from_address?: string
+          from_name?: string | null
+          id?: string
+          imap_enabled?: boolean
+          imap_host?: string | null
+          imap_last_error?: string | null
+          imap_last_sync_at?: string | null
+          imap_last_uid?: number
+          imap_pass_secret?: string | null
+          imap_port?: number
+          imap_user_secret?: string | null
+          is_active?: boolean
+          label?: string
+          smtp_host_secret?: string
+          smtp_pass_secret?: string
+          smtp_user_secret?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_new_joiner_readiness: {
         Row: {
           broken_links: string[]

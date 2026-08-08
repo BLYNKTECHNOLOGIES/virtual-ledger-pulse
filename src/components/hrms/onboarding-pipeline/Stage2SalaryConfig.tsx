@@ -28,6 +28,8 @@ interface Stage2Props {
 export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly }: Stage2Props) {
   const [form, setForm] = useState({
     ctc: "",
+    training_completion_date: "",
+    post_training_ctc: "",
     deposit_config: null as any,
   });
   const dirtyRef = useRef(false);
@@ -38,22 +40,63 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     if (data) {
       setForm({
         ctc: data.ctc?.toString() || "",
+        training_completion_date: data.training_completion_date || "",
+        post_training_ctc: data.post_training_ctc?.toString() || "",
         deposit_config: data.deposit_config || null,
       });
     }
   }, [data]);
 
+  const doj: string | null = data?.date_of_joining || null;
+
   const validate = () => {
     if (!form.ctc || Number(form.ctc) <= 0) { toast.error("CTC is required and must be positive"); return false; }
+    const hasDate = !!form.training_completion_date;
+    const hasCtc = !!form.post_training_ctc && Number(form.post_training_ctc) > 0;
+    if (hasDate !== hasCtc) {
+      toast.error("Enter both the training completion date and the post-training CTC, or leave both blank");
+      return false;
+    }
+    if (hasDate && doj && form.training_completion_date <= doj) {
+      toast.error("Training completion date must be after the date of joining");
+      return false;
+    }
+    if (hasDate && Number(form.post_training_ctc) === Number(form.ctc)) {
+      toast.error("Post-training CTC must differ from the training CTC");
+      return false;
+    }
     return true;
   };
+
+  // Approximate recovery preview. LOP is unknown at onboarding time, so this
+  // assumes a clean month; the exact figure is recomputed on the effective date.
+  const preview = (() => {
+    const c1 = Number(form.ctc);
+    const c2 = Number(form.post_training_ctc);
+    if (!form.training_completion_date || !c1 || !c2 || c1 === c2) return null;
+    const t = new Date(`${form.training_completion_date}T00:00:00`);
+    if (Number.isNaN(t.getTime())) return null;
+    const n = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    const dOld = t.getDate() - 1;
+    const amount = ((c2 - c1) / 12) * (dOld / n);
+    return {
+      monthLabel: t.toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+      dateLabel: t.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+      amount,
+      dOld,
+      n,
+    };
+  })();
 
   const getPayload = () => ({
     ctc: Number(form.ctc) || null,
     // salary_template_id intentionally removed — templates abolished.
     salary_template_id: null,
+    training_completion_date: form.training_completion_date || null,
+    post_training_ctc: form.post_training_ctc ? Number(form.post_training_ctc) : null,
     deposit_config: form.deposit_config,
   });
+
 
   useEffect(() => {
     if (!dirtyRef.current || readOnly) return;

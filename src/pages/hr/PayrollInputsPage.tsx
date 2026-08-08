@@ -19,6 +19,8 @@ import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
 import { AutoRecoveriesCard } from "@/components/hr/payroll/AutoRecoveriesCard";
+import { TrainingCtcAdjustmentsCard } from "@/components/hr/payroll/TrainingCtcAdjustmentsCard";
+
 import { OtherPayrollInputsCard } from "@/components/hr/payroll/OtherPayrollInputsCard";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";

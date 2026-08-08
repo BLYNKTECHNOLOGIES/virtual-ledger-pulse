@@ -10,6 +10,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { additionTypeSlug } from "@/lib/hrms/additionType";
 
 type Props = { period: string }; // YYYY-MM
 
@@ -81,7 +82,7 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
     mutationFn: async (row: any) => {
       const table = row.kind === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
       const items = row.kind === "addition"
-        ? { additions: [{ label: row.label, amount: Number(row.amount), taxable: row.taxable !== false, type: "bonus" }] }
+        ? { additions: [{ label: row.label, amount: Number(row.amount), taxable: row.taxable !== false, type: additionTypeSlug(row.addition_type) }] }
         : { deductions: [{ label: row.label, amount: Number(row.amount) }] };
       const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
         body: {

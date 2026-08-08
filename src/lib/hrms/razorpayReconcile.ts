@@ -337,12 +337,34 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     {
       field: "job_role",
       label: "Job title",
+    {
+      field: "job_role",
+      label: "Job title",
       erp: norm(erp.job_role),
       razorpay: rpJobRole,
       rpRawValue: rpJobRole || null,
       compareErp: ci(erp.job_role),
       compareRp: ci(rpJobRole),
     },
+    (() => {
+      const rpDepartment = pick(
+        rp?.department,
+        rp?.department_name,
+        rp?.departmentName,
+        rp?.["department-name"],
+        rp?.department?.name,
+      );
+      return {
+        field: "department",
+        label: "Department",
+        erp: norm(erp.department),
+        razorpay: rpDepartment,
+        rpRawValue: rpDepartment || null,
+        compareErp: ci(erp.department),
+        compareRp: ci(rpDepartment),
+      };
+    })(),
+
 
 
 

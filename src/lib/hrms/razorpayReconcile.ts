@@ -120,6 +120,8 @@ interface ErpInput {
   probation_end_date?: string | null;
   employee_type?: string | null;
   job_role?: string | null;
+  /** Department NAME (resolved from department_id) — RazorpayX stores it as text. */
+  department?: string | null;
   
   ctc?: number | string | null;
   documents?: any;
@@ -341,6 +343,25 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
       compareErp: ci(erp.job_role),
       compareRp: ci(rpJobRole),
     },
+    (() => {
+      const rpDepartment = pick(
+        rp?.department,
+        rp?.department_name,
+        rp?.departmentName,
+        rp?.["department-name"],
+        rp?.department?.name,
+      );
+      return {
+        field: "department",
+        label: "Department",
+        erp: norm(erp.department),
+        razorpay: rpDepartment,
+        rpRawValue: rpDepartment || null,
+        compareErp: ci(erp.department),
+        compareRp: ci(rpDepartment),
+      };
+    })(),
+
 
 
 

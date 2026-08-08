@@ -112,6 +112,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       probation_end_date: record?.probation_end_date,
       employee_type: record?.employee_type,
       job_role: record?.job_role,
+      department: (departments || []).find((d: any) => d.id === record?.department_id)?.name || null,
       
       ctc: record?.ctc,
       documents: record?.documents,
@@ -308,6 +309,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "employee_type":
       case "job_role":
         return { onboardingPatch: { [diff.field]: rpVal } };
+      case "department": {
+        const dep = (departments || []).find((d: any) => String(d.name).trim().toLowerCase() === rpStr.trim().toLowerCase());
+        return dep ? { onboardingPatch: { department_id: dep.id } } : {};
+      }
       case "pan":
         return { docsPatch: { pan: { value: rpStr.toUpperCase() } } };
       case "uan":
@@ -334,6 +339,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "probation_end_date": return record?.probation_end_date;
       case "employee_type": return record?.employee_type;
       case "job_role": return record?.job_role;
+      case "department": return (departments || []).find((d: any) => d.id === record?.department_id)?.name || "";
       case "ctc": return record?.ctc;
       case "pan": return docs?.pan?.value || docs?.pan || "";
       case "uan": return docs?.uan?.value || docs?.uan || "";
@@ -594,6 +600,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               probation_end_date: (onboardingRecord as any)?.probation_end_date,
               employee_type: (onboardingRecord as any)?.employee_type,
               job_role: (onboardingRecord as any)?.job_role,
+              department: (departments || []).find((d: any) => d.id === (onboardingRecord as any)?.department_id)?.name || null,
               ctc: onboardingRecord?.ctc,
               documents: onboardingRecord?.documents,
               bank: {
@@ -659,6 +666,16 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     },
   });
 
+  const { data: departments } = useQuery({
+    queryKey: ["departments-list-stage5"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("id, name").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+
   // Re-run reconciliation when managers list finishes loading or the
   // reporting-manager selection changes, so the "Reporting manager" row
   // reflects the correct ERP-side badge/name rather than a stale blank.
@@ -668,7 +685,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     const diffs = reconcileOnboarding(buildErpInput(), rpSnapshot);
     setReconcileDiffs(diffs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [managers, form.reporting_manager_id, rpSnapshot]);
+  }, [managers, departments, form.reporting_manager_id, rpSnapshot]);
 
   // Already-linked records used to bypass the reconciliation panel completely,
   // so Finalize could look clickable while sending a null/empty tally. Refresh

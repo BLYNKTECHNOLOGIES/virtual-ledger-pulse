@@ -143,6 +143,7 @@ const SkillZonePage = lazy(() => import('./pages/horilla/SkillZonePage'));
 const RecruitmentSurveyPage = lazy(() => import('./pages/horilla/RecruitmentSurveyPage'));
 const RejectedCandidatesPage = lazy(() => import('./pages/horilla/RejectedCandidatesPage'));
 const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
+const MailboxPage = lazy(() => import('./pages/horilla/MailboxPage'));
 const AttendancePunchesPage = lazy(() => import('./pages/horilla/AttendancePunchesPage'));
 const MonthlyHoursSummaryPage = lazy(() => import('./pages/horilla/MonthlyHoursSummaryPage'));
 const ExchangeAccountsSettings = lazy(() => import('./pages/ExchangeAccountsSettings'));

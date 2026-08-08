@@ -446,13 +446,21 @@ Deno.serve(async (req) => {
       // Uses Razorpay-parity formula: LOP = working_days − (present + paid_leave + incomplete_held).
       // Incomplete-punch days are held harmless (0 LOP) until an approved regularization exists.
       const lop = lopByEmp.get(emp.id);
-      if (lop?.config_errors?.length) {
-        skipped.push({ employee_id: emp.id, name: empName, reason: "leave_config_error", detail: lop.config_errors.join(" ") });
+      const lopErrors: string[] = lop?.config_errors ?? [];
+      // Historical months can legitimately have no attendance signal (e.g. the
+      // punch tables were reset). When an imported register exists for the
+      // employee, the register is the authority for the month — compute the
+      // line with LOP = 0 and record why, instead of dropping the employee.
+      const attendanceMissing = lopErrors.some((e) => /biometric attendance signal/i.test(e));
+      const lopUnavailable = attendanceMissing && rzBasis === "register_csv";
+      if (lopErrors.length && !lopUnavailable) {
+        skipped.push({ employee_id: emp.id, name: empName, reason: "leave_config_error", detail: lopErrors.join(" ") });
         continue;
       }
-      const lopDays = Number(lop?.lop_days ?? 0);
+      const lopDays = lopUnavailable ? 0 : Number(lop?.lop_days ?? 0);
       const lopDivisor = Number(lop?.working_days ?? 0) > 0 ? Number(lop!.working_days) : totalDays;
       const lopAmount = lopDivisor > 0 ? Math.round(regularBase * (lopDays / lopDivisor)) : 0;
+
 
 
       // KPI-Loss / other gross-side recoveries — matched on label since the

@@ -410,12 +410,37 @@ Deno.serve(async (req) => {
       }
 
 
+      // ---- EMPLOYMENT WINDOW CLAMP ----
+      // Mid-month joiners / leavers must be prorated ONCE, on the calendar days
+      // actually employed inside the period. Dates come from the register
+      // (hire date / relieving date) when it exists.
+      const dayNum = (d: string | null | undefined) => {
+        if (!d) return null;
+        const t = new Date(String(d).slice(0, 10) + "T00:00:00Z");
+        return isNaN(t.getTime()) ? null : t;
+      };
+      const hireD = dayNum(rz?.reg_hire_date);
+      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : null;
+      const winStartDay = hireD && hireD > period && hireD <= monthEnd ? hireD.getUTCDate() : 1;
+      const winEndDay = relD && relD >= period && relD < monthEnd ? relD.getUTCDate() : totalDays;
+      const paidCalDays = Math.max(0, winEndDay - winStartDay + 1);
+      const windowFactor = totalDays > 0 ? Math.min(1, paidCalDays / totalDays) : 1;
+      const employmentWindow = windowFactor < 1
+        ? {
+            start_day: winStartDay, end_day: winEndDay, paid_calendar_days: paidCalDays,
+            total_days: totalDays, factor: Number(windowFactor.toFixed(6)),
+            reason: hireD && winStartDay > 1 ? "mid_month_joiner" : "mid_month_leaver",
+          }
+        : null;
+      const windowedGross = Math.round(monthlyGross * windowFactor);
+
       const pct = resolveStructurePct(emp.custom_structure_pct, defaultComps, useDefault);
-      const preBasic = Math.round(monthlyGross * (pct.basic / 100));
-      const preHra = Math.round(monthlyGross * (pct.hra / 100));
-      const preLta = Math.round(monthlyGross * (pct.lta / 100));
-      const preSpecial = monthlyGross - preBasic - preHra - preLta;
+      const preBasic = Math.round(windowedGross * (pct.basic / 100));
+      const preHra = Math.round(windowedGross * (pct.hra / 100));
+      const preLta = Math.round(windowedGross * (pct.lta / 100));
+      const preSpecial = windowedGross - preBasic - preHra - preLta;
       const regularBase = preBasic + preHra + preSpecial + preLta;
+
 
       // LOP — from the shared hr_compute_lop_days SQL function (single source of truth).
       // Uses Razorpay-parity formula: LOP = working_days − (present + paid_leave + incomplete_held).

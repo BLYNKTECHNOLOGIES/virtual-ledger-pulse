@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
 
     // 2. Active employees + per-employee statutory flags + custom split + provenance
     let empQ: any = supabase.from("hr_employees")
-      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source")
+      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date")
       .eq("is_active", true);
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
     const { data: employees, error: empErr } = await empQ;

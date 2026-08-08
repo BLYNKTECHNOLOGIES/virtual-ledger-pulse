@@ -679,7 +679,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     const diffs = reconcileOnboarding(buildErpInput(), rpSnapshot);
     setReconcileDiffs(diffs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [managers, form.reporting_manager_id, rpSnapshot]);
+  }, [managers, departments, form.reporting_manager_id, rpSnapshot]);
 
   // Already-linked records used to bypass the reconciliation panel completely,
   // so Finalize could look clickable while sending a null/empty tally. Refresh

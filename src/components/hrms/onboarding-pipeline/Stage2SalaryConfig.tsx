@@ -186,20 +186,6 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
 
 
 
-        <div className="rounded-lg border p-3 bg-primary/5 flex gap-2 items-start">
-          <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">RazorpayX is the payroll authority.</span>{" "}
-            Local salary-structure templates have been retired because the RazorpayX API does not expose template CRUD, so HRMS could not reliably verify which structure was actually assigned. The breakdown is now managed exclusively on RazorpayX and mirrored read-only inside the employee's profile after the next sync.
-          </div>
-        </div>
-
-        <div className="rounded-lg border p-4 bg-muted/30">
-          <p className="text-sm font-medium mb-1">Salary Hold / Security Deposit</p>
-          <p className="text-xs text-muted-foreground">
-            Deposit templates will be applied after employee creation. You can configure this in the Deposit Management section after onboarding is complete.
-          </p>
-        </div>
 
         {!readOnly && (
           <div className="flex gap-2 pt-2">

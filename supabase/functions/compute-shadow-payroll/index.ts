@@ -548,7 +548,7 @@ Deno.serve(async (req) => {
         (period.getUTCFullYear() * 12 + period.getUTCMonth())
         - (fyStart.getUTCFullYear() * 12 + fyStart.getUTCMonth())
       ));
-      const annualBasePreLop = regularBase * 12;
+      const annualBasePreLop = monthlyGross * 12;
       const { data: ytdTds } = await supabase
         .from("hr_payslips_v")
         .select("tds_amount")

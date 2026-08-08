@@ -329,19 +329,26 @@ Deno.serve(async (req) => {
     }
 
     // RazorpayX comparison side, prefetched once for the whole period.
-    // hr_payslips_v is the reconciled payslip view (API pull + imported salary
-    // register), so it is populated for months that were only imported.
+    // ONE DECLARED BASIS: when an imported salary register exists for the
+    // employee/month we take EVERY Razorpay figure from the register; otherwise
+    // every figure comes from the API payslip. Mixing the two (register net vs
+    // API gross) was the single largest source of phantom variance.
     const num = (v: any) => (v === null || v === undefined || v === "" ? null : Number(v));
     const rzByEmp = new Map<string, any>();
     {
       const { data: rzRows, error: rzErr } = await supabase
         .from("hr_payslips_v")
-        .select("employee_id, gross, regular_gross, net, pf_amount, esi_amount, professional_tax, tds_amount")
+        .select(
+          "employee_id, gross, regular_gross, net, pf_amount, esi_amount, professional_tax, tds_amount, " +
+          "has_register, source, lwf_ee, advance_salary, loan_emi, refund_security_deposit, " +
+          "one_time_payments, overtime, performance_incentive, working_days, has_left, relieving_date, reg_hire_date",
+        )
         .eq("period_month", periodStr);
       if (rzErr) console.error("razorpay payslip view fetch err", rzErr);
       for (const r of rzRows ?? []) if (r.employee_id) rzByEmp.set(r.employee_id, r);
       console.log(`[shadow] razorpay comparison rows for ${periodStr}: ${rzByEmp.size}`);
     }
+
 
 
     for (const emp of employees ?? []) {

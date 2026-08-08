@@ -65,8 +65,7 @@ export function BiometricQuarantineBanner() {
           {data.total} biometric punch{data.total === 1 ? "" : "es"} parked — unmatched PINs
         </div>
         <div className="text-xs text-muted-foreground mt-1">
-          Real punches are landing in quarantine because the device PIN isn't mapped to an employee.
-          Map these PINs and existing punches will replay automatically. Only PINs still enrolled on an eSSL device are listed — deleted / ex-employee PINs are hidden.
+          Map these PINs and existing punches will replay automatically. Only PINs still enrolled on an eSSL device are listed — deleted / ex-employee PINs and the visitor PIN 100 are hidden.
         </div>
 
         <div className="text-xs mt-1 tabular-nums text-muted-foreground">

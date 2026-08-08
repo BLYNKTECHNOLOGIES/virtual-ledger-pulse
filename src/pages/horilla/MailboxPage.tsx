@@ -370,8 +370,8 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
 
 /* -------------------------------- SENT --------------------------------- */
 
-function SentTab() {
-  const { data: campaigns = [], isLoading } = useHrMailCampaigns();
+function SentTab({ mailboxId }: { mailboxId?: string }) {
+  const { data: campaigns = [], isLoading } = useHrMailCampaigns(mailboxId);
   const [open, setOpen] = useState<HrMailCampaign | null>(null);
 
   return (

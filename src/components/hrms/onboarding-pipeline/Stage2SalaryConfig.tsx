@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { DollarSign, Info } from "lucide-react";
+import { DollarSign } from "lucide-react";
 
 interface Stage2Props {
   data: any;
@@ -130,9 +130,6 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
             }}
             disabled={readOnly}
           />
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Enter the annual CTC only. The component split (Basic / HRA / PF / ESI etc.) is assigned inside RazorpayX after the employee is created there.
-          </p>
         </div>
 
         <div className="rounded-lg border p-4 space-y-3">
@@ -167,9 +164,6 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
               />
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Leave both blank if the hire starts on their final CTC. When filled, a scheduled salary revision is created at onboarding and the new CTC is pushed to RazorpayX automatically on that date — nothing to do manually.
-          </p>
           {preview && (
             <div className="rounded-md bg-primary/5 border p-3 text-xs text-muted-foreground">
               On <span className="text-foreground font-medium">{preview.dateLabel}</span> the CTC changes from ₹
@@ -186,20 +180,6 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
 
 
 
-        <div className="rounded-lg border p-3 bg-primary/5 flex gap-2 items-start">
-          <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">RazorpayX is the payroll authority.</span>{" "}
-            Local salary-structure templates have been retired because the RazorpayX API does not expose template CRUD, so HRMS could not reliably verify which structure was actually assigned. The breakdown is now managed exclusively on RazorpayX and mirrored read-only inside the employee's profile after the next sync.
-          </div>
-        </div>
-
-        <div className="rounded-lg border p-4 bg-muted/30">
-          <p className="text-sm font-medium mb-1">Salary Hold / Security Deposit</p>
-          <p className="text-xs text-muted-foreground">
-            Deposit templates will be applied after employee creation. You can configure this in the Deposit Management section after onboarding is complete.
-          </p>
-        </div>
 
         {!readOnly && (
           <div className="flex gap-2 pt-2">

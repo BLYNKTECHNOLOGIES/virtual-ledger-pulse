@@ -219,14 +219,14 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             </Select>
           </div>
           <div>
-            <Label>Probation End Date</Label>
+            <Label>Probation End Date <span className="text-muted-foreground font-normal">(optional)</span></Label>
             <Input
               type="date"
               value={form.probation_end_date}
               onChange={e => update("probation_end_date", e.target.value)}
               disabled={readOnly}
             />
-            <p className="text-[11px] text-muted-foreground mt-1">Leave blank to apply the company default of <strong>90 days from the joining date</strong>. Mirrored to RazorpayX <code>probation-end-date</code>.</p>
+
           </div>
 
         </div>

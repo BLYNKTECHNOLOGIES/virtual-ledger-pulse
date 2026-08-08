@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
 
   for (const mb of mailboxes) {
     const host = mb.imap_host
-    const user = mb.imap_user_secret ? Deno.env.get(mb.imap_user_secret) : Deno.env.get('HR_SMTP_USER')
-    const pass = mb.imap_pass_secret ? Deno.env.get(mb.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS')
+    const user = (mb.imap_user_secret ? Deno.env.get(mb.imap_user_secret) : Deno.env.get('HR_SMTP_USER'))?.trim()
+    const pass = (mb.imap_pass_secret ? Deno.env.get(mb.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS'))?.replace(/\s+/g, '')
 
     if (!host || !user || !pass) {
       const msg = 'IMAP host or credentials missing'

@@ -147,8 +147,8 @@ Deno.serve(async (req) => {
   if (!mailbox) return json({ error: 'Sender mailbox missing' }, 400)
 
   const smtpHost = Deno.env.get(mailbox.smtp_host_secret) || Deno.env.get('HR_SMTP_HOST')
-  const smtpUser = Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get('HR_SMTP_USER')
-  const smtpPass = Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get('HR_SMTP_PASS')
+  const smtpUser = (Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get('HR_SMTP_USER') || '').trim()
+  const smtpPass = (Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
   if (!smtpHost || !smtpUser || !smtpPass) return json({ error: 'SMTP credentials are not configured for this mailbox' }, 500)
 
   // ---- Load attachments from storage -----------------------------------

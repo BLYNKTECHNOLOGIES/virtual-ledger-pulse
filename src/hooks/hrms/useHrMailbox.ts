@@ -207,7 +207,12 @@ export function useMarkMailRead() {
       const { error } = await anyDb.from("hr_mail_messages").update({ is_read: isRead }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_mail_messages"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_mail_messages"] });
+      qc.invalidateQueries({ queryKey: ["hr_mail_unread_counts"] });
+    },
+  });
+
   });
 }
 

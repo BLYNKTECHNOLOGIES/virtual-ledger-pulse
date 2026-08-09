@@ -1,5 +1,8 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
 
 export interface HrMailbox {
   id: string;
@@ -204,6 +207,114 @@ export function useMarkMailRead() {
       const { error } = await anyDb.from("hr_mail_messages").update({ is_read: isRead }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_mail_messages"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_mail_messages"] });
+      qc.invalidateQueries({ queryKey: ["hr_mail_unread_counts"] });
+    },
   });
+}
+
+
+/* --------------------------- Unread counts ----------------------------- */
+
+export interface HrMailUnread {
+  byMailbox: Record<string, number>;
+  total: number;
+}
+
+export function useHrMailUnreadCounts() {
+  return useQuery({
+    queryKey: ["hr_mail_unread_counts"],
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<HrMailUnread> => {
+      const { data, error } = await anyDb
+        .from("hr_mail_messages")
+        .select("mailbox_id")
+        .eq("is_read", false)
+        .limit(5000);
+      if (error) throw error;
+      const byMailbox: Record<string, number> = {};
+      for (const row of data || []) {
+        byMailbox[row.mailbox_id] = (byMailbox[row.mailbox_id] || 0) + 1;
+      }
+      return { byMailbox, total: (data || []).length };
+    },
+  });
+}
+
+/* --------------------- Desktop / in-app alerts ------------------------- */
+
+export type NotificationPermissionState = "unsupported" | NotificationPermission;
+
+export function getNotificationPermission(): NotificationPermissionState {
+  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+  return Notification.permission;
+}
+
+export async function requestMailNotificationPermission(): Promise<NotificationPermissionState> {
+  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+  try {
+    return await Notification.requestPermission();
+  } catch {
+    return Notification.permission;
+  }
+}
+
+function showDesktopNotification(title: string, body: string) {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, { body, tag: "hr-mailbox", icon: "/favicon.ico" });
+    n.onclick = () => {
+      window.focus();
+      window.location.href = "/hrms/mailbox";
+      n.close();
+    };
+  } catch {
+    /* some browsers block constructor outside SW; ignore */
+  }
+}
+
+/**
+ * Subscribes to new inbound HR mail and raises an in-app toast plus a desktop
+ * notification (when the user granted permission). Also keeps unread counts
+ * and the message list fresh.
+ */
+export function useHrMailRealtimeAlerts(enabled = true) {
+  const qc = useQueryClient();
+  const mailboxLabels = useRef<Record<string, string>>({});
+  const { data: mailboxes = [] } = useHrMailboxes();
+
+  useEffect(() => {
+    const map: Record<string, string> = {};
+    for (const mb of mailboxes) map[mb.id] = mb.label || mb.from_address;
+    mailboxLabels.current = map;
+  }, [mailboxes]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const channel = supabase
+      .channel("hr-mail-inbound")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "hr_mail_messages" },
+        (payload: any) => {
+          const m = payload.new || {};
+          qc.invalidateQueries({ queryKey: ["hr_mail_messages"] });
+          qc.invalidateQueries({ queryKey: ["hr_mail_unread_counts"] });
+          if (m.is_read) return;
+          const who = m.from_name || m.from_address || "Unknown sender";
+          const box = mailboxLabels.current[m.mailbox_id];
+          const title = `New mail${box ? ` — ${box}` : ""}`;
+          const body = `${who}: ${m.subject || "(no subject)"}`;
+          toast({ title, description: body });
+          showDesktopNotification(title, body);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled, qc]);
 }

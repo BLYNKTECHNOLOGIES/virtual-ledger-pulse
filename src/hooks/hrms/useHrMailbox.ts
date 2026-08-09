@@ -212,9 +212,8 @@ export function useMarkMailRead() {
       qc.invalidateQueries({ queryKey: ["hr_mail_unread_counts"] });
     },
   });
-
-  });
 }
+
 
 /* --------------------------- Unread counts ----------------------------- */
 

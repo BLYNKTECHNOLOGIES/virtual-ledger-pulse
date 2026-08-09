@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
     }
     try {
       await client.send({
-        from: `${mailbox.from_name || 'HR'} <${smtpUser}>`,
+        from: `${mailbox.from_name || 'HR'} <${mailbox.from_address || smtpUser}>`,
         to: r.email,
         cc: (mailbox.cc_addresses || []).filter((a: string) => a.toLowerCase() !== r.email.toLowerCase()),
         subject: fillPlaceholders(campaign.subject, vars),

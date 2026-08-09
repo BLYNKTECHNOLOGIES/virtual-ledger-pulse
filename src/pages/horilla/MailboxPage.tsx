@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   Mail, Send, Inbox, RefreshCw, Paperclip, Users, Search, FileText,
-  Loader2, CheckCircle2, AlertTriangle, X, Plus, Trash2, Settings, Bell, BellOff,
+  Loader2, CheckCircle2, AlertTriangle, X, Plus, Trash2, Settings, Bell, BellOff, Filter,
 } from "lucide-react";
+
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";

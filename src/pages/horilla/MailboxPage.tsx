@@ -119,13 +119,19 @@ export default function MailboxPage() {
 
 function InboxTab({ mailboxId }: { mailboxId?: string }) {
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<HrMailMessage | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const { data: messages = [], isLoading } = useHrMailMessages(mailboxId, search);
   const { data: mailboxes = [] } = useHrMailboxes();
   const fetchMail = useFetchHrMail();
   const markRead = useMarkMailRead();
+  const markThreadRead = useMarkThreadRead();
+
+  const threads = useMemo(() => groupMailThreads(messages), [messages]);
+  const selectedThread = threads.find(t => t.key === selectedKey) || null;
 
   const mailbox = mailboxes.find(m => m.id === mailboxId);
+
 
   return (
     <div className="space-y-3">

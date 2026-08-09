@@ -117,6 +117,8 @@ export interface ParsedMessage {
   subject: string | null;
   date: string | null;
   messageId: string | null;
+  inReplyTo: string | null;
+  references: string | null;
   html: string | null;
   text: string | null;
   hasAttachments: boolean;
@@ -185,6 +187,8 @@ export function parseMessage(raw: string): ParsedMessage {
     subject: headers["subject"] ? decodeMimeWord(headers["subject"]) : null,
     date,
     messageId: headers["message-id"] || null,
+    inReplyTo: (headers["in-reply-to"] || "").match(/<[^<>]+>/)?.[0] || null,
+    references: headers["references"] || null,
     html,
     text,
     hasAttachments,

@@ -10312,13 +10312,16 @@ export type Database = {
           has_attachments: boolean
           id: string
           imap_uid: number
+          in_reply_to: string | null
           is_read: boolean
           mailbox_id: string
           matched_employee_id: string | null
           message_id_header: string | null
           received_at: string | null
+          references_header: string | null
           snippet: string | null
           subject: string | null
+          thread_key: string | null
           to_addresses: string[]
           updated_at: string
         }
@@ -10331,13 +10334,16 @@ export type Database = {
           has_attachments?: boolean
           id?: string
           imap_uid: number
+          in_reply_to?: string | null
           is_read?: boolean
           mailbox_id: string
           matched_employee_id?: string | null
           message_id_header?: string | null
           received_at?: string | null
+          references_header?: string | null
           snippet?: string | null
           subject?: string | null
+          thread_key?: string | null
           to_addresses?: string[]
           updated_at?: string
         }
@@ -10350,13 +10356,16 @@ export type Database = {
           has_attachments?: boolean
           id?: string
           imap_uid?: number
+          in_reply_to?: string | null
           is_read?: boolean
           mailbox_id?: string
           matched_employee_id?: string | null
           message_id_header?: string | null
           received_at?: string | null
+          references_header?: string | null
           snippet?: string | null
           subject?: string | null
+          thread_key?: string | null
           to_addresses?: string[]
           updated_at?: string
         }
@@ -25501,6 +25510,10 @@ export type Database = {
           weekly_off_source: string
           working_days: number
         }[]
+      }
+      hr_mail_normalize_subject: {
+        Args: { p_subject: string }
+        Returns: string
       }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }

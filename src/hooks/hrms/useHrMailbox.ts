@@ -29,6 +29,51 @@ export interface HrMailMessage {
   is_read: boolean;
   matched_employee_id: string | null;
   has_attachments: boolean;
+  message_id_header?: string | null;
+  thread_key?: string | null;
+}
+
+export interface HrMailThread {
+  key: string;
+  subject: string;
+  messages: HrMailMessage[];
+  latest: HrMailMessage;
+  unreadCount: number;
+  participants: string[];
+}
+
+/** Groups a flat message list into conversation threads (newest thread first). */
+export function groupMailThreads(messages: HrMailMessage[]): HrMailThread[] {
+  const map = new Map<string, HrMailMessage[]>();
+  for (const m of messages) {
+    const key = m.thread_key || m.id;
+    const list = map.get(key);
+    if (list) list.push(m);
+    else map.set(key, [m]);
+  }
+
+  const threads: HrMailThread[] = [];
+  for (const [key, list] of map) {
+    const ordered = [...list].sort(
+      (a, b) => new Date(a.received_at || 0).getTime() - new Date(b.received_at || 0).getTime(),
+    );
+    const latest = ordered[ordered.length - 1];
+    const participants = Array.from(
+      new Set(ordered.map(m => m.from_name || m.from_address || "Unknown sender")),
+    );
+    threads.push({
+      key,
+      subject: latest.subject || ordered[0].subject || "(no subject)",
+      messages: ordered,
+      latest,
+      unreadCount: ordered.filter(m => !m.is_read).length,
+      participants,
+    });
+  }
+
+  return threads.sort(
+    (a, b) => new Date(b.latest.received_at || 0).getTime() - new Date(a.latest.received_at || 0).getTime(),
+  );
 }
 
 export interface HrMailCampaign {
@@ -196,6 +241,21 @@ export function useFetchHrMail() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_mail_messages"] });
       qc.invalidateQueries({ queryKey: ["hr_mailboxes"] });
+    },
+  });
+}
+
+export function useMarkThreadRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!ids.length) return;
+      const { error } = await anyDb.from("hr_mail_messages").update({ is_read: true }).in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_mail_messages"] });
+      qc.invalidateQueries({ queryKey: ["hr_mail_unread_counts"] });
     },
   });
 }

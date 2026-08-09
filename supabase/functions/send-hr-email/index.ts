@@ -7,7 +7,7 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type',
 }
 
-const CAREERS_RECIPIENT = 'hr.desk@blynkex.com'
+const CAREERS_RECIPIENT = 'hr@blynkex.com'
 
 function escapeHtml(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
@@ -267,9 +267,10 @@ Deno.serve(async (req) => {
     // CC standard HR oversight recipients on every HR email, deduped against the primary recipient.
     const HR_CC_RECIPIENTS = [
       'shubham.singh@blynkex.com',
-      'hr.desk@blynkex.com',
+      'hr@blynkex.com',
       'abhisheksingh@blynkex.com',
     ]
+
     const primaryLower = String(recipientEmail).trim().toLowerCase()
     const ccList = HR_CC_RECIPIENTS.filter(addr => addr.toLowerCase() !== primaryLower)
 

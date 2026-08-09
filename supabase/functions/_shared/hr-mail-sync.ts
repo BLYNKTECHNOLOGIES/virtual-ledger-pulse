@@ -22,8 +22,9 @@ export async function syncHrMailboxes(admin: any, opts: SyncOptions = {}) {
     return { success: true, mailboxes: 0, inserted: 0, errors: [], note: 'No IMAP-enabled mailbox configured' }
   }
 
-  // Several mailboxes (e.g. hr@ and its hr.desk@ alias) can share one IMAP
-  // account; each message is filed under the mailbox it was addressed to.
+  // Mailboxes that share one IMAP account are routed by the address the
+  // message was addressed to; each message is filed under that mailbox.
+
   const { data: allMailboxes } = await admin.from('hr_mailboxes').select('*').eq('is_active', true)
   const routeByAddress = new Map<string, any>()
   for (const mb of allMailboxes || []) {

@@ -110,19 +110,62 @@ export function useHrMailboxes() {
   });
 }
 
-export function useHrMailMessages(mailboxId?: string, search = "") {
+export interface HrMailFilters {
+  /** Full-text query across subject, sender, snippet and body */
+  search?: string;
+  /** Sender name or address contains */
+  from?: string;
+  /** Subject keywords (space separated, all must match) */
+  subject?: string;
+  /** ISO date (yyyy-MM-dd) inclusive lower bound */
+  dateFrom?: string;
+  /** ISO date (yyyy-MM-dd) inclusive upper bound */
+  dateTo?: string;
+  /** Only unread messages */
+  unreadOnly?: boolean;
+}
+
+/** Escapes PostgREST `or()` filter separators inside a value. */
+function esc(v: string) {
+  return v.replace(/[,()]/g, " ").trim();
+}
+
+export function useHrMailMessages(mailboxId?: string, filters: HrMailFilters | string = {}) {
+  const f: HrMailFilters = typeof filters === "string" ? { search: filters } : filters || {};
   return useQuery({
-    queryKey: ["hr_mail_messages", mailboxId, search],
+    queryKey: ["hr_mail_messages", mailboxId, f],
     queryFn: async (): Promise<HrMailMessage[]> => {
-      let q = anyDb.from("hr_mail_messages").select("*").order("received_at", { ascending: false }).limit(200);
+      let q = anyDb.from("hr_mail_messages").select("*").order("received_at", { ascending: false }).limit(500);
       if (mailboxId) q = q.eq("mailbox_id", mailboxId);
-      if (search.trim()) q = q.or(`subject.ilike.%${search}%,from_address.ilike.%${search}%,snippet.ilike.%${search}%`);
+
+      const search = esc(f.search || "");
+      if (search) {
+        q = q.or(
+          `subject.ilike.%${search}%,from_address.ilike.%${search}%,from_name.ilike.%${search}%,snippet.ilike.%${search}%,body_text.ilike.%${search}%`,
+        );
+      }
+
+      const from = esc(f.from || "");
+      if (from) q = q.or(`from_address.ilike.%${from}%,from_name.ilike.%${from}%`);
+
+      const subjectQ = (f.subject || "").trim();
+      if (subjectQ) {
+        for (const word of subjectQ.split(/\s+/).filter(Boolean)) {
+          q = q.ilike("subject", `%${word}%`);
+        }
+      }
+
+      if (f.dateFrom) q = q.gte("received_at", `${f.dateFrom}T00:00:00`);
+      if (f.dateTo) q = q.lte("received_at", `${f.dateTo}T23:59:59.999`);
+      if (f.unreadOnly) q = q.eq("is_read", false);
+
       const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
   });
 }
+
 
 export function useHrMailCampaigns(mailboxId?: string) {
   return useQuery({

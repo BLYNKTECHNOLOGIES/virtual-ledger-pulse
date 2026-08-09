@@ -22,6 +22,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   useHrMailboxes, useHrMailMessages, useHrMailCampaigns, useHrMailRecipients,
   useHrMailTemplates, useHrMailEmployees, useSendHrMail, useFetchHrMail, useMarkMailRead,
+  useHrMailUnreadCounts, useHrMailRealtimeAlerts,
+  getNotificationPermission, requestMailNotificationPermission,
   type HrMailMessage, type HrMailCampaign,
 } from "@/hooks/hrms/useHrMailbox";
 
@@ -34,26 +36,69 @@ export default function MailboxPage() {
   const [mailboxId, setMailboxId] = useState<string | undefined>(undefined);
   const activeMailboxId = mailboxId || mailboxes[0]?.id;
 
+  const { data: unread } = useHrMailUnreadCounts();
+  useHrMailRealtimeAlerts(true);
+
+  const [permission, setPermission] = useState(() => getNotificationPermission());
+  const activeUnread = activeMailboxId ? unread?.byMailbox?.[activeMailboxId] ?? 0 : 0;
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader title="HR Mailbox" description="Send HR mail to employees and read replies in one place" />
 
       <div className="flex flex-wrap items-center gap-2">
         <Select value={activeMailboxId} onValueChange={setMailboxId}>
-          <SelectTrigger className="h-9 w-[280px] text-foreground">
+          <SelectTrigger className="h-9 w-[300px] text-foreground">
             <SelectValue placeholder="Select mailbox" />
           </SelectTrigger>
           <SelectContent>
-            {mailboxes.map(mb => (
-              <SelectItem key={mb.id} value={mb.id}>{mb.label} — {mb.from_address}</SelectItem>
-            ))}
+            {mailboxes.map(mb => {
+              const n = unread?.byMailbox?.[mb.id] ?? 0;
+              return (
+                <SelectItem key={mb.id} value={mb.id}>
+                  <span className="flex items-center gap-2">
+                    <span>{mb.label} — {mb.from_address}</span>
+                    {n > 0 && <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">{n}</Badge>}
+                  </span>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
+
+        {(unread?.total ?? 0) > 0 && (
+          <Badge variant="secondary" className="gap-1">
+            <Bell className="h-3 w-3" /> {unread?.total} unread
+          </Badge>
+        )}
+
+        {permission !== "granted" && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={permission === "unsupported" || permission === "denied"}
+            onClick={async () => {
+              const p = await requestMailNotificationPermission();
+              setPermission(p);
+              if (p === "granted") toast({ title: "Desktop alerts enabled", description: "You'll be notified when new HR mail arrives." });
+              else if (p === "denied") toast({ title: "Alerts blocked", description: "Allow notifications for this site in your browser settings.", variant: "destructive" });
+            }}
+          >
+            {permission === "unsupported"
+              ? <><BellOff className="h-3.5 w-3.5 mr-1" /> Alerts unsupported</>
+              : permission === "denied"
+                ? <><BellOff className="h-3.5 w-3.5 mr-1" /> Alerts blocked</>
+                : <><Bell className="h-3.5 w-3.5 mr-1" /> Enable desktop alerts</>}
+          </Button>
+        )}
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="inbox" className="gap-1"><Inbox className="h-3.5 w-3.5" /> Inbox</TabsTrigger>
+          <TabsTrigger value="inbox" className="gap-1">
+            <Inbox className="h-3.5 w-3.5" /> Inbox
+            {activeUnread > 0 && <Badge variant="destructive" className="ml-1 h-4 px-1.5 text-[10px]">{activeUnread}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="compose" className="gap-1"><Send className="h-3.5 w-3.5" /> Compose</TabsTrigger>
           <TabsTrigger value="sent" className="gap-1"><Mail className="h-3.5 w-3.5" /> Sent</TabsTrigger>
           <TabsTrigger value="templates" className="gap-1"><FileText className="h-3.5 w-3.5" /> Templates</TabsTrigger>
@@ -67,6 +112,7 @@ export default function MailboxPage() {
     </div>
   );
 }
+
 
 /* ------------------------------- INBOX --------------------------------- */
 

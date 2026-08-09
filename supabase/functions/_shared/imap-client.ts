@@ -117,6 +117,8 @@ export interface ParsedMessage {
   subject: string | null;
   date: string | null;
   messageId: string | null;
+  inReplyTo: string | null;
+  references: string | null;
   html: string | null;
   text: string | null;
   hasAttachments: boolean;

@@ -87,6 +87,8 @@ export async function syncHrMailboxes(admin: any, opts: SyncOptions = {}) {
           mailbox_id: targetMailboxId,
           imap_uid: m.uid,
           message_id_header: p.messageId,
+          in_reply_to: (p as any).inReplyTo || null,
+          references_header: (p as any).references || null,
           from_address: p.fromAddress,
           from_name: p.fromName,
           to_addresses: p.to,

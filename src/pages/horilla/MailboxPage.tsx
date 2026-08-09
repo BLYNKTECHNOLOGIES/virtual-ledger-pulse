@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   useHrMailboxes, useHrMailMessages, useHrMailCampaigns, useHrMailRecipients,
   useHrMailTemplates, useHrMailEmployees, useSendHrMail, useFetchHrMail, useMarkMailRead,
+  useMarkThreadRead, groupMailThreads,
   useHrMailUnreadCounts, useHrMailRealtimeAlerts,
   getNotificationPermission, requestMailNotificationPermission,
   type HrMailMessage, type HrMailCampaign,

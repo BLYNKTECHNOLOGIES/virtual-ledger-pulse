@@ -36,8 +36,18 @@ Deno.serve(async (req) => {
     return json({ success: true, mailboxes: 0, inserted: 0, note: 'No IMAP-enabled mailbox configured' })
   }
 
+  // All active mailboxes are used for address-based routing: several mailboxes
+  // (e.g. hr@ and its hr.desk@ alias) can share one IMAP account, and each
+  // message is filed under the mailbox it was addressed to.
+  const { data: allMailboxes } = await admin.from('hr_mailboxes').select('*').eq('is_active', true)
+  const routeByAddress = new Map<string, any>()
+  for (const mb of allMailboxes || []) {
+    if (mb.from_address) routeByAddress.set(String(mb.from_address).toLowerCase(), mb)
+  }
+
   let inserted = 0
   const errors: Array<{ mailbox: string; error: string }> = []
+  const doneAccounts = new Set<string>()
 
   for (const mb of mailboxes) {
     const host = mb.imap_host
@@ -50,6 +60,17 @@ Deno.serve(async (req) => {
       await admin.from('hr_mailboxes').update({ imap_last_error: msg }).eq('id', mb.id)
       continue
     }
+
+    // Shared IMAP account: fetch it once, routing handles the sibling mailboxes.
+    const accountKey = `${host}:${user.toLowerCase()}`
+    if (doneAccounts.has(accountKey)) {
+      await admin.from('hr_mailboxes').update({
+        imap_last_sync_at: new Date().toISOString(),
+        imap_last_error: null,
+      }).eq('id', mb.id)
+      continue
+    }
+    doneAccounts.add(accountKey)
 
     try {
       const messages = await fetchMessages(
@@ -73,8 +94,16 @@ Deno.serve(async (req) => {
           matchedEmployeeId = emp?.id || null
         }
 
+        // File under the mailbox this message was addressed to, when known.
+        let targetMailboxId = mb.id
+        for (const raw of (p.to || [])) {
+          const addr = String(raw).toLowerCase().match(/[^\s<>,;]+@[^\s<>,;]+/)?.[0]
+          const hit = addr ? routeByAddress.get(addr) : undefined
+          if (hit) { targetMailboxId = hit.id; break }
+        }
+
         const { error } = await admin.from('hr_mail_messages').upsert({
-          mailbox_id: mb.id,
+          mailbox_id: targetMailboxId,
           imap_uid: m.uid,
           message_id_header: p.messageId,
           from_address: p.fromAddress,
@@ -93,11 +122,15 @@ Deno.serve(async (req) => {
         if (m.uid > maxUid) maxUid = m.uid
       }
 
+      // Advance the UID cursor on every mailbox sharing this IMAP account.
+      const siblingIds = (allMailboxes || [])
+        .filter((x: any) => `${x.imap_host}:${(Deno.env.get(x.imap_user_secret || '') || '').trim().toLowerCase()}` === accountKey)
+        .map((x: any) => x.id)
       await admin.from('hr_mailboxes').update({
         imap_last_uid: maxUid,
         imap_last_sync_at: new Date().toISOString(),
         imap_last_error: null,
-      }).eq('id', mb.id)
+      }).in('id', siblingIds.length ? siblingIds : [mb.id])
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error('IMAP fetch failed', mb.from_address, msg)

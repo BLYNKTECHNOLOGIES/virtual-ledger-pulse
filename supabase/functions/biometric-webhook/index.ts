@@ -288,6 +288,14 @@ Deno.serve(async (req) => {
         const quarantineInserts: any[] = [];
         const matchedForProcess: { badge_id: string; punchISO: string; punchDate: string; punch_type: "in" | "out"; employeeUUID: string }[] = [];
         for (const p of parsed) {
+          // eSSL sentinel identities: PIN 100 is the visitor profile and PIN 0
+          // is emitted as protocol/device noise. They are intentionally not HR
+          // employees, so silently ignore them rather than quarantine/counting
+          // them as broken employee mappings.
+          if (p.pin === "0" || p.pin === "100") {
+            results.skipped++;
+            continue;
+          }
           const emp = pinToEmp.get(p.pin);
           if (!emp) {
             results.unmatched++;

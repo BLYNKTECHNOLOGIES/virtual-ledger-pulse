@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
+import { sendLeaveEmail } from "@/utils/leaveEmail";
 
 export default function LeaveRequestsPage() {
   const qc = useQueryClient();
@@ -28,7 +29,7 @@ export default function LeaveRequestsPage() {
     queryKey: ["hr_leave_requests", statusFilter],
     queryFn: async () => {
       let query = (supabase as any).from("hr_leave_requests")
-        .select("*, hr_employees!hr_leave_requests_employee_id_fkey(badge_id, first_name, last_name), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")
+        .select("*, hr_employees!hr_leave_requests_employee_id_fkey(badge_id, first_name, last_name, email), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
       const { data, error } = await query;
@@ -133,10 +134,25 @@ export default function LeaveRequestsPage() {
       // Update status — DB trigger handles balance deduction/restoration automatically
       const { error } = await (supabase as any).from("hr_leave_requests").update({
         status,
-        ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
-        ...(status === "rejected" ? { rejection_reason: "Rejected by admin" } : {}),
+        ...(status === "approved" ? { approved_at: new Date().toISOString(), hr_approved_at: new Date().toISOString() } : {}),
+        ...(status === "rejected" ? { rejection_reason: "Rejected by HR" } : {}),
       }).eq("id", id);
       if (error) throw error;
+
+      if (request && (status === "approved" || status === "rejected")) {
+        sendLeaveEmail({
+          eventType: status === "approved" ? "leave_approved" : "leave_rejected",
+          requestId: id,
+          employeeName: `${request.hr_employees?.first_name || ""} ${request.hr_employees?.last_name || ""}`.trim() || "Employee",
+          leaveType: request.hr_leave_types?.name,
+          startDate: request.start_date,
+          endDate: request.end_date,
+          totalDays: request.total_days,
+          reason: request.reason,
+          decidedBy: "HR",
+          employeeEmail: request.hr_employees?.email || null,
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
@@ -172,7 +188,8 @@ export default function LeaveRequestsPage() {
           <SelectTrigger className="h-9 sm:w-36"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="requested">Pending</SelectItem>
+            <SelectItem value="requested">Awaiting manager</SelectItem>
+            <SelectItem value="manager_approved">Awaiting HR</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
@@ -324,19 +341,34 @@ function LeaveStatusBadge({ status }: { status?: string }) {
     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
       status === "approved" ? "bg-success/10 text-success border-success/20" :
       status === "rejected" ? "bg-destructive/10 text-destructive border-destructive/20" :
+      status === "manager_approved" ? "bg-primary/10 text-primary border-primary/20" :
       "bg-warning/10 text-warning border-warning/20"
-    }`}>{status || "requested"}</span>
+    }`}>{
+      status === "requested" ? "awaiting manager" :
+      status === "manager_approved" ? "awaiting HR" :
+      (status || "requested")
+    }</span>
   );
 }
 
 function LeaveActions({ request, statusMutation, mobile = false }: { request: any; statusMutation: any; mobile?: boolean }) {
   if (request.status === "requested") {
     return (
+      <div className={mobile ? "grid grid-cols-2 gap-2 items-center" : "flex gap-1 items-center"}>
+        <span className="text-[11px] text-muted-foreground">Awaiting reporting manager</span>
+        <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}>
+          <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
+        </Button>
+      </div>
+    );
+  }
+  if (request.status === "manager_approved") {
+    return (
       <div className={mobile ? "grid grid-cols-2 gap-2" : "flex gap-1"}>
         <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "approved", request })}>
           <CheckCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Approve</span> : null}
         </Button>
-        <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected" })}>
+        <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}>
           <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
         </Button>
       </div>

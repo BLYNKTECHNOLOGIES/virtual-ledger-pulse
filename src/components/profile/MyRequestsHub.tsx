@@ -363,6 +363,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

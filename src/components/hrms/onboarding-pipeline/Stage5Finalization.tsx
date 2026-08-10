@@ -1271,8 +1271,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             <div className="rounded-lg border p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Landmark className="h-4 w-4" />
-                <p className="text-sm font-medium">Bank Details (for salary payout)</p>
-                <span className="text-xs text-muted-foreground ml-auto">Required before RazorpayX create</span>
+                <p className="text-sm font-medium">Bank Details</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
@@ -1283,9 +1282,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     readOnly
                     className="bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Auto-filled from employee name — must match bank records.
-                  </p>
                 </div>
                 <div>
                   <Label>Account Number *</Label>
@@ -1324,13 +1320,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 <Cloud className="h-4 w-4 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Step 1 — Create / Verify RazorpayX Employee ID</p>
-                  <p className="text-xs text-muted-foreground">
-                    {alreadyInRazorpay
-                      ? `Already linked to RazorpayX Employee ID ${(razorpayMap as any)?.razorpay_employee_id}. Reuse this ID as the ESSL PIN below.`
-                      : rpVerification?.ok
-                        ? "Verified. This ID will be the HRMS badge, ESSL PIN, and RazorpayX employee ID."
-                        : "First create the employee invite in RazorpayX. After the hire self-registers and RazorpayX shows the Employee ID, paste and verify that ID here. ESSL stays locked until verification."}
-                  </p>
                 </div>
                 {(rpVerification?.ok || alreadyInRazorpay) && (
                   <Badge variant="default" className="font-mono shrink-0">
@@ -1344,7 +1333,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs font-medium">Create RazorpayX employee invite</p>
-                        <p className="text-[11px] text-muted-foreground">Uses this HRMS onboarding data to create the RazorpayX employee record first.</p>
                       </div>
                       {(() => {
                         const createStatus = razorpayCreateRequest?.status;
@@ -1387,7 +1375,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 px-2.5 py-1.5">
                       <div className="text-[11px] flex items-center gap-1.5 min-w-0">
                         <Sparkles className="h-3 w-3 text-primary shrink-0" />
-                        <span className="text-muted-foreground">Suggested Employee ID (no clash with any current or past record):</span>
+                        <span className="text-muted-foreground">Suggested Employee ID:</span>
                         <span className="font-mono font-semibold text-primary">
                           {loadingSuggestedId ? "…" : suggestedEmployeeId || "—"}
                         </span>
@@ -1414,7 +1402,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                   {!alreadyInRazorpay ? (
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="flex-1 min-w-[180px]">
-                      <Label className="text-xs">RazorpayX Employee ID (from Razorpay dashboard)</Label>
+                      <Label className="text-xs">RazorpayX Employee ID</Label>
                       <Input
                         placeholder="e.g. 77"
                         value={form.razorpay_employee_id}
@@ -1598,9 +1586,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     </div>
                     );
                   })()}
-                  <p className="text-[11px] text-muted-foreground">
-                    Tip: create the RazorpayX invite here first. The Employee ID appears on their RazorpayX profile only after they submit the self-registration form.
-                  </p>
                 </div>
             </div>
           </div>
@@ -1621,12 +1606,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 className="font-mono"
               />
             </div>
-            {!alreadyInRazorpay && !rpVerification?.ok && (
-              <p className="text-[11px] text-muted-foreground mt-1.5 flex items-start gap-1">
-                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                <span>Send the RazorpayX invite, wait for the hire to self-register, then paste and verify the issued Employee ID above. The ESSL Badge ID unlocks only after successful verification.</span>
-              </p>
-            )}
             {pinStatus && !(bioAlreadyCreated && pinStatus.kind !== "conflict") && (
               <p className={`text-xs mt-1.5 flex items-start gap-1 ${
                 pinStatus.kind === "ok" ? "text-success" :
@@ -1670,11 +1649,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                       ? "Update IN + OUT biometric devices"
                       : "Create on IN + OUT biometric devices"}
               </Button>
-              <span className="text-[11px] text-muted-foreground">
-                {bioAlreadyCreated
-                  ? "Locked — this PIN is already registered. Delete the device user first if you need to re-create."
-                  : "Queues a verified RazorpayX Employee ID as the eSSL PIN on both devices."}
-              </span>
+              {bioAlreadyCreated && (
+                <span className="text-[11px] text-muted-foreground">
+                  Locked — this PIN is already registered. Delete the device user first if you need to re-create.
+                </span>
+              )}
             </div>
 
           </div>

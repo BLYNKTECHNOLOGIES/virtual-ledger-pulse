@@ -1365,6 +1365,8 @@ export function AttendanceInsights({
         nameOf={nameOf}
       />
     </div>
+    </TooltipProvider>
+
 
   );
 }

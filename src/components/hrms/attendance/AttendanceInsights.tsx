@@ -1152,10 +1152,11 @@ export function AttendanceInsights({
         <TabsContent value="people" className="space-y-4 mt-0">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-foreground">Employees ranked by attendance risk</CardTitle>
-              <p className="text-xs text-muted-foreground font-normal">
-                Anyone with lost days or late arrivals this month, worst first. Flags mark the people who need an HR conversation.
-              </p>
+              <div className="flex items-center gap-1.5">
+                <CardTitle className="text-sm font-semibold text-foreground">Employees ranked by attendance risk</CardTitle>
+                <InfoDot text="Anyone with lost days or late arrivals this month, worst first. Flags mark the people who need an HR conversation." />
+              </div>
+
             </CardHeader>
             <CardContent className="p-0">
               {people.length === 0 ? (

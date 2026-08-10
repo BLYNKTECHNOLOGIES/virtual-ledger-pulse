@@ -20,6 +20,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Clock,
+  Info,
   Minus,
   ShieldAlert,
   Timer,
@@ -27,6 +28,12 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   AttendanceDrilldownDialog,
   DrillBadge,

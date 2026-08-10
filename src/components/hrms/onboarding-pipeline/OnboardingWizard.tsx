@@ -127,6 +127,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       "email",
       "phone",
       "gender",
+      "marital_status",
       "date_of_birth",
       "department_id",
       "position_id",

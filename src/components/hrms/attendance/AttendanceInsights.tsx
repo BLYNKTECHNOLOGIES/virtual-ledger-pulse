@@ -1347,8 +1347,9 @@ export function AttendanceInsights({
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
                   <Users className="h-4 w-4" /> Exception register
+                  <InfoDot text="Days that need a human decision before the period is locked." />
                 </CardTitle>
-                <p className="text-xs text-muted-foreground font-normal">Days that need a human decision before the period is locked.</p>
+
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
                 {exceptions.map((ex) => (

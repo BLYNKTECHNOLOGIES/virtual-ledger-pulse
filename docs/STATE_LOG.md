@@ -11,6 +11,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-08-10: Biometric health false alarm repaired — visitor PIN 100 and eSSL protocol-noise PIN 0 are excluded from mapping/rejection health; false device counters cleared and both devices verified with zero actionable unmapped users.
 - 2026-08-05: Employee Work Information saves repaired — shift sync now ignores unchanged shifts, replaces same-day corrections, and closes prior assignments on the preceding day to prevent inclusive-date overlap failures.
 - 2026-08-02: Payroll Inputs period handling repaired — UI now queries/writes canonical first-of-month dates while sending YYYY-MM to RazorpayX, making the 9 persisted July auto-LOP rows visible and pushable.
 - 2026-08-02: Data Health Razorpay push closure hardened — live read-backs now persist mapped snapshots and cards resolve only after a forced employee-scoped drift rescan confirms parity.

@@ -138,13 +138,15 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
-      const unreadIds = notifications.filter((n: any) => !n.is_read).map((n: any) => n.id);
-      if (unreadIds.length) {
-        await (supabase as any).from("hr_notifications").update({ is_read: true }).in("id", unreadIds);
-      }
+      // Clear every unread row for this user server-side. The dropdown only
+      // fetches the latest 30, so marking just those left older unread rows
+      // behind and the badge came back on the next load.
+      const { error } = await (supabase as any).rpc("hr_mark_all_notifications_read");
+      if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_notifications"] }),
   });
+
 
   return (
     <header className="h-12 md:h-14 bg-card/90 backdrop-blur-sm border-b border-border flex items-center justify-between px-2 md:px-4 shrink-0 gap-1.5 md:gap-2 supports-[padding:max(0px)]:pt-[max(0px,env(safe-area-inset-top))]">

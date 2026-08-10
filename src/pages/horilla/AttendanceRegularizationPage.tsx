@@ -13,9 +13,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
-  CheckCircle2, XCircle, Hourglass, Search, ShieldAlert, Clock, RefreshCw, AlertTriangle,
+  CheckCircle2, XCircle, Hourglass, Search, ShieldAlert, Clock, RefreshCw, AlertTriangle, UserCheck,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { sendRegularizationEmail, regCategoryLabel, regStageLabel } from '@/utils/regularizationEmail';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { ResponsiveDialog } from '@/components/horilla/primitives/ResponsiveDialog';
@@ -176,7 +177,7 @@ export default function AttendanceRegularizationPage() {
     queryFn: async () => {
       let q = (supabase as any)
         .from('hr_attendance_regularization_requests')
-        .select('*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(id, badge_id, first_name, last_name)')
+        .select('*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(id, badge_id, first_name, last_name, email, reporting_manager_id), manager:hr_employees!hr_attendance_regularization_requests_manager_id_fkey(id, first_name, last_name, email)')
         .order('created_at', { ascending: false })
         .limit(500);
       if (status !== 'all') q = q.eq('status', status);
@@ -239,6 +240,55 @@ export default function AttendanceRegularizationPage() {
     }
   };
 
+  // ---------- Push to reporting manager ----------
+  const pushToManager = useMutation({
+    mutationFn: async (r: any) => {
+      const managerId = r.hr_employees?.reporting_manager_id;
+      if (!managerId) throw new Error('No reporting manager is set for this employee — set one in the employee profile first.');
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from('hr_attendance_regularization_requests')
+        .update({ status: 'manager_review', manager_id: managerId, pushed_by: u?.user?.id ?? null })
+        .eq('id', r.id);
+      if (error) throw error;
+
+      const { data: mgr } = await (supabase as any)
+        .from('hr_employees')
+        .select('first_name, last_name, email')
+        .eq('id', managerId)
+        .maybeSingle();
+
+      await (supabase as any).from('hr_attendance_intervention_log').insert({
+        request_id: r.id,
+        employee_id: r.employee_id,
+        action: 'regularization_pushed_to_manager',
+        notes: `Forwarded to ${[mgr?.first_name, mgr?.last_name].filter(Boolean).join(' ') || 'reporting manager'}`,
+        actor_id: u?.user?.id ?? null,
+        actor_email: u?.user?.email ?? null,
+        payload: { manager_id: managerId, attendance_date: r.attendance_date },
+      });
+
+      sendRegularizationEmail({
+        eventType: 'reg_pushed_to_manager',
+        requestId: r.id,
+        employeeName: `${r.hr_employees?.first_name || ''} ${r.hr_employees?.last_name || ''}`.trim() || 'Employee',
+        attendanceDate: r.attendance_date,
+        requestedIn: fmtTime(r.requested_check_in),
+        requestedOut: fmtTime(r.requested_check_out),
+        reasonCategory: regCategoryLabel(r.reason_category),
+        reason: r.reason,
+        managerEmail: mgr?.email || null,
+        managerName: [mgr?.first_name, mgr?.last_name].filter(Boolean).join(' ') || null,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Forwarded to the reporting manager');
+      qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
+      qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Could not forward the request'),
+  });
+
   const review = useMutation({
     mutationFn: async () => {
       if (!reviewing) return;
@@ -290,6 +340,24 @@ export default function AttendanceRegularizationPage() {
           matched_in_punch_id: evidence?.matched_in_punch_id ?? null,
           matched_out_punch_id: evidence?.matched_out_punch_id ?? null,
         },
+      });
+
+      sendRegularizationEmail({
+        eventType: decision === 'approved' ? 'reg_approved' : 'reg_rejected',
+        requestId: reviewing.id,
+        employeeName: `${reviewing.hr_employees?.first_name || ''} ${reviewing.hr_employees?.last_name || ''}`.trim() || 'Employee',
+        attendanceDate: reviewing.attendance_date,
+        requestedIn: fmtTime(reviewing.requested_check_in),
+        requestedOut: fmtTime(reviewing.requested_check_out),
+        reasonCategory: regCategoryLabel(reviewing.reason_category),
+        reason: reviewing.reason,
+        managerRecommendation: reviewing.manager_status
+          ? (reviewing.manager_status === 'approved' ? 'Approved' : 'Rejected')
+          : null,
+        managerRemarks: reviewing.manager_remarks || null,
+        decidedBy: 'HR',
+        approverNotes: notes,
+        employeeEmail: reviewing.hr_employees?.email || null,
       });
     },
     onSuccess: () => {
@@ -398,7 +466,9 @@ export default function AttendanceRegularizationPage() {
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="pending">Awaiting HR</SelectItem>
+                <SelectItem value="manager_review">With manager</SelectItem>
+                <SelectItem value="manager_reviewed">Manager reviewed</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -428,7 +498,7 @@ export default function AttendanceRegularizationPage() {
                         r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
                         r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
                         'bg-warning/10 text-warning'
-                      }`}>{r.status}</span>
+                      }`}>{regStageLabel(r)}</span>
                     </div>
                     <div className="text-xs font-mono tabular-nums text-muted-foreground">
                       In: {fmtTime(r.requested_check_in)} · Out: {fmtTime(r.requested_check_out)}
@@ -436,14 +506,27 @@ export default function AttendanceRegularizationPage() {
                     <div className="text-xs"><span className="text-muted-foreground">Reason:</span> {r.reason}</div>
                     {r.reason_code && <div className="text-[10px] uppercase tracking-wide text-muted-foreground">code: {r.reason_code}</div>}
                     {r.approver_notes && <div className="text-xs italic text-muted-foreground">"{r.approver_notes}"</div>}
-                    {r.status === 'pending' && (
-                      <div className="flex gap-2 pt-1">
+                    {r.manager_status && (
+                      <div className="text-xs text-muted-foreground">
+                        Manager {r.manager_status}
+                        {r.manager?.first_name ? ` (${r.manager.first_name} ${r.manager.last_name || ''})` : ''}
+                        {r.manager_remarks ? ` · "${r.manager_remarks}"` : ''}
+                      </div>
+                    )}
+                    {(r.status === 'pending' || r.status === 'manager_reviewed') && (
+                      <div className="flex gap-2 pt-1 flex-wrap">
                         <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openReview(r, 'approved')}>
                           <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openReview(r, 'rejected')}>
                           <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
                         </Button>
+                        {r.status === 'pending' && (
+                          <Button size="sm" variant="outline" className="w-full h-10" disabled={pushToManager.isPending}
+                            onClick={() => pushToManager.mutate(r)}>
+                            <UserCheck className="h-4 w-4 mr-1" /> Push to manager
+                          </Button>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -486,7 +569,9 @@ export default function AttendanceRegularizationPage() {
                           <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_out)}</td>
                           <td className="px-4 py-2 max-w-xs">
                             <div className="truncate" title={r.reason}>{r.reason}</div>
-                            {r.reason_code && <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.reason_code}</div>}
+                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                              {regCategoryLabel(r.reason_category)}{r.reason_code ? ` · ${r.reason_code}` : ''}
+                            </div>
                             {r.approver_notes && (
                               <div className="text-xs text-muted-foreground italic mt-0.5">"{r.approver_notes}"</div>
                             )}
@@ -497,10 +582,17 @@ export default function AttendanceRegularizationPage() {
                               r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
                               r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
                               'bg-warning/10 text-warning'
-                            }`}>{r.status}</span>
+                            }`}>{regStageLabel(r)}</span>
+                            {r.manager_status && (
+                              <div className="text-[11px] text-muted-foreground mt-1">
+                                Manager {r.manager_status}
+                                {r.manager?.first_name ? ` · ${r.manager.first_name} ${r.manager.last_name || ''}` : ''}
+                                {r.manager_remarks ? ` · "${r.manager_remarks}"` : ''}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-2 text-right space-x-1">
-                            {r.status === 'pending' && (
+                            {(r.status === 'pending' || r.status === 'manager_reviewed') && (
                               <>
                                 <Button size="sm" variant="outline" onClick={() => openReview(r, 'approved')}>
                                   <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
@@ -508,6 +600,12 @@ export default function AttendanceRegularizationPage() {
                                 <Button size="sm" variant="outline" onClick={() => openReview(r, 'rejected')}>
                                   <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
                                 </Button>
+                                {r.status === 'pending' && (
+                                  <Button size="sm" variant="ghost" disabled={pushToManager.isPending}
+                                    onClick={() => pushToManager.mutate(r)}>
+                                    <UserCheck className="h-4 w-4 mr-1" /> Push to manager
+                                  </Button>
+                                )}
                               </>
                             )}
                           </td>

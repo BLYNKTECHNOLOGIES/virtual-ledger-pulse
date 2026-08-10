@@ -16,7 +16,9 @@ import {
 import { CalendarClock, ClipboardList, Gift, FileText, Plus, XCircle } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import RequestLeaveDialog from './RequestLeaveDialog';
+import { sendRegularizationEmail, regStageLabel, regCategoryLabel, REG_CATEGORIES } from '@/utils/regularizationEmail';
 
 interface Props {
   employeeId: string;
@@ -57,6 +59,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
     attendance_date: '',
     requested_check_in: '',
     requested_check_out: '',
+    reason_category: '',
     reason: '',
   });
 
@@ -135,9 +138,9 @@ export default function MyRequestsHub({ employeeId }: Props) {
       id: `r-${r.id}`,
       kind: 'regularization',
       title: 'Attendance Regularization',
-      subtitle: r.reason || '—',
+      subtitle: `${regCategoryLabel(r.reason_category)}${r.reason ? ` · ${r.reason}` : ''}`,
       date: r.attendance_date,
-      status: r.status,
+      status: regStageLabel(r),
       raw: r,
     }));
     const c: UnifiedRequest[] = (comps as any[]).map((r) => {
@@ -195,9 +198,10 @@ export default function MyRequestsHub({ employeeId }: Props) {
       if (!regForm.attendance_date || !regForm.reason.trim()) {
         throw new Error('Date and reason are required');
       }
+      if (!regForm.reason_category) throw new Error('Pick a reason category');
       const buildTs = (d: string, t: string) =>
         d && t ? new Date(`${d}T${t}:00`).toISOString() : null;
-      const { error } = await supabase
+      const { data: inserted, error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')
         .insert({
           employee_id: employeeId,
@@ -205,13 +209,34 @@ export default function MyRequestsHub({ employeeId }: Props) {
           requested_check_in: buildTs(regForm.attendance_date, regForm.requested_check_in),
           requested_check_out: buildTs(regForm.attendance_date, regForm.requested_check_out),
           reason: regForm.reason.trim(),
+          reason_category: regForm.reason_category,
+          source: 'ess',
           status: 'pending',
-        });
+        })
+        .select('id')
+        .single();
       if (error) throw error;
+
+      const { data: emp } = await (supabase as any)
+        .from('hr_employees')
+        .select('first_name, last_name')
+        .eq('id', employeeId)
+        .maybeSingle();
+
+      sendRegularizationEmail({
+        eventType: 'reg_requested',
+        requestId: inserted?.id,
+        employeeName: `${emp?.first_name || ''} ${emp?.last_name || ''}`.trim() || 'Employee',
+        attendanceDate: regForm.attendance_date,
+        requestedIn: regForm.requested_check_in || null,
+        requestedOut: regForm.requested_check_out || null,
+        reasonCategory: regCategoryLabel(regForm.reason_category),
+        reason: regForm.reason.trim(),
+      });
     },
     onSuccess: () => {
       sonnerToast.success('Regularization submitted');
-      setRegForm({ attendance_date: '', requested_check_in: '', requested_check_out: '', reason: '' });
+      setRegForm({ attendance_date: '', requested_check_in: '', requested_check_out: '', reason_category: '', reason: '' });
       setRegOpen(false);
       qc.invalidateQueries({ queryKey: ['ess_hub_regs', employeeId] });
     },
@@ -220,7 +245,10 @@ export default function MyRequestsHub({ employeeId }: Props) {
 
   const isLoading = lLoading || rLoading || cLoading;
 
-  const PENDING = ['pending', 'requested', 'awaiting manager', 'awaiting hr'];
+  const PENDING = [
+    'pending', 'requested', 'awaiting manager', 'awaiting hr',
+    'with reporting manager', 'manager approved · awaiting hr', 'manager rejected · awaiting hr',
+  ];
   const isPending = (s: string) => PENDING.includes(s.toLowerCase());
 
   const counts = {
@@ -240,7 +268,8 @@ export default function MyRequestsHub({ employeeId }: Props) {
   const Row = ({ r }: { r: UnifiedRequest }) => {
     const Icon = r.kind === 'leave' ? CalendarClock : r.kind === 'regularization' ? ClipboardList : Gift;
     const cancellable =
-      (r.kind === 'leave' || r.kind === 'regularization') && isPending(r.status);
+      (r.kind === 'leave' && isPending(r.status)) ||
+      (r.kind === 'regularization' && r.raw.status === 'pending');
     return (
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-3 py-3 border-b border-border/50 last:border-b-0">
         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -339,6 +368,22 @@ export default function MyRequestsHub({ employeeId }: Props) {
                   </div>
                 </div>
                 <div>
+                  <Label>Reason category *</Label>
+                  <Select
+                    value={regForm.reason_category}
+                    onValueChange={(v) => setRegForm((p) => ({ ...p, reason_category: v }))}
+                  >
+                    <SelectTrigger className="text-foreground">
+                      <SelectValue placeholder="What went wrong?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REG_CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label>Reason *</Label>
                   <Textarea
                     rows={3}
@@ -355,7 +400,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setRegOpen(false)}>Close</Button>
                 <Button
-                  disabled={createReg.isPending || !regForm.attendance_date || !regForm.reason.trim()}
+                  disabled={createReg.isPending || !regForm.attendance_date || !regForm.reason_category || !regForm.reason.trim()}
                   onClick={() => createReg.mutate()}
                 >
                   {createReg.isPending ? 'Submitting…' : 'Submit'}

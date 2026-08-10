@@ -59,6 +59,7 @@ import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import TeamLeaveApprovals from '@/components/profile/TeamLeaveApprovals';
+import TeamRegularizationApprovals from '@/components/profile/TeamRegularizationApprovals';
 import MyTeamCard from '@/components/profile/MyTeamCard';
 import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
 import MyMilestonesCard from '@/components/profile/MyMilestonesCard';
@@ -1588,6 +1589,7 @@ export default function UserProfile() {
           ) : (
             <>
               <TeamLeaveApprovals employeeId={hrEmployee.id} />
+              <TeamRegularizationApprovals employeeId={hrEmployee.id} />
               <MyRequestsHub employeeId={hrEmployee.id} />
             </>
           )}

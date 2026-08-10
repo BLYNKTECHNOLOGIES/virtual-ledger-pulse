@@ -25626,6 +25626,7 @@ export type Database = {
         Args: { p_subject: string }
         Returns: string
       }
+      hr_mark_all_notifications_read: { Args: never; Returns: number }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string

@@ -269,7 +269,8 @@ export default function MyRequestsHub({ employeeId }: Props) {
     const Icon = r.kind === 'leave' ? CalendarClock : r.kind === 'regularization' ? ClipboardList : Gift;
     const cancellable =
       (r.kind === 'leave' && isPending(r.status)) ||
-      (r.kind === 'regularization' && r.raw.status === 'pending');
+      (r.kind === 'regularization' &&
+        ['pending', 'manager_review', 'manager_reviewed'].includes(r.raw.status));
     return (
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-3 py-3 border-b border-border/50 last:border-b-0">
         <div className="flex items-start gap-3 flex-1 min-w-0">

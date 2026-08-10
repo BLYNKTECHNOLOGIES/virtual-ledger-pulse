@@ -20,6 +20,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Clock,
+  Info,
   Minus,
   ShieldAlert,
   Timer,
@@ -27,6 +28,12 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   AttendanceDrilldownDialog,
   DrillBadge,
@@ -120,27 +127,65 @@ function Delta({ value, unit = "pt", invert = false }: { value: number | null; u
   );
 }
 
+function InfoDot({ text }: { text: string }) {
+  return (
+    <UITooltip>
+      <TooltipTrigger asChild>
+        <button type="button" aria-label="What this means" className="text-muted-foreground/60 hover:text-foreground transition-colors">
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs text-xs leading-relaxed">{text}</TooltipContent>
+    </UITooltip>
+  );
+}
+
+/** Thin horizontal meter — replaces a sentence with a shape. */
+function Meter({ pct, tone = "primary" }: { pct: number; tone?: "primary" | "success" | "warning" | "destructive" | "info" }) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  const bg = {
+    primary: "bg-primary",
+    success: "bg-success",
+    warning: "bg-warning",
+    destructive: "bg-destructive",
+    info: "bg-info",
+  }[tone];
+  return (
+    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden" role="presentation">
+      <div className={`h-full rounded-full ${bg}`} style={{ width: `${clamped}%` }} />
+    </div>
+  );
+}
+
 function Kpi({
   icon: Icon,
   iconClass,
   label,
   value,
+  hint,
+  pct,
+  tone = "primary",
   children,
 }: {
   icon: any;
   iconClass: string;
   label: string;
   value: string;
+  hint?: string;
+  pct?: number | null;
+  tone?: "primary" | "success" | "warning" | "destructive" | "info";
   children?: React.ReactNode;
 }) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          <Icon className={`h-3.5 w-3.5 ${iconClass}`} /> {label}
+          <Icon className={`h-3.5 w-3.5 ${iconClass}`} /> <span className="truncate">{label}</span>
+          {hint && <span className="ml-auto"><InfoDot text={hint} /></span>}
         </div>
         <p className="mt-2 text-3xl font-semibold tabular-nums leading-none text-foreground">{value}</p>
-        <div className="mt-2 space-y-0.5">{children}</div>
+        {pct != null && <div className="mt-2.5"><Meter pct={pct} tone={tone} /></div>}
+        {children && <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">{children}</div>}
       </CardContent>
     </Card>
   );
@@ -162,16 +207,19 @@ function SectionCard({
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <CardTitle className="text-sm font-semibold text-foreground truncate">{title}</CardTitle>
+            {caption && <InfoDot text={caption} />}
+          </div>
           {action}
         </div>
-        {caption && <p className="text-xs text-muted-foreground font-normal">{caption}</p>}
       </CardHeader>
       <CardContent className="pt-0">{children}</CardContent>
     </Card>
   );
 }
+
 
 
 const axisProps = {
@@ -874,78 +922,106 @@ export function AttendanceInsights({
   };
 
   return (
+    <TooltipProvider delayDuration={100}>
     <div className="space-y-5">
 
       {/* Period integrity */}
       <Card className={coverage.pct < 99 ? "border-warning/40 bg-warning/[0.03]" : undefined}>
-        <CardContent className="p-3.5 space-y-2">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+        <CardContent className="p-3.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
             <span className="font-semibold text-foreground">{monthLabel}</span>
-            <span className="text-muted-foreground">
-              Elapsed working days <span className="font-semibold text-foreground tabular-nums">{Math.round(totalWorkingDays)}</span>
-            </span>
-            <span className="text-muted-foreground">
-              Maintained rows <span className="font-semibold text-foreground tabular-nums">{coverage.maintainedDays}</span>
-            </span>
-            <Badge
-              variant={coverage.pct >= 99 ? "secondary" : "outline"}
-              className={coverage.pct < 99 ? "border-warning text-warning" : undefined}
-            >
-              {coverage.pct.toFixed(1)}% coverage
-            </Badge>
-          </div>
-          {coverage.pct < 99 && (
-            <p className="text-[11px] text-warning flex items-start gap-2 leading-relaxed">
-              <AlertTriangle className="h-3.5 w-3.5 mt-px shrink-0" />
-              <span>
-                Attendance is not maintained for every elapsed working day, so rates below are computed{" "}
-                <strong>on maintained days only</strong> — a low rate here is not the same as absence.
-                {coverage.gapDates.length > 0 && (
-                  <>
-                    {" "}Days with punch evidence but no maintained row:{" "}
-                    {coverage.gapDates.slice(0, 8).map((g) => `${g.date.slice(5)} (${g.missing})`).join(", ")}
-                    {coverage.gapDates.length > 8 ? ` +${coverage.gapDates.length - 8} more` : ""}.
-                  </>
-                )}
+            <div className="flex items-center gap-2 min-w-[160px] flex-1 max-w-xs">
+              <Meter pct={coverage.pct} tone={coverage.pct >= 99 ? "success" : "warning"} />
+              <span className="tabular-nums text-xs font-medium shrink-0">{coverage.pct.toFixed(0)}%</span>
+            </div>
+            <Badge variant="secondary" className="tabular-nums">{coverage.maintainedDays}/{Math.round(totalWorkingDays)} days</Badge>
+            {coverage.pct < 99 ? (
+              <span className="inline-flex items-center gap-1 text-warning text-xs">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <InfoDot
+                  text={`Rates are computed on maintained days only.${
+                    coverage.gapDates.length > 0
+                      ? ` Missing rows on: ${coverage.gapDates.slice(0, 8).map((g) => `${g.date.slice(5)} (${g.missing})`).join(", ")}${
+                          coverage.gapDates.length > 8 ? ` +${coverage.gapDates.length - 8} more` : ""
+                        }`
+                      : ""
+                  }`}
+                />
               </span>
-            </p>
-          )}
+            ) : (
+              <InfoDot text="Maintained attendance coverage for elapsed working days — the exact source payroll loss-of-pay uses." />
+            )}
+          </div>
         </CardContent>
       </Card>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-        <Kpi icon={TrendingUp} iconClass="text-primary" label="Attendance rate" value={`${cur.attendanceRate.toFixed(1)}%`}>
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
+        <Kpi
+          icon={TrendingUp}
+          iconClass="text-primary"
+          label="Attendance"
+          value={`${cur.attendanceRate.toFixed(1)}%`}
+          pct={cur.attendanceRate}
+          tone="success"
+          hint={`Present + half-days ÷ ${cur.total} maintained days.`}
+        >
           <Delta value={prev.total > 0 ? cur.attendanceRate - prev.attendanceRate : null} />
-          <p className="text-[11px] text-muted-foreground">on {cur.total} maintained days</p>
         </Kpi>
 
-        <Kpi icon={ShieldAlert} iconClass="text-destructive" label="Loss-of-pay exposure" value={`${lopPct.toFixed(1)}%`}>
-          <p className="text-[11px] text-muted-foreground">
-            {Math.round(totalLop * 10) / 10} unpaid of {Math.round(totalWorkingDays)} payable days
-          </p>
-          <p className="text-[11px] text-muted-foreground">{employeesWithLop} employee(s) affected</p>
+        <Kpi
+          icon={ShieldAlert}
+          iconClass="text-destructive"
+          label="Loss of pay"
+          value={`${lopPct.toFixed(1)}%`}
+          pct={lopPct}
+          tone="destructive"
+          hint={`${Math.round(totalLop * 10) / 10} unpaid of ${Math.round(totalWorkingDays)} payable days.`}
+        >
+          <Users className="h-3 w-3" />
+          <span className="tabular-nums">{employeesWithLop} affected</span>
         </Kpi>
 
-        <Kpi icon={Clock} iconClass="text-warning" label="On-time rate" value={`${cur.onTimeRate.toFixed(1)}%`}>
+        <Kpi
+          icon={Clock}
+          iconClass="text-warning"
+          label="On time"
+          value={`${cur.onTimeRate.toFixed(1)}%`}
+          pct={cur.onTimeRate}
+          tone="warning"
+          hint={`Average ${fmtMinutes(cur.avgLateWhenLate)} late when late.`}
+        >
           <Delta value={prev.worked > 0 ? cur.onTimeRate - prev.onTimeRate : null} />
-          <p className="text-[11px] text-muted-foreground">
-            avg {fmtMinutes(cur.avgLateWhenLate)} late when late · {cur.lateDays} late day(s)
-          </p>
+          <span className="tabular-nums">{cur.lateDays} late days</span>
         </Kpi>
 
-        <Kpi icon={Timer} iconClass="text-info" label="Avg net hours / day" value={`${hours.avgHours.toFixed(2)}h`}>
-          <p className="text-[11px] text-muted-foreground">
-            {hours.shortPct === null ? "no shift mapped" : `${hours.shortPct.toFixed(0)}% of days below scheduled shift`}
-          </p>
-          <p className="text-[11px] text-muted-foreground">across {hours.workedDays} worked day(s)</p>
+        <Kpi
+          icon={Timer}
+          iconClass="text-info"
+          label="Net hours / day"
+          value={`${hours.avgHours.toFixed(2)}h`}
+          pct={hours.shortPct === null ? null : 100 - hours.shortPct}
+          tone="info"
+          hint={
+            hours.shortPct === null
+              ? "No shift mapped, so short-day share cannot be computed."
+              : `${hours.shortPct.toFixed(0)}% of ${hours.workedDays} worked days fell below the scheduled shift.`
+          }
+        >
+          <span className="tabular-nums">{hours.workedDays} worked days</span>
         </Kpi>
 
-        <Kpi icon={UserCheck} iconClass="text-destructive" label="Employees to review" value={String(reviewCount)}>
-          <p className="text-[11px] text-muted-foreground">≥10% days lost, or late on ≥30% of days</p>
-          <p className="text-[11px] text-muted-foreground">see the People tab for the ranked list</p>
+        <Kpi
+          icon={UserCheck}
+          iconClass="text-destructive"
+          label="To review"
+          value={String(reviewCount)}
+          hint="Employees losing ≥10% of days or late on ≥30% of days — ranked in the People tab."
+        >
+          <span>People tab</span>
         </Kpi>
       </div>
+
 
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
@@ -1076,10 +1152,11 @@ export function AttendanceInsights({
         <TabsContent value="people" className="space-y-4 mt-0">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-foreground">Employees ranked by attendance risk</CardTitle>
-              <p className="text-xs text-muted-foreground font-normal">
-                Anyone with lost days or late arrivals this month, worst first. Flags mark the people who need an HR conversation.
-              </p>
+              <div className="flex items-center gap-1.5">
+                <CardTitle className="text-sm font-semibold text-foreground">Employees ranked by attendance risk</CardTitle>
+                <InfoDot text="Anyone with lost days or late arrivals this month, worst first. Flags mark the people who need an HR conversation." />
+              </div>
+
             </CardHeader>
             <CardContent className="p-0">
               {people.length === 0 ? (
@@ -1209,13 +1286,14 @@ export function AttendanceInsights({
 
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5">
+                  <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
+                  <InfoDot text="Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown." />
+                </div>
                 <DrillBadge />
               </div>
-              <p className="text-xs text-muted-foreground font-normal">
-                Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown.
-              </p>
+
             </CardHeader>
 
             <CardContent className="p-0 overflow-x-auto">
@@ -1269,8 +1347,9 @@ export function AttendanceInsights({
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
                   <Users className="h-4 w-4" /> Exception register
+                  <InfoDot text="Days that need a human decision before the period is locked." />
                 </CardTitle>
-                <p className="text-xs text-muted-foreground font-normal">Days that need a human decision before the period is locked.</p>
+
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
                 {exceptions.map((ex) => (
@@ -1289,6 +1368,8 @@ export function AttendanceInsights({
         nameOf={nameOf}
       />
     </div>
+    </TooltipProvider>
+
 
   );
 }

@@ -1271,8 +1271,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
             <div className="rounded-lg border p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Landmark className="h-4 w-4" />
-                <p className="text-sm font-medium">Bank Details (for salary payout)</p>
-                <span className="text-xs text-muted-foreground ml-auto">Required before RazorpayX create</span>
+                <p className="text-sm font-medium">Bank Details</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
@@ -1283,9 +1282,6 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                     readOnly
                     className="bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Auto-filled from employee name — must match bank records.
-                  </p>
                 </div>
                 <div>
                   <Label>Account Number *</Label>

@@ -66,7 +66,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('hr_leave_requests')
-        .select('id, status, start_date, end_date, total_days, reason, created_at, leave_type_id, hr_leave_types(name, color)')
+        .select('id, status, manager_status, manager_remarks, paid_days, unpaid_days, start_date, end_date, total_days, reason, created_at, leave_type_id, hr_leave_types(name, color)')
         .eq('employee_id', employeeId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -110,15 +110,27 @@ export default function MyRequestsHub({ employeeId }: Props) {
   });
 
   const unified: UnifiedRequest[] = useMemo(() => {
-    const l: UnifiedRequest[] = (leaves as any[]).map((r) => ({
-      id: `l-${r.id}`,
-      kind: 'leave',
-      title: r.hr_leave_types?.name || 'Leave',
-      subtitle: `${r.total_days} day(s) · ${r.reason || 'No reason'}`,
-      date: `${r.start_date} → ${r.end_date}`,
-      status: r.status,
-      raw: r,
-    }));
+    const l: UnifiedRequest[] = (leaves as any[]).map((r) => {
+      const stage =
+        r.status === 'requested'
+          ? 'awaiting manager'
+          : r.status === 'manager_approved'
+            ? 'awaiting HR'
+            : r.status;
+      const split =
+        r.status === 'approved' && (Number(r.unpaid_days) || 0) > 0
+          ? ` · ${Number(r.paid_days || 0)}d paid / ${Number(r.unpaid_days || 0)}d unpaid`
+          : '';
+      return {
+        id: `l-${r.id}`,
+        kind: 'leave' as const,
+        title: r.hr_leave_types?.name || 'Leave',
+        subtitle: `${r.total_days} day(s) · ${r.reason || 'No reason'}${split}`,
+        date: `${r.start_date} → ${r.end_date}`,
+        status: stage,
+        raw: r,
+      };
+    });
     const g: UnifiedRequest[] = (regs as any[]).map((r) => ({
       id: `r-${r.id}`,
       kind: 'regularization',

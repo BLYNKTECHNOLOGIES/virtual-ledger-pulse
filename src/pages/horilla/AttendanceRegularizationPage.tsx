@@ -177,7 +177,7 @@ export default function AttendanceRegularizationPage() {
     queryFn: async () => {
       let q = (supabase as any)
         .from('hr_attendance_regularization_requests')
-        .select('*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(id, badge_id, first_name, last_name, email, reporting_manager_id), manager:hr_employees!hr_attendance_regularization_requests_manager_id_fkey(id, first_name, last_name, email)')
+        .select('*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(id, badge_id, first_name, last_name, email), manager:hr_employees!hr_attendance_regularization_requests_manager_id_fkey(id, first_name, last_name, email)')
         .order('created_at', { ascending: false })
         .limit(500);
       if (status !== 'all') q = q.eq('status', status);
@@ -243,8 +243,15 @@ export default function AttendanceRegularizationPage() {
   // ---------- Push to reporting manager ----------
   const pushToManager = useMutation({
     mutationFn: async (r: any) => {
-      const managerId = r.hr_employees?.reporting_manager_id;
-      if (!managerId) throw new Error('No reporting manager is set for this employee — set one in the employee profile first.');
+      const { data: wi } = await (supabase as any)
+        .from('hr_employee_work_info')
+        .select('reporting_manager_id')
+        .eq('employee_id', r.employee_id)
+        .maybeSingle();
+      const managerId = wi?.reporting_manager_id;
+      if (!managerId || managerId === r.employee_id) {
+        throw new Error('No reporting manager is set for this employee — set one in the employee work info first.');
+      }
       const { data: u } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')

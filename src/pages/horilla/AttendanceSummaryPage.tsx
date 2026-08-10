@@ -207,10 +207,8 @@ export default function AttendanceSummaryPage() {
   return (
     <TooltipProvider delayDuration={150}>
       <div className="p-4 md:p-6 space-y-6 page-mount">
-        <PageHeader
-          title="Attendance Summary"
-          description="Maintained monthly attendance — the exact source payroll loss-of-pay uses"
-        />
+        <PageHeader title="Attendance Summary" />
+
 
         <div className="flex gap-3 flex-wrap">
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44 h-9" />

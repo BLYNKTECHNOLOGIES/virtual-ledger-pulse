@@ -43,11 +43,14 @@ export default function BiometricDevicesPage() {
     queryFn: async () => {
       const { data: users } = await (supabase as any)
         .from("hr_biometric_device_users")
-        .select("device_serial, matched_employee_id");
+        .select("device_serial, pin, matched_employee_id");
       const byDev = new Map<string, { users: number; unlinked: number }>();
       for (const u of users || []) {
         const k = u.device_serial;
         if (!k) continue;
+        // PIN 100 is the visitor profile; PIN 0 is device/protocol noise.
+        // Neither represents an employee who requires roster mapping.
+        if (["0", "100"].includes(String(u.pin ?? "").trim())) continue;
         const row = byDev.get(k) || { users: 0, unlinked: 0 };
         row.users += 1;
         if (!u.matched_employee_id) row.unlinked += 1;

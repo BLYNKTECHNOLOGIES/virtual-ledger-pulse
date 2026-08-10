@@ -67,15 +67,19 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from('hr_employee_weekly_off')
-        .select('day_of_week')
-        .eq('employee_id', employeeId);
+        .select('hr_weekly_off_patterns(weekly_offs)')
+        .eq('employee_id', employeeId)
+        .eq('is_current', true);
       return data || [];
     },
     enabled: !!employeeId,
   });
 
   const offDays = useMemo(() => {
-    const d = (weeklyOffs as any[]).map((r) => Number(r.day_of_week)).filter((n) => !Number.isNaN(n));
+    const d = (weeklyOffs as any[])
+      .flatMap((r) => r.hr_weekly_off_patterns?.weekly_offs || [])
+      .map((n: any) => Number(n))
+      .filter((n: number) => !Number.isNaN(n));
     return d.length ? d : [0];
   }, [weeklyOffs]);
 

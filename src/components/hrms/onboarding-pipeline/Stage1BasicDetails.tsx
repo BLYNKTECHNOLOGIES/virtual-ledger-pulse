@@ -24,6 +24,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     email: "",
     phone: "",
     gender: "",
+    marital_status: "",
     date_of_birth: "",
     department_id: "",
     position_id: "",
@@ -50,6 +51,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         email: data.email || "",
         phone: data.phone || "",
         gender: data.gender || "",
+        marital_status: data.marital_status || "",
         date_of_birth: data.date_of_birth || "",
         department_id: data.department_id || "",
         position_id: data.position_id || "",
@@ -172,9 +174,22 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             </Select>
           </div>
           <div>
+            <Label>Marital Status</Label>
+            <Select value={form.marital_status} onValueChange={v => update("marital_status", v)} disabled={readOnly}>
+              <SelectTrigger><SelectValue placeholder="Select marital status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Single">Single</SelectItem>
+                <SelectItem value="Married">Married</SelectItem>
+                <SelectItem value="Divorced">Divorced</SelectItem>
+                <SelectItem value="Widowed">Widowed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label>Date of Birth</Label>
             <Input type="date" value={form.date_of_birth} onChange={e => update("date_of_birth", e.target.value)} disabled={readOnly} />
           </div>
+
           <div>
             <Label>Department *</Label>
             <Select value={form.department_id} onValueChange={v => update("department_id", v)} disabled={readOnly}>

@@ -127,6 +127,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       "email",
       "phone",
       "gender",
+      "marital_status",
       "date_of_birth",
       "department_id",
       "position_id",
@@ -456,6 +457,8 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             email: r.email,
             phone: r.phone || null,
             gender: r.gender || null,
+
+            marital_status: r.marital_status || null,
             dob: r.date_of_birth || null,
             badge_id: unifiedId,
             total_salary: r.ctc || 0,
@@ -483,6 +486,8 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             email: r.email,
             phone: r.phone || null,
             gender: r.gender || null,
+
+            marital_status: r.marital_status || null,
             dob: r.date_of_birth || null,
             badge_id: unifiedId,
             total_salary: r.ctc || 0,

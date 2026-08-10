@@ -7488,6 +7488,7 @@ export type Database = {
           id: string
           job_role: string | null
           last_name: string | null
+          marital_status: string | null
           offer_policy_documents: Json | null
           offer_policy_status: string | null
           phone: string | null
@@ -7532,6 +7533,7 @@ export type Database = {
           id?: string
           job_role?: string | null
           last_name?: string | null
+          marital_status?: string | null
           offer_policy_documents?: Json | null
           offer_policy_status?: string | null
           phone?: string | null
@@ -7576,6 +7578,7 @@ export type Database = {
           id?: string
           job_role?: string | null
           last_name?: string | null
+          marital_status?: string | null
           offer_policy_documents?: Json | null
           offer_policy_status?: string | null
           phone?: string | null

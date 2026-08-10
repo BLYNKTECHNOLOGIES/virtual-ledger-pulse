@@ -220,16 +220,19 @@ export default function MyRequestsHub({ employeeId }: Props) {
 
   const isLoading = lLoading || rLoading || cLoading;
 
+  const PENDING = ['pending', 'requested', 'awaiting manager', 'awaiting hr'];
+  const isPending = (s: string) => PENDING.includes(s.toLowerCase());
+
   const counts = {
     all: unified.length,
-    pending: unified.filter((r) => r.status.toLowerCase() === 'pending').length,
+    pending: unified.filter((r) => isPending(r.status)).length,
     approved: unified.filter((r) => ['approved', 'allocated'].includes(r.status.toLowerCase())).length,
     closed: unified.filter((r) => ['rejected', 'cancelled', 'expired'].includes(r.status.toLowerCase())).length,
   };
 
   const filterList = (mode: 'all' | 'pending' | 'approved' | 'closed') => {
     if (mode === 'all') return unified;
-    if (mode === 'pending') return unified.filter((r) => r.status.toLowerCase() === 'pending');
+    if (mode === 'pending') return unified.filter((r) => isPending(r.status));
     if (mode === 'approved') return unified.filter((r) => ['approved', 'allocated'].includes(r.status.toLowerCase()));
     return unified.filter((r) => ['rejected', 'cancelled', 'expired'].includes(r.status.toLowerCase()));
   };
@@ -237,7 +240,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
   const Row = ({ r }: { r: UnifiedRequest }) => {
     const Icon = r.kind === 'leave' ? CalendarClock : r.kind === 'regularization' ? ClipboardList : Gift;
     const cancellable =
-      (r.kind === 'leave' || r.kind === 'regularization') && r.status.toLowerCase() === 'pending';
+      (r.kind === 'leave' || r.kind === 'regularization') && isPending(r.status);
     return (
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-3 py-3 border-b border-border/50 last:border-b-0">
         <div className="flex items-start gap-3 flex-1 min-w-0">

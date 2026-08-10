@@ -58,6 +58,7 @@ import MyTaxRegimeCard from '@/components/profile/MyTaxRegimeCard';
 import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
+import TeamLeaveApprovals from '@/components/profile/TeamLeaveApprovals';
 import MyTeamCard from '@/components/profile/MyTeamCard';
 import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
 import MyMilestonesCard from '@/components/profile/MyMilestonesCard';
@@ -1585,7 +1586,10 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <MyRequestsHub employeeId={hrEmployee.id} />
+            <>
+              <TeamLeaveApprovals employeeId={hrEmployee.id} />
+              <MyRequestsHub employeeId={hrEmployee.id} />
+            </>
           )}
         </TabsContent>
 

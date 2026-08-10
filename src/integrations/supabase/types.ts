@@ -5202,13 +5202,22 @@ export type Database = {
           evidence_payload: Json | null
           evidence_status: string | null
           id: string
+          manager_decided_at: string | null
+          manager_decided_by: string | null
+          manager_id: string | null
+          manager_remarks: string | null
+          manager_status: string | null
           override_admin_id: string | null
           override_reason: string | null
+          pushed_by: string | null
+          pushed_to_manager_at: string | null
           razorpay_pending_side: Json | null
           reason: string
+          reason_category: string | null
           reason_code: string | null
           requested_check_in: string | null
           requested_check_out: string | null
+          source: string | null
           status: string
           updated_at: string
         }
@@ -5223,13 +5232,22 @@ export type Database = {
           evidence_payload?: Json | null
           evidence_status?: string | null
           id?: string
+          manager_decided_at?: string | null
+          manager_decided_by?: string | null
+          manager_id?: string | null
+          manager_remarks?: string | null
+          manager_status?: string | null
           override_admin_id?: string | null
           override_reason?: string | null
+          pushed_by?: string | null
+          pushed_to_manager_at?: string | null
           razorpay_pending_side?: Json | null
           reason: string
+          reason_category?: string | null
           reason_code?: string | null
           requested_check_in?: string | null
           requested_check_out?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }
@@ -5244,13 +5262,22 @@ export type Database = {
           evidence_payload?: Json | null
           evidence_status?: string | null
           id?: string
+          manager_decided_at?: string | null
+          manager_decided_by?: string | null
+          manager_id?: string | null
+          manager_remarks?: string | null
+          manager_status?: string | null
           override_admin_id?: string | null
           override_reason?: string | null
+          pushed_by?: string | null
+          pushed_to_manager_at?: string | null
           razorpay_pending_side?: Json | null
           reason?: string
+          reason_category?: string | null
           reason_code?: string | null
           requested_check_in?: string | null
           requested_check_out?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }
@@ -5293,6 +5320,48 @@ export type Database = {
           {
             foreignKeyName: "hr_attendance_regularization_requests_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
+            columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "hr_razorpay_payroll_freshness"
             referencedColumns: ["hr_employee_id"]

@@ -16,6 +16,7 @@ import { template as dailyBusinessReport } from './daily-business-report.tsx'
 import { template as erpPasswordOtp } from './erp-password-otp.tsx'
 import { template as kycRmReport } from './kyc-rm-report.tsx'
 import { template as leaveApproval } from './leave-approval.tsx'
+import { template as regularizationApproval } from './regularization-approval.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'task-notification': taskNotification,
@@ -25,4 +26,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'erp-password-otp': erpPasswordOtp,
   'kyc-rm-report': kycRmReport,
   'leave-approval': leaveApproval,
+  'regularization-approval': regularizationApproval,
 }

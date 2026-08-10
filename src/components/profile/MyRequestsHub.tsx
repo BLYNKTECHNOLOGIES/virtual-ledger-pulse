@@ -16,6 +16,7 @@ import {
 import { CalendarClock, ClipboardList, Gift, FileText, Plus, XCircle } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
+import RequestLeaveDialog from './RequestLeaveDialog';
 
 interface Props {
   employeeId: string;

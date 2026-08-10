@@ -1286,13 +1286,14 @@ export function AttendanceInsights({
 
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5">
+                  <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
+                  <InfoDot text="Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown." />
+                </div>
                 <DrillBadge />
               </div>
-              <p className="text-xs text-muted-foreground font-normal">
-                Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown.
-              </p>
+
             </CardHeader>
 
             <CardContent className="p-0 overflow-x-auto">

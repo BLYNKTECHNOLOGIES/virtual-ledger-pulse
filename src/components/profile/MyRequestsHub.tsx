@@ -298,6 +298,8 @@ export default function MyRequestsHub({ employeeId }: Props) {
           <CardTitle className="flex items-center gap-2 text-base">
             <FileText className="h-4 w-4 text-primary" /> My Requests
           </CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+          <RequestLeaveDialog employeeId={employeeId} />
           <Dialog open={regOpen} onOpenChange={setRegOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5">

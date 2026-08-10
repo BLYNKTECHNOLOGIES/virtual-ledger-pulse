@@ -16,6 +16,7 @@ import {
 import { CalendarClock, ClipboardList, Gift, FileText, Plus, XCircle } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
+import RequestLeaveDialog from './RequestLeaveDialog';
 
 interface Props {
   employeeId: string;
@@ -65,7 +66,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('hr_leave_requests')
-        .select('id, status, start_date, end_date, total_days, reason, created_at, leave_type_id, hr_leave_types(name, color)')
+        .select('id, status, manager_status, manager_remarks, paid_days, unpaid_days, start_date, end_date, total_days, reason, created_at, leave_type_id, hr_leave_types(name, color)')
         .eq('employee_id', employeeId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -109,15 +110,27 @@ export default function MyRequestsHub({ employeeId }: Props) {
   });
 
   const unified: UnifiedRequest[] = useMemo(() => {
-    const l: UnifiedRequest[] = (leaves as any[]).map((r) => ({
-      id: `l-${r.id}`,
-      kind: 'leave',
-      title: r.hr_leave_types?.name || 'Leave',
-      subtitle: `${r.total_days} day(s) · ${r.reason || 'No reason'}`,
-      date: `${r.start_date} → ${r.end_date}`,
-      status: r.status,
-      raw: r,
-    }));
+    const l: UnifiedRequest[] = (leaves as any[]).map((r) => {
+      const stage =
+        r.status === 'requested'
+          ? 'awaiting manager'
+          : r.status === 'manager_approved'
+            ? 'awaiting HR'
+            : r.status;
+      const split =
+        r.status === 'approved' && (Number(r.unpaid_days) || 0) > 0
+          ? ` · ${Number(r.paid_days || 0)}d paid / ${Number(r.unpaid_days || 0)}d unpaid`
+          : '';
+      return {
+        id: `l-${r.id}`,
+        kind: 'leave' as const,
+        title: r.hr_leave_types?.name || 'Leave',
+        subtitle: `${r.total_days} day(s) · ${r.reason || 'No reason'}${split}`,
+        date: `${r.start_date} → ${r.end_date}`,
+        status: stage,
+        raw: r,
+      };
+    });
     const g: UnifiedRequest[] = (regs as any[]).map((r) => ({
       id: `r-${r.id}`,
       kind: 'regularization',
@@ -207,16 +220,19 @@ export default function MyRequestsHub({ employeeId }: Props) {
 
   const isLoading = lLoading || rLoading || cLoading;
 
+  const PENDING = ['pending', 'requested', 'awaiting manager', 'awaiting hr'];
+  const isPending = (s: string) => PENDING.includes(s.toLowerCase());
+
   const counts = {
     all: unified.length,
-    pending: unified.filter((r) => r.status.toLowerCase() === 'pending').length,
+    pending: unified.filter((r) => isPending(r.status)).length,
     approved: unified.filter((r) => ['approved', 'allocated'].includes(r.status.toLowerCase())).length,
     closed: unified.filter((r) => ['rejected', 'cancelled', 'expired'].includes(r.status.toLowerCase())).length,
   };
 
   const filterList = (mode: 'all' | 'pending' | 'approved' | 'closed') => {
     if (mode === 'all') return unified;
-    if (mode === 'pending') return unified.filter((r) => r.status.toLowerCase() === 'pending');
+    if (mode === 'pending') return unified.filter((r) => isPending(r.status));
     if (mode === 'approved') return unified.filter((r) => ['approved', 'allocated'].includes(r.status.toLowerCase()));
     return unified.filter((r) => ['rejected', 'cancelled', 'expired'].includes(r.status.toLowerCase()));
   };
@@ -224,7 +240,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
   const Row = ({ r }: { r: UnifiedRequest }) => {
     const Icon = r.kind === 'leave' ? CalendarClock : r.kind === 'regularization' ? ClipboardList : Gift;
     const cancellable =
-      (r.kind === 'leave' || r.kind === 'regularization') && r.status.toLowerCase() === 'pending';
+      (r.kind === 'leave' || r.kind === 'regularization') && isPending(r.status);
     return (
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-3 py-3 border-b border-border/50 last:border-b-0">
         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -282,6 +298,8 @@ export default function MyRequestsHub({ employeeId }: Props) {
           <CardTitle className="flex items-center gap-2 text-base">
             <FileText className="h-4 w-4 text-primary" /> My Requests
           </CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+          <RequestLeaveDialog employeeId={employeeId} />
           <Dialog open={regOpen} onOpenChange={setRegOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5">
@@ -345,6 +363,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

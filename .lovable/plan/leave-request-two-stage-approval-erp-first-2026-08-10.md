@@ -1,5 +1,7 @@
 # Leave Request & Two-Stage Approval (ERP-first)
 
+Also make sure that if the leave is approved, it doesn't mean that the loss of pay isn't applicable on the leave date. The leave approval is for the purpose that if the leave isn't approved, the CL and sickleave is not supposed to be deducted without the approved leave for that particular days only if the leave has been approved only then the CL balance and sickleave balance will be deducted and the loss of pay won't apply. Consider a leave request for approve for five days and the Employee has only two days of CL balance then only two days will be considered as the paid leave and for rest three days even after the leave has been approved the loss of pay will be applicable, but if the employer doesn't get the leave approved in that case  even if the Employee have the CL balance still the CL balance is not supposed to get deducted while processing the payroll and the complete will be considered as loss of pay although you can provide option while processing the payroll in the payroll cockpit to apply the CL balance over there as well as SL balance, or any other compensation leave balance or anything else
+
 Employees raise leave from their ERP profile. The reporting manager approves in the ERP. HR gives the final approval in HRMS. Email + in-app notifications go to both approvers at the right moment.
 
 ## Flow
@@ -21,28 +23,33 @@ Key rule: leave balance is deducted only on final HR approval — the existing b
 ## What gets built
 
 **1. Employee request form (ERP profile → My Requests)**
+
 - "Request Leave" dialog next to the existing Regularization button: leave type (with live balance shown per type), start/end date, half-day toggle with AM/PM, auto-computed working days, reason, optional attachment (mandatory when the leave type requires one), contact-during-leave number, and an inline warning showing how many teammates in the same department are already off on those dates.
 - Shows the resolved reporting manager so the employee knows who it goes to.
 - Client-side guards mirroring existing DB rules (no backdating beyond 3 days, no sick leave during probation, insufficient balance).
 
 **2. Manager approval inside the ERP**
+
 - New "Team Approvals" card in the ERP profile, visible only to employees who are somebody's reporting manager.
 - Lists pending team requests with employee, dates, days, type, reason, remaining balance and clash count; Approve / Reject (reason required) with an AlertDialog confirm.
 - Deep-linkable (`/profile?tab=team-approvals&leaveId=...`) so the email link lands on the exact request.
 
 **3. HR final approval (HRMS Leave Requests page)**
+
 - Status filter gains `Awaiting manager` and `Manager approved`.
-- Requests still awaiting the manager are shown read-only with an "Awaiting <manager name>" badge; HR's Approve button unlocks only after manager approval.
+- Requests still awaiting the manager are shown read-only with an "Awaiting &nbsp;" badge; HR's Approve button unlocks only after manager approval.
 - HR override (approve without manager) allowed for Super Admin / HR admin only, and recorded in the audit trail.
 - Each row shows the approval trail: who requested, manager decision + timestamp, HR decision + timestamp.
 
 **4. Notifications**
+
 - On submit: in-app notification to the reporting manager (ERP) and to HR (HRMS), plus confirmation to the employee.
 - On manager approval: in-app to HR ("ready for final approval") and to the employee.
 - On HR approval/rejection: in-app to the employee and the manager.
 - Reuses the existing `hr_notifications` + `hr_notify` / `hr_broadcast_notification_to_hr` plumbing already wired to the notification bell.
 
 **5. Emails**
+
 - New `leave-request` transactional template (matching the plain HR mail style already used): employee name, type, dates, days, reason, balance after approval, clash warning, and a deep link button to approve.
 - Sent from `hr@blynkex.com` via the existing HR mail sender.
 - Triggered on submit (manager + HR), on manager decision (HR + employee), on HR decision (employee + manager). Idempotency key per request+stage+recipient so retries never double-send.

@@ -9682,57 +9682,90 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           attachment_url: string | null
+          contact_during_leave: string | null
           created_at: string
           employee_id: string
           end_date: string
           half_day_period: string | null
+          hr_approved_at: string | null
+          hr_approved_by: string | null
           id: string
           is_half_day: boolean | null
           leave_clashes_count: number | null
           leave_type_id: string
+          manager_decided_at: string | null
+          manager_decided_by: string | null
+          manager_id: string | null
+          manager_remarks: string | null
+          manager_status: string
+          paid_days: number
           reason: string | null
           rejection_reason: string | null
+          source: string
           start_date: string
           status: string
           total_days: number
+          unpaid_days: number
           updated_at: string
         }
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
           attachment_url?: string | null
+          contact_during_leave?: string | null
           created_at?: string
           employee_id: string
           end_date: string
           half_day_period?: string | null
+          hr_approved_at?: string | null
+          hr_approved_by?: string | null
           id?: string
           is_half_day?: boolean | null
           leave_clashes_count?: number | null
           leave_type_id: string
+          manager_decided_at?: string | null
+          manager_decided_by?: string | null
+          manager_id?: string | null
+          manager_remarks?: string | null
+          manager_status?: string
+          paid_days?: number
           reason?: string | null
           rejection_reason?: string | null
+          source?: string
           start_date: string
           status?: string
           total_days?: number
+          unpaid_days?: number
           updated_at?: string
         }
         Update: {
           approved_at?: string | null
           approved_by?: string | null
           attachment_url?: string | null
+          contact_during_leave?: string | null
           created_at?: string
           employee_id?: string
           end_date?: string
           half_day_period?: string | null
+          hr_approved_at?: string | null
+          hr_approved_by?: string | null
           id?: string
           is_half_day?: boolean | null
           leave_clashes_count?: number | null
           leave_type_id?: string
+          manager_decided_at?: string | null
+          manager_decided_by?: string | null
+          manager_id?: string | null
+          manager_remarks?: string | null
+          manager_status?: string
+          paid_days?: number
           reason?: string | null
           rejection_reason?: string | null
+          source?: string
           start_date?: string
           status?: string
           total_days?: number
+          unpaid_days?: number
           updated_at?: string
         }
         Relationships: [
@@ -25370,6 +25403,7 @@ export type Database = {
             }
             Returns: string
           }
+      hr_current_employee_id: { Args: never; Returns: string }
       hr_delete_salary_revision: {
         Args: { p_reason?: string; p_revision_id: string }
         Returns: Json
@@ -25454,6 +25488,10 @@ export type Database = {
       }
       hr_is_contractor: { Args: { _employee_id: string }; Returns: boolean }
       hr_is_hr_admin: { Args: never; Returns: boolean }
+      hr_is_manager_of_leave: {
+        Args: { p_request_id: string }
+        Returns: boolean
+      }
       hr_is_on_probation: {
         Args: { p_employee_id: string; p_on?: string }
         Returns: boolean
@@ -25518,6 +25556,17 @@ export type Database = {
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string
+      }
+      hr_move_leave_balance: {
+        Args: {
+          p_days: number
+          p_employee_id: string
+          p_end: string
+          p_leave_type_id: string
+          p_sign: number
+          p_start: string
+        }
+        Returns: undefined
       }
       hr_new_joiner_check: {
         Args: { p_employee_id: string }

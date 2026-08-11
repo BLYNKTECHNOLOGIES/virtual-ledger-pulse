@@ -152,7 +152,7 @@ export default function AttendanceStaleSessionsPage() {
             </Button>
             <Button size="sm" onClick={() => runWatchdog.mutate()} disabled={runWatchdog.isPending}>
               <RefreshCw className={`h-4 w-4 mr-2 ${runWatchdog.isPending ? "animate-spin" : ""}`} />
-              Run watchdog
+              Run scan
             </Button>
           </div>
         }

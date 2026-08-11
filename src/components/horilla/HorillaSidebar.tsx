@@ -97,11 +97,11 @@ const navGroups: NavGroup[] = [
           { label: "Summary Report", path: "/hrms/attendance/summary" },
           { label: "Shifts", path: "/hrms/attendance/shifts" },
           { label: "Overtime", path: "/hrms/attendance/overtime" },
-          { label: "Hour Accounts", path: "/hrms/attendance/hour-accounts" },
+          { label: "Hours & Overtime", path: "/hrms/attendance/hours" },
           { label: "Late Come / Early Out", path: "/hrms/attendance/late-early" },
           { label: "Attendance Policies", path: "/hrms/attendance/policies" },
           { label: "Raw Punches", path: "/hrms/attendance/punches" },
-          { label: "Monthly Hours", path: "/hrms/attendance/monthly-hours" },
+
           { label: "Regularization Requests", path: "/hrms/attendance/regularization" },
           { label: "Stale Sessions (Watchdog)", path: "/hrms/attendance/stale-sessions" },
           { label: "Period Locks", path: "/hrms/attendance/period-locks" },

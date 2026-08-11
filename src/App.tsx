@@ -728,12 +728,14 @@ const router = createBrowserRouter([
         { path: "attendance/shifts", element: <ShiftsPage /> },
         { path: "attendance/overtime", element: <OvertimePage /> },
         
-        { path: "attendance/hour-accounts", element: <HourAccountsPage /> },
+        { path: "attendance/hours", element: <HoursOverviewPage /> },
+        { path: "attendance/hour-accounts", element: <Navigate to="/hrms/attendance/hours" replace /> },
         { path: "attendance/late-early", element: <LateComeEarlyOutPage /> },
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
         { path: "attendance/policies", element: <AttendancePolicyPage /> },
         { path: "attendance/punches", element: <AttendancePunchesPage /> },
-        { path: "attendance/monthly-hours", element: <MonthlyHoursSummaryPage /> },
+        { path: "attendance/monthly-hours", element: <Navigate to="/hrms/attendance/hours" replace /> },
+
        { path: "attendance/regularization", element: <AttendanceRegularizationPage /> },
        { path: "attendance/watchdog", element: <AttendanceRegularizationPage /> },
        { path: "attendance/stale-sessions", element: <AttendanceStaleSessionsPage /> },

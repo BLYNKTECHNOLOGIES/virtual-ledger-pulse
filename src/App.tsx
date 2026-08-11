@@ -73,7 +73,6 @@ const DepartmentsPage = lazy(() => import('./pages/horilla/DepartmentsPage'));
 const PositionsPage = lazy(() => import('./pages/horilla/PositionsPage'));
 const AttendanceOverviewPage = lazy(() => import('./pages/horilla/AttendanceOverviewPage'));
 const ShiftsPage = lazy(() => import('./pages/horilla/ShiftsPage'));
-const OvertimePage = lazy(() => import('./pages/horilla/OvertimePage'));
 const HoursOverviewPage = lazy(() => import('./pages/horilla/HoursOverviewPage'));
 const LateComeEarlyOutPage = lazy(() => import('./pages/horilla/LateComeEarlyOutPage'));
 const LeaveDashboardPage = lazy(() => import('./pages/horilla/LeaveDashboardPage'));
@@ -726,7 +725,7 @@ const router = createBrowserRouter([
         { path: "attendance/biometric-devices", element: <BiometricDevicesPage /> },
         { path: "attendance/calendar", element: <AttendanceCalendarPage /> },
         { path: "attendance/shifts", element: <ShiftsPage /> },
-        { path: "attendance/overtime", element: <OvertimePage /> },
+        { path: "attendance/overtime", element: <Navigate to="/hrms/attendance/hours" replace /> },
         
         { path: "attendance/hours", element: <HoursOverviewPage /> },
         { path: "attendance/hour-accounts", element: <Navigate to="/hrms/attendance/hours" replace /> },

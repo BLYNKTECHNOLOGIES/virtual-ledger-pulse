@@ -116,7 +116,14 @@ export default function AttendanceRegularizationPage() {
     },
   });
 
+  /** Format an absolute instant as an IST wall-clock string (yyyy-MM-ddTHH:mm). */
+  const istWallClock = (d: Date): string => {
+    const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+    return ist.toISOString().slice(0, 16);
+  };
+
   /** Shift end as an IST wall-clock string (yyyy-MM-ddTHH:mm) for the row's attendance date. */
+
   const shiftEndLocal = (r: StaleRow): string | null => {
     const s = (shiftMap as any)[r.employee_id];
     if (!s?.end_time) return null;
@@ -186,9 +193,7 @@ export default function AttendanceRegularizationPage() {
       setOutTime(end ?? '');
     } else if (resolution === 'set_out_time') {
       const suggested = new Date(new Date(row.in_time).getTime() + 9 * 60 * 60 * 1000);
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      const local = new Date(suggested.getTime() + istOffset - suggested.getTimezoneOffset() * 60 * 1000);
-      setOutTime(local.toISOString().slice(0, 16));
+      setOutTime(istWallClock(suggested));
     } else {
       setOutTime('');
     }
@@ -206,11 +211,18 @@ export default function AttendanceRegularizationPage() {
     };
     if (isOutTimeResolution) {
       if (!outTime) return toast.error('Pick an out-time');
-      args.out_time = new Date(new Date(outTime).getTime() - 5.5 * 60 * 60 * 1000).toISOString();
+      // The picker holds an IST wall-clock value; pin the offset explicitly so the
+      // conversion is independent of the browser timezone.
+      const outUtc = new Date(`${outTime.length === 16 ? `${outTime}:00` : outTime}+05:30`);
+      if (isNaN(outUtc.getTime())) return toast.error('Invalid out-time');
+      if (outUtc.getTime() <= new Date(dlg.row.in_time).getTime()) {
+        return toast.error(`Out-time must be after the in-time (${istWallClock(new Date(dlg.row.in_time)).replace('T', ' ')} IST)`);
+      }
+      args.out_time = outUtc.toISOString();
     }
     resolve.mutate(args);
-    resolve.mutate(args);
   };
+
 
   // ---------- Legacy regularization data ----------
   const { data: rows = [], isLoading } = useQuery({

@@ -165,6 +165,7 @@ function Kpi({
   hint,
   pct,
   tone = "primary",
+  emphasis = "neutral",
   children,
 }: {
   icon: any;
@@ -174,22 +175,36 @@ function Kpi({
   hint?: string;
   pct?: number | null;
   tone?: "primary" | "success" | "warning" | "destructive" | "info";
+  /** "alert" tints the whole card, "accent" adds a leading rail. */
+  emphasis?: "neutral" | "alert" | "accent";
   children?: React.ReactNode;
 }) {
+  const shell =
+    emphasis === "alert"
+      ? "border-destructive/25 bg-destructive/[0.04]"
+      : emphasis === "accent"
+        ? "border-l-4 border-l-primary"
+        : "";
+  const labelTone = emphasis === "alert" ? "text-destructive" : "text-muted-foreground";
+  const valueTone = emphasis === "alert" ? "text-destructive" : "text-foreground";
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${shell}`}>
       <CardContent className="p-4">
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          <Icon className={`h-3.5 w-3.5 ${iconClass}`} /> <span className="truncate">{label}</span>
-          {hint && <span className="ml-auto"><InfoDot text={hint} /></span>}
+        <div className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${labelTone}`}>
+          <span className="truncate">{label}</span>
+          <span className="ml-auto flex items-center gap-1.5">
+            <Icon className={`h-3.5 w-3.5 ${iconClass}`} />
+            {hint && <InfoDot text={hint} />}
+          </span>
         </div>
-        <p className="mt-2 text-3xl font-semibold tabular-nums leading-none text-foreground">{value}</p>
-        {pct != null && <div className="mt-2.5"><Meter pct={pct} tone={tone} /></div>}
+        <p className={`mt-2.5 text-[26px] font-bold tabular-nums leading-none ${valueTone}`}>{value}</p>
         {children && <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">{children}</div>}
+        {pct != null && <div className="mt-3"><Meter pct={pct} tone={tone} /></div>}
       </CardContent>
     </Card>
   );
 }
+
 
 function SectionCard({
   title,

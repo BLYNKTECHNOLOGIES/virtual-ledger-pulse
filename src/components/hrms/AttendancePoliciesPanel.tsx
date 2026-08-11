@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Pencil, Shield, Clock, AlertTriangle, Trash2 } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 
@@ -20,7 +19,7 @@ const defaultForm = {
   min_overtime_minutes: 30, is_default: false,
 };
 
-export default function AttendancePolicyPage() {
+export function AttendancePoliciesPanel() {
   const qc = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -79,16 +78,16 @@ export default function AttendancePolicyPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 page-mount">
-      <PageHeader
-        title="Attendance Policies"
-        description="Configure late, half-day, LOP, and overtime rules"
-        actions={
-          <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> New Policy
-          </Button>
-        }
-      />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Attendance Policies</h2>
+          <p className="text-xs text-muted-foreground">Late, half-day, LOP and overtime rules</p>
+        </div>
+        <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }}>
+          <Plus className="h-4 w-4 mr-2" /> New Policy
+        </Button>
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

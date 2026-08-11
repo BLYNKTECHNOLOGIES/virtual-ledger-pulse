@@ -56,7 +56,10 @@ export function CompensationHistory({ employeeId }: { employeeId: string }) {
         .order("effective_from", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as Row[];
+      // Cancelled / rescinded revisions are not part of an employee's history.
+      return ((data || []) as Row[]).filter(
+        (r) => !["CANCELLED", "CANCELED", "REJECTED", "DELETED"].includes(String(r.status || "").toUpperCase())
+      );
     },
     enabled: !!employeeId,
   });

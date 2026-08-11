@@ -204,7 +204,7 @@ export default function RegularizationCard({ employeeId }: Props) {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Date</Label>
+              <Label className="mb-1.5 block">Date</Label>
               <Input
                 type="date"
                 value={form.attendance_date}
@@ -214,7 +214,7 @@ export default function RegularizationCard({ employeeId }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Check-In</Label>
+                <Label className="mb-1.5 block">Check-In</Label>
                 <Input
                   type="time"
                   value={form.requested_check_in}
@@ -222,7 +222,7 @@ export default function RegularizationCard({ employeeId }: Props) {
                 />
               </div>
               <div>
-                <Label>Check-Out</Label>
+                <Label className="mb-1.5 block">Check-Out</Label>
                 <Input
                   type="time"
                   value={form.requested_check_out}
@@ -231,7 +231,7 @@ export default function RegularizationCard({ employeeId }: Props) {
               </div>
             </div>
             <div>
-              <Label>Reason *</Label>
+              <Label className="mb-1.5 block">Reason *</Label>
               <Textarea
                 rows={3}
                 placeholder="e.g. Forgot to punch out, biometric device was offline, on client visit..."
@@ -240,9 +240,9 @@ export default function RegularizationCard({ employeeId }: Props) {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button className="w-full sm:w-auto" onClick={() => submit.mutate()} disabled={submit.isPending}>
               {submit.isPending ? 'Submitting...' : 'Submit Request'}
             </Button>
           </DialogFooter>

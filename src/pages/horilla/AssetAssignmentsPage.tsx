@@ -12,6 +12,7 @@ import { Plus, Search, RotateCcw, Laptop } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 export default function AssetAssignmentsPage() {
   const qc = useQueryClient();
@@ -229,14 +230,17 @@ export default function AssetAssignmentsPage() {
             </div>
             <div>
               <Label>Employee</Label>
-              <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {employees.map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.employee_name} ({e.employee_id})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeeCombobox
+                className="mt-1"
+                placeholder="Select employee"
+                value={form.employee_id}
+                onChange={(v) => setForm({ ...form, employee_id: v })}
+                options={(employees || []).map((e: any) => ({
+                  value: e.id,
+                  label: `${e.employee_name} (${e.employee_id})`,
+                  keywords: e.employee_id || "",
+                }))}
+              />
             </div>
             <div>
               <Label>Notes</Label>

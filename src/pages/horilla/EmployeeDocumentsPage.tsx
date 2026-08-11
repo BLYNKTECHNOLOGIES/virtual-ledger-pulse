@@ -12,6 +12,7 @@ import { FileText, Plus, Search, CheckCircle, ExternalLink } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 const DOC_TYPES = [
   { value: "aadhaar", label: "Aadhaar Card" },
@@ -166,12 +167,7 @@ export default function EmployeeDocumentsPage() {
           <div className="space-y-3">
             <div>
               <Label>Employee</Label>
-              <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>{employees.map((e: any) => (
-                  <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
-                ))}</SelectContent>
-              </Select>
+              <EmployeePicker employees={employees} value={form.employee_id} onChange={(v) => setForm({ ...form, employee_id: v })} />
             </div>
             <div>
               <Label>Document Type</Label>

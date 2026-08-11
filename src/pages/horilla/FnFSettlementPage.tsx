@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
@@ -340,14 +341,7 @@ export default function FnFSettlementPage() {
           <div className="space-y-3">
             <div>
               <Label>Employee</Label>
-              <Select value={selectedEmpId} onValueChange={autoFillFnF}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select separated employee" /></SelectTrigger>
-                <SelectContent>
-                  {separatedEmployees.map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeePicker className="mt-1" placeholder="Select separated employee" employees={separatedEmployees} value={selectedEmpId} onChange={autoFillFnF} />
             </div>
             <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">

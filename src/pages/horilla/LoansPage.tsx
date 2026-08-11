@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { NewSalaryAdvanceDialog } from "@/components/hrms/salary/NewSalaryAdvanceDialog";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 export default function LoansPage() {
   const qc = useQueryClient();
@@ -364,10 +365,7 @@ export default function LoansPage() {
           <div className="space-y-4">
             <div>
               <Label>Employee *</Label>
-              <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
-              </Select>
+              <EmployeePicker employees={employees} value={form.employee_id} onChange={(v) => setForm({ ...form, employee_id: v })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

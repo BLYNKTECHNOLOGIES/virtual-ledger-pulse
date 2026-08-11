@@ -177,7 +177,14 @@ export default function AttendanceRegularizationPage() {
   const openWatchdogDialog = (row: StaleRow, resolution: Resolution) => {
     setDlg({ row, resolution });
     setNote('');
-    if (resolution === 'set_out_time') {
+    if (resolution === 'full_day') {
+      const end = shiftEndLocal(row);
+      if (!end) {
+        toast.error('No shift assigned for this employee — use "Set true out-time".');
+        setDlg({ row, resolution: 'set_out_time' });
+      }
+      setOutTime(end ?? '');
+    } else if (resolution === 'set_out_time') {
       const suggested = new Date(new Date(row.in_time).getTime() + 9 * 60 * 60 * 1000);
       const istOffset = 5.5 * 60 * 60 * 1000;
       const local = new Date(suggested.getTime() + istOffset - suggested.getTimezoneOffset() * 60 * 1000);
@@ -189,16 +196,19 @@ export default function AttendanceRegularizationPage() {
 
   const submitWatchdog = () => {
     if (!dlg) return;
+    const isOutTimeResolution = dlg.resolution === 'set_out_time' || dlg.resolution === 'full_day';
     const args: any = {
       session_id: dlg.row.session_id,
       employee_id: dlg.row.employee_id,
-      resolution: dlg.resolution,
-      note,
+      // "Mark full day" is a set_out_time resolution pinned to the shift end.
+      resolution: isOutTimeResolution ? 'set_out_time' : dlg.resolution,
+      note: dlg.resolution === 'full_day' ? (note ? `Marked full day · ${note}` : 'Marked full day (shift end out-time)') : note,
     };
-    if (dlg.resolution === 'set_out_time') {
+    if (isOutTimeResolution) {
       if (!outTime) return toast.error('Pick an out-time');
       args.out_time = new Date(new Date(outTime).getTime() - 5.5 * 60 * 60 * 1000).toISOString();
     }
+    resolve.mutate(args);
     resolve.mutate(args);
   };
 

@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
+
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer } from "recharts";
 
 const MONTHS = [
@@ -506,21 +508,13 @@ function HoursDrilldownDialog({
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
   const to = format(new Date(year, month, 0), "yyyy-MM-dd");
 
-  const { data: days = [], isLoading } = useQuery({
-    queryKey: ["hours_drilldown", row?.employee_id, from],
-    enabled: !!row,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_attendance_daily")
-        .select("attendance_date, first_in, last_out, total_hours, status, late_by_minutes, early_by_minutes, punch_count")
-        .eq("employee_id", row!.employee_id)
-        .gte("attendance_date", from)
-        .lte("attendance_date", to)
-        .order("attendance_date", { ascending: true });
-      if (error) throw error;
-      return (data as any[]) || [];
-    },
-  });
+  // V1 doctrine: attendance days come only from the sanctioned reader.
+  const { data: days = [], isLoading } = useAttendanceDayRange(
+    row ? [row.employee_id] : [],
+    from,
+    to,
+  );
+
 
   const t = (ts: string | null) =>
     ts ? new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "—";
@@ -556,17 +550,18 @@ function HoursDrilldownDialog({
                 </tr>
               </thead>
               <tbody>
-                {days.map((d: any) => (
-                  <tr key={d.attendance_date} className="border-b last:border-0">
-                    <td className="px-2 py-1.5 whitespace-nowrap">{format(new Date(`${d.attendance_date}T00:00:00`), "dd MMM (EEE)")}</td>
+                {days.map((d) => (
+                  <tr key={d.date} className="border-b last:border-0">
+                    <td className="px-2 py-1.5 whitespace-nowrap">{format(new Date(`${d.date}T00:00:00`), "dd MMM (EEE)")}</td>
                     <td className="px-2 py-1.5 tabular-nums">{t(d.first_in)}</td>
                     <td className="px-2 py-1.5 tabular-nums">{t(d.last_out)}</td>
                     <td className="px-2 py-1.5 tabular-nums">{Number(d.total_hours || 0).toFixed(2)}</td>
-                    <td className={`px-2 py-1.5 tabular-nums ${d.late_by_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.late_by_minutes || 0}m</td>
-                    <td className={`px-2 py-1.5 tabular-nums ${d.early_by_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.early_by_minutes || 0}m</td>
+                    <td className={`px-2 py-1.5 tabular-nums ${d.late_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.late_minutes || 0}m</td>
+                    <td className={`px-2 py-1.5 tabular-nums ${d.early_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.early_minutes || 0}m</td>
                     <td className="px-2 py-1.5 capitalize">{String(d.status || "").replace("_", " ")}</td>
                   </tr>
                 ))}
+
               </tbody>
             </table>
           </div>

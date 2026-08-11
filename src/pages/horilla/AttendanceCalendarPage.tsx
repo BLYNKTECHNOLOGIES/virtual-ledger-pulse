@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight, Search, Users, Calendar } from "lucide-react";
@@ -18,32 +19,15 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
+import { AttendanceDayDialog } from "@/components/hrms/attendance/AttendanceDayDialog";
 
-const STATUS_COLORS: Record<string, string> = {
-  present: "bg-success",
-  absent: "bg-destructive",
-  late: "bg-warning",
-  half_day: "bg-info",
-  holiday: "bg-primary",
-  leave: "bg-primary",
-};
+/** Statuses shown in the legend, in reading order. */
+const LEGEND_STATUSES: AttendanceDayStatus[] = [
+  "present", "half_day", "absent", "on_leave", "holiday", "week_off", "incomplete", "in_progress", "no_punch",
+];
 
-// Tile styles for filled calendar day cells (semantic tokens only)
-const STATUS_TILE: Record<string, string> = {
-  present: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
-  absent: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
-  late: "bg-warning/20 text-warning-foreground ring-1 ring-inset ring-warning/40",
-  half_day: "bg-info/15 text-info ring-1 ring-inset ring-info/30",
-  holiday: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
-  leave: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
-};
-
-const STATUS_BG: Record<string, string> = {
-  present: "bg-success/10 border-success/20 text-success",
-  absent: "bg-destructive/10 border-destructive/20 text-destructive",
-  late: "bg-warning/10 border-warning/20 text-warning",
-  half_day: "bg-info/10 border-info/20 text-info",
-};
 
 export default function AttendanceCalendarPage() {
   const qc = useQueryClient();
@@ -60,19 +44,9 @@ export default function AttendanceCalendarPage() {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
-  const { data: attendance = [] } = useQuery({
-    queryKey: ["hr_attendance_month", format(monthStart, "yyyy-MM-dd"), format(monthEnd, "yyyy-MM-dd")],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_attendance")
-        .select("*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)")
-        .gte("attendance_date", format(monthStart, "yyyy-MM-dd"))
-        .lte("attendance_date", format(monthEnd, "yyyy-MM-dd"))
-        .order("attendance_date");
-      if (error) throw error;
-      return (data as any[]) || [];
-    },
-  });
+  const [dayDialog, setDayDialog] = useState<{ emp: any; date: string } | null>(null);
+
+
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
@@ -115,16 +89,6 @@ export default function AttendanceCalendarPage() {
     },
   });
 
-  // Build attendance lookup: { "emp_id": { "2026-02-15": status } }
-  const attendanceMap = useMemo(() => {
-    const map: Record<string, Record<string, any>> = {};
-    attendance.forEach((a: any) => {
-      if (!map[a.employee_id]) map[a.employee_id] = {};
-      map[a.employee_id][a.attendance_date] = a;
-    });
-    return map;
-  }, [attendance]);
-
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDay = getDay(monthStart); // 0=Sun
   const { data: complianceSettings } = useComplianceSettings();
@@ -136,21 +100,51 @@ export default function AttendanceCalendarPage() {
     return `${e.first_name} ${e.last_name}`.toLowerCase().includes(q) || e.badge_id?.toLowerCase().includes(q);
   });
 
+  // v4 engine truth for every visible employee this month (single sanctioned reader).
+  const visibleIds = useMemo(() => filteredEmps.map((e: any) => e.id), [filteredEmps]);
+  const { data: engineDays = [], isLoading: daysLoading } = useAttendanceDayRange(
+    visibleIds,
+    format(monthStart, "yyyy-MM-dd"),
+    format(monthEnd, "yyyy-MM-dd"),
+  );
+
+  // Lookup: { emp_id: { "2026-08-11": AttendanceDay } }
+  const attendanceMap = useMemo(() => {
+    const map: Record<string, Record<string, AttendanceDay>> = {};
+    (engineDays as AttendanceDay[]).forEach((d) => {
+      if (!map[d.employee_id]) map[d.employee_id] = {};
+      map[d.employee_id][d.date] = d;
+    });
+    return map;
+  }, [engineDays]);
+
   const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
 
-  // Monthly stats
+  // Monthly stats — engine statuses only.
   const monthStats = useMemo(() => {
-    const total = attendance.length;
-    const present = attendance.filter((a: any) => a.attendance_status === "present").length;
-    const absent = attendance.filter((a: any) => a.attendance_status === "absent").length;
-    const late = attendance.filter((a: any) => a.attendance_status === "late").length;
-    return { total, present, absent, late, rate: total > 0 ? ((present / total) * 100).toFixed(1) : "0" };
-  }, [attendance]);
+    const rows = engineDays as AttendanceDay[];
+    const counted = rows.filter((d) => !["week_off", "holiday", "no_data"].includes(d.status));
+    const present = rows.filter((d) => d.status === "present").length;
+    const half = rows.filter((d) => d.status === "half_day").length;
+    const absent = rows.filter((d) => d.status === "absent").length;
+    const late = rows.filter((d) => d.is_late).length;
+    const base = counted.length;
+    return {
+      total: base,
+      present,
+      absent,
+      late,
+      rate: base > 0 ? (((present + half * 0.5) / base) * 100).toFixed(1) : "0",
+    };
+  }, [engineDays]);
+
 
   return (
+    <TooltipProvider delayDuration={120}>
     <div className="hrms-page space-y-4 page-mount">
       <PageHeader
+
         title="Attendance Calendar"
         description="Monthly attendance view per employee"
         actions={
@@ -195,20 +189,17 @@ export default function AttendanceCalendarPage() {
 
       {/* Legend */}
       <div className="flex gap-2 flex-wrap">
-        {Object.entries(STATUS_COLORS).map(([status, color]) => (
+        {LEGEND_STATUSES.map((status) => (
           <div
             key={status}
             className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]"
           >
-            <div className={`w-2 h-2 rounded-full ${color}`} />
-            <span className="capitalize text-muted-foreground">{status.replace("_", " ")}</span>
+            <div className={`w-2 h-2 rounded-full ${DAY_STATUS_DOT[status]}`} />
+            <span className="text-muted-foreground">{DAY_STATUS_LABEL[status]}</span>
           </div>
         ))}
-        <div className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]">
-          <div className="w-2 h-2 rounded-sm bg-muted-foreground/30" />
-          <span className="text-muted-foreground">Weekly off</span>
-        </div>
       </div>
+
 
       {/* Employee Calendar Cards */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -221,12 +212,13 @@ export default function AttendanceCalendarPage() {
         ) : (
           filteredEmps.map((emp: any) => {
             const empAttendance = attendanceMap[emp.id] || {};
-            const values = Object.values(empAttendance) as any[];
-            const empPresent = values.filter((a) => a.attendance_status === "present").length;
-            const empAbsent = values.filter((a) => a.attendance_status === "absent" && !isWeeklyOff(new Date(`${a.attendance_date}T00:00:00`), complianceSettings)).length;
-            const empLate = values.filter((a) => a.attendance_status === "late").length;
-            const empTotal = values.length;
-            const rate = empTotal > 0 ? Math.round((empPresent / empTotal) * 100) : 0;
+            const values = Object.values(empAttendance);
+            const empPresent = values.filter((d) => d.status === "present").length;
+            const empHalf = values.filter((d) => d.status === "half_day").length;
+            const empAbsent = values.filter((d) => d.status === "absent").length;
+            const empLate = values.filter((d) => d.is_late).length;
+            const empBase = values.filter((d) => !["week_off", "holiday", "no_data"].includes(d.status)).length;
+            const rate = empBase > 0 ? Math.round(((empPresent + empHalf * 0.5) / empBase) * 100) : 0;
 
             return (
               <Card key={emp.id} className="min-w-0 overflow-hidden">
@@ -244,6 +236,7 @@ export default function AttendanceCalendarPage() {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="rounded-md bg-success/10 text-success text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empPresent} P</span>
+                      {empHalf > 0 && <span className="rounded-md bg-info/10 text-info text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empHalf} H</span>}
                       {empAbsent > 0 && <span className="rounded-md bg-destructive/10 text-destructive text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empAbsent} A</span>}
                       {empLate > 0 && <span className="rounded-md bg-warning/15 text-warning text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empLate} L</span>}
                       <span className="rounded-md bg-muted text-foreground text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{rate}%</span>
@@ -265,30 +258,46 @@ export default function AttendanceCalendarPage() {
                       const dateStr = format(day, "yyyy-MM-dd");
                       const record = empAttendance[dateStr];
                       const weeklyOff = isWeeklyOff(day, complianceSettings);
-                      // A weekly-off day can never be "absent" — the off-day wins.
-                      const rawStatus = record?.attendance_status;
-                      const status = weeklyOff && (!rawStatus || rawStatus === "absent") ? undefined : rawStatus;
+                      // Weekly off wins when the engine has nothing to report.
+                      const status: AttendanceDayStatus =
+                        record?.status && record.status !== "no_data"
+                          ? record.status
+                          : weeklyOff
+                            ? "week_off"
+                            : "no_data";
                       const today = isToday(day);
-                      const tile = status ? STATUS_TILE[status] : "";
+                      const hasDetail = !!record && record.status !== "no_data";
 
                       return (
-                        <div
-                          key={dateStr}
-                          className={`aspect-square flex items-center justify-center rounded-md text-[11px] font-medium relative transition-colors
-                            ${status ? tile : weeklyOff ? "bg-muted/60 text-muted-foreground/60" : "bg-muted/20 text-muted-foreground hover:bg-muted/40"}
-                            ${today ? "ring-2 ring-primary ring-offset-1 ring-offset-background font-bold" : ""}
-                          `}
-                          title={
-                            status ? `${format(day, "MMM d")} — ${status.replace("_", " ")}${weeklyOff ? " (weekly off)" : ""}` :
-                            weeklyOff ? `${format(day, "MMM d")} — Weekly off` :
-                            format(day, "MMM d")
-                          }
-                        >
-                          {day.getDate()}
-                          {weeklyOff && !status && (
-                            <span className="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-muted-foreground/40" />
-                          )}
-                        </div>
+                        <Tooltip key={dateStr} delayDuration={120}>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => setDayDialog({ emp, date: dateStr })}
+                              className={`aspect-square w-full flex items-center justify-center rounded-md text-[11px] font-medium relative transition-colors
+                                outline-none focus-visible:ring-2 focus-visible:ring-ring hover:brightness-110
+                                ${DAY_STATUS_TILE[status]}
+                                ${today ? "ring-2 ring-primary ring-offset-1 ring-offset-background font-bold" : ""}
+                              `}
+                              aria-label={`${format(day, "MMM d")} — ${DAY_STATUS_LABEL[status]} — open detail`}
+                            >
+                              {day.getDate()}
+                              {hasDetail && (record.late_minutes > 0 || record.early_minutes > 0) && (
+                                <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-warning" />
+                              )}
+                              {record?.watchdog_held && (
+                                <span className="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-destructive" />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[240px]">
+                            <DayTileTooltip
+                              day={record}
+                              dateLabel={format(day, "EEE, MMM d")}
+                              fallback={weeklyOff ? "Weekly off" : status === "holiday" ? "Holiday" : "No punch recorded"}
+                            />
+                          </TooltipContent>
+                        </Tooltip>
                       );
                     })}
 
@@ -297,6 +306,7 @@ export default function AttendanceCalendarPage() {
               </Card>
             );
           })
+
         )}
       </div>
 
@@ -366,6 +376,20 @@ export default function AttendanceCalendarPage() {
             </div>
           </div>
       </ResponsiveDialog>
+
+      {/* Per-day detail */}
+      {dayDialog && (
+        <AttendanceDayDialog
+          open={!!dayDialog}
+          onOpenChange={(o) => !o && setDayDialog(null)}
+          employeeId={dayDialog.emp.id}
+          employeeName={`${dayDialog.emp.first_name} ${dayDialog.emp.last_name}`}
+          badgeId={dayDialog.emp.badge_id}
+          date={dayDialog.date}
+        />
+      )}
     </div>
+    </TooltipProvider>
   );
+
 }

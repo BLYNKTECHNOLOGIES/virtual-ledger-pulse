@@ -44,19 +44,9 @@ export default function AttendanceCalendarPage() {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
-  const { data: attendance = [] } = useQuery({
-    queryKey: ["hr_attendance_month", format(monthStart, "yyyy-MM-dd"), format(monthEnd, "yyyy-MM-dd")],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_attendance")
-        .select("*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)")
-        .gte("attendance_date", format(monthStart, "yyyy-MM-dd"))
-        .lte("attendance_date", format(monthEnd, "yyyy-MM-dd"))
-        .order("attendance_date");
-      if (error) throw error;
-      return (data as any[]) || [];
-    },
-  });
+  const [dayDialog, setDayDialog] = useState<{ emp: any; date: string } | null>(null);
+
+
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],

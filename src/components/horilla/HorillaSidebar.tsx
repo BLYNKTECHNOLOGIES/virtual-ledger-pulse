@@ -96,7 +96,6 @@ const navGroups: NavGroup[] = [
           { label: "Calendar View", path: "/hrms/attendance/calendar" },
           { label: "Summary Report", path: "/hrms/attendance/summary" },
           { label: "Shifts", path: "/hrms/attendance/shifts" },
-          { label: "Overtime", path: "/hrms/attendance/overtime" },
           { label: "Hours & Overtime", path: "/hrms/attendance/hours" },
           { label: "Late Come / Early Out", path: "/hrms/attendance/late-early" },
           { label: "Attendance Policies", path: "/hrms/attendance/policies" },

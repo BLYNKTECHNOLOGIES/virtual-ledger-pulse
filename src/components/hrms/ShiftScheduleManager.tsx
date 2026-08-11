@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -172,6 +173,7 @@ export function ShiftScheduleAssigner() {
   const qc = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
   const [form, setForm] = useState({ employee_id: "", shift_id: "", effective_from: "" });
+  const [search, setSearch] = useState("");
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active_list"],

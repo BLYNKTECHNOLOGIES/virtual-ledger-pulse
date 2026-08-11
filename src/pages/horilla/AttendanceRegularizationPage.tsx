@@ -47,7 +47,7 @@ const REASON_CODES: Array<{ value: string; label: string; help: string }> = [
   { value: 'other_documented', label: 'Other (documented)', help: 'Any other reason — explain fully in notes.' },
 ];
 
-type Resolution = 'set_out_time' | 'confirm_long_shift' | 'void';
+type Resolution = 'set_out_time' | 'confirm_long_shift' | 'void' | 'full_day';
 
 type StaleRow = {
   id: string;

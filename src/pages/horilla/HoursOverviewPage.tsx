@@ -506,21 +506,13 @@ function HoursDrilldownDialog({
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
   const to = format(new Date(year, month, 0), "yyyy-MM-dd");
 
-  const { data: days = [], isLoading } = useQuery({
-    queryKey: ["hours_drilldown", row?.employee_id, from],
-    enabled: !!row,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_attendance_daily")
-        .select("attendance_date, first_in, last_out, total_hours, status, late_by_minutes, early_by_minutes, punch_count")
-        .eq("employee_id", row!.employee_id)
-        .gte("attendance_date", from)
-        .lte("attendance_date", to)
-        .order("attendance_date", { ascending: true });
-      if (error) throw error;
-      return (data as any[]) || [];
-    },
-  });
+  // V1 doctrine: attendance days come only from the sanctioned reader.
+  const { data: days = [], isLoading } = useAttendanceDayRange(
+    row ? [row.employee_id] : [],
+    from,
+    to,
+  );
+
 
   const t = (ts: string | null) =>
     ts ? new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "—";

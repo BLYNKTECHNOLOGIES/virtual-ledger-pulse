@@ -189,7 +189,27 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
             <CardTitle className="text-sm font-medium text-muted-foreground">Late Come / Early Out Records</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile: compact rows */}
+            <div className="sm:hidden divide-y">
+              {lateEarlyRecords.map((r: any) => (
+                <div key={r.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{r.attendance_date}</p>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {r.expected_time?.slice(0, 5)} → {r.actual_time?.slice(0, 5)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning">
+                      {r.type === 'late_come' ? 'Late Come' : 'Early Out'}
+                    </span>
+                    <p className="text-xs font-medium text-destructive mt-1">{r.difference_minutes} min</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
+
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>

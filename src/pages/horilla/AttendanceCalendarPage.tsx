@@ -187,20 +187,17 @@ export default function AttendanceCalendarPage() {
 
       {/* Legend */}
       <div className="flex gap-2 flex-wrap">
-        {Object.entries(STATUS_COLORS).map(([status, color]) => (
+        {LEGEND_STATUSES.map((status) => (
           <div
             key={status}
             className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]"
           >
-            <div className={`w-2 h-2 rounded-full ${color}`} />
-            <span className="capitalize text-muted-foreground">{status.replace("_", " ")}</span>
+            <div className={`w-2 h-2 rounded-full ${DAY_STATUS_DOT[status]}`} />
+            <span className="text-muted-foreground">{DAY_STATUS_LABEL[status]}</span>
           </div>
         ))}
-        <div className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]">
-          <div className="w-2 h-2 rounded-sm bg-muted-foreground/30" />
-          <span className="text-muted-foreground">Weekly off</span>
-        </div>
       </div>
+
 
       {/* Employee Calendar Cards */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

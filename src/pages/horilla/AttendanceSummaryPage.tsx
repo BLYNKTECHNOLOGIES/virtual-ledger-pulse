@@ -278,11 +278,12 @@ export default function AttendanceSummaryPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 border-b">
                     <tr>
-                      {["Employee", "Badge", "Working", "Present", "Paid Leave", "Held Harmless", "LOP", "OT Hours", "Late (min)", "Early Leave (min)", "Rate"].map((h) => (
-                        <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                      {["Employee", "Badge", "Working days", "Present", "Paid leave", "Not counted", "Loss of pay", "Overtime", "Late", "Early out", "Attendance"].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
+
                   <tbody>
                     {filtered.length === 0 ? (
                       <tr><td colSpan={11}><EmptyState icon={Users} title="No records for this month" description="No attendance data found for the selected month." /></td></tr>

@@ -165,6 +165,7 @@ function Kpi({
   hint,
   pct,
   tone = "primary",
+  emphasis = "neutral",
   children,
 }: {
   icon: any;
@@ -174,22 +175,36 @@ function Kpi({
   hint?: string;
   pct?: number | null;
   tone?: "primary" | "success" | "warning" | "destructive" | "info";
+  /** "alert" tints the whole card, "accent" adds a leading rail. */
+  emphasis?: "neutral" | "alert" | "accent";
   children?: React.ReactNode;
 }) {
+  const shell =
+    emphasis === "alert"
+      ? "border-destructive/25 bg-destructive/[0.04]"
+      : emphasis === "accent"
+        ? "border-l-4 border-l-primary"
+        : "";
+  const labelTone = emphasis === "alert" ? "text-destructive" : "text-muted-foreground";
+  const valueTone = emphasis === "alert" ? "text-destructive" : "text-foreground";
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${shell}`}>
       <CardContent className="p-4">
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          <Icon className={`h-3.5 w-3.5 ${iconClass}`} /> <span className="truncate">{label}</span>
-          {hint && <span className="ml-auto"><InfoDot text={hint} /></span>}
+        <div className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider ${labelTone}`}>
+          <span className="truncate">{label}</span>
+          <span className="ml-auto flex items-center gap-1.5">
+            <Icon className={`h-3.5 w-3.5 ${iconClass}`} />
+            {hint && <InfoDot text={hint} />}
+          </span>
         </div>
-        <p className="mt-2 text-3xl font-semibold tabular-nums leading-none text-foreground">{value}</p>
-        {pct != null && <div className="mt-2.5"><Meter pct={pct} tone={tone} /></div>}
+        <p className={`mt-2.5 text-[26px] font-bold tabular-nums leading-none ${valueTone}`}>{value}</p>
         {children && <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">{children}</div>}
+        {pct != null && <div className="mt-3"><Meter pct={pct} tone={tone} /></div>}
       </CardContent>
     </Card>
   );
 }
+
 
 function SectionCard({
   title,
@@ -927,30 +942,39 @@ export function AttendanceInsights({
 
       {/* Period integrity */}
       <Card className={coverage.pct < 99 ? "border-warning/40 bg-warning/[0.03]" : undefined}>
-        <CardContent className="p-3.5">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
-            <span className="font-semibold text-foreground">{monthLabel}</span>
-            <div className="flex items-center gap-2 min-w-[160px] flex-1 max-w-xs">
-              <Meter pct={coverage.pct} tone={coverage.pct >= 99 ? "success" : "warning"} />
-              <span className="tabular-nums text-xs font-medium shrink-0">{coverage.pct.toFixed(0)}%</span>
-            </div>
-            <Badge variant="secondary" className="tabular-nums">{coverage.maintainedDays}/{Math.round(totalWorkingDays)} days</Badge>
-            {coverage.pct < 99 ? (
-              <span className="inline-flex items-center gap-1 text-warning text-xs">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                <InfoDot
-                  text={`Rates are computed on maintained days only.${
-                    coverage.gapDates.length > 0
-                      ? ` Missing rows on: ${coverage.gapDates.slice(0, 8).map((g) => `${g.date.slice(5)} (${g.missing})`).join(", ")}${
-                          coverage.gapDates.length > 8 ? ` +${coverage.gapDates.length - 8} more` : ""
-                        }`
-                      : ""
-                  }`}
-                />
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[13px]">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="font-semibold text-foreground shrink-0">{monthLabel}</span>
+              <div className="w-40 shrink-0">
+                <Meter pct={coverage.pct} tone={coverage.pct >= 99 ? "success" : "warning"} />
+              </div>
+              <span className={`text-xs font-medium tabular-nums shrink-0 ${coverage.pct >= 99 ? "text-success" : "text-warning"}`}>
+                {coverage.pct.toFixed(0)}% verified
               </span>
-            ) : (
-              <InfoDot text="Maintained attendance coverage for elapsed working days — the exact source payroll loss-of-pay uses." />
-            )}
+              {coverage.pct < 99 ? (
+                <span className="inline-flex items-center gap-1 text-warning text-xs">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <InfoDot
+                    text={`Rates are computed on maintained days only.${
+                      coverage.gapDates.length > 0
+                        ? ` Missing rows on: ${coverage.gapDates.slice(0, 8).map((g) => `${g.date.slice(5)} (${g.missing})`).join(", ")}${
+                            coverage.gapDates.length > 8 ? ` +${coverage.gapDates.length - 8} more` : ""
+                          }`
+                        : ""
+                    }`}
+                  />
+                </span>
+              ) : (
+                <InfoDot text="Maintained attendance coverage for elapsed working days — the exact source payroll loss-of-pay uses." />
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground tabular-nums">
+                {coverage.maintainedDays} / {Math.round(totalWorkingDays)}
+              </span>{" "}
+              work days checked
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -959,7 +983,7 @@ export function AttendanceInsights({
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         <Kpi
           icon={TrendingUp}
-          iconClass="text-primary"
+          iconClass="text-success"
           label="Attendance"
           value={`${cur.attendanceRate.toFixed(1)}%`}
           pct={cur.attendanceRate}
@@ -976,10 +1000,10 @@ export function AttendanceInsights({
           value={`${lopPct.toFixed(1)}%`}
           pct={lopPct}
           tone="destructive"
+          emphasis={employeesWithLop > 0 ? "alert" : "neutral"}
           hint={`${Math.round(totalLop * 10) / 10} unpaid of ${Math.round(totalWorkingDays)} payable days.`}
         >
-          <Users className="h-3 w-3" />
-          <span className="tabular-nums">{employeesWithLop} affected</span>
+          <span className="tabular-nums">{employeesWithLop} employees affected</span>
         </Kpi>
 
         <Kpi
@@ -991,14 +1015,13 @@ export function AttendanceInsights({
           tone="warning"
           hint={`Average ${fmtMinutes(cur.avgLateWhenLate)} late when late.`}
         >
-          <Delta value={prev.worked > 0 ? cur.onTimeRate - prev.onTimeRate : null} />
-          <span className="tabular-nums">{cur.lateDays} late days</span>
+          <span className="tabular-nums">{cur.lateDays} late arrivals</span>
         </Kpi>
 
         <Kpi
           icon={Timer}
           iconClass="text-info"
-          label="Net hours / day"
+          label="Avg day hours"
           value={`${hours.avgHours.toFixed(2)}h`}
           pct={hours.shortPct === null ? null : 100 - hours.shortPct}
           tone="info"
@@ -1008,17 +1031,19 @@ export function AttendanceInsights({
               : `${hours.shortPct.toFixed(0)}% of ${hours.workedDays} worked days fell below the scheduled shift.`
           }
         >
-          <span className="tabular-nums">{hours.workedDays} worked days</span>
+          <span className="tabular-nums">across {hours.workedDays} worked days</span>
         </Kpi>
 
         <Kpi
           icon={UserCheck}
-          iconClass="text-destructive"
+          iconClass="text-primary"
           label="To review"
           value={String(reviewCount)}
+          emphasis="accent"
           hint="Employees losing ≥10% of days or late on ≥30% of days — ranked in the People tab."
         >
-          <span>People tab</span>
+          <span>Action needed on {reviewCount} {reviewCount === 1 ? "profile" : "profiles"}</span>
+
         </Kpi>
       </div>
 

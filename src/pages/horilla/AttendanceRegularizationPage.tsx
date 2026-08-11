@@ -480,9 +480,14 @@ export default function AttendanceRegularizationPage() {
                     First flagged {formatDistanceToNow(new Date(r.first_seen_at), { addSuffix: true })} — held harmless (0 LOP) until resolved.
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="default" onClick={() => openWatchdogDialog(r, 'set_out_time')}>
+                    <Button size="sm" variant="default" onClick={() => openWatchdogDialog(r, 'full_day')}>
+                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                      Mark full day{shiftEndLocal(r) ? ` (out ${shiftEndLocal(r)!.slice(11)})` : ''}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => openWatchdogDialog(r, 'set_out_time')}>
                       Set true out-time
                     </Button>
+
                     <Button size="sm" variant="secondary" onClick={() => openWatchdogDialog(r, 'confirm_long_shift')}>
                       Confirm long shift
                     </Button>

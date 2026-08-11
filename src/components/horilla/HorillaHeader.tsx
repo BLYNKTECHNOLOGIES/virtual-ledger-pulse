@@ -246,8 +246,10 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
                   className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-info/10" : ""}`}
                   onClick={() => {
                     if (!n.is_read) markReadMutation.mutate(n.id);
-                    if (n.link) { navigate(n.link); setOpen(false); }
+                    const target = resolveHrmsLink(n);
+                    if (target) { navigate(target); setOpen(false); }
                   }}
+
                 >
                   <div className="flex items-start gap-2">
                     {!n.is_read && <span className="w-2 h-2 rounded-full bg-info mt-1.5 shrink-0" />}

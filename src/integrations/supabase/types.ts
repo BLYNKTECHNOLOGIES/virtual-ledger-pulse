@@ -25642,6 +25642,75 @@ export type Database = {
         }
         Returns: undefined
       }
+      hr_my_payslips: {
+        Args: never
+        Returns: {
+          advance_salary: number | null
+          basic: number | null
+          dearness_allowance: number | null
+          employee_deductions: number | null
+          employee_id: string | null
+          employer_contrib: number | null
+          employer_esi: number | null
+          employer_pf: number | null
+          employer_pf_ac1: number | null
+          employer_pf_edli_admin: number | null
+          esi_amount: number | null
+          extra_variable_total: number | null
+          gross: number | null
+          has_left: boolean | null
+          has_register: boolean | null
+          hra: number | null
+          id: string | null
+          loan_emi: number | null
+          lta: number | null
+          lwf_ee: number | null
+          lwf_er: number | null
+          net: number | null
+          one_time_payments: number | null
+          one_time_recovery: number | null
+          one_time_total: number | null
+          overtime: number | null
+          pay_head_lines: Json | null
+          pdf_storage_path: string | null
+          pdf_url: string | null
+          performance_incentive: number | null
+          period_month: string | null
+          pf_amount: number | null
+          professional_tax: number | null
+          pulled_at: string | null
+          razorpay_payslip_id: number | null
+          refund_security_deposit: number | null
+          reg_bank_acc_no: string | null
+          reg_department: string | null
+          reg_designation: string | null
+          reg_dob: string | null
+          reg_esi_number: string | null
+          reg_gender: string | null
+          reg_hire_date: string | null
+          reg_ifsc: string | null
+          reg_location: string | null
+          reg_pan: string | null
+          reg_personal_email: string | null
+          reg_personal_phone: string | null
+          reg_pf_uan: string | null
+          reg_pt_location: string | null
+          register_source: string | null
+          regular_gross: number | null
+          relieving_date: string | null
+          source: string | null
+          special_allowance: number | null
+          tds_amount: number | null
+          total_deductions: number | null
+          working_days: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "hr_payslips_v"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       hr_new_joiner_check: {
         Args: { p_employee_id: string }
         Returns: {

@@ -389,25 +389,37 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 // the RazorpayX dashboard for the PDF binary — the RazorpayX API does not
 // expose PDFs, so a fake "Download" button would be dishonest.
 function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badgeId?: string | number | null }) {
-  // Some staff have more than one HR employee row (legacy + biometric-created).
-  // Payslips may be attached to the sibling row, so resolve all matching ids.
-  const { data: employeeIds = [employeeId] } = useQuery({
-    queryKey: ['ess_payslip_employee_ids', employeeId, badgeId],
+  // ESS reads its own payslips through a security-definer RPC (hr_my_payslips),
+  // which resolves every HR employee row linked to the signed-in user (including
+  // legacy/biometric duplicates sharing the same badge). Falls back to the
+  // canonical view query if the RPC is unavailable.
+  const { data: payslips = [], isLoading, error } = useQuery({
+    queryKey: ['ess_my_payslips', employeeId, badgeId],
     queryFn: async () => {
-      if (!badgeId) return [employeeId];
-      const { data } = await (supabase as any)
-        .from('hr_employees')
-        .select('id')
-        .eq('badge_id', badgeId);
-      const ids = (data ?? []).map((r: any) => r.id as string);
-      return Array.from(new Set([employeeId, ...ids]));
+      const { data, error: rpcError } = await (supabase as any).rpc('hr_my_payslips');
+      if (!rpcError && data) return data as any[];
+      const { data: viaView, error: viewError } = await (supabase as any)
+        .from('hr_payslips_v')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .order('period_month', { ascending: false });
+      if (viewError) throw rpcError ?? viewError;
+      return (viaView ?? []) as any[];
     },
   });
 
-  const { data: payslips = [], isLoading } = useCanonicalPayslips({ employeeIds });
-
-
   if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading payslips...</p>;
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-sm text-destructive">
+          Could not load your payslips: {(error as any)?.message ?? 'unknown error'}
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   if (payslips.length === 0) {
     return (

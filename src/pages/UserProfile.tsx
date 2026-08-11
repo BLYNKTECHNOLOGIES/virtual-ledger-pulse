@@ -295,12 +295,12 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings</p>
-                  <p className="text-[10px] text-muted-foreground">monthly · annual</p>
+                  <p className="text-[10px] text-muted-foreground">monthly</p>
                 </div>
                 {earnings.map((r) => renderRow(r, 'earn'))}
                 <div className="flex justify-between items-center pt-2 text-sm">
                   <span className="text-muted-foreground">Gross Earnings</span>
-                  <span className="tabular-nums font-semibold">{fmt(monthlyEarnings)} <span className="text-[10px] text-muted-foreground font-normal">/ {fmt(annualEarnings)} yr</span></span>
+                  <span className="tabular-nums font-semibold">{fmt(monthlyEarnings)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span></span>
                 </div>
               </div>
 
@@ -310,7 +310,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                   {deductions.map((r) => renderRow(r, 'ded'))}
                   <div className="flex justify-between items-center pt-2 text-sm">
                     <span className="text-muted-foreground">Total Deductions</span>
-                    <span className="tabular-nums font-semibold text-destructive">-{fmt(monthlyDeductions)} <span className="text-[10px] text-muted-foreground font-normal">/ -{fmt(annualDeductions)} yr</span></span>
+                    <span className="tabular-nums font-semibold text-destructive">-{fmt(monthlyDeductions)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span></span>
                   </div>
                 </div>
               )}
@@ -320,7 +320,6 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                 <Label className="text-base font-bold">Net Pay (approx)</Label>
                 <div className="text-right">
                   <div className="text-xl font-bold text-success tabular-nums">{fmt(monthlyNet)} <span className="text-xs text-muted-foreground font-normal">/mo</span></div>
-                  <div className="text-[11px] text-muted-foreground tabular-nums">{fmt(annualNet)} /yr</div>
                 </div>
               </div>
 
@@ -329,9 +328,6 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                   Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
                 </div>
               )}
-              <p className="text-[11px] text-muted-foreground">
-                Shown both /mo and /yr. Actual payslip may differ by LOP, one-off additions/deductions, and tax.
-              </p>
             </>
           )}
         </CardContent>

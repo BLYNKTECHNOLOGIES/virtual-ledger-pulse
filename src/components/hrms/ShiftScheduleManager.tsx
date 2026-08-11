@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -172,6 +173,7 @@ export function ShiftScheduleAssigner() {
   const qc = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
   const [form, setForm] = useState({ employee_id: "", shift_id: "", effective_from: "" });
+  const [search, setSearch] = useState("");
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active_list"],
@@ -244,30 +246,48 @@ export function ShiftScheduleAssigner() {
         {schedules.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No shift schedules assigned</p>
         ) : (
-          <div className="overflow-auto max-h-[480px]">
-            <table className="w-full text-sm min-w-[520px]">
-              <thead className="bg-muted/50 border-b sticky top-0 z-10">
-                <tr>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Employee</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Shift</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Effective From</th>
-                </tr>
-              </thead>
-              <tbody>
-                {schedules.map((s: any) => (
-                  <tr key={s.id} className="border-b hover:bg-muted/30">
-                    <td className="px-3 py-2">
-                      {s.hr_employees?.first_name} {s.hr_employees?.last_name}
-                      <span className="text-xs text-muted-foreground ml-1">({s.hr_employees?.badge_id})</span>
-                    </td>
-                    <td className="px-3 py-2">{s.hr_shifts?.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{s.effective_from}</td>
+          <>
+            <div className="relative mb-2">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search employee by name or badge ID…"
+                className="h-8 pl-8 text-sm"
+              />
+            </div>
+            <div className="overflow-auto max-h-[440px]">
+              <table className="w-full text-sm min-w-[520px]">
+                <thead className="bg-muted/50 border-b sticky top-0 z-10">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Employee</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Shift</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Effective From</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
+                </thead>
+                <tbody>
+                  {schedules
+                    .filter((s: any) => {
+                      const q = search.trim().toLowerCase();
+                      if (!q) return true;
+                      const name = `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.toLowerCase();
+                      const badge = (s.hr_employees?.badge_id ?? "").toLowerCase();
+                      return name.includes(q) || badge.includes(q);
+                    })
+                    .map((s: any) => (
+                    <tr key={s.id} className="border-b hover:bg-muted/30">
+                      <td className="px-3 py-2">
+                        {s.hr_employees?.first_name} {s.hr_employees?.last_name}
+                        <span className="text-xs text-muted-foreground ml-1">({s.hr_employees?.badge_id})</span>
+                      </td>
+                      <td className="px-3 py-2">{s.hr_shifts?.name}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{s.effective_from}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </CardContent>
 

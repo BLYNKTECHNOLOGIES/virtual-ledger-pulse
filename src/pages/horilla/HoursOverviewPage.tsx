@@ -550,17 +550,18 @@ function HoursDrilldownDialog({
                 </tr>
               </thead>
               <tbody>
-                {days.map((d: any) => (
-                  <tr key={d.attendance_date} className="border-b last:border-0">
-                    <td className="px-2 py-1.5 whitespace-nowrap">{format(new Date(`${d.attendance_date}T00:00:00`), "dd MMM (EEE)")}</td>
+                {days.map((d) => (
+                  <tr key={d.date} className="border-b last:border-0">
+                    <td className="px-2 py-1.5 whitespace-nowrap">{format(new Date(`${d.date}T00:00:00`), "dd MMM (EEE)")}</td>
                     <td className="px-2 py-1.5 tabular-nums">{t(d.first_in)}</td>
                     <td className="px-2 py-1.5 tabular-nums">{t(d.last_out)}</td>
                     <td className="px-2 py-1.5 tabular-nums">{Number(d.total_hours || 0).toFixed(2)}</td>
-                    <td className={`px-2 py-1.5 tabular-nums ${d.late_by_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.late_by_minutes || 0}m</td>
-                    <td className={`px-2 py-1.5 tabular-nums ${d.early_by_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.early_by_minutes || 0}m</td>
+                    <td className={`px-2 py-1.5 tabular-nums ${d.late_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.late_minutes || 0}m</td>
+                    <td className={`px-2 py-1.5 tabular-nums ${d.early_minutes > 0 ? "text-warning" : "text-muted-foreground"}`}>{d.early_minutes || 0}m</td>
                     <td className="px-2 py-1.5 capitalize">{String(d.status || "").replace("_", " ")}</td>
                   </tr>
                 ))}
+
               </tbody>
             </table>
           </div>

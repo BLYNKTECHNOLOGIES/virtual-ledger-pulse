@@ -327,7 +327,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                 </tbody>
               </table>
             </div>
+            </>
           )}
+
         </CardContent>
       </Card>
     </div>

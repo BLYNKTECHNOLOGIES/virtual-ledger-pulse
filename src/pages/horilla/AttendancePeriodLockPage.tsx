@@ -15,6 +15,7 @@ import { Lock, Unlock, Plus, ShieldCheck, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 export default function AttendancePeriodLockPage() {
   const qc = useQueryClient();
@@ -315,16 +316,17 @@ export default function AttendancePeriodLockPage() {
           <div className="space-y-3">
             <div>
               <Label>Sample employee</Label>
-              <Select value={verifyEmp} onValueChange={setVerifyEmp}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Pick a Razorpay-linked employee" /></SelectTrigger>
-                <SelectContent>
-                  {mappedEmployees.map((r: any) => (
-                    <SelectItem key={r.hr_employee_id} value={r.hr_employee_id}>
-                      {r.hr_employees?.first_name} {r.hr_employees?.last_name} ({r.hr_employees?.badge_id}) · rzp {r.razorpay_employee_id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeeCombobox
+                className="mt-1"
+                value={verifyEmp}
+                onChange={setVerifyEmp}
+                placeholder="Pick a Razorpay-linked employee"
+                options={mappedEmployees.map((r: any) => ({
+                  value: r.hr_employee_id,
+                  label: `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim() + ` (${r.hr_employees?.badge_id || ""}) · rzp ${r.razorpay_employee_id}`,
+                  keywords: `${r.hr_employees?.badge_id || ""} ${r.razorpay_employee_id || ""}`,
+                }))}
+              />
               {mappedEmployees.length === 0 && (
                 <p className="text-xs text-muted-foreground mt-2">
                   No employees linked to Razorpay yet. Complete People sync first from the Payroll Sync journey.

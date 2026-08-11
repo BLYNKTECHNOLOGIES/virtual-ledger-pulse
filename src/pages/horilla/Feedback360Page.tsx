@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 interface Feedback {
   id: string;
@@ -209,17 +210,11 @@ export default function Feedback360Page() {
           <div className="space-y-4">
             <div>
               <Label>Employee *</Label>
-              <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
-              </Select>
+              <EmployeePicker className="mt-1" employees={employees} value={form.employee_id} onChange={(v) => setForm({ ...form, employee_id: v })} />
             </div>
             <div>
               <Label>Reviewer</Label>
-              <Select value={form.reviewer_id} onValueChange={(v) => setForm({ ...form, reviewer_id: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select reviewer" /></SelectTrigger>
-                <SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
-              </Select>
+              <EmployeePicker className="mt-1" placeholder="Select reviewer" employees={employees} value={form.reviewer_id} onChange={(v) => setForm({ ...form, reviewer_id: v })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Review Cycle *</Label><Input className="h-9 mt-1" placeholder="e.g. Q1-2026" value={form.review_cycle} onChange={(e) => setForm({ ...form, review_cycle: e.target.value })} /></div>

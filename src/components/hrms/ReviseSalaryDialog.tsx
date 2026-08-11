@@ -18,6 +18,7 @@ import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { Switch } from "@/components/ui/switch";
 import { additionTypeCode } from "@/lib/hrms/additionType";
 import { BulkCompensationPanel } from "@/components/hrms/BulkCompensationPanel";
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 
 
@@ -489,18 +490,17 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
           <div>
             <Label>Employee</Label>
-            <Select value={employeeId} onValueChange={setEmployeeId} disabled={!!presetEmployeeId}>
-              <SelectTrigger className="text-foreground">
-                <SelectValue placeholder="Select employee..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {employees.map((e: any) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.first_name} {e.last_name} {e.badge_id ? `· ${e.badge_id}` : ""}{!e.is_active ? " (Separated)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EmployeeCombobox
+              value={employeeId}
+              onChange={setEmployeeId}
+              disabled={!!presetEmployeeId}
+              placeholder="Select employee..."
+              options={(employees || []).map((e: any) => ({
+                value: e.id,
+                label: `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") + (!e.is_active ? " (Separated)" : ""),
+                keywords: e.badge_id || "",
+              }))}
+            />
             {employee && mode === "recurring" && (
               <p className="text-xs text-muted-foreground mt-1">
                 Current CTC ₹{currentTotal.toLocaleString("en-IN")} · Basic ₹{currentBasic.toLocaleString("en-IN")}

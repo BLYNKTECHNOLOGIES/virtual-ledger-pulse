@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 type ResignationEmployee = {
   id: string;
@@ -582,14 +583,16 @@ export function ResignationTab() {
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
-              <Select value={formData.employee_id} onValueChange={v => setFormData(p => ({ ...p, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {activeEmployees?.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} (#{e.badge_id})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeeCombobox
+                value={formData.employee_id}
+                onChange={v => setFormData(p => ({ ...p, employee_id: v }))}
+                placeholder="Select employee"
+                options={(activeEmployees || []).map((e: any) => ({
+                  value: e.id,
+                  label: `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` (#${e.badge_id})` : ""),
+                  keywords: e.badge_id || "",
+                }))}
+              />
             </div>
             <div>
               <Label>Resignation Date</Label>

@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 export default function AttendanceOverviewPage() {
   const queryClient = useQueryClient();
@@ -327,14 +328,7 @@ export default function AttendanceOverviewPage() {
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
-              <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {employees.map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeePicker employees={employees} value={form.employee_id} onChange={(v) => setForm({ ...form, employee_id: v })} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Date</Label><Input type="date" className="h-9" value={form.attendance_date} onChange={(e) => setForm({ ...form, attendance_date: e.target.value })} /></div>

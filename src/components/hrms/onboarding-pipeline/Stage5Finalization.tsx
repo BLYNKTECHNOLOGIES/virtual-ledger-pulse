@@ -15,6 +15,7 @@ import { reconcileOnboarding, isReconciled, unresolvedCount, type ReconcileDiff 
 import { Checkbox } from "@/components/ui/checkbox";
 import { suggestNextEmployeeId } from "@/lib/hrms/suggestEmployeeId";
 import { Sparkles } from "lucide-react";
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 interface Stage5Props {
   onboardingRecord: any;
@@ -1659,12 +1660,19 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           </div>
           <div>
             <Label>Reporting Manager</Label>
-            <Select value={form.reporting_manager_id} onValueChange={v => updateForm({ reporting_manager_id: v })} disabled={readOnly}>
-              <SelectTrigger><SelectValue placeholder="Select Manager" /></SelectTrigger>
-              <SelectContent>
-                {managers?.map(m => <SelectItem key={m.id} value={m.id}>{`${m.first_name} ${m.last_name || ''}`.trim()}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <EmployeeCombobox
+              value={form.reporting_manager_id}
+              onChange={v => updateForm({ reporting_manager_id: v })}
+              disabled={readOnly}
+              placeholder="Select Manager"
+              searchPlaceholder="Search manager…"
+              emptyText="No manager found."
+              options={(managers || []).map((m: any) => ({
+                value: m.id,
+                label: `${m.first_name} ${m.last_name || ''}`.trim(),
+                keywords: m.badge_id || "",
+              }))}
+            />
           </div>
         </div>
 

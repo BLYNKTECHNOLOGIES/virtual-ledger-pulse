@@ -16,6 +16,7 @@ import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { toast } from "sonner";
 import { Plus, CalendarDays, Users, Trash2, UsersRound, Search } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -316,14 +317,7 @@ export default function WeeklyOffPage() {
           <div className="space-y-3">
             <div>
               <Label>Employee</Label>
-              <Select value={assignForm.employee_id} onValueChange={v => setAssignForm({ ...assignForm, employee_id: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select employee..." /></SelectTrigger>
-                <SelectContent>
-                  {employees.map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeePicker className="mt-1" placeholder="Select employee..." employees={employees} value={assignForm.employee_id} onChange={v => setAssignForm({ ...assignForm, employee_id: v })} />
             </div>
             <div>
               <Label>Pattern</Label>

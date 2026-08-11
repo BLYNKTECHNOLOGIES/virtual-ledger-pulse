@@ -19,6 +19,7 @@ import { Cpu, Users, Fingerprint, ScrollText, Image as ImageIcon, Activity, Wifi
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 interface Props {
   open: boolean;
@@ -746,16 +747,16 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
           </AlertDialogHeader>
           <div className="space-y-2">
             <Label className="text-xs">Employee</Label>
-            <Select value={linkEmployeeId} onValueChange={setLinkEmployeeId}>
-              <SelectTrigger><SelectValue placeholder="Select an employee…" /></SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {(employeesQ.data || []).map((e: any) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.first_name} {e.last_name} {e.badge_id ? `(${e.badge_id})` : ""}{e.is_active === false ? " · draft" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EmployeeCombobox
+              value={linkEmployeeId}
+              onChange={setLinkEmployeeId}
+              placeholder="Select an employee…"
+              options={(employeesQ.data || []).map((e: any) => ({
+                value: e.id,
+                label: `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` (${e.badge_id})` : "") + (e.is_active === false ? " · draft" : ""),
+                keywords: e.badge_id || "",
+              }))}
+            />
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={linking}>Cancel</AlertDialogCancel>

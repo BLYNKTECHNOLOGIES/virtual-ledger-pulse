@@ -102,65 +102,100 @@ export default function RegularizationCard({ employeeId }: Props) {
 
   return (
     <Card>
-      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
           <Clock className="h-4 w-4" /> Attendance Regularization
         </CardTitle>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> New Request
+        <Button size="sm" className="shrink-0" onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New Request</span>
         </Button>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
           <p className="text-center py-6 text-muted-foreground text-sm">Loading...</p>
         ) : requests.length === 0 ? (
-          <p className="text-center py-6 text-muted-foreground text-sm">
+          <p className="text-center py-6 px-4 text-muted-foreground text-sm">
             No requests yet. Missed a punch? Raise a request and HR will review.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested In</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested Out</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Reason</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
-                  <th className="text-right px-4 py-2 font-medium text-muted-foreground">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((r: any) => {
-                  const meta = statusMeta[r.status] || statusMeta.pending;
-                  const Icon = meta.icon;
-                  return (
-                    <tr key={r.id} className="border-b hover:bg-muted/30">
-                      <td className="px-4 py-2 font-medium">{r.attendance_date}</td>
-                      <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_in)}</td>
-                      <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_out)}</td>
-                      <td className="px-4 py-2 max-w-xs truncate" title={r.reason}>{r.reason}</td>
-                      <td className="px-4 py-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.cls}`}>
-                          <Icon className="h-3 w-3" /> {meta.label}
-                        </span>
-                        {r.approver_notes && (
-                          <p className="text-xs text-muted-foreground mt-1 italic">"{r.approver_notes}"</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        {r.status === 'pending' && (
-                          <Button size="sm" variant="ghost" onClick={() => cancel.mutate(r.id)}>Cancel</Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile: stacked cards */}
+            <div className="sm:hidden divide-y">
+              {requests.map((r: any) => {
+                const meta = statusMeta[r.status] || statusMeta.pending;
+                const Icon = meta.icon;
+                return (
+                  <div key={r.id} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm">{r.attendance_date}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.cls}`}>
+                        <Icon className="h-3 w-3" /> {meta.label}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>In <span className="font-mono text-foreground">{fmtTime(r.requested_check_in)}</span></span>
+                      <span>Out <span className="font-mono text-foreground">{fmtTime(r.requested_check_out)}</span></span>
+                    </div>
+                    <p className="text-sm text-foreground break-words">{r.reason}</p>
+                    {r.approver_notes && (
+                      <p className="text-xs text-muted-foreground italic break-words">"{r.approver_notes}"</p>
+                    )}
+                    {r.status === 'pending' && (
+                      <Button size="sm" variant="outline" className="w-full" onClick={() => cancel.mutate(r.id)}>
+                        Cancel request
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested In</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested Out</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Reason</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
+                    <th className="text-right px-4 py-2 font-medium text-muted-foreground">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map((r: any) => {
+                    const meta = statusMeta[r.status] || statusMeta.pending;
+                    const Icon = meta.icon;
+                    return (
+                      <tr key={r.id} className="border-b hover:bg-muted/30">
+                        <td className="px-4 py-2 font-medium">{r.attendance_date}</td>
+                        <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_in)}</td>
+                        <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_out)}</td>
+                        <td className="px-4 py-2 max-w-xs truncate" title={r.reason}>{r.reason}</td>
+                        <td className="px-4 py-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.cls}`}>
+                            <Icon className="h-3 w-3" /> {meta.label}
+                          </span>
+                          {r.approver_notes && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">"{r.approver_notes}"</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {r.status === 'pending' && (
+                            <Button size="sm" variant="ghost" onClick={() => cancel.mutate(r.id)}>Cancel</Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </CardContent>
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
@@ -169,7 +204,7 @@ export default function RegularizationCard({ employeeId }: Props) {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Date</Label>
+              <Label className="mb-1.5 block">Date</Label>
               <Input
                 type="date"
                 value={form.attendance_date}
@@ -179,7 +214,7 @@ export default function RegularizationCard({ employeeId }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Check-In</Label>
+                <Label className="mb-1.5 block">Check-In</Label>
                 <Input
                   type="time"
                   value={form.requested_check_in}
@@ -187,7 +222,7 @@ export default function RegularizationCard({ employeeId }: Props) {
                 />
               </div>
               <div>
-                <Label>Check-Out</Label>
+                <Label className="mb-1.5 block">Check-Out</Label>
                 <Input
                   type="time"
                   value={form.requested_check_out}
@@ -196,7 +231,7 @@ export default function RegularizationCard({ employeeId }: Props) {
               </div>
             </div>
             <div>
-              <Label>Reason *</Label>
+              <Label className="mb-1.5 block">Reason *</Label>
               <Textarea
                 rows={3}
                 placeholder="e.g. Forgot to punch out, biometric device was offline, on client visit..."
@@ -205,9 +240,9 @@ export default function RegularizationCard({ employeeId }: Props) {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button className="w-full sm:w-auto" onClick={() => submit.mutate()} disabled={submit.isPending}>
               {submit.isPending ? 'Submitting...' : 'Submit Request'}
             </Button>
           </DialogFooter>

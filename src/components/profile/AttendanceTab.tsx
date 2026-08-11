@@ -115,10 +115,10 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
 
       {/* Month selector */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h3 className="text-lg font-semibold text-foreground">Attendance & Hours</h3>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -130,50 +130,51 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <CheckCircle className="h-5 w-5 text-success mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{presentDays}</p>
-            <p className="text-xs text-muted-foreground">Present Days</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{presentDays}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Present</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <CalendarDays className="h-5 w-5 text-destructive mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{absentDays}</p>
-            <p className="text-xs text-muted-foreground">Absent Days</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{absentDays}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Absent</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <Clock className="h-5 w-5 text-info mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{workedHrs.toFixed(1)}</p>
-            <p className="text-xs text-muted-foreground">Worked Hours</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{workedHrs.toFixed(1)}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Worked hrs</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <TrendingUp className="h-5 w-5 text-primary mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{otHrs.toFixed(1)}</p>
-            <p className="text-xs text-muted-foreground">Overtime Hours</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{otHrs.toFixed(1)}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">OT hrs</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <AlertTriangle className="h-5 w-5 text-warning mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{lateCount}</p>
-            <p className="text-xs text-muted-foreground">Late Marks</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{lateCount}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Late</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <Timer className="h-5 w-5 text-warning mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{earlyCount}</p>
-            <p className="text-xs text-muted-foreground">Early Outs</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{earlyCount}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Early out</p>
           </CardContent>
         </Card>
       </div>
+
 
       {/* Regularization requests */}
       <RegularizationCard employeeId={employeeId} />
@@ -188,7 +189,27 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
             <CardTitle className="text-sm font-medium text-muted-foreground">Late Come / Early Out Records</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile: compact rows */}
+            <div className="sm:hidden divide-y">
+              {lateEarlyRecords.map((r: any) => (
+                <div key={r.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{r.attendance_date}</p>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {r.expected_time?.slice(0, 5)} → {r.actual_time?.slice(0, 5)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning">
+                      {r.type === 'late_come' ? 'Late Come' : 'Early Out'}
+                    </span>
+                    <p className="text-xs font-medium text-destructive mt-1">{r.difference_minutes} min</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
+
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>
@@ -233,7 +254,33 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
           ) : dailyRecords.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">No attendance records for this month</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile: day cards */}
+            <div className="sm:hidden divide-y">
+              {dailyRecords.map((r: any) => {
+                const hrs = r.check_in && r.check_out
+                  ? ((new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 3600000).toFixed(1)
+                  : '—';
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">{r.attendance_date}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${statusColor(r.attendance_status)}`}>
+                        {r.attendance_status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="font-mono text-foreground">{formatTime(r.check_in)} – {formatTime(r.check_out)}</span>
+                      <span>{hrs}h</span>
+                      {r.late_minutes > 0 && <span className="text-warning font-medium">Late {r.late_minutes}m</span>}
+                      {r.overtime_hours > 0 && <span className="text-primary font-medium">OT {r.overtime_hours}h</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
+
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>
@@ -280,7 +327,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                 </tbody>
               </table>
             </div>
+            </>
           )}
+
         </CardContent>
       </Card>
     </div>

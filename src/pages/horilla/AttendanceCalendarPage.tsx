@@ -141,8 +141,10 @@ export default function AttendanceCalendarPage() {
 
 
   return (
+    <TooltipProvider delayDuration={120}>
     <div className="hrms-page space-y-4 page-mount">
       <PageHeader
+
         title="Attendance Calendar"
         description="Monthly attendance view per employee"
         actions={

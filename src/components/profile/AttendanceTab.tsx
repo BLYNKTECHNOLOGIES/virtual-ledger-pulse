@@ -115,10 +115,10 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
 
       {/* Month selector */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h3 className="text-lg font-semibold text-foreground">Attendance & Hours</h3>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -130,50 +130,51 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <CheckCircle className="h-5 w-5 text-success mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{presentDays}</p>
-            <p className="text-xs text-muted-foreground">Present Days</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{presentDays}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Present</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <CalendarDays className="h-5 w-5 text-destructive mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{absentDays}</p>
-            <p className="text-xs text-muted-foreground">Absent Days</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{absentDays}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Absent</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <Clock className="h-5 w-5 text-info mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{workedHrs.toFixed(1)}</p>
-            <p className="text-xs text-muted-foreground">Worked Hours</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{workedHrs.toFixed(1)}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Worked hrs</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <TrendingUp className="h-5 w-5 text-primary mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{otHrs.toFixed(1)}</p>
-            <p className="text-xs text-muted-foreground">Overtime Hours</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{otHrs.toFixed(1)}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">OT hrs</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <AlertTriangle className="h-5 w-5 text-warning mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{lateCount}</p>
-            <p className="text-xs text-muted-foreground">Late Marks</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{lateCount}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Late</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <Timer className="h-5 w-5 text-warning mx-auto mb-1" />
-            <p className="text-2xl font-bold text-foreground">{earlyCount}</p>
-            <p className="text-xs text-muted-foreground">Early Outs</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground">{earlyCount}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Early out</p>
           </CardContent>
         </Card>
       </div>
+
 
       {/* Regularization requests */}
       <RegularizationCard employeeId={employeeId} />

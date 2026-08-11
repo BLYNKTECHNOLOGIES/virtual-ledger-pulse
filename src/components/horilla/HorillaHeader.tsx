@@ -15,6 +15,20 @@ interface HorillaHeaderProps {
   isMobile?: boolean;
 }
 
+/**
+ * Inside the HRMS portal, employee-self notification deep links (/profile...) are the wrong
+ * destination — HR should land on the matching HRMS workspace page instead.
+ */
+function resolveHrmsLink(n: any): string | null {
+  const type: string = n?.notification_type || n?.type || "";
+  const link: string = n?.link || "";
+  const isSelfLink = !link || link.startsWith("/profile");
+  if (type.startsWith("regularization") && isSelfLink) return "/hrms/attendance/regularization";
+  if (type.startsWith("leave") && isSelfLink) return "/hrms/leave/requests";
+  return link || null;
+}
+
+
 export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHeaderProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();

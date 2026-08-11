@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { SeedDepositsDialog } from "@/components/hr/payroll/SeedDepositsDialog";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 type DepositType = "security" | "error_recovery";
 
@@ -383,14 +384,7 @@ export default function DepositManagementPage() {
       {!isEdit && (
         <div>
           <Label>Employee</Label>
-          <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-            <SelectContent>
-              {employees.map((e: any) => (
-                <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <EmployeePicker employees={employees} value={form.employee_id} onChange={(v) => setForm({ ...form, employee_id: v })} />
         </div>
       )}
       <div>

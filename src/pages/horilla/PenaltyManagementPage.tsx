@@ -18,6 +18,7 @@ import { AlertTriangle, Plus, Settings, FileText, Gavel, Clock, Trash2, Edit2, C
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 export default function PenaltyManagementPage() {
   const qc = useQueryClient();
@@ -544,14 +545,7 @@ export default function PenaltyManagementPage() {
           <div className="space-y-4">
             <div>
               <Label>Employee</Label>
-              <Select value={penaltyForm.employee_id} onValueChange={(v) => setPenaltyForm({ ...penaltyForm, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {employees.map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeePicker employees={employees} value={penaltyForm.employee_id} onChange={(v) => setPenaltyForm({ ...penaltyForm, employee_id: v })} />
             </div>
             <div>
               <Label>Penalty Type</Label>

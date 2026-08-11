@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 const STATUS_COLORS: Record<string, string> = {
   present: "bg-success",
@@ -179,13 +180,13 @@ export default function AttendanceCalendarPage() {
           <span className="font-semibold text-sm min-w-[140px] text-center">{format(currentMonth, "MMMM yyyy")}</span>
           <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
         </div>
-        <Select value={selectedEmp} onValueChange={setSelectedEmp}>
-          <SelectTrigger className="w-full sm:w-48 h-9"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Employees</SelectItem>
-            {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <EmployeePicker
+          employees={employees}
+          value={selectedEmp}
+          onChange={setSelectedEmp}
+          allOption={{ value: "all", label: "All Employees" }}
+          className="w-full sm:w-48"
+        />
         <div className="relative flex-1 min-w-0 sm:min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />

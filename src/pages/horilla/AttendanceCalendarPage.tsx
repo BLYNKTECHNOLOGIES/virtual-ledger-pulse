@@ -376,6 +376,20 @@ export default function AttendanceCalendarPage() {
             </div>
           </div>
       </ResponsiveDialog>
+
+      {/* Per-day detail */}
+      {dayDialog && (
+        <AttendanceDayDialog
+          open={!!dayDialog}
+          onOpenChange={(o) => !o && setDayDialog(null)}
+          employeeId={dayDialog.emp.id}
+          employeeName={`${dayDialog.emp.first_name} ${dayDialog.emp.last_name}`}
+          badgeId={dayDialog.emp.badge_id}
+          date={dayDialog.date}
+        />
+      )}
     </div>
+    </TooltipProvider>
   );
+
 }

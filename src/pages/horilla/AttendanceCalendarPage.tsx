@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight, Search, Users, Calendar } from "lucide-react";
@@ -18,32 +19,15 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
+import { AttendanceDayDialog } from "@/components/hrms/attendance/AttendanceDayDialog";
 
-const STATUS_COLORS: Record<string, string> = {
-  present: "bg-success",
-  absent: "bg-destructive",
-  late: "bg-warning",
-  half_day: "bg-info",
-  holiday: "bg-primary",
-  leave: "bg-primary",
-};
+/** Statuses shown in the legend, in reading order. */
+const LEGEND_STATUSES: AttendanceDayStatus[] = [
+  "present", "half_day", "absent", "on_leave", "holiday", "week_off", "incomplete", "in_progress", "no_punch",
+];
 
-// Tile styles for filled calendar day cells (semantic tokens only)
-const STATUS_TILE: Record<string, string> = {
-  present: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
-  absent: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
-  late: "bg-warning/20 text-warning-foreground ring-1 ring-inset ring-warning/40",
-  half_day: "bg-info/15 text-info ring-1 ring-inset ring-info/30",
-  holiday: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
-  leave: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
-};
-
-const STATUS_BG: Record<string, string> = {
-  present: "bg-success/10 border-success/20 text-success",
-  absent: "bg-destructive/10 border-destructive/20 text-destructive",
-  late: "bg-warning/10 border-warning/20 text-warning",
-  half_day: "bg-info/10 border-info/20 text-info",
-};
 
 export default function AttendanceCalendarPage() {
   const qc = useQueryClient();

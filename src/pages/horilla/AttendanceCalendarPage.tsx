@@ -89,16 +89,6 @@ export default function AttendanceCalendarPage() {
     },
   });
 
-  // Build attendance lookup: { "emp_id": { "2026-02-15": status } }
-  const attendanceMap = useMemo(() => {
-    const map: Record<string, Record<string, any>> = {};
-    attendance.forEach((a: any) => {
-      if (!map[a.employee_id]) map[a.employee_id] = {};
-      map[a.employee_id][a.attendance_date] = a;
-    });
-    return map;
-  }, [attendance]);
-
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDay = getDay(monthStart); // 0=Sun
   const { data: complianceSettings } = useComplianceSettings();
@@ -110,17 +100,45 @@ export default function AttendanceCalendarPage() {
     return `${e.first_name} ${e.last_name}`.toLowerCase().includes(q) || e.badge_id?.toLowerCase().includes(q);
   });
 
+  // v4 engine truth for every visible employee this month (single sanctioned reader).
+  const visibleIds = useMemo(() => filteredEmps.map((e: any) => e.id), [filteredEmps]);
+  const { data: engineDays = [], isLoading: daysLoading } = useAttendanceDayRange(
+    visibleIds,
+    format(monthStart, "yyyy-MM-dd"),
+    format(monthEnd, "yyyy-MM-dd"),
+  );
+
+  // Lookup: { emp_id: { "2026-08-11": AttendanceDay } }
+  const attendanceMap = useMemo(() => {
+    const map: Record<string, Record<string, AttendanceDay>> = {};
+    (engineDays as AttendanceDay[]).forEach((d) => {
+      if (!map[d.employee_id]) map[d.employee_id] = {};
+      map[d.employee_id][d.date] = d;
+    });
+    return map;
+  }, [engineDays]);
+
   const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
 
-  // Monthly stats
+  // Monthly stats — engine statuses only.
   const monthStats = useMemo(() => {
-    const total = attendance.length;
-    const present = attendance.filter((a: any) => a.attendance_status === "present").length;
-    const absent = attendance.filter((a: any) => a.attendance_status === "absent").length;
-    const late = attendance.filter((a: any) => a.attendance_status === "late").length;
-    return { total, present, absent, late, rate: total > 0 ? ((present / total) * 100).toFixed(1) : "0" };
-  }, [attendance]);
+    const rows = engineDays as AttendanceDay[];
+    const counted = rows.filter((d) => !["week_off", "holiday", "no_data"].includes(d.status));
+    const present = rows.filter((d) => d.status === "present").length;
+    const half = rows.filter((d) => d.status === "half_day").length;
+    const absent = rows.filter((d) => d.status === "absent").length;
+    const late = rows.filter((d) => d.is_late).length;
+    const base = counted.length;
+    return {
+      total: base,
+      present,
+      absent,
+      late,
+      rate: base > 0 ? (((present + half * 0.5) / base) * 100).toFixed(1) : "0",
+    };
+  }, [engineDays]);
+
 
   return (
     <div className="hrms-page space-y-4 page-mount">

@@ -160,16 +160,17 @@ export default function ShiftsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Shift Rotation & Weekly Off */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6">
-        <ShiftScheduleAssigner />
-        <WeeklyOffManager />
-      </div>
-
       {/* Attendance Policies (merged from the former Attendance Policies page) */}
       <div className="pt-6 mt-6 border-t">
         <AttendancePoliciesPanel />
       </div>
+
+      {/* Shift Rotation & Weekly Off */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6 pt-6 border-t">
+        <ShiftScheduleAssigner />
+        <WeeklyOffManager />
+      </div>
+
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { WeeklyOffManager, ShiftScheduleAssigner } from "@/components/hrms/ShiftScheduleManager";
+import { AttendancePoliciesPanel } from "@/components/hrms/AttendancePoliciesPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,7 @@ export default function ShiftsPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Work Shifts"
-        description="Manage employee work shifts and schedules"
+        description="Manage work shifts, rotations, weekly-offs and attendance policies"
         actions={
           <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
             <Plus className="h-4 w-4 mr-2" /> Add Shift
@@ -163,6 +164,11 @@ export default function ShiftsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6">
         <ShiftScheduleAssigner />
         <WeeklyOffManager />
+      </div>
+
+      {/* Attendance Policies (merged from the former Attendance Policies page) */}
+      <div className="pt-6 mt-6 border-t">
+        <AttendancePoliciesPanel />
       </div>
     </div>
   );

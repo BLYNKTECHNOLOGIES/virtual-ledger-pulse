@@ -97,7 +97,6 @@ const CompOffPage = lazy(() => import('./pages/horilla/CompOffPage'));
 const DepositManagementPage = lazy(() => import('./pages/horilla/DepositManagementPage'));
 const LoansPage = lazy(() => import('./pages/horilla/LoansPage'));
 const LeaveYearEndResetPage = lazy(() => import('./pages/horilla/LeaveYearEndResetPage'));
-const AttendancePolicyPage = lazy(() => import('./pages/horilla/AttendancePolicyPage'));
 const FnFSettlementPage = lazy(() => import('./pages/horilla/FnFSettlementPage'));
 const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumentsPage'));
 const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
@@ -731,7 +730,7 @@ const router = createBrowserRouter([
         { path: "attendance/hour-accounts", element: <Navigate to="/hrms/attendance/hours" replace /> },
         { path: "attendance/late-early", element: <LateComeEarlyOutPage /> },
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
-        { path: "attendance/policies", element: <AttendancePolicyPage /> },
+        { path: "attendance/policies", element: <Navigate to="/hrms/attendance/shifts" replace /> },
         { path: "attendance/punches", element: <AttendancePunchesPage /> },
         { path: "attendance/monthly-hours", element: <Navigate to="/hrms/attendance/hours" replace /> },
 

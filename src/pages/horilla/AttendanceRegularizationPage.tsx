@@ -47,7 +47,7 @@ const REASON_CODES: Array<{ value: string; label: string; help: string }> = [
   { value: 'other_documented', label: 'Other (documented)', help: 'Any other reason — explain fully in notes.' },
 ];
 
-type Resolution = 'set_out_time' | 'confirm_long_shift' | 'void';
+type Resolution = 'set_out_time' | 'confirm_long_shift' | 'void' | 'full_day';
 
 type StaleRow = {
   id: string;
@@ -99,6 +99,37 @@ export default function AttendanceRegularizationPage() {
     refetchInterval: 60_000,
   });
 
+  // ---------- Shift-end map (for "Mark full day") ----------
+  const staleEmployeeIds = staleRows.map((r) => r.employee_id);
+  const { data: shiftMap = {} } = useQuery({
+    queryKey: ['stale_shift_ends', staleEmployeeIds.join(',')],
+    enabled: staleEmployeeIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('hr_employee_shift_schedule')
+        .select('employee_id, hr_shifts:shift_id(name, start_time, end_time, is_night_shift)')
+        .in('employee_id', staleEmployeeIds)
+        .eq('is_current', true);
+      const map: Record<string, { name: string; start_time: string; end_time: string; is_night_shift: boolean }> = {};
+      (data || []).forEach((r: any) => { if (r.hr_shifts) map[r.employee_id] = r.hr_shifts; });
+      return map;
+    },
+  });
+
+  /** Shift end as an IST wall-clock string (yyyy-MM-ddTHH:mm) for the row's attendance date. */
+  const shiftEndLocal = (r: StaleRow): string | null => {
+    const s = (shiftMap as any)[r.employee_id];
+    if (!s?.end_time) return null;
+    const [eh, em] = String(s.end_time).split(':').map(Number);
+    const [sh, sm] = String(s.start_time || '00:00').split(':').map(Number);
+    const endsNextDay = s.is_night_shift || eh * 60 + em <= sh * 60 + sm;
+    const d = new Date(`${r.attendance_date}T00:00:00`);
+    if (endsNextDay) d.setDate(d.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(eh)}:${pad(em)}`;
+  };
+
+
   const runWatchdog = useMutation({
     mutationFn: async () => {
       const { data, error } = await (supabase as any).functions.invoke('hr-attendance-watchdog');
@@ -146,7 +177,14 @@ export default function AttendanceRegularizationPage() {
   const openWatchdogDialog = (row: StaleRow, resolution: Resolution) => {
     setDlg({ row, resolution });
     setNote('');
-    if (resolution === 'set_out_time') {
+    if (resolution === 'full_day') {
+      const end = shiftEndLocal(row);
+      if (!end) {
+        toast.error('No shift assigned for this employee — use "Set true out-time".');
+        setDlg({ row, resolution: 'set_out_time' });
+      }
+      setOutTime(end ?? '');
+    } else if (resolution === 'set_out_time') {
       const suggested = new Date(new Date(row.in_time).getTime() + 9 * 60 * 60 * 1000);
       const istOffset = 5.5 * 60 * 60 * 1000;
       const local = new Date(suggested.getTime() + istOffset - suggested.getTimezoneOffset() * 60 * 1000);
@@ -158,16 +196,19 @@ export default function AttendanceRegularizationPage() {
 
   const submitWatchdog = () => {
     if (!dlg) return;
+    const isOutTimeResolution = dlg.resolution === 'set_out_time' || dlg.resolution === 'full_day';
     const args: any = {
       session_id: dlg.row.session_id,
       employee_id: dlg.row.employee_id,
-      resolution: dlg.resolution,
-      note,
+      // "Mark full day" is a set_out_time resolution pinned to the shift end.
+      resolution: isOutTimeResolution ? 'set_out_time' : dlg.resolution,
+      note: dlg.resolution === 'full_day' ? (note ? `Marked full day · ${note}` : 'Marked full day (shift end out-time)') : note,
     };
-    if (dlg.resolution === 'set_out_time') {
+    if (isOutTimeResolution) {
       if (!outTime) return toast.error('Pick an out-time');
       args.out_time = new Date(new Date(outTime).getTime() - 5.5 * 60 * 60 * 1000).toISOString();
     }
+    resolve.mutate(args);
     resolve.mutate(args);
   };
 
@@ -439,9 +480,14 @@ export default function AttendanceRegularizationPage() {
                     First flagged {formatDistanceToNow(new Date(r.first_seen_at), { addSuffix: true })} — held harmless (0 LOP) until resolved.
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="default" onClick={() => openWatchdogDialog(r, 'set_out_time')}>
+                    <Button size="sm" variant="default" onClick={() => openWatchdogDialog(r, 'full_day')}>
+                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                      Mark full day{shiftEndLocal(r) ? ` (out ${shiftEndLocal(r)!.slice(11)})` : ''}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => openWatchdogDialog(r, 'set_out_time')}>
                       Set true out-time
                     </Button>
+
                     <Button size="sm" variant="secondary" onClick={() => openWatchdogDialog(r, 'confirm_long_shift')}>
                       Confirm long shift
                     </Button>
@@ -657,6 +703,7 @@ export default function AttendanceRegularizationPage() {
         open={!!dlg}
         onOpenChange={(o) => !o && setDlg(null)}
         title={
+          dlg?.resolution === 'full_day' ? 'Mark full day' :
           dlg?.resolution === 'set_out_time' ? 'Set true out-time' :
           dlg?.resolution === 'confirm_long_shift' ? 'Confirm long shift' :
           'Void session'
@@ -666,15 +713,23 @@ export default function AttendanceRegularizationPage() {
           {dlg && (
             <div className="text-xs text-muted-foreground p-2 rounded bg-muted/40">
               {dlg.row.employee?.first_name} {dlg.row.employee?.last_name} — window {dlg.row.attendance_date} · open {dlg.row.hours_open}h
+              {dlg.resolution === 'full_day' && (shiftMap as any)[dlg.row.employee_id] && (
+                <> · shift {(shiftMap as any)[dlg.row.employee_id].name} ends {(shiftMap as any)[dlg.row.employee_id].end_time?.slice(0, 5)}</>
+              )}
             </div>
           )}
-          {dlg?.resolution === 'set_out_time' && (
+          {(dlg?.resolution === 'set_out_time' || dlg?.resolution === 'full_day') && (
             <div className="space-y-1">
               <Label>Out-time (IST)</Label>
               <Input type="datetime-local" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Inserts a manual out-punch and rebuilds the day.</p>
+              <p className="text-xs text-muted-foreground">
+                {dlg?.resolution === 'full_day'
+                  ? 'Pre-filled with the shift end time — inserts a manual out-punch and rebuilds the day as a full day.'
+                  : 'Inserts a manual out-punch and rebuilds the day.'}
+              </p>
             </div>
           )}
+
           {dlg?.resolution === 'confirm_long_shift' && (
             <div className="text-sm text-muted-foreground">
               Marks a genuine long shift. Out-time is capped at <b>watchdog + 2h</b> from the in-time and the day is stamped

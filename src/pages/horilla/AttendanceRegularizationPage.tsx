@@ -22,20 +22,8 @@ import { TableSkeleton } from '@/components/ui/skeleton';
 import { ResponsiveDialog } from '@/components/horilla/primitives/ResponsiveDialog';
 
 /**
- * Attendance Watchdog + Interventions (R2 · doctrine).
- *
- * ONE page, TWO stacked concerns:
- *   1) Watchdog cards (top)   → stale sessions >12h; three explicit verbs
- *                                (set true out-time / confirm long shift / void).
- *      Fairness rule: while a stale session is unresolved, hr_lop_days holds
- *      that day at 0 LOP so no one is docked for a day the engine hasn't
- *      finished thinking about.
- *   2) Legacy regularization requests (collapsible) → read-only for history +
- *      any residual pending items; every approval demands a reason code +
- *      note and is audited into hr_attendance_intervention_log.
- *
- * The old /hrms/attendance/regularization route and the /hrms/attendance/watchdog
- * alias both land here (route added in App.tsx).
+ * Attendance Regularization requests (HR review).
+ * Stale-session resolution lives on its own page (/hrms/attendance/stale-sessions).
  */
 
 const REASON_CODES: Array<{ value: string; label: string; help: string }> = [

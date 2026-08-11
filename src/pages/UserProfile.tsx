@@ -251,9 +251,6 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
             <div className={`text-sm font-semibold ${tone === 'ded' ? 'text-destructive' : ''}`}>
               {tone === 'ded' ? '-' : ''}{fmt(monthly)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span>
             </div>
-            <div className="text-[11px] text-muted-foreground">
-              {tone === 'ded' ? '-' : ''}{fmt(annual)} /yr
-            </div>
           </div>
         ) : (
           <span className="text-base font-semibold">{raw}%</span>

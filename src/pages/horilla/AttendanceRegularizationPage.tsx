@@ -703,6 +703,7 @@ export default function AttendanceRegularizationPage() {
         open={!!dlg}
         onOpenChange={(o) => !o && setDlg(null)}
         title={
+          dlg?.resolution === 'full_day' ? 'Mark full day' :
           dlg?.resolution === 'set_out_time' ? 'Set true out-time' :
           dlg?.resolution === 'confirm_long_shift' ? 'Confirm long shift' :
           'Void session'
@@ -712,15 +713,23 @@ export default function AttendanceRegularizationPage() {
           {dlg && (
             <div className="text-xs text-muted-foreground p-2 rounded bg-muted/40">
               {dlg.row.employee?.first_name} {dlg.row.employee?.last_name} — window {dlg.row.attendance_date} · open {dlg.row.hours_open}h
+              {dlg.resolution === 'full_day' && (shiftMap as any)[dlg.row.employee_id] && (
+                <> · shift {(shiftMap as any)[dlg.row.employee_id].name} ends {(shiftMap as any)[dlg.row.employee_id].end_time?.slice(0, 5)}</>
+              )}
             </div>
           )}
-          {dlg?.resolution === 'set_out_time' && (
+          {(dlg?.resolution === 'set_out_time' || dlg?.resolution === 'full_day') && (
             <div className="space-y-1">
               <Label>Out-time (IST)</Label>
               <Input type="datetime-local" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Inserts a manual out-punch and rebuilds the day.</p>
+              <p className="text-xs text-muted-foreground">
+                {dlg?.resolution === 'full_day'
+                  ? 'Pre-filled with the shift end time — inserts a manual out-punch and rebuilds the day as a full day.'
+                  : 'Inserts a manual out-punch and rebuilds the day.'}
+              </p>
             </div>
           )}
+
           {dlg?.resolution === 'confirm_long_shift' && (
             <div className="text-sm text-muted-foreground">
               Marks a genuine long shift. Out-time is capped at <b>watchdog + 2h</b> from the in-time and the day is stamped

@@ -254,7 +254,33 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
           ) : dailyRecords.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">No attendance records for this month</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile: day cards */}
+            <div className="sm:hidden divide-y">
+              {dailyRecords.map((r: any) => {
+                const hrs = r.check_in && r.check_out
+                  ? ((new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 3600000).toFixed(1)
+                  : '—';
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">{r.attendance_date}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${statusColor(r.attendance_status)}`}>
+                        {r.attendance_status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="font-mono text-foreground">{formatTime(r.check_in)} – {formatTime(r.check_out)}</span>
+                      <span>{hrs}h</span>
+                      {r.late_minutes > 0 && <span className="text-warning font-medium">Late {r.late_minutes}m</span>}
+                      {r.overtime_hours > 0 && <span className="text-primary font-medium">OT {r.overtime_hours}h</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
+
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>

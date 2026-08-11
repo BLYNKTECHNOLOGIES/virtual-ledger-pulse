@@ -15,6 +15,20 @@ interface HorillaHeaderProps {
   isMobile?: boolean;
 }
 
+/**
+ * Inside the HRMS portal, employee-self notification deep links (/profile...) are the wrong
+ * destination — HR should land on the matching HRMS workspace page instead.
+ */
+function resolveHrmsLink(n: any): string | null {
+  const type: string = n?.notification_type || n?.type || "";
+  const link: string = n?.link || "";
+  const isSelfLink = !link || link.startsWith("/profile");
+  if (type.startsWith("regularization") && isSelfLink) return "/hrms/attendance/regularization";
+  if (type.startsWith("leave") && isSelfLink) return "/hrms/leave/requests";
+  return link || null;
+}
+
+
 export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHeaderProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -246,8 +260,10 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
                   className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-info/10" : ""}`}
                   onClick={() => {
                     if (!n.is_read) markReadMutation.mutate(n.id);
-                    if (n.link) { navigate(n.link); setOpen(false); }
+                    const target = resolveHrmsLink(n);
+                    if (target) { navigate(target); setOpen(false); }
                   }}
+
                 >
                   <div className="flex items-start gap-2">
                     {!n.is_read && <span className="w-2 h-2 rounded-full bg-info mt-1.5 shrink-0" />}

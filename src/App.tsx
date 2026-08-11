@@ -74,7 +74,7 @@ const PositionsPage = lazy(() => import('./pages/horilla/PositionsPage'));
 const AttendanceOverviewPage = lazy(() => import('./pages/horilla/AttendanceOverviewPage'));
 const ShiftsPage = lazy(() => import('./pages/horilla/ShiftsPage'));
 const OvertimePage = lazy(() => import('./pages/horilla/OvertimePage'));
-const HourAccountsPage = lazy(() => import('./pages/horilla/HourAccountsPage'));
+const HoursOverviewPage = lazy(() => import('./pages/horilla/HoursOverviewPage'));
 const LateComeEarlyOutPage = lazy(() => import('./pages/horilla/LateComeEarlyOutPage'));
 const LeaveDashboardPage = lazy(() => import('./pages/horilla/LeaveDashboardPage'));
 const LeaveAccrualPlansPage = lazy(() => import('./pages/horilla/LeaveAccrualPlansPage'));
@@ -145,7 +145,7 @@ const RejectedCandidatesPage = lazy(() => import('./pages/horilla/RejectedCandid
 const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
 const MailboxPage = lazy(() => import('./pages/horilla/MailboxPage'));
 const AttendancePunchesPage = lazy(() => import('./pages/horilla/AttendancePunchesPage'));
-const MonthlyHoursSummaryPage = lazy(() => import('./pages/horilla/MonthlyHoursSummaryPage'));
+
 const ExchangeAccountsSettings = lazy(() => import('./pages/ExchangeAccountsSettings'));
 const ReportSettings = lazy(() => import('./pages/ReportSettings'));
 const OAuthConsent = lazy(() => import('./pages/OAuthConsent'));
@@ -728,12 +728,14 @@ const router = createBrowserRouter([
         { path: "attendance/shifts", element: <ShiftsPage /> },
         { path: "attendance/overtime", element: <OvertimePage /> },
         
-        { path: "attendance/hour-accounts", element: <HourAccountsPage /> },
+        { path: "attendance/hours", element: <HoursOverviewPage /> },
+        { path: "attendance/hour-accounts", element: <Navigate to="/hrms/attendance/hours" replace /> },
         { path: "attendance/late-early", element: <LateComeEarlyOutPage /> },
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
         { path: "attendance/policies", element: <AttendancePolicyPage /> },
         { path: "attendance/punches", element: <AttendancePunchesPage /> },
-        { path: "attendance/monthly-hours", element: <MonthlyHoursSummaryPage /> },
+        { path: "attendance/monthly-hours", element: <Navigate to="/hrms/attendance/hours" replace /> },
+
        { path: "attendance/regularization", element: <AttendanceRegularizationPage /> },
        { path: "attendance/watchdog", element: <AttendanceRegularizationPage /> },
        { path: "attendance/stale-sessions", element: <AttendanceStaleSessionsPage /> },

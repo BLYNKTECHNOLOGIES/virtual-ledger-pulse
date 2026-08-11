@@ -23785,6 +23785,77 @@ export type Database = {
           },
         ]
       }
+      hr_monthly_hours_unified: {
+        Row: {
+          absent_days: number | null
+          badge_id: string | null
+          department: string | null
+          early_minutes: number | null
+          early_out_count: number | null
+          employee_id: string | null
+          employee_name: string | null
+          half_days: number | null
+          incomplete_days: number | null
+          late_count: number | null
+          late_minutes: number | null
+          month: string | null
+          month_sequence: number | null
+          net_work_minutes: number | null
+          no_punch_days: number | null
+          overtime_seconds: number | null
+          pending_seconds: number | null
+          present_days: number | null
+          required_seconds: number | null
+          shift_name: string | null
+          updated_at: string | null
+          worked_seconds: number | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_payroll_auto_recoveries: {
         Row: {
           amount: number | null

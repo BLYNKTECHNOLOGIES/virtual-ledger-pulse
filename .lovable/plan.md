@@ -1,52 +1,49 @@
-# Binance C2C SAPI v7.4 — document review vs. our Terminal
+# Separation page: HR Manager sees an empty employee list
 
-I read all three PDFs (the 419-page C2C SAPI v7.4 spec — first 50 pages parsed, which covers the full release note and the entire endpoint index; the "How to handle C2C messages" chat/websocket guide; and the Postman/API-key setup guide).
+## What is actually wrong
 
-## Verdict
+This is not a UI bug and not specific to the Separation page. The `hr_employees` table has exactly two read rules:
 
-Nothing in the update breaks us, and most of the new surface is already wired. Two genuinely new endpoints are unused, one field rename needs a sanity check, and the chat-image guide confirms our screenshot flow is correct.
+- Employees can read **their own record** (`user_id = auth.uid()`).
+- "HR admins" can read everything — but that rule checks `has_role(auth.uid(), 'hr')`.
 
-## What the release note changes
+There is no role literally named `hr` in this system. The roles table contains **`HR Manager`** (alongside Super Admin, Admin, COO, Finance, etc.). So the HR-admin rule never matches, and an HR Manager falls through to the employee-self rule — they see exactly one row, their own. You see the full list because you are Super Admin, which the same rule does match.
 
-Six new APIs, one modified, seven removed.
+This is the exact failure mode already recorded in project memory (`HR role matching`): never gate on `has_role(uid,'hr')`; use the helper `public.hr_is_hr_staff(uid)`, which exists in the database and resolves the real role name.
 
-New APIs and our status (verified against `supabase/functions/binance-ads/index.ts`):
+## Scope: this is not one policy
 
-| New API | Path | Our status |
-|---|---|---|
-| Get chat image pre-signed url | `POST /sapi/v1/c2c/chat/image/pre-signed-url` | Already used (auto-screenshot upload) |
-| Query CounterParty Order Statistic | `POST /sapi/v1/c2c/orderMatch/queryCounterPartyOrderStatistic` | Already used |
-| Get Payment Method by UserId | `GET /sapi/v1/c2c/paymentMethod/getPayMethodByUserId` | Used, but as a guessed fallback chain |
-| Verify additional KYC | (order-match controller, #30) | Not used — we only read the `additionalKycVerify` flag |
-| Get commission overview | `POST /sapi/v1/c2c/commission-rate/overview` | Not used |
-| Get taker commission rate | `c2c_commission_rate_controller` (#42) | Not used |
+The same wrong literal appears in **18 policies across 15 tables**, so HR Managers are silently locked out of far more than Separation:
 
-Removed APIs (transfer initiation/eligibility/detail, contact list/delete, paginated transaction history, user lookup by mobile/email): confirmed **none of these appear anywhere in our codebase**, so the removals cost us nothing.
+```text
+hr_employees                      hr_payslips
+hr_penalties                      hr_payroll_cockpit_state
+hr_payroll_input_additions        hr_payroll_input_deductions
+hr_attendance_period_locks        hr_attendance_stale_sessions
+hr_attendance_absent_marker_runs  hr_biometric_device_users
+hr_biometric_pin_history          hr_employee_id_rekey_log
+hr_esi_contribution_periods       hr_pt_slabs
+hr_razorpay_contractor_payments
+```
 
-Modified API: *Get Ad Details By Merchant Number* — `TicketSize` replaced by `Scale`. A search for `ticketSize` across `src/` and `supabase/` returns nothing, so we are not exposed.
+Fixing only `hr_employees` would make the Separation dropdown populate and leave a dozen other HR screens quietly half-broken. Per the data-integrity standard for this project, the fix should address the category, not the one reported instance.
 
-## The three things worth acting on
+A further three tables (`hr_employee_documents`, `hr_fnf_settlements`, `hr_email_send_log`, `hr_salary_revisions`) reference `'hr'` in a different shape and will be re-read individually before being touched — they are included only if they carry the same defect.
 
-1. **Payment Method by UserId — replace guesswork with the documented path.**
-   `binance-ads/index.ts` currently tries four candidate URLs in sequence (`getPayMethodByUserId`, `paymentMethod/list`, `listByUserId`, a `bapi` path). The doc now confirms exactly one: `GET /sapi/v1/c2c/paymentMethod/getPayMethodByUserId`, headers only (`clientType` required), no query params. Collapsing the chain to the documented call removes three wasted round-trips and three sources of silent failure per lookup.
+## The fix
 
-2. **Commission rate endpoints — a first-class source for fee data.**
-   Today `binance_commission_rate_snapshots` is populated opportunistically by scraping `commissionRate` / `takerCommissionRate` / `tradeMethodCommissionRateVoList` off ad-detail and order payloads. The dedicated `commission-rate/overview` endpoint returns a list of taker commission rates directly, which would give the Platform Fee calculation an authoritative source instead of an inferred one. Note: the taker-rate endpoint's exact path and request body fall on doc pages beyond the 50-page parse limit — I would confirm both against the raw spec before wiring anything.
+One migration that rewrites every affected policy to call `public.hr_is_hr_staff(auth.uid())` in place of `has_role(auth.uid(), 'hr')`, preserving each policy's existing Super Admin / Admin branches and its command scope (SELECT vs ALL vs INSERT/UPDATE) exactly as-is. No policy is widened beyond what its name already promises; the `hr` branch simply starts matching the role it was always meant to match.
 
-3. **Verify additional KYC — currently a dead end in the operator flow.**
-   `TerminalOrders.tsx` shows a "needs KYC" badge when `tradeType === 'SELL' && additionalKycVerify === 1`, but there is no action behind it; the operator has to leave the Terminal. API #30 exists to complete that step. Worth confirming what the endpoint actually does (verifies our own additional KYC vs. the counterparty's) before designing UI — its parameters are also past the parse cut-off.
+Employee self-service rules (`user_id = auth.uid()`) are left untouched, so nothing an ordinary employee can see changes.
 
-## The other two documents
+## Verification before I report back
 
-- **C2C message handling guide** — no new endpoints. It documents the websocket credential flow (`/sapi/v1/c2c/chat/retrieveChatCredential` → `chatWssUrl/listenKey?token=...`), the image upload sequence, and the exact chat payload shape for images (`type:"image"`, `thumbnailUrl`, `imageUrl`, `imageType`, `width`, `height`). Two operational details worth recording: the pre-signed-url endpoint is **rate-limited to 36 calls per minute per user id**, and image download is done by filtering `chatMessageType` on `retrieveChatMessagesWithPagination`. Our auto-screenshot flow already matches this shape.
-- **Postman/API-key setup guide** — onboarding material only (key creation, IP restrictions, signature-must-be-last-query-param). No impact on our proxy, which already signs correctly.
+1. Re-query `pg_policies` and confirm zero policies still contain the `'hr'` literal.
+2. Run a read of `hr_employees` under an actual HR Manager account and confirm the full roster returns rather than a single row.
+3. Load `/hrms/separation` and confirm the Initiate Resignation dropdown populates for that account.
 
-## Proposed scope
+## Technical notes
 
-Nothing here is urgent. If you want me to proceed, I would do it in this order:
-
-1. Collapse the payment-method fallback chain to the documented endpoint (small, safe, immediate benefit).
-2. Read the full spec pages for the commission-rate and verify-KYC endpoints, then come back with a concrete wiring proposal for each rather than guessing at parameters.
-3. Record the 36/min pre-signed-url limit in the auto-screenshot function as a guard comment or an actual throttle.
-
-Tell me which of these you want, or if you would prefer I leave the current behaviour alone and simply log the findings.
+- No frontend changes. `ResignationTab.tsx` queries `hr_employees` correctly; it was being handed one row by the database.
+- No schema changes, no new tables, therefore no new GRANTs required — the affected tables are already reachable by `authenticated`.
+- `public.hr_is_hr_staff` already exists and is used elsewhere; no new function is introduced.

@@ -47,21 +47,6 @@ const REASON_CODES: Array<{ value: string; label: string; help: string }> = [
   { value: 'other_documented', label: 'Other (documented)', help: 'Any other reason — explain fully in notes.' },
 ];
 
-type Resolution = 'set_out_time' | 'confirm_long_shift' | 'void' | 'full_day';
-
-type StaleRow = {
-  id: string;
-  session_id: string;
-  employee_id: string;
-  attendance_date: string;
-  in_time: string;
-  hours_open: number;
-  status: string;
-  resolution_note: string | null;
-  resolved_at: string | null;
-  first_seen_at: string;
-  employee?: { badge_id: string; first_name: string; last_name: string };
-};
 
 export default function AttendanceRegularizationPage() {
   const qc = useQueryClient();
@@ -288,7 +273,6 @@ export default function AttendanceRegularizationPage() {
   const fmtTime = (ts: string | null) =>
     ts ? new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 
-  const openCount = staleRows.length;
 
   return (
     <div className="space-y-4">

@@ -13,6 +13,7 @@ import {
   Maximize2, Minimize2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 /* ── Types ── */
 
@@ -478,17 +479,15 @@ export function OrgChartView() {
           <div className="flex flex-wrap items-center gap-3 mb-4 px-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground whitespace-nowrap">Reporting Managers :</span>
-              <Select value={managerFilter} onValueChange={v => { setManagerFilter(v); setPan({ x: 0, y: 0 }); setZoom(1); }}>
-                <SelectTrigger className="w-[200px] h-8 text-sm">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {managers.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeeCombobox
+                className="w-[200px] h-8 text-sm"
+                placeholder="All"
+                value={managerFilter}
+                onChange={v => { setManagerFilter(v); setPan({ x: 0, y: 0 }); setZoom(1); }}
+                searchPlaceholder="Search manager…"
+                emptyText="No manager found."
+                options={[{ value: "all", label: "All" }, ...managers.map((m: any) => ({ value: m.id, label: m.name }))]}
+              />
             </div>
             <div className="flex-1" />
             <div className="relative">

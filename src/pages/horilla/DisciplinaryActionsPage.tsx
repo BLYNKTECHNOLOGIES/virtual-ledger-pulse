@@ -16,6 +16,7 @@ import { Plus, AlertTriangle, Search, Gavel, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 const ACTION_TYPES = [
   { value: "verbal_warning", label: "Verbal Warning", color: "bg-warning/10 text-warning border-warning/20" },
@@ -221,16 +222,15 @@ export default function DisciplinaryActionsPage() {
             </div>
             <div>
               <Label>Employees</Label>
-              <Select onValueChange={v => {
-                if (!form.employee_ids.includes(v)) setForm({ ...form, employee_ids: [...form.employee_ids, v] });
-              }}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Add employee..." /></SelectTrigger>
-                <SelectContent>
-                  {employees.filter((e: any) => !form.employee_ids.includes(e.id)).map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeePicker
+                className="mt-1"
+                placeholder="Add employee..."
+                employees={employees.filter((e: any) => !form.employee_ids.includes(e.id))}
+                value=""
+                onChange={v => {
+                  if (!form.employee_ids.includes(v)) setForm({ ...form, employee_ids: [...form.employee_ids, v] });
+                }}
+              />
               <div className="flex flex-wrap gap-1 mt-1">
                 {form.employee_ids.map(id => (
                   <Badge key={id} variant="secondary" className="cursor-pointer" onClick={() => setForm({ ...form, employee_ids: form.employee_ids.filter(i => i !== id) })}>

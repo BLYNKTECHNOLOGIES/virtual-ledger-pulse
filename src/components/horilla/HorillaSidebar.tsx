@@ -98,7 +98,6 @@ const navGroups: NavGroup[] = [
           { label: "Shifts", path: "/hrms/attendance/shifts" },
           { label: "Hours & Overtime", path: "/hrms/attendance/hours" },
           { label: "Late Come / Early Out", path: "/hrms/attendance/late-early" },
-          { label: "Attendance Policies", path: "/hrms/attendance/policies" },
           { label: "Raw Punches", path: "/hrms/attendance/punches" },
 
           { label: "Regularization Requests", path: "/hrms/attendance/regularization" },

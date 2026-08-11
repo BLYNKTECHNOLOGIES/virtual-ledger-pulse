@@ -99,6 +99,37 @@ export default function AttendanceRegularizationPage() {
     refetchInterval: 60_000,
   });
 
+  // ---------- Shift-end map (for "Mark full day") ----------
+  const staleEmployeeIds = staleRows.map((r) => r.employee_id);
+  const { data: shiftMap = {} } = useQuery({
+    queryKey: ['stale_shift_ends', staleEmployeeIds.join(',')],
+    enabled: staleEmployeeIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('hr_employee_shift_schedule')
+        .select('employee_id, hr_shifts:shift_id(name, start_time, end_time, is_night_shift)')
+        .in('employee_id', staleEmployeeIds)
+        .eq('is_current', true);
+      const map: Record<string, { name: string; start_time: string; end_time: string; is_night_shift: boolean }> = {};
+      (data || []).forEach((r: any) => { if (r.hr_shifts) map[r.employee_id] = r.hr_shifts; });
+      return map;
+    },
+  });
+
+  /** Shift end as an IST wall-clock string (yyyy-MM-ddTHH:mm) for the row's attendance date. */
+  const shiftEndLocal = (r: StaleRow): string | null => {
+    const s = (shiftMap as any)[r.employee_id];
+    if (!s?.end_time) return null;
+    const [eh, em] = String(s.end_time).split(':').map(Number);
+    const [sh, sm] = String(s.start_time || '00:00').split(':').map(Number);
+    const endsNextDay = s.is_night_shift || eh * 60 + em <= sh * 60 + sm;
+    const d = new Date(`${r.attendance_date}T00:00:00`);
+    if (endsNextDay) d.setDate(d.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(eh)}:${pad(em)}`;
+  };
+
+
   const runWatchdog = useMutation({
     mutationFn: async () => {
       const { data, error } = await (supabase as any).functions.invoke('hr-attendance-watchdog');

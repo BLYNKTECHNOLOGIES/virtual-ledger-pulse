@@ -244,9 +244,9 @@ export function ShiftScheduleAssigner() {
         {schedules.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No shift schedules assigned</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[480px]">
             <table className="w-full text-sm min-w-[520px]">
-              <thead className="bg-muted/50 border-b">
+              <thead className="bg-muted/50 border-b sticky top-0 z-10">
                 <tr>
                   <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Employee</th>
                   <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Shift</th>
@@ -254,7 +254,7 @@ export function ShiftScheduleAssigner() {
                 </tr>
               </thead>
               <tbody>
-                {schedules.slice(0, 20).map((s: any) => (
+                {schedules.map((s: any) => (
                   <tr key={s.id} className="border-b hover:bg-muted/30">
                     <td className="px-3 py-2">
                       {s.hr_employees?.first_name} {s.hr_employees?.last_name}
@@ -267,6 +267,7 @@ export function ShiftScheduleAssigner() {
               </tbody>
             </table>
           </div>
+
         )}
       </CardContent>
 

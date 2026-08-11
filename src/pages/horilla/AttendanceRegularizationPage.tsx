@@ -66,11 +66,6 @@ type StaleRow = {
 export default function AttendanceRegularizationPage() {
   const qc = useQueryClient();
 
-  // ---------- Watchdog state ----------
-  const [dlg, setDlg] = useState<{ row: StaleRow; resolution: Resolution } | null>(null);
-  const [outTime, setOutTime] = useState('');
-  const [note, setNote] = useState('');
-
   // ---------- Legacy regularization state ----------
   const [status, setStatus] = useState('pending');
   const [search, setSearch] = useState('');
@@ -83,145 +78,6 @@ export default function AttendanceRegularizationPage() {
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
 
-  // ---------- Watchdog data ----------
-  const { data: staleRows = [], isLoading: staleLoading } = useQuery({
-    queryKey: ['hr_stale_sessions_watchdog'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('hr_attendance_stale_sessions')
-        .select('*, employee:hr_employees(badge_id, first_name, last_name)')
-        .eq('status', 'open')
-        .order('in_time', { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data || []) as StaleRow[];
-    },
-    refetchInterval: 60_000,
-  });
-
-  // ---------- Shift-end map (for "Mark full day") ----------
-  const staleEmployeeIds = staleRows.map((r) => r.employee_id);
-  const { data: shiftMap = {} } = useQuery({
-    queryKey: ['stale_shift_ends', staleEmployeeIds.join(',')],
-    enabled: staleEmployeeIds.length > 0,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from('hr_employee_shift_schedule')
-        .select('employee_id, hr_shifts:shift_id(name, start_time, end_time, is_night_shift)')
-        .in('employee_id', staleEmployeeIds)
-        .eq('is_current', true);
-      const map: Record<string, { name: string; start_time: string; end_time: string; is_night_shift: boolean }> = {};
-      (data || []).forEach((r: any) => { if (r.hr_shifts) map[r.employee_id] = r.hr_shifts; });
-      return map;
-    },
-  });
-
-  /** Format an absolute instant as an IST wall-clock string (yyyy-MM-ddTHH:mm). */
-  const istWallClock = (d: Date): string => {
-    const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
-    return ist.toISOString().slice(0, 16);
-  };
-
-  /** Shift end as an IST wall-clock string (yyyy-MM-ddTHH:mm) for the row's attendance date. */
-
-  const shiftEndLocal = (r: StaleRow): string | null => {
-    const s = (shiftMap as any)[r.employee_id];
-    if (!s?.end_time) return null;
-    const [eh, em] = String(s.end_time).split(':').map(Number);
-    const [sh, sm] = String(s.start_time || '00:00').split(':').map(Number);
-    const endsNextDay = s.is_night_shift || eh * 60 + em <= sh * 60 + sm;
-    const d = new Date(`${r.attendance_date}T00:00:00`);
-    if (endsNextDay) d.setDate(d.getDate() + 1);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(eh)}:${pad(em)}`;
-  };
-
-
-  const runWatchdog = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await (supabase as any).functions.invoke('hr-attendance-watchdog');
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (d: any) => {
-      toast.success(`Watchdog: +${d?.opened || 0} new · ${d?.refreshed || 0} refreshed · ${d?.closed || 0} closed`);
-      qc.invalidateQueries({ queryKey: ['hr_stale_sessions_watchdog'] });
-    },
-    onError: (e: any) => toast.error(e?.message || 'Watchdog failed'),
-  });
-
-  const resolve = useMutation({
-    mutationFn: async (args: { session_id: string; employee_id: string; resolution: Resolution; out_time?: string; note?: string }) => {
-      const { error } = await (supabase as any).rpc('hr_resolve_stale_session', {
-        p_session_id: args.session_id,
-        p_resolution: args.resolution,
-        p_out_time: args.out_time || null,
-        p_note: args.note || null,
-      });
-      if (error) throw error;
-      const { data: u } = await supabase.auth.getUser();
-      await (supabase as any).from('hr_attendance_intervention_log').insert({
-        session_id: args.session_id,
-        employee_id: args.employee_id,
-        action: `watchdog_${args.resolution}`,
-        reason_code: 'stale_session_resolution',
-        notes: args.note || null,
-        actor_id: u?.user?.id ?? null,
-        actor_email: u?.user?.email ?? null,
-        payload: { out_time: args.out_time ?? null },
-      });
-    },
-    onSuccess: () => {
-      toast.success('Session resolved · attendance rebuilt');
-      setDlg(null); setOutTime(''); setNote('');
-      qc.invalidateQueries({ queryKey: ['hr_stale_sessions_watchdog'] });
-      qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
-      qc.invalidateQueries({ queryKey: ['hr_attendance_unified'] });
-    },
-    onError: (e: any) => toast.error(e?.message || 'Resolution failed'),
-  });
-
-  const openWatchdogDialog = (row: StaleRow, resolution: Resolution) => {
-    setDlg({ row, resolution });
-    setNote('');
-    if (resolution === 'full_day') {
-      const end = shiftEndLocal(row);
-      if (!end) {
-        toast.error('No shift assigned for this employee — use "Set true out-time".');
-        setDlg({ row, resolution: 'set_out_time' });
-      }
-      setOutTime(end ?? '');
-    } else if (resolution === 'set_out_time') {
-      const suggested = new Date(new Date(row.in_time).getTime() + 9 * 60 * 60 * 1000);
-      setOutTime(istWallClock(suggested));
-    } else {
-      setOutTime('');
-    }
-  };
-
-  const submitWatchdog = () => {
-    if (!dlg) return;
-    const isOutTimeResolution = dlg.resolution === 'set_out_time' || dlg.resolution === 'full_day';
-    const args: any = {
-      session_id: dlg.row.session_id,
-      employee_id: dlg.row.employee_id,
-      // "Mark full day" is a set_out_time resolution pinned to the shift end.
-      resolution: isOutTimeResolution ? 'set_out_time' : dlg.resolution,
-      note: dlg.resolution === 'full_day' ? (note ? `Marked full day · ${note}` : 'Marked full day (shift end out-time)') : note,
-    };
-    if (isOutTimeResolution) {
-      if (!outTime) return toast.error('Pick an out-time');
-      // The picker holds an IST wall-clock value; pin the offset explicitly so the
-      // conversion is independent of the browser timezone.
-      const outUtc = new Date(`${outTime.length === 16 ? `${outTime}:00` : outTime}+05:30`);
-      if (isNaN(outUtc.getTime())) return toast.error('Invalid out-time');
-      if (outUtc.getTime() <= new Date(dlg.row.in_time).getTime()) {
-        return toast.error(`Out-time must be after the in-time (${istWallClock(new Date(dlg.row.in_time)).replace('T', ' ')} IST)`);
-      }
-      args.out_time = outUtc.toISOString();
-    }
-    resolve.mutate(args);
-  };
 
 
   // ---------- Legacy regularization data ----------
@@ -437,89 +293,15 @@ export default function AttendanceRegularizationPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Attendance Watchdog"
-        description="The only manual door into the v4 attendance engine. Resolve stale sessions and audit every intervention."
-        actions={
-          <Button size="sm" onClick={() => runWatchdog.mutate()} disabled={runWatchdog.isPending}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${runWatchdog.isPending ? 'animate-spin' : ''}`} />
-            Run watchdog now
-          </Button>
-        }
+        title="Attendance Regularization"
+        description="Review and action attendance regularization requests. Every approval is audited."
       />
 
-      <Alert className="border-warning/40 bg-warning/5">
-        <ShieldAlert className="h-4 w-4 text-warning" />
-        <AlertTitle>Fairness doctrine</AlertTitle>
-        <AlertDescription className="text-xs">
-          A day whose session is still open on the Watchdog contributes <b>0 LOP</b> until you resolve it —
-          nobody is docked for a day the engine hasn't finished thinking about. Every approval below is audited
-          into <code>hr_attendance_intervention_log</code>.
-        </AlertDescription>
-      </Alert>
-
-      {/* ============ WATCHDOG (top, primary) ============ */}
-      <Card className={openCount > 0 ? 'border-amber-500/60' : ''}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className={`h-4 w-4 ${openCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-            Watchdog · {openCount} open session{openCount === 1 ? '' : 's'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {staleLoading ? (
-            <div className="text-sm text-muted-foreground p-4">Loading…</div>
-          ) : staleRows.length === 0 ? (
-            <div className="text-sm text-muted-foreground p-2">All sessions closed within 12 hours. Nothing to resolve.</div>
-          ) : (
-            <div className="grid gap-3">
-              {staleRows.map((r) => (
-                <div key={r.id} className="border rounded-lg p-3 bg-card">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">
-                        {r.employee?.first_name} {r.employee?.last_name}
-                        <span className="text-xs text-muted-foreground ml-2">({r.employee?.badge_id})</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Window {r.attendance_date} · in {format(new Date(r.in_time), 'dd MMM HH:mm')} IST
-                      </div>
-                    </div>
-                    <Badge variant="destructive" className="shrink-0">
-                      <Clock className="h-3 w-3 mr-1" /> {r.hours_open}h open
-                    </Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground mb-2">
-                    First flagged {formatDistanceToNow(new Date(r.first_seen_at), { addSuffix: true })} — held harmless (0 LOP) until resolved.
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="default" onClick={() => openWatchdogDialog(r, 'full_day')}>
-                      <CheckCircle2 className="h-4 w-4 mr-1" />
-                      Mark full day{shiftEndLocal(r) ? ` (out ${shiftEndLocal(r)!.slice(11)})` : ''}
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => openWatchdogDialog(r, 'set_out_time')}>
-                      Set true out-time
-                    </Button>
-
-                    <Button size="sm" variant="secondary" onClick={() => openWatchdogDialog(r, 'confirm_long_shift')}>
-                      Confirm long shift
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openWatchdogDialog(r, 'void')}>
-                      <XCircle className="h-4 w-4 mr-1" /> Void (forgotten punch)
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ============ LEGACY REGULARIZATION (collapsed style — full data retained) ============ */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Legacy regularization requests</CardTitle>
+          <CardTitle className="text-base">Regularization requests</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Retained for history and residual pending items. New attendance edits should go through the Watchdog above.
+            Every approval demands a reason code and note, audited into <code>hr_attendance_intervention_log</code>.
           </p>
         </CardHeader>
         <CardContent className="p-4 pt-0 space-y-4">
@@ -710,61 +492,6 @@ export default function AttendanceRegularizationPage() {
         </Card>
       )}
 
-      {/* ============ Watchdog resolution dialog ============ */}
-      <ResponsiveDialog
-        open={!!dlg}
-        onOpenChange={(o) => !o && setDlg(null)}
-        title={
-          dlg?.resolution === 'full_day' ? 'Mark full day' :
-          dlg?.resolution === 'set_out_time' ? 'Set true out-time' :
-          dlg?.resolution === 'confirm_long_shift' ? 'Confirm long shift' :
-          'Void session'
-        }
-      >
-        <div className="space-y-3">
-          {dlg && (
-            <div className="text-xs text-muted-foreground p-2 rounded bg-muted/40">
-              {dlg.row.employee?.first_name} {dlg.row.employee?.last_name} — window {dlg.row.attendance_date} · open {dlg.row.hours_open}h
-              {dlg.resolution === 'full_day' && (shiftMap as any)[dlg.row.employee_id] && (
-                <> · shift {(shiftMap as any)[dlg.row.employee_id].name} ends {(shiftMap as any)[dlg.row.employee_id].end_time?.slice(0, 5)}</>
-              )}
-            </div>
-          )}
-          {(dlg?.resolution === 'set_out_time' || dlg?.resolution === 'full_day') && (
-            <div className="space-y-1">
-              <Label>Out-time (IST)</Label>
-              <Input type="datetime-local" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
-              <p className="text-xs text-muted-foreground">
-                {dlg?.resolution === 'full_day'
-                  ? 'Pre-filled with the shift end time — inserts a manual out-punch and rebuilds the day as a full day.'
-                  : 'Inserts a manual out-punch and rebuilds the day.'}
-              </p>
-            </div>
-          )}
-
-          {dlg?.resolution === 'confirm_long_shift' && (
-            <div className="text-sm text-muted-foreground">
-              Marks a genuine long shift. Out-time is capped at <b>watchdog + 2h</b> from the in-time and the day is stamped
-              <code className="ml-1">night_span</code>.
-            </div>
-          )}
-          {dlg?.resolution === 'void' && (
-            <div className="text-sm text-destructive">
-              Deletes the offending in-punch. Use only for forgotten in-punches.
-            </div>
-          )}
-          <div className="space-y-1">
-            <Label>Note (optional but recommended)</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setDlg(null)}>Cancel</Button>
-            <Button onClick={submitWatchdog} disabled={resolve.isPending}>
-              <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm
-            </Button>
-          </div>
-        </div>
-      </ResponsiveDialog>
 
       {/* ============ Legacy review dialog ============ */}
       <Dialog open={!!reviewing} onOpenChange={(o) => !o && setReviewing(null)}>

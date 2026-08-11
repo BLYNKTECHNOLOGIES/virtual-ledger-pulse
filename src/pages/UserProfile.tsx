@@ -360,7 +360,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                     {rupees ? (
                       <div className="flex items-baseline gap-2">
                         <span className="text-xl font-semibold tabular-nums">{fmt(toMonthly(raw))}</span>
-                        <span className="text-xs text-muted-foreground">/mo · {fmt(toAnnual(raw))} /yr</span>
+                        <span className="text-xs text-muted-foreground">/mo</span>
                       </div>
                     ) : (
                       <div className="text-xl font-semibold">{raw}%</div>
@@ -373,7 +373,6 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                 <Label>Employer Total</Label>
                 <div className="text-right">
                   <div className="text-xl font-bold text-info tabular-nums">{fmt(monthlyEmployer)} <span className="text-xs text-muted-foreground font-normal">/mo</span></div>
-                  <div className="text-[11px] text-muted-foreground tabular-nums">{fmt(annualEmployer)} /yr</div>
                 </div>
               </div>
             </>

@@ -54,7 +54,6 @@ import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
 import AttendanceTab from '@/components/profile/AttendanceTab';
 import MyAssetsTab from '@/components/profile/MyAssetsTab';
 import MyLoansCard from '@/components/profile/MyLoansCard';
-import MyTaxRegimeCard from '@/components/profile/MyTaxRegimeCard';
 import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
 import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
@@ -1318,7 +1317,6 @@ export default function UserProfile() {
           ) : (
             <>
               <SalaryPFTab hrEmployee={hrEmployee} />
-              <MyTaxRegimeCard employeeId={hrEmployee.id} />
               <MyLoansCard employeeId={hrEmployee.id} />
               <Card>
                 <CardHeader>

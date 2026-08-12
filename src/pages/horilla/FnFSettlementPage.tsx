@@ -457,7 +457,7 @@ export default function FnFSettlementPage() {
           title="No F&F settlements yet"
           description="Create settlements for separated employees to manage their final payouts"
           action={
-            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => setShowCreate(true)}>
+            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={openCreate}>
               <Plus className="h-4 w-4 mr-2" /> New Settlement
             </Button>
           }

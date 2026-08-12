@@ -257,17 +257,72 @@ Deno.serve(async (req) => {
       return json({ success: true, sampleSentTo: to, subject, basedOn: data });
     }
 
+    // ---------------- RESEND (single failed notice) ----------------
+    if (action === "resend") {
+      const logId = String(body.logId || "");
+      if (!logId) return json({ error: "logId is required" }, 400);
+      const { data: row } = await admin.from("hr_attendance_notice_log").select("*").eq("id", logId).maybeSingle();
+      if (!row) return json({ error: "Notice not found" }, 404);
+      const { data: emp } = await admin.from("hr_employees").select("first_name, last_name, email").eq("id", row.employee_id).maybeSingle();
+      const { data: day } = await admin
+        .from("hr_attendance_daily")
+        .select("status, first_in, last_out, total_hours, late_by_minutes, early_by_minutes, punch_count, detected_shift_id")
+        .eq("employee_id", row.employee_id).eq("attendance_date", row.attendance_date).maybeSingle();
+      const to = row.email || emp?.email;
+      if (!to) return json({ error: "No email on record for this employee" }, 400);
+      const notice: NoticeData = {
+        employeeName: [emp?.first_name, emp?.last_name].filter(Boolean).join(" ") || "Employee",
+        attendanceDate: row.attendance_date,
+        status: (day?.status === "absent" ? "absent" : "half_day"),
+        firstIn: day?.first_in ?? null,
+        lastOut: day?.last_out ?? null,
+        totalHours: day?.total_hours ?? null,
+        lateBy: day?.late_by_minutes ?? null,
+        earlyBy: day?.early_by_minutes ?? null,
+        punchCount: day?.punch_count ?? null,
+        shiftName: null,
+      };
+      const { subject, html, text } = renderNotice(notice);
+      const { client, user } = makeClient(mailbox);
+      try {
+        await client.send({ from: `${mailbox.from_name || "HR"} <${mailbox.from_address || user}>`, to, subject, content: text, html });
+        await admin.from("hr_attendance_notice_log").update({
+          status: "sent", sent_at: new Date().toISOString(), error_message: null,
+          attempts: (row.attempts || 0) + 1, last_attempt_at: new Date().toISOString(),
+        }).eq("id", logId);
+        return json({ success: true, resentTo: to });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await admin.from("hr_attendance_notice_log").update({
+          status: "failed", error_message: msg,
+          attempts: (row.attempts || 0) + 1, last_attempt_at: new Date().toISOString(),
+        }).eq("id", logId);
+        return json({ error: msg }, 500);
+      } finally {
+        try { await client.close(); } catch { /* ignore */ }
+      }
+    }
+
     // ---------------- RUN ----------------
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const sinceDate = body.sinceDate || ACTIVATION_DATE;
     const dryRun = body.dryRun === true;
+    const MAX_ATTEMPTS = 3;
+    // Age gate is driven by the DAY, not by updated_at: the v4 engine rewrites
+    // updated_at on every recompute, which would otherwise postpone mail forever.
+    // A day qualifies once it is at least a full calendar day in the past (IST),
+    // and its current status is still absent/half_day (read live below).
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const maxDate = new Date(istNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // Settling buffer: ignore rows the engine touched in the last 2 hours.
+    const settleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
     const { data: days } = await admin
       .from("hr_attendance_daily")
       .select("employee_id, attendance_date, status, first_in, last_out, total_hours, late_by_minutes, early_by_minutes, punch_count, detected_shift_id, updated_at")
       .in("status", ["absent", "half_day"])
       .gte("attendance_date", sinceDate)
-      .lte("updated_at", cutoff)
+      .lte("attendance_date", maxDate)
+      .lte("updated_at", settleCutoff)
       .order("attendance_date", { ascending: false })
       .limit(500);
 
@@ -276,26 +331,56 @@ Deno.serve(async (req) => {
 
     const empIds = [...new Set(candidates.map((d: any) => d.employee_id))];
     const dates = [...new Set(candidates.map((d: any) => d.attendance_date))];
+    const minDate = dates.reduce((a: string, b: string) => (a < b ? a : b));
+    const maxCandDate = dates.reduce((a: string, b: string) => (a > b ? a : b));
 
     const { data: emps } = await admin
       .from("hr_employees")
-      .select("id, first_name, last_name, email, is_active")
+      .select("id, first_name, last_name, email, is_active, last_working_day")
       .in("id", empIds);
     const empMap = new Map((emps || []).map((e: any) => [e.id, e]));
 
-    const { data: alreadySent } = await admin
+    // Existing log rows: sent/pending block; failed rows retry until MAX_ATTEMPTS.
+    const { data: existingLogs } = await admin
       .from("hr_attendance_notice_log")
-      .select("employee_id, attendance_date")
+      .select("id, employee_id, attendance_date, status, attempts")
       .in("employee_id", empIds)
       .in("attendance_date", dates);
-    const sentKeys = new Set((alreadySent || []).map((r: any) => `${r.employee_id}|${r.attendance_date}`));
+    const logMap = new Map((existingLogs || []).map((r: any) => [`${r.employee_id}|${r.attendance_date}`, r]));
 
+    // Regularization: a rejected request leaves the day standing, so it does not block.
     const { data: regs } = await admin
       .from("hr_attendance_regularization_requests")
-      .select("employee_id, attendance_date")
+      .select("employee_id, attendance_date, status")
       .in("employee_id", empIds)
       .in("attendance_date", dates);
-    const regKeys = new Set((regs || []).map((r: any) => `${r.employee_id}|${r.attendance_date}`));
+    const regKeys = new Set(
+      (regs || []).filter((r: any) => String(r.status || "").toLowerCase() !== "rejected")
+        .map((r: any) => `${r.employee_id}|${r.attendance_date}`),
+    );
+
+    // Approved leave covering the day — HR already knows, employee should not be nudged.
+    const { data: leaves } = await admin
+      .from("hr_leave_requests")
+      .select("employee_id, start_date, end_date, status")
+      .in("employee_id", empIds)
+      .lte("start_date", maxCandDate)
+      .gte("end_date", minDate);
+    const approvedLeaves = (leaves || []).filter((l: any) => ["approved", "hr_approved"].includes(String(l.status || "").toLowerCase()));
+    const onLeave = (empId: string, date: string) =>
+      approvedLeaves.some((l: any) => l.employee_id === empId && l.start_date <= date && l.end_date >= date);
+
+    // Company holidays (exact date or recurring day/month).
+    const { data: holidays } = await admin.from("hr_holidays").select("date, recurring, is_active");
+    const holidaySet = new Set<string>();
+    const recurringSet = new Set<string>();
+    for (const h of holidays || []) {
+      if (h.is_active === false || !h.date) continue;
+      holidaySet.add(String(h.date));
+      if (h.recurring) recurringSet.add(String(h.date).slice(5));
+    }
+    const isHoliday = (date: string) => holidaySet.has(date) || recurringSet.has(date.slice(5));
+
 
     const shiftIds = [...new Set(candidates.map((d: any) => d.detected_shift_id).filter(Boolean))];
     const shiftMap = new Map<string, string>();
@@ -304,13 +389,28 @@ Deno.serve(async (req) => {
       for (const s of shifts || []) shiftMap.set(s.id, s.name);
     }
 
-    let sent = 0, failed = 0, skipped = 0;
+    let sent = 0, failed = 0, skipped = 0, retried = 0;
+    const skipReasons: Record<string, number> = {};
+    const skip = (reason: string) => { skipped++; skipReasons[reason] = (skipReasons[reason] || 0) + 1; };
     let smtp: { client: SMTPClient; user: string } | null = null;
 
     for (const d of candidates) {
       const key = `${d.employee_id}|${d.attendance_date}`;
       const emp: any = empMap.get(d.employee_id);
-      if (!emp || !emp.is_active || !emp.email || sentKeys.has(key) || regKeys.has(key)) { skipped++; continue; }
+      if (!emp) { skip("employee_missing"); continue; }
+      if (!emp.is_active) { skip("inactive"); continue; }
+      if (!emp.email) { skip("no_email"); continue; }
+      // Separated staff: nothing after the last working day.
+      if (emp.last_working_day && d.attendance_date > emp.last_working_day) { skip("post_lwd"); continue; }
+      if (regKeys.has(key)) { skip("regularization_raised"); continue; }
+      if (onLeave(d.employee_id, d.attendance_date)) { skip("approved_leave"); continue; }
+      if (isHoliday(d.attendance_date)) { skip("holiday"); continue; }
+
+      const existing: any = logMap.get(key);
+      if (existing) {
+        if (existing.status !== "failed") { skip("already_logged"); continue; }
+        if ((existing.attempts || 0) >= MAX_ATTEMPTS) { skip("max_attempts"); continue; }
+      }
 
       // Watchdog fairness gate — open stale session means HR owns the day.
       try {
@@ -318,20 +418,31 @@ Deno.serve(async (req) => {
           p_employee_id: d.employee_id,
           p_date: d.attendance_date,
         });
-        if (held === true) { skipped++; continue; }
+        if (held === true) { skip("stale_session_hold"); continue; }
       } catch { /* gate unavailable — proceed */ }
 
       if (dryRun) { sent++; continue; }
 
-      // Claim the row first (unique constraint = idempotency anchor)
-      const { error: claimErr } = await admin.from("hr_attendance_notice_log").insert({
-        employee_id: d.employee_id,
-        attendance_date: d.attendance_date,
-        status_at_send: d.status,
-        email: emp.email,
-        status: "pending",
-      });
-      if (claimErr) { skipped++; continue; }
+      const nowIso = new Date().toISOString();
+      if (existing) {
+        retried++;
+        await admin.from("hr_attendance_notice_log")
+          .update({ status: "pending", attempts: (existing.attempts || 0) + 1, last_attempt_at: nowIso, email: emp.email })
+          .eq("id", existing.id);
+      } else {
+        // Claim the row first (unique constraint = idempotency anchor)
+        const { error: claimErr } = await admin.from("hr_attendance_notice_log").insert({
+          employee_id: d.employee_id,
+          attendance_date: d.attendance_date,
+          status_at_send: d.status,
+          email: emp.email,
+          status: "pending",
+          attempts: 1,
+          last_attempt_at: nowIso,
+        });
+        if (claimErr) { skip("claim_lost"); continue; }
+      }
+
 
       const data: NoticeData = {
         employeeName: [emp.first_name, emp.last_name].filter(Boolean).join(" ") || "Employee",
@@ -358,7 +469,7 @@ Deno.serve(async (req) => {
         });
         sent++;
         await admin.from("hr_attendance_notice_log")
-          .update({ status: "sent", sent_at: new Date().toISOString(), error_message: null })
+          .update({ status: "sent", sent_at: new Date().toISOString(), error_message: null, status_at_send: d.status })
           .eq("employee_id", d.employee_id).eq("attendance_date", d.attendance_date);
         await admin.from("hr_email_send_log").insert({
           message_id: crypto.randomUUID(),
@@ -370,6 +481,8 @@ Deno.serve(async (req) => {
       } catch (err) {
         failed++;
         const msg = err instanceof Error ? err.message : String(err);
+        // Drop a poisoned SMTP connection so one bad send does not fail the batch.
+        if (smtp) { try { await smtp.client.close(); } catch { /* ignore */ } smtp = null; }
         await admin.from("hr_attendance_notice_log")
           .update({ status: "failed", error_message: msg })
           .eq("employee_id", d.employee_id).eq("attendance_date", d.attendance_date);
@@ -386,8 +499,9 @@ Deno.serve(async (req) => {
 
     if (smtp) { try { await smtp.client.close(); } catch { /* ignore */ } }
 
-    console.log(`[attendance-notice] considered=${candidates.length} sent=${sent} failed=${failed} skipped=${skipped}`);
-    return json({ success: true, considered: candidates.length, sent, failed, skipped, dryRun });
+    console.log(`[attendance-notice] considered=${candidates.length} sent=${sent} retried=${retried} failed=${failed} skipped=${skipped} ${JSON.stringify(skipReasons)}`);
+    return json({ success: true, considered: candidates.length, sent, retried, failed, skipped, skipReasons, dryRun });
+
   } catch (e) {
     console.error("[attendance-notice] error", e);
     return json({ error: (e as Error).message }, 500);

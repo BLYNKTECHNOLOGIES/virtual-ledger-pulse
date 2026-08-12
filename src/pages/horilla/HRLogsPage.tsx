@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Search, Mail, Bell } from "lucide-react";
+import { Search, Mail, Bell, CalendarX } from "lucide-react";
+import { AttendanceNoticeLogPanel } from "@/components/hrms/AttendanceNoticeLogPanel";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -56,7 +57,12 @@ export default function HRLogsPage() {
         <TabsList>
           <TabsTrigger value="emails" className="gap-1"><Mail className="h-3.5 w-3.5" /> Emails ({emailLogs.length})</TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3.5 w-3.5" /> Notifications ({notifLogs.length})</TabsTrigger>
+          <TabsTrigger value="attendance-notices" className="gap-1"><CalendarX className="h-3.5 w-3.5" /> Attendance notices</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="attendance-notices">
+          <AttendanceNoticeLogPanel search={search} />
+        </TabsContent>
 
         <TabsContent value="emails">
           <Card>

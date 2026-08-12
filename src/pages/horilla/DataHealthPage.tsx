@@ -512,13 +512,11 @@ export default function DataHealthPage() {
                   Statutory enrollment unknown — {unknownEnrollmentRows.length} employee{unknownEnrollmentRows.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Their per-employee PF / ESI / PT flags haven't been verified from a real RazorpayX payslip yet. The shadow engine falls back to the global compliance toggle for them, which is only correct if they truly follow the global default. Import the RazorpayX Salary Register for any month and we'll derive the flags automatically.
-              </p>
               <div className="mt-2 text-[11px] text-muted-foreground">
-                Examples: {unknownEnrollmentRows.slice(0, 6).map((r: any) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || `#${r.badge_id}`).join(", ")}
+                {unknownEnrollmentRows.slice(0, 6).map((r: any) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || `#${r.badge_id}`).join(", ")}
                 {unknownEnrollmentRows.length > 6 ? ` … +${unknownEnrollmentRows.length - 6} more` : ""}
               </div>
+
             </div>
             <div className="flex flex-wrap gap-2">
               <button

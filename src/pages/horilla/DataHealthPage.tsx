@@ -453,9 +453,6 @@ export default function DataHealthPage() {
               <div className="text-sm font-medium text-foreground">
                 Ghost email residual — {ghostResidual.length} message{ghostResidual.length === 1 ? "" : "s"} dead-lettered after retries
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Dispatcher exhausted retry attempts (15m / 45m / 120m backoff). Review recipient address, fix the underlying cause, then re-enqueue.
-              </p>
               <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
                 {ghostResidual.slice(0, 3).map((g) => (
                   <li key={g.id}>

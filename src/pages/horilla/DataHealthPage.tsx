@@ -85,13 +85,6 @@ const FIELD_LABEL: Record<string, string> = {
   dismissal_state: "Dismissal — push failure",
 };
 
-const PUSH_FAILURE_HELP: Record<string, string> = {
-  employment_bundle:
-    "RazorpayX cannot accept employment edits after the employee is dismissed or inactive. Reconcile the Active / dismissed status instead.",
-  dismissal_state:
-    "Run a rescan first. If RazorpayX already shows the employee as inactive, this historical failure closes automatically; otherwise dismiss from the RazorpayX dashboard when the API reports that the login was never activated.",
-};
-
 
 // Field → which Razorpay push to use when adopting the HRMS value.
 const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
@@ -403,32 +396,23 @@ export default function DataHealthPage() {
   return (
 
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-[#E8604C]" />
-            Data Health
-            {empFilter && (
-              <span className="text-xs font-normal text-muted-foreground">
-                • filtered to one employee
-                <button
-                  onClick={() => setParams({})}
-                  className="ml-2 underline hover:text-foreground"
-                >
-                  clear
-                </button>
-              </span>
-            )}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            3-way reconciliation across HRMS ↔ RazorpayX ↔ eSSL biometric. Adopt HRMS is
-            the recommended default — ERP is the source of truth.
-          </p>
-        </div>
+      <header className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-background/85 backdrop-blur border-b border-border flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 text-[#E8604C]" />
+          Data Health
+          {empFilter && (
+            <button
+              onClick={() => setParams({})}
+              className="text-[11px] font-normal rounded-full border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+            >
+              1 employee · clear
+            </button>
+          )}
+        </h1>
         <button
           onClick={runScan}
           disabled={scanning}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#E8604C] px-4 py-2 text-sm font-medium text-white hover:bg-[#d04e3c] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#E8604C] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#d04e3c] disabled:opacity-50"
         >
           {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Rescan now
@@ -436,21 +420,22 @@ export default function DataHealthPage() {
       </header>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="rounded-xl border border-border bg-card overflow-hidden grid grid-cols-3 md:grid-cols-6 divide-x divide-y md:divide-y-0 divide-border">
         {[
-          { label: "Open drifts", value: kpis.total, tone: "text-foreground" },
+          { label: "Open", value: kpis.total, tone: "text-foreground" },
           { label: "Unexplained", value: kpis.unexplained, tone: kpis.unexplained > 0 ? "text-destructive" : "text-success" },
-          { label: "Critical", value: kpis.critical, tone: "text-destructive" },
-          { label: "High", value: kpis.high, tone: "text-destructive/80" },
-          { label: "Medium", value: kpis.medium, tone: "text-warning" },
-          { label: "Employees affected", value: kpis.employees, tone: "text-foreground" },
+          { label: "Critical", value: kpis.critical, tone: kpis.critical > 0 ? "text-destructive" : "text-muted-foreground" },
+          { label: "High", value: kpis.high, tone: kpis.high > 0 ? "text-destructive/80" : "text-muted-foreground" },
+          { label: "Medium", value: kpis.medium, tone: kpis.medium > 0 ? "text-warning" : "text-muted-foreground" },
+          { label: "Employees", value: kpis.employees, tone: "text-foreground" },
         ].map((k) => (
-          <div key={k.label} className="rounded-xl border border-border bg-card px-4 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</div>
-            <div className={`text-2xl font-semibold mt-0.5 ${k.tone}`}>{k.value}</div>
+          <div key={k.label} className="px-3 py-3 md:px-4">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{k.label}</div>
+            <div className={`text-2xl font-semibold mt-0.5 tabular-nums ${k.tone}`}>{k.value}</div>
           </div>
         ))}
       </div>
+
 
       {/* Ghost email residual — dispatcher retries have escalated to dead-letter */}
       {ghostResidual && ghostResidual.length > 0 && (
@@ -461,9 +446,6 @@ export default function DataHealthPage() {
               <div className="text-sm font-medium text-foreground">
                 Ghost email residual — {ghostResidual.length} message{ghostResidual.length === 1 ? "" : "s"} dead-lettered after retries
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Dispatcher exhausted retry attempts (15m / 45m / 120m backoff). Review recipient address, fix the underlying cause, then re-enqueue.
-              </p>
               <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
                 {ghostResidual.slice(0, 3).map((g) => (
                   <li key={g.id}>
@@ -500,9 +482,6 @@ export default function DataHealthPage() {
                   Statutory filing drift — {statutoryDrift.count} mismatch{statutoryDrift.count === 1 ? "" : "es"} across {statutoryDrift.employees} employee{statutoryDrift.employees === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Imported Razorpay payslips show amounts for TDS / PF / ESI / PT while the compliance mirror says Razorpay isn't filing them — you must remit those manually or enable the filing in Compliance Settings.
-              </p>
               <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
                 {statutoryDrift.samples.slice(0, 3).map((s: any) => (
                   <li key={s.id}>
@@ -526,13 +505,11 @@ export default function DataHealthPage() {
                   Statutory enrollment unknown — {unknownEnrollmentRows.length} employee{unknownEnrollmentRows.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Their per-employee PF / ESI / PT flags haven't been verified from a real RazorpayX payslip yet. The shadow engine falls back to the global compliance toggle for them, which is only correct if they truly follow the global default. Import the RazorpayX Salary Register for any month and we'll derive the flags automatically.
-              </p>
               <div className="mt-2 text-[11px] text-muted-foreground">
-                Examples: {unknownEnrollmentRows.slice(0, 6).map((r: any) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || `#${r.badge_id}`).join(", ")}
+                {unknownEnrollmentRows.slice(0, 6).map((r: any) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || `#${r.badge_id}`).join(", ")}
                 {unknownEnrollmentRows.length > 6 ? ` … +${unknownEnrollmentRows.length - 6} more` : ""}
               </div>
+
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -553,9 +530,9 @@ export default function DataHealthPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <label className="inline-flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none">
+        <label className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-foreground cursor-pointer select-none hover:bg-muted">
           <input
             type="checkbox"
             checked={unexplainedOnly}
@@ -567,14 +544,14 @@ export default function DataHealthPage() {
             }}
             className="rounded border-border"
           />
-          Unexplained only (hide auto-tolerated)
+          Unexplained only
         </label>
 
 
         <select
           value={severity}
           onChange={(e) => setSeverity(e.target.value)}
-          className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
         >
           <option value="all">All severities</option>
           <option value="critical">Critical</option>
@@ -585,13 +562,16 @@ export default function DataHealthPage() {
         <select
           value={systemPair}
           onChange={(e) => setSystemPair(e.target.value)}
-          className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
         >
           <option value="all">All system pairs</option>
           <option value="hrms_razorpay">HRMS ↔ Razorpay</option>
           <option value="hrms_essl">HRMS ↔ eSSL</option>
           <option value="razorpay_essl">Razorpay ↔ eSSL</option>
         </select>
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          {filtered.length}/{kpis.total}
+        </span>
       </div>
 
       {/* Rows */}
@@ -599,17 +579,18 @@ export default function DataHealthPage() {
         {isLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-            Loading drifts…
+            Loading…
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
+          <div className="p-10 text-center text-sm text-muted-foreground">
             <CheckCircle2 className="h-8 w-8 text-success mx-auto mb-2" />
-            No open drifts. All three systems are in sync.
+            In sync
           </div>
         ) : (
           <div className="divide-y divide-border">
             {filtered.map((d) => (
-              <div key={d.id} className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3">
+              <div key={d.id} className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 transition-colors hover:bg-muted/40">
+
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${SEVERITY_STYLE[d.severity]}`}>
@@ -643,22 +624,16 @@ export default function DataHealthPage() {
                   </div>
 
                   {isPushFailureAlert(d) ? (
-                    <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs space-y-1">
-                      <div className="font-medium text-warning">
-                        Push failure — not a value comparison
-                      </div>
+                    <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs space-y-1">
                       <div className="text-foreground">
-                        {d.resolution_note ||
-                          "The last ERP → RazorpayX push for this employee did not verify. No side-by-side values were captured."}
+                        {d.resolution_note || "Last push did not verify."}
                       </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {PUSH_FAILURE_HELP[d.field] || "Retry the push, or mark resolved if it is already correct in RazorpayX."}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        Raised {new Date(d.first_seen_at).toLocaleString("en-IN")}
+                      <div className="text-[11px] text-muted-foreground tabular-nums">
+                        {new Date(d.first_seen_at).toLocaleString("en-IN")}
                       </div>
                     </div>
                   ) : (
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                       <ValueCol label="HRMS" value={d.hrms_value} highlight />
                       <ValueCol label="Razorpay" value={d.razorpay_value} />
@@ -722,13 +697,7 @@ export default function DataHealthPage() {
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
-        Only intersecting fields that exist in at least two systems are compared. Bank
-        account and IFSC pushes to Razorpay require the salary/bank-push endpoint gate to
-        be enabled in Razorpay settings — otherwise the drift will re-appear at the next scan.
-        "Pull ← Razorpay" writes the RazorpayX value into HRMS instead, re-reading it live
-        from RazorpayX at confirm time and logging the adoption for audit.
-      </p>
+
 
       <PullFromRazorpayDialog
         target={pullTarget}

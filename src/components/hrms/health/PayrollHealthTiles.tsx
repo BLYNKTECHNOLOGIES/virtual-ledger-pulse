@@ -30,7 +30,7 @@ export function PayslipParityTile() {
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Payslip parity</div>
           <div className="text-2xl font-semibold mt-0.5">{isLoading ? "…" : count}</div>
           <div className="text-xs text-muted-foreground">
-            {good ? "All local payslips mirror RazorpayX" : "legacy payslips missing a RazorpayX mirror"}
+            {good ? "in sync" : "missing RazorpayX mirror"}
           </div>
         </div>
       </CardContent>
@@ -123,7 +123,7 @@ export function RosterCompletenessTile() {
           <div className="text-2xl font-semibold mt-0.5">{isLoading ? "…" : total}</div>
           <div className="text-xs text-muted-foreground">
             {good
-              ? `All ${data?.active_total ?? 0} active employees have shift + weekly-off`
+              ? `${data?.active_total ?? 0} active · complete`
               : `${shift} missing shift · ${woff} missing weekly-off`}
             {first && (
               <>

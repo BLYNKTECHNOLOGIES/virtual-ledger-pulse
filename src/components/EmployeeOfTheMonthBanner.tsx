@@ -60,13 +60,13 @@ export function EmployeeOfTheMonthBanner() {
           {/* badge image */}
           <div className="relative shrink-0">
             <div
-              className="absolute inset-0 rounded-full bg-primary/30 blur-md"
+              className="absolute inset-0 rounded-2xl bg-primary/30 blur-md"
               style={{ animation: "eom-pulse-glow 2.5s ease-in-out infinite" }}
             />
             <img
               src={badgeAsset.url}
               alt="Employee of the Month July 2026 — Sabeel Khan"
-              className="relative h-20 w-auto rounded-full border-2 border-background/80 bg-background shadow-xl md:h-28"
+              className="relative h-20 w-auto rounded-2xl border-2 border-background/80 bg-background shadow-xl md:h-28"
             />
             <Award className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-primary p-1 text-primary-foreground shadow-md md:h-7 md:w-7" />
           </div>

@@ -833,7 +833,13 @@ function isDismissedRazorpayPerson(rp: any): boolean {
   return rpStatus === "dismissed" ||
     rpStatus === "terminated" ||
     rpStatus === "resigned" ||
+    rpStatus === "inactive" ||
     rp.is_active === false ||
+    rp["is-active"] === false ||
+    rp.__dismissed === true ||
+    rp.dismissed === true ||
+    !!rp["date-of-dismissal"] ||
+    !!rp.date_of_dismissal ||
     !!rp.date_of_leaving ||
     !!rp.dismissed_at;
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,7 +26,7 @@ type Orphan = {
  * employee in HRMS. Same class of violation as a field mismatch: the three
  * systems (HRMS / RazorpayX / eSSL) must hold the same roster.
  */
-export function RazorpayOrphanPanel() {
+export function RazorpayOrphanPanel({ scanSignal = 0 }: { scanSignal?: number }) {
   const qc = useQueryClient();
   const [scanning, setScanning] = useState(false);
   const [showIgnored, setShowIgnored] = useState(false);
@@ -67,6 +67,17 @@ export function RazorpayOrphanPanel() {
     }
   }
 
+  // The page owns the single "Rescan now" control; it bumps scanSignal to run
+  // the roster scan alongside the field-drift scan.
+  const lastSignal = useRef(scanSignal);
+  useEffect(() => {
+    if (scanSignal !== lastSignal.current) {
+      lastSignal.current = scanSignal;
+      if (!scanning) runScan();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanSignal]);
+
   async function setStatus(row: Orphan, status: "ignored" | "open") {
     setBusyId(row.id);
     try {
@@ -100,6 +111,7 @@ export function RazorpayOrphanPanel() {
             <span className="text-sm font-medium text-foreground">
               In RazorpayX but not in HRMS — {open.length} person{open.length === 1 ? "" : "s"}
             </span>
+            {scanning && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -108,14 +120,6 @@ export function RazorpayOrphanPanel() {
             className="text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-muted"
           >
             {showIgnored ? "Hide ignored" : "Show ignored"}
-          </button>
-          <button
-            onClick={runScan}
-            disabled={scanning}
-            className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-1.5"
-          >
-            {scanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Scan RazorpayX roster
           </button>
         </div>
       </div>

@@ -115,7 +115,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
           <h1 style="margin:12px 0 8px;font-size:18px;line-height:1.35;color:${BRAND.ink};font-weight:700;">Attendance marked ${label} — ${esc(dateLabel)}</h1>
           <p style="margin:0 0 14px;font-size:13.5px;color:#475569;line-height:1.6;">Dear ${esc(d.employeeName || "Colleague")}, your biometric attendance for this day was recorded as below.</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">${details}</table>
-          <p style="margin:0 0 14px;font-size:13px;color:#475569;line-height:1.6;">If this looks incorrect (missed punch, device issue, off-site work or wrong shift), raise an <strong>Attendance Regularization Request</strong> from your ERP profile &rsaquo; Attendance tab. Manager and HR will review it.</p>
+          <p style="margin:0 0 14px;font-size:13px;color:#475569;line-height:1.6;">If this looks incorrect (missed punch, device issue, off-site work or wrong shift), raise an <strong>Attendance Regularization Request</strong> from your ERP profile &rsaquo; Attendance tab.</p>
           <a href="${REG_LINK}" style="display:inline-block;background:${BRAND.blue};color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:700;">Raise regularization request</a>
           <div style="margin-top:22px;padding-top:16px;border-top:1px solid #eef2f7;">
             <div style="font-size:15px;font-weight:800;color:#5b62d6;line-height:1.2;">${BRAND.hrName}</div>

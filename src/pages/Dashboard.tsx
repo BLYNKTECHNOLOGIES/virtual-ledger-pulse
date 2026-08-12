@@ -771,20 +771,6 @@ export default function Dashboard() {
             description="Monitor your business performance"
             actions={
               <div className="flex flex-col items-start md:items-end gap-3 flex-shrink-0">
-                <div className="flex gap-2 md:gap-4 overflow-x-auto pb-1 md:flex-wrap">
-                  <div className="bg-card border border-info/20 text-foreground rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-info" />
-                      <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
-                    </div>
-                  </div>
-                  <div className="bg-card border border-success/20 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-success" />
-                      <span className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">System Active</span>
-                    </div>
-                  </div>
-                </div>
                 <DateRangePicker
                   dateRange={dateRange}
                   onDateRangeChange={setDateRange}
@@ -839,16 +825,6 @@ export default function Dashboard() {
                   >
                     <CloudDownload className={`h-4 w-4 ${universalSyncing ? 'animate-pulse' : ''}`} />
                     <span className="hidden sm:inline ml-2">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshDashboard}
-                    disabled={isRefreshing}
-                    className="bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm flex-shrink-0"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
                   </Button>
                 </div>
               </div>

@@ -465,7 +465,7 @@ Deno.serve(async (req) => {
         });
         sent++;
         await admin.from("hr_attendance_notice_log")
-          .update({ status: "sent", sent_at: new Date().toISOString(), error_message: null })
+          .update({ status: "sent", sent_at: new Date().toISOString(), error_message: null, status_at_send: d.status })
           .eq("employee_id", d.employee_id).eq("attendance_date", d.attendance_date);
         await admin.from("hr_email_send_log").insert({
           message_id: crypto.randomUUID(),
@@ -477,6 +477,8 @@ Deno.serve(async (req) => {
       } catch (err) {
         failed++;
         const msg = err instanceof Error ? err.message : String(err);
+        // Drop a poisoned SMTP connection so one bad send does not fail the batch.
+        if (smtp) { try { await smtp.client.close(); } catch { /* ignore */ } smtp = null; }
         await admin.from("hr_attendance_notice_log")
           .update({ status: "failed", error_message: msg })
           .eq("employee_id", d.employee_id).eq("attendance_date", d.attendance_date);
@@ -493,8 +495,9 @@ Deno.serve(async (req) => {
 
     if (smtp) { try { await smtp.client.close(); } catch { /* ignore */ } }
 
-    console.log(`[attendance-notice] considered=${candidates.length} sent=${sent} failed=${failed} skipped=${skipped}`);
-    return json({ success: true, considered: candidates.length, sent, failed, skipped, dryRun });
+    console.log(`[attendance-notice] considered=${candidates.length} sent=${sent} retried=${retried} failed=${failed} skipped=${skipped} ${JSON.stringify(skipReasons)}`);
+    return json({ success: true, considered: candidates.length, sent, retried, failed, skipped, skipReasons, dryRun });
+
   } catch (e) {
     console.error("[attendance-notice] error", e);
     return json({ error: (e as Error).message }, 500);

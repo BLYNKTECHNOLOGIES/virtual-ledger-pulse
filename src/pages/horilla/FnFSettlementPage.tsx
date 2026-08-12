@@ -203,7 +203,7 @@ export default function FnFSettlementPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const { gratuity_amount, notice_pay_recovery, ...rest } = form;
-      const { error } = await (supabase as any).from("hr_fnf_settlements").insert({
+      const payload = {
         employee_id: selectedEmpId,
         ...rest,
         net_payable: netPayable,
@@ -231,18 +231,88 @@ export default function FnFSettlementPage() {
             deposits: details.deposits.map((d: any) => ({ id: d.id, type: d.deposit_type, collected: Number(d.collected_amount || 0) })),
           },
         },
+      };
 
-      });
-      if (error) throw error;
+      if (editingId) {
+        const { error } = await (supabase as any)
+          .from("hr_fnf_settlements")
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq("id", editingId);
+        if (error) throw error;
+        return;
+      }
 
+      const { error } = await (supabase as any).from("hr_fnf_settlements").insert(payload);
+      if (error) {
+        // Backed by the partial unique index — one live settlement per employee.
+        if ((error as any).code === "23505") {
+          throw new Error("This employee already has an F&F settlement. Edit the existing one instead.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
       setShowCreate(false);
-      toast.success("F&F Settlement created");
+      toast.success(editingId ? "F&F Settlement updated" : "F&F Settlement created");
+      setEditingId(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const resetForm = () => {
+    setSelectedEmpId("");
+    setDetails({ loans: [], penalties: [], deposits: [], writtenOff: [] });
+    setCalcNote("");
+    setFinalMonth({ state: "idle" });
+    setForm({
+      last_working_day: "", pending_salary: 0, leave_encashment_days: 0, leave_encashment_amount: 0,
+      bonus_amount: 0, gratuity_amount: 0, notice_pay_recovery: 0, loan_recovery: 0, deposit_refund: 0,
+      penalty_deductions: 0, other_deductions: 0, other_deductions_notes: "", notes: "",
+    });
+  };
+
+  const openCreate = () => {
+    setEditingId(null);
+    resetForm();
+    setShowCreate(true);
+  };
+
+  const openEdit = (s: any) => {
+    setEditingId(s.id);
+    setSelectedEmpId(s.employee_id);
+    const b = s.breakdown || {};
+    const c = b.components || {};
+    setDetails({
+      loans: (c.loans || []).map((l: any) => ({ id: l.id, loan_type: l.type, outstanding_balance: l.outstanding })),
+      penalties: (c.penalties || []).map((p: any) => ({ id: p.id, penalty_month: p.month, penalty_type: p.type, penalty_amount: p.amount })),
+      deposits: (c.deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.type, collected_amount: d.collected })),
+      writtenOff: (b.written_off_deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.deposit_type, collected_amount: d.collected_amount, is_paused: d.reason === "paused" })),
+    });
+    setCalcNote(b.calc_note || "");
+    setFinalMonth(
+      ["razorpay", "register_csv"].includes(b.pending_salary_source)
+        ? { state: "razorpay", source: b.pending_salary_source, periodMonth: b.razorpay_period_month || undefined }
+        : { state: "awaiting", periodMonth: b.razorpay_period_month || undefined }
+    );
+    setForm({
+      last_working_day: s.last_working_day || "",
+      pending_salary: Number(s.pending_salary || 0),
+      leave_encashment_days: Number(s.leave_encashment_days || 0),
+      leave_encashment_amount: Number(s.leave_encashment_amount || 0),
+      bonus_amount: Number(s.bonus_amount || 0),
+      gratuity_amount: 0,
+      notice_pay_recovery: Number(b.notice_pay_recovery || 0),
+      loan_recovery: Number(s.loan_recovery || 0),
+      deposit_refund: Number(s.deposit_refund || 0),
+      penalty_deductions: Number(s.penalty_deductions || 0),
+      other_deductions: Number(s.other_deductions || 0),
+      other_deductions_notes: s.other_deductions_notes || "",
+      notes: s.notes || "",
+    });
+    setShowCreate(true);
+  };
+
 
 
   // The DB state machine (fn_enforce_fnf_state_machine) is the contract:

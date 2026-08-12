@@ -100,7 +100,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
 
     <!-- Brand header -->
     <div style="background:#ffffff;border:1px solid #e6ecf3;border-bottom:none;border-radius:14px 14px 0 0;padding:22px 26px 18px;">
-      <img src="${BRAND.logo}" alt="Blynk Virtual Technologies" width="200" style="display:block;width:200px;max-width:64%;height:auto;border:0;" />
+      <img src="${BRAND.logo}" alt="Blynk Virtual Technologies" width="150" style="display:block;width:150px;max-width:52%;height:auto;border:0;" />
     </div>
     <div style="height:3px;background:${BRAND.blue};"></div>
 
@@ -140,28 +140,28 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
       </p>
 
       <!-- HR signature -->
-      <div style="margin-top:30px;padding-top:22px;border-top:1px solid #eef2f7;">
-        <div style="font-size:21px;font-weight:800;color:#5b62d6;line-height:1.25;">${BRAND.hrName}</div>
-        <div style="font-size:13.5px;font-weight:700;color:${BRAND.ink};padding-bottom:7px;border-bottom:2px solid #5b62d6;">
+      <div style="margin-top:28px;padding-top:20px;border-top:1px solid #eef2f7;">
+        <div style="font-size:17px;font-weight:800;color:#5b62d6;line-height:1.25;">${BRAND.hrName}</div>
+        <div style="font-size:12px;font-weight:700;color:${BRAND.ink};padding-bottom:5px;border-bottom:1.5px solid #5b62d6;">
           ${BRAND.hrTitle} &nbsp;|&nbsp; <a href="https://${BRAND.site}" style="color:${BRAND.ink};text-decoration:underline;">${BRAND.site}</a>
         </div>
-        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;border-collapse:collapse;">
+        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;border-collapse:collapse;">
           <tr>
-            <td valign="top" width="96" style="width:96px;padding:2px 20px 0 0;">
-              <img src="${BRAND.icon}" alt="Blynk Virtual Technologies" width="64" style="display:block;width:64px;height:auto;border:0;" />
+            <td valign="top" width="60" style="width:60px;padding:2px 14px 0 0;">
+              <img src="${BRAND.icon}" alt="Blynk Virtual Technologies" width="42" style="display:block;width:42px;height:auto;border:0;" />
             </td>
             <td valign="top">
-              <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-size:13px;color:#334155;line-height:1.55;">
+              <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-size:11.5px;color:#334155;line-height:1.45;">
                 <tr>
-                  <td valign="top" style="padding:0 8px 4px 0;font-weight:700;color:${BRAND.ink};white-space:nowrap;">M:</td>
-                  <td valign="top" style="padding:0 0 4px 0;">${BRAND.hrPhone}</td>
+                  <td valign="top" style="padding:0 6px 2px 0;font-weight:700;color:${BRAND.ink};white-space:nowrap;">M:</td>
+                  <td valign="top" style="padding:0 0 2px 0;white-space:nowrap;">${BRAND.hrPhone}</td>
                 </tr>
                 <tr>
-                  <td valign="top" style="padding:0 8px 4px 0;font-weight:700;color:${BRAND.ink};">E:</td>
-                  <td valign="top" style="padding:0 0 4px 0;"><a href="mailto:${BRAND.hrEmail}" style="color:#334155;">${BRAND.hrEmail}</a></td>
+                  <td valign="top" style="padding:0 6px 2px 0;font-weight:700;color:${BRAND.ink};">E:</td>
+                  <td valign="top" style="padding:0 0 2px 0;"><a href="mailto:${BRAND.hrEmail}" style="color:#334155;">${BRAND.hrEmail}</a></td>
                 </tr>
                 <tr>
-                  <td valign="top" style="padding:0 8px 0 0;font-weight:700;color:${BRAND.ink};">A:</td>
+                  <td valign="top" style="padding:0 6px 0 0;font-weight:700;color:${BRAND.ink};">A:</td>
                   <td valign="top" style="padding:0;">${BRAND.company},<br/>${BRAND.address}</td>
                 </tr>
               </table>
@@ -169,6 +169,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
           </tr>
         </table>
       </div>
+
 
     </div>
 

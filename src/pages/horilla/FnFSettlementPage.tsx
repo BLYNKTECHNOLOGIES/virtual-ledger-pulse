@@ -436,7 +436,12 @@ export default function FnFSettlementPage() {
         title="Full & Final Settlement"
         description="Manage settlement for separated employees"
         actions={
-          <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => setShowCreate(true)}>
+          <Button
+            className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"
+            onClick={openCreate}
+            disabled={allSettled}
+            title={allSettled ? "Every separated employee already has a settlement — edit the existing one" : undefined}
+          >
             <Plus className="h-4 w-4 mr-2" /> New Settlement
           </Button>
         }

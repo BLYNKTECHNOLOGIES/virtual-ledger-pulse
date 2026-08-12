@@ -704,29 +704,30 @@ export function ResignationTab() {
               </div>
               {acknowledgementData.fnf && (
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">F&F Settlement (Auto-Calculated)</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">F&F Settlement (Draft)</p>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Leave Encashment ({acknowledgementData.fnf.encashDays}d)</span>
-                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.leaveEncashAmount).toLocaleString("en-IN")}</span>
+                    <span className="text-muted-foreground">Final Month Salary (RazorpayX)</span>
+                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.pending_salary || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Deposit Refund</span>
-                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.depositRefund).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.deposit_refund || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Loan Recovery</span>
-                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.loanRecovery).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.loan_recovery || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Penalty Deductions</span>
-                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.penaltyTotal).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.penalty_deductions || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-1">
                     <span>Net Payable</span>
-                    <span>₹{Number(acknowledgementData.fnf.netPayable).toLocaleString("en-IN")}</span>
+                    <span>₹{Number(acknowledgementData.fnf.net_payable || 0).toLocaleString("en-IN")}</span>
                   </div>
                 </div>
               )}
+
               <div className="bg-success/10 dark:bg-success/30 border border-success/20 dark:border-success rounded-lg p-3">
                 <p className="text-sm text-success dark:text-success">
                   ✓ Employee has been deactivated<br />

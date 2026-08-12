@@ -257,16 +257,67 @@ Deno.serve(async (req) => {
       return json({ success: true, sampleSentTo: to, subject, basedOn: data });
     }
 
+    // ---------------- RESEND (single failed notice) ----------------
+    if (action === "resend") {
+      const logId = String(body.logId || "");
+      if (!logId) return json({ error: "logId is required" }, 400);
+      const { data: row } = await admin.from("hr_attendance_notice_log").select("*").eq("id", logId).maybeSingle();
+      if (!row) return json({ error: "Notice not found" }, 404);
+      const { data: emp } = await admin.from("hr_employees").select("first_name, last_name, email").eq("id", row.employee_id).maybeSingle();
+      const { data: day } = await admin
+        .from("hr_attendance_daily")
+        .select("status, first_in, last_out, total_hours, late_by_minutes, early_by_minutes, punch_count, detected_shift_id")
+        .eq("employee_id", row.employee_id).eq("attendance_date", row.attendance_date).maybeSingle();
+      const to = row.email || emp?.email;
+      if (!to) return json({ error: "No email on record for this employee" }, 400);
+      const notice: NoticeData = {
+        employeeName: [emp?.first_name, emp?.last_name].filter(Boolean).join(" ") || "Employee",
+        attendanceDate: row.attendance_date,
+        status: (day?.status === "absent" ? "absent" : "half_day"),
+        firstIn: day?.first_in ?? null,
+        lastOut: day?.last_out ?? null,
+        totalHours: day?.total_hours ?? null,
+        lateBy: day?.late_by_minutes ?? null,
+        earlyBy: day?.early_by_minutes ?? null,
+        punchCount: day?.punch_count ?? null,
+        shiftName: null,
+      };
+      const { subject, html, text } = renderNotice(notice);
+      const { client, user } = makeClient(mailbox);
+      try {
+        await client.send({ from: `${mailbox.from_name || "HR"} <${mailbox.from_address || user}>`, to, subject, content: text, html });
+        await admin.from("hr_attendance_notice_log").update({
+          status: "sent", sent_at: new Date().toISOString(), error_message: null,
+          attempts: (row.attempts || 0) + 1, last_attempt_at: new Date().toISOString(),
+        }).eq("id", logId);
+        return json({ success: true, resentTo: to });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await admin.from("hr_attendance_notice_log").update({
+          status: "failed", error_message: msg,
+          attempts: (row.attempts || 0) + 1, last_attempt_at: new Date().toISOString(),
+        }).eq("id", logId);
+        return json({ error: msg }, 500);
+      } finally {
+        try { await client.close(); } catch { /* ignore */ }
+      }
+    }
+
     // ---------------- RUN ----------------
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const sinceDate = body.sinceDate || ACTIVATION_DATE;
     const dryRun = body.dryRun === true;
+    const MAX_ATTEMPTS = 3;
+    // Yesterday in IST — never mail about today or a future-dated row.
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const maxDate = new Date(istNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     const { data: days } = await admin
       .from("hr_attendance_daily")
       .select("employee_id, attendance_date, status, first_in, last_out, total_hours, late_by_minutes, early_by_minutes, punch_count, detected_shift_id, updated_at")
       .in("status", ["absent", "half_day"])
       .gte("attendance_date", sinceDate)
+      .lte("attendance_date", maxDate)
       .lte("updated_at", cutoff)
       .order("attendance_date", { ascending: false })
       .limit(500);
@@ -276,26 +327,56 @@ Deno.serve(async (req) => {
 
     const empIds = [...new Set(candidates.map((d: any) => d.employee_id))];
     const dates = [...new Set(candidates.map((d: any) => d.attendance_date))];
+    const minDate = dates.reduce((a: string, b: string) => (a < b ? a : b));
+    const maxCandDate = dates.reduce((a: string, b: string) => (a > b ? a : b));
 
     const { data: emps } = await admin
       .from("hr_employees")
-      .select("id, first_name, last_name, email, is_active")
+      .select("id, first_name, last_name, email, is_active, last_working_day")
       .in("id", empIds);
     const empMap = new Map((emps || []).map((e: any) => [e.id, e]));
 
-    const { data: alreadySent } = await admin
+    // Existing log rows: sent/pending block; failed rows retry until MAX_ATTEMPTS.
+    const { data: existingLogs } = await admin
       .from("hr_attendance_notice_log")
-      .select("employee_id, attendance_date")
+      .select("id, employee_id, attendance_date, status, attempts")
       .in("employee_id", empIds)
       .in("attendance_date", dates);
-    const sentKeys = new Set((alreadySent || []).map((r: any) => `${r.employee_id}|${r.attendance_date}`));
+    const logMap = new Map((existingLogs || []).map((r: any) => [`${r.employee_id}|${r.attendance_date}`, r]));
 
+    // Regularization: a rejected request leaves the day standing, so it does not block.
     const { data: regs } = await admin
       .from("hr_attendance_regularization_requests")
-      .select("employee_id, attendance_date")
+      .select("employee_id, attendance_date, status")
       .in("employee_id", empIds)
       .in("attendance_date", dates);
-    const regKeys = new Set((regs || []).map((r: any) => `${r.employee_id}|${r.attendance_date}`));
+    const regKeys = new Set(
+      (regs || []).filter((r: any) => String(r.status || "").toLowerCase() !== "rejected")
+        .map((r: any) => `${r.employee_id}|${r.attendance_date}`),
+    );
+
+    // Approved leave covering the day — HR already knows, employee should not be nudged.
+    const { data: leaves } = await admin
+      .from("hr_leave_requests")
+      .select("employee_id, start_date, end_date, status")
+      .in("employee_id", empIds)
+      .lte("start_date", maxCandDate)
+      .gte("end_date", minDate);
+    const approvedLeaves = (leaves || []).filter((l: any) => ["approved", "hr_approved"].includes(String(l.status || "").toLowerCase()));
+    const onLeave = (empId: string, date: string) =>
+      approvedLeaves.some((l: any) => l.employee_id === empId && l.start_date <= date && l.end_date >= date);
+
+    // Company holidays (exact date or recurring day/month).
+    const { data: holidays } = await admin.from("hr_holidays").select("date, recurring, is_active");
+    const holidaySet = new Set<string>();
+    const recurringSet = new Set<string>();
+    for (const h of holidays || []) {
+      if (h.is_active === false || !h.date) continue;
+      holidaySet.add(String(h.date));
+      if (h.recurring) recurringSet.add(String(h.date).slice(5));
+    }
+    const isHoliday = (date: string) => holidaySet.has(date) || recurringSet.has(date.slice(5));
+
 
     const shiftIds = [...new Set(candidates.map((d: any) => d.detected_shift_id).filter(Boolean))];
     const shiftMap = new Map<string, string>();

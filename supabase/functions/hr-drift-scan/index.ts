@@ -391,7 +391,7 @@ serve(async (req) => {
     let upserted = 0;
     let resolved = 0;
 
-    for (const emp of employees) {
+    const reconcileEmployee = async (emp: any) => {
       const workInfo = workByEmp.get(emp.id);
       const bank = bankByEmp.get(emp.id);
       const salary = salaryByEmp.get(emp.id);
@@ -518,7 +518,28 @@ serve(async (req) => {
           }
         }
       }
-    }
+    };
+
+    // Reconciliation used to run every employee and field serially, producing
+    // hundreds of sequential PostgREST round trips on a full scan. Use a small
+    // worker pool so database load stays bounded while completing inside the
+    // Edge Function request window.
+    const reconcileConcurrency = Math.max(1, Math.min(10, Number(
+      url.searchParams.get("reconcile_concurrency") ?? "6",
+    )));
+    let reconcileCursor = 0;
+    const reconcileWorker = async () => {
+      while (reconcileCursor < employees.length) {
+        const emp = employees[reconcileCursor++];
+        if (emp) await reconcileEmployee(emp);
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(reconcileConcurrency, employees.length) },
+        () => reconcileWorker(),
+      ),
+    );
 
     return new Response(
       JSON.stringify({ ok: true, scanned: employees.length, drifts_upserted: upserted, resolved, snapshots_refreshed: refreshed, snapshot_refresh_failed: refreshFailed }),

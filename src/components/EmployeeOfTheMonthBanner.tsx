@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ChevronRight, Sparkles, Star } from "lucide-react";
 import badgeAsset from "@/assets/sabeel-khan-eom-badge.png.asset.json";
+import posterAsset from "@/assets/sabeel-khan-eom-poster.jpeg.asset.json";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 /** Bump this key whenever a new Employee of the Month is announced. */

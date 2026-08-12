@@ -67,6 +67,17 @@ export function RazorpayOrphanPanel({ scanSignal = 0 }: { scanSignal?: number })
     }
   }
 
+  // The page owns the single "Rescan now" control; it bumps scanSignal to run
+  // the roster scan alongside the field-drift scan.
+  const lastSignal = useRef(scanSignal);
+  useEffect(() => {
+    if (scanSignal !== lastSignal.current) {
+      lastSignal.current = scanSignal;
+      if (!scanning) runScan();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanSignal]);
+
   async function setStatus(row: Orphan, status: "ignored" | "open") {
     setBusyId(row.id);
     try {

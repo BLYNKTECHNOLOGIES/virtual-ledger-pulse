@@ -85,13 +85,6 @@ const FIELD_LABEL: Record<string, string> = {
   dismissal_state: "Dismissal — push failure",
 };
 
-const PUSH_FAILURE_HELP: Record<string, string> = {
-  employment_bundle:
-    "RazorpayX cannot accept employment edits after the employee is dismissed or inactive. Reconcile the Active / dismissed status instead.",
-  dismissal_state:
-    "Run a rescan first. If RazorpayX already shows the employee as inactive, this historical failure closes automatically; otherwise dismiss from the RazorpayX dashboard when the API reports that the login was never activated.",
-};
-
 
 // Field → which Razorpay push to use when adopting the HRMS value.
 const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {

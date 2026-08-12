@@ -124,7 +124,7 @@ export function RazorpayOrphanPanel() {
         <div className="p-4 text-xs text-muted-foreground">Loading…</div>
       ) : (rows ?? []).length === 0 ? (
         <div className="p-4 text-xs text-muted-foreground">
-          No RazorpayX-only people detected. Run a scan to refresh.
+          None detected.
         </div>
       ) : (
         <div className="divide-y divide-border">

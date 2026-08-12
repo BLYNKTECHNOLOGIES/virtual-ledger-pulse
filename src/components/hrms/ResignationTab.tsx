@@ -17,6 +17,8 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
+import { createFnFDraft } from "@/lib/fnfEngine";
+import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 
 type ResignationEmployee = {
   id: string;
@@ -249,65 +251,23 @@ export function ResignationTab() {
         .eq("id", employeeId);
       if (error) throw error;
 
-      // Calculate F&F values from actual data
-      const dailySalary = Number(empData?.total_salary || 0) / 30;
-
-      // Loan outstanding balance
-      const { data: loans } = await (supabase as any)
-        .from("hr_loans")
-        .select("outstanding_balance")
-        .eq("employee_id", employeeId)
-        .eq("status", "active");
-      const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
-
-      // Encashable leave balance
-      const { data: allocations } = await (supabase as any)
-        .from("hr_leave_allocations")
-        .select("available_days, hr_leave_types!hr_leave_allocations_leave_type_id_fkey(is_encashable)")
-        .eq("employee_id", employeeId);
-      const encashDays = (allocations || [])
-        .filter((a: any) => a.hr_leave_types?.is_encashable)
-        .reduce((sum: number, a: any) => sum + Number(a.available_days || 0), 0);
-      const leaveEncashAmount = Math.round(encashDays * dailySalary);
-
-      // Pending penalties
-      const { data: penalties } = await (supabase as any)
-        .from("hr_penalties")
-        .select("deduction_amount")
-        .eq("employee_id", employeeId)
-        .eq("is_applied", false);
-      const penaltyTotal = (penalties || []).reduce((sum: number, p: any) => sum + Number(p.deduction_amount || 0), 0);
-
-      // Deposit refund (collected amount that needs to be returned)
-      const { data: deposits } = await (supabase as any)
-        .from("hr_employee_deposits")
-        .select("collected_amount")
-        .eq("employee_id", employeeId)
-        .eq("is_settled", false);
-      const depositRefund = (deposits || []).reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
-
-      const netPayable = leaveEncashAmount + depositRefund - loanRecovery - penaltyTotal;
-
-      // Auto-create calculated F&F settlement
+      // F&F settlement — always produced by the single F&F engine (RazorpayX-sourced
+      // final salary, no leave encashment / gratuity). No-op if one already exists.
+      let fnfSummary: any = null;
       try {
-        await (supabase as any).from("hr_fnf_settlements").insert({
-          employee_id: employeeId,
-          status: "draft",
-          last_working_day: empData?.last_working_day || new Date().toISOString().split('T')[0],
-          pending_salary: 0,
-          leave_encashment_days: encashDays,
-          leave_encashment_amount: leaveEncashAmount,
-          bonus_amount: 0,
-          loan_recovery: loanRecovery,
-          deposit_refund: depositRefund,
-          penalty_deductions: penaltyTotal,
-          other_deductions: 0,
-          net_payable: netPayable,
-          notes: "Auto-calculated on resignation completion",
-        });
+        const { id } = await createFnFDraft(employeeId, (empData?.last_working_day as string | undefined) || null);
+        const { data: fnfRow } = await (supabase as any)
+          .from("hr_fnf_settlements")
+          .select("pending_salary, loan_recovery, deposit_refund, penalty_deductions, net_payable")
+          .eq("id", id)
+          .maybeSingle();
+        fnfSummary = fnfRow || null;
       } catch (e) {
         console.warn("F&F auto-creation failed (non-fatal):", e);
       }
+
+      // ERP login deactivation — the ERP ID must not survive the separation.
+      await deactivateErpAccount(employeeId);
 
       // Razorpay dismissal — set date-of-dismissal so FNF payroll can be
       // processed on their side too. Non-fatal: local separation is committed.
@@ -326,7 +286,8 @@ export function ResignationTab() {
       await deleteFromEssl(employeeId, { triggeredFrom: "resignation", silent: true });
 
 
-      return { ...empData, fnf: { leaveEncashAmount, loanRecovery, depositRefund, penaltyTotal, netPayable, encashDays } };
+      return { ...empData, fnf: fnfSummary };
+
     },
     onSuccess: (empData) => {
       toast.success("Resignation completed — employee deactivated");
@@ -437,6 +398,71 @@ export function ResignationTab() {
 
   const completedCount = checklist?.filter(c => c.is_completed).length || 0;
   const totalCount = checklist?.length || 0;
+
+  // ── In-checklist exit actions: ERP ID deactivation + F&F creation ──────────
+  const { data: erpAccount, refetch: refetchErpAccount } = useQuery({
+    queryKey: ["resignation-erp-account", selectedEmployee?.id],
+    queryFn: async () => (selectedEmployee ? getErpAccountStatus(selectedEmployee.id) : { userId: null, status: null }),
+    enabled: !!selectedEmployee,
+  });
+
+  const { data: fnfForEmployee, refetch: refetchFnf } = useQuery({
+    queryKey: ["resignation-fnf", selectedEmployee?.id],
+    queryFn: async () => {
+      if (!selectedEmployee) return null;
+      const { data } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .select("id, status, net_payable")
+        .eq("employee_id", selectedEmployee.id)
+        .neq("status", "cancelled")
+        .maybeSingle();
+      return data || null;
+    },
+    enabled: !!selectedEmployee,
+  });
+
+  // Ticks the checklist item whose title matches, once its action is done.
+  const markChecklistItem = async (matcher: (title: string) => boolean) => {
+    const item = (checklist || []).find(c => matcher(c.item_title.toLowerCase()));
+    if (item && !item.is_completed) {
+      await supabase
+        .from("hr_resignation_checklist")
+        .update({ is_completed: true, completed_at: new Date().toISOString() })
+        .eq("id", item.id);
+      refetchChecklist();
+    }
+  };
+
+  const deactivateErp = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployee) throw new Error("No employee selected");
+      const res = await deactivateErpAccount(selectedEmployee.id);
+      if (!res.deactivated) throw new Error(res.reason || "Could not deactivate ERP account");
+      await markChecklistItem(t => t.includes("access revoked") || t.includes("erp"));
+    },
+    onSuccess: () => {
+      toast.success("ERP ID deactivated — the employee can no longer sign in");
+      refetchErpAccount();
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const createFnFFromChecklist = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployee) throw new Error("No employee selected");
+      const res = await createFnFDraft(selectedEmployee.id, selectedEmployee.last_working_day || null);
+      await markChecklistItem(t => t.includes("full & final") || t.includes("full and final"));
+      return res;
+    },
+    onSuccess: (res) => {
+      toast.success(res.existed ? "F&F settlement already exists — linked to this exit" : "F&F settlement draft created");
+      refetchFnf();
+      queryClient.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
 
   return (
     <div className="space-y-4">
@@ -630,23 +656,66 @@ export function ResignationTab() {
             <p className="text-sm text-muted-foreground">{completedCount}/{totalCount} items completed</p>
           </DialogHeader>
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {checklist?.map(item => (
+            {checklist?.map(item => {
+              const t = item.item_title.toLowerCase();
+              const isFnf = t.includes("full & final") || t.includes("full and final");
+              const isAccess = t.includes("access revoked") || t.includes("erp");
+              return (
               <div key={item.id} className="flex items-start gap-3 p-2 rounded border">
                 <Checkbox
                   checked={item.is_completed}
                   onCheckedChange={(checked) => toggleChecklist.mutate({ id: item.id, is_completed: !!checked })}
                   className="mt-0.5"
                 />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <span className={`text-sm ${item.is_completed ? "line-through text-muted-foreground" : ""}`}>
                     {item.item_title}
                   </span>
                   {item.completed_at && (
                     <p className="text-xs text-muted-foreground">Done: {new Date(item.completed_at).toLocaleDateString()}</p>
                   )}
+                  {isFnf && (
+                    <div className="mt-1.5">
+                      {fnfForEmployee ? (
+                        <p className="text-xs text-muted-foreground">
+                          Settlement <span className="font-medium">{fnfForEmployee.status}</span> · Net ₹{Number(fnfForEmployee.net_payable || 0).toLocaleString("en-IN")} — manage it in Full &amp; Final Settlement
+                        </p>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={createFnFFromChecklist.isPending}
+                          onClick={() => createFnFFromChecklist.mutate()}
+                        >
+                          {createFnFFromChecklist.isPending ? "Creating…" : "Create F&F settlement"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {isAccess && (
+                    <div className="mt-1.5">
+                      {erpAccount?.userId == null ? (
+                        <p className="text-xs text-muted-foreground">No ERP login linked to this employee</p>
+                      ) : erpAccount.status !== "ACTIVE" ? (
+                        <p className="text-xs text-muted-foreground">ERP ID is {String(erpAccount.status).toLowerCase()}</p>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={deactivateErp.isPending}
+                          onClick={() => deactivateErp.mutate()}
+                        >
+                          {deactivateErp.isPending ? "Deactivating…" : "Deactivate ERP ID"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+            );})}
+
           </div>
           <DialogFooter>
             <Button
@@ -745,29 +814,30 @@ export function ResignationTab() {
               </div>
               {acknowledgementData.fnf && (
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">F&F Settlement (Auto-Calculated)</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">F&F Settlement (Draft)</p>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Leave Encashment ({acknowledgementData.fnf.encashDays}d)</span>
-                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.leaveEncashAmount).toLocaleString("en-IN")}</span>
+                    <span className="text-muted-foreground">Final Month Salary (RazorpayX)</span>
+                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.pending_salary || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Deposit Refund</span>
-                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.depositRefund).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.deposit_refund || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Loan Recovery</span>
-                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.loanRecovery).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.loan_recovery || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Penalty Deductions</span>
-                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.penaltyTotal).toLocaleString("en-IN")}</span>
+                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.penalty_deductions || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-1">
                     <span>Net Payable</span>
-                    <span>₹{Number(acknowledgementData.fnf.netPayable).toLocaleString("en-IN")}</span>
+                    <span>₹{Number(acknowledgementData.fnf.net_payable || 0).toLocaleString("en-IN")}</span>
                   </div>
                 </div>
               )}
+
               <div className="bg-success/10 dark:bg-success/30 border border-success/20 dark:border-success rounded-lg p-3">
                 <p className="text-sm text-success dark:text-success">
                   ✓ Employee has been deactivated<br />

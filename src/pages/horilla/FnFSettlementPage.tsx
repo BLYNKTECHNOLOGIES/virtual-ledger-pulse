@@ -18,6 +18,7 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
+import { computeFnFDraft, buildFnFPayload, fnfNetPayable } from "@/lib/fnfEngine";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
@@ -111,127 +112,20 @@ export default function FnFSettlementPage() {
     if (!emp) return;
     setFinalMonth({ state: "loading" });
 
-    const lwdIso: string | null = emp.last_working_day || null;
-    const periodMonth = lwdIso ? `${lwdIso.slice(0, 7)}-01` : null;
-
-    const [{ data: loans }, { data: penalties }, { data: empDeposits }, payslipRes] = await Promise.all([
-      (supabase as any)
-        .from("hr_loans")
-        .select("id, loan_type, advance_type, amount, emi_amount, outstanding_balance, status")
-        .eq("employee_id", empId)
-        .in("status", ["approved", "active", "paused"]),
-      (supabase as any)
-        .from("hr_penalties")
-        .select("id, penalty_month, penalty_type, penalty_reason, penalty_amount")
-        .eq("employee_id", empId)
-        .eq("is_applied", false),
-      (supabase as any)
-        .from("hr_employee_deposits")
-        .select("id, collected_amount, current_balance, deposit_type, is_recovered, is_paused, recovery_reason, incident_reference")
-        .eq("employee_id", empId)
-        .eq("is_settled", false),
-      periodMonth
-        ? (supabase as any)
-            .from("hr_razorpay_payslip_records")
-            .select("net_pay, reg_net_pay, period_month")
-            .eq("hr_employee_id", empId)
-            .eq("period_month", periodMonth)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
-
-    const activeLoans = (loans || []).filter((l: any) => Number(l.outstanding_balance || 0) > 0);
-    const loanRecovery = activeLoans.reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
-
-    const openPenalties = penalties || [];
-    const penaltyTotal = openPenalties.reduce((sum: number, p: any) => sum + Number(p.penalty_amount || 0), 0);
-
-    const all = empDeposits || [];
-    // Security deposits refund in full; error-recovery deposits refund ONLY when
-    // the money has been recovered from the counterparty (is_recovered).
-    const refundable = all.filter((d: any) => {
-      const t = d.deposit_type || "security";
-      if (d.is_paused) return false;
-      return t === "security" ? true : d.is_recovered === true;
-    });
-    const writtenOff = all.filter((d: any) => !refundable.some((r: any) => r.id === d.id));
-    const depositRefund = refundable.reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
-
-    // Final-month salary — RazorpayX only.
-    const slip: any = (payslipRes as any)?.data || null;
-    const apiNet = Number(slip?.net_pay || 0);
-    const regNet = Number(slip?.reg_net_pay || 0);
-    const pendingSalary = apiNet > 0 ? apiNet : regNet > 0 ? regNet : 0;
-    const source: "razorpay" | "register_csv" | undefined =
-      apiNet > 0 ? "razorpay" : regNet > 0 ? "register_csv" : undefined;
-
-    setFinalMonth(
-      pendingSalary > 0
-        ? { state: "razorpay", periodMonth: periodMonth || undefined, source }
-        : { state: "awaiting", periodMonth: periodMonth || undefined }
-    );
-
-    setDetails({ loans: activeLoans, penalties: openPenalties, deposits: refundable, writtenOff });
-    setCalcNote(
-      writtenOff.length > 0
-        ? `${writtenOff.length} deposit${writtenOff.length > 1 ? "s are" : " is"} not refundable (paused, or error recovery not yet marked recovered) and ${writtenOff.length > 1 ? "are" : "is"} written off in this settlement.`
-        : ""
-    );
-
-
-    setForm({
-      last_working_day: lwdIso || "",
-      pending_salary: pendingSalary,
-      leave_encashment_days: 0,
-      leave_encashment_amount: 0,
-      bonus_amount: 0,
-      gratuity_amount: 0,
-      notice_pay_recovery: 0,
-      loan_recovery: loanRecovery,
-      deposit_refund: depositRefund,
-      penalty_deductions: penaltyTotal,
-      other_deductions: 0,
-      other_deductions_notes: "",
-      notes: "",
-    });
+    const draft = await computeFnFDraft(empId, emp.last_working_day || null);
+    setFinalMonth(draft.finalMonth);
+    setDetails(draft.details);
+    setCalcNote(draft.calcNote);
+    setForm(draft.form);
   };
 
-  const netPayable = form.pending_salary + form.bonus_amount + form.deposit_refund
-    - form.loan_recovery - form.penalty_deductions - form.notice_pay_recovery - form.other_deductions;
+  const netPayable = fnfNetPayable(form as any);
 
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { gratuity_amount, notice_pay_recovery, ...rest } = form;
-      const payload = {
-        employee_id: selectedEmpId,
-        ...rest,
-        net_payable: netPayable,
-        breakdown: {
-          notice_pay_recovery,
-          calc_note: calcNote,
-          policy: "no_leave_encashment_no_gratuity",
-          pending_salary_source: finalMonth.source || "manual",
-          razorpay_period_month: finalMonth.periodMonth || null,
-          deposit_refund_scope: "security_and_recovered_error_recovery",
-          source_ids: {
-            loan_ids: details.loans.map((l: any) => l.id),
-            penalty_ids: details.penalties.map((p: any) => p.id),
-            deposit_ids: details.deposits.map((d: any) => d.id),
-          },
-          written_off_deposits: details.writtenOff.map((d: any) => ({
-            id: d.id,
-            deposit_type: d.deposit_type,
-            collected_amount: Number(d.collected_amount || 0),
-            reason: d.is_paused ? "paused" : "error recovery not marked recovered",
-          })),
-          components: {
-            loans: details.loans.map((l: any) => ({ id: l.id, type: l.loan_type, outstanding: Number(l.outstanding_balance || 0) })),
-            penalties: details.penalties.map((p: any) => ({ id: p.id, month: p.penalty_month, type: p.penalty_type, amount: Number(p.penalty_amount || 0) })),
-            deposits: details.deposits.map((d: any) => ({ id: d.id, type: d.deposit_type, collected: Number(d.collected_amount || 0) })),
-          },
-        },
-      };
+      const payload = buildFnFPayload(selectedEmpId, form as any, details, calcNote, finalMonth as any);
+
 
       if (editingId) {
         const { error } = await (supabase as any)

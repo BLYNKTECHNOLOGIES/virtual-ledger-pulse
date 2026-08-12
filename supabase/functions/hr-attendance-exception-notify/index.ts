@@ -385,13 +385,28 @@ Deno.serve(async (req) => {
       for (const s of shifts || []) shiftMap.set(s.id, s.name);
     }
 
-    let sent = 0, failed = 0, skipped = 0;
+    let sent = 0, failed = 0, skipped = 0, retried = 0;
+    const skipReasons: Record<string, number> = {};
+    const skip = (reason: string) => { skipped++; skipReasons[reason] = (skipReasons[reason] || 0) + 1; };
     let smtp: { client: SMTPClient; user: string } | null = null;
 
     for (const d of candidates) {
       const key = `${d.employee_id}|${d.attendance_date}`;
       const emp: any = empMap.get(d.employee_id);
-      if (!emp || !emp.is_active || !emp.email || sentKeys.has(key) || regKeys.has(key)) { skipped++; continue; }
+      if (!emp) { skip("employee_missing"); continue; }
+      if (!emp.is_active) { skip("inactive"); continue; }
+      if (!emp.email) { skip("no_email"); continue; }
+      // Separated staff: nothing after the last working day.
+      if (emp.last_working_day && d.attendance_date > emp.last_working_day) { skip("post_lwd"); continue; }
+      if (regKeys.has(key)) { skip("regularization_raised"); continue; }
+      if (onLeave(d.employee_id, d.attendance_date)) { skip("approved_leave"); continue; }
+      if (isHoliday(d.attendance_date)) { skip("holiday"); continue; }
+
+      const existing: any = logMap.get(key);
+      if (existing) {
+        if (existing.status !== "failed") { skip("already_logged"); continue; }
+        if ((existing.attempts || 0) >= MAX_ATTEMPTS) { skip("max_attempts"); continue; }
+      }
 
       // Watchdog fairness gate — open stale session means HR owns the day.
       try {
@@ -399,20 +414,31 @@ Deno.serve(async (req) => {
           p_employee_id: d.employee_id,
           p_date: d.attendance_date,
         });
-        if (held === true) { skipped++; continue; }
+        if (held === true) { skip("stale_session_hold"); continue; }
       } catch { /* gate unavailable — proceed */ }
 
       if (dryRun) { sent++; continue; }
 
-      // Claim the row first (unique constraint = idempotency anchor)
-      const { error: claimErr } = await admin.from("hr_attendance_notice_log").insert({
-        employee_id: d.employee_id,
-        attendance_date: d.attendance_date,
-        status_at_send: d.status,
-        email: emp.email,
-        status: "pending",
-      });
-      if (claimErr) { skipped++; continue; }
+      const nowIso = new Date().toISOString();
+      if (existing) {
+        retried++;
+        await admin.from("hr_attendance_notice_log")
+          .update({ status: "pending", attempts: (existing.attempts || 0) + 1, last_attempt_at: nowIso, email: emp.email })
+          .eq("id", existing.id);
+      } else {
+        // Claim the row first (unique constraint = idempotency anchor)
+        const { error: claimErr } = await admin.from("hr_attendance_notice_log").insert({
+          employee_id: d.employee_id,
+          attendance_date: d.attendance_date,
+          status_at_send: d.status,
+          email: emp.email,
+          status: "pending",
+          attempts: 1,
+          last_attempt_at: nowIso,
+        });
+        if (claimErr) { skip("claim_lost"); continue; }
+      }
+
 
       const data: NoticeData = {
         employeeName: [emp.first_name, emp.last_name].filter(Boolean).join(" ") || "Employee",

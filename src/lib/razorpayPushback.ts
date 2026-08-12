@@ -495,9 +495,7 @@ export async function dismissInRazorpay(
       ack: "CONFIRM_DISMISS",
       data: {
         "employee-id": Number(razorpayId),
-        "employee-type": "employee",
-        "date-of-dismissal": ddmmyyyy,
-        reason: (opts.reason || "Resignation").slice(0, 240),
+        dateOfDismissal: ddmmyyyy,
       },
     };
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body: payload });

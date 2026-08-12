@@ -16,6 +16,7 @@ import {
   pushBankToRazorpay,
   pushSalaryToRazorpay,
   pushEmploymentToRazorpay,
+  dismissInRazorpay,
 } from "@/lib/razorpayPushback";
 import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
 import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
@@ -313,7 +314,25 @@ export default function DataHealthPage() {
   }
 
   async function adoptHrms(drift: Drift) {
-    const push = PUSH_BY_FIELD[drift.field];
+    const push = drift.field === "active_state" && !drift.is_active
+      ? async (id: string) => {
+          const { data: employee, error } = await (supabase as any)
+            .from("hr_employees")
+            .select("last_working_day, termination_date, notice_period_end_date, separation_reason")
+            .eq("id", id)
+            .single();
+          if (error) throw error;
+          const dismissalDate = employee?.last_working_day
+            || employee?.termination_date
+            || employee?.notice_period_end_date;
+          if (!dismissalDate) throw new Error("Set the employee's last working day before dismissing them in RazorpayX.");
+          return dismissInRazorpay(id, {
+            dateOfDismissal: dismissalDate,
+            reason: employee?.separation_reason,
+            triggeredFrom: "data_health",
+          });
+        }
+      : PUSH_BY_FIELD[drift.field];
     if (!push) {
       toast.info("This field has no automated push route — resolve manually in Razorpay.");
       return;
@@ -678,12 +697,12 @@ export default function DataHealthPage() {
                 </div>
                 <div className="flex flex-wrap md:flex-col gap-2 md:justify-center">
                   <button
-                    disabled={resolvingId === d.id || !PUSH_BY_FIELD[d.field]}
+                    disabled={resolvingId === d.id || (!PUSH_BY_FIELD[d.field] && !(d.field === "active_state" && !d.is_active))}
                     onClick={() => adoptHrms(d)}
                     className="inline-flex items-center gap-1 rounded-md bg-[#E8604C] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#d04e3c] disabled:opacity-50"
                   >
                     {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                    Push → Razorpay
+                    {d.field === "active_state" && !d.is_active ? "Dismiss in RazorpayX" : "Push → Razorpay"}
                   </button>
                   {PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay") && (
                     <button

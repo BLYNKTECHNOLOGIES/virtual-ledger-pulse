@@ -226,6 +226,17 @@ export function HorillaSidebar({
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  // Path the user just clicked — highlighted immediately so the nav responds
+  // before the target page's chunk has finished loading.
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingPath(null);
+  }, [location.pathname]);
+
+  const prefetch = (path: string) => {
+    if (!path.startsWith("http")) prefetchHrmsRoute(path.split("?")[0]);
+  };
 
   // Auto-expand any parent group whose child matches current route
   useEffect(() => {

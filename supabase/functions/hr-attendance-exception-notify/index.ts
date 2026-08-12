@@ -50,9 +50,23 @@ function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 }
 
+const BRAND = {
+  logo: "https://erp.blynkex.com/__l5e/assets-v1/2ac6088a-a0a4-4047-8220-03319fe0ec29/blynk-wordmark.png",
+  blue: "#00AEEF",
+  ink: "#0B1524",
+  hrName: "Honey Sewani",
+  hrTitle: "Human Resources",
+  hrPhone: "+91 74707 56539",
+  hrEmail: "hr.desk@blynkex.com",
+  site: "www.blynkex.com",
+  company: "Blynk Virtual Technologies Pvt. Ltd.",
+  address: "Bhopal, 462021, India",
+};
+
 function renderNotice(d: NoticeData): { subject: string; html: string; text: string } {
   const isAbsent = d.status === "absent";
   const accent = isAbsent ? "#dc2626" : "#d97706";
+  const chipBg = isAbsent ? "#fef2f2" : "#fffbeb";
   const label = isAbsent ? "Absent" : "Half Day";
   const dateLabel = prettyDate(d.attendanceDate);
   const inT = istTime(d.firstIn);
@@ -61,13 +75,12 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
 
   const row = (k: string, v: string) => `
     <tr>
-      <td style="padding:8px 0;color:#64748b;font-size:13px;">${esc(k)}</td>
-      <td style="padding:8px 0;color:#0f172a;font-size:13px;font-weight:600;text-align:right;">${esc(v)}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#64748b;font-size:13px;">${esc(k)}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:${BRAND.ink};font-size:13px;font-weight:600;text-align:right;">${esc(v)}</td>
     </tr>`;
 
   const details = [
     row("Date", dateLabel),
-    row("Marked status", label),
     noPunches
       ? row("Punches", "No punches recorded")
       : row("Office in", inT || "—") + row("Office out", outT || "—"),
@@ -81,49 +94,86 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
   const subject = `Attendance marked ${label} — ${dateLabel}`;
 
   const html = `<!doctype html>
-<html><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
-    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-      <div style="height:4px;background:${accent};"></div>
-      <div style="padding:24px;">
-        <p style="margin:0 0 4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${accent};font-weight:700;">Attendance notice</p>
-        <h1 style="margin:0 0 12px;font-size:20px;color:#0f172a;">Your attendance was marked <span style="color:${accent}">${label}</span></h1>
-        <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6;">
-          Hi ${esc(d.employeeName || "there")}, this is an automated notice from HR. Based on the biometric records for
-          <strong>${esc(dateLabel)}</strong>, your day was recorded as <strong>${label}</strong>. The details on record are below.
-        </p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;margin:0 0 16px;">
-          ${details}
+<html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:28px 16px;">
+
+    <!-- Brand header -->
+    <div style="background:${BRAND.ink};border-radius:14px 14px 0 0;padding:22px 26px;">
+      <img src="${BRAND.logo}" alt="Blynk Virtual Technologies" width="180" style="display:block;width:180px;max-width:60%;height:auto;background:#ffffff;padding:8px 12px;border-radius:8px;" />
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e6ecf3;border-top:none;border-radius:0 0 14px 14px;padding:28px 26px;">
+      <div style="display:inline-block;background:${chipBg};color:${accent};border:1px solid ${accent}22;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">
+        ${label} marked
+      </div>
+
+      <h1 style="margin:14px 0 10px;font-size:21px;line-height:1.3;color:${BRAND.ink};font-weight:700;">
+        Attendance notice for ${esc(dateLabel)}
+      </h1>
+
+      <p style="margin:0 0 18px;font-size:14px;color:#475569;line-height:1.65;">
+        Dear ${esc(d.employeeName || "Colleague")},<br/><br/>
+        Based on the biometric attendance records, your attendance for <strong>${esc(dateLabel)}</strong>
+        has been marked as <strong style="color:${accent}">${label}</strong>. The recorded details are shown below for your reference.
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-top:2px solid ${BRAND.blue};margin:0 0 20px;">
+        ${details}
+      </table>
+
+      <p style="margin:0 0 20px;font-size:14px;color:#475569;line-height:1.65;">
+        This is an attendance record notice — not a penalty or disciplinary decision. If you believe this is incorrect
+        (missed punch, device issue, approved off-site work or an incorrect shift), please raise an
+        <strong>Attendance Regularization Request</strong> from your ERP profile under the <em>Attendance</em> tab.
+        Your reporting manager and HR will review it.
+      </p>
+
+      <a href="${REG_LINK}" style="display:inline-block;background:${BRAND.blue};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:700;">
+        Raise regularization request
+      </a>
+
+      <p style="margin:14px 0 0;font-size:12px;color:#94a3b8;line-height:1.6;">
+        Or open: <a href="${REG_LINK}" style="color:${BRAND.blue};text-decoration:none;">${REG_LINK}</a>
+      </p>
+
+      <!-- HR signature -->
+      <div style="margin-top:28px;padding-top:22px;border-top:1px solid #eef2f7;">
+        <div style="font-size:20px;font-weight:800;color:#5b62d6;line-height:1.2;">${BRAND.hrName}</div>
+        <div style="font-size:13px;font-weight:700;color:${BRAND.ink};padding-bottom:6px;border-bottom:2px solid #5b62d6;">
+          ${BRAND.hrTitle} &nbsp;|&nbsp; <a href="https://${BRAND.site}" style="color:${BRAND.ink};text-decoration:underline;">${BRAND.site}</a>
+        </div>
+        <table cellpadding="0" cellspacing="0" style="margin-top:14px;">
+          <tr>
+            <td valign="top" style="padding-right:16px;">
+              <img src="${BRAND.logo}" alt="Blynk" width="132" style="display:block;width:132px;height:auto;" />
+            </td>
+            <td valign="top" style="font-size:13px;color:#334155;line-height:1.7;">
+              <strong>M:</strong> ${BRAND.hrPhone}<br/>
+              <strong>E:</strong> <a href="mailto:${BRAND.hrEmail}" style="color:#334155;">${BRAND.hrEmail}</a><br/>
+              <strong>A:</strong> ${BRAND.company},<br/>&nbsp;&nbsp;&nbsp;${BRAND.address}
+            </td>
+          </tr>
         </table>
-        <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6;">
-          This is an attendance record notice — not a penalty or disciplinary decision. If you believe this is incorrect
-          (missed punch, device issue, approved off-site work, wrong shift mapped), please raise an
-          <strong>Attendance Regularization Request</strong> from your ERP profile &rarr; <em>Attendance</em> tab. HR and your
-          reporting manager will review it.
-        </p>
-        <a href="${REG_LINK}" style="display:inline-block;background:${accent};color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;">
-          Raise regularization request
-        </a>
-        <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;line-height:1.6;">
-          Link: <a href="${REG_LINK}" style="color:#64748b;">${REG_LINK}</a>
-        </p>
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
-        <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
-          HR Team · Blynk Virtual Technologies Pvt. Ltd.<br/>
-          Automated message — sent 24 hours after the day was marked. Please do not reply to this address for queries other than attendance.
-        </p>
       </div>
     </div>
+
+    <p style="margin:16px 6px 0;font-size:11px;color:#94a3b8;line-height:1.6;text-align:center;">
+      Automated attendance notice sent 24 hours after the day was marked. © ${new Date().getFullYear()} ${BRAND.company}
+    </p>
   </div>
 </body></html>`;
 
   const text = `Attendance notice — ${label} on ${dateLabel}
 Office in: ${inT || "no punch"} | Office out: ${outT || "no punch"}
 If this is incorrect, raise an Attendance Regularization Request in the ERP: ${REG_LINK}
-HR Team, Blynk Virtual Technologies`;
+
+${BRAND.hrName} | ${BRAND.hrTitle}
+M: ${BRAND.hrPhone} | E: ${BRAND.hrEmail}
+${BRAND.company}, ${BRAND.address}`;
 
   return { subject, html, text };
 }
+
 
 async function getMailbox(admin: any) {
   const { data } = await admin.from("hr_mailboxes").select("*").eq("is_active", true).order("created_at").limit(1).maybeSingle();

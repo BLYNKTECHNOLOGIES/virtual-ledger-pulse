@@ -246,11 +246,12 @@ export default function DataHealthPage() {
   }
 
 
-  const filtered = useMemo(() => {
+  // A failed dismissal push and the resulting HRMS-inactive / Razorpay-active
+  // drift are the SAME problem for the same person. Collapse them once, and
+  // drive BOTH the cards and the KPI counters off this deduped set so the
+  // stats can never claim more open drifts than the list shows.
+  const deduped = useMemo(() => {
     if (!drifts) return [];
-    // A failed dismissal push and the resulting HRMS-inactive / Razorpay-active
-    // drift are the SAME problem for the same person. Show one card: keep the
-    // active_state row and fold the push-failure note into it.
     const activeStateByEmp = new Set(
       drifts.filter((d) => d.field === "active_state").map((d) => d.hr_employee_id),
     );
@@ -269,21 +270,24 @@ export default function DataHealthPage() {
         d.field === "active_state" && noteByEmp.has(d.hr_employee_id)
           ? { ...d, merged_note: noteByEmp.get(d.hr_employee_id)!.note }
           : d,
-      )
-      .filter((d) => {
-        if (unexplainedOnly && (d.auto_status ?? "open") !== "open") return false;
-        if (severity !== "all" && d.severity !== severity) return false;
-        if (systemPair !== "all") {
-          const pair = systemPair.split("_");
-          if (!pair.every((s) => d.systems_involved.includes(s))) return false;
-        }
-        return true;
-      });
-  }, [drifts, severity, systemPair, unexplainedOnly]);
+      );
+  }, [drifts]);
+
+  const filtered = useMemo(() => {
+    return deduped.filter((d) => {
+      if (unexplainedOnly && (d.auto_status ?? "open") !== "open") return false;
+      if (severity !== "all" && d.severity !== severity) return false;
+      if (systemPair !== "all") {
+        const pair = systemPair.split("_");
+        if (!pair.every((s) => d.systems_involved.includes(s))) return false;
+      }
+      return true;
+    });
+  }, [deduped, severity, systemPair, unexplainedOnly]);
 
 
   const kpis = useMemo(() => {
-    const all = drifts ?? [];
+    const all = deduped;
     const unexplained = all.filter((d) => (d.auto_status ?? "open") === "open");
     return {
       total: all.length,

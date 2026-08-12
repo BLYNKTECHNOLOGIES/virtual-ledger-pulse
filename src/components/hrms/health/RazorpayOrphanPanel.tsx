@@ -26,7 +26,7 @@ type Orphan = {
  * employee in HRMS. Same class of violation as a field mismatch: the three
  * systems (HRMS / RazorpayX / eSSL) must hold the same roster.
  */
-export function RazorpayOrphanPanel() {
+export function RazorpayOrphanPanel({ scanSignal = 0 }: { scanSignal?: number }) {
   const qc = useQueryClient();
   const [scanning, setScanning] = useState(false);
   const [showIgnored, setShowIgnored] = useState(false);

@@ -4883,6 +4883,91 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_notice_log: {
+        Row: {
+          attendance_date: string
+          campaign_ref: string | null
+          created_at: string
+          email: string
+          employee_id: string
+          error_message: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          status_at_send: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          campaign_ref?: string | null
+          created_at?: string
+          email: string
+          employee_id: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          status_at_send: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          campaign_ref?: string | null
+          created_at?: string
+          email?: string
+          employee_id?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          status_at_send?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_attendance_offset_backfill_log: {
         Row: {
           applied_at: string

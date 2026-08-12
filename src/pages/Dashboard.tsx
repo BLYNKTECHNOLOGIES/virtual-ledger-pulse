@@ -769,7 +769,7 @@ export default function Dashboard() {
                 <span className="p-2 md:p-3 bg-info/10 rounded-xl shadow-sm">
                   <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-info" />
                 </span>
-                Welcome to Dashboard
+                Welcome, {userDisplayName}
               </span>
             }
             description="Monitor your business performance"

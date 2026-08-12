@@ -180,12 +180,20 @@ export default function FnFSettlementPage() {
   });
 
 
+  // The DB state machine (fn_enforce_fnf_state_machine) is the contract:
+  //   draft → calculated → approved → paid   (draft/calculated → cancelled)
+  //   approving requires approved_by; marking paid requires payment_reference.
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, paymentReference }: { id: string; status: string; paymentReference?: string }) => {
       const payload: any = { status, updated_at: new Date().toISOString() };
-      if (status === "paid") payload.paid_at = new Date().toISOString();
+      if (status === "approved") payload.approved_by = user?.username || user?.id || "hr";
+      if (status === "paid") {
+        payload.paid_at = new Date().toISOString();
+        payload.payment_reference = paymentReference;
+      }
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
+
       // Auto-deactivate employee when F&F is paid + surface Razorpay dismiss prompt
       if (status === "paid") {
         const { data: settlement } = await (supabase as any)

@@ -17,9 +17,14 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const [payPrompt, setPayPrompt] = useState<{ id: string; name: string } | null>(null);
+  const [paymentRef, setPaymentRef] = useState("");
+
   const [showCreate, setShowCreate] = useState(false);
   const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState("");

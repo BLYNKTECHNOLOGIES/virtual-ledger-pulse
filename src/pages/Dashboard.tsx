@@ -143,6 +143,10 @@ function getAdaptiveColClasses(widgetIds: string[], customSpans?: Record<string,
 export default function Dashboard() {
   const { user } = useAuth();
   const userId = user?.id || 'default';
+  const userDisplayName = useMemo(() => {
+    if (!user) return "User";
+    return [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || user.email || "User";
+  }, [user]);
   const { hasAnyPermission } = usePermissions();
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last7days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last7days"));
@@ -765,7 +769,7 @@ export default function Dashboard() {
                 <span className="p-2 md:p-3 bg-info/10 rounded-xl shadow-sm">
                   <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-info" />
                 </span>
-                Welcome to Dashboard
+                Welcome, {userDisplayName}
               </span>
             }
             description="Monitor your business performance"

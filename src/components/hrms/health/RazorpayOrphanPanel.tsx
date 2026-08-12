@@ -101,11 +101,6 @@ export function RazorpayOrphanPanel() {
               In RazorpayX but not in HRMS — {open.length} person{open.length === 1 ? "" : "s"}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Roster drift: an active RazorpayX employee with no matching HRMS record. They can be paid
-            without ever appearing in attendance, payroll cockpit, or eSSL. Either onboard them in HRMS
-            or dismiss them in RazorpayX.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <button

@@ -126,11 +126,11 @@ export function EmployeeOfTheMonthBanner() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md overflow-hidden p-0">
+        <DialogContent className="max-w-lg overflow-hidden border-0 bg-transparent p-0 shadow-none">
           <img
-            src={badgeAsset.url}
+            src={posterAsset.url}
             alt="Employee of the Month July 2026 — Sabeel Khan"
-            className="h-auto w-full"
+            className="h-auto w-full rounded-xl"
           />
         </DialogContent>
       </Dialog>

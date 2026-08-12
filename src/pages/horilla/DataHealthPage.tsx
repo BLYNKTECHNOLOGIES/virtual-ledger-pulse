@@ -518,7 +518,7 @@ export default function DataHealthPage() {
       </div>
 
       {/* Roster drift — people in RazorpayX with no HRMS employee record */}
-      <RazorpayOrphanPanel />
+      <RazorpayOrphanPanel scanSignal={scanSignal} />
 
 
 

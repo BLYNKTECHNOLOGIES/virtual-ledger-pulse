@@ -308,20 +308,43 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
                     {s.status === "approved" && (
-                      <Button size="sm" className="h-8 bg-success hover:bg-success" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}>
+                      <Button
+                        size="sm"
+                        className="h-8 bg-success hover:bg-success"
+                        disabled={!["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source)}
+                        title={
+                          ["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source)
+                            ? undefined
+                            : "Final-month salary is not confirmed from RazorpayX yet"
+                        }
+                        onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}
+                      >
                         Mark Paid
                       </Button>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
-                  <div><span className="text-muted-foreground block">Pending Salary</span><p className="font-medium tabular-nums">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p></div>
-                  <div><span className="text-muted-foreground block">Leave Encash</span><p className="font-medium tabular-nums">₹{Number(s.leave_encashment_amount).toLocaleString("en-IN")}</p></div>
+                  <div>
+                    <span className="text-muted-foreground block">Final-Month Salary</span>
+                    <p className="font-medium tabular-nums">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p>
+                    {["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source) && (
+                      <SourceTag compact source={s.breakdown.pending_salary_source} className="mt-0.5" />
+                    )}
+                  </div>
                   <div><span className="text-muted-foreground block">Bonus</span><p className="font-medium tabular-nums">₹{Number(s.bonus_amount).toLocaleString("en-IN")}</p></div>
+                  <div><span className="text-muted-foreground block">Deposit Refund</span><p className="font-medium tabular-nums">₹{Number(s.deposit_refund || 0).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Loan Recovery</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.loan_recovery).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Penalties</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.penalty_deductions).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Other Ded.</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.other_deductions).toLocaleString("en-IN")}</p></div>
                 </div>
+                {(Number(s.leave_encashment_amount || 0) > 0 || Number(s.breakdown?.gratuity_amount || 0) > 0) && (
+                  <p className="mt-2 text-[11px] text-amber-600 inline-flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Legacy calculation — includes leave encashment / gratuity, which are no longer payable under current policy.
+                  </p>
+                )}
+
               </CardContent>
             </Card>
           ))}

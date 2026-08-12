@@ -123,6 +123,7 @@ export default function DataHealthPage() {
   const [scanSignal, setScanSignal] = useState(0);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [pullTarget, setPullTarget] = useState<PullTarget | null>(null);
+  const [esslDeleteTarget, setEsslDeleteTarget] = useState<Drift | null>(null);
   const [pulling, setPulling] = useState(false);
 
 

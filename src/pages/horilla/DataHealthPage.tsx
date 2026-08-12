@@ -777,6 +777,32 @@ export default function DataHealthPage() {
         onCancel={() => setPullTarget(null)}
         onConfirm={({ confirmSensitive }) => pullTarget && runPull(pullTarget, confirmSensitive)}
       />
+
+      <AlertDialog open={!!esslDeleteTarget} onOpenChange={(o) => !o && setEsslDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {esslDeleteTarget?.employee_name || "employee"} from eSSL devices?</AlertDialogTitle>
+            <AlertDialogDescription>
+              eSSL has no inactive state — the only roster action is deleting the user, which queues
+              DATA DELETE USERINFO on every registered device. Attendance history is safe: punches are
+              stored permanently in HRMS against the employee record, not read back from the device, so
+              past presence/absence and pending payroll remain intact after deletion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const t = esslDeleteTarget;
+                setEsslDeleteTarget(null);
+                if (t) adoptEssl(t);
+              }}
+            >
+              Remove from devices
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
 
   );

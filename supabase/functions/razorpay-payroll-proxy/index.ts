@@ -7518,16 +7518,17 @@ Deno.serve(async (req) => {
         delete data["do-not-pay"];
       }
 
-      // ---- people:dismiss requires the employee's email in the data block
-      // (opfin returns {"message":"Invalid email address","code":4} otherwise,
-      // silently no-oping the dismissal). Auto-hydrate email + name from the
-      // ERP↔RazorpayX map / hr_employees so callers don't have to know this.
+      // Official RazorpayX Postman contract for people:dismiss is exactly:
+      //   { email, dateOfDismissal: "dd/mm/yyyy" }
+      // The camel-case date key is significant. Sending date-of-dismissal or
+      // employee identity/type fields reaches Opfin's handler but can end in a
+      // generic UNKNOWN_EXCEPTION instead of dismissing the person.
       if (action === "people_dismiss") {
         const rpEid = data["employee-id"];
         if (!rpEid) return json(400, { ok: false, error: "Missing required dismissal field: employee-id" });
-        if (!data["date-of-dismissal"]) return json(400, { ok: false, error: "Missing required dismissal field: date-of-dismissal" });
-        if (!data["employee-type"]) data["employee-type"] = "employee";
-        if (!data.email || !data.name) {
+        const dateOfDismissal = String(data.dateOfDismissal || data["date-of-dismissal"] || "").trim();
+        if (!dateOfDismissal) return json(400, { ok: false, error: "Missing required dismissal field: dateOfDismissal" });
+        if (!data.email) {
           try {
             const { data: mapRow } = await svc
               .from("hr_razorpay_employee_map")
@@ -7536,18 +7537,15 @@ Deno.serve(async (req) => {
               .maybeSingle();
             const snap: any = mapRow?.last_pull_snapshot || {};
             let email = data.email || snap.email || snap.work_email || snap.personal_email || snap["work-email"] || snap["personal-email"] || "";
-            let name = data.name || snap.name || "";
-            if ((!email || !name) && mapRow?.hr_employee_id) {
+            if (!email && mapRow?.hr_employee_id) {
               const { data: emp } = await svc
                 .from("hr_employees")
-                .select("email, first_name, last_name")
+                .select("email")
                 .eq("id", mapRow.hr_employee_id)
                 .maybeSingle();
               if (!email) email = emp?.email || "";
-              if (!name && emp) name = [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim();
             }
             if (email) data.email = String(email).trim();
-            if (name) data.name = String(name).trim();
           } catch (_) { /* best-effort; opfin will surface a clear error if still missing */ }
         }
         if (!data.email) {
@@ -7568,7 +7566,7 @@ Deno.serve(async (req) => {
         // activated their RazorpayX account has no user to dismiss, so the
         // dismissal must be done by an admin in the RazorpayX dashboard.
         try {
-          const pre = await opfinView(Number(rpEid), String(data["employee-type"] || "employee"));
+          const pre = await opfinView(Number(rpEid), "employee");
           const preErrRaw = pre.ok
             ? ""
             : (typeof pre.errText === "string" ? pre.errText : JSON.stringify(pre.errText ?? "")) + " " + String(pre.raw || "");
@@ -7591,6 +7589,13 @@ Deno.serve(async (req) => {
             });
           }
         } catch (_) { /* pre-flight is advisory; fall through to the live call */ }
+
+        // Strip UI/internal lookup fields before the provider call. Do not add
+        // reason: it is not part of the published people:dismiss API contract.
+        const dismissalEmail = String(data.email).trim();
+        for (const key of Object.keys(data)) delete data[key];
+        data.email = dismissalEmail;
+        data.dateOfDismissal = dateOfDismissal;
       }
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);
@@ -7785,13 +7790,8 @@ Deno.serve(async (req) => {
           error: "RazorpayX could not locate a user account for this employee (they never activated their RazorpayX login), so people:dismiss cannot dismiss them. Dismiss the employee from the RazorpayX dashboard, then re-verify from HRMS.",
         });
       }
-      // people:dismiss — Opfin can also throw a generic server-side exception
-      // (HTTP 5xx / code UNKNOWN_EXCEPTION) for a specific person, on every
-      // payload variant (verified: date format, reason, employee-type and
-      // final-settlement permutations all return the same 500 while people:edit
-      // on the same employee succeeds). That is a RazorpayX-side failure the ERP
-      // cannot work around, so surface it as a manual-dismissal instruction
-      // instead of an opaque 502.
+      // people:dismiss — surface any remaining provider-side 5xx clearly after
+      // sending the exact published { email, dateOfDismissal } contract.
       if (
         action === "people_dismiss" &&
         errText &&
@@ -7805,7 +7805,7 @@ Deno.serve(async (req) => {
           code: "RZP_DISMISS_SERVER_ERROR",
           http_status: httpStatus,
           body: bodyOut,
-          error: "RazorpayX's dismissal API failed with a server-side error for this employee (UNKNOWN_EXCEPTION). Other writes for the same employee succeed, so this is a RazorpayX-side issue — dismiss the employee from the RazorpayX dashboard (Payroll → People → Dismiss), then re-verify from HRMS.",
+          error: "RazorpayX rejected the documented dismissal request with a server-side error (UNKNOWN_EXCEPTION). Retry once; if it persists, dismiss the employee from RazorpayX Payroll → People and then pull the status into HRMS.",
         });
       }
       return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText, readback: readbackReceipt });

@@ -11,6 +11,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { HelpAssistantFab } from "./HelpAssistantFab";
 import { TransactionDetailDialog } from "./transaction-detail";
 import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
+import { EmployeeOfTheMonthBanner } from "./EmployeeOfTheMonthBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,6 +40,7 @@ export function Layout({ children }: LayoutProps) {
                   <AppSidebar />
                 </div>
                 <SidebarInset className="flex flex-col flex-1 min-w-0">
+                  <EmployeeOfTheMonthBanner />
                   <TopHeader />
                   <main className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
                     <div key={location.pathname} className="page-mount">

@@ -7785,8 +7785,32 @@ Deno.serve(async (req) => {
           error: "RazorpayX could not locate a user account for this employee (they never activated their RazorpayX login), so people:dismiss cannot dismiss them. Dismiss the employee from the RazorpayX dashboard, then re-verify from HRMS.",
         });
       }
+      // people:dismiss — Opfin can also throw a generic server-side exception
+      // (HTTP 5xx / code UNKNOWN_EXCEPTION) for a specific person, on every
+      // payload variant (verified: date format, reason, employee-type and
+      // final-settlement permutations all return the same 500 while people:edit
+      // on the same employee succeeds). That is a RazorpayX-side failure the ERP
+      // cannot work around, so surface it as a manual-dismissal instruction
+      // instead of an opaque 502.
+      if (
+        action === "people_dismiss" &&
+        errText &&
+        (httpStatus >= 500 || /unknown_exception|something went wrong/i.test(
+          `${errText} ${bodyOut && typeof bodyOut === "object" ? JSON.stringify(bodyOut) : ""}`,
+        ))
+      ) {
+        return json(200, {
+          ok: false,
+          manual_required: true,
+          code: "RZP_DISMISS_SERVER_ERROR",
+          http_status: httpStatus,
+          body: bodyOut,
+          error: "RazorpayX's dismissal API failed with a server-side error for this employee (UNKNOWN_EXCEPTION). Other writes for the same employee succeed, so this is a RazorpayX-side issue — dismiss the employee from the RazorpayX dashboard (Payroll → People → Dismiss), then re-verify from HRMS.",
+        });
+      }
       return json(errText ? 502 : 200, { ok: !errText, http_status: httpStatus, body: bodyOut, error: errText, readback: readbackReceipt });
     }
+
 
     return json(400, { error: `Unsupported action: ${action}` });
 

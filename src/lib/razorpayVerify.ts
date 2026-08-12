@@ -296,8 +296,18 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
     esi_enabled: pick(snap, "esi-enabled", "esi_enabled", "is_esi_enabled"),
     pt_enabled: pick(snap, "pt-enabled", "pt_enabled", "is_pt_enabled"),
     annual_ctc: liveCtc ?? null,
-    dismissed: snap?.__dismissed === true || String(snap?.status || "").toLowerCase() === "dismissed",
-    date_of_dismissal: pick(snap, "date-of-dismissal", "date_of_dismissal", "dismissed_at"),
+    dismissed:
+      snap?.__dismissed === true ||
+      snap?.is_active === false ||
+      snap?.["is-active"] === false ||
+      ["dismissed", "terminated", "resigned", "inactive"].includes(String(snap?.status || "").toLowerCase()),
+    date_of_dismissal: pick(
+      snap,
+      "date-of-dismissal",
+      "date_of_dismissal",
+      "date_of_leaving",
+      "dismissed_at",
+    ),
   };
 
   const out: Record<string, any> = {};
@@ -358,6 +368,21 @@ function diffFields(
       continue;
     }
     if (act === null || act === undefined) {
+      // people:view reliably exposes the inactive/dismissed state but may omit
+      // its effective date. Once that state itself is confirmed, absence of
+      // the date must not downgrade a successful dismissal to partial or keep
+      // its Data Health drift open forever.
+      if (kind === "dismissal" && k === "date_of_dismissal" && actual.dismissed === true) {
+        rows.push({
+          key: k,
+          label: LABELS[k] || k,
+          expected: exp,
+          actual: null,
+          match: true,
+          reason: "RazorpayX confirms the employee is inactive but does not expose the dismissal date in people:view.",
+        });
+        continue;
+      }
       // Known API-unavailable field — RazorpayX read API doesn't expose this,
       // so we can't verify by read-back. Trust the successful push instead of
       // blocking the overall status.
@@ -410,7 +435,11 @@ async function readActual(
 ): Promise<{ snap: any | null; error?: string }> {
   try {
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-      body: { action: "read_person_by_id", razorpay_employee_id: razorpayId },
+      body: {
+        action: "read_person_by_id",
+        razorpay_employee_id: razorpayId,
+        allow_dismissed: kind === "dismissal",
+      },
     });
     if (error) return { snap: null, error: error.message || String(error) };
     const d = data as any;

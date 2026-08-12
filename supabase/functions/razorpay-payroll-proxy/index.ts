@@ -7580,12 +7580,30 @@ Deno.serve(async (req) => {
               message: "Employee is already dismissed in RazorpayX (no longer resolvable via people:view).",
             });
           }
-          if (pre.ok && (pre.body as any)?.is_active === false) {
+          if (pre.ok && isDismissedRazorpayPerson(pre.body)) {
+            // people:view exposes `is_active=false` for both an already
+            // dismissed employee and an invite that was never activated. In
+            // either case RazorpayX is already in the inactive state HRMS is
+            // trying to establish. Treat that live read as verified parity;
+            // calling people:dismiss again only produces the misleading
+            // "Unable to locate the user" response and reopens a false drift.
+            const inactiveSnapshot = {
+              ...(pre.body && typeof pre.body === "object" ? pre.body : {}),
+              is_active: false,
+              __dismissed: true,
+            };
+            await svc.from("hr_razorpay_employee_map").update({
+              last_pull_snapshot: inactiveSnapshot,
+              last_pulled_at: new Date().toISOString(),
+              last_error: null,
+            }).eq("razorpay_employee_id", String(rpEid));
             return json(200, {
-              ok: false,
-              manual_required: true,
-              code: "RZP_NOT_ACTIVATED",
-              error: "This employee never activated their RazorpayX account (is_active = false). RazorpayX's people:dismiss API resolves the person through their user login, so API dismissal is not possible for non-activated employees — dismiss them from the RazorpayX dashboard, then re-verify from HRMS.",
+              ok: true,
+              already_dismissed: true,
+              verified: true,
+              code: "RZP_ALREADY_INACTIVE",
+              snapshot: inactiveSnapshot,
+              message: "Employee is already inactive/dismissed in RazorpayX.",
             });
           }
         } catch (_) { /* pre-flight is advisory; fall through to the live call */ }

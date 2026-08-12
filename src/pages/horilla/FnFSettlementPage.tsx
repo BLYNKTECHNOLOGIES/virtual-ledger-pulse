@@ -498,6 +498,12 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
 
+                    {EDITABLE_STATUSES.includes(s.status) && (
+                      <Button size="sm" variant="outline" className="h-8" onClick={() => openEdit(s)}>
+                        Edit
+                      </Button>
+                    )}
+
                     {s.status === "draft" && (
                       <Button size="sm" variant="outline" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "calculated" })}>
                         Submit

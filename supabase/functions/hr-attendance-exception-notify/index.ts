@@ -46,6 +46,11 @@ function prettyDate(dateStr: string): string {
   return d.toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 }
 
+function shortDate(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00+05:30`);
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+}
+
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 }
@@ -92,7 +97,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
     d.shiftName ? row("Shift considered", d.shiftName) : "",
   ].join("");
 
-  const subject = `Attendance marked ${label} — ${dateLabel}`;
+  const subject = `Attendance Notice: ${label} — ${shortDate(d.attendanceDate)}`;
 
   const rawHtml = `<!doctype html>
 <html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">

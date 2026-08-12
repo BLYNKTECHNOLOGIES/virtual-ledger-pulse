@@ -435,6 +435,37 @@ export default function FnFSettlementPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!payPrompt} onOpenChange={(o) => { if (!o) setPayPrompt(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">Mark F&amp;F as Paid</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Record the bank/UTR reference for <strong>{payPrompt?.name}</strong>. A payment reference is mandatory before a settlement can be marked paid.
+            </p>
+            <Label>Payment Reference</Label>
+            <Input className="h-9" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} placeholder="UTR / transaction ID" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="h-9" onClick={() => setPayPrompt(null)}>Cancel</Button>
+            <Button
+              className="h-9 bg-success hover:bg-success"
+              disabled={!paymentRef.trim() || updateStatusMutation.isPending}
+              onClick={() => {
+                if (!payPrompt) return;
+                updateStatusMutation.mutate({ id: payPrompt.id, status: "paid", paymentReference: paymentRef.trim() });
+                setPayPrompt(null);
+              }}
+            >
+              Confirm Paid
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       <AlertDialog open={!!dismissPrompt} onOpenChange={(o) => { if (!o) setDismissPrompt(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

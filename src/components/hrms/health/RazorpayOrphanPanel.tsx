@@ -111,6 +111,7 @@ export function RazorpayOrphanPanel({ scanSignal = 0 }: { scanSignal?: number })
             <span className="text-sm font-medium text-foreground">
               In RazorpayX but not in HRMS — {open.length} person{open.length === 1 ? "" : "s"}
             </span>
+            {scanning && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -119,14 +120,6 @@ export function RazorpayOrphanPanel({ scanSignal = 0 }: { scanSignal?: number })
             className="text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-muted"
           >
             {showIgnored ? "Hide ignored" : "Show ignored"}
-          </button>
-          <button
-            onClick={runScan}
-            disabled={scanning}
-            className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-1.5"
-          >
-            {scanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Scan RazorpayX roster
           </button>
         </div>
       </div>

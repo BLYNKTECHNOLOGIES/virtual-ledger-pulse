@@ -143,6 +143,10 @@ function getAdaptiveColClasses(widgetIds: string[], customSpans?: Record<string,
 export default function Dashboard() {
   const { user } = useAuth();
   const userId = user?.id || 'default';
+  const userDisplayName = useMemo(() => {
+    if (!user) return "User";
+    return [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || user.email || "User";
+  }, [user]);
   const { hasAnyPermission } = usePermissions();
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last7days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last7days"));

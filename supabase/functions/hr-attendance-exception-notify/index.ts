@@ -97,7 +97,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
     d.shiftName ? row("Shift considered", d.shiftName) : "",
   ].join("");
 
-  const subject = `Attendance marked ${label} — ${dateLabel}`;
+  const subject = `Attendance Notice: ${label} — ${shortDate(d.attendanceDate)}`;
 
   const rawHtml = `<!doctype html>
 <html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">

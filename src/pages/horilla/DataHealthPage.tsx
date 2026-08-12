@@ -403,32 +403,23 @@ export default function DataHealthPage() {
   return (
 
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-[#E8604C]" />
-            Data Health
-            {empFilter && (
-              <span className="text-xs font-normal text-muted-foreground">
-                • filtered to one employee
-                <button
-                  onClick={() => setParams({})}
-                  className="ml-2 underline hover:text-foreground"
-                >
-                  clear
-                </button>
-              </span>
-            )}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            3-way reconciliation across HRMS ↔ RazorpayX ↔ eSSL biometric. Adopt HRMS is
-            the recommended default — ERP is the source of truth.
-          </p>
-        </div>
+      <header className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-background/85 backdrop-blur border-b border-border flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 text-[#E8604C]" />
+          Data Health
+          {empFilter && (
+            <button
+              onClick={() => setParams({})}
+              className="text-[11px] font-normal rounded-full border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+            >
+              1 employee · clear
+            </button>
+          )}
+        </h1>
         <button
           onClick={runScan}
           disabled={scanning}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#E8604C] px-4 py-2 text-sm font-medium text-white hover:bg-[#d04e3c] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#E8604C] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#d04e3c] disabled:opacity-50"
         >
           {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Rescan now
@@ -436,21 +427,22 @@ export default function DataHealthPage() {
       </header>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="rounded-xl border border-border bg-card overflow-hidden grid grid-cols-3 md:grid-cols-6 divide-x divide-y md:divide-y-0 divide-border">
         {[
-          { label: "Open drifts", value: kpis.total, tone: "text-foreground" },
+          { label: "Open", value: kpis.total, tone: "text-foreground" },
           { label: "Unexplained", value: kpis.unexplained, tone: kpis.unexplained > 0 ? "text-destructive" : "text-success" },
-          { label: "Critical", value: kpis.critical, tone: "text-destructive" },
-          { label: "High", value: kpis.high, tone: "text-destructive/80" },
-          { label: "Medium", value: kpis.medium, tone: "text-warning" },
-          { label: "Employees affected", value: kpis.employees, tone: "text-foreground" },
+          { label: "Critical", value: kpis.critical, tone: kpis.critical > 0 ? "text-destructive" : "text-muted-foreground" },
+          { label: "High", value: kpis.high, tone: kpis.high > 0 ? "text-destructive/80" : "text-muted-foreground" },
+          { label: "Medium", value: kpis.medium, tone: kpis.medium > 0 ? "text-warning" : "text-muted-foreground" },
+          { label: "Employees", value: kpis.employees, tone: "text-foreground" },
         ].map((k) => (
-          <div key={k.label} className="rounded-xl border border-border bg-card px-4 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</div>
-            <div className={`text-2xl font-semibold mt-0.5 ${k.tone}`}>{k.value}</div>
+          <div key={k.label} className="px-3 py-3 md:px-4">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{k.label}</div>
+            <div className={`text-2xl font-semibold mt-0.5 tabular-nums ${k.tone}`}>{k.value}</div>
           </div>
         ))}
       </div>
+
 
       {/* Ghost email residual — dispatcher retries have escalated to dead-letter */}
       {ghostResidual && ghostResidual.length > 0 && (

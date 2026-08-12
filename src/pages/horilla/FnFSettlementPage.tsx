@@ -26,6 +26,9 @@ export default function FnFSettlementPage() {
   const [paymentRef, setPaymentRef] = useState("");
 
   const [showCreate, setShowCreate] = useState(false);
+  // One settlement per employee: the dialog is either creating a new one or
+  // editing the existing (still-editable) settlement of that employee.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [form, setForm] = useState({
@@ -83,6 +86,18 @@ export default function FnFSettlementPage() {
       return data || [];
     },
   });
+
+  // An employee can hold only ONE live settlement (cancelled ones free the slot,
+  // matching the DB's partial unique index). Those employees are not offered for
+  // a new settlement — their existing record is edited instead.
+  const settledEmployeeIds = new Set(
+    settlements.filter((s: any) => s.status !== "cancelled").map((s: any) => s.employee_id)
+  );
+  const selectableEmployees = separatedEmployees.filter(
+    (e: any) => !settledEmployeeIds.has(e.id) || e.id === selectedEmpId
+  );
+  const allSettled = separatedEmployees.length > 0 && selectableEmployees.length === 0 && !editingId;
+  const EDITABLE_STATUSES = ["draft", "calculated"];
 
   // Payroll doctrine: RazorpayX is the payroll authority.
   //  • Pending (final-month) salary  → mirrored RazorpayX payslip record for the LWD month.
@@ -188,7 +203,7 @@ export default function FnFSettlementPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const { gratuity_amount, notice_pay_recovery, ...rest } = form;
-      const { error } = await (supabase as any).from("hr_fnf_settlements").insert({
+      const payload = {
         employee_id: selectedEmpId,
         ...rest,
         net_payable: netPayable,
@@ -216,18 +231,88 @@ export default function FnFSettlementPage() {
             deposits: details.deposits.map((d: any) => ({ id: d.id, type: d.deposit_type, collected: Number(d.collected_amount || 0) })),
           },
         },
+      };
 
-      });
-      if (error) throw error;
+      if (editingId) {
+        const { error } = await (supabase as any)
+          .from("hr_fnf_settlements")
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq("id", editingId);
+        if (error) throw error;
+        return;
+      }
 
+      const { error } = await (supabase as any).from("hr_fnf_settlements").insert(payload);
+      if (error) {
+        // Backed by the partial unique index — one live settlement per employee.
+        if ((error as any).code === "23505") {
+          throw new Error("This employee already has an F&F settlement. Edit the existing one instead.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
       setShowCreate(false);
-      toast.success("F&F Settlement created");
+      toast.success(editingId ? "F&F Settlement updated" : "F&F Settlement created");
+      setEditingId(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const resetForm = () => {
+    setSelectedEmpId("");
+    setDetails({ loans: [], penalties: [], deposits: [], writtenOff: [] });
+    setCalcNote("");
+    setFinalMonth({ state: "idle" });
+    setForm({
+      last_working_day: "", pending_salary: 0, leave_encashment_days: 0, leave_encashment_amount: 0,
+      bonus_amount: 0, gratuity_amount: 0, notice_pay_recovery: 0, loan_recovery: 0, deposit_refund: 0,
+      penalty_deductions: 0, other_deductions: 0, other_deductions_notes: "", notes: "",
+    });
+  };
+
+  const openCreate = () => {
+    setEditingId(null);
+    resetForm();
+    setShowCreate(true);
+  };
+
+  const openEdit = (s: any) => {
+    setEditingId(s.id);
+    setSelectedEmpId(s.employee_id);
+    const b = s.breakdown || {};
+    const c = b.components || {};
+    setDetails({
+      loans: (c.loans || []).map((l: any) => ({ id: l.id, loan_type: l.type, outstanding_balance: l.outstanding })),
+      penalties: (c.penalties || []).map((p: any) => ({ id: p.id, penalty_month: p.month, penalty_type: p.type, penalty_amount: p.amount })),
+      deposits: (c.deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.type, collected_amount: d.collected })),
+      writtenOff: (b.written_off_deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.deposit_type, collected_amount: d.collected_amount, is_paused: d.reason === "paused" })),
+    });
+    setCalcNote(b.calc_note || "");
+    setFinalMonth(
+      ["razorpay", "register_csv"].includes(b.pending_salary_source)
+        ? { state: "razorpay", source: b.pending_salary_source, periodMonth: b.razorpay_period_month || undefined }
+        : { state: "awaiting", periodMonth: b.razorpay_period_month || undefined }
+    );
+    setForm({
+      last_working_day: s.last_working_day || "",
+      pending_salary: Number(s.pending_salary || 0),
+      leave_encashment_days: Number(s.leave_encashment_days || 0),
+      leave_encashment_amount: Number(s.leave_encashment_amount || 0),
+      bonus_amount: Number(s.bonus_amount || 0),
+      gratuity_amount: 0,
+      notice_pay_recovery: Number(b.notice_pay_recovery || 0),
+      loan_recovery: Number(s.loan_recovery || 0),
+      deposit_refund: Number(s.deposit_refund || 0),
+      penalty_deductions: Number(s.penalty_deductions || 0),
+      other_deductions: Number(s.other_deductions || 0),
+      other_deductions_notes: s.other_deductions_notes || "",
+      notes: s.notes || "",
+    });
+    setShowCreate(true);
+  };
+
 
 
   // The DB state machine (fn_enforce_fnf_state_machine) is the contract:
@@ -351,7 +436,12 @@ export default function FnFSettlementPage() {
         title="Full & Final Settlement"
         description="Manage settlement for separated employees"
         actions={
-          <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => setShowCreate(true)}>
+          <Button
+            className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"
+            onClick={openCreate}
+            disabled={allSettled}
+            title={allSettled ? "Every separated employee already has a settlement — edit the existing one" : undefined}
+          >
             <Plus className="h-4 w-4 mr-2" /> New Settlement
           </Button>
         }
@@ -367,7 +457,7 @@ export default function FnFSettlementPage() {
           title="No F&F settlements yet"
           description="Create settlements for separated employees to manage their final payouts"
           action={
-            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => setShowCreate(true)}>
+            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={openCreate}>
               <Plus className="h-4 w-4 mr-2" /> New Settlement
             </Button>
           }
@@ -405,6 +495,12 @@ export default function FnFSettlementPage() {
                     {s.status === "approved" && s.razorpay_push_status !== "pushed" && (
                       <Button size="sm" variant="outline" className="h-8" disabled={pushMutation.isPending} onClick={() => pushMutation.mutate(s.id)}>
                         Retry push
+                      </Button>
+                    )}
+
+                    {EDITABLE_STATUSES.includes(s.status) && (
+                      <Button size="sm" variant="outline" className="h-8" onClick={() => openEdit(s)}>
+                        Edit
                       </Button>
                     )}
 
@@ -469,17 +565,29 @@ export default function FnFSettlementPage() {
         </div>
       )}
 
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+      <Dialog open={showCreate} onOpenChange={(o) => { setShowCreate(o); if (!o) { setEditingId(null); } }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Calculator className="h-4 w-4" /> New F&amp;F Settlement
+              <Calculator className="h-4 w-4" /> {editingId ? "Edit F&F Settlement" : "New F&F Settlement"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Employee</Label>
-              <EmployeePicker className="mt-1" placeholder="Select separated employee" employees={separatedEmployees} value={selectedEmpId} onChange={autoFillFnF} />
+              <EmployeePicker
+                className="mt-1"
+                placeholder={selectableEmployees.length ? "Select separated employee" : "All separated employees already settled"}
+                employees={selectableEmployees}
+                value={selectedEmpId}
+                onChange={editingId ? () => {} : autoFillFnF}
+                disabled={!!editingId}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {editingId
+                  ? "One settlement per employee — the employee cannot be changed on an existing settlement."
+                  : "Employees with an existing settlement are not listed; edit their settlement from the list instead."}
+              </p>
             </div>
             <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value })} /></div>
 
@@ -562,9 +670,9 @@ export default function FnFSettlementPage() {
             </Card>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="h-9" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button variant="outline" className="h-9" onClick={() => { setShowCreate(false); setEditingId(null); }}>Cancel</Button>
             <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => createMutation.mutate()} disabled={!selectedEmpId || !form.last_working_day || createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Settlement"}
+              {createMutation.isPending ? (editingId ? "Saving..." : "Creating...") : (editingId ? "Save Changes" : "Create Settlement")}
             </Button>
           </DialogFooter>
         </DialogContent>

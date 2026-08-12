@@ -91,10 +91,8 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
       ? row("Punches", "No punches recorded")
       : row("Office in", inT || "—") + row("Office out", outT || "—"),
     d.totalHours != null ? row("Hours worked", `${Number(d.totalHours).toFixed(2)} h`) : "",
-    d.punchCount != null && !noPunches ? row("Punch count", String(d.punchCount)) : "",
     d.lateBy ? row("Late by", `${d.lateBy} min`) : "",
     d.earlyBy ? row("Early out by", `${d.earlyBy} min`) : "",
-    d.shiftName ? row("Shift considered", d.shiftName) : "",
   ].join("");
 
   const subject = `Attendance Notice: ${label} — ${shortDate(d.attendanceDate)}`;

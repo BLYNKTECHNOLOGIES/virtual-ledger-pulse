@@ -364,18 +364,34 @@ export default function FnFSettlementPage() {
               <EmployeePicker className="mt-1" placeholder="Select separated employee" employees={separatedEmployees} value={selectedEmpId} onChange={autoFillFnF} />
             </div>
             <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value })} /></div>
+
+            <div className="rounded-md border border-border p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Final-Month Salary (₹)</Label>
+                {finalMonth.state === "razorpay" && finalMonth.source && <SourceTag source={finalMonth.source} />}
+              </div>
+              <Input className="h-9" type="number" readOnly value={form.pending_salary} />
+              {finalMonth.state === "awaiting" && (
+                <p className="text-[11px] text-destructive inline-flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  No RazorpayX payslip mirrored for {finalMonth.periodMonth?.slice(0, 7) || "the final month"} yet — run that month's payroll in RazorpayX and pull it back before paying this settlement.
+                </p>
+              )}
+              <DashboardLink />
+              <p className="text-[11px] text-muted-foreground">
+                Leave encashment and gratuity are not payable under current company policy and are excluded.
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Pending Salary (₹)</Label><Input className="h-9 mt-1" type="number" value={form.pending_salary} onChange={(e) => setForm({ ...form, pending_salary: Number(e.target.value) })} /></div>
-              <div><Label>Leave Encash Days</Label><Input className="h-9 mt-1" type="number" value={form.leave_encashment_days} onChange={(e) => setForm({ ...form, leave_encashment_days: Number(e.target.value) })} /></div>
-              <div><Label>Leave Encash Amount (₹)</Label><Input className="h-9 mt-1" type="number" value={form.leave_encashment_amount} onChange={(e) => setForm({ ...form, leave_encashment_amount: Number(e.target.value) })} /></div>
               <div><Label>Bonus (₹)</Label><Input className="h-9 mt-1" type="number" value={form.bonus_amount} onChange={(e) => setForm({ ...form, bonus_amount: Number(e.target.value) })} /></div>
-              <div><Label>Gratuity (₹)</Label><Input className="h-9 mt-1" type="number" value={form.gratuity_amount} onChange={(e) => setForm({ ...form, gratuity_amount: Number(e.target.value) })} /></div>
               <div><Label>Notice Pay Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.notice_pay_recovery} onChange={(e) => setForm({ ...form, notice_pay_recovery: Number(e.target.value) })} /></div>
               <div><Label>Loan Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.loan_recovery} onChange={(e) => setForm({ ...form, loan_recovery: Number(e.target.value) })} /></div>
-              <div><Label>Deposit Refund (₹)</Label><Input className="h-9 mt-1" type="number" value={form.deposit_refund} onChange={(e) => setForm({ ...form, deposit_refund: Number(e.target.value) })} /></div>
+              <div><Label>Security Deposit Refund (₹)</Label><Input className="h-9 mt-1" type="number" value={form.deposit_refund} onChange={(e) => setForm({ ...form, deposit_refund: Number(e.target.value) })} /></div>
               <div><Label>Penalty Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.penalty_deductions} onChange={(e) => setForm({ ...form, penalty_deductions: Number(e.target.value) })} /></div>
               <div><Label>Other Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.other_deductions} onChange={(e) => setForm({ ...form, other_deductions: Number(e.target.value) })} /></div>
             </div>
+
             {calcNote && <p className="text-[11px] text-muted-foreground bg-muted/40 rounded px-2 py-1.5">{calcNote}</p>}
 
             <div><Label>Other Deductions Notes</Label><Input className="h-9 mt-1" value={form.other_deductions_notes} onChange={(e) => setForm({ ...form, other_deductions_notes: e.target.value })} /></div>

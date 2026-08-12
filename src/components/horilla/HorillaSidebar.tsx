@@ -274,6 +274,7 @@ export function HorillaSidebar({
     if (path.startsWith("http")) {
       window.open(path, "_blank");
     } else {
+      setPendingPath(path.split("?")[0]);
       navigate(path);
     }
 

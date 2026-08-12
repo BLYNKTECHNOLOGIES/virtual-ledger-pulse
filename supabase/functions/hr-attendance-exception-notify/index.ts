@@ -304,13 +304,17 @@ Deno.serve(async (req) => {
     }
 
     // ---------------- RUN ----------------
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const sinceDate = body.sinceDate || ACTIVATION_DATE;
     const dryRun = body.dryRun === true;
     const MAX_ATTEMPTS = 3;
-    // Yesterday in IST — never mail about today or a future-dated row.
+    // Age gate is driven by the DAY, not by updated_at: the v4 engine rewrites
+    // updated_at on every recompute, which would otherwise postpone mail forever.
+    // A day qualifies once it is at least a full calendar day in the past (IST),
+    // and its current status is still absent/half_day (read live below).
     const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
     const maxDate = new Date(istNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // Settling buffer: ignore rows the engine touched in the last 2 hours.
+    const settleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
     const { data: days } = await admin
       .from("hr_attendance_daily")
@@ -318,7 +322,7 @@ Deno.serve(async (req) => {
       .in("status", ["absent", "half_day"])
       .gte("attendance_date", sinceDate)
       .lte("attendance_date", maxDate)
-      .lte("updated_at", cutoff)
+      .lte("updated_at", settleCutoff)
       .order("attendance_date", { ascending: false })
       .limit(500);
 

@@ -52,6 +52,7 @@ function esc(s: string) {
 
 const BRAND = {
   logo: "https://erp.blynkex.com/__l5e/assets-v1/2ac6088a-a0a4-4047-8220-03319fe0ec29/blynk-wordmark.png",
+  icon: "https://erp.blynkex.com/__l5e/assets-v1/c00f9f89-c953-47f0-893c-f1c7540fb140/blynk-icon.png",
   blue: "#00AEEF",
   ink: "#0B1524",
   hrName: "Honey Sewani",
@@ -137,24 +138,36 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
       </p>
 
       <!-- HR signature -->
-      <div style="margin-top:28px;padding-top:22px;border-top:1px solid #eef2f7;">
-        <div style="font-size:20px;font-weight:800;color:#5b62d6;line-height:1.2;">${BRAND.hrName}</div>
-        <div style="font-size:13px;font-weight:700;color:${BRAND.ink};padding-bottom:6px;border-bottom:2px solid #5b62d6;">
+      <div style="margin-top:30px;padding-top:22px;border-top:1px solid #eef2f7;">
+        <div style="font-size:21px;font-weight:800;color:#5b62d6;line-height:1.25;">${BRAND.hrName}</div>
+        <div style="font-size:13.5px;font-weight:700;color:${BRAND.ink};padding-bottom:7px;border-bottom:2px solid #5b62d6;">
           ${BRAND.hrTitle} &nbsp;|&nbsp; <a href="https://${BRAND.site}" style="color:${BRAND.ink};text-decoration:underline;">${BRAND.site}</a>
         </div>
-        <table cellpadding="0" cellspacing="0" style="margin-top:14px;">
+        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;border-collapse:collapse;">
           <tr>
-            <td valign="top" style="padding-right:16px;">
-              <img src="${BRAND.logo}" alt="Blynk" width="132" style="display:block;width:132px;height:auto;" />
+            <td valign="top" width="96" style="width:96px;padding:2px 20px 0 0;">
+              <img src="${BRAND.icon}" alt="Blynk Virtual Technologies" width="64" style="display:block;width:64px;height:auto;border:0;" />
             </td>
-            <td valign="top" style="font-size:13px;color:#334155;line-height:1.7;">
-              <strong>M:</strong> ${BRAND.hrPhone}<br/>
-              <strong>E:</strong> <a href="mailto:${BRAND.hrEmail}" style="color:#334155;">${BRAND.hrEmail}</a><br/>
-              <strong>A:</strong> ${BRAND.company},<br/>&nbsp;&nbsp;&nbsp;${BRAND.address}
+            <td valign="top">
+              <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-size:13px;color:#334155;line-height:1.55;">
+                <tr>
+                  <td valign="top" style="padding:0 8px 4px 0;font-weight:700;color:${BRAND.ink};white-space:nowrap;">M:</td>
+                  <td valign="top" style="padding:0 0 4px 0;">${BRAND.hrPhone}</td>
+                </tr>
+                <tr>
+                  <td valign="top" style="padding:0 8px 4px 0;font-weight:700;color:${BRAND.ink};">E:</td>
+                  <td valign="top" style="padding:0 0 4px 0;"><a href="mailto:${BRAND.hrEmail}" style="color:#334155;">${BRAND.hrEmail}</a></td>
+                </tr>
+                <tr>
+                  <td valign="top" style="padding:0 8px 0 0;font-weight:700;color:${BRAND.ink};">A:</td>
+                  <td valign="top" style="padding:0;">${BRAND.company},<br/>${BRAND.address}</td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
       </div>
+
     </div>
 
     <p style="margin:16px 6px 0;font-size:11px;color:#94a3b8;line-height:1.6;text-align:center;">

@@ -17,9 +17,14 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const [payPrompt, setPayPrompt] = useState<{ id: string; name: string } | null>(null);
+  const [paymentRef, setPaymentRef] = useState("");
+
   const [showCreate, setShowCreate] = useState(false);
   const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState("");
@@ -180,12 +185,20 @@ export default function FnFSettlementPage() {
   });
 
 
+  // The DB state machine (fn_enforce_fnf_state_machine) is the contract:
+  //   draft → calculated → approved → paid   (draft/calculated → cancelled)
+  //   approving requires approved_by; marking paid requires payment_reference.
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, paymentReference }: { id: string; status: string; paymentReference?: string }) => {
       const payload: any = { status, updated_at: new Date().toISOString() };
-      if (status === "paid") payload.paid_at = new Date().toISOString();
+      if (status === "approved") payload.approved_by = user?.username || user?.id || "hr";
+      if (status === "paid") {
+        payload.paid_at = new Date().toISOString();
+        payload.payment_reference = paymentReference;
+      }
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
+
       // Auto-deactivate employee when F&F is paid + surface Razorpay dismiss prompt
       if (status === "paid") {
         const { data: settlement } = await (supabase as any)
@@ -241,10 +254,13 @@ export default function FnFSettlementPage() {
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
       draft: "bg-muted/80 text-muted-foreground border-border",
+      calculated: "bg-warning/10 text-warning border-warning/20",
       pending_approval: "bg-warning/10 text-warning border-warning/20",
       approved: "bg-info/10 text-info border-info/20",
+      cancelled: "bg-destructive/10 text-destructive border-destructive/20",
       paid: "bg-success/10 text-success border-success/20",
     };
+
     return map[s] || "bg-muted/80 text-muted-foreground border-border";
   };
 
@@ -298,11 +314,11 @@ export default function FnFSettlementPage() {
                       </span>
                     </div>
                     {s.status === "draft" && (
-                      <Button size="sm" variant="outline" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "pending_approval" })}>
+                      <Button size="sm" variant="outline" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "calculated" })}>
                         Submit
                       </Button>
                     )}
-                    {s.status === "pending_approval" && (
+                    {(s.status === "calculated" || s.status === "pending_approval") && (
                       <Button size="sm" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "approved" })}>
                         Approve
                       </Button>
@@ -317,11 +333,18 @@ export default function FnFSettlementPage() {
                             ? undefined
                             : "Final-month salary is not confirmed from RazorpayX yet"
                         }
-                        onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}
+                        onClick={() => {
+                          setPaymentRef("");
+                          setPayPrompt({
+                            id: s.id,
+                            name: `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim() || "employee",
+                          });
+                        }}
                       >
                         Mark Paid
                       </Button>
                     )}
+
                   </div>
                 </div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
@@ -411,6 +434,37 @@ export default function FnFSettlementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!payPrompt} onOpenChange={(o) => { if (!o) setPayPrompt(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">Mark F&amp;F as Paid</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Record the bank/UTR reference for <strong>{payPrompt?.name}</strong>. A payment reference is mandatory before a settlement can be marked paid.
+            </p>
+            <Label>Payment Reference</Label>
+            <Input className="h-9" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} placeholder="UTR / transaction ID" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="h-9" onClick={() => setPayPrompt(null)}>Cancel</Button>
+            <Button
+              className="h-9 bg-success hover:bg-success"
+              disabled={!paymentRef.trim() || updateStatusMutation.isPending}
+              onClick={() => {
+                if (!payPrompt) return;
+                updateStatusMutation.mutate({ id: payPrompt.id, status: "paid", paymentReference: paymentRef.trim() });
+                setPayPrompt(null);
+              }}
+            >
+              Confirm Paid
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       <AlertDialog open={!!dismissPrompt} onOpenChange={(o) => { if (!o) setDismissPrompt(null); }}>
         <AlertDialogContent>

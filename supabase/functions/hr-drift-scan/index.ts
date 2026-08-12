@@ -318,7 +318,7 @@ serve(async (req) => {
     }).slice(0, refreshLimit);
 
     const freshSnapshots = new Map<string, any>();
-    for (const row of needsRefresh) {
+    const refreshSnapshot = async (row: any) => {
       try {
         const r = await fetch(proxyUrl, {
           method: "POST",
@@ -353,7 +353,28 @@ serve(async (req) => {
         refreshFailed++;
         rzpStale.add(row.hr_employee_id);
       }
-    }
+    };
+
+    // A full scan can have dozens of stale snapshots. Refreshing them serially
+    // made the browser request exceed the Edge Function gateway deadline and
+    // surface only "Failed to send a request". Keep pressure on Opfin bounded,
+    // but process independent employees concurrently so the scan can respond.
+    const refreshConcurrency = Math.max(1, Math.min(12, Number(
+      url.searchParams.get("refresh_concurrency") ?? "8",
+    )));
+    let refreshCursor = 0;
+    const refreshWorker = async () => {
+      while (refreshCursor < needsRefresh.length) {
+        const row = needsRefresh[refreshCursor++];
+        if (row) await refreshSnapshot(row);
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(refreshConcurrency, needsRefresh.length) },
+        () => refreshWorker(),
+      ),
+    );
 
     for (const r of mapRows) {
       rzpByEmp.set(r.hr_employee_id, freshSnapshots.get(r.hr_employee_id) ?? r.last_pull_snapshot ?? null);

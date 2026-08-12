@@ -400,10 +400,12 @@ export function HorillaSidebar({
                         {item.children!.map((child) => (
                           <button
                             key={child.path}
+                            onMouseEnter={() => prefetch(child.path)}
+                            onFocus={() => prefetch(child.path)}
                             onClick={() => handleNavigate(child.path)}
                             className={cn(
                               "w-full text-left text-sm py-2 px-3 transition-colors",
-                              location.pathname === child.path
+                              isChildActive(child.path)
                                 ? "text-[#6C63FF] bg-[#6C63FF]/10"
                                 : "text-muted-foreground hover:text-white hover:bg-[#252540]"
                             )}

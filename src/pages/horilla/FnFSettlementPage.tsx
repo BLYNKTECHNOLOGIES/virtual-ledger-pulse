@@ -26,6 +26,9 @@ export default function FnFSettlementPage() {
   const [paymentRef, setPaymentRef] = useState("");
 
   const [showCreate, setShowCreate] = useState(false);
+  // One settlement per employee: the dialog is either creating a new one or
+  // editing the existing (still-editable) settlement of that employee.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [form, setForm] = useState({

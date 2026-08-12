@@ -55,7 +55,7 @@ import AttendanceTab from '@/components/profile/AttendanceTab';
 import MyAssetsTab from '@/components/profile/MyAssetsTab';
 import MyLoansCard from '@/components/profile/MyLoansCard';
 import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
-import PayslipsTab from '@/components/profile/PayslipsTab';
+
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import TeamLeaveApprovals from '@/components/profile/TeamLeaveApprovals';
 import TeamRegularizationApprovals from '@/components/profile/TeamRegularizationApprovals';

@@ -99,11 +99,13 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
   <div style="max-width:600px;margin:0 auto;padding:28px 16px;">
 
     <!-- Brand header -->
-    <div style="background:${BRAND.ink};border-radius:14px 14px 0 0;padding:22px 26px;">
-      <img src="${BRAND.logo}" alt="Blynk Virtual Technologies" width="180" style="display:block;width:180px;max-width:60%;height:auto;background:#ffffff;padding:8px 12px;border-radius:8px;" />
+    <div style="background:#ffffff;border:1px solid #e6ecf3;border-bottom:none;border-radius:14px 14px 0 0;padding:22px 26px 18px;">
+      <img src="${BRAND.logo}" alt="Blynk Virtual Technologies" width="200" style="display:block;width:200px;max-width:64%;height:auto;border:0;" />
     </div>
+    <div style="height:3px;background:${BRAND.blue};"></div>
 
-    <div style="background:#ffffff;border:1px solid #e6ecf3;border-top:none;border-radius:0 0 14px 14px;padding:28px 26px;">
+    <div style="background:#ffffff;border:1px solid #e6ecf3;border-top:none;border-radius:0 0 14px 14px;padding:26px;">
+
       <div style="display:inline-block;background:${chipBg};color:${accent};border:1px solid ${accent}22;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">
         ${label} marked
       </div>

@@ -96,13 +96,22 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
         {!isLoading && !error && (
           <>
             {/* Flags */}
-            {(flags.night_span || flags.shift_deviation || lop > 0 || stale.length > 0) && (
+            {(flags.judged_shift || flags.night_span || flags.shift_deviation || lop > 0 || stale.length > 0) && (
               <div className="flex flex-wrap gap-2">
+                {flags.judged_shift && (
+                  <Badge variant="outline" className="text-[11px]">
+                    <Compass className="mr-1 h-3 w-3" />
+                    Judged on {flags.judged_shift}
+                  </Badge>
+                )}
                 {flags.night_span && (
                   <Badge variant="outline" className="text-[11px]"><Moon className="mr-1 h-3 w-3" /> night span</Badge>
                 )}
                 {flags.shift_deviation && (
-                  <Badge variant="outline" className="text-[11px]"><Compass className="mr-1 h-3 w-3" /> shift deviation</Badge>
+                  <Badge variant="outline" className="border-warning/40 text-[11px] text-warning">
+                    <Compass className="mr-1 h-3 w-3" />
+                    worked off-shift{flags.assigned_shift ? ` (assigned ${flags.assigned_shift})` : ""}
+                  </Badge>
                 )}
                 {stale.length > 0 && (
                   <Badge variant="outline" className="border-destructive/40 text-[11px] text-destructive">
@@ -116,6 +125,7 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
                 )}
               </div>
             )}
+
 
             {/* Summary */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
